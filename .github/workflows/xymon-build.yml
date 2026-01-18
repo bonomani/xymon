@@ -36,6 +36,10 @@ jobs:
             libldap2-dev \
             libtirpc-dev
 
+      - name: Create xymon user
+        run: |
+          id xymon >/dev/null 2>&1 || sudo useradd -r -s /usr/sbin/nologin xymon
+
       - name: Select compiler
         run: |
           if [ "${{ matrix.compiler }}" = "clang" ]; then
