@@ -9,7 +9,14 @@ on:
 
 jobs:
   build:
+    name: build (${{ matrix.variant }} / ${{ matrix.compiler }})
     runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        variant: [server, client]
+        compiler: [gcc, clang]
 
     steps:
       - name: Checkout source
@@ -18,20 +25,32 @@ jobs:
       - name: Install build dependencies
         run: |
           sudo apt-get update
-          sudo apt-get install -y \
+          sudo apt-get install -y --no-install-recommends \
             build-essential \
-            gmake \
+            clang \
             perl \
             fping \
             libssl-dev \
             libpcre3-dev \
             librrd-dev \
-            libldap2-dev
+            libldap2-dev \
+            libtirpc-dev
 
-      - name: Configure Xymon (srv)
+      - name: Select compiler
         run: |
-          ./configure --server
+          if [ "${{ matrix.compiler }}" = "clang" ]; then
+            echo "CC=clang" >> $GITHUB_ENV
+            echo "CXX=clang++" >> $GITHUB_ENV
+          else
+            echo "CC=gcc" >> $GITHUB_ENV
+            echo "CXX=g++" >> $GITHUB_ENV
+          fi
+
+      - name: Configure Xymon (${{ matrix.variant }})
+        run: |
+          ./configure --${{ matrix.variant }}
 
       - name: Build Xymon
         run: |
-          gmake
+          make -j1
+
