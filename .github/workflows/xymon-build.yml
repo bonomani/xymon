@@ -38,7 +38,12 @@ jobs:
 
       - name: Create xymon user
         run: |
-          id xymon >/dev/null 2>&1 || sudo useradd -r -s /usr/sbin/nologin xymon
+          id xymon >/dev/null 2>&1 || sudo useradd -r -m -d /home/xymon -s /usr/sbin/nologin xymon
+
+      - name: Ensure default Xymon home exists
+        run: |
+          sudo mkdir -p /home/xymon
+          sudo chown xymon:xymon /home/xymon
 
       - name: Select compiler
         run: |
