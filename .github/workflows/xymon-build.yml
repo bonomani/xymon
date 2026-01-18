@@ -28,7 +28,7 @@ jobs:
             librrd-dev \
             libldap2-dev
 
-      - name: Configure Xymon (srv)
+      - name: Configure Xymon (server)
         run: |
           ./configure --server
 
