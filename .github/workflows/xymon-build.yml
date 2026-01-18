@@ -50,9 +50,15 @@ jobs:
             echo "CXX=g++" >> $GITHUB_ENV
           fi
 
-      - name: Configure Xymon (${{ matrix.variant }})
+      - name: Configure Xymon (${{ matrix.variant }}) with defaults
         run: |
-          yes "" | ./configure --${{ matrix.variant }}
+          printf '\n%.0s' {1..50} | ./configure --${{ matrix.variant }}
+
+      - name: Disable PIE for client build
+        if: matrix.variant == 'client'
+        run: |
+          echo "CFLAGS=-fno-pie" >> $GITHUB_ENV
+          echo "LDFLAGS=-no-pie" >> $GITHUB_ENV
 
       - name: Build Xymon
         run: |
