@@ -22,19 +22,14 @@ jobs:
       - name: Checkout source
         uses: actions/checkout@v4
 
-      - name: Install build dependencies
+      - name: Install base build dependencies
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             clang \
             perl \
-            fping \
-            libssl-dev \
-            libpcre3-dev \
-            librrd-dev \
-            libldap2-dev \
-            libtirpc-dev
+            fping
 
       - name: Create xymon user
         run: |
@@ -53,6 +48,15 @@ jobs:
       - name: Configure Xymon (${{ matrix.variant }})
         run: |
           ./configure --${{ matrix.variant }}
+
+      - name: Install optional dependencies
+        run: |
+          sudo apt-get install -y --no-install-recommends \
+            libssl-dev \
+            libpcre3-dev \
+            librrd-dev \
+            libldap2-dev \
+            libtirpc-dev
 
       - name: Build Xymon
         run: |
