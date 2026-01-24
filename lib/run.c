@@ -29,7 +29,7 @@ static char rcsid[] = "$Id: run.c 6893 2012-01-21 12:52:53Z storner $";
 #include <fcntl.h>
 #include <sys/statvfs.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 int run_command(char *cmd, char *errortext, strbuffer_t *banner, int showcmd, int timeout)
 {

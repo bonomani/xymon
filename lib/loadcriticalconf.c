@@ -23,7 +23,7 @@ static char rcsid[] = "$Id$";
 #include <ctype.h>
 #include <utime.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 static void * rbconf;
 STATIC_SBUF_DEFINE(defaultfn);

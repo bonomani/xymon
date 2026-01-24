@@ -16,7 +16,7 @@ static char rcsid[] = "$Id: misc.c 6712 2011-07-31 21:01:52Z storner $";
 #include <string.h>
 
 #include "config.h"
-#include "libxymon.h"
+#include "xymon_server.h"
 
 
 void *acctree = NULL;

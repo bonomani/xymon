@@ -22,7 +22,7 @@ static char rcsid[] = "$Id$";
 #include <time.h>
 #include <limits.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 typedef struct pagelist_t {
 	char *pagepath;

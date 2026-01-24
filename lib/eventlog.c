@@ -30,7 +30,7 @@ static char rcsid[] = "$Id$";
 
 #include <pcre.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 char *eventignorecolumns = NULL;
 int havedoneeventlog = 0;

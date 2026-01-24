@@ -27,7 +27,7 @@ static char rcsid[] = "$Id$";
 
 #include <pcre.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 
 /* token's are the pre-processor macros we expand while parsing the config file */

@@ -28,7 +28,7 @@ static char rcsid[] = "$Id: acknowledgementslog.c 7085 2012-07-16 11:08:37Z stor
 
 #include <pcre.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 typedef struct acknowledgements_t {
 	void *host;

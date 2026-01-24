@@ -17,7 +17,7 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <stdlib.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 sender_t *getsenderlist(char *iplist)
 {

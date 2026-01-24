@@ -24,7 +24,7 @@ static char rcsid[] = "$Id$";
 #include <fcntl.h>
 #include <pcre.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 #include "version.h"
 
 /* Stuff for headfoot - variables we can set dynamically */

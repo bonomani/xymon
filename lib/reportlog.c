@@ -19,7 +19,7 @@ static char rcsid[] = "$Id$";
 #include <string.h>
 #include <unistd.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 char *stylenames[3] = { "crit", "nongr", "all" };
 

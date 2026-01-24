@@ -31,7 +31,7 @@ static char rcsid[] = "$Id$";
 #include <errno.h>
 #include <fcntl.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 #include <signal.h>
 

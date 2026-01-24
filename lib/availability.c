@@ -20,7 +20,7 @@ static char rcsid[] = "$Id$";
 #include <stdarg.h>
 #include <stdlib.h>
 
-#include "libxymon.h"
+#include "xymon_server.h"
 
 typedef struct {
 	int dow;
