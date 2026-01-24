@@ -72,8 +72,10 @@ static int	xymonmetaqueued;		/* Anything in the buffer ? */
 static strbuffer_t *metamsg = NULL;	/* Complete meta message buffer */
 static strbuffer_t *metabuf = NULL;	/* message buffer for one meta message */
 
+#ifndef CLIENTONLY
 static int backfeedqueue = -1;
 static int max_backfeedsz = 16384;
+#endif
 
 int dontsendmessages = 0;
 
@@ -585,7 +587,7 @@ char *getsendreturnstr(sendreturn_t *s, int takeover)
 	return result;
 }
 
-
+#ifndef CLIENTONLY
 int sendmessage_init_local(void)
 {
         backfeedqueue = setup_feedback_queue(CHAN_CLIENT);
@@ -594,12 +596,16 @@ int sendmessage_init_local(void)
 	max_backfeedsz = 1024*shbufsz(C_FEEDBACK_QUEUE)-1;
 	return max_backfeedsz;
 }
+#endif
 
+#ifndef CLIENTONLY
 void sendmessage_finish_local(void)
 {
         close_feedback_queue(backfeedqueue, CHAN_CLIENT);
 }
+#endif
 
+#ifndef CLIENTONLY
 sendresult_t sendmessage_local(char *msg)
 {
 	int n, done = 0;
@@ -634,6 +640,7 @@ sendresult_t sendmessage_local(char *msg)
 
 	return XYMONSEND_OK;
 }
+#endif
 
 
 sendresult_t sendmessage(char *msg, char *recipient, int timeout, sendreturn_t *response)
