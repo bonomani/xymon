@@ -60,6 +60,31 @@ It must **never** depend on server-specific code.
 - must remain dependency-clean
 
 
+xymon_server_loaders Library
+----------------------------
+
+### Role
+
+`xymon_server_loaders` contains:
+- server-side configuration loaders isolated from server core,
+- code with no runtime networking,
+- modules eligible for extraction from server core.
+
+It may depend on `xymon_common`.  
+It must **not** depend on `xymon_server_core`.
+
+### Current Scope (B6.7)
+
+- loadalerts.c
+
+### Constraints
+
+- no reverse dependency
+- no runtime protocol handling
+- no persistent writes
+- explicit linkage from server core only
+
+
 xymon_server_core Library
 ------------------------
 
@@ -70,15 +95,15 @@ xymon_server_core Library
 - modules requiring server execution context,
 - server-owned behavior.
 
-It may depend on `xymon_common`.
+It may depend on `xymon_common` and `xymon_server_loaders`.
 
-### Current Scope (B6.5 baseline – adjusted)
+### Current Scope (B6.7)
 
 - server bootstrap / stub
 - server logging logic
-- server-side configuration loaders required at startup
+- non-extractable server configuration loaders
 
-### Files (B6.5)
+### Files
 
 - server_stub.c
 
@@ -88,29 +113,20 @@ It may depend on `xymon_common`.
 - htmllog.c
 - reportlog.c
 
-**Configuration loaders (server-scoped, TRANSITIONAL)**
-- loadalerts.c
+**Configuration loaders (server-scoped, non-extractable)**
 - loadcriticalconf.c
 - loadhosts.c
 
-These loaders are included **temporarily** and were subject to
-explicit dependency analysis (B6.6).
-
-They are included **only as long as**:
-- they depend exclusively on `xymon_common`,
-- they do not introduce runtime network protocol handling,
-- they do not transfer ownership of core server data structures.
-
 ### Loader analysis references
 
-- loadhosts.c  
+- loadhosts.c
   → docs/architecture/loaders/loadhosts.md
-- loadalerts.c  
+- loadalerts.c
   → docs/architecture/loaders/loadalerts.md
-- loadcriticalconf.c  
+- loadcriticalconf.c
   → docs/architecture/loaders/loadcriticalconf.md
 
-### Loader Migration Status (B6.6)
+### Loader Migration Status
 
 - loadhosts.c  
   Classification: NON-EXTRACTABLE  
@@ -120,12 +136,12 @@ They are included **only as long as**:
   - indirect network access via loader components
 
 - loadalerts.c  
-  Classification: CANDIDAT EXTRACTABLE  
+  Classification: EXTRACTED (B6.7)  
   Notes:
+  - isolated in xymon_server_loaders
   - depends on xymon_common and libpcre
   - no network access
-  - no direct runtime I/O
-  - eligible for future isolation in xymon_server_loaders
+  - no persistent writes
 
 - loadcriticalconf.c  
   Classification: NON-EXTRACTABLE  
@@ -134,22 +150,16 @@ They are included **only as long as**:
   - clone and alias management
   - shared global configuration state
 
-### Explicit Exclusions (B6.5)
+### Explicit Exclusions
 
 - network protocol handling
 - runtime daemon logic
 - client-side behavior
 - cross-mode shared ownership of server data
 
-### Constraints
-
-- server-only semantics
-- no reverse dependency into `xymon_common`
-- loader code must remain dependency-auditable
-
 ### Evolution Rules
 
-- any migration into or out of `xymon_server_core` must be:
+- any migration into or out of server core must be:
   - explicit,
   - documented,
   - dependency-complete,
@@ -183,7 +193,7 @@ Global Architecture Rules
 - strictly unidirectional dependencies
 - `xymon_common` must never include server semantics
 - `xymon_server_core` owns server-only behavior
-- loaders may reside in server core **only if dependency-clean**
+- extracted loaders must not reintroduce coupling
 - all changes must:
   - keep the build green,
   - be atomic,
@@ -194,9 +204,8 @@ Status
 ------
 
 - Architecture baseline: **B6.5**
-- Baseline validated by CI
-- Loader analysis completed (B6.6)
-- Loader classification frozen
-- Next phase (optional): **B6.7 – isolate loadalerts.c**
-- This document is updated **only after validated structural changes**
+- Loader analysis completed: **B6.6**
+- Loader isolation completed: **B6.7**
+- Architecture state validated by CI
+- This document reflects the **current enforced structure**
 
