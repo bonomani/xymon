@@ -75,7 +75,14 @@ It must **not** depend on `xymon_server_core`.
 
 ### Current Scope (B6.7)
 
-- loadalerts.c
+- loadalerts.c (wrapper)
+
+The canonical implementation remains in:
+- lib/loadalerts.c
+
+The version located in `xymon_server_loaders` is a **build-level wrapper only**
+used to support CMake-based isolation while preserving the historical
+Autotools / Makefile build.
 
 ### Constraints
 
@@ -83,6 +90,7 @@ It must **not** depend on `xymon_server_core`.
 - no runtime protocol handling
 - no persistent writes
 - explicit linkage from server core only
+- wrapper files must not contain logic
 
 
 xymon_server_core Library
@@ -136,9 +144,10 @@ It may depend on `xymon_common` and `xymon_server_loaders`.
   - indirect network access via loader components
 
 - loadalerts.c  
-  Classification: EXTRACTED (B6.7)  
+  Classification: ISOLATED VIA WRAPPER (B6.7)  
   Notes:
-  - isolated in xymon_server_loaders
+  - canonical source remains in lib/loadalerts.c
+  - wrapper located in xymon_server_loaders
   - depends on xymon_common and libpcre
   - no network access
   - no persistent writes
@@ -205,7 +214,7 @@ Status
 
 - Architecture baseline: **B6.5**
 - Loader analysis completed: **B6.6**
-- Loader isolation completed: **B6.7**
+- Loader isolation completed via wrapper: **B6.7**
 - Architecture state validated by CI
 - This document reflects the **current enforced structure**
 
