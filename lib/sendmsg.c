@@ -43,6 +43,10 @@ static char rcsid[] = "$Id$";
 
 #include "libxymon.h"
 
+#ifndef CLIENTONLY
+#include "xymond_ipc.h"
+#endif
+
 #define SENDRETRIES 2
 
 /* These commands go to all Xymon servers */
