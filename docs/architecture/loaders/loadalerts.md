@@ -66,5 +66,5 @@ Coupling:
 - Depends on libpcre
 
 Status:
-- TRANSITIONAL (B6.5 -> B6.6)
+- CANDIDAT EXTRACTABLE (validated in B6.6, isolation in progress B6.7)
 
