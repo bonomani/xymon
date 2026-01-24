@@ -1,7 +1,7 @@
 /*----------------------------------------------------------------------------*/
 /* Xymon monitor library.                                                     */
 /*                                                                            */
-/* Copyright (C) 2002-2011 Henrik Storner <henrik@storner.dk>                 */
+/* Copyright (C) 2002-2011 Henrik Storner <henrik@storner.dk>                  */
 /*                                                                            */
 /* This program is released under the GNU General Public License (GPL),       */
 /* version 2. See the file "COPYING" for details.                             */
@@ -16,13 +16,13 @@
 #include <time.h>
 
 typedef struct htnames_t {
-	char *name;
-	struct htnames_t *next;
+        char *name;
+        struct htnames_t *next;
 } htnames_t;
 
 typedef struct strbuffer_t {
-	char *s;
-	int used, sz;
+        char *s;
+        int used, sz;
 } strbuffer_t;
 
 #define STRBUF(buf) (buf->s)
@@ -38,6 +38,8 @@ typedef struct strbuffer_t {
 #include "../lib/osdefs.h"
 
 #ifdef XYMONWINCLIENT
+
+/* Windows client common utilities only */
 #include "../lib/strfunc.h"
 #include "../lib/errormsg.h"
 #include "../lib/environ.h"
@@ -49,21 +51,14 @@ typedef struct strbuffer_t {
 #include "../lib/rbtr.h"
 #include "../lib/msort.h"
 #include "../lib/misc.h"
-#else
 
-/* Defines CGI URL's */
+#else  /* non-Windows, common + generic CGI helpers */
+
+/* Generic CGI helpers (non-server-specific) */
 #include "../lib/cgiurls.h"
 #include "../lib/links.h"
 
-/* Generates HTML */
-#include "../lib/acklog.h"
-#include "../lib/eventlog.h"
-#include "../lib/headfoot.h"
-#include "../lib/htmllog.h"
-#include "../lib/notifylog.h"
-#include "../lib/acknowledgementslog.h"
-#include "../lib/reportlog.h"
-
+/* Generic utilities (architecture-neutral) */
 #include "../lib/availability.h"
 #include "../lib/calc.h"
 #include "../lib/cgi.h"
@@ -78,19 +73,14 @@ typedef struct strbuffer_t {
 #include "../lib/xymonrrd.h"
 #include "../lib/holidays.h"
 #include "../lib/ipaccess.h"
-#include "../lib/loadalerts.h"
-#include "../lib/loadhosts.h"
-#include "../lib/loadcriticalconf.h"
 #include "../lib/locator.h"
 #include "../lib/matching.h"
 #include "../lib/md5.h"
 #include "../lib/memory.h"
 #include "../lib/misc.h"
 #include "../lib/msort.h"
-#include "../lib/netservices.h"
 #include "../lib/readmib.h"
 #include "../lib/rmd160c.h"
-#include "../lib/run.h"
 #include "../lib/sendmsg.h"
 #include "../lib/sha1.h"
 #include "../lib/sha2.h"
@@ -103,10 +93,8 @@ typedef struct strbuffer_t {
 #include "../lib/tree.h"
 #include "../lib/url.h"
 #include "../lib/webaccess.h"
-#include "../lib/xymond_buffer.h"
-#include "../lib/xymond_ipc.h"
 
-#endif
+#endif /* XYMONWINCLIENT */
 
-#endif
+#endif /* __LIBXYMON_H__ */
 
