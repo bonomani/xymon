@@ -814,12 +814,16 @@ static void meta_flush(void)
 
 void combo_add(strbuffer_t *buf)
 {
+#ifndef CLIENTONLY	
 	if (combo_is_local) {
 		/* Check if message fits into the backfeed message buffer */
 		if ( (STRBUFLEN(xymonmsg) + STRBUFLEN(buf)) >= max_backfeedsz) {
 			combo_flush();
 		}
 	}
+#else
+        if (0) { }
+#endif	
 	else {
 		/* Check if there is room for the message + 2 newlines */
 		if (maxmsgspercombo && (xymonmsgqueued >= maxmsgspercombo)) {
