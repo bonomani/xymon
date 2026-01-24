@@ -57,7 +57,18 @@ target_compile_options(xymon_common PRIVATE
     -Werror=implicit-int
 )
 
-# ---- xymon_server_core: server-only (logs + migrated loaders, B6.5.6) ----
+# ---- xymon_server_loaders: isolated loaders (B6.7) ----
+add_library(xymon_server_loaders STATIC
+    lib/server_loaders/loadalerts.c
+)
+
+target_include_directories(xymon_server_loaders PUBLIC
+    ${CMAKE_SOURCE_DIR}/include
+    ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_BINARY_DIR}
+)
+
+# ---- xymon_server_core: server-only (logs + core loaders) ----
 add_library(xymon_server_core STATIC
     lib/server_stub.c
 
@@ -67,8 +78,7 @@ add_library(xymon_server_core STATIC
     lib/htmllog.c
     lib/reportlog.c
 
-    # server configuration loaders
-    lib/loadalerts.c
+    # server configuration loaders (non-extractable)
     lib/loadcriticalconf.c
     lib/loadhosts.c
 )
@@ -79,6 +89,12 @@ target_include_directories(xymon_server_core PUBLIC
     ${CMAKE_BINARY_DIR}
 )
 
+target_link_libraries(xymon_server_core
+    xymon_common
+    xymon_server_loaders
+)
+
+# ---- CI validation binary ----
 add_executable(xymond_channel
     cmake/smoke.c
 )
