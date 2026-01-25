@@ -31,6 +31,11 @@ static char rcsid[] = "$Id$";
 #include "rssgen.h"
 #include "pagegen.h"
 
+#include "headfoot.h"
+#include "eventlog.h"
+#include "acknowledgementslog.h"
+#include "reportlog.h"
+
 int  subpagecolumns = 1;
 int  hostsbeforepages = 0;
 char *includecolumns = NULL;
