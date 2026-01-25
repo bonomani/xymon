@@ -30,7 +30,6 @@ static char rcsid[] = "$Id$";
 #include "loaddata.h"
 
 #include "libxymon.h"
-#include "loadhosts.h"
 
 int		statuscount = 0;
 
