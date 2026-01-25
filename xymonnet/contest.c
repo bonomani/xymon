@@ -33,6 +33,12 @@ static char rcsid[] = "$Id$";
 #include <netdb.h>
 #include <ctype.h>
 
+/* Add OpenSSL includes here */
+#include <openssl/ssl.h>
+#include <openssl/err.h>
+#include <openssl/x509.h>
+#include <openssl/pem.h>
+
 #include "libxymon.h"
 
 #include "xymonnet.h"
