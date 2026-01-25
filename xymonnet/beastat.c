@@ -27,6 +27,8 @@ static char rcsid[] = "$Id$";
 #include "libxymon.h"
 #include "version.h"
 
+#include "loadhosts.h"
+
 typedef struct bea_idx_t {
         char *idx;
         struct bea_idx_t *next;
