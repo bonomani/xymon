@@ -13,11 +13,20 @@ message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
 # - No architecture enforcement
 # ----------------------------------------------------------------------
 
+# Generate config.h (parity with Autotools ./configure)
+configure_file(
+    ${CMAKE_SOURCE_DIR}/config.h.in
+    ${CMAKE_BINARY_DIR}/config.h
+)
+
+# Global include paths observed in the build
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib
+    ${CMAKE_BINARY_DIR}
 )
 
+# Global compile flags observed everywhere
 add_compile_options(
     -g
     -O2
