@@ -58,6 +58,9 @@ static char rcsid[] = "$Id$";
 
 #include "libxymon.h"
 
+#include "lib/xymond_ipc.h"  // Include for xymond_channel_t
+#include "lib/loadhosts.h"   // Include for ghosthandling_t and XMH_* constants
+
 #define DISABLED_UNTIL_OK -1
 
 /*
