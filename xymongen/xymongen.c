@@ -34,6 +34,8 @@ static char rcsid[] = "$Id$";
 #include "rssgen.h"
 #include "csvreport.h"
 
+#include "xymon_server.h"
+
 /* Global vars */
 xymongen_page_t	*pagehead = NULL;			/* Head of page list */
 state_t		*statehead = NULL;			/* Head of list of all state entries */
