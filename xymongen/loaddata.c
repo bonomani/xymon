@@ -29,6 +29,9 @@ static char rcsid[] = "$Id$";
 #include "loadlayout.h"
 #include "loaddata.h"
 
+#include "libxymon.h"
+#include "loadhosts.h"
+
 int		statuscount = 0;
 
 char		*ignorecolumns = NULL;			/* Columns that will be ignored totally */
