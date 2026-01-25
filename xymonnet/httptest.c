@@ -31,6 +31,8 @@ static char rcsid[] = "$Id$";
 #include "httptest.h"
 #include "dns.h"
 
+#include "loadhosts.h"
+
 
 int tcp_http_data_callback(unsigned char *buf, unsigned int len, void *priv)
 {
