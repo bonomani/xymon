@@ -6,6 +6,7 @@ XYMONCOMMLIB = ../lib/libxymoncomm.a
 XYMONCOMMLIBS = $(XYMONCOMMLIB) $(ZLIBLIBS) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)
 XYMONTIMELIB = ../lib/libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
+CFLAGS += -I../lib
 
 # ARES settings. c-ares is included
 ifeq ($(SYSTEMCARES),no)

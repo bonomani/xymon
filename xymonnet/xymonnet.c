@@ -43,6 +43,7 @@ extern struct rpcent *getrpcbyname(char *);
 #endif
 
 #include "libxymon.h"
+#include "loadhosts.h"
 #include "version.h"
 
 #include "xymonnet.h"
