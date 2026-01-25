@@ -37,8 +37,9 @@ static char rcsid[] = "$Id$";
 
 #include "headfoot.h"
 #include "eventlog.h"
-#include "acknowledgementslog.h"
+#include "acklog.h"
 #include "reportlog.h"
+#include "htmllog.h"
 
 int  subpagecolumns = 1;
 int  hostsbeforepages = 0;
