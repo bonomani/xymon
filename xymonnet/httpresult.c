@@ -27,6 +27,8 @@ static char rcsid[] = "$Id$";
 #include "httpcookies.h"
 #include "httpresult.h"
 
+#include "loadhosts.h"
+
 static int statuscolor(testedhost_t *h, int status)
 {
 	int result = COL_YELLOW;
