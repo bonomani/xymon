@@ -40,6 +40,9 @@ static char rcsid[] = "$Id$";
 #include "httptest.h"
 #include "dns.h"
 
+/* Include netservices.h to use svcinfo_t */
+#include "netservices.h"   /* Add this line to include netservices.h */
+
 /* BSD uses RLIMIT_OFILE */
 #if defined(RLIMIT_OFILE) && !defined(RLIMIT_NOFILE)
 #define RLIMIT_NOFILE RLIMIT_OFILE
