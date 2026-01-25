@@ -792,8 +792,14 @@ static void combo_flush(void)
 	}
 
 	if (combo_is_local) {
+#ifndef CLIENTONLY
 		sendmessage_local(STRBUF(xymonmsg));
 		combo_start_local();
+#else
+                /* CLIENTONLY: no local backfeed, fallback to normal send */
+                sendmessage(STRBUF(xymonmsg), NULL, XYMON_TIMEOUT, NULL);
+                combo_start();
+#endif		
 	}
 	else {
 		sendmessage(STRBUF(xymonmsg), NULL, XYMON_TIMEOUT, NULL);
