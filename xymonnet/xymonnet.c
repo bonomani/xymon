@@ -24,8 +24,6 @@ static char rcsid[] = "$Id$";
 #include <fcntl.h>
 #include <errno.h>
 
-#include "libxymon.h"
-
 #ifdef HAVE_RPCENT_H
 #include <rpc/rpcent.h>
 #endif
@@ -45,6 +43,7 @@ extern struct rpcent *getrpcbyname(char *);
 #endif
 
 #include "libxymon.h"
+#include "loadhosts.h"
 #include "version.h"
 
 #include "xymonnet.h"
