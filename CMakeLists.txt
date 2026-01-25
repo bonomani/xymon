@@ -7,19 +7,17 @@ message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
 
 # ----------------------------------------------------------------------
 # Parity rule:
-# - No variants (server/client are built together in the Make build)
+# - No variants (server/client built together in Make)
 # - No invented libraries
 # - No extra warnings or errors
-# - No architecture enforcement at this stage
+# - No architecture enforcement
 # ----------------------------------------------------------------------
 
-# Global include paths observed in the build
 include_directories(
     ${CMAKE_SOURCE_DIR}/include
     ${CMAKE_SOURCE_DIR}/lib
 )
 
-# Global compile flags observed everywhere
 add_compile_options(
     -g
     -O2
@@ -36,7 +34,7 @@ add_compile_definitions(
 )
 
 # ----------------------------------------------------------------------
-# Build structure mirrors real artifacts, not architecture intent
+# Parity stage 1: libraries only
 # ----------------------------------------------------------------------
 
 add_subdirectory(lib)
