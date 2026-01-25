@@ -13,6 +13,10 @@
 
 static char rcsid[] = "$Id$";
 
+#ifdef CLIENTONLY
+#undef CLIENTONLY
+#endif
+
 #include <limits.h>
 #include <stdio.h>
 #include <string.h>

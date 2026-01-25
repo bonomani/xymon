@@ -18,6 +18,7 @@ xymongen: $(GENOBJS) $(XYMONTIMELIB) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(GENOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 CFLAGS += -I../lib
+CFLAGS := $(filter-out -DCLIENTONLY,$(CFLAGS))
 ################################################
 # Default compilation rules
 ################################################
