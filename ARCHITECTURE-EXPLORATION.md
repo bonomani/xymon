@@ -1,5 +1,6 @@
 ARCHITECTURE.md
 ===============
+NOTE: This document contains exploratory architecture ideas only; it does not describe the current enforced build structure nor a committed target architecture.
 
 No reverse dependency is allowed.
 
