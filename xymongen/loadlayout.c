@@ -27,6 +27,8 @@ static char rcsid[] = "$Id$";
 #include "util.h"
 #include "loadlayout.h"
 
+#include "xymon_server.h"
+
 #define MAX_TARGETPAGES_PER_HOST 10
 
 time_t	snapshot = 0;				/* Set if we are doing a snapshot */
