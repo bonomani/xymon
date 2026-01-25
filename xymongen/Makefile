@@ -1,5 +1,6 @@
 # Makefile for xymongen
 #
+CFLAGS += -I$(BUILDTOPDIR)/lib
 
 PROGRAMS = xymongen
 GENOBJS = xymongen.o loadlayout.o loaddata.o pagegen.o process.o wmlgen.o rssgen.o util.o debug.o csvreport.o
