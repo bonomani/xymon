@@ -54,5 +54,5 @@ add_subdirectory(lib)
 # ----------------------------------------------------------------------
 
 add_subdirectory(xymongen)
-add_subdirectory(xymonnet)
+#add_subdirectory(xymonnet)
 
