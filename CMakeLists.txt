@@ -33,6 +33,7 @@ add_compile_options(
     -Wall
     -Wno-unused
     -Wno-pointer-sign
+    -include ${CMAKE_BINARY_DIR}/config.h
 )
 
 add_compile_definitions(
@@ -49,8 +50,9 @@ add_compile_definitions(
 add_subdirectory(lib)
 
 # ----------------------------------------------------------------------
-# Parity stage 3: first server executable
+# Parity stage 3: server executables
 # ----------------------------------------------------------------------
 
 add_subdirectory(xymongen)
+add_subdirectory(xymonnet)
 
