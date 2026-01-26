@@ -1,21 +1,22 @@
 # server/CMakeLists.txt
 #
 # Parity stage 3:
-# - Define exactly one real server executable from the Make build
+# - One real server executable
+# - Explicit paths (no guessing by CMake)
 # - No refactoring
-# - No extra flags or includes
+# - No extra flags
 
 add_executable(xymongen
-    xymongen.c
-    loadlayout.c
-    loaddata.c
-    pagegen.c
-    process.c
-    wmlgen.c
-    rssgen.c
-    util.c
-    debug.c
-    csvreport.c
+    ${CMAKE_SOURCE_DIR}/server/xymongen.c
+    ${CMAKE_SOURCE_DIR}/server/loadlayout.c
+    ${CMAKE_SOURCE_DIR}/server/loaddata.c
+    ${CMAKE_SOURCE_DIR}/server/pagegen.c
+    ${CMAKE_SOURCE_DIR}/server/process.c
+    ${CMAKE_SOURCE_DIR}/server/wmlgen.c
+    ${CMAKE_SOURCE_DIR}/server/rssgen.c
+    ${CMAKE_SOURCE_DIR}/server/util.c
+    ${CMAKE_SOURCE_DIR}/server/debug.c
+    ${CMAKE_SOURCE_DIR}/server/csvreport.c
 )
 
 target_link_libraries(xymongen
