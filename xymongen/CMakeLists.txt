@@ -5,6 +5,7 @@
 # - Real filesystem layout
 # - No refactoring
 # - No extra flags
+# - Link against the canonical server library (libxymon.a)
 
 add_executable(xymongen
     xymongen.c
@@ -20,7 +21,6 @@ add_executable(xymongen
 )
 
 target_link_libraries(xymongen
-    xymoncomm
-    xymontime
+    xymon
 )
 
