@@ -55,7 +55,14 @@ set_target_properties(xymontime PROPERTIES
 # libxymon.a (canonical aggregate library)
 # ----------------------------------------------------------------------
 
-add_library(xymon STATIC)
+# Dummy source required by CMake for aggregate static library
+file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
+"void xymon_dummy(void) {}\n"
+)
+
+add_library(xymon STATIC
+    ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
+)
 
 target_link_libraries(xymon
     xymoncomm
