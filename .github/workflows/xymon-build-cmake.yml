@@ -3,6 +3,8 @@ name: Xymon build (CMake)
 on:
   workflow_dispatch:
   pull_request:
+permissions:
+  contents: read
 
 jobs:
   build:

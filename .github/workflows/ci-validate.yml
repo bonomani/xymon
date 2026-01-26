@@ -2,6 +2,8 @@ name: CI validation (Linux)
 
 on:
   workflow_dispatch:
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -29,4 +31,3 @@ jobs:
           profile: default
 
       - uses: ./.github/actions/build-xymon
-

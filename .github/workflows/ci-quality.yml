@@ -4,6 +4,8 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 3 * * *"
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -33,4 +35,3 @@ jobs:
           profile: ${{ matrix.profile }}
 
       - uses: ./.github/actions/build-xymon
-

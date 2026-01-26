@@ -2,6 +2,8 @@ name: Xymon build (Linux)
 
 on:
   workflow_dispatch:
+permissions:
+  contents: read
 
 jobs:
   build:
@@ -42,4 +44,3 @@ jobs:
           CONFTYPE: ${{ matrix.conftype }}
 
       - uses: ./.github/actions/build-xymon
-

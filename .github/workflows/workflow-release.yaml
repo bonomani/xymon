@@ -15,7 +15,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - name: Checkout
-        uses: actions/checkout@v6
+        uses: actions/checkout@v4
         with:
           fetch-depth: 1
 #---------------------------------------------------
@@ -52,5 +52,4 @@ jobs:
           generate_release_notes: "true"
           files: |
             ${{ steps.vars.outputs.asset }}
-
 
