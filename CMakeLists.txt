@@ -52,5 +52,5 @@ add_subdirectory(lib)
 # Parity stage 3: first server executable
 # ----------------------------------------------------------------------
 
-add_subdirectory(server)
+add_subdirectory(xymongen)
 
