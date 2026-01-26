@@ -4,8 +4,8 @@
 # - One real executable: xymongen
 # - Real filesystem layout
 # - No refactoring
-# - No extra flags
-# - Link against the canonical server library (libxymon.a)
+# - No extra compile flags
+# - Explicitly link required external libraries
 
 add_executable(xymongen
     xymongen.c
@@ -22,5 +22,13 @@ add_executable(xymongen
 
 target_link_libraries(xymongen
     xymon
+    xymontime
+    xymoncomm
+    pcre
+    ssl
+    crypto
 )
 
+install(TARGETS xymongen
+    RUNTIME DESTINATION ${INSTALLBINDIR}
+)

@@ -6,6 +6,13 @@
 /* Platform */
 #define LINUX 1
 
+/* Endianness
+ * REQUIRED by sha1.c / sha2.c / rmd160c.c
+ * On Linux/x86_64, Xymon is always little-endian
+ */
+#define WORDS_LITTLEENDIAN 1
+/* #undef WORDS_BIGENDIAN */
+
 /* Xymon paths (required by lib/environ.c) */
 #define XYMONTOPDIR   "/usr/lib/xymon"
 #define XYMONHOME     "/usr/lib/xymon"

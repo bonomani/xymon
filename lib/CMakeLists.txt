@@ -1,15 +1,17 @@
 # lib/CMakeLists.txt
 #
-# Parity stage 2:
-# - Exactly match reference static libraries
+# Parity stage 2 (xymongen scope only)
+# - Exactly match objects required to link xymongen
 # - No refactoring
-# - No architecture changes
+# - No invented files
+# - Match historical Makefile behavior
 
 # ----------------------------------------------------------------------
 # libxymoncomm.a
 # ----------------------------------------------------------------------
 
 add_library(xymoncomm STATIC
+    # core utilities
     errormsg.c
     tree.c
     memory.c
@@ -18,23 +20,90 @@ add_library(xymoncomm STATIC
     digest.c
     encoding.c
     calc.c
+    run.c
     misc.c
     msort.c
     files.c
     stackio.c
     sig.c
     suid.c
-    xymond_buffer.c
-    xymond_ipc.c
     matching.c
 
+    # IPC / buffers
+    xymond_buffer.c
+    xymond_ipc.c
+
+    # environment / urls
     environ.c
+    cgi.c
     cgiurls.c
+    url.c
+    ipaccess.c
+    clientlocal.c
+
+    # messaging / combo
+    sendmsg.c
+    ../xymond/combostatus.c
+
+    # links / URLs
+    links.c
+
+    # colors / html / rendering
+    color.c
+    headfoot.c
+    htmllog.c
+    reportlog.c
+
+    # hosts.cfg handling
+    loadhosts.c
+
+    # alerts / SLA / calendar
+    loadalerts.c
+    loadcriticalconf.c
     holidays.c
+
+    # events / acks / availability
+    eventlog.c
+    acklog.c
+    availability.c
+    webaccess.c
+    notifylog.c
+    acknowledgementslog.c
+
+    # RRD / graph helpers
+    xymonrrd.c
+
+    # network / locator
+    netservices.c
+    locator.c
+
+    # crypto backends used by digest.c
+    sha1.c
+    sha2.c
+    rmd160c.c
 )
 
 set_target_properties(xymoncomm PROPERTIES
     OUTPUT_NAME xymoncomm
+)
+
+# REQUIRED: endianness macro (parity with historical Makefile)
+# This MUST be a compile definition, not a compile option
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(xymoncomm PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+else()
+    target_compile_definitions(xymoncomm PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+
+target_compile_options(xymoncomm PRIVATE
+    -include${CMAKE_SOURCE_DIR}/lib/osdefs.h
+)
+
+# External libraries required by objects in libxymoncomm.a
+target_link_libraries(xymoncomm
+    pcre
+    ssl
+    crypto
 )
 
 # ----------------------------------------------------------------------
@@ -52,10 +121,74 @@ set_target_properties(xymontime PROPERTIES
 )
 
 # ----------------------------------------------------------------------
-# libxymon.a (canonical aggregate library)
+# libxymonclient.a
 # ----------------------------------------------------------------------
 
-# Dummy source required by CMake for aggregate static library
+add_library(xymonclient_color OBJECT color.c)
+target_compile_definitions(xymonclient_color PRIVATE CLIENTONLY)
+
+add_library(xymonclient_timefunc OBJECT timefunc.c)
+target_compile_definitions(xymonclient_timefunc PRIVATE CLIENTONLY)
+
+add_library(xymonclient_environ OBJECT environ.c)
+target_compile_definitions(xymonclient_environ PRIVATE XYMONHOME=\"${XYMONCLIENTHOME}\")
+
+add_library(xymonclient STATIC
+    osdefs.c
+    cgiurls.c
+    crondate.c
+    digest.c
+    encoding.c
+    errormsg.c
+    holidays.c
+    ipaccess.c
+    md5.c
+    memory.c
+    misc.c
+    msort.c
+    rmd160c.c
+    sha1.c
+    sha2.c
+    sig.c
+    stackio.c
+    strfunc.c
+    suid.c
+    tree.c
+    $<TARGET_OBJECTS:xymonclient_color>
+    $<TARGET_OBJECTS:xymonclient_timefunc>
+    $<TARGET_OBJECTS:xymonclient_environ>
+)
+
+set_target_properties(xymonclient PROPERTIES
+    OUTPUT_NAME xymonclient
+)
+
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(xymonclient PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+else()
+    target_compile_definitions(xymonclient PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+
+# ----------------------------------------------------------------------
+# libxymonclientcomm.a
+# ----------------------------------------------------------------------
+
+add_library(xymonclientcomm STATIC
+    locator.c
+    loadhosts.c
+    sendmsg.c
+    xymond_ipc.c
+    xymond_buffer.c
+)
+
+set_target_properties(xymonclientcomm PROPERTIES
+    OUTPUT_NAME xymonclientcomm
+)
+
+# ----------------------------------------------------------------------
+# libxymon.a (aggregate)
+# ----------------------------------------------------------------------
+
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
 "void xymon_dummy(void) {}\n"
 )
@@ -72,4 +205,3 @@ target_link_libraries(xymon
 set_target_properties(xymon PROPERTIES
     OUTPUT_NAME xymon
 )
-
