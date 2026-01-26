@@ -14,7 +14,9 @@ jobs:
 
       - name: Architecture guards (B6.7)
         run: |
-          chmod +x ci/guards/architecture.sh
+          if [ -f ci/guards/architecture.sh ]; then
+            chmod +x ci/guards/architecture.sh
+          fi
           # ci/guards/architecture.sh
 
       - uses: ./.github/actions/setup-env
@@ -35,4 +37,3 @@ jobs:
       - name: Build (CMake)
         run: |
           cmake --build build --parallel 1
-
