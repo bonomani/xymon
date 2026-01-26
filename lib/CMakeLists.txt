@@ -52,17 +52,17 @@ set_target_properties(xymontime PROPERTIES
 )
 
 # ----------------------------------------------------------------------
-# libxymon.a
+# libxymon.a  (mixed-source library, as in Make)
 # ----------------------------------------------------------------------
 
 add_library(xymon STATIC
-    util.c
-    debug.c
-    csvreport.c
-    environment.c
-    envexpand.c
-    getweekday.c
-    holidays.c
+    ${CMAKE_SOURCE_DIR}/xymongen/util.c
+    ${CMAKE_SOURCE_DIR}/xymongen/debug.c
+    ${CMAKE_SOURCE_DIR}/xymongen/csvreport.c
+    ${CMAKE_SOURCE_DIR}/lib/environment.c
+    ${CMAKE_SOURCE_DIR}/lib/envexpand.c
+    ${CMAKE_SOURCE_DIR}/lib/getweekday.c
+    ${CMAKE_SOURCE_DIR}/lib/holidays.c
 )
 
 set_target_properties(xymon PROPERTIES
