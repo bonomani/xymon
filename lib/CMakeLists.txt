@@ -51,3 +51,18 @@ set_target_properties(xymontime PROPERTIES
     OUTPUT_NAME xymontime
 )
 
+# ----------------------------------------------------------------------
+# libxymon.a (canonical aggregate library)
+# ----------------------------------------------------------------------
+
+add_library(xymon STATIC)
+
+target_link_libraries(xymon
+    xymoncomm
+    xymontime
+)
+
+set_target_properties(xymon PROPERTIES
+    OUTPUT_NAME xymon
+)
+
