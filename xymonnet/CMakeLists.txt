@@ -2,7 +2,7 @@
 
 option(ENABLE_LDAP "Enable LDAP checks" OFF)
 option(ENABLE_CARES "Enable c-ares support" ON)
-option(ENABLE_SNMP "Enable SNMP collector" OFF)
+option(ENABLE_SNMP "Enable SNMP collector" ON)
 
 find_library(TIRPC_LIBRARY tirpc)
 find_path(TIRPC_INCLUDE_DIR rpc/rpc.h PATH_SUFFIXES tirpc)
@@ -105,17 +105,37 @@ target_link_libraries(contest
 )
 
 if(ENABLE_SNMP)
-    add_executable(xymon-snmpcollect
-        xymon-snmpcollect.c
-    )
-    target_link_libraries(xymon-snmpcollect
-        xymon
-        xymoncomm
-        xymontime
-    )
-    install(TARGETS xymon-snmpcollect
-        RUNTIME DESTINATION ${INSTALLBINDIR}
-    )
+    find_program(NETSNMP_CONFIG net-snmp-config)
+    if(NETSNMP_CONFIG)
+        execute_process(
+            COMMAND ${NETSNMP_CONFIG} --cflags
+            OUTPUT_VARIABLE NETSNMP_CFLAGS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        execute_process(
+            COMMAND ${NETSNMP_CONFIG} --libs
+            OUTPUT_VARIABLE NETSNMP_LIBS
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+        )
+        separate_arguments(NETSNMP_CFLAGS)
+        separate_arguments(NETSNMP_LIBS)
+
+        add_executable(xymon-snmpcollect
+            xymon-snmpcollect.c
+        )
+        target_compile_options(xymon-snmpcollect PRIVATE ${NETSNMP_CFLAGS})
+        target_link_libraries(xymon-snmpcollect
+            xymon
+            xymoncomm
+            xymontime
+            ${NETSNMP_LIBS}
+        )
+        install(TARGETS xymon-snmpcollect
+            RUNTIME DESTINATION ${INSTALLBINDIR}
+        )
+    else()
+        message(STATUS "SNMP enabled but net-snmp-config not found; skipping xymon-snmpcollect")
+    endif()
 endif()
 
 install(TARGETS xymonnet xymonping beastat contest

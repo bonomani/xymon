@@ -70,6 +70,9 @@ add_library(xymoncomm STATIC
     notifylog.c
     acknowledgementslog.c
 
+    # SNMP MIB helpers
+    readmib.c
+
     # RRD / graph helpers
     xymonrrd.c
 
@@ -204,4 +207,98 @@ target_link_libraries(xymon
 
 set_target_properties(xymon PROPERTIES
     OUTPUT_NAME xymon
+)
+
+# ----------------------------------------------------------------------
+# Standalone tools (parity with lib/Makefile)
+# ----------------------------------------------------------------------
+
+add_executable(test-endianness
+    test-endianness.c
+)
+
+add_executable(loadhosts
+    loadhosts.c
+)
+target_compile_definitions(loadhosts PRIVATE STANDALONE)
+target_link_libraries(loadhosts
+    xymontime
+    xymoncomm
+)
+
+add_executable(stackio
+    stackio.c
+)
+target_compile_definitions(stackio PRIVATE STANDALONE)
+target_link_libraries(stackio
+    xymontime
+    xymoncomm
+    xymon
+)
+
+add_executable(availability
+    availability.c
+)
+target_compile_definitions(availability PRIVATE STANDALONE)
+target_link_libraries(availability
+    xymontime
+    xymoncomm
+    xymon
+)
+
+add_executable(md5
+    md5.c
+)
+target_compile_definitions(md5 PRIVATE STANDALONE)
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(md5 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+else()
+    target_compile_definitions(md5 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+
+add_executable(sha1
+    sha1.c
+)
+target_compile_definitions(sha1 PRIVATE STANDALONE)
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(sha1 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+else()
+    target_compile_definitions(sha1 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+
+add_executable(rmd160
+    rmd160c.c
+)
+target_compile_definitions(rmd160 PRIVATE STANDALONE)
+if(WORDS_BIGENDIAN)
+    target_compile_definitions(rmd160 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+else()
+    target_compile_definitions(rmd160 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+
+add_executable(locator
+    locator.c
+)
+target_compile_definitions(locator PRIVATE STANDALONE)
+target_link_libraries(locator
+    xymontime
+    xymoncomm
+    xymon
+)
+
+add_executable(tree
+    tree.c
+)
+target_compile_definitions(tree PRIVATE STANDALONE)
+
+install(TARGETS
+    loadhosts
+    stackio
+    availability
+    md5
+    sha1
+    rmd160
+    locator
+    tree
+    RUNTIME DESTINATION ${INSTALLBINDIR}
 )
