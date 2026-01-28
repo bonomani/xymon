@@ -7,36 +7,6 @@ on:
 permissions:
   contents: read
 
-x-bsd-run: &bsd_run |
-  set -e
-  uname -a
-  if uname -a | grep -qi freebsd; then
-    sudo pw user add -n xymon -c 'xymon' -d /home/xymon -G wheel -m -s /usr/local/bin/bash || true
-  elif [ -x /usr/sbin/useradd ]; then
-    sudo /usr/sbin/useradd xymon || true
-  elif [ -x /usr/sbin/adduser ]; then
-    grep -q xymon /etc/passwd || sudo /usr/sbin/adduser -w no -s /bin/sh -q xymon
-  fi
-
-  if [ -x /usr/sbin/pkg ]; then
-    sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake c-ares pcre fping autotools
-  elif [ -x /usr/pkg/bin/pkgin ]; then
-    sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping autoconf automake
-  elif [ -x /usr/sbin/pkg_add ]; then
-    sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping automake autoconf
-  else
-    echo "No supported package manager found"
-    exit 1
-  fi
-
-  cmake -S . -B "${BUILD_DIR}" \
-    -G "Unix Makefiles" \
-    -DENABLE_SSL="${ENABLE_SSL}" \
-    -DENABLE_LDAP="${ENABLE_LDAP}" \
-    -DXYMON_VARIANT="${XYMON_VARIANT}" \
-    -DLOCALCLIENT="${LOCALCLIENT}"
-  cmake --build "${BUILD_DIR}" --parallel 1
-
 jobs:
   cmake:
     name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / COMPILER=${{ matrix.compiler }}
@@ -118,7 +88,35 @@ jobs:
             ENABLE_LDAP=ON
             XYMON_VARIANT=server
             LOCALCLIENT=OFF
-          run: *bsd_run
+          run: &bsd_run |
+            set -e
+            uname -a
+            if uname -a | grep -qi freebsd; then
+              sudo pw user add -n xymon -c 'xymon' -d /home/xymon -G wheel -m -s /usr/local/bin/bash || true
+            elif [ -x /usr/sbin/useradd ]; then
+              sudo /usr/sbin/useradd xymon || true
+            elif [ -x /usr/sbin/adduser ]; then
+              grep -q xymon /etc/passwd || sudo /usr/sbin/adduser -w no -s /bin/sh -q xymon
+            fi
+
+            if [ -x /usr/sbin/pkg ]; then
+              sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake c-ares pcre fping autotools
+            elif [ -x /usr/pkg/bin/pkgin ]; then
+              sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping autoconf automake
+            elif [ -x /usr/sbin/pkg_add ]; then
+              sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping automake autoconf
+            else
+              echo "No supported package manager found"
+              exit 1
+            fi
+
+            cmake -S . -B "${BUILD_DIR}" \
+              -G "Unix Makefiles" \
+              -DENABLE_SSL="${ENABLE_SSL}" \
+              -DENABLE_LDAP="${ENABLE_LDAP}" \
+              -DXYMON_VARIANT="${XYMON_VARIANT}" \
+              -DLOCALCLIENT="${LOCALCLIENT}"
+            cmake --build "${BUILD_DIR}" --parallel 1
 
   bsd-client:
     name: bsd client / OS=${{ matrix.os.name }}
