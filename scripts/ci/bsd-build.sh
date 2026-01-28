@@ -2,8 +2,8 @@
 set -euo pipefail
 IFS=$' \t\n'
 
-if [[ -z "${VARIANT:-}" ]]; then
-  echo "VARIANT must be set"
+if [[ -z "${VARIANT:-}" || -z "${ENABLE_LDAP:-}" || -z "${LOCALCLIENT:-}" ]]; then
+  echo "VARIANT, ENABLE_LDAP, and LOCALCLIENT must be set"
   exit 1
 fi
 
@@ -28,7 +28,7 @@ export CMAKE_BUILD_PARALLEL_LEVEL
 cmake -S . -B "${BUILD_DIR}" \
   -G "Unix Makefiles" \
   -DENABLE_SSL="${ENABLE_SSL}" \
-  -DENABLE_LDAP=OFF \
+  -DENABLE_LDAP="${ENABLE_LDAP}" \
   -DXYMON_VARIANT="${VARIANT}" \
-  -DLOCALCLIENT=OFF
+  -DLOCALCLIENT="${LOCALCLIENT}"
 cmake --build "${BUILD_DIR}" --parallel 1

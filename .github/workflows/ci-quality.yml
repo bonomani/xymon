@@ -55,7 +55,7 @@ jobs:
           cmake --build --preset ${{ matrix.preset }} --parallel 1
 
   bsd:
-    name: BSD ${{ matrix.variant }} / OS=${{ matrix.os.name }}
+    name: bsd / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / LDAP=${{ matrix.enable_ldap }} / OS=${{ matrix.os.name }} / BUILD=CMake
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -72,6 +72,8 @@ jobs:
             architecture: x86-64
             version: "10.1"
         variant: [server, client]
+        localclient: [OFF]
+        enable_ldap: [OFF]
     steps:
       - uses: actions/checkout@v4
       - name: build ${{ matrix.os.name }} (${{ matrix.variant }})
@@ -85,4 +87,6 @@ jobs:
           cpu_count: 1
           run: |
             export VARIANT="${{ matrix.variant }}"
+            export ENABLE_LDAP="${{ matrix.enable_ldap }}"
+            export LOCALCLIENT="${{ matrix.localclient }}"
             bash scripts/ci/bsd-build.sh
