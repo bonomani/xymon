@@ -1,8 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
+IFS=$' \t\n'
 
-if [[ -z "${OS_NAME:-}" || -z "${VARIANT:-}" ]]; then
-  echo "OS_NAME and VARIANT must be set"
+if [[ -z "${VARIANT:-}" ]]; then
+  echo "VARIANT must be set"
   exit 1
 fi
 
@@ -11,19 +12,19 @@ case "${VARIANT}" in
     ENABLE_SSL=ON
     ENABLE_LDAP=OFF
     LOCALCLIENT=OFF
-    PKG_PKG="gmake cmake c-ares pcre fping openldap26-client"
-    PKG_PKGIN="gmake cmake libcares pcre fping"
-    PKG_PKG_ADD="gmake cmake cares pcre gcc fping"
-    PKG_PKG_ADD_OPENBSD="gmake cmake cares pcre gcc%11 fping"
+    PKG_PKG=(gmake cmake c-ares pcre fping openldap26-client)
+    PKG_PKGIN=(gmake cmake libcares pcre fping)
+    PKG_PKG_ADD=(gmake cmake cares pcre gcc fping)
+    PKG_PKG_ADD_OPENBSD=(gmake cmake cares pcre gcc%11 fping)
     ;;
   client)
     ENABLE_SSL=OFF
     ENABLE_LDAP=OFF
     LOCALCLIENT=OFF
-    PKG_PKG="gmake cmake pcre fping"
-    PKG_PKGIN="gmake cmake pcre fping"
-    PKG_PKG_ADD="gmake cmake pcre gcc fping"
-    PKG_PKG_ADD_OPENBSD="gmake cmake pcre gcc%11 fping"
+    PKG_PKG=(gmake cmake pcre fping)
+    PKG_PKGIN=(gmake cmake pcre fping)
+    PKG_PKG_ADD=(gmake cmake pcre gcc fping)
+    PKG_PKG_ADD_OPENBSD=(gmake cmake pcre gcc%11 fping)
     ;;
   *)
     echo "Unknown VARIANT: ${VARIANT}"
@@ -31,17 +32,23 @@ case "${VARIANT}" in
     ;;
 esac
 
-uname -a
+if [[ ${#PKG_PKG[@]} -eq 0 || ${#PKG_PKGIN[@]} -eq 0 || ${#PKG_PKG_ADD[@]} -eq 0 || ${#PKG_PKG_ADD_OPENBSD[@]} -eq 0 ]]; then
+  echo "Package lists are not fully defined for VARIANT=${VARIANT}"
+  exit 1
+fi
+
+OS_NAME="$(uname -s)"
+echo "$(uname -a)"
 
 if [ -x /usr/sbin/pkg ]; then
-  sudo -E ASSUME_ALWAYS_YES=YES pkg install ${PKG_PKG}
+  sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
 elif [ -x /usr/pkg/bin/pkgin ]; then
-  sudo -E /usr/pkg/bin/pkgin -y install ${PKG_PKGIN}
+  sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
 elif [ -x /usr/sbin/pkg_add ]; then
-  if uname -a | grep -qi openbsd; then
-    sudo -E /usr/sbin/pkg_add -I ${PKG_PKG_ADD_OPENBSD}
+  if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+    sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
   else
-    sudo -E /usr/sbin/pkg_add ${PKG_PKG_ADD}
+    sudo -E /usr/sbin/pkg_add "${PKG_PKG_ADD[@]}"
   fi
 else
   echo "No supported package manager found"
@@ -49,6 +56,8 @@ else
 fi
 
 BUILD_DIR=build-bsd-${VARIANT}
+CMAKE_BUILD_PARALLEL_LEVEL=1
+export CMAKE_BUILD_PARALLEL_LEVEL
 cmake -S . -B "${BUILD_DIR}" \
   -G "Unix Makefiles" \
   -DENABLE_SSL="${ENABLE_SSL}" \

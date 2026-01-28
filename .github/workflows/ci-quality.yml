@@ -55,7 +55,7 @@ jobs:
           cmake --build --preset ${{ matrix.preset }} --parallel 1
 
   bsd:
-    name: bsd ${{ matrix.variant }} / OS=${{ matrix.os.name }}
+    name: BSD ${{ matrix.variant }} / OS=${{ matrix.os.name }}
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -84,6 +84,5 @@ jobs:
           memory: 512M
           cpu_count: 1
           run: |
-            export OS_NAME="${{ matrix.os.name }}"
             export VARIANT="${{ matrix.variant }}"
             bash scripts/ci/bsd-build.sh
