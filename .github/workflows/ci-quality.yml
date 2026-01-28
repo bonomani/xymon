@@ -94,14 +94,14 @@ jobs:
             fi
 
             if [ -x /usr/sbin/pkg ]; then
-              sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake c-ares pcre fping autotools openldap26-client
+              sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake c-ares pcre fping openldap26-client
             elif [ -x /usr/pkg/bin/pkgin ]; then
-              sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping autoconf automake
+              sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping
             elif [ -x /usr/sbin/pkg_add ]; then
               if uname -a | grep -qi openbsd; then
                 sudo -E /usr/sbin/pkg_add -I gmake cmake cares pcre gcc%11 fping
               else
-                sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping automake autoconf
+                sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping
               fi
             else
               echo "No supported package manager found"
