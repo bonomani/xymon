@@ -8,24 +8,24 @@ permissions:
 
 jobs:
   build:
-    name: cmake build (${{ matrix.name }} / ${{ matrix.preset }})
+    name: cmake build (${{ matrix.name || matrix.variant }} / ${{ matrix.preset }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         preset: [default, gnuinstall]
+        variant: [server, client]
+        localclient: [OFF]
         include:
-          - name: server
-            variant: server
+          - variant: server
             localclient: OFF
-          - name: client CT=client
-            variant: client
-            conftype: client
+            name: server
+          - variant: client
             localclient: ON
-          - name: client CT=server
-            variant: client
-            conftype: server
+            name: client CT=client
+          - variant: client
             localclient: OFF
+            name: client CT=server
 
     steps:
       - uses: actions/checkout@v4
