@@ -9,47 +9,28 @@ permissions:
 
 jobs:
   cmake:
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
       matrix:
         include:
           - preset: default
-            variant: server
+            variant: all
             localclient: OFF
-            name: server
+            compiler: gcc
           - preset: gnuinstall
             variant: server
             localclient: OFF
-            name: server
-          - preset: packaging
-            variant: server
-            localclient: OFF
-            name: server
-          - preset: default
-            variant: client
-            localclient: ON
-            name: client CT=client
-          - preset: gnuinstall
-            variant: client
-            localclient: ON
-            name: client CT=client
+            compiler: clang
           - preset: packaging
             variant: client
             localclient: ON
-            name: client CT=client
+            compiler: gcc
           - preset: default
             variant: client
             localclient: OFF
-            name: client CT=server
-          - preset: gnuinstall
-            variant: client
-            localclient: OFF
-            name: client CT=server
-          - preset: packaging
-            variant: client
-            localclient: OFF
-            name: client CT=server
+            compiler: clang
     steps:
       - uses: actions/checkout@v4
 
@@ -59,7 +40,7 @@ jobs:
 
       - uses: ./.github/actions/select-compiler
         with:
-          compiler: gcc
+          compiler: ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         run: |

@@ -1,0 +1,111 @@
+name: CI full coverage
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  legacy:
+    name: legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        include:
+          - name: server
+            variant: server
+          - name: client CT=client
+            variant: client
+            conftype: client
+          - name: client CT=server
+            variant: client
+            conftype: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-env
+        with:
+          profile: debian
+
+      - uses: ./.github/actions/select-compiler
+        with:
+          compiler: ${{ matrix.compiler }}
+
+      - uses: ./.github/actions/configure-xymon
+        with:
+          variant: ${{ matrix.variant }}
+          profile: debian
+        env:
+          CONFTYPE: ${{ matrix.conftype }}
+
+      - uses: ./.github/actions/build-xymon
+
+  cmake:
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        compiler: [gcc, clang]
+        include:
+          - preset: default
+            variant: server
+            localclient: OFF
+          - preset: gnuinstall
+            variant: server
+            localclient: OFF
+          - preset: packaging
+            variant: server
+            localclient: OFF
+          - preset: default
+            variant: client
+            localclient: ON
+          - preset: gnuinstall
+            variant: client
+            localclient: ON
+          - preset: packaging
+            variant: client
+            localclient: ON
+          - preset: default
+            variant: client
+            localclient: OFF
+          - preset: gnuinstall
+            variant: client
+            localclient: OFF
+          - preset: packaging
+            variant: client
+            localclient: OFF
+          - preset: default
+            variant: all
+            localclient: OFF
+          - preset: gnuinstall
+            variant: all
+            localclient: OFF
+          - preset: packaging
+            variant: all
+            localclient: OFF
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-env
+        with:
+          profile: debian
+
+      - uses: ./.github/actions/select-compiler
+        with:
+          compiler: ${{ matrix.compiler }}
+
+      - name: Configure (CMake)
+        run: |
+          cmake --preset ${{ matrix.preset }} \
+            -DENABLE_SSL=ON \
+            -DENABLE_LDAP=ON \
+            -DXYMON_VARIANT=${{ matrix.variant }} \
+            -DLOCALCLIENT=${{ matrix.localclient }}
+
+      - name: Build (CMake)
+        run: |
+          cmake --build --preset ${{ matrix.preset }} --parallel 1

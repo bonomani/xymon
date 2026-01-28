@@ -44,6 +44,7 @@ jobs:
       - uses: ./.github/actions/build-xymon
 
   cmake:
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=server / LOCALCLIENT=OFF / COMPILER=gcc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
