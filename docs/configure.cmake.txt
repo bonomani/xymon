@@ -21,6 +21,8 @@ Use a standard FHS layout via GNUInstallDirs.
   cmake --build --preset gnuinstall
   cmake --install build-cmake-gnu
 
+Note: When USE_GNUINSTALLDIRS=ON, legacy path defaults are not used.
+
 Source installs (recommended commands)
 -------------------------------------
 
