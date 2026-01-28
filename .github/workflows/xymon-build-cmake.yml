@@ -50,6 +50,9 @@ jobs:
           # ci/guards/architecture.sh (keep this commented)
 
       - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ON
+          XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-debian.sh debian
 

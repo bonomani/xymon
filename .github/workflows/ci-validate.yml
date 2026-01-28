@@ -27,6 +27,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ON
+          XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-debian.sh default
 
@@ -54,6 +57,9 @@ jobs:
       - uses: actions/checkout@v4
 
       - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ON
+          XYMON_VARIANT: server
         run: |
           bash scripts/ci/setup-debian.sh debian
 

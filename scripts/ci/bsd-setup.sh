@@ -2,8 +2,8 @@
 set -euo pipefail
 IFS=$' \t\n'
 
-if [[ -z "${VARIANT:-}" ]]; then
-  echo "VARIANT must be set"
+if [[ -z "${VARIANT:-}" || -z "${ENABLE_LDAP:-}" ]]; then
+  echo "VARIANT and ENABLE_LDAP must be set"
   exit 1
 fi
 
@@ -14,10 +14,13 @@ BASE_PKG_ADD_OPENBSD=(gmake cmake pcre gcc%11 fping)
 
 case "${VARIANT}" in
   server)
-    PKG_PKG=("${BASE_PKGS[@]}" c-ares openldap26-client)
+    PKG_PKG=("${BASE_PKGS[@]}" c-ares)
     PKG_PKGIN=("${BASE_PKGIN[@]}" libcares)
     PKG_PKG_ADD=("${BASE_PKG_ADD[@]}" cares)
     PKG_PKG_ADD_OPENBSD=("${BASE_PKG_ADD_OPENBSD[@]}" cares)
+    if [[ "${ENABLE_LDAP}" == "ON" ]]; then
+      PKG_PKG+=("openldap26-client")
+    fi
     ;;
   client)
     PKG_PKG=("${BASE_PKGS[@]}")
