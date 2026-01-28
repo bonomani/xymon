@@ -95,4 +95,15 @@ jobs:
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.enable_ldap }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
-            bash scripts/ci/bsd-build.sh
+            bash scripts/ci/bsd-setup.sh
+
+            case "${VARIANT}" in
+              server) ENABLE_SSL=ON ;;
+              client) ENABLE_SSL=OFF ;;
+              *) echo "Unknown VARIANT: ${VARIANT}"; exit 1 ;;
+            esac
+
+            export ENABLE_SSL
+            export XYMON_VARIANT="${VARIANT}"
+            bash scripts/ci/cmake-configure.sh
+            bash scripts/ci/cmake-build.sh
