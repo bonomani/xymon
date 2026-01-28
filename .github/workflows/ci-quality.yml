@@ -106,7 +106,7 @@ jobs:
 
             BUILD_DIR=build-bsd-server
             ENABLE_SSL=ON
-            ENABLE_LDAP=ON
+            ENABLE_LDAP=OFF
             XYMON_VARIANT=server
             LOCALCLIENT=OFF
             cmake -S . -B "${BUILD_DIR}" \
