@@ -98,6 +98,7 @@ jobs:
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.enable_ldap }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
+            export DEBUG=1
             bash scripts/ci/bsd-setup.sh
 
             case "${VARIANT}" in

@@ -2,6 +2,10 @@
 set -euo pipefail
 IFS=$' \t\n'
 
+if [[ -n "${DEBUG:-}" ]]; then
+  set -x
+fi
+
 if [[ -z "${VARIANT:-}" || -z "${ENABLE_LDAP:-}" ]]; then
   echo "VARIANT and ENABLE_LDAP must be set"
   exit 1
@@ -17,7 +21,7 @@ case "${VARIANT}" in
     PKG_PKG=("${BASE_PKGS[@]}" c-ares)
     PKG_PKGIN=("${BASE_PKGIN[@]}" libcares)
     PKG_PKG_ADD=("${BASE_PKG_ADD[@]}" cares)
-    PKG_PKG_ADD_OPENBSD=("${BASE_PKG_ADD_OPENBSD[@]}" cares)
+    PKG_PKG_ADD_OPENBSD=("${BASE_PKG_ADD_OPENBSD[@]}" c-ares)
     if [[ "${ENABLE_LDAP}" == "ON" ]]; then
       PKG_PKG+=("openldap26-client")
     fi
