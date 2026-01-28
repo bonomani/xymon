@@ -99,7 +99,7 @@ jobs:
               sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping autoconf automake
             elif [ -x /usr/sbin/pkg_add ]; then
               if uname -a | grep -qi openbsd; then
-                sudo -E /usr/sbin/pkg_add -I gmake cmake c-ares pcre gcc%11 fping automake%1.16 autoconf%2.71
+                sudo -E /usr/sbin/pkg_add -I gmake cmake cares pcre gcc%11 fping
               else
                 sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping automake autoconf
               fi
