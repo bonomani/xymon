@@ -54,8 +54,8 @@ jobs:
         run: |
           cmake --build --preset ${{ matrix.preset }} --parallel 1
 
-  bsd-server:
-    name: bsd server / OS=${{ matrix.os.name }}
+  bsd:
+    name: bsd ${{ matrix.variant }} / OS=${{ matrix.os.name }}
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -71,9 +71,10 @@ jobs:
           - name: netbsd
             architecture: x86-64
             version: "10.1"
+        variant: [server, client]
     steps:
       - uses: actions/checkout@v4
-      - name: build ${{ matrix.os.name }} (server)
+      - name: build ${{ matrix.os.name }} (${{ matrix.variant }})
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ matrix.os.name }}
@@ -83,107 +84,6 @@ jobs:
           memory: 512M
           cpu_count: 1
           run: |
-            set -e
-            uname -a
-            if uname -a | grep -qi freebsd; then
-              sudo pw user add -n xymon -c 'xymon' -d /home/xymon -G wheel -m -s /usr/local/bin/bash || true
-            elif [ -x /usr/sbin/useradd ]; then
-              sudo /usr/sbin/useradd xymon || true
-            elif [ -x /usr/sbin/adduser ]; then
-              grep -q xymon /etc/passwd || sudo /usr/sbin/adduser -w no -s /bin/sh -q xymon
-            fi
-
-            if [ -x /usr/sbin/pkg ]; then
-              sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake c-ares pcre fping openldap26-client
-            elif [ -x /usr/pkg/bin/pkgin ]; then
-              sudo -E /usr/pkg/bin/pkgin -y install gmake cmake libcares pcre fping
-            elif [ -x /usr/sbin/pkg_add ]; then
-              if uname -a | grep -qi openbsd; then
-                sudo -E /usr/sbin/pkg_add -I gmake cmake cares pcre gcc%11 fping
-              else
-                sudo -E /usr/sbin/pkg_add gmake cmake cares pcre gcc fping
-              fi
-            else
-              echo "No supported package manager found"
-              exit 1
-            fi
-
-            BUILD_DIR=build-bsd-server
-            ENABLE_SSL=ON
-            ENABLE_LDAP=OFF
-            XYMON_VARIANT=server
-            LOCALCLIENT=OFF
-            cmake -S . -B "${BUILD_DIR}" \
-              -G "Unix Makefiles" \
-              -DENABLE_SSL="${ENABLE_SSL}" \
-              -DENABLE_LDAP="${ENABLE_LDAP}" \
-              -DXYMON_VARIANT="${XYMON_VARIANT}" \
-              -DLOCALCLIENT="${LOCALCLIENT}"
-            cmake --build "${BUILD_DIR}" --parallel 1
-
-  bsd-client:
-    name: bsd client / OS=${{ matrix.os.name }}
-    runs-on: ubuntu-latest
-    continue-on-error: true
-    strategy:
-      fail-fast: false
-      matrix:
-        os:
-          - name: freebsd
-            architecture: x86-64
-            version: "15.0"
-          - name: openbsd
-            architecture: x86-64
-            version: "7.8"
-          - name: netbsd
-            architecture: x86-64
-            version: "10.1"
-    steps:
-      - uses: actions/checkout@v4
-      - name: build ${{ matrix.os.name }} (client)
-        uses: cross-platform-actions/action@v0.32.0
-        with:
-          operating_system: ${{ matrix.os.name }}
-          architecture: ${{ matrix.os.architecture }}
-          version: ${{ matrix.os.version }}
-          shell: bash
-          memory: 512M
-          cpu_count: 1
-          run: |
-            set -e
-            uname -a
-            if uname -a | grep -qi freebsd; then
-              sudo pw user add -n xymon -c 'xymon' -d /home/xymon -G wheel -m -s /usr/local/bin/bash || true
-            elif [ -x /usr/sbin/useradd ]; then
-              sudo /usr/sbin/useradd xymon || true
-            elif [ -x /usr/sbin/adduser ]; then
-              grep -q xymon /etc/passwd || sudo /usr/sbin/adduser -w no -s /bin/sh -q xymon
-            fi
-
-            if [ -x /usr/sbin/pkg ]; then
-              sudo -E ASSUME_ALWAYS_YES=YES pkg install gmake cmake pcre fping autotools
-            elif [ -x /usr/pkg/bin/pkgin ]; then
-              sudo -E /usr/pkg/bin/pkgin -y install gmake cmake pcre fping autoconf automake
-            elif [ -x /usr/sbin/pkg_add ]; then
-              if uname -a | grep -qi openbsd; then
-                sudo -E /usr/sbin/pkg_add -I gmake cmake pcre gcc%11 fping automake%1.16 autoconf%2.71
-              else
-                sudo -E /usr/sbin/pkg_add gmake cmake pcre gcc fping automake autoconf
-              fi
-            else
-              echo "No supported package manager found"
-              exit 1
-            fi
-
-            BUILD_DIR=build-bsd-client
-            ENABLE_SSL=OFF
-            ENABLE_LDAP=OFF
-            XYMON_VARIANT=client
-            LOCALCLIENT=OFF
-            cmake -S . -B "${BUILD_DIR}" \
-              -G "Unix Makefiles" \
-              -DENABLE_SSL="${ENABLE_SSL}" \
-              -DENABLE_LDAP="${ENABLE_LDAP}" \
-              -DXYMON_VARIANT="${XYMON_VARIANT}" \
-              -DLOCALCLIENT="${LOCALCLIENT}"
-            cmake --build "${BUILD_DIR}" --parallel 1
+            export OS_NAME="${{ matrix.os.name }}"
+            export VARIANT="${{ matrix.variant }}"
+            bash scripts/ci/bsd-build.sh
