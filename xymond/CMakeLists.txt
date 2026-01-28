@@ -385,6 +385,22 @@ install(PROGRAMS
     DESTINATION ${INSTALLBINDIR}
 )
 
+install(CODE "
+if(NOT \"${HTTPDGID}\" STREQUAL \"\")
+  foreach(_dir \"${INSTALLWWWDIR}/rep\" \"${INSTALLWWWDIR}/snap\")
+    if(EXISTS \"\$ENV{DESTDIR}\${_dir}\")
+      execute_process(
+        COMMAND chgrp \"${HTTPDGID}\" \"\$ENV{DESTDIR}\${_dir}\"
+        RESULT_VARIABLE _chgrp_res
+      )
+      if(NOT _chgrp_res EQUAL 0)
+        message(STATUS \"chgrp failed for \${_dir} (group ${HTTPDGID})\")
+      endif()
+    endif()
+  endforeach()
+endif()
+")
+
 # Generate a CMake script to feed setup-newfiles via INPUT_FILE (no shell).
 set(SETUP_NEWFILES_LIST ${CMAKE_BINARY_DIR}/setup-newfiles.list)
 file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/setup-newfiles.cmake

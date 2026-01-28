@@ -1,0 +1,38 @@
+CMake configuration
+===================
+
+This file documents the CMake-based configuration flow.
+
+Quick start (Makefile parity)
+----------------------------
+
+This is the default layout and matches the legacy Makefile install paths.
+
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (optional)
+--------------------------------
+
+Use a standard FHS layout via GNUInstallDirs.
+
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Interactive configure-style script
+----------------------------------
+
+You can use the helper script to answer the usual path questions:
+
+  ./configure.cmake.sh
+
+It will create or reuse build-cmake/ and run CMake with the selected values.
+
+Notes
+-----
+
+- Default (USE_GNUINSTALLDIRS=OFF) preserves legacy paths under /var/lib/xymon.
+- Setting USE_GNUINSTALLDIRS=ON switches to GNUInstallDirs mapping.
+- All values can still be overridden with -D options when invoking CMake.

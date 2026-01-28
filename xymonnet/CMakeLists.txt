@@ -1,6 +1,6 @@
 # xymonnet/CMakeLists.txt
 
-option(ENABLE_LDAP "Enable LDAP checks" OFF)
+option(ENABLE_LDAP "Enable LDAP checks" ON)
 option(ENABLE_CARES "Enable c-ares support" ON)
 option(ENABLE_SNMP "Enable SNMP collector" ON)
 
