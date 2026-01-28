@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$' \t\n'
+[[ -n "${CI:-}" ]] && set -x
+
+echo "=== Setup (Debian) ==="
 
 PROFILE="${1:-default}"
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"

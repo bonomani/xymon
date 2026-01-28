@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$' \t\n'
-[[ -n "${DEBUG:-}" ]] && set -x
+[[ -n "${CI:-}" || -n "${DEBUG:-}" ]] && set -x
 
 VARIANT="${VARIANT:-}"
 ENABLE_LDAP="${ENABLE_LDAP:-}"

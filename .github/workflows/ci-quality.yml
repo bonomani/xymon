@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / COMPILER=${{ matrix.compiler }}
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -33,19 +33,21 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup (Linux)
+      - name: Setup (Debian)
         env:
+          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Select compiler
+      - name: Setup compiler
         run: |
           bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:
+          CI: 1
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ON
           ENABLE_LDAP: ON
@@ -56,6 +58,7 @@ jobs:
 
       - name: Build (CMake)
         env:
+          CI: 1
           PRESET: ${{ matrix.preset }}
         run: |
           bash scripts/ci/cmake-build.sh
@@ -81,7 +84,7 @@ jobs:
         variant: [server, client]
     steps:
       - uses: actions/checkout@v4
-      - name: Setup (BSD) + Build ${{ matrix.os.name }} (${{ matrix.variant }})
+      - name: Setup + Build (BSD) ${{ matrix.os.name }} (${{ matrix.variant }})
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ matrix.os.name }}
@@ -91,6 +94,8 @@ jobs:
           memory: 512M
           cpu_count: 1
           run: |
+            export CI=1
+            echo "=== Setup (BSD) ==="
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP=OFF
@@ -108,5 +113,7 @@ jobs:
 
             export ENABLE_SSL
             export XYMON_VARIANT="${VARIANT}"
+            echo "=== Configure (CMake) ==="
             bash scripts/ci/cmake-configure.sh
+            echo "=== Build (CMake) ==="
             bash scripts/ci/cmake-build.sh

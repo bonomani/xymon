@@ -30,21 +30,25 @@ jobs:
 
       - name: Setup (Debian)
         env:
+          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Select compiler
+      - name: Setup compiler
         run: |
           bash scripts/ci/setup-compiler.sh gcc
 
       - name: Configure (Autotools)
         env:
+          CI: 1
           CONFTYPE: ${{ matrix.conftype }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
 
       - name: Build (Autotools)
+        env:
+          CI: 1
         run: |
           bash scripts/ci/legacy-build.sh

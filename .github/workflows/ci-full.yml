@@ -28,27 +28,31 @@ jobs:
 
       - name: Setup (Debian)
         env:
+          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Select compiler
+      - name: Setup compiler
         run: |
           bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (Autotools)
         env:
+          CI: 1
           CONFTYPE: ${{ matrix.conftype }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
 
       - name: Build (Autotools)
+        env:
+          CI: 1
         run: |
           bash scripts/ci/legacy-build.sh
 
   cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / COMPILER=${{ matrix.compiler }}
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -93,17 +97,19 @@ jobs:
 
       - name: Setup (Debian)
         env:
+          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Select compiler
+      - name: Setup compiler
         run: |
           bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:
+          CI: 1
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ON
           ENABLE_LDAP: ON
@@ -114,6 +120,7 @@ jobs:
 
       - name: Build (CMake)
         env:
+          CI: 1
           PRESET: ${{ matrix.preset }}
         run: |
           bash scripts/ci/cmake-build.sh
