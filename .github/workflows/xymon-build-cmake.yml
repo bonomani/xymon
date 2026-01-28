@@ -13,17 +13,29 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: [default, gnuinstall]
-        variant: [server, client]
-        localclient: [OFF]
         include:
-          - variant: server
+          - preset: default
+            variant: server
             localclient: OFF
             name: server
-          - variant: client
+          - preset: gnuinstall
+            variant: server
+            localclient: OFF
+            name: server
+          - preset: default
+            variant: client
             localclient: ON
             name: client CT=client
-          - variant: client
+          - preset: gnuinstall
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: default
+            variant: client
+            localclient: OFF
+            name: client CT=server
+          - preset: gnuinstall
+            variant: client
             localclient: OFF
             name: client CT=server
 
