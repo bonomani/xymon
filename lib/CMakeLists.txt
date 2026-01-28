@@ -288,21 +288,20 @@ if(XYMON_BUILD_SERVER)
         xymoncomm
         xymon
     )
+    add_executable(tree
+        tree.c
+    )
+    target_compile_definitions(tree PRIVATE STANDALONE)
+
+    install(TARGETS
+        loadhosts
+        stackio
+        availability
+        md5
+        sha1
+        rmd160
+        locator
+        tree
+        RUNTIME DESTINATION ${INSTALLBINDIR}
+    )
 endif()
-
-add_executable(tree
-    tree.c
-)
-target_compile_definitions(tree PRIVATE STANDALONE)
-
-install(TARGETS
-    loadhosts
-    stackio
-    availability
-    md5
-    sha1
-    rmd160
-    locator
-    tree
-    RUNTIME DESTINATION ${INSTALLBINDIR}
-)
