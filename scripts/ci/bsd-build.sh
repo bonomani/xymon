@@ -10,13 +10,9 @@ fi
 case "${VARIANT}" in
   server)
     ENABLE_SSL=ON
-    ENABLE_LDAP=OFF
-    LOCALCLIENT=OFF
     ;;
   client)
     ENABLE_SSL=OFF
-    ENABLE_LDAP=OFF
-    LOCALCLIENT=OFF
     ;;
   *)
     echo "Unknown VARIANT: ${VARIANT}"
@@ -32,7 +28,7 @@ export CMAKE_BUILD_PARALLEL_LEVEL
 cmake -S . -B "${BUILD_DIR}" \
   -G "Unix Makefiles" \
   -DENABLE_SSL="${ENABLE_SSL}" \
-  -DENABLE_LDAP="${ENABLE_LDAP}" \
+  -DENABLE_LDAP=OFF \
   -DXYMON_VARIANT="${VARIANT}" \
-  -DLOCALCLIENT="${LOCALCLIENT}"
+  -DLOCALCLIENT=OFF
 cmake --build "${BUILD_DIR}" --parallel 1

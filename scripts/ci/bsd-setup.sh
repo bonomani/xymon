@@ -7,18 +7,23 @@ if [[ -z "${VARIANT:-}" ]]; then
   exit 1
 fi
 
+PKG_PKG_BASE=(gmake cmake pcre fping)
+PKG_PKGIN_BASE=(gmake cmake pcre fping)
+PKG_PKG_ADD_BASE=(gmake cmake pcre gcc fping)
+PKG_PKG_ADD_OPENBSD_BASE=(gmake cmake pcre gcc%11 fping)
+
 case "${VARIANT}" in
   server)
-    PKG_PKG=(gmake cmake c-ares pcre fping openldap26-client)
-    PKG_PKGIN=(gmake cmake libcares pcre fping)
-    PKG_PKG_ADD=(gmake cmake cares pcre gcc fping)
-    PKG_PKG_ADD_OPENBSD=(gmake cmake cares pcre gcc%11 fping)
+    PKG_PKG=("${PKG_PKG_BASE[@]}" c-ares openldap26-client)
+    PKG_PKGIN=("${PKG_PKGIN_BASE[@]}" libcares)
+    PKG_PKG_ADD=("${PKG_PKG_ADD_BASE[@]}" cares)
+    PKG_PKG_ADD_OPENBSD=("${PKG_PKG_ADD_OPENBSD_BASE[@]}" cares)
     ;;
   client)
-    PKG_PKG=(gmake cmake pcre fping)
-    PKG_PKGIN=(gmake cmake pcre fping)
-    PKG_PKG_ADD=(gmake cmake pcre gcc fping)
-    PKG_PKG_ADD_OPENBSD=(gmake cmake pcre gcc%11 fping)
+    PKG_PKG=("${PKG_PKG_BASE[@]}")
+    PKG_PKGIN=("${PKG_PKGIN_BASE[@]}")
+    PKG_PKG_ADD=("${PKG_PKG_ADD_BASE[@]}")
+    PKG_PKG_ADD_OPENBSD=("${PKG_PKG_ADD_OPENBSD_BASE[@]}")
     ;;
   *)
     echo "Unknown VARIANT: ${VARIANT}"
