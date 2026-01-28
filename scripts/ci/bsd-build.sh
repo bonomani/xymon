@@ -20,10 +20,10 @@ case "${VARIANT}" in
     ENABLE_SSL=OFF
     ENABLE_LDAP=OFF
     LOCALCLIENT=OFF
-    PKG_PKG="gmake cmake pcre fping autotools"
-    PKG_PKGIN="gmake cmake pcre fping autoconf automake"
-    PKG_PKG_ADD="gmake cmake pcre gcc fping automake autoconf"
-    PKG_PKG_ADD_OPENBSD="gmake cmake pcre gcc%11 fping automake%1.16 autoconf%2.71"
+    PKG_PKG="gmake cmake pcre fping"
+    PKG_PKGIN="gmake cmake pcre fping"
+    PKG_PKG_ADD="gmake cmake pcre gcc fping"
+    PKG_PKG_ADD_OPENBSD="gmake cmake pcre gcc%11 fping"
     ;;
   *)
     echo "Unknown VARIANT: ${VARIANT}"
@@ -32,13 +32,6 @@ case "${VARIANT}" in
 esac
 
 uname -a
-if uname -a | grep -qi freebsd; then
-  sudo pw user add -n xymon -c 'xymon' -d /home/xymon -G wheel -m -s /usr/local/bin/bash || true
-elif [ -x /usr/sbin/useradd ]; then
-  sudo /usr/sbin/useradd xymon || true
-elif [ -x /usr/sbin/adduser ]; then
-  grep -q xymon /etc/passwd || sudo /usr/sbin/adduser -w no -s /bin/sh -q xymon
-fi
 
 if [ -x /usr/sbin/pkg ]; then
   sudo -E ASSUME_ALWAYS_YES=YES pkg install ${PKG_PKG}
