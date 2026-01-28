@@ -60,7 +60,7 @@ elif [ -x /usr/sbin/pkg_add ]; then
       https://openbsd.as250.net/pub/OpenBSD
       https://ftp2.eu.openbsd.org/pub/OpenBSD
     )
-    CARES_CANDIDATES=(c-ares cares)
+    CARES_CANDIDATES=(libcares c-ares cares)
 
     INSTALL_OK=0
     for mirror in "${MIRRORS[@]}"; do
