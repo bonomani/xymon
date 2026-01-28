@@ -21,7 +21,7 @@ case "${VARIANT}" in
     PKG_PKG=("${BASE_PKGS[@]}" c-ares)
     PKG_PKGIN=("${BASE_PKGIN[@]}" libcares)
     PKG_PKG_ADD=("${BASE_PKG_ADD[@]}" cares)
-    PKG_PKG_ADD_OPENBSD=("${BASE_PKG_ADD_OPENBSD[@]}" c-ares)
+    PKG_PKG_ADD_OPENBSD=("${BASE_PKG_ADD_OPENBSD[@]}" __CARES_PKG__)
     if [[ "${ENABLE_LDAP}" == "ON" ]]; then
       PKG_PKG+=("openldap26-client")
     fi
@@ -52,6 +52,18 @@ elif [ -x /usr/pkg/bin/pkgin ]; then
   sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
 elif [ -x /usr/sbin/pkg_add ]; then
   if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+    CARES_PKG=""
+    if pkg_info -Q c-ares >/dev/null 2>&1; then
+      CARES_PKG="c-ares"
+    elif pkg_info -Q cares >/dev/null 2>&1; then
+      CARES_PKG="cares"
+    fi
+    if [[ -n "${CARES_PKG}" ]]; then
+      PKG_PKG_ADD_OPENBSD=("${PKG_PKG_ADD_OPENBSD[@]/__CARES_PKG__/${CARES_PKG}}")
+    else
+      echo "No c-ares package found in OpenBSD repositories"
+      exit 1
+    fi
     sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
   else
     sudo -E /usr/sbin/pkg_add "${PKG_PKG_ADD[@]}"
