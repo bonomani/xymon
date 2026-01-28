@@ -21,6 +21,29 @@ Use a standard FHS layout via GNUInstallDirs.
   cmake --build --preset gnuinstall
   cmake --install build-cmake-gnu
 
+Source installs (recommended commands)
+-------------------------------------
+
+Legacy layout (classic Xymon paths):
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (standard FHS):
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Packaging preset (recommended for RPM/DEB/Ports)
+------------------------------------------------
+
+This preset uses GNUInstallDirs and /usr as the prefix. Packaging tools should
+set DESTDIR during install.
+
+  cmake --preset packaging
+  cmake --build --preset packaging
+  cmake --install build-cmake-packaging --destdir <staging-dir>
+
 Interactive configure-style script
 ----------------------------------
 
@@ -36,3 +59,21 @@ Notes
 - Default (USE_GNUINSTALLDIRS=OFF) preserves legacy paths under /var/lib/xymon.
 - Setting USE_GNUINSTALLDIRS=ON switches to GNUInstallDirs mapping.
 - All values can still be overridden with -D options when invoking CMake.
+
+Packaging notes
+--------------
+
+- Packaging systems set DESTDIR. Do not hardcode a staging path in presets.
+- If install-time chgrp is undesired for packaging, set -DHTTPDGID_CHGRP=OFF.
+
+Runtime dependency notes (server/client)
+----------------------------------------
+
+Server runtime:
+  - Web server
+  - fping
+  - Mailer (sendmail-compatible)
+  - Optional: OpenSSL (SSL checks), OpenLDAP (LDAP checks), net-snmp (SNMP), c-ares
+
+Client runtime:
+  - No extra runtime libraries beyond standard OS tools

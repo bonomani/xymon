@@ -21,8 +21,17 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build-cmake-gnu",
       "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "ON"
+      }
+    },
+    {
+      "name": "packaging",
+      "displayName": "Packaging (GNUInstallDirs, /usr prefix)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-packaging",
+      "cacheVariables": {
         "USE_GNUINSTALLDIRS": "ON",
-        "CMAKE_INSTALL_PREFIX": "${sourceDir}/_install"
+        "CMAKE_INSTALL_PREFIX": "/usr"
       }
     }
   ],
@@ -34,6 +43,10 @@
     {
       "name": "gnuinstall",
       "configurePreset": "gnuinstall"
+    },
+    {
+      "name": "packaging",
+      "configurePreset": "packaging"
     }
   ]
 }

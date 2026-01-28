@@ -24,6 +24,7 @@ XYMONCGIURL_OVERRIDE=""
 SECUREXYMONCGIURL_OVERRIDE=""
 MANROOT_OVERRIDE=""
 HTTPDGID_OVERRIDE=""
+HTTPDGID_CHGRP_OVERRIDE=""
 ENABLE_RRD_OVERRIDE=""
 ENABLE_SNMP_OVERRIDE=""
 ENABLE_SSL_OVERRIDE=""
@@ -65,6 +66,7 @@ Options:
   --securexymoncgiurl URL  Set SECUREXYMONCGIURL
   --manroot DIR         Set MANROOT
   --httpdgid GROUP      Set HTTPDGID (webserver group)
+  --httpdgid-chgrp yes/no Apply HTTPDGID chgrp during install
   --enable-rrd yes/no   Set ENABLE_RRD
   --enable-snmp yes/no  Set ENABLE_SNMP
   --enable-ssl yes/no   Set ENABLE_SSL
@@ -109,6 +111,7 @@ while [[ $# -gt 0 ]]; do
     --securexymoncgiurl) SECUREXYMONCGIURL_OVERRIDE="$2"; shift 2 ;;
     --manroot) MANROOT_OVERRIDE="$2"; shift 2 ;;
     --httpdgid) HTTPDGID_OVERRIDE="$2"; shift 2 ;;
+    --httpdgid-chgrp) HTTPDGID_CHGRP_OVERRIDE="$2"; shift 2 ;;
     --enable-rrd) ENABLE_RRD_OVERRIDE="$2"; shift 2 ;;
     --enable-snmp) ENABLE_SNMP_OVERRIDE="$2"; shift 2 ;;
     --enable-ssl) ENABLE_SSL_OVERRIDE="$2"; shift 2 ;;
@@ -240,6 +243,7 @@ default_hosturl="http://${default_hostname}"
 xymoncgiurl_default="/xymon-cgi"
 securexymoncgiurl_default="/xymon-seccgi"
 httpdgid_default="nobody"
+httpdgid_chgrp_default="yes"
 
 xymonuser="$(choose_value "Xymon user" "xymon" "${XYMONUSER_OVERRIDE}")"
 xymonhostname="${default_hostname}"
@@ -249,6 +253,7 @@ xymonhosturl="${default_hosturl}"
 xymoncgiurl="${xymoncgiurl_default}"
 securexymoncgiurl="${securexymoncgiurl_default}"
 httpdgid="${httpdgid_default}"
+httpdgid_chgrp="${httpdgid_chgrp_default}"
 
 manroot_default="/usr/local/man"
 if [[ "${use_gnuinstall}" == "ON" ]]; then
@@ -269,8 +274,11 @@ advanced_mode="no"
 if [[ "${non_interactive}" != "1" ]]; then
   advanced_mode="$(normalize_onoff "$(prompt "Advanced mode (override auto-detected values) (yes/no)" "no")")"
 fi
-if [[ -n "${XYMONHOSTNAME_OVERRIDE}${XYMONHOSTIP_OVERRIDE}${XYMONHOSTOS_OVERRIDE}${XYMONHOSTURL_OVERRIDE}${XYMONCGIURL_OVERRIDE}${SECUREXYMONCGIURL_OVERRIDE}${MANROOT_OVERRIDE}${HTTPDGID_OVERRIDE}${RRDINCDIR_OVERRIDE}${RRDLIBDIR_OVERRIDE}${PCREINCDIR_OVERRIDE}${PCRELIBDIR_OVERRIDE}${SSLINCDIR_OVERRIDE}${SSLLIBDIR_OVERRIDE}${LDAPINCDIR_OVERRIDE}${LDAPLIBDIR_OVERRIDE}${CARESINCDIR_OVERRIDE}${CARESLIBDIR_OVERRIDE}${ENABLE_RRD_OVERRIDE}${ENABLE_SNMP_OVERRIDE}${ENABLE_SSL_OVERRIDE}${ENABLE_LDAP_OVERRIDE}" ]]; then
+if [[ -n "${XYMONHOSTNAME_OVERRIDE}${XYMONHOSTIP_OVERRIDE}${XYMONHOSTOS_OVERRIDE}${XYMONHOSTURL_OVERRIDE}${XYMONCGIURL_OVERRIDE}${SECUREXYMONCGIURL_OVERRIDE}${MANROOT_OVERRIDE}${HTTPDGID_OVERRIDE}${HTTPDGID_CHGRP_OVERRIDE}${RRDINCDIR_OVERRIDE}${RRDLIBDIR_OVERRIDE}${PCREINCDIR_OVERRIDE}${PCRELIBDIR_OVERRIDE}${SSLINCDIR_OVERRIDE}${SSLLIBDIR_OVERRIDE}${LDAPINCDIR_OVERRIDE}${LDAPLIBDIR_OVERRIDE}${CARESINCDIR_OVERRIDE}${CARESLIBDIR_OVERRIDE}${ENABLE_RRD_OVERRIDE}${ENABLE_SNMP_OVERRIDE}${ENABLE_SSL_OVERRIDE}${ENABLE_LDAP_OVERRIDE}" ]]; then
   advanced_mode="ON"
+fi
+if [[ -n "${HTTPDGID_CHGRP_OVERRIDE}" ]]; then
+  httpdgid_chgrp="$(normalize_onoff "${HTTPDGID_CHGRP_OVERRIDE}")"
 fi
 
 rrdinclude=""
@@ -304,6 +312,7 @@ if [[ "${advanced_mode}" == "ON" ]]; then
 
   section "Webserver group (advanced)"
   httpdgid="$(choose_value "Webserver group for reports/snap (HTTPDGID)" "${httpdgid_default}" "${HTTPDGID_OVERRIDE}")"
+  httpdgid_chgrp="$(normalize_onoff "$(choose_value "Apply HTTPDGID chgrp during install (yes/no)" "${httpdgid_chgrp_default}" "${HTTPDGID_CHGRP_OVERRIDE}")")"
 
   section "Libraries (advanced, leave empty for auto-detect)"
   rrdinclude="$(choose_value "RRD include dir" "" "${RRDINCDIR_OVERRIDE}")"
@@ -343,6 +352,7 @@ echo "  SECUREXYMONCGIURL = ${securexymoncgiurl}"
 echo "  CGI URL defaults = ${xymoncgiurl_default} (secure ${securexymoncgiurl_default})"
 echo "  MANROOT = ${manroot}"
 echo "  HTTPDGID = ${httpdgid}"
+echo "  HTTPDGID_CHGRP = ${httpdgid_chgrp}"
 echo "  ENABLE_RRD = ${enable_rrd}"
 echo "  ENABLE_SNMP = ${enable_snmp}"
 echo "  ENABLE_SSL = ${enable_ssl}"
@@ -403,6 +413,7 @@ cmake -S "${root_dir}" -B "${build_dir}" \
   -DSECUREXYMONCGIURL="${securexymoncgiurl}" \
   -DMANROOT="${manroot}" \
   -DHTTPDGID="${httpdgid}" \
+  -DHTTPDGID_CHGRP="${httpdgid_chgrp}" \
   -DFPING="${fping_path}" \
   -DMAILPROGRAM="${mail_program}" \
   -DRRDINCDIR="${rrdinclude}" \

@@ -386,7 +386,7 @@ install(PROGRAMS
 )
 
 install(CODE "
-if(NOT \"${HTTPDGID}\" STREQUAL \"\")
+if(HTTPDGID_CHGRP AND NOT \"${HTTPDGID}\" STREQUAL \"\")
   foreach(_dir \"${INSTALLWWWDIR}/rep\" \"${INSTALLWWWDIR}/snap\")
     if(EXISTS \"\$ENV{DESTDIR}\${_dir}\")
       execute_process(
