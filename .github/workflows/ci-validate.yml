@@ -33,18 +33,19 @@ jobs:
         run: |
           bash scripts/ci/setup-debian.sh default
 
-      - uses: ./.github/actions/select-compiler
-        with:
-          compiler: gcc
+      - name: Select compiler
+        run: |
+          bash scripts/ci/select-compiler.sh gcc
 
-      - uses: ./.github/actions/configure-xymon
-        with:
-          variant: ${{ matrix.variant }}
-          profile: default
+      - name: Configure (Autotools)
         env:
           CONFTYPE: ${{ matrix.conftype }}
+        run: |
+          bash scripts/ci/configure-xymon.sh ${{ matrix.variant }} default
 
-      - uses: ./.github/actions/build-xymon
+      - name: Build (Autotools)
+        run: |
+          bash scripts/ci/build-xymon.sh
 
   cmake:
     name: cmake / PRESET=${{ matrix.preset }} / VARIANT=server / LOCALCLIENT=OFF / COMPILER=gcc
@@ -63,9 +64,9 @@ jobs:
         run: |
           bash scripts/ci/setup-debian.sh debian
 
-      - uses: ./.github/actions/select-compiler
-        with:
-          compiler: gcc
+      - name: Select compiler
+        run: |
+          bash scripts/ci/select-compiler.sh gcc
 
       - name: Configure (CMake)
         env:

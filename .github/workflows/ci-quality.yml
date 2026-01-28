@@ -40,9 +40,9 @@ jobs:
         run: |
           bash scripts/ci/setup-debian.sh debian
 
-      - uses: ./.github/actions/select-compiler
-        with:
-          compiler: ${{ matrix.compiler }}
+      - name: Select compiler
+        run: |
+          bash scripts/ci/select-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:

@@ -54,9 +54,9 @@ jobs:
         run: |
           bash scripts/ci/setup-debian.sh debian
 
-      - uses: ./.github/actions/select-compiler
-        with:
-          compiler: gcc
+      - name: Select compiler
+        run: |
+          bash scripts/ci/select-compiler.sh gcc
 
       - name: Configure (CMake)
         env:
