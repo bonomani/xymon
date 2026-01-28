@@ -38,7 +38,7 @@ Packaging preset (recommended for RPM/DEB/Ports)
 ------------------------------------------------
 
 This preset uses GNUInstallDirs and /usr as the prefix. Packaging tools should
-set DESTDIR during install.
+set DESTDIR during install. Install-time chgrp is disabled by default.
 
   cmake --preset packaging
   cmake --build --preset packaging

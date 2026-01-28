@@ -31,7 +31,8 @@
       "binaryDir": "${sourceDir}/build-cmake-packaging",
       "cacheVariables": {
         "USE_GNUINSTALLDIRS": "ON",
-        "CMAKE_INSTALL_PREFIX": "/usr"
+        "CMAKE_INSTALL_PREFIX": "/usr",
+        "HTTPDGID_CHGRP": "OFF"
       }
     }
   ],
