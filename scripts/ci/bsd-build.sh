@@ -2,8 +2,8 @@
 set -euo pipefail
 IFS=$' \t\n'
 
-if [[ -z "${VARIANT:-}" || -z "${ENABLE_LDAP:-}" || -z "${LOCALCLIENT:-}" ]]; then
-  echo "VARIANT, ENABLE_LDAP, and LOCALCLIENT must be set"
+if [[ -z "${VARIANT:-}" || -z "${PRESET:-}" || -z "${ENABLE_LDAP:-}" || -z "${LOCALCLIENT:-}" ]]; then
+  echo "VARIANT, PRESET, ENABLE_LDAP, and LOCALCLIENT must be set"
   exit 1
 fi
 
@@ -22,13 +22,11 @@ esac
 
 bash scripts/ci/bsd-setup.sh
 
-BUILD_DIR=build-bsd-${VARIANT}
-CMAKE_BUILD_PARALLEL_LEVEL=1
-export CMAKE_BUILD_PARALLEL_LEVEL
-cmake -S . -B "${BUILD_DIR}" \
-  -G "Unix Makefiles" \
-  -DENABLE_SSL="${ENABLE_SSL}" \
-  -DENABLE_LDAP="${ENABLE_LDAP}" \
-  -DXYMON_VARIANT="${VARIANT}" \
-  -DLOCALCLIENT="${LOCALCLIENT}"
-cmake --build "${BUILD_DIR}" --parallel 1
+export PRESET
+export ENABLE_SSL
+export ENABLE_LDAP
+export XYMON_VARIANT="${VARIANT}"
+export LOCALCLIENT
+
+bash scripts/ci/cmake-configure.sh
+bash scripts/ci/cmake-build.sh

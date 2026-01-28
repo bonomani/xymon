@@ -34,25 +34,29 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: ./.github/actions/setup-env-debian
-        with:
-          profile: debian
+      - name: Setup (Debian)
+        run: |
+          bash scripts/ci/setup-debian.sh debian
 
       - uses: ./.github/actions/select-compiler
         with:
           compiler: ${{ matrix.compiler }}
 
       - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ON
+          ENABLE_LDAP: ON
+          XYMON_VARIANT: ${{ matrix.variant }}
+          LOCALCLIENT: ${{ matrix.localclient }}
         run: |
-          cmake --preset ${{ matrix.preset }} \
-            -DENABLE_SSL=ON \
-            -DENABLE_LDAP=ON \
-            -DXYMON_VARIANT=${{ matrix.variant }} \
-            -DLOCALCLIENT=${{ matrix.localclient }}
+          bash scripts/ci/cmake-configure.sh
 
       - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
         run: |
-          cmake --build --preset ${{ matrix.preset }} --parallel 1
+          bash scripts/ci/cmake-build.sh
 
   bsd:
     name: bsd / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / LDAP=${{ matrix.enable_ldap }} / OS=${{ matrix.os.name }} / BUILD=CMake
@@ -61,6 +65,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        preset: [default]
         os:
           - name: freebsd
             architecture: x86-64
@@ -87,6 +92,7 @@ jobs:
           cpu_count: 1
           run: |
             export VARIANT="${{ matrix.variant }}"
+            export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.enable_ldap }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
             bash scripts/ci/bsd-build.sh
