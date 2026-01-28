@@ -15,11 +15,9 @@ jobs:
         include:
           - preset: default
             variant: server
-            localclient: OFF
             name: server
           - preset: gnuinstall
             variant: server
-            localclient: OFF
             name: server
           - preset: default
             variant: client

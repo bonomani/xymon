@@ -21,7 +21,6 @@ jobs:
             compiler: gcc
           - preset: gnuinstall
             variant: server
-            localclient: OFF
             compiler: clang
           - preset: packaging
             variant: client
@@ -62,7 +61,7 @@ jobs:
           bash scripts/ci/cmake-build.sh
 
   bsd:
-    name: bsd / VARIANT=${{ matrix.variant }} / LOCALCLIENT=${{ matrix.localclient }} / LDAP=${{ matrix.enable_ldap }} / OS=${{ matrix.os.name }} / BUILD=CMake
+    name: bsd / VARIANT=${{ matrix.variant }} / LDAP=OFF / OS=${{ matrix.os.name }} / BUILD=CMake
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
@@ -80,8 +79,6 @@ jobs:
             architecture: x86-64
             version: "10.1"
         variant: [server, client]
-        localclient: [OFF]
-        enable_ldap: [OFF]
     steps:
       - uses: actions/checkout@v4
       - name: build ${{ matrix.os.name }} (${{ matrix.variant }})
@@ -96,8 +93,10 @@ jobs:
           run: |
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
-            export ENABLE_LDAP="${{ matrix.enable_ldap }}"
-            export LOCALCLIENT="${{ matrix.localclient }}"
+            export ENABLE_LDAP=OFF
+            if [[ "${VARIANT}" == "client" ]]; then
+              export LOCALCLIENT=OFF
+            fi
             export DEBUG=1
             bash scripts/ci/bsd-setup.sh
 

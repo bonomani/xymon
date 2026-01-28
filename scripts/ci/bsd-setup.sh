@@ -44,6 +44,8 @@ if [[ ${#PKG_PKG[@]} -eq 0 || ${#PKG_PKGIN[@]} -eq 0 || ${#PKG_PKG_ADD[@]} -eq 0
 fi
 
 OS_NAME="$(uname -s)"
+OS_RELEASE="$(uname -r)"
+OS_ARCH="$(uname -m)"
 echo "$(uname -a)"
 
 if [ -x /usr/sbin/pkg ]; then
@@ -52,19 +54,29 @@ elif [ -x /usr/pkg/bin/pkgin ]; then
   sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
 elif [ -x /usr/sbin/pkg_add ]; then
   if [[ "${OS_NAME}" == "OpenBSD" ]]; then
-    CARES_PKG=""
-    if pkg_info -Q c-ares >/dev/null 2>&1; then
-      CARES_PKG="c-ares"
-    elif pkg_info -Q cares >/dev/null 2>&1; then
-      CARES_PKG="cares"
-    fi
-    if [[ -n "${CARES_PKG}" ]]; then
-      PKG_PKG_ADD_OPENBSD=("${PKG_PKG_ADD_OPENBSD[@]/__CARES_PKG__/${CARES_PKG}}")
-    else
-      echo "No c-ares package found in OpenBSD repositories"
+    MIRRORS=(
+      https://cdn.openbsd.org/pub/OpenBSD
+      https://cloudflare.cdn.openbsd.org/pub/OpenBSD
+      https://openbsd.as250.net/pub/OpenBSD
+      https://ftp2.eu.openbsd.org/pub/OpenBSD
+    )
+    CARES_CANDIDATES=(c-ares cares)
+
+    INSTALL_OK=0
+    for mirror in "${MIRRORS[@]}"; do
+      export PKG_PATH="${mirror}/${OS_RELEASE}/packages/${OS_ARCH}/"
+      for cares in "${CARES_CANDIDATES[@]}"; do
+        PKG_PKG_ADD_OPENBSD=("${PKG_PKG_ADD_OPENBSD[@]/__CARES_PKG__/${cares}}")
+        if sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"; then
+          INSTALL_OK=1
+          break 2
+        fi
+      done
+    done
+    if [[ "${INSTALL_OK}" -ne 1 ]]; then
+      echo "Failed to install packages from OpenBSD mirrors"
       exit 1
     fi
-    sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
   else
     sudo -E /usr/sbin/pkg_add "${PKG_PKG_ADD[@]}"
   fi

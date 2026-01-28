@@ -56,13 +56,10 @@ jobs:
         include:
           - preset: default
             variant: server
-            localclient: OFF
           - preset: gnuinstall
             variant: server
-            localclient: OFF
           - preset: packaging
             variant: server
-            localclient: OFF
           - preset: default
             variant: client
             localclient: ON
