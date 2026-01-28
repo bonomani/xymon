@@ -50,11 +50,19 @@ jobs:
             variant: server
             localclient: OFF
             name: server
+          - preset: packaging
+            variant: server
+            localclient: OFF
+            name: server
           - preset: default
             variant: client
             localclient: ON
             name: client CT=client
           - preset: gnuinstall
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: packaging
             variant: client
             localclient: ON
             name: client CT=client
@@ -63,6 +71,10 @@ jobs:
             localclient: OFF
             name: client CT=server
           - preset: gnuinstall
+            variant: client
+            localclient: OFF
+            name: client CT=server
+          - preset: packaging
             variant: client
             localclient: OFF
             name: client CT=server
