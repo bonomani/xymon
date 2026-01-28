@@ -35,3 +35,56 @@ jobs:
           profile: ${{ matrix.profile }}
 
       - uses: ./.github/actions/build-xymon
+
+  cmake:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: default
+            variant: server
+            localclient: OFF
+            name: server
+          - preset: gnuinstall
+            variant: server
+            localclient: OFF
+            name: server
+          - preset: default
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: gnuinstall
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: default
+            variant: client
+            localclient: OFF
+            name: client CT=server
+          - preset: gnuinstall
+            variant: client
+            localclient: OFF
+            name: client CT=server
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-env
+        with:
+          profile: debian
+
+      - uses: ./.github/actions/select-compiler
+        with:
+          compiler: gcc
+
+      - name: Configure (CMake)
+        run: |
+          cmake --preset ${{ matrix.preset }} \
+            -DENABLE_SSL=ON \
+            -DENABLE_LDAP=ON \
+            -DXYMON_VARIANT=${{ matrix.variant }} \
+            -DLOCALCLIENT=${{ matrix.localclient }}
+
+      - name: Build (CMake)
+        run: |
+          cmake --build --preset ${{ matrix.preset }} --parallel 1

@@ -31,3 +31,32 @@ jobs:
           profile: default
 
       - uses: ./.github/actions/build-xymon
+
+  cmake:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [default, gnuinstall]
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: ./.github/actions/setup-env
+        with:
+          profile: debian
+
+      - uses: ./.github/actions/select-compiler
+        with:
+          compiler: gcc
+
+      - name: Configure (CMake)
+        run: |
+          cmake --preset ${{ matrix.preset }} \
+            -DENABLE_SSL=ON \
+            -DENABLE_LDAP=ON \
+            -DXYMON_VARIANT=server \
+            -DLOCALCLIENT=OFF
+
+      - name: Build (CMake)
+        run: |
+          cmake --build --preset ${{ matrix.preset }} --parallel 1
