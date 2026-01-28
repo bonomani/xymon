@@ -197,7 +197,6 @@ target_link_libraries(rrdcachectl
     crypto
 )
 
-option(ENABLE_RRD "Build rrd-based daemon" ON)
 if(ENABLE_RRD)
     find_path(RRD_INCLUDE_DIR rrd.h)
     find_library(RRD_LIBRARY rrd)

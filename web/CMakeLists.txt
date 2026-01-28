@@ -86,7 +86,6 @@ add_executable(cgiwrap cgiwrap.c)
 target_compile_definitions(cgiwrap PRIVATE XYMONHOME=\"${XYMONHOME}\")
 target_link_libraries(cgiwrap xymoncomm xymontime xymoncomm pcre ssl crypto)
 
-option(ENABLE_RRD "Build RRD-based CGI tools" ON)
 if(ENABLE_RRD)
     find_path(RRD_INCLUDE_DIR rrd.h)
     find_library(RRD_LIBRARY rrd)
