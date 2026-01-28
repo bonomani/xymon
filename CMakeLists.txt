@@ -27,6 +27,8 @@ set(HTTPDGID "nobody" CACHE STRING "Webserver group for reports/snap directories
 option(HTTPDGID_CHGRP "Apply HTTPDGID chgrp during install" ON)
 option(ENABLE_RRD "Build rrd-based components" ON)
 option(ENABLE_LDAP "Enable LDAP checks" ON)
+set(XYMON_VARIANT "all" CACHE STRING "Build variant: all, server, or client")
+option(LOCALCLIENT "Enable local client configuration (client-only builds)" OFF)
 set(RUNTIMEDEFS "" CACHE STRING "Runtime defs for scripts")
 set(MANROOT "/usr/local/man" CACHE STRING "Man page root")
 option(ENABLE_SSL "Enable SSL checks" ON)
@@ -442,12 +444,36 @@ endif()
 if(XYMON_EXTRA_LIBDIRS)
     link_directories(${XYMON_EXTRA_LIBDIRS})
 endif()
+if(XYMON_VARIANT STREQUAL "client")
+    add_compile_definitions(CLIENTONLY)
+endif()
+if(LOCALCLIENT)
+    add_compile_definitions(LOCALCLIENT)
+endif()
 if(XYMON_NETLIBS)
     link_libraries(${XYMON_NETLIBS})
 endif()
 
 if(XYMON_NETBSD_RPATH)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -Wl,--rpath=${XYMON_NETBSD_RPATH}")
+endif()
+
+string(TOLOWER "${XYMON_VARIANT}" XYMON_VARIANT)
+if(NOT XYMON_VARIANT STREQUAL "all" AND
+   NOT XYMON_VARIANT STREQUAL "server" AND
+   NOT XYMON_VARIANT STREQUAL "client")
+    message(FATAL_ERROR "XYMON_VARIANT must be one of: all, server, client")
+endif()
+
+set(XYMON_BUILD_SERVER OFF)
+set(XYMON_BUILD_CLIENT OFF)
+if(XYMON_VARIANT STREQUAL "all")
+    set(XYMON_BUILD_SERVER ON)
+    set(XYMON_BUILD_CLIENT ON)
+elseif(XYMON_VARIANT STREQUAL "server")
+    set(XYMON_BUILD_SERVER ON)
+elseif(XYMON_VARIANT STREQUAL "client")
+    set(XYMON_BUILD_CLIENT ON)
 endif()
 
 # ----------------------------------------------------------------------
@@ -460,52 +486,70 @@ add_subdirectory(lib)
 # Server executables
 # ----------------------------------------------------------------------
 
-add_subdirectory(xymongen)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(xymongen)
+endif()
 
 # ----------------------------------------------------------------------
 # Common tools
 # ----------------------------------------------------------------------
 
-add_subdirectory(common)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(common)
+endif()
 
 # ----------------------------------------------------------------------
 # Client tools
 # ----------------------------------------------------------------------
 
-add_subdirectory(client)
+if(XYMON_BUILD_CLIENT)
+    add_subdirectory(client)
+endif()
 
 # ----------------------------------------------------------------------
 # Xymond daemons
 # ----------------------------------------------------------------------
 
-add_subdirectory(xymond)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(xymond)
+endif()
 
 # ----------------------------------------------------------------------
 # Xymon network tests
 # ----------------------------------------------------------------------
 
-add_subdirectory(xymonnet)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(xymonnet)
+endif()
 
 # ----------------------------------------------------------------------
 # Web CGI tools
 # ----------------------------------------------------------------------
 
-add_subdirectory(web)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(web)
+endif()
 
 # ----------------------------------------------------------------------
 # Docs
 # ----------------------------------------------------------------------
 
-add_subdirectory(docs)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(docs)
+endif()
 
 # ----------------------------------------------------------------------
 # Proxy tools
 # ----------------------------------------------------------------------
 
-add_subdirectory(xymonproxy)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(xymonproxy)
+endif()
 
 # ----------------------------------------------------------------------
 # Build tools (merge-lines, merge-sects, setup-newfiles, ...)
 # ----------------------------------------------------------------------
 
-add_subdirectory(build)
+if(XYMON_BUILD_SERVER)
+    add_subdirectory(build)
+endif()

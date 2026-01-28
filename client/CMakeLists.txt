@@ -138,5 +138,5 @@ install(TARGETS
     clientupdate
     orcaxymon
     msgcache
-    RUNTIME DESTINATION ${XYMONHOME}/bin
+    RUNTIME DESTINATION ${XYMONCLIENTHOME}/bin
 )

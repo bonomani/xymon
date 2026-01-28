@@ -6,11 +6,12 @@
 # - No invented files
 # - Match historical Makefile behavior
 
-# ----------------------------------------------------------------------
-# libxymoncomm.a
-# ----------------------------------------------------------------------
+if(XYMON_BUILD_SERVER)
+    # ----------------------------------------------------------------------
+    # libxymoncomm.a
+    # ----------------------------------------------------------------------
 
-add_library(xymoncomm STATIC
+    add_library(xymoncomm STATIC
     # core utilities
     errormsg.c
     tree.c
@@ -84,30 +85,31 @@ add_library(xymoncomm STATIC
     sha1.c
     sha2.c
     rmd160c.c
-)
+    )
 
-set_target_properties(xymoncomm PROPERTIES
-    OUTPUT_NAME xymoncomm
-)
+    set_target_properties(xymoncomm PROPERTIES
+        OUTPUT_NAME xymoncomm
+    )
 
-# REQUIRED: endianness macro (parity with historical Makefile)
-# This MUST be a compile definition, not a compile option
-if(WORDS_BIGENDIAN)
-    target_compile_definitions(xymoncomm PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
-else()
-    target_compile_definitions(xymoncomm PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    # REQUIRED: endianness macro (parity with historical Makefile)
+    # This MUST be a compile definition, not a compile option
+    if(WORDS_BIGENDIAN)
+        target_compile_definitions(xymoncomm PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+    else()
+        target_compile_definitions(xymoncomm PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    endif()
+
+    target_compile_options(xymoncomm PRIVATE
+        -include${CMAKE_SOURCE_DIR}/lib/osdefs.h
+    )
+
+    # External libraries required by objects in libxymoncomm.a
+    target_link_libraries(xymoncomm
+        pcre
+        ssl
+        crypto
+    )
 endif()
-
-target_compile_options(xymoncomm PRIVATE
-    -include${CMAKE_SOURCE_DIR}/lib/osdefs.h
-)
-
-# External libraries required by objects in libxymoncomm.a
-target_link_libraries(xymoncomm
-    pcre
-    ssl
-    crypto
-)
 
 # ----------------------------------------------------------------------
 # libxymontime.a
@@ -188,103 +190,105 @@ set_target_properties(xymonclientcomm PROPERTIES
     OUTPUT_NAME xymonclientcomm
 )
 
-# ----------------------------------------------------------------------
-# libxymon.a (aggregate)
-# ----------------------------------------------------------------------
+if(XYMON_BUILD_SERVER)
+    # ----------------------------------------------------------------------
+    # libxymon.a (aggregate)
+    # ----------------------------------------------------------------------
 
-file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
-"void xymon_dummy(void) {}\n"
-)
+    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
+    "void xymon_dummy(void) {}\n"
+    )
 
-add_library(xymon STATIC
-    ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
-)
+    add_library(xymon STATIC
+        ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
+    )
 
-target_link_libraries(xymon
-    xymoncomm
-    xymontime
-)
+    target_link_libraries(xymon
+        xymoncomm
+        xymontime
+    )
 
-set_target_properties(xymon PROPERTIES
-    OUTPUT_NAME xymon
-)
+    set_target_properties(xymon PROPERTIES
+        OUTPUT_NAME xymon
+    )
 
-# ----------------------------------------------------------------------
-# Standalone tools (parity with lib/Makefile)
-# ----------------------------------------------------------------------
+    # ----------------------------------------------------------------------
+    # Standalone tools (parity with lib/Makefile)
+    # ----------------------------------------------------------------------
 
-add_executable(test-endianness
-    test-endianness.c
-)
+    add_executable(test-endianness
+        test-endianness.c
+    )
 
-add_executable(loadhosts
-    loadhosts.c
-)
-target_compile_definitions(loadhosts PRIVATE STANDALONE)
-target_link_libraries(loadhosts
-    xymontime
-    xymoncomm
-)
+    add_executable(loadhosts
+        loadhosts.c
+    )
+    target_compile_definitions(loadhosts PRIVATE STANDALONE)
+    target_link_libraries(loadhosts
+        xymontime
+        xymoncomm
+    )
 
-add_executable(stackio
-    stackio.c
-)
-target_compile_definitions(stackio PRIVATE STANDALONE)
-target_link_libraries(stackio
-    xymontime
-    xymoncomm
-    xymon
-)
+    add_executable(stackio
+        stackio.c
+    )
+    target_compile_definitions(stackio PRIVATE STANDALONE)
+    target_link_libraries(stackio
+        xymontime
+        xymoncomm
+        xymon
+    )
 
-add_executable(availability
-    availability.c
-)
-target_compile_definitions(availability PRIVATE STANDALONE)
-target_link_libraries(availability
-    xymontime
-    xymoncomm
-    xymon
-)
+    add_executable(availability
+        availability.c
+    )
+    target_compile_definitions(availability PRIVATE STANDALONE)
+    target_link_libraries(availability
+        xymontime
+        xymoncomm
+        xymon
+    )
 
-add_executable(md5
-    md5.c
-)
-target_compile_definitions(md5 PRIVATE STANDALONE)
-if(WORDS_BIGENDIAN)
-    target_compile_definitions(md5 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
-else()
-    target_compile_definitions(md5 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    add_executable(md5
+        md5.c
+    )
+    target_compile_definitions(md5 PRIVATE STANDALONE)
+    if(WORDS_BIGENDIAN)
+        target_compile_definitions(md5 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+    else()
+        target_compile_definitions(md5 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    endif()
+
+    add_executable(sha1
+        sha1.c
+    )
+    target_compile_definitions(sha1 PRIVATE STANDALONE)
+    if(WORDS_BIGENDIAN)
+        target_compile_definitions(sha1 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+    else()
+        target_compile_definitions(sha1 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    endif()
+
+    add_executable(rmd160
+        rmd160c.c
+    )
+    target_compile_definitions(rmd160 PRIVATE STANDALONE)
+    if(WORDS_BIGENDIAN)
+        target_compile_definitions(rmd160 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+    else()
+        target_compile_definitions(rmd160 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    endif()
+
+    add_executable(locator
+        locator.c
+    )
+    target_compile_definitions(locator PRIVATE STANDALONE)
+    target_link_libraries(locator
+        xymontime
+        xymoncomm
+        xymon
+    )
 endif()
-
-add_executable(sha1
-    sha1.c
-)
-target_compile_definitions(sha1 PRIVATE STANDALONE)
-if(WORDS_BIGENDIAN)
-    target_compile_definitions(sha1 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
-else()
-    target_compile_definitions(sha1 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
-endif()
-
-add_executable(rmd160
-    rmd160c.c
-)
-target_compile_definitions(rmd160 PRIVATE STANDALONE)
-if(WORDS_BIGENDIAN)
-    target_compile_definitions(rmd160 PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
-else()
-    target_compile_definitions(rmd160 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
-endif()
-
-add_executable(locator
-    locator.c
-)
-target_compile_definitions(locator PRIVATE STANDALONE)
-target_link_libraries(locator
-    xymontime
-    xymoncomm
-    xymon
-)
 
 add_executable(tree
     tree.c

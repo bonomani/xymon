@@ -8,8 +8,24 @@ permissions:
 
 jobs:
   build:
-    name: cmake build
+    name: cmake build (${{ matrix.name }} / ${{ matrix.preset }})
     runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        preset: [default, gnuinstall]
+        include:
+          - name: server
+            variant: server
+            localclient: OFF
+          - name: client CT=client
+            variant: client
+            conftype: client
+            localclient: ON
+          - name: client CT=server
+            variant: client
+            conftype: server
+            localclient: OFF
 
     steps:
       - uses: actions/checkout@v4
@@ -18,8 +34,9 @@ jobs:
         run: |
           if [ -f ci/guards/architecture.sh ]; then
             chmod +x ci/guards/architecture.sh
+            ci/guards/architecture.sh
           fi
-          # ci/guards/architecture.sh
+          # ci/guards/architecture.sh (keep this commented)
 
       - uses: ./.github/actions/setup-env
         with:
@@ -31,11 +48,12 @@ jobs:
 
       - name: Configure (CMake)
         run: |
-          cmake -S . -B build \
-            -DXYMON_VARIANT=server \
+          cmake --preset ${{ matrix.preset }} \
             -DENABLE_SSL=ON \
-            -DENABLE_LDAP=ON
+            -DENABLE_LDAP=ON \
+            -DXYMON_VARIANT=${{ matrix.variant }} \
+            -DLOCALCLIENT=${{ matrix.localclient }}
 
       - name: Build (CMake)
         run: |
-          cmake --build build --parallel 1
+          cmake --build --preset ${{ matrix.preset }} --parallel 1
