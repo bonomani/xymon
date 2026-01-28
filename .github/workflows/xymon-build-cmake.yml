@@ -49,22 +49,26 @@ jobs:
           fi
           # ci/guards/architecture.sh (keep this commented)
 
-      - uses: ./.github/actions/setup-env-debian
-        with:
-          profile: debian
+      - name: Setup (Debian)
+        run: |
+          bash scripts/ci/setup-debian.sh debian
 
       - uses: ./.github/actions/select-compiler
         with:
           compiler: gcc
 
       - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ON
+          ENABLE_LDAP: ON
+          XYMON_VARIANT: ${{ matrix.variant }}
+          LOCALCLIENT: ${{ matrix.localclient }}
         run: |
-          cmake --preset ${{ matrix.preset }} \
-            -DENABLE_SSL=ON \
-            -DENABLE_LDAP=ON \
-            -DXYMON_VARIANT=${{ matrix.variant }} \
-            -DLOCALCLIENT=${{ matrix.localclient }}
+          bash scripts/ci/cmake-configure.sh
 
       - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
         run: |
-          cmake --build --preset ${{ matrix.preset }} --parallel 1
+          bash scripts/ci/cmake-build.sh
