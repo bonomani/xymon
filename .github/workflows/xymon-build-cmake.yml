@@ -49,7 +49,7 @@ jobs:
           fi
           # ci/guards/architecture.sh (keep this commented)
 
-      - uses: ./.github/actions/setup-env
+      - uses: ./.github/actions/setup-env-debian
         with:
           profile: debian
 
