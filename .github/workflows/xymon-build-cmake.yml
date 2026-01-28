@@ -52,11 +52,11 @@ jobs:
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
-          bash scripts/ci/setup-debian.sh debian
+          bash scripts/ci/setup-linux-debian.sh debian
 
       - name: Select compiler
         run: |
-          bash scripts/ci/select-compiler.sh gcc
+          bash scripts/ci/setup-compiler.sh gcc
 
       - name: Configure (CMake)
         env:

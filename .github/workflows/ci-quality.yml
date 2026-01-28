@@ -38,11 +38,11 @@ jobs:
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
-          bash scripts/ci/setup-debian.sh debian
+          bash scripts/ci/setup-linux-debian.sh debian
 
       - name: Select compiler
         run: |
-          bash scripts/ci/select-compiler.sh ${{ matrix.compiler }}
+          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:
@@ -98,7 +98,7 @@ jobs:
               export LOCALCLIENT=OFF
             fi
             export DEBUG=1
-            bash scripts/ci/bsd-setup.sh
+            bash scripts/ci/setup-bsd.sh
 
             case "${VARIANT}" in
               server) ENABLE_SSL=ON ;;
