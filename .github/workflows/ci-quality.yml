@@ -4,6 +4,7 @@ on:
   workflow_dispatch:
   schedule:
     - cron: "0 3 * * *"
+  workflow_call:
 permissions:
   contents: read
 
@@ -35,7 +36,6 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
@@ -47,7 +47,6 @@ jobs:
 
       - name: Configure (CMake)
         env:
-          CI: 1
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ON
           ENABLE_LDAP: ON
@@ -58,7 +57,6 @@ jobs:
 
       - name: Build (CMake)
         env:
-          CI: 1
           PRESET: ${{ matrix.preset }}
         run: |
           bash scripts/ci/cmake-build.sh
@@ -84,7 +82,7 @@ jobs:
         variant: [server, client]
     steps:
       - uses: actions/checkout@v4
-      - name: Setup + Build (BSD) ${{ matrix.os.name }} (${{ matrix.variant }})
+      - name: Setup (BSD) ${{ matrix.os.name }} (${{ matrix.variant }})
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ matrix.os.name }}
@@ -94,7 +92,6 @@ jobs:
           memory: 512M
           cpu_count: 1
           run: |
-            export CI=1
             echo "=== Setup (BSD) ==="
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"

@@ -2,6 +2,7 @@ name: Xymon build (Linux)
 
 on:
   workflow_dispatch:
+  workflow_call:
 permissions:
   contents: read
 
@@ -30,7 +31,6 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          CI: 1
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
@@ -40,15 +40,12 @@ jobs:
         run: |
           bash scripts/ci/setup-compiler.sh gcc
 
-      - name: Configure (Autotools)
+      - name: Configure (Legacy)
         env:
-          CI: 1
           CONFTYPE: ${{ matrix.conftype }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
 
-      - name: Build (Autotools)
-        env:
-          CI: 1
+      - name: Build (Legacy)
         run: |
           bash scripts/ci/legacy-build.sh
