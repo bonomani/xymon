@@ -68,7 +68,7 @@ Local mode defaults to --preset default. If you pass --preset, the preset's
 binaryDir is used as build dir
 unless you also pass --build-dir.
 Use --parallel N to control build parallelism (e.g., --parallel 1 to match CI).
-Use --use-ci-setup to run scripts/ci/setup-*.sh before configuring.
+Use --use-ci-packages to run scripts/ci/install-*-packages.sh before configuring.
 
 Notes
 -----
