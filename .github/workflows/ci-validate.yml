@@ -9,7 +9,7 @@ permissions:
 
 jobs:
   debian_legacy:
-    name: legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    name: debian_legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
 
     strategy:
@@ -36,13 +36,14 @@ jobs:
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Setup compiler
+      - name: Setup (Compiler)
         run: |
           bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (Legacy)
         env:
           CONFTYPE: ${{ matrix.conftype }}
+          ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
 
@@ -51,7 +52,7 @@ jobs:
           bash scripts/ci/legacy-build.sh
 
   debian_cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=server / COMPILER=gcc / PLATFORM=linux
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=server / COMPILER=gcc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -67,7 +68,7 @@ jobs:
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Setup compiler
+      - name: Setup (Compiler)
         run: |
           bash scripts/ci/setup-compiler.sh gcc
 

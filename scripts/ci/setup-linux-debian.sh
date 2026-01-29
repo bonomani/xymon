@@ -8,6 +8,7 @@ echo "=== Setup (Debian) ==="
 PROFILE="${1:-default}"
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 XYMON_VARIANT="${XYMON_VARIANT:-all}"
+CI_COMPILER="${CI_COMPILER:-}"
 
 sudo apt-get update
 
@@ -28,6 +29,9 @@ if [[ "${PROFILE}" == "debian" ]]; then
   fi
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
     PROFILE_PKGS+=(libldap-dev)
+  fi
+  if [[ "${CI_COMPILER}" == "clang" ]]; then
+    PROFILE_PKGS+=(clang)
   fi
 else
   PROFILE_PKGS=(clang)

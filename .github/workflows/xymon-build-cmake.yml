@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   debian_cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=gcc / PLATFORM=linux
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=gcc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -55,14 +55,14 @@ jobs:
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Setup compiler
+      - name: Setup (Compiler)
         run: |
           bash scripts/ci/setup-compiler.sh gcc
 
       - name: Configure (CMake)
         env:
           PRESET: ${{ matrix.preset }}
-          ENABLE_SSL: ON
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           ENABLE_LDAP: ON
           XYMON_VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}

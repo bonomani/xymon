@@ -10,11 +10,25 @@ if [[ -z "${VARIANT}" ]]; then
   exit 1
 fi
 
+ENABLESSL_VALUE="${ENABLESSL:-${ENABLE_SSL:-}}"
+if [[ -z "${ENABLESSL_VALUE}" ]]; then
+  if [[ "${VARIANT}" == "client" ]]; then
+    ENABLESSL_VALUE=n
+  else
+    ENABLESSL_VALUE=y
+  fi
+fi
+
+export ENABLESSL="${ENABLESSL_VALUE}"
+export ENABLELDAPSSL="${ENABLESSL_VALUE}"
+export ENABLELDAP="${ENABLELDAP:-y}"
+export USEXYMONPING="${USEXYMONPING:-y}"
+
 if [[ "${PROFILE}" == "debian" ]]; then
   USEXYMONPING=y \
-  ENABLESSL=y \
-  ENABLELDAP=y \
-  ENABLELDAPSSL=y \
+  ENABLESSL="${ENABLESSL_VALUE}" \
+  ENABLELDAP="${ENABLELDAP}" \
+  ENABLELDAPSSL="${ENABLELDAPSSL}" \
   XYMONUSER=xymon \
   XYMONTOPDIR=/usr/lib/xymon \
   XYMONVAR=/var/lib/xymon \

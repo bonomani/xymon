@@ -8,7 +8,7 @@ permissions:
 
 jobs:
   debian_legacy:
-    name: legacy / VARIANT=${{ matrix.name }} / COMPILER=gcc
+    name: debian_legacy / VARIANT=${{ matrix.name }} / COMPILER=gcc
     runs-on: ubuntu-latest
 
     strategy:
@@ -36,13 +36,14 @@ jobs:
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
 
-      - name: Setup compiler
+      - name: Setup (Compiler)
         run: |
           bash scripts/ci/setup-compiler.sh gcc
 
       - name: Configure (Legacy)
         env:
           CONFTYPE: ${{ matrix.conftype }}
+          ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
 
