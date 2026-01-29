@@ -45,7 +45,7 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
@@ -182,7 +182,7 @@ jobs:
         env:
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |

@@ -35,7 +35,7 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
@@ -72,7 +72,7 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: server
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
@@ -85,7 +85,7 @@ jobs:
         env:
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/cmake-configure.sh

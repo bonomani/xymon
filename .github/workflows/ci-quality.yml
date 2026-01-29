@@ -38,7 +38,7 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
@@ -52,7 +52,7 @@ jobs:
         env:
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |
@@ -130,10 +130,10 @@ jobs:
             echo "=== Setup (BSD) ==="
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
-            if [[ "${VARIANT}" == "server" ]]; then
-              export ENABLE_LDAP=ON
-            else
+            if [[ "${VARIANT}" == "client" ]]; then
               export ENABLE_LDAP=OFF
+            else
+              export ENABLE_LDAP=ON
             fi
             export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
