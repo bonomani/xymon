@@ -43,13 +43,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup (Debian)
+      - name: Setup (Linux)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux-debian.sh debian
+          bash scripts/ci/setup-linux.sh debian
 
       - name: Setup (Compiler)
         run: |
@@ -160,13 +160,13 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - name: Setup (Debian)
+      - name: Setup (Linux)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux-debian.sh debian
+          bash scripts/ci/setup-linux.sh debian
 
       - name: Setup (Compiler)
         run: |
