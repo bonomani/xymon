@@ -1,0 +1,99 @@
+name: CI validation (Linux)
+
+on:
+  workflow_dispatch:
+  pull_request:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  debian_legacy:
+    name: debian_legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - name: server
+            variant: server
+            compiler: gcc
+            localclient: OFF
+          - name: client CT=client
+            variant: client
+            compiler: gcc
+            localclient: ON
+          - name: client CT=server
+            variant: client
+            compiler: gcc
+            localclient: OFF
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          XYMON_VARIANT: ${{ matrix.variant }}
+        run: |
+          bash scripts/ci/setup-linux-debian.sh debian
+
+      - name: Setup (Compiler)
+        run: |
+          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
+
+      - name: Configure (Legacy)
+        env:
+          LOCALCLIENT: ${{ matrix.localclient }}
+          ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
+        run: |
+          bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
+
+      - name: Build (Legacy)
+        run: |
+          bash scripts/ci/legacy-build.sh
+
+  debian_cmake:
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=gcc
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: true
+      matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - preset: default
+            variant: server
+            name: server
+          - preset: gnuinstall
+            variant: server
+            name: server
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          XYMON_VARIANT: server
+        run: |
+          bash scripts/ci/setup-linux-debian.sh debian
+
+      - name: Setup (Compiler)
+        run: |
+          bash scripts/ci/setup-compiler.sh gcc
+
+      - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          XYMON_VARIANT: ${{ matrix.variant }}
+        run: |
+          bash scripts/ci/cmake-configure.sh
+
+      - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: |
+          bash scripts/ci/cmake-build.sh

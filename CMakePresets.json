@@ -1,0 +1,53 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default (Makefile parity)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF"
+      }
+    },
+    {
+      "name": "gnuinstall",
+      "displayName": "GNUInstallDirs layout",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-gnu",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "ON"
+      }
+    },
+    {
+      "name": "packaging",
+      "displayName": "Packaging (GNUInstallDirs, /usr prefix)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-packaging",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "ON",
+        "CMAKE_INSTALL_PREFIX": "/usr",
+        "HTTPDGID_CHGRP": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "gnuinstall",
+      "configurePreset": "gnuinstall"
+    },
+    {
+      "name": "packaging",
+      "configurePreset": "packaging"
+    }
+  ]
+}

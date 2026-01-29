@@ -1,0 +1,146 @@
+name: CI quality (extended)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  debian_cmake:
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - preset: default
+            variant: all
+            name: all
+            localclient: OFF
+            compiler: gcc
+          - preset: gnuinstall
+            variant: server
+            name: server
+            localclient: OFF
+            compiler: clang
+          - preset: packaging
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: gcc
+          - preset: default
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: clang
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (Debian)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          XYMON_VARIANT: ${{ matrix.variant }}
+          CI_COMPILER: ${{ matrix.compiler }}
+        run: |
+          bash scripts/ci/setup-linux-debian.sh debian
+
+      - name: Setup (Compiler)
+        run: |
+          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
+
+      - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          XYMON_VARIANT: ${{ matrix.variant }}
+          LOCALCLIENT: ${{ matrix.localclient }}
+        run: |
+          bash scripts/ci/cmake-configure.sh
+
+      - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: |
+          bash scripts/ci/cmake-build.sh
+
+  bsd_cmake:
+    name: bsd_cmake / OS=${{ matrix.os.name }} / VARIANT=${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - preset: default
+            os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: server
+            localclient: OFF
+          - preset: default
+            os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: client
+            localclient: OFF
+          - preset: default
+            os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            variant: server
+            localclient: OFF
+          - preset: default
+            os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            variant: client
+            localclient: OFF
+          - preset: default
+            os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            variant: server
+            localclient: OFF
+          - preset: default
+            os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            variant: client
+            localclient: OFF
+    steps:
+      - uses: actions/checkout@v4
+      - name: Setup (BSD) ${{ matrix.os.name }} (${{ matrix.variant }})
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ matrix.os.name }}
+          architecture: ${{ matrix.os.architecture }}
+          version: ${{ matrix.os.version }}
+          shell: bash
+          memory: 512M
+          cpu_count: 1
+          run: |
+            echo "=== Setup (BSD) ==="
+            export VARIANT="${{ matrix.variant }}"
+            export PRESET="${{ matrix.preset }}"
+            export ENABLE_LDAP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
+            export LOCALCLIENT="${{ matrix.localclient }}"
+            export DEBUG=1
+            bash scripts/ci/setup-bsd.sh
+            export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
+            export XYMON_VARIANT="${VARIANT}"
+            echo "=== Configure (CMake) ==="
+            bash scripts/ci/cmake-configure.sh
+            echo "=== Build (CMake) ==="
+            bash scripts/ci/cmake-build.sh
