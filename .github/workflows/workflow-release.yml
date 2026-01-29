@@ -5,7 +5,7 @@ concurrency:
 on:
   push:
     tags:
-      - 'rel-*'   # or 'v*' 
+      - 'rel-*'
 
 permissions:
   contents: write
