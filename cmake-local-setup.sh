@@ -92,7 +92,7 @@ Options:
   --destdir DIR         Stage install under DIR (for packaging)
   --use-ci-configure    Use scripts/ci/cmake-configure.sh and presets
   --preset NAME         CMake preset (required with --use-ci-configure)
-  --variant NAME        server|client (required with --use-ci-configure)
+  --variant NAME        server|client
   --localclient ON/OFF  Client mode for --variant client
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)

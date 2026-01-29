@@ -61,6 +61,7 @@ It will create or reuse build-cmake/ and run CMake with the selected values.
 Use --destdir to stage an install tree for packaging.
 Use --use-ci-configure with --preset and --variant to drive the CI preset flow
 without prompts (it implies --non-interactive).
+For local builds, --variant/--localclient map to XYMON_VARIANT/LOCALCLIENT.
 
 Notes
 -----

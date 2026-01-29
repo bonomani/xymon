@@ -123,6 +123,17 @@ cmake -S "${root_dir}" -B "${build_dir}" \
   -DCARESINCDIR="${caresinclude}" \
   -DCARESLIBDIR="${careslib}"
 
+if [[ -n "${variant_override}" ]]; then
+  cmake -S "${root_dir}" -B "${build_dir}" -DXYMON_VARIANT="${variant_override}"
+  if [[ "${variant_override}" == "client" && -z "${localclient_override}" ]]; then
+    echo "LOCALCLIENT is required for VARIANT=client"
+    exit 1
+  fi
+  if [[ -n "${localclient_override}" ]]; then
+    cmake -S "${root_dir}" -B "${build_dir}" -DLOCALCLIENT="${localclient_override}"
+  fi
+fi
+
 if [[ -n "${enable_rrd}" ]]; then
   cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_RRD="${enable_rrd}"
 fi
