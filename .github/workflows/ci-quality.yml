@@ -18,8 +18,8 @@ jobs:
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - preset: default
-            variant: all
-            name: all
+            variant: server
+            name: server
             compiler: gcc
           - preset: gnuinstall
             variant: server

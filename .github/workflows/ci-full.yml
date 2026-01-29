@@ -116,21 +116,6 @@ jobs:
             localclient: OFF
             compiler: gcc
           - preset: default
-            variant: all
-            name: all
-            localclient: OFF
-            compiler: gcc
-          - preset: gnuinstall
-            variant: all
-            name: all
-            localclient: OFF
-            compiler: gcc
-          - preset: packaging
-            variant: all
-            name: all
-            localclient: OFF
-            compiler: gcc
-          - preset: default
             variant: server
             name: server
             compiler: clang
@@ -170,21 +155,6 @@ jobs:
           - preset: packaging
             variant: client
             name: client CT=server
-            localclient: OFF
-            compiler: clang
-          - preset: default
-            variant: all
-            name: all
-            localclient: OFF
-            compiler: clang
-          - preset: gnuinstall
-            variant: all
-            name: all
-            localclient: OFF
-            compiler: clang
-          - preset: packaging
-            variant: all
-            name: all
             localclient: OFF
             compiler: clang
     steps:
