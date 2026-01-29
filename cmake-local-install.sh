@@ -18,7 +18,7 @@ normalize_onoff() {
 if [[ "${build_install}" == "1" ]]; then
   install_cmd=(cmake --install "${build_dir}")
   if [[ -n "${destdir_override}" ]]; then
-    install_cmd+=(--destdir "${destdir_override}")
+    export DESTDIR="${destdir_override}"
   fi
   if [[ "${non_interactive}" != "1" ]]; then
     read -r -p "Install now? [y/N]: " install_confirm
