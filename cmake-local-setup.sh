@@ -14,6 +14,7 @@ variant_override=""
 localclient_override=""
 build_dir_override="0"
 parallel_override=""
+use_ci_setup="0"
 prefix_override=""
 XYMONTOPDIR_OVERRIDE=""
 XYMONHOME_OVERRIDE=""
@@ -97,6 +98,7 @@ Options:
   --variant NAME        server|client
   --localclient ON/OFF  Client mode for --variant client
   --parallel N          Build with N parallel jobs
+  --use-ci-setup        Run scripts/ci/setup-*.sh before configuring
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)
   --help                Show this help
@@ -148,6 +150,7 @@ while [[ $# -gt 0 ]]; do
     --variant) variant_override="$2"; shift 2 ;;
     --localclient) localclient_override="$2"; shift 2 ;;
     --parallel) parallel_override="$2"; shift 2 ;;
+    --use-ci-setup) use_ci_setup="1"; shift ;;
     --no-clean) clean_build_dir="0"; shift ;;
     --no-build-install) build_install="0"; shift ;;
     --help) usage; exit 0 ;;
@@ -181,6 +184,26 @@ PY
   if [[ -n "${preset_build_dir}" ]]; then
     build_dir="${preset_build_dir}"
   fi
+fi
+
+if [[ "${use_ci_setup}" == "1" ]]; then
+  os_name="$(uname -s)"
+  case "${os_name}" in
+    Linux)
+      ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
+      VARIANT="${variant_override:-server}" \
+      bash "${root_dir}/scripts/ci/setup-linux.sh" linux
+      ;;
+    FreeBSD|NetBSD|OpenBSD)
+      ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
+      VARIANT="${variant_override:-server}" \
+      bash "${root_dir}/scripts/ci/setup-bsd.sh"
+      ;;
+    *)
+      echo "Unsupported OS for --use-ci-setup: ${os_name}"
+      exit 1
+      ;;
+  esac
 fi
 
 prompt() {
