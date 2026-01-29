@@ -27,10 +27,8 @@ esac
 
 pick_ldap_pkg() {
   local pkgmgr="${1:-}"
-  local fallback="openldap-client"
   local found=""
   local probe_out=""
-  local probe_status=0
 
   normalize_pkg_name() {
     sed 's/-[0-9].*$//'
@@ -85,11 +83,10 @@ pick_ldap_pkg() {
       if [ -x /usr/sbin/pkg_add ]; then
         set +e
         probe_out="$(/usr/sbin/pkg_add -n openldap-client 2>&1)"
-        probe_status=$?
         set -e
         if echo "${probe_out}" | grep -q '^Ambiguous:'; then
           found="$(pick_openldap_variant "${probe_out}")"
-        elif [[ ${probe_status} -eq 0 ]]; then
+        elif /usr/sbin/pkg_add -n openldap-client >/dev/null 2>&1; then
           found="openldap-client"
         fi
       fi
@@ -100,45 +97,44 @@ pick_ldap_pkg() {
     echo "${found}"
     return 0
   fi
-
-  echo "${fallback}"
 }
 
+PKG_PKG=("${PKG_COMMON[@]}")
+PKG_PKGIN=("${PKG_COMMON[@]}")
+PKG_PKG_ADD=("${PKG_COMMON[@]}")
+
 if [[ "${VARIANT}" == "server" ]]; then
-  PKG_PKG=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG[@]}")
-  PKG_PKGIN=("${PKG_COMMON[@]}" "${PKG_SERVER_PKGIN[@]}")
-  PKG_PKG_ADD=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG_ADD[@]}")
-  if [[ "${ENABLE_LDAP}" == "ON" ]]; then
-    LDAP_PKG="$(pick_ldap_pkg "${PKG_MGR}")"
-    if [[ -n "${LDAP_PKG}" ]]; then
-      PKG_PKG+=("${LDAP_PKG}")
-      PKG_PKGIN+=("${LDAP_PKG}")
-      PKG_PKG_ADD+=("${LDAP_PKG}")
-    fi
-  fi
-elif [[ "${VARIANT}" == "client" ]]; then
-  PKG_PKG=("${PKG_COMMON[@]}")
-  PKG_PKGIN=("${PKG_COMMON[@]}")
-  PKG_PKG_ADD=("${PKG_COMMON[@]}")
-else
+  PKG_PKG+=("${PKG_SERVER_PKG[@]}")
+  PKG_PKGIN+=("${PKG_SERVER_PKGIN[@]}")
+  PKG_PKG_ADD+=("${PKG_SERVER_PKG_ADD[@]}")
+elif [[ "${VARIANT}" != "client" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
 fi
 
-if [ -x /usr/sbin/pkg ]; then
-  sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
-  exit 0
+if [[ "${ENABLE_LDAP}" == "ON" && "${VARIANT}" == "server" ]]; then
+  LDAP_PKG="$(pick_ldap_pkg "${PKG_MGR}")"
+  if [[ -n "${LDAP_PKG}" ]]; then
+    PKG_PKG+=("${LDAP_PKG}")
+    PKG_PKGIN+=("${LDAP_PKG}")
+    PKG_PKG_ADD+=("${LDAP_PKG}")
+  fi
 fi
 
-if [ -x /usr/pkg/bin/pkgin ]; then
-  sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
-  exit 0
-fi
-
-if [ -x /usr/sbin/pkg_add ]; then
-  sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
-  exit 0
-fi
+case "${PKG_MGR}" in
+  pkg)
+    sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
+    exit 0
+    ;;
+  pkgin)
+    sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
+    exit 0
+    ;;
+  pkg_add)
+    sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+    exit 0
+    ;;
+esac
 
 echo "No supported package manager found"
 exit 1
