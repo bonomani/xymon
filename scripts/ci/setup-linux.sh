@@ -46,7 +46,3 @@ fi
 sudo apt-get install -y --no-install-recommends \
   "${BASE_PKGS[@]}" \
   "${PROFILE_PKGS[@]}"
-
-id xymon >/dev/null 2>&1 || sudo useradd -r -m -d /home/xymon -s /usr/sbin/nologin xymon
-sudo mkdir -p /home/xymon
-sudo chown xymon:xymon /home/xymon
