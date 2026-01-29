@@ -11,6 +11,7 @@ if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" ]]; then
 fi
 
 OS_NAME="$(uname -s)"
+echo "=== Install (BSD packages) ==="
 echo "$(uname -a)"
 
 PKG_COMMON=(gmake cmake pcre fping)

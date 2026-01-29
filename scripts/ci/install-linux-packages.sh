@@ -3,7 +3,7 @@ set -euo pipefail
 IFS=$' \t\n'
 [[ -n "${CI:-}" ]] && set -x
 
-echo "=== Setup (Linux) ==="
+echo "=== Install (Linux packages) ==="
 
 PROFILE="${1:-default}"
 if [[ "${PROFILE}" == "linux" ]]; then
