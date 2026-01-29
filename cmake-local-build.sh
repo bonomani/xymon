@@ -40,6 +40,10 @@ enable_ssl="${ENABLE_SSL:-}"
 enable_ldap="${ENABLE_LDAP:-}"
 non_interactive="${NON_INTERACTIVE:-0}"
 build_install="${BUILD_INSTALL:-1}"
+use_ci_configure="${USE_CI_CONFIGURE:-0}"
+preset_override="${PRESET_OVERRIDE:-}"
+variant_override="${VARIANT_OVERRIDE:-}"
+localclient_override="${LOCALCLIENT_OVERRIDE:-}"
 
 normalize_onoff() {
   local val="$1"
@@ -58,6 +62,33 @@ show_or_auto() {
     printf '%s' "${val}"
   fi
 }
+
+if [[ "${use_ci_configure}" == "1" ]]; then
+  if [[ -z "${preset_override}" ]]; then
+    echo "PRESET is required when using --use-ci-configure"
+    exit 1
+  fi
+  if [[ -z "${variant_override}" ]]; then
+    echo "VARIANT is required when using --use-ci-configure"
+    exit 1
+  fi
+  if [[ "${variant_override}" == "client" && -z "${localclient_override}" ]]; then
+    echo "LOCALCLIENT is required for VARIANT=client when using --use-ci-configure"
+    exit 1
+  fi
+  export PRESET="${preset_override}"
+  export VARIANT="${variant_override}"
+  if [[ -n "${localclient_override}" ]]; then
+    export LOCALCLIENT="${localclient_override}"
+  fi
+  export ENABLE_SSL="${enable_ssl:-ON}"
+  export ENABLE_LDAP="${enable_ldap:-ON}"
+  bash "${root_dir}/scripts/ci/cmake-configure.sh"
+  if [[ "${build_install}" == "1" ]]; then
+    bash "${root_dir}/scripts/ci/cmake-build.sh"
+  fi
+  exit 0
+fi
 
 cmake -S "${root_dir}" -B "${build_dir}" \
   -DUSE_GNUINSTALLDIRS="${use_gnuinstall}" \

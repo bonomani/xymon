@@ -59,6 +59,7 @@ The setup wrapper calls:
 
 It will create or reuse build-cmake/ and run CMake with the selected values.
 Use --destdir to stage an install tree for packaging.
+Use --use-ci-configure with --preset and --variant to drive the CI preset flow.
 
 Notes
 -----

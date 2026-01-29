@@ -8,6 +8,10 @@ use_gnuinstall_override=""
 build_install="1"
 clean_build_dir="1"
 destdir_override=""
+use_ci_configure="0"
+preset_override=""
+variant_override=""
+localclient_override=""
 prefix_override=""
 XYMONTOPDIR_OVERRIDE=""
 XYMONHOME_OVERRIDE=""
@@ -86,6 +90,10 @@ Options:
   --careslib DIR        Set C-ARES library dir
   --build-dir DIR       Override build directory (default: build-cmake)
   --destdir DIR         Stage install under DIR (for packaging)
+  --use-ci-configure    Use scripts/ci/cmake-configure.sh and presets
+  --preset NAME         CMake preset (required with --use-ci-configure)
+  --variant NAME        server|client (required with --use-ci-configure)
+  --localclient ON/OFF  Client mode for --variant client
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)
   --help                Show this help
@@ -132,6 +140,10 @@ while [[ $# -gt 0 ]]; do
     --careslib) CARESLIBDIR_OVERRIDE="$2"; shift 2 ;;
     --build-dir) build_dir="$2"; shift 2 ;;
     --destdir) destdir_override="$2"; shift 2 ;;
+    --use-ci-configure) use_ci_configure="1"; shift ;;
+    --preset) preset_override="$2"; shift 2 ;;
+    --variant) variant_override="$2"; shift 2 ;;
+    --localclient) localclient_override="$2"; shift 2 ;;
     --no-clean) clean_build_dir="0"; shift ;;
     --no-build-install) build_install="0"; shift ;;
     --help) usage; exit 0 ;;
@@ -437,6 +449,10 @@ export ENABLE_SNMP="${enable_snmp}"
 export ENABLE_SSL="${enable_ssl}"
 export ENABLE_LDAP="${enable_ldap}"
 export DESTDIR_OVERRIDE="${destdir_override}"
+export USE_CI_CONFIGURE="${use_ci_configure}"
+export PRESET_OVERRIDE="${preset_override}"
+export VARIANT_OVERRIDE="${variant_override}"
+export LOCALCLIENT_OVERRIDE="${localclient_override}"
 
 bash "${root_dir}/cmake-local-build.sh"
 bash "${root_dir}/cmake-local-install.sh"
