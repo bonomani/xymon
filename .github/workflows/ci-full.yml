@@ -14,15 +14,28 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
         include:
           - name: server
             variant: server
+            compiler: gcc
+          - name: server
+            variant: server
+            compiler: clang
           - name: client CT=client
             variant: client
+            compiler: gcc
+            conftype: client
+          - name: client CT=client
+            variant: client
+            compiler: clang
             conftype: client
           - name: client CT=server
             variant: client
+            compiler: gcc
+            conftype: server
+          - name: client CT=server
+            variant: client
+            compiler: clang
             conftype: server
     steps:
       - uses: actions/checkout@v4
@@ -56,41 +69,97 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc, clang]
         include:
           - preset: default
             variant: server
+            compiler: gcc
           - preset: gnuinstall
             variant: server
+            compiler: gcc
           - preset: packaging
             variant: server
+            compiler: gcc
           - preset: default
             variant: client
             localclient: ON
+            compiler: gcc
           - preset: gnuinstall
             variant: client
             localclient: ON
+            compiler: gcc
           - preset: packaging
             variant: client
             localclient: ON
+            compiler: gcc
           - preset: default
             variant: client
             localclient: OFF
+            compiler: gcc
           - preset: gnuinstall
             variant: client
             localclient: OFF
+            compiler: gcc
           - preset: packaging
             variant: client
             localclient: OFF
+            compiler: gcc
           - preset: default
             variant: all
             localclient: OFF
+            compiler: gcc
           - preset: gnuinstall
             variant: all
             localclient: OFF
+            compiler: gcc
           - preset: packaging
             variant: all
             localclient: OFF
+            compiler: gcc
+          - preset: default
+            variant: server
+            compiler: clang
+          - preset: gnuinstall
+            variant: server
+            compiler: clang
+          - preset: packaging
+            variant: server
+            compiler: clang
+          - preset: default
+            variant: client
+            localclient: ON
+            compiler: clang
+          - preset: gnuinstall
+            variant: client
+            localclient: ON
+            compiler: clang
+          - preset: packaging
+            variant: client
+            localclient: ON
+            compiler: clang
+          - preset: default
+            variant: client
+            localclient: OFF
+            compiler: clang
+          - preset: gnuinstall
+            variant: client
+            localclient: OFF
+            compiler: clang
+          - preset: packaging
+            variant: client
+            localclient: OFF
+            compiler: clang
+          - preset: default
+            variant: all
+            localclient: OFF
+            compiler: clang
+          - preset: gnuinstall
+            variant: all
+            localclient: OFF
+            compiler: clang
+          - preset: packaging
+            variant: all
+            localclient: OFF
+            compiler: clang
     steps:
       - uses: actions/checkout@v4
 

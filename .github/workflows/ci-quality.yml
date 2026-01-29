@@ -70,18 +70,43 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        preset: [default]
-        os:
-          - name: freebsd
-            architecture: x86-64
-            version: "15.0"
-          - name: openbsd
-            architecture: x86-64
-            version: "7.8"
-          - name: netbsd
-            architecture: x86-64
-            version: "10.1"
-        variant: [server, client]
+        include:
+          - preset: default
+            os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: server
+          - preset: default
+            os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: client
+          - preset: default
+            os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            variant: server
+          - preset: default
+            os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            variant: client
+          - preset: default
+            os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            variant: server
+          - preset: default
+            os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            variant: client
     steps:
       - uses: actions/checkout@v4
       - name: Setup (BSD) ${{ matrix.os.name }} (${{ matrix.variant }})
