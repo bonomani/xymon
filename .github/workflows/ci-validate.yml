@@ -19,6 +19,7 @@ jobs:
         include:
           - name: server
             variant: server
+            conftype: server
           - name: client CT=client
             variant: client
             conftype: client
