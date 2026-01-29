@@ -13,6 +13,35 @@ fi
 OS_NAME="$(uname -s)"
 echo "$(uname -a)"
 
+pick_ldap_pkg() {
+  local pkgmgr="${1:-}"
+  local fallback="openldap-client"
+  local found=""
+
+  case "${pkgmgr}" in
+    pkg)
+      found="$(/usr/sbin/pkg search -q '^openldap.*-client$' 2>/dev/null | sort -V | tail -n 1 || true)"
+      ;;
+    pkgin)
+      found="$(/usr/pkg/bin/pkgin search '^openldap.*-client$' 2>/dev/null | awk '{print $1}' | sort -V | tail -n 1 || true)"
+      ;;
+    pkg_add)
+      found="$(/usr/sbin/pkg_info -Q openldap\\*-client 2>/dev/null | sort -V | tail -n 1 || true)"
+      ;;
+  esac
+
+  if [[ -n "${found}" ]]; then
+    echo "${found}"
+    return 0
+  fi
+
+  if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+    echo "openldap26-client"
+  else
+    echo "${fallback}"
+  fi
+}
+
 PKG_PKG=(gmake cmake pcre fping)
 PKG_PKGIN=(gmake cmake pcre fping)
 PKG_PKG_ADD=(gmake cmake pcre gcc fping)
@@ -24,10 +53,10 @@ if [[ "${VARIANT}" == "server" ]]; then
   PKG_PKG_ADD+=(cares)
   PKG_PKG_ADD_OPENBSD+=(libcares)
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
-    PKG_PKG+=(openldap-client)
-    PKG_PKGIN+=(openldap-client)
-    PKG_PKG_ADD+=(openldap-client)
-    PKG_PKG_ADD_OPENBSD+=(openldap-client)
+    PKG_PKG+=("$(pick_ldap_pkg pkg)")
+    PKG_PKGIN+=("$(pick_ldap_pkg pkgin)")
+    PKG_PKG_ADD+=("$(pick_ldap_pkg pkg_add)")
+    PKG_PKG_ADD_OPENBSD+=("$(pick_ldap_pkg pkg_add)")
   fi
 elif [[ "${VARIANT}" != "client" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
