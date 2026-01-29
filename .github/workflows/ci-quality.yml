@@ -20,12 +20,10 @@ jobs:
           - preset: default
             variant: all
             name: all
-            localclient: OFF
             compiler: gcc
           - preset: gnuinstall
             variant: server
             name: server
-            localclient: OFF
             compiler: clang
           - preset: packaging
             variant: client
@@ -43,7 +41,7 @@ jobs:
       - name: Setup (Debian)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
-          XYMON_VARIANT: ${{ matrix.variant }}
+          VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
           bash scripts/ci/setup-linux-debian.sh debian
@@ -57,7 +55,7 @@ jobs:
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
-          XYMON_VARIANT: ${{ matrix.variant }}
+          VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |
           bash scripts/ci/cmake-configure.sh
@@ -83,7 +81,6 @@ jobs:
               architecture: x86-64
               version: "15.0"
             variant: server
-            localclient: OFF
           - preset: default
             os:
               name: freebsd
@@ -97,7 +94,6 @@ jobs:
               architecture: x86-64
               version: "7.8"
             variant: server
-            localclient: OFF
           - preset: default
             os:
               name: openbsd
@@ -135,11 +131,9 @@ jobs:
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
-            export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
             bash scripts/ci/setup-bsd.sh
             export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
-            export XYMON_VARIANT="${VARIANT}"
             echo "=== Configure (CMake) ==="
             bash scripts/ci/cmake-configure.sh
             echo "=== Build (CMake) ==="

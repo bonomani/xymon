@@ -23,6 +23,10 @@ case "${OS_NAME}" in
   FreeBSD) PKG_MGR="pkg" ;;
   NetBSD) PKG_MGR="pkgin" ;;
   OpenBSD) PKG_MGR="pkg_add" ;;
+  *)
+    echo "Unsupported BSD OS: ${OS_NAME}"
+    exit 1
+    ;;
 esac
 
 pick_ldap_pkg() {

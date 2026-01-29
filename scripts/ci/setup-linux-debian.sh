@@ -7,7 +7,7 @@ echo "=== Setup (Debian) ==="
 
 PROFILE="${1:-default}"
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
-XYMON_VARIANT="${XYMON_VARIANT:-all}"
+VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"
 
 sudo apt-get update
@@ -24,7 +24,7 @@ BASE_PKGS=(
 
 if [[ "${PROFILE}" == "debian" ]]; then
   PROFILE_PKGS=()
-  if [[ "${XYMON_VARIANT}" != "client" ]]; then
+  if [[ "${VARIANT}" != "client" ]]; then
     PROFILE_PKGS+=(libc-ares-dev)
   fi
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
