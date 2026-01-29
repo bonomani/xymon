@@ -13,6 +13,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - preset: default
             variant: server

@@ -15,19 +15,20 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - name: server
             variant: server
             compiler: gcc
-            conftype: server
+            localclient: OFF
           - name: client CT=client
             variant: client
             compiler: gcc
-            conftype: client
+            localclient: ON
           - name: client CT=server
             variant: client
             compiler: gcc
-            conftype: server
+            localclient: OFF
 
     steps:
       - uses: actions/checkout@v4
@@ -45,7 +46,7 @@ jobs:
 
       - name: Configure (Legacy)
         env:
-          CONFTYPE: ${{ matrix.conftype }}
+          LOCALCLIENT: ${{ matrix.localclient }}
           ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
         run: |
           bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
@@ -60,7 +61,10 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
-        preset: [default, gnuinstall]
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - preset: default
+          - preset: gnuinstall
     steps:
       - uses: actions/checkout@v4
 

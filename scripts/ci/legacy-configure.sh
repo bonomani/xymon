@@ -10,6 +10,24 @@ if [[ -z "${VARIANT}" ]]; then
   exit 1
 fi
 
+CONFTYPE_VALUE="${CONFTYPE:-}"
+if [[ -z "${CONFTYPE_VALUE}" && -n "${LOCALCLIENT:-}" ]]; then
+  case "${LOCALCLIENT}" in
+    ON|on|On|1|true|TRUE|True) CONFTYPE_VALUE=client ;;
+    OFF|off|Off|0|false|FALSE|False) CONFTYPE_VALUE=server ;;
+    *)
+      echo "LOCALCLIENT must be ON or OFF (got: ${LOCALCLIENT})"
+      exit 1
+      ;;
+  esac
+fi
+
+if [[ -z "${CONFTYPE_VALUE}" ]]; then
+  CONFTYPE_VALUE="server"
+fi
+
+export CONFTYPE="${CONFTYPE_VALUE}"
+
 ENABLESSL_VALUE="${ENABLESSL:-${ENABLE_SSL:-}}"
 if [[ -z "${ENABLESSL_VALUE}" ]]; then
   if [[ "${VARIANT}" == "client" ]]; then
