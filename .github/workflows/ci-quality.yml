@@ -68,7 +68,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux.sh linux
+          bash scripts/ci/install-linux-packages.sh linux
 
       - name: Setup (Compiler)
         run: |
@@ -156,7 +156,7 @@ jobs:
             export ENABLE_LDAP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
-            bash scripts/ci/setup-bsd.sh
+            bash scripts/ci/install-bsd-packages.sh
             export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             echo "=== Configure (CMake) ==="
             bash scripts/ci/cmake-configure.sh

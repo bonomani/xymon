@@ -49,7 +49,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux.sh linux
+          bash scripts/ci/install-linux-packages.sh linux
 
       - name: Setup (Compiler)
         run: |
@@ -166,7 +166,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux.sh linux
+          bash scripts/ci/install-linux-packages.sh linux
 
       - name: Setup (Compiler)
         run: |

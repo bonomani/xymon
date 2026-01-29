@@ -192,12 +192,12 @@ if [[ "${use_ci_setup}" == "1" ]]; then
     Linux)
       ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
       VARIANT="${variant_override:-server}" \
-      bash "${root_dir}/scripts/ci/setup-linux.sh" linux
+      bash "${root_dir}/scripts/ci/install-linux-packages.sh" linux
       ;;
     FreeBSD|NetBSD|OpenBSD)
       ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
       VARIANT="${variant_override:-server}" \
-      bash "${root_dir}/scripts/ci/setup-bsd.sh"
+      bash "${root_dir}/scripts/ci/install-bsd-packages.sh"
       ;;
     *)
       echo "Unsupported OS for --use-ci-setup: ${os_name}"
