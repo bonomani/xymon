@@ -107,7 +107,6 @@ jobs:
               architecture: x86-64
               version: "10.1"
             variant: server
-            localclient: OFF
           - preset: default
             os:
               name: netbsd
