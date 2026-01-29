@@ -8,12 +8,14 @@ permissions:
   contents: read
 
 jobs:
-  build:
+  debian_legacy:
+    name: legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
 
     strategy:
       fail-fast: true
       matrix:
+        compiler: [gcc]
         include:
           - name: server
             variant: server
@@ -36,7 +38,7 @@ jobs:
 
       - name: Setup compiler
         run: |
-          bash scripts/ci/setup-compiler.sh gcc
+          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (Legacy)
         env:
@@ -48,11 +50,11 @@ jobs:
         run: |
           bash scripts/ci/legacy-build.sh
 
-  cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=server / COMPILER=gcc
+  debian_cmake:
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=server / COMPILER=gcc / PLATFORM=linux
     runs-on: ubuntu-latest
     strategy:
-      fail-fast: false
+      fail-fast: true
       matrix:
         preset: [default, gnuinstall]
     steps:
@@ -75,7 +77,6 @@ jobs:
           ENABLE_SSL: ON
           ENABLE_LDAP: ON
           XYMON_VARIANT: server
-          LOCALCLIENT: OFF
         run: |
           bash scripts/ci/cmake-configure.sh
 

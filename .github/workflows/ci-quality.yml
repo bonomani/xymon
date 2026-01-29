@@ -9,8 +9,8 @@ permissions:
   contents: read
 
 jobs:
-  cmake:
-    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=${{ matrix.compiler }}
+  debian_cmake:
+    name: cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=${{ matrix.compiler }} / PLATFORM=linux
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -22,6 +22,7 @@ jobs:
             compiler: gcc
           - preset: gnuinstall
             variant: server
+            localclient: OFF
             compiler: clang
           - preset: packaging
             variant: client
@@ -61,8 +62,8 @@ jobs:
         run: |
           bash scripts/ci/cmake-build.sh
 
-  bsd:
-    name: bsd / VARIANT=${{ matrix.variant }} / LDAP=OFF / OS=${{ matrix.os.name }} / BUILD=CMake
+  bsd_cmake:
+    name: cmake / OS=${{ matrix.os.name }} / VARIANT=${{ matrix.variant }} / PLATFORM=bsd
     runs-on: ubuntu-latest
     continue-on-error: true
     strategy:
