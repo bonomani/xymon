@@ -15,16 +15,18 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        compiler: [gcc]
         include:
           - name: server
             variant: server
+            compiler: gcc
             conftype: server
           - name: client CT=client
             variant: client
+            compiler: gcc
             conftype: client
           - name: client CT=server
             variant: client
+            compiler: gcc
             conftype: server
 
     steps:
