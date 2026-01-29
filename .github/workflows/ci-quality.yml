@@ -15,26 +15,46 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CI quality should:
+        # - Test all OSes (BSD) for server and client.
+        # - For linux_cmake, use one-parameter-at-a-time variations from the base:
+        #   preset=packaging, variant=server, compiler=gcc, localclient=OFF.
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
+          # Base
+          - preset: packaging
+            variant: server
+            name: server
+            compiler: gcc
+            localclient: OFF
+          # Vary preset
           - preset: default
             variant: server
             name: server
             compiler: gcc
+            localclient: OFF
           - preset: gnuinstall
             variant: server
             name: server
+            compiler: gcc
+            localclient: OFF
+          # Vary compiler
+          - preset: packaging
+            variant: server
+            name: server
             compiler: clang
+            localclient: OFF
+          # Vary variant
           - preset: packaging
             variant: client
             name: client CT=client
-            localclient: ON
             compiler: gcc
-          - preset: default
+            localclient: ON
+          - preset: packaging
             variant: client
             name: client CT=server
+            compiler: gcc
             localclient: OFF
-            compiler: clang
     steps:
       - uses: actions/checkout@v4
 
