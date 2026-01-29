@@ -75,14 +75,11 @@ PKG_PKGIN=(gmake cmake pcre fping)
 PKG_PKG_ADD=(gmake cmake pcre gcc fping)
 PKG_PKG_ADD_OPENBSD=(gmake cmake pcre gcc%11 fping)
 PKG_MGR=""
-
-if [ -x /usr/sbin/pkg ]; then
-  PKG_MGR="pkg"
-elif [ -x /usr/pkg/bin/pkgin ]; then
-  PKG_MGR="pkgin"
-elif [ -x /usr/sbin/pkg_add ]; then
-  PKG_MGR="pkg_add"
-fi
+case "${OS_NAME}" in
+  FreeBSD) PKG_MGR="pkg" ;;
+  NetBSD) PKG_MGR="pkgin" ;;
+  OpenBSD) PKG_MGR="pkg_add" ;;
+esac
 
 if [[ "${VARIANT}" == "server" ]]; then
   PKG_PKG+=(c-ares)
