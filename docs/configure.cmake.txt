@@ -51,7 +51,11 @@ Interactive configure-style script
 
 You can use the helper script to answer the usual path questions:
 
-  ./configure.cmake.sh
+  ./cmake-local-setup.sh
+
+The setup wrapper calls:
+  ./cmake-local-build.sh
+  ./cmake-local-install.sh
 
 It will create or reuse build-cmake/ and run CMake with the selected values.
 
