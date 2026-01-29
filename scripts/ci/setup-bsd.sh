@@ -16,7 +16,7 @@ echo "$(uname -a)"
 PKG_COMMON=(gmake cmake pcre fping)
 PKG_SERVER_PKG=(c-ares)
 PKG_SERVER_PKGIN=(libcares)
-PKG_SERVER_PKG_ADD_OPENBSD=(libcares)
+PKG_SERVER_PKG_ADD=(libcares)
 
 PKG_MGR=""
 case "${OS_NAME}" in
@@ -107,19 +107,19 @@ pick_ldap_pkg() {
 if [[ "${VARIANT}" == "server" ]]; then
   PKG_PKG=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG[@]}")
   PKG_PKGIN=("${PKG_COMMON[@]}" "${PKG_SERVER_PKGIN[@]}")
-  PKG_PKG_ADD_OPENBSD=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG_ADD_OPENBSD[@]}")
+  PKG_PKG_ADD=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG_ADD[@]}")
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
     LDAP_PKG="$(pick_ldap_pkg "${PKG_MGR}")"
     if [[ -n "${LDAP_PKG}" ]]; then
       PKG_PKG+=("${LDAP_PKG}")
       PKG_PKGIN+=("${LDAP_PKG}")
-      PKG_PKG_ADD_OPENBSD+=("${LDAP_PKG}")
+      PKG_PKG_ADD+=("${LDAP_PKG}")
     fi
   fi
 elif [[ "${VARIANT}" == "client" ]]; then
   PKG_PKG=("${PKG_COMMON[@]}")
   PKG_PKGIN=("${PKG_COMMON[@]}")
-  PKG_PKG_ADD_OPENBSD=("${PKG_COMMON[@]}")
+  PKG_PKG_ADD=("${PKG_COMMON[@]}")
 else
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
@@ -136,7 +136,7 @@ if [ -x /usr/pkg/bin/pkgin ]; then
 fi
 
 if [ -x /usr/sbin/pkg_add ]; then
-  sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
+  sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
   exit 0
 fi
 
