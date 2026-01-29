@@ -64,7 +64,9 @@ jobs:
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - preset: default
+            variant: server
           - preset: gnuinstall
+            variant: server
     steps:
       - uses: actions/checkout@v4
 
@@ -82,9 +84,9 @@ jobs:
       - name: Configure (CMake)
         env:
           PRESET: ${{ matrix.preset }}
-          ENABLE_SSL: ON
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           ENABLE_LDAP: ON
-          XYMON_VARIANT: server
+          XYMON_VARIANT: ${{ matrix.variant }}
         run: |
           bash scripts/ci/cmake-configure.sh
 
