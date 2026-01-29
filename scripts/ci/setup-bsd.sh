@@ -39,7 +39,15 @@ pick_ldap_pkg() {
     pkg_add)
       if [ -x /usr/sbin/pkg_add ]; then
         for pkg in "${candidates[@]}"; do
-          if /usr/sbin/pkg_add -n "${pkg}" >/dev/null 2>&1; then
+          probe_out="$(
+            /usr/sbin/pkg_add -n "${pkg}" 2>&1 || true
+          )"
+          if echo "${probe_out}" | grep -q '^Ambiguous:'; then
+            found="$(echo "${probe_out}" | tr ' ' '\n' | grep '^openldap-client-' | head -n 1 || true)"
+            if [[ -n "${found}" ]]; then
+              break
+            fi
+          elif /usr/sbin/pkg_add -n "${pkg}" >/dev/null 2>&1; then
             found="${pkg}"
             break
           fi
