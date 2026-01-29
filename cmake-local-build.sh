@@ -44,6 +44,7 @@ use_ci_configure="${USE_CI_CONFIGURE:-0}"
 preset_override="${PRESET_OVERRIDE:-}"
 variant_override="${VARIANT_OVERRIDE:-}"
 localclient_override="${LOCALCLIENT_OVERRIDE:-}"
+parallel_override="${PARALLEL_OVERRIDE:-}"
 
 normalize_onoff() {
   local val="$1"
@@ -252,11 +253,19 @@ if [[ "${build_install}" == "1" ]]; then
     read -r -p "Build now? [y/N]: " build_confirm
     build_confirm="$(normalize_onoff "${build_confirm}")"
     if [[ "${build_confirm}" == "ON" ]]; then
-      cmake --build "${build_dir}"
+      if [[ -n "${parallel_override}" ]]; then
+        cmake --build "${build_dir}" --parallel "${parallel_override}"
+      else
+        cmake --build "${build_dir}"
+      fi
     else
       echo "Build skipped."
     fi
   else
-    cmake --build "${build_dir}"
+    if [[ -n "${parallel_override}" ]]; then
+      cmake --build "${build_dir}" --parallel "${parallel_override}"
+    else
+      cmake --build "${build_dir}"
+    fi
   fi
 fi

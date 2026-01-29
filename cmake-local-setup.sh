@@ -12,6 +12,8 @@ use_ci_configure="0"
 preset_override=""
 variant_override=""
 localclient_override=""
+build_dir_override="0"
+parallel_override=""
 prefix_override=""
 XYMONTOPDIR_OVERRIDE=""
 XYMONHOME_OVERRIDE=""
@@ -94,6 +96,7 @@ Options:
   --preset NAME         CMake preset (required with --use-ci-configure)
   --variant NAME        server|client
   --localclient ON/OFF  Client mode for --variant client
+  --parallel N          Build with N parallel jobs
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)
   --help                Show this help
@@ -138,18 +141,47 @@ while [[ $# -gt 0 ]]; do
     --ldaplib) LDAPLIBDIR_OVERRIDE="$2"; shift 2 ;;
     --caresinclude) CARESINCDIR_OVERRIDE="$2"; shift 2 ;;
     --careslib) CARESLIBDIR_OVERRIDE="$2"; shift 2 ;;
-    --build-dir) build_dir="$2"; shift 2 ;;
+    --build-dir) build_dir="$2"; build_dir_override="1"; shift 2 ;;
     --destdir) destdir_override="$2"; shift 2 ;;
     --use-ci-configure) use_ci_configure="1"; non_interactive="1"; shift ;;
     --preset) preset_override="$2"; shift 2 ;;
     --variant) variant_override="$2"; shift 2 ;;
     --localclient) localclient_override="$2"; shift 2 ;;
+    --parallel) parallel_override="$2"; shift 2 ;;
     --no-clean) clean_build_dir="0"; shift ;;
     --no-build-install) build_install="0"; shift ;;
     --help) usage; exit 0 ;;
     *) echo "Unknown option: $1"; usage; exit 1 ;;
   esac
 done
+
+if [[ -n "${preset_override}" && "${use_ci_configure}" != "1" && "${build_dir_override}" != "1" ]]; then
+  preset_build_dir="$(
+    python - "${preset_override}" "${root_dir}" <<'PY'
+import json
+import sys
+from pathlib import Path
+preset_name = sys.argv[1]
+preset_root = sys.argv[2]
+preset = Path("CMakePresets.json")
+if not preset.exists():
+    print("")
+    raise SystemExit(0)
+data = json.loads(preset.read_text())
+for entry in data.get("configurePresets", []):
+    if entry.get("name") == preset_name:
+        val = entry.get("binaryDir", "")
+        if "${sourceDir}" in val:
+            val = val.replace("${sourceDir}", preset_root)
+        print(val)
+        raise SystemExit(0)
+print("")
+PY
+  )"
+  if [[ -n "${preset_build_dir}" ]]; then
+    build_dir="${preset_build_dir}"
+  fi
+fi
 
 prompt() {
   local prompt_text="$1"
@@ -453,6 +485,7 @@ export USE_CI_CONFIGURE="${use_ci_configure}"
 export PRESET_OVERRIDE="${preset_override}"
 export VARIANT_OVERRIDE="${variant_override}"
 export LOCALCLIENT_OVERRIDE="${localclient_override}"
+export PARALLEL_OVERRIDE="${parallel_override}"
 
 bash "${root_dir}/cmake-local-build.sh"
 bash "${root_dir}/cmake-local-install.sh"
