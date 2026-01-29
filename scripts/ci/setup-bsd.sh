@@ -116,11 +116,11 @@ if [[ "${VARIANT}" == "server" ]]; then
       PKG_PKG_ADD_OPENBSD+=("${LDAP_PKG}")
     fi
   fi
-else
+elif [[ "${VARIANT}" == "client" ]]; then
   PKG_PKG=("${PKG_COMMON[@]}")
   PKG_PKGIN=("${PKG_COMMON[@]}")
   PKG_PKG_ADD_OPENBSD=("${PKG_COMMON[@]}")
-elif [[ "${VARIANT}" != "client" ]]; then
+else
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
 fi
