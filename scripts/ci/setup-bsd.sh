@@ -28,7 +28,7 @@ pick_ldap_pkg() {
   case "${pkgmgr}" in
     pkg)
       if [ -x /usr/sbin/pkg ]; then
-        found="$(/usr/sbin/pkg search -q '^openldap.*-client$' 2>/dev/null | sort -V | tail -n 1 || true)"
+        found="$(/usr/sbin/pkg search -q '^openldap.*-client' 2>/dev/null | sort -V | tail -n 1 || true)"
       fi
       ;;
     pkgin)
