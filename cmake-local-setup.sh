@@ -140,7 +140,7 @@ while [[ $# -gt 0 ]]; do
     --careslib) CARESLIBDIR_OVERRIDE="$2"; shift 2 ;;
     --build-dir) build_dir="$2"; shift 2 ;;
     --destdir) destdir_override="$2"; shift 2 ;;
-    --use-ci-configure) use_ci_configure="1"; shift ;;
+    --use-ci-configure) use_ci_configure="1"; non_interactive="1"; shift ;;
     --preset) preset_override="$2"; shift 2 ;;
     --variant) variant_override="$2"; shift 2 ;;
     --localclient) localclient_override="$2"; shift 2 ;;
