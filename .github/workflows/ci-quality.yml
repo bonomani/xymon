@@ -21,7 +21,7 @@ jobs:
         #   exception to vary compiler for client variants.
         #   Base: preset=packaging, variant=server, compiler=gcc, localclient=OFF.
         # Notes:
-        # - We allow overlap with ci-validate, but prefer to avoid it.
+        # - Preset coverage (default/gnuinstall) lives in ci-validate; we avoid overlap here.
         # - Client coverage includes clang as an intentional expansion.
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
@@ -31,7 +31,7 @@ jobs:
             name: server
             compiler: gcc
             localclient: OFF
-          # Vary preset
+          # Vary preset (intentionally empty; those combos live in ci-validate)
           # Vary compiler
           - preset: packaging
             variant: server
@@ -68,7 +68,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/setup-linux.sh debian
+          bash scripts/ci/setup-linux.sh linux
 
       - name: Setup (Compiler)
         run: |

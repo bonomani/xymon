@@ -3,9 +3,12 @@ set -euo pipefail
 IFS=$' \t\n'
 [[ -n "${CI:-}" ]] && set -x
 
-echo "=== Setup (Debian) ==="
+echo "=== Setup (Linux) ==="
 
 PROFILE="${1:-default}"
+if [[ "${PROFILE}" == "linux" ]]; then
+  PROFILE="debian"
+fi
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"
