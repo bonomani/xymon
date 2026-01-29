@@ -17,6 +17,13 @@ pick_ldap_pkg() {
   local pkgmgr="${1:-}"
   local fallback="openldap-client"
   local found=""
+  local -a candidates=()
+
+  if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+    candidates=(openldap-client openldap27-client openldap26-client)
+  else
+    candidates=(openldap-client openldap26-client openldap27-client)
+  fi
 
   case "${pkgmgr}" in
     pkg)
@@ -30,8 +37,13 @@ pick_ldap_pkg() {
       fi
       ;;
     pkg_add)
-      if [ -x /usr/sbin/pkg_info ]; then
-        found="$(/usr/sbin/pkg_info -Q openldap\\*-client 2>/dev/null | sort -V | tail -n 1 || true)"
+      if [ -x /usr/sbin/pkg_add ]; then
+        for pkg in "${candidates[@]}"; do
+          if /usr/sbin/pkg_add -n "${pkg}" >/dev/null 2>&1; then
+            found="${pkg}"
+            break
+          fi
+        done
       fi
       ;;
   esac
@@ -42,7 +54,7 @@ pick_ldap_pkg() {
   fi
 
   if [[ "${OS_NAME}" == "OpenBSD" ]]; then
-    echo "openldap26-client"
+    echo "${candidates[0]}"
   else
     echo "${fallback}"
   fi
