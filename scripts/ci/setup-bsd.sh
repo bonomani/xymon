@@ -13,19 +13,58 @@ fi
 OS_NAME="$(uname -s)"
 echo "$(uname -a)"
 
+PKG_COMMON=(gmake cmake pcre fping)
+PKG_SERVER_PKG=(c-ares)
+PKG_SERVER_PKGIN=(libcares)
+PKG_SERVER_PKG_ADD_OPENBSD=(libcares)
+
+PKG_MGR=""
+case "${OS_NAME}" in
+  FreeBSD) PKG_MGR="pkg" ;;
+  NetBSD) PKG_MGR="pkgin" ;;
+  OpenBSD) PKG_MGR="pkg_add" ;;
+esac
+
 pick_ldap_pkg() {
   local pkgmgr="${1:-}"
   local fallback="openldap-client"
   local found=""
   local probe_out=""
+  local probe_status=0
+
+  normalize_pkg_name() {
+    sed 's/-[0-9].*$//'
+  }
+
+  pick_openldap_variant() {
+    local ambiguous="${1:-}"
+    local picked=""
+
+    picked="$(
+      echo "${ambiguous}" \
+        | tr ' ' '\n' \
+        | grep '^openldap-client-' \
+        | grep -v 'gssapi' \
+        | head -n 1 || true
+    )"
+    if [[ -z "${picked}" ]]; then
+      picked="$(
+        echo "${ambiguous}" \
+          | tr ' ' '\n' \
+          | grep '^openldap-client-' \
+          | head -n 1 || true
+      )"
+    fi
+
+    echo "${picked}"
+  }
 
   case "${pkgmgr}" in
     pkg)
       if [ -x /usr/sbin/pkg ]; then
         found="$(
           /usr/sbin/pkg search -q '^openldap.*client' 2>/dev/null \
-            | sed 's/-[0-9].*$//' \
-            | sort -u \
+            | normalize_pkg_name \
             | sort -V \
             | tail -n 1 || true
         )"
@@ -33,29 +72,24 @@ pick_ldap_pkg() {
       ;;
     pkgin)
       if [ -x /usr/pkg/bin/pkgin ]; then
-        found="$(/usr/pkg/bin/pkgin search '^openldap.*-client$' 2>/dev/null | awk '{print $1}' | sort -V | tail -n 1 || true)"
+        found="$(
+          /usr/pkg/bin/pkgin search '^openldap.*-client' 2>/dev/null \
+            | awk '{print $1}' \
+            | normalize_pkg_name \
+            | sort -V \
+            | tail -n 1 || true
+        )"
       fi
       ;;
     pkg_add)
       if [ -x /usr/sbin/pkg_add ]; then
-        probe_out="$(/usr/sbin/pkg_add -n openldap-client 2>&1 || true)"
+        set +e
+        probe_out="$(/usr/sbin/pkg_add -n openldap-client 2>&1)"
+        probe_status=$?
+        set -e
         if echo "${probe_out}" | grep -q '^Ambiguous:'; then
-          found="$(
-            echo "${probe_out}" \
-              | tr ' ' '\n' \
-              | grep '^openldap-client-' \
-              | grep -v 'gssapi' \
-              | head -n 1 || true
-          )"
-          if [[ -z "${found}" ]]; then
-            found="$(
-              echo "${probe_out}" \
-                | tr ' ' '\n' \
-                | grep '^openldap-client-' \
-                | head -n 1 || true
-            )"
-          fi
-        elif /usr/sbin/pkg_add -n openldap-client >/dev/null 2>&1; then
+          found="$(pick_openldap_variant "${probe_out}")"
+        elif [[ ${probe_status} -eq 0 ]]; then
           found="openldap-client"
         fi
       fi
@@ -70,31 +104,22 @@ pick_ldap_pkg() {
   echo "${fallback}"
 }
 
-PKG_PKG=(gmake cmake pcre fping)
-PKG_PKGIN=(gmake cmake pcre fping)
-PKG_PKG_ADD=(gmake cmake pcre gcc fping)
-PKG_PKG_ADD_OPENBSD=(gmake cmake pcre gcc%11 fping)
-PKG_MGR=""
-case "${OS_NAME}" in
-  FreeBSD) PKG_MGR="pkg" ;;
-  NetBSD) PKG_MGR="pkgin" ;;
-  OpenBSD) PKG_MGR="pkg_add" ;;
-esac
-
 if [[ "${VARIANT}" == "server" ]]; then
-  PKG_PKG+=(c-ares)
-  PKG_PKGIN+=(libcares)
-  PKG_PKG_ADD+=(cares)
-  PKG_PKG_ADD_OPENBSD+=(libcares)
+  PKG_PKG=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG[@]}")
+  PKG_PKGIN=("${PKG_COMMON[@]}" "${PKG_SERVER_PKGIN[@]}")
+  PKG_PKG_ADD_OPENBSD=("${PKG_COMMON[@]}" "${PKG_SERVER_PKG_ADD_OPENBSD[@]}")
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
     LDAP_PKG="$(pick_ldap_pkg "${PKG_MGR}")"
     if [[ -n "${LDAP_PKG}" ]]; then
       PKG_PKG+=("${LDAP_PKG}")
       PKG_PKGIN+=("${LDAP_PKG}")
-      PKG_PKG_ADD+=("${LDAP_PKG}")
       PKG_PKG_ADD_OPENBSD+=("${LDAP_PKG}")
     fi
   fi
+else
+  PKG_PKG=("${PKG_COMMON[@]}")
+  PKG_PKGIN=("${PKG_COMMON[@]}")
+  PKG_PKG_ADD_OPENBSD=("${PKG_COMMON[@]}")
 elif [[ "${VARIANT}" != "client" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
@@ -111,11 +136,7 @@ if [ -x /usr/pkg/bin/pkgin ]; then
 fi
 
 if [ -x /usr/sbin/pkg_add ]; then
-  if [[ "${OS_NAME}" == "OpenBSD" ]]; then
-    sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
-  else
-    sudo -E /usr/sbin/pkg_add "${PKG_PKG_ADD[@]}"
-  fi
+  sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD_OPENBSD[@]}"
   exit 0
 fi
 
