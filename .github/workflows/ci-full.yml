@@ -8,8 +8,8 @@ permissions:
   contents: read
 
 jobs:
-  debian_legacy:
-    name: debian_legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+  linux_legacy:
+    name: linux_legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -66,8 +66,8 @@ jobs:
         run: |
           bash scripts/ci/legacy-build.sh
 
-  debian_cmake:
-    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+  linux_cmake:
+    name: linux_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

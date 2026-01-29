@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  debian_cmake:
-    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=gcc
+  linux_cmake:
+    name: linux_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=gcc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false

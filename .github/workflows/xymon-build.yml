@@ -7,8 +7,8 @@ permissions:
   contents: read
 
 jobs:
-  debian_legacy:
-    name: debian_legacy / VARIANT=${{ matrix.name }} / COMPILER=gcc
+  linux_legacy:
+    name: linux_legacy / VARIANT=${{ matrix.name }} / COMPILER=gcc
     runs-on: ubuntu-latest
 
     strategy:
