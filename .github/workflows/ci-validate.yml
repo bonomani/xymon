@@ -15,6 +15,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # CI validate should stay at 3 legacy and 2 CMake entries (keep this scope small).
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - name: server
@@ -61,6 +62,7 @@ jobs:
     strategy:
       fail-fast: true
       matrix:
+        # CI validate should stay at 3 legacy and 2 CMake entries (keep this scope small).
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           - preset: default

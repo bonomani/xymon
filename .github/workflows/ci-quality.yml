@@ -17,8 +17,12 @@ jobs:
       matrix:
         # CI quality should:
         # - Test all OSes (BSD) for server and client.
-        # - For linux_cmake, use one-parameter-at-a-time variations from the base:
-        #   preset=packaging, variant=server, compiler=gcc, localclient=OFF.
+        # - For linux_cmake, use a one-parameter-at-a-time baseline with a small
+        #   exception to vary compiler for client variants.
+        #   Base: preset=packaging, variant=server, compiler=gcc, localclient=OFF.
+        # Notes:
+        # - We allow overlap with ci-validate, but prefer to avoid it.
+        # - Client coverage includes clang as an intentional expansion.
         # Keep include-only entries so all variants expand reliably in GitHub UI.
         include:
           # Base
@@ -28,16 +32,6 @@ jobs:
             compiler: gcc
             localclient: OFF
           # Vary preset
-          - preset: default
-            variant: server
-            name: server
-            compiler: gcc
-            localclient: OFF
-          - preset: gnuinstall
-            variant: server
-            name: server
-            compiler: gcc
-            localclient: OFF
           # Vary compiler
           - preset: packaging
             variant: server
@@ -54,6 +48,16 @@ jobs:
             variant: client
             name: client CT=server
             compiler: gcc
+            localclient: OFF
+          - preset: packaging
+            variant: client
+            name: client CT=client
+            compiler: clang
+            localclient: ON
+          - preset: packaging
+            variant: client
+            name: client CT=server
+            compiler: clang
             localclient: OFF
     steps:
       - uses: actions/checkout@v4
