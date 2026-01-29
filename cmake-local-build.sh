@@ -90,51 +90,11 @@ if [[ "${use_ci_configure}" == "1" ]]; then
   exit 0
 fi
 
-cmake -S "${root_dir}" -B "${build_dir}" \
-  -DUSE_GNUINSTALLDIRS="${use_gnuinstall}" \
-  -DCMAKE_INSTALL_PREFIX="${cmake_prefix}" \
-  -DXYMONTOPDIR="${xymontopdir}" \
-  -DXYMONHOME="${xymonhome}" \
-  -DXYMONCLIENTHOME="${xymonclienthome}" \
-  -DXYMONVAR="${xymonvar}" \
-  -DXYMONLOGDIR="${xymonlogdir}" \
-  -DCGIDIR="${cgidir}" \
-  -DSECURECGIDIR="${securecgidir}" \
-  -DXYMONUSER="${xymonuser}" \
-  -DXYMONHOSTNAME="${xymonhostname}" \
-  -DXYMONHOSTIP="${xymonhostip}" \
-  -DXYMONHOSTOS="${xymonhostos}" \
-  -DXYMONHOSTURL="${xymonhosturl}" \
-  -DXYMONCGIURL="${xymoncgiurl}" \
-  -DSECUREXYMONCGIURL="${securexymoncgiurl}" \
-  -DMANROOT="${manroot}" \
-  -DHTTPDGID="${httpdgid}" \
-  -DHTTPDGID_CHGRP="${httpdgid_chgrp}" \
-  -DFPING="${fping_path}" \
-  -DMAILPROGRAM="${mail_program}" \
-  -DRRDINCDIR="${rrdinclude}" \
-  -DRRDLIBDIR="${rrdlib}" \
-  -DPCREINCDIR="${pcreinclude}" \
-  -DPCRELIBDIR="${pcrelib}" \
-  -DSSLINCDIR="${sslinclude}" \
-  -DSSLLIBDIR="${ssllib}" \
-  -DLDAPINCDIR="${ldapinclude}" \
-  -DLDAPLIBDIR="${ldaplib}" \
-  -DCARESINCDIR="${caresinclude}" \
-  -DCARESLIBDIR="${careslib}"
-
 if [[ -n "${variant_override}" ]]; then
-  cmake -S "${root_dir}" -B "${build_dir}" -DXYMON_VARIANT="${variant_override}"
   if [[ "${variant_override}" == "client" && -z "${localclient_override}" ]]; then
     echo "LOCALCLIENT is required for VARIANT=client"
     exit 1
   fi
-  if [[ -n "${localclient_override}" ]]; then
-    cmake -S "${root_dir}" -B "${build_dir}" -DLOCALCLIENT="${localclient_override}"
-  fi
-fi
-
-if [[ -n "${variant_override}" ]]; then
   if [[ -z "${enable_ssl}" ]]; then
     enable_ssl="ON"
   fi
@@ -143,18 +103,62 @@ if [[ -n "${variant_override}" ]]; then
   fi
 fi
 
+cmake_args=(
+  -S "${root_dir}"
+  -B "${build_dir}"
+  -DUSE_GNUINSTALLDIRS="${use_gnuinstall}"
+  -DCMAKE_INSTALL_PREFIX="${cmake_prefix}"
+  -DXYMONTOPDIR="${xymontopdir}"
+  -DXYMONHOME="${xymonhome}"
+  -DXYMONCLIENTHOME="${xymonclienthome}"
+  -DXYMONVAR="${xymonvar}"
+  -DXYMONLOGDIR="${xymonlogdir}"
+  -DCGIDIR="${cgidir}"
+  -DSECURECGIDIR="${securecgidir}"
+  -DXYMONUSER="${xymonuser}"
+  -DXYMONHOSTNAME="${xymonhostname}"
+  -DXYMONHOSTIP="${xymonhostip}"
+  -DXYMONHOSTOS="${xymonhostos}"
+  -DXYMONHOSTURL="${xymonhosturl}"
+  -DXYMONCGIURL="${xymoncgiurl}"
+  -DSECUREXYMONCGIURL="${securexymoncgiurl}"
+  -DMANROOT="${manroot}"
+  -DHTTPDGID="${httpdgid}"
+  -DHTTPDGID_CHGRP="${httpdgid_chgrp}"
+  -DFPING="${fping_path}"
+  -DMAILPROGRAM="${mail_program}"
+  -DRRDINCDIR="${rrdinclude}"
+  -DRRDLIBDIR="${rrdlib}"
+  -DPCREINCDIR="${pcreinclude}"
+  -DPCRELIBDIR="${pcrelib}"
+  -DSSLINCDIR="${sslinclude}"
+  -DSSLLIBDIR="${ssllib}"
+  -DLDAPINCDIR="${ldapinclude}"
+  -DLDAPLIBDIR="${ldaplib}"
+  -DCARESINCDIR="${caresinclude}"
+  -DCARESLIBDIR="${careslib}"
+)
+
+if [[ -n "${variant_override}" ]]; then
+  cmake_args+=(-DXYMON_VARIANT="${variant_override}")
+fi
+if [[ -n "${localclient_override}" ]]; then
+  cmake_args+=(-DLOCALCLIENT="${localclient_override}")
+fi
 if [[ -n "${enable_rrd}" ]]; then
-  cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_RRD="${enable_rrd}"
+  cmake_args+=(-DENABLE_RRD="${enable_rrd}")
 fi
 if [[ -n "${enable_snmp}" ]]; then
-  cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_SNMP="${enable_snmp}"
+  cmake_args+=(-DENABLE_SNMP="${enable_snmp}")
 fi
 if [[ -n "${enable_ssl}" ]]; then
-  cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_SSL="${enable_ssl}"
+  cmake_args+=(-DENABLE_SSL="${enable_ssl}")
 fi
 if [[ -n "${enable_ldap}" ]]; then
-  cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_LDAP="${enable_ldap}"
+  cmake_args+=(-DENABLE_LDAP="${enable_ldap}")
 fi
+
+cmake "${cmake_args[@]}"
 
 echo ""
 echo "Configure complete. Build with: cmake --build ${build_dir}"
