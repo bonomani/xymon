@@ -67,7 +67,7 @@ jobs:
           bash scripts/ci/legacy-build.sh
 
   debian_cmake:
-    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.variant }} / COMPILER=${{ matrix.compiler }}
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -75,92 +75,116 @@ jobs:
         include:
           - preset: default
             variant: server
+            name: server
             compiler: gcc
           - preset: gnuinstall
             variant: server
+            name: server
             compiler: gcc
           - preset: packaging
             variant: server
+            name: server
             compiler: gcc
           - preset: default
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: gcc
           - preset: gnuinstall
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: gcc
           - preset: packaging
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: gcc
           - preset: default
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: gcc
           - preset: gnuinstall
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: gcc
           - preset: packaging
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: gcc
           - preset: default
             variant: all
+            name: all
             localclient: OFF
             compiler: gcc
           - preset: gnuinstall
             variant: all
+            name: all
             localclient: OFF
             compiler: gcc
           - preset: packaging
             variant: all
+            name: all
             localclient: OFF
             compiler: gcc
           - preset: default
             variant: server
+            name: server
             compiler: clang
           - preset: gnuinstall
             variant: server
+            name: server
             compiler: clang
           - preset: packaging
             variant: server
+            name: server
             compiler: clang
           - preset: default
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: clang
           - preset: gnuinstall
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: clang
           - preset: packaging
             variant: client
+            name: client CT=client
             localclient: ON
             compiler: clang
           - preset: default
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: clang
           - preset: gnuinstall
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: clang
           - preset: packaging
             variant: client
+            name: client CT=server
             localclient: OFF
             compiler: clang
           - preset: default
             variant: all
+            name: all
             localclient: OFF
             compiler: clang
           - preset: gnuinstall
             variant: all
+            name: all
             localclient: OFF
             compiler: clang
           - preset: packaging
             variant: all
+            name: all
             localclient: OFF
             compiler: clang
     steps:
@@ -168,7 +192,7 @@ jobs:
 
       - name: Setup (Debian)
         env:
-          ENABLE_LDAP: ON
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           XYMON_VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |

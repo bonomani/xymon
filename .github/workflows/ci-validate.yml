@@ -56,7 +56,7 @@ jobs:
           bash scripts/ci/legacy-build.sh
 
   debian_cmake:
-    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=server / COMPILER=gcc
+    name: debian_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=gcc
     runs-on: ubuntu-latest
     strategy:
       fail-fast: true
@@ -65,8 +65,10 @@ jobs:
         include:
           - preset: default
             variant: server
+            name: server
           - preset: gnuinstall
             variant: server
+            name: server
     steps:
       - uses: actions/checkout@v4
 
