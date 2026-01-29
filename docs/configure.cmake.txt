@@ -62,6 +62,8 @@ Use --destdir to stage an install tree for packaging.
 Use --use-ci-configure with --preset and --variant to drive the CI preset flow
 without prompts (it implies --non-interactive).
 For local builds, --variant/--localclient map to XYMON_VARIANT/LOCALCLIENT.
+When --variant is set in local mode, ENABLE_SSL and ENABLE_LDAP default to ON
+unless you override them in advanced mode.
 
 Notes
 -----
