@@ -131,6 +131,7 @@ jobs:
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
+            export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
             bash scripts/ci/setup-bsd.sh
             export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
