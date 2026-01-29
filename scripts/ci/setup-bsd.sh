@@ -24,10 +24,10 @@ if [[ "${VARIANT}" == "server" ]]; then
   PKG_PKG_ADD+=(cares)
   PKG_PKG_ADD_OPENBSD+=(libcares)
   if [[ "${ENABLE_LDAP}" == "ON" ]]; then
-    PKG_PKG+=(openldap26-client)
+    PKG_PKG+=(openldap-client)
     PKG_PKGIN+=(openldap-client)
     PKG_PKG_ADD+=(openldap-client)
-    PKG_PKG_ADD_OPENBSD+=(openldap26-client)
+    PKG_PKG_ADD_OPENBSD+=(openldap-client)
   fi
 elif [[ "${VARIANT}" != "client" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
