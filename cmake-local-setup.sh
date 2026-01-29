@@ -7,6 +7,7 @@ non_interactive="0"
 use_gnuinstall_override=""
 build_install="1"
 clean_build_dir="1"
+destdir_override=""
 prefix_override=""
 XYMONTOPDIR_OVERRIDE=""
 XYMONHOME_OVERRIDE=""
@@ -84,6 +85,7 @@ Options:
   --caresinclude DIR    Set C-ARES include dir
   --careslib DIR        Set C-ARES library dir
   --build-dir DIR       Override build directory (default: build-cmake)
+  --destdir DIR         Stage install under DIR (for packaging)
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)
   --help                Show this help
@@ -129,6 +131,7 @@ while [[ $# -gt 0 ]]; do
     --caresinclude) CARESINCDIR_OVERRIDE="$2"; shift 2 ;;
     --careslib) CARESLIBDIR_OVERRIDE="$2"; shift 2 ;;
     --build-dir) build_dir="$2"; shift 2 ;;
+    --destdir) destdir_override="$2"; shift 2 ;;
     --no-clean) clean_build_dir="0"; shift ;;
     --no-build-install) build_install="0"; shift ;;
     --help) usage; exit 0 ;;
@@ -433,6 +436,7 @@ export ENABLE_RRD="${enable_rrd}"
 export ENABLE_SNMP="${enable_snmp}"
 export ENABLE_SSL="${enable_ssl}"
 export ENABLE_LDAP="${enable_ldap}"
+export DESTDIR_OVERRIDE="${destdir_override}"
 
 bash "${root_dir}/cmake-local-build.sh"
 bash "${root_dir}/cmake-local-install.sh"

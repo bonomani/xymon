@@ -58,6 +58,7 @@ The setup wrapper calls:
   ./cmake-local-install.sh
 
 It will create or reuse build-cmake/ and run CMake with the selected values.
+Use --destdir to stage an install tree for packaging.
 
 Notes
 -----
