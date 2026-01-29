@@ -134,6 +134,15 @@ if [[ -n "${variant_override}" ]]; then
   fi
 fi
 
+if [[ -n "${variant_override}" ]]; then
+  if [[ -z "${enable_ssl}" ]]; then
+    enable_ssl="ON"
+  fi
+  if [[ -z "${enable_ldap}" ]]; then
+    enable_ldap="ON"
+  fi
+fi
+
 if [[ -n "${enable_rrd}" ]]; then
   cmake -S "${root_dir}" -B "${build_dir}" -DENABLE_RRD="${enable_rrd}"
 fi
