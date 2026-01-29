@@ -64,7 +64,8 @@ without prompts (it implies --non-interactive).
 For local builds, --variant/--localclient map to XYMON_VARIANT/LOCALCLIENT.
 When --variant is set in local mode, ENABLE_SSL and ENABLE_LDAP default to ON
 unless you override them in advanced mode.
-If you pass --preset in local mode, the preset's binaryDir is used as build dir
+Local mode defaults to --preset default. If you pass --preset, the preset's
+binaryDir is used as build dir
 unless you also pass --build-dir.
 Use --parallel N to control build parallelism (e.g., --parallel 1 to match CI).
 
