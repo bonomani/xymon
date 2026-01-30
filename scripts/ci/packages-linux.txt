@@ -1,7 +1,5 @@
 # Base packages (all variants)
 build-essential
-perl
-fping
 libssl-dev
 libpcre3-dev
 librrd-dev
@@ -12,7 +10,6 @@ libc-ares-dev
 
 # LDAP packages (ENABLE_LDAP=ON)
 libldap-dev
-libldap2-dev
 
-# Compiler packages (CI_COMPILER=clang or non-debian profile)
+# Optional compiler packages (only needed when CI_COMPILER=clang)
 clang

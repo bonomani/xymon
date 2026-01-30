@@ -2,9 +2,10 @@
 # Package names are OS-specific.
 
 build:
-  linux:
+  linux_github:
     ubuntu_latest:
-      base:
+      packager: apt
+      common:
         - build-essential
         - libssl-dev
         - libpcre3-dev
@@ -14,18 +15,9 @@ build:
         - libc-ares-dev
       ldap:
         - libldap-dev
-      compiler:
-        - clang
-    non_debian_profile:
-      base:
-        - clang
-        - build-essential
-        - libssl-dev
-        - libpcre3-dev
-        - librrd-dev
-        - libtirpc-dev
-      ldap:
-        - libldap2-dev
+      optional:
+        compiler:
+          - clang
   bsd:
     common:
       - gmake
@@ -71,8 +63,6 @@ version_notes:
   linux:
     ubuntu_latest:
       - Package names are for Ubuntu-latest; adjust for other distros/versions.
-    non_debian_profile:
-      - This matches the CI non-debian profile; verify on your distro/version.
   bsd:
     freebsd:
       - Verify package names for your FreeBSD release (ports/pkg naming can change).

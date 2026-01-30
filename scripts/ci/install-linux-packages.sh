@@ -12,7 +12,7 @@ Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
-  --distro-family NAME  Override distro family (default: debian)
+  --distro-family NAME  Override distro family (default: linux_github)
   --distro NAME         Override distro (default: ubuntu)
   --version NAME        Override version (default: latest)
 USAGE
@@ -20,7 +20,7 @@ USAGE
 
 mode="install"
 print_list="0"
-distro_family="debian"
+distro_family="linux_github"
 distro="ubuntu"
 version="latest"
 while [[ $# -gt 0 ]]; do
