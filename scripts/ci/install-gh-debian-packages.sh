@@ -5,7 +5,7 @@ IFS=$' \t\n'
 
 usage() {
   cat <<'USAGE'
-Usage: install-linux-packages.sh [--print] [--check-only] [--install]
+Usage: install-gh-debian-packages.sh [--print] [--check-only] [--install]
                                [--distro-family NAME] [--distro NAME] [--version NAME]
 
 Options:
@@ -51,8 +51,8 @@ VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=packages-linux.sh
-source "${script_dir}/packages-linux.sh"
+# shellcheck source=packages-gh-debian.sh
+source "${script_dir}/packages-gh-debian.sh"
 
 mapfile -t ALL_PKGS < <(ci_linux_packages "${distro_family}" "${distro}" "${version}" "${VARIANT}" "${ENABLE_LDAP}" "${CI_COMPILER}" "${ENABLE_SNMP}")
 

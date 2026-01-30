@@ -142,7 +142,7 @@ def find_install_steps(workflow: dict) -> list[str]:
             if not isinstance(step, dict):
                 continue
             run = step.get("run", "")
-            if isinstance(run, str) and "install-linux-packages.sh" in run:
+            if isinstance(run, str) and "install-gh-debian-packages.sh" in run:
                 hits.append(run)
     return hits
 
@@ -166,7 +166,7 @@ def find_package_steps(workflow: dict) -> list[str]:
 
 
 def parse_linux_families() -> set[str]:
-    script = (ROOT / "scripts" / "ci" / "packages-linux.sh").read_text()
+    script = (ROOT / "scripts" / "ci" / "packages-gh-debian.sh").read_text()
     families = set()
     for line in script.splitlines():
         if "distro_family" in line and "==" in line and "\"" in line:
@@ -365,12 +365,12 @@ def main() -> int:
                     for enable_ldap in ("ON", "OFF"):
                         for enable_snmp in ("ON", "OFF"):
                             exp_client = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/packages-linux.sh; "
+                                f"cd '{ROOT}'; source scripts/ci/packages-gh-debian.sh; "
                                 f"ci_linux_packages {family} {os_name} unknown client "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )
                             exp_server = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/packages-linux.sh; "
+                                f"cd '{ROOT}'; source scripts/ci/packages-gh-debian.sh; "
                                 f"ci_linux_packages {family} {os_name} unknown server "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )

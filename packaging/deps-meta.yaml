@@ -1,6 +1,6 @@
 # Metadata for CI dependency scripts and workflow validation.
 scripts:
-  scripts/ci/install-linux-packages.sh:
+  scripts/ci/install-gh-debian-packages.sh:
     requires_flags: [--distro-family, --distro, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
@@ -11,7 +11,7 @@ scripts:
   scripts/ci/install-bsd-packages.sh:
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
 
-  scripts/ci/packages-linux.sh:
+  scripts/ci/packages-gh-debian.sh:
     accepts:
       distro_family: [linux_github]
       distro: [ubuntu]
@@ -24,7 +24,7 @@ scripts:
 workflows:
   enforce:
     when_script_used:
-      scripts/ci/install-linux-packages.sh:
+      scripts/ci/install-gh-debian-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
         must_pass_flags: [--distro-family, --distro, --version]
       scripts/ci/install-bsd-packages.sh:
