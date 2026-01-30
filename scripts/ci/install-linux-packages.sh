@@ -12,7 +12,6 @@ Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
-  profile       linux|debian (deprecated; use --distro-family/--distro/--version)
   --distro-family NAME  Override distro family (default: debian)
   --distro NAME         Override distro (default: ubuntu)
   --version NAME        Override version (default: latest)
@@ -21,7 +20,6 @@ USAGE
 
 mode="install"
 print_list="0"
-profile="linux"
 distro_family="debian"
 distro="ubuntu"
 version="latest"
@@ -41,25 +39,12 @@ while [[ $# -gt 0 ]]; do
     --version) version="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *)
-      if [[ "${profile}" == "linux" && ( "$1" == "linux" || "$1" == "debian" ) ]]; then
-        profile="$1"
-        shift
-      else
-        echo "Unknown argument: $1" >&2
-        usage
-        exit 1
-      fi
+      echo "Unknown argument: $1" >&2
+      usage
+      exit 1
       ;;
   esac
 done
-
-PROFILE="${profile:-linux}"
-if [[ "${PROFILE}" == "linux" ]]; then
-  PROFILE="debian"
-fi
-if [[ "${profile}" != "linux" ]]; then
-  echo "Warning: profile argument is deprecated; use --distro-family/--distro/--version." >&2
-fi
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"

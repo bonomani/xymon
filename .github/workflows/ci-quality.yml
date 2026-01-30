@@ -68,7 +68,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/install-linux-packages.sh linux
+          bash scripts/ci/install-linux-packages.sh --distro-family debian --distro ubuntu --version latest
 
       - name: Setup (Compiler)
         run: |
