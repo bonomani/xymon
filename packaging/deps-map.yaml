@@ -1,7 +1,7 @@
 # Generic dependency map for translating package names across OSes/packagers.
 map:
   BUILD_TOOLS:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [build-essential]
     bsd:
@@ -13,7 +13,7 @@ map:
         pkg_add: [gmake, cmake]
 
   PCRE:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libpcre3-dev]
     bsd:
@@ -25,7 +25,7 @@ map:
         pkg_add: [pcre]
 
   RRD:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [librrd-dev]
     bsd:
@@ -37,7 +37,7 @@ map:
         pkg_add: [rrdtool]
 
   OpenSSL:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libssl-dev]
     bsd:
@@ -49,7 +49,7 @@ map:
         pkg_add: [openssl]
 
   LDAP:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libldap-dev]
     bsd:
@@ -61,7 +61,7 @@ map:
         pkg_add: [openldap-client]
 
   NETSNMP:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libsnmp-dev]
     bsd:
@@ -73,7 +73,7 @@ map:
         pkg_add: [net-snmp]
 
   CARES:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libc-ares-dev]
     bsd:
@@ -85,7 +85,7 @@ map:
         pkg_add: [libcares]
 
   TIRPC:
-    linux_github:
+    gh-debian:
       ubuntu_latest:
         apt: [libtirpc-dev]
     bsd:

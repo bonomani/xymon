@@ -19,7 +19,7 @@ ci_linux_packages() {
   )
 
   local profile_pkgs=()
-  if [[ "${distro_family}" == "linux_github" ]]; then
+  if [[ "${distro_family}" == "gh-debian" ]]; then
     if [[ "${variant}" != "client" ]]; then
       profile_pkgs+=(libc-ares-dev)
     fi

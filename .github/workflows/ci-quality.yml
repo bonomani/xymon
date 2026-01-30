@@ -69,7 +69,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/install-gh-debian-packages.sh --distro-family linux_github --distro ubuntu --version latest
+          bash scripts/ci/install-gh-debian-packages.sh --os ubuntu --version latest
 
       - name: Setup (Compiler)
         run: |
@@ -158,7 +158,7 @@ jobs:
             export ENABLE_SNMP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
-            if ! bash scripts/ci/install-bsd-packages.sh; then
+            if ! bash scripts/ci/install-bsd-packages.sh --os "${{ matrix.os.name }}" --version "${{ matrix.os.version }}"; then
               if [ -f /var/db/pkgin/pkg_install-err.log ]; then
                 echo "=== pkgin error log ==="
                 cat /var/db/pkgin/pkg_install-err.log

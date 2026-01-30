@@ -1,5 +1,5 @@
 build:
-  linux_github:
+  gh-debian:
     ubuntu_latest:
       packagers:
         apt:

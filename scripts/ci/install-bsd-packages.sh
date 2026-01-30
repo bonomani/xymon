@@ -6,20 +6,21 @@ IFS=$' \t\n'
 usage() {
   cat <<'USAGE'
 Usage: install-bsd-packages.sh [--print] [--check-only] [--install]
-                             [--distro-family NAME] [--distro NAME] [--version NAME]
+                             [--os NAME] [--version NAME]
 
 Options:
   --print          Print package list and exit
   --check-only     Exit 0 if all packages are installed, 1 otherwise
   --install        Install packages (default)
-  --distro-family  Ignored (present for CLI parity with Linux)
-  --distro         Ignored (present for CLI parity with Linux)
-  --version        Ignored (present for CLI parity with Linux)
+  --os       Override OS (default: detected)
+  --version  Override version (default: detected)
 USAGE
 }
 
 mode="install"
 print_list="0"
+os_override=""
+version_override=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --print)
@@ -31,7 +32,8 @@ while [[ $# -gt 0 ]]; do
       ;;
     --check-only) mode="check"; shift ;;
     --install) mode="install"; shift ;;
-    --distro-family|--distro|--version) shift 2 ;;
+    --os) os_override="$2"; shift 2 ;;
+    --version) version_override="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) shift ;;
   esac
@@ -45,7 +47,9 @@ if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" || -z "${ENABLE_SNMP}" ]]; then
   exit 1
 fi
 
-OS_NAME="$(uname -s)"
+OS_NAME="${os_override:-$(uname -s)}"
+OS_VERSION="${version_override:-$(uname -r)}"
+export OS_VERSION
 echo "$(uname -a)"
 echo "=== Install (BSD packages) ==="
 

@@ -51,7 +51,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/install-gh-debian-packages.sh --distro-family linux_github --distro ubuntu --version latest
+          bash scripts/ci/install-gh-debian-packages.sh --os ubuntu --version latest
 
       - name: Setup (Compiler)
         run: |
@@ -170,7 +170,7 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
-          bash scripts/ci/install-gh-debian-packages.sh --distro-family linux_github --distro ubuntu --version latest
+          bash scripts/ci/install-gh-debian-packages.sh --os ubuntu --version latest
 
       - name: Setup (Compiler)
         run: |

@@ -6,22 +6,20 @@ IFS=$' \t\n'
 usage() {
   cat <<'USAGE'
 Usage: install-gh-debian-packages.sh [--print] [--check-only] [--install]
-                               [--distro-family NAME] [--distro NAME] [--version NAME]
+                               [--os NAME] [--version NAME]
 
 Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
-  --distro-family NAME  Override distro family (default: linux_github)
-  --distro NAME         Override distro (default: ubuntu)
-  --version NAME        Override version (default: latest)
+  --os NAME       Override OS (default: ubuntu)
+  --version NAME  Override version (default: latest)
 USAGE
 }
 
 mode="install"
 print_list="0"
-distro_family="linux_github"
-distro="ubuntu"
+os_name="ubuntu"
 version="latest"
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -34,8 +32,7 @@ while [[ $# -gt 0 ]]; do
       ;;
     --check-only) mode="check"; shift ;;
     --install) mode="install"; shift ;;
-    --distro-family) distro_family="$2"; shift 2 ;;
-    --distro) distro="$2"; shift 2 ;;
+    --os) os_name="$2"; shift 2 ;;
     --version) version="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *)
@@ -49,6 +46,8 @@ ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 ENABLE_SNMP="${ENABLE_SNMP:-ON}"
 VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"
+distro_family="gh-debian"
+distro="${os_name}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=packages-gh-debian.sh

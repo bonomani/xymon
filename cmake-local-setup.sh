@@ -193,12 +193,12 @@ if [[ "${use_ci_packages}" == "1" ]]; then
       enable_ldap="${ENABLE_LDAP_OVERRIDE:-ON}"
       variant="${variant_override:-server}"
       if ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --check-only --distro-family debian --distro ubuntu --version local; then
+        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --check-only --os ubuntu --version local; then
         echo "=== Install (Linux packages) ==="
         echo "All required packages already installed; skipping."
       else
         ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --install --distro-family debian --distro ubuntu --version local
+        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --install --os ubuntu --version local
       fi
       ;;
     FreeBSD|NetBSD|OpenBSD)

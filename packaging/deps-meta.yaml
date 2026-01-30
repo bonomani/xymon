@@ -1,31 +1,47 @@
 # Metadata for CI dependency scripts and workflow validation.
 scripts:
   scripts/ci/install-gh-debian-packages.sh:
-    requires_flags: [--distro-family, --distro, --version]
+    requires_flags: [--os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
-      distro_family: [linux_github]
-      distro: [ubuntu]
+      family: [gh-debian]
+      os: [ubuntu]
       version: [latest]
+      pkgmgr: [apt]
+    outputs: [packages]
 
   scripts/ci/install-bsd-packages.sh:
+    requires_flags: [--os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [bsd]
+      os: [freebsd, netbsd, openbsd]
+      version: [auto]
+      pkgmgr: [pkg, pkg_add, pkgin]
+    outputs: [packages]
 
   scripts/ci/packages-gh-debian.sh:
     accepts:
-      distro_family: [linux_github]
-      distro: [ubuntu]
+      family: [gh-debian]
+      os: [ubuntu]
       version: [latest]
+      pkgmgr: [apt]
+    outputs: [packages]
 
   scripts/ci/packages-bsd.sh:
     accepts:
+      family: [bsd]
+      os: [freebsd, netbsd, openbsd]
+      version: []
       pkgmgr: [pkg, pkg_add, pkgin]
+    outputs: [packages]
 
 workflows:
   enforce:
     when_script_used:
       scripts/ci/install-gh-debian-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--distro-family, --distro, --version]
+        must_pass_flags: [--os, --version]
       scripts/ci/install-bsd-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--os, --version]

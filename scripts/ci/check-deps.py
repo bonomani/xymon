@@ -541,7 +541,7 @@ def main() -> int:
                 family_match = re.search(r"--distro-family\\s+(\\S+)", text)
                 if family_match:
                     family = family_match.group(1)
-                    allowed = set(accepts.get("distro_family", []))
+                    allowed = set(accepts.get("family", []))
                     if allowed and family not in allowed:
                         ok = False
                         print(f"   ERROR: {wf} uses unsupported distro-family '{family}'")
