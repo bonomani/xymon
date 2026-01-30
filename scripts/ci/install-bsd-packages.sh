@@ -67,6 +67,9 @@ esac
 # NetBSD CI runners may have OSABI mismatches; allow pkgin/pkg_add to proceed.
 if [[ "${OS_NAME}" == "NetBSD" ]]; then
   export CHECK_OSABI=no
+  if [ -x /usr/bin/sudo ]; then
+    sudo sh -c 'printf "%s\n" "CHECK_OSABI=no" > /etc/pkg_install.conf'
+  fi
 fi
 
 pick_ldap_pkg() {
@@ -76,6 +79,14 @@ pick_ldap_pkg() {
 
   normalize_pkg_name() {
     sed 's/-[0-9].*$//'
+  }
+
+  sort_versions() {
+    if sort -V </dev/null >/dev/null 2>&1; then
+      sort -V
+    else
+      sort
+    fi
   }
 
   pick_openldap_variant() {
@@ -107,7 +118,7 @@ pick_ldap_pkg() {
         found="$(
           /usr/sbin/pkg search -q '^openldap.*client' 2>/dev/null \
             | normalize_pkg_name \
-            | sort -V \
+            | sort_versions \
             | tail -n 1 || true
         )"
       fi
@@ -118,7 +129,7 @@ pick_ldap_pkg() {
           /usr/pkg/bin/pkgin search '^openldap.*-client' 2>/dev/null \
             | awk '{print $1}' \
             | normalize_pkg_name \
-            | sort -V \
+            | sort_versions \
             | tail -n 1 || true
         )"
       fi
