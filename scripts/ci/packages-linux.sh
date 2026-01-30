@@ -2,10 +2,12 @@
 set -euo pipefail
 
 ci_linux_packages() {
-  local profile="$1"
-  local variant="$2"
-  local enable_ldap="$3"
-  local ci_compiler="$4"
+  local distro_family="$1"
+  local distro="$2"
+  local version="$3"
+  local variant="$4"
+  local enable_ldap="$5"
+  local ci_compiler="$6"
 
   local base_pkgs=(
     build-essential
@@ -16,7 +18,7 @@ ci_linux_packages() {
   )
 
   local profile_pkgs=()
-  if [[ "${profile}" == "debian" ]]; then
+  if [[ "${distro_family}" == "debian" ]]; then
     if [[ "${variant}" != "client" ]]; then
       profile_pkgs+=(libc-ares-dev)
     fi
@@ -27,10 +29,8 @@ ci_linux_packages() {
       profile_pkgs+=(clang)
     fi
   else
-    profile_pkgs+=(clang)
-    if [[ "${enable_ldap}" == "ON" ]]; then
-      profile_pkgs+=(libldap2-dev)
-    fi
+    echo "Unsupported distro family for package list: ${distro_family} (${distro} ${version})" >&2
+    return 1
   fi
 
   printf '%s\n' "${base_pkgs[@]}" "${profile_pkgs[@]}"

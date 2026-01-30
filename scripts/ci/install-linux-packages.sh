@@ -15,34 +15,11 @@ CI_COMPILER="${CI_COMPILER:-}"
 
 sudo apt-get update
 
-BASE_PKGS=(
-  build-essential
-  perl
-  fping
-  libssl-dev
-  libpcre3-dev
-  librrd-dev
-  libtirpc-dev
-)
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=packages-linux.sh
+source "${script_dir}/packages-linux.sh"
 
-if [[ "${PROFILE}" == "debian" ]]; then
-  PROFILE_PKGS=()
-  if [[ "${VARIANT}" != "client" ]]; then
-    PROFILE_PKGS+=(libc-ares-dev)
-  fi
-  if [[ "${ENABLE_LDAP}" == "ON" ]]; then
-    PROFILE_PKGS+=(libldap-dev)
-  fi
-  if [[ "${CI_COMPILER}" == "clang" ]]; then
-    PROFILE_PKGS+=(clang)
-  fi
-else
-  PROFILE_PKGS=(clang)
-  if [[ "${ENABLE_LDAP}" == "ON" ]]; then
-    PROFILE_PKGS+=(libldap2-dev)
-  fi
-fi
+mapfile -t ALL_PKGS < <(ci_linux_packages "debian" "ubuntu" "latest" "${VARIANT}" "${ENABLE_LDAP}" "${CI_COMPILER}")
 
 sudo apt-get install -y --no-install-recommends \
-  "${BASE_PKGS[@]}" \
-  "${PROFILE_PKGS[@]}"
+  "${ALL_PKGS[@]}"
