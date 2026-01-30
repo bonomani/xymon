@@ -67,12 +67,9 @@ esac
 # NetBSD CI runners may have OSABI mismatches; allow pkgin/pkg_add to proceed.
 if [[ "${OS_NAME}" == "NetBSD" ]]; then
   export CHECK_OSABI=no
-  if [ -x /usr/bin/sudo ]; then
-    sudo sh -c 'printf "%s\n" "CHECK_OSABI=no" > /etc/pkg_install.conf'
-  else
-    printf "%s\n" "CHECK_OSABI=no" > /etc/pkg_install.conf 2>/dev/null || true
-  fi
-  export PKG_INSTALL_CONF=/etc/pkg_install.conf
+  PKG_INSTALL_CONF="/tmp/pkg_install.conf"
+  printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
+  export PKG_INSTALL_CONF
 fi
 
 pick_ldap_pkg() {
