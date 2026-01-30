@@ -5,14 +5,14 @@ build:
         apt:
           libs:
             mandatory:
-            - build-essential
-            - libssl-dev
-            - libc-ares-dev
-            - libpcre3-dev
-            - librrd-dev
-            - libtirpc-dev
-            - libldap-dev
-            - net-snmp
+              - build-essential
+              - libssl-dev
+              - libc-ares-dev
+              - libpcre3-dev
+              - librrd-dev
+              - libtirpc-dev
+              - libldap-dev
+              - libsnmp-dev
           tools:
             optional:
             - clang

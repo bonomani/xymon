@@ -144,10 +144,10 @@ if re.search(r"LDAP_LIBRARY", xymonnet_cmake):
     else:
         print("   OK: linux server libldap-dev present")
 if re.search(r"NETSNMP", xymonnet_cmake):
-    if "net-snmp" not in linux_server:
-        print("   NOTE: linux server net-snmp not listed (SNMP optional; xymonnet skips if not found)")
+    if "libsnmp-dev" not in linux_server:
+        print("   NOTE: linux server libsnmp-dev not listed (SNMP optional; xymonnet skips if not found)")
     else:
-        print("   OK: linux server net-snmp present")
+        print("   OK: linux server libsnmp-dev present")
 if re.search(r"TIRPC", xymonnet_cmake):
     if "libtirpc-dev" not in linux_server:
         ok = False

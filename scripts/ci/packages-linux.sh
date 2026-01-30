@@ -27,7 +27,7 @@ ci_linux_packages() {
       profile_pkgs+=(libldap-dev)
     fi
     if [[ "${enable_snmp}" == "ON" ]]; then
-      profile_pkgs+=(net-snmp)
+      profile_pkgs+=(libsnmp-dev)
     fi
     if [[ "${ci_compiler}" == "clang" ]]; then
       profile_pkgs+=(clang)
