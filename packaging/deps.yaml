@@ -1,0 +1,82 @@
+# Canonical dependency list for packagers (source of truth)
+# Package names are OS-specific.
+
+build:
+  linux:
+    ubuntu_latest:
+      base:
+        - build-essential
+        - libssl-dev
+        - libpcre3-dev
+        - librrd-dev
+        - libtirpc-dev
+      server_only:
+        - libc-ares-dev
+      ldap:
+        - libldap-dev
+      compiler:
+        - clang
+    non_debian_profile:
+      base:
+        - clang
+        - build-essential
+        - libssl-dev
+        - libpcre3-dev
+        - librrd-dev
+        - libtirpc-dev
+      ldap:
+        - libldap2-dev
+  bsd:
+    common:
+      - gmake
+      - cmake
+      - pcre
+    freebsd:
+      pkg:
+        server_only:
+          - c-ares
+        ldap:
+          - openldap-client
+    netbsd:
+      pkgin:
+        server_only:
+          - libcares
+        ldap:
+          - openldap-client
+    openbsd:
+      pkg_add:
+        server_only:
+          - libcares
+        ldap:
+          - openldap-client
+
+runtime:
+  common:
+    - sendmail (or equivalent)
+  recommended:
+    - fping
+    - perl
+    - python
+  optional:
+    ssl:
+      - OpenSSL
+    ldap:
+      - OpenLDAP client
+    snmp:
+      - net-snmp
+    cares:
+      - c-ares
+
+version_notes:
+  linux:
+    ubuntu_latest:
+      - Package names are for Ubuntu-latest; adjust for other distros/versions.
+    non_debian_profile:
+      - This matches the CI non-debian profile; verify on your distro/version.
+  bsd:
+    freebsd:
+      - Verify package names for your FreeBSD release (ports/pkg naming can change).
+    netbsd:
+      - Verify package names for your NetBSD release (pkgin naming can change).
+    openbsd:
+      - Verify package names for your OpenBSD release (pkg_add naming can change).
