@@ -56,7 +56,7 @@ source "${script_dir}/packages-bsd.sh"
 PKG_MGR=""
 case "${OS_NAME}" in
   FreeBSD) PKG_MGR="pkg" ;;
-  NetBSD) PKG_MGR="pkgin" ;;
+  NetBSD) PKG_MGR="pkg_add" ;;
   OpenBSD) PKG_MGR="pkg_add" ;;
   *)
     echo "Unsupported BSD OS: ${OS_NAME}"
