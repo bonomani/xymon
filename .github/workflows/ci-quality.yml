@@ -158,7 +158,13 @@ jobs:
             export ENABLE_SNMP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
-            bash scripts/ci/install-bsd-packages.sh
+            if ! bash scripts/ci/install-bsd-packages.sh; then
+              if [ -f /var/db/pkgin/pkg_install-err.log ]; then
+                echo "=== pkgin error log ==="
+                cat /var/db/pkgin/pkg_install-err.log
+              fi
+              exit 1
+            fi
             export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             echo "=== Configure (CMake) ==="
             bash scripts/ci/cmake-configure.sh
