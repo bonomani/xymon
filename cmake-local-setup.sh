@@ -192,23 +192,13 @@ if [[ "${use_ci_packages}" == "1" ]]; then
     Linux)
       enable_ldap="${ENABLE_LDAP_OVERRIDE:-ON}"
       variant="${variant_override:-server}"
-      script_dir="${root_dir}/scripts/ci"
-      # shellcheck source=packages-linux.sh
-      source "${script_dir}/packages-linux.sh"
-      mapfile -t required_pkgs < <(ci_linux_packages "debian" "ubuntu" "local" "${variant}" "${enable_ldap}" "")
-      missing_pkgs=()
-      for pkg in "${required_pkgs[@]}"; do
-        if ! dpkg -s "${pkg}" >/dev/null 2>&1; then
-          missing_pkgs+=("${pkg}")
-        fi
-      done
-      if [[ "${#missing_pkgs[@]}" -gt 0 ]]; then
-        ENABLE_LDAP="${enable_ldap}" \
-        VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-linux-packages.sh" linux
-      else
+      if ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
+        bash "${root_dir}/scripts/ci/install-linux-packages.sh" --check-only linux; then
         echo "=== Install (Linux packages) ==="
         echo "All required packages already installed; skipping."
+      else
+        ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
+        bash "${root_dir}/scripts/ci/install-linux-packages.sh" --install linux
       fi
       ;;
     FreeBSD|NetBSD|OpenBSD)

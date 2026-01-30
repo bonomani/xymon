@@ -69,6 +69,7 @@ binaryDir is used as build dir
 unless you also pass --build-dir.
 Use --parallel N to control build parallelism (e.g., --parallel 1 to match CI).
 Use --use-ci-packages to run scripts/ci/install-*-packages.sh before configuring.
+Local --use-ci-packages on Linux skips sudo if all required packages are already installed.
 
 Notes
 -----

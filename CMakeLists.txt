@@ -63,7 +63,7 @@ else()
     set(MANROOT "${CMAKE_INSTALL_PREFIX}/${CMAKE_INSTALL_MANDIR}" CACHE STRING "Man page root" FORCE)
 endif()
 
-# Optional dependency overrides (used by configure.cmake.sh)
+# Optional dependency overrides (used by cmake-local-setup.sh)
 set(RRDINCDIR "" CACHE STRING "RRD include dir override")
 set(RRDLIBDIR "" CACHE STRING "RRD library dir override")
 set(PCREINCDIR "" CACHE STRING "PCRE include dir override")

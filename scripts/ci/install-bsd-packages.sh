@@ -3,6 +3,28 @@ set -euo pipefail
 IFS=$' \t\n'
 [[ -n "${CI:-}" || -n "${DEBUG:-}" ]] && set -x
 
+usage() {
+  cat <<'USAGE'
+Usage: install-bsd-packages.sh [--print] [--check-only] [--install]
+
+Options:
+  --print    Print package list and exit
+  --check-only  Exit 0 if all packages are installed, 1 otherwise
+  --install  Install packages (default)
+USAGE
+}
+
+mode="install"
+while [[ $# -gt 0 ]]; do
+  case "$1" in
+    --print) mode="print"; shift ;;
+    --check-only) mode="check"; shift ;;
+    --install) mode="install"; shift ;;
+    -h|--help) usage; exit 0 ;;
+    *) shift ;;
+  esac
+done
+
 VARIANT="${VARIANT:-}"
 ENABLE_LDAP="${ENABLE_LDAP:-}"
 if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" ]]; then
@@ -11,13 +33,12 @@ if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" ]]; then
 fi
 
 OS_NAME="$(uname -s)"
-echo "=== Install (BSD packages) ==="
 echo "$(uname -a)"
+echo "=== Install (BSD packages) ==="
 
-PKG_COMMON=(gmake cmake pcre fping)
-PKG_SERVER_PKG=(c-ares)
-PKG_SERVER_PKGIN=(libcares)
-PKG_SERVER_PKG_ADD=(libcares)
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=packages-bsd.sh
+source "${script_dir}/packages-bsd.sh"
 
 PKG_MGR=""
 case "${OS_NAME}" in
@@ -104,14 +125,12 @@ pick_ldap_pkg() {
   fi
 }
 
-PKG_PKG=("${PKG_COMMON[@]}")
-PKG_PKGIN=("${PKG_COMMON[@]}")
-PKG_PKG_ADD=("${PKG_COMMON[@]}")
+mapfile -t PKG_PKG < <(ci_bsd_packages pkg "${VARIANT}")
+mapfile -t PKG_PKGIN < <(ci_bsd_packages pkgin "${VARIANT}")
+mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}")
 
 if [[ "${VARIANT}" == "server" ]]; then
-  PKG_PKG+=("${PKG_SERVER_PKG[@]}")
-  PKG_PKGIN+=("${PKG_SERVER_PKGIN[@]}")
-  PKG_PKG_ADD+=("${PKG_SERVER_PKG_ADD[@]}")
+  :
 elif [[ "${VARIANT}" != "client" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
@@ -126,18 +145,68 @@ if [[ "${ENABLE_LDAP}" == "ON" && "${VARIANT}" == "server" ]]; then
   fi
 fi
 
-case "${PKG_MGR}" in
-  pkg)
-    sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
+case "${mode}" in
+  print)
+    case "${PKG_MGR}" in
+      pkg) printf '%s\n' "${PKG_PKG[@]}" ;;
+      pkgin) printf '%s\n' "${PKG_PKGIN[@]}" ;;
+      pkg_add) printf '%s\n' "${PKG_PKG_ADD[@]}" ;;
+    esac
     exit 0
     ;;
-  pkgin)
-    sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
-    exit 0
+  check)
+    case "${PKG_MGR}" in
+      pkg)
+        missing=0
+        for pkg in "${PKG_PKG[@]}"; do
+          if ! /usr/sbin/pkg info -e "${pkg}" >/dev/null 2>&1; then
+            missing=1
+            break
+          fi
+        done
+        exit "${missing}"
+        ;;
+      pkgin)
+        missing=0
+        for pkg in "${PKG_PKGIN[@]}"; do
+          if ! /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
+            missing=1
+            break
+          fi
+        done
+        exit "${missing}"
+        ;;
+      pkg_add)
+        missing=0
+        for pkg in "${PKG_PKG_ADD[@]}"; do
+          if ! /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
+            missing=1
+            break
+          fi
+        done
+        exit "${missing}"
+        ;;
+    esac
     ;;
-  pkg_add)
-    sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
-    exit 0
+  install)
+    case "${PKG_MGR}" in
+      pkg)
+        sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
+        exit 0
+        ;;
+      pkgin)
+        sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
+        exit 0
+        ;;
+      pkg_add)
+        sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+        exit 0
+        ;;
+    esac
+    ;;
+  *)
+    usage
+    exit 1
     ;;
 esac
 
