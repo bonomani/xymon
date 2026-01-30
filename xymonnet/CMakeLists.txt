@@ -122,6 +122,9 @@ if(ENABLE_SNMP)
         add_executable(xymon-snmpcollect
             xymon-snmpcollect.c
         )
+        # Net-SNMP headers and this source require C99 (declarations after statements).
+        set_property(TARGET xymon-snmpcollect PROPERTY C_STANDARD 99)
+        set_property(TARGET xymon-snmpcollect PROPERTY C_STANDARD_REQUIRED ON)
         target_compile_options(xymon-snmpcollect PRIVATE ${NETSNMP_CFLAGS})
         target_link_libraries(xymon-snmpcollect
             xymon
