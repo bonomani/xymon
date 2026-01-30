@@ -48,6 +48,7 @@ jobs:
             ci/guards/architecture.sh
           fi
           # ci/guards/architecture.sh (keep this commented)
+          # Keep reference even if missing to document optional guard hook.
 
       - name: Setup (Linux)
         env:

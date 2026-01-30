@@ -84,6 +84,9 @@ if [[ "${use_ci_configure}" == "1" ]]; then
   fi
   export ENABLE_SSL="${enable_ssl:-ON}"
   export ENABLE_LDAP="${enable_ldap:-ON}"
+  if [[ -n "${parallel_override}" ]]; then
+    export CMAKE_BUILD_PARALLEL_LEVEL="${parallel_override}"
+  fi
   bash "${root_dir}/scripts/ci/cmake-configure.sh"
   if [[ "${build_install}" == "1" ]]; then
     bash "${root_dir}/scripts/ci/cmake-build.sh"
@@ -162,7 +165,11 @@ fi
 cmake "${cmake_args[@]}"
 
 echo ""
-echo "Configure complete. Build with: cmake --build ${build_dir}"
+if [[ -n "${parallel_override}" ]]; then
+  echo "Configure complete. Build with: cmake --build ${build_dir} --parallel ${parallel_override}"
+else
+  echo "Configure complete. Build with: cmake --build ${build_dir}"
+fi
 
 if [[ -f "${build_dir}/CMakeCache.txt" ]]; then
   cache_val() {

@@ -7,6 +7,7 @@ if [[ -z "${PRESET:-}" ]]; then
   exit 1
 fi
 
-CMAKE_BUILD_PARALLEL_LEVEL=1
+parallel_level="${PARALLEL_OVERRIDE:-${CMAKE_BUILD_PARALLEL_LEVEL:-1}}"
+CMAKE_BUILD_PARALLEL_LEVEL="${parallel_level}"
 export CMAKE_BUILD_PARALLEL_LEVEL
-cmake --build --preset "${PRESET}" --parallel 1
+cmake --build --preset "${PRESET}" --parallel "${parallel_level}"

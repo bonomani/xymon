@@ -207,7 +207,7 @@ if [[ "${use_ci_packages}" == "1" ]]; then
       bash "${root_dir}/scripts/ci/install-bsd-packages.sh"
       ;;
     *)
-      echo "Unsupported OS for --use-ci-setup: ${os_name}"
+      echo "Unsupported OS for --use-ci-packages: ${os_name}"
       exit 1
       ;;
   esac

@@ -6,20 +6,32 @@ IFS=$' \t\n'
 usage() {
   cat <<'USAGE'
 Usage: install-bsd-packages.sh [--print] [--check-only] [--install]
+                             [--distro-family NAME] [--distro NAME] [--version NAME]
 
 Options:
-  --print    Print package list and exit
-  --check-only  Exit 0 if all packages are installed, 1 otherwise
-  --install  Install packages (default)
+  --print          Print package list and exit
+  --check-only     Exit 0 if all packages are installed, 1 otherwise
+  --install        Install packages (default)
+  --distro-family  Ignored (present for CLI parity with Linux)
+  --distro         Ignored (present for CLI parity with Linux)
+  --version        Ignored (present for CLI parity with Linux)
 USAGE
 }
 
 mode="install"
+print_list="0"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --print) mode="print"; shift ;;
+    --print)
+      print_list="1"
+      if [[ "${mode}" == "install" ]]; then
+        mode="print"
+      fi
+      shift
+      ;;
     --check-only) mode="check"; shift ;;
     --install) mode="install"; shift ;;
+    --distro-family|--distro|--version) shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *) shift ;;
   esac
@@ -158,37 +170,56 @@ case "${mode}" in
     case "${PKG_MGR}" in
       pkg)
         missing=0
+        missing_pkgs=()
         for pkg in "${PKG_PKG[@]}"; do
           if ! /usr/sbin/pkg info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
-            break
+            missing_pkgs+=("${pkg}")
           fi
         done
+        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
+          printf '%s\n' "${missing_pkgs[@]}"
+        fi
         exit "${missing}"
         ;;
       pkgin)
         missing=0
+        missing_pkgs=()
         for pkg in "${PKG_PKGIN[@]}"; do
           if ! /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
-            break
+            missing_pkgs+=("${pkg}")
           fi
         done
+        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
+          printf '%s\n' "${missing_pkgs[@]}"
+        fi
         exit "${missing}"
         ;;
       pkg_add)
         missing=0
+        missing_pkgs=()
         for pkg in "${PKG_PKG_ADD[@]}"; do
           if ! /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
-            break
+            missing_pkgs+=("${pkg}")
           fi
         done
+        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
+          printf '%s\n' "${missing_pkgs[@]}"
+        fi
         exit "${missing}"
         ;;
     esac
     ;;
   install)
+    if [[ "${print_list}" == "1" ]]; then
+      case "${PKG_MGR}" in
+        pkg) printf '%s\n' "${PKG_PKG[@]}" ;;
+        pkgin) printf '%s\n' "${PKG_PKGIN[@]}" ;;
+        pkg_add) printf '%s\n' "${PKG_PKG_ADD[@]}" ;;
+      esac
+    fi
     case "${PKG_MGR}" in
       pkg)
         sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
