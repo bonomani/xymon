@@ -71,6 +71,9 @@ if [[ "${OS_NAME}" == "NetBSD" ]]; then
   printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
   export PKG_INSTALL_CONF
   export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -m)/10.1/All/"
+  if [ -x /usr/bin/sudo ]; then
+    sudo sh -c 'printf "%s\n" "http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -m)/10.1/All/" > /usr/pkg/etc/pkgin/repositories.conf'
+  fi
 fi
 
 pick_ldap_pkg() {
