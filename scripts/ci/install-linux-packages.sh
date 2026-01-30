@@ -5,41 +5,49 @@ IFS=$' \t\n'
 
 usage() {
   cat <<'USAGE'
-Usage: install-linux-packages.sh [--print] [--check-only] [--install] [profile] [distro_family distro version]
+Usage: install-linux-packages.sh [--print] [--check-only] [--install]
+                               [--distro-family NAME] [--distro NAME] [--version NAME]
 
 Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
-  profile       linux|debian (default: linux)
-  distro_family distro version  Override distro metadata (default: debian ubuntu latest)
+  profile       linux|debian (deprecated; use --distro-family/--distro/--version)
+  --distro-family NAME  Override distro family (default: debian)
+  --distro NAME         Override distro (default: ubuntu)
+  --version NAME        Override version (default: latest)
 USAGE
 }
 
 mode="install"
+print_list="0"
 profile="linux"
 distro_family="debian"
 distro="ubuntu"
 version="latest"
 while [[ $# -gt 0 ]]; do
   case "$1" in
-    --print) mode="print"; shift ;;
+    --print)
+      print_list="1"
+      if [[ "${mode}" == "install" ]]; then
+        mode="print"
+      fi
+      shift
+      ;;
     --check-only) mode="check"; shift ;;
     --install) mode="install"; shift ;;
+    --distro-family) distro_family="$2"; shift 2 ;;
+    --distro) distro="$2"; shift 2 ;;
+    --version) version="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *)
       if [[ "${profile}" == "linux" && ( "$1" == "linux" || "$1" == "debian" ) ]]; then
         profile="$1"
         shift
       else
-        if [[ $# -lt 3 ]]; then
-          echo "Expected distro_family distro version (got: $*)" >&2
-          exit 1
-        fi
-        distro_family="$1"
-        distro="$2"
-        version="$3"
-        shift 3
+        echo "Unknown argument: $1" >&2
+        usage
+        exit 1
       fi
       ;;
   esac
@@ -48,6 +56,9 @@ done
 PROFILE="${profile:-linux}"
 if [[ "${PROFILE}" == "linux" ]]; then
   PROFILE="debian"
+fi
+if [[ "${profile}" != "linux" ]]; then
+  echo "Warning: profile argument is deprecated; use --distro-family/--distro/--version." >&2
 fi
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 VARIANT="${VARIANT:-all}"
@@ -66,13 +77,21 @@ fi
 
 if [[ "${mode}" == "check" ]]; then
   missing=0
+  missing_pkgs=()
   for pkg in "${ALL_PKGS[@]}"; do
     if ! dpkg -s "${pkg}" >/dev/null 2>&1; then
       missing=1
-      break
+      missing_pkgs+=("${pkg}")
     fi
   done
+  if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
+    printf '%s\n' "${missing_pkgs[@]}"
+  fi
   exit "${missing}"
+fi
+
+if [[ "${mode}" == "install" && "${print_list}" == "1" ]]; then
+  printf '%s\n' "${ALL_PKGS[@]}"
 fi
 
 echo "=== Install (Linux packages) ==="
