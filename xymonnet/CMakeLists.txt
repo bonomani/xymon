@@ -134,8 +134,8 @@ if(ENABLE_SNMP)
         )
         target_link_libraries(xymon-snmpcollect
             xymon
-            xymoncomm
             xymontime
+            xymoncomm
             ${NETSNMP_LIBS}
         )
         install(TARGETS xymon-snmpcollect
