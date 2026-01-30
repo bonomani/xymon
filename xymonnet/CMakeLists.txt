@@ -126,7 +126,12 @@ if(ENABLE_SNMP)
         set_property(TARGET xymon-snmpcollect PROPERTY C_STANDARD 99)
         set_property(TARGET xymon-snmpcollect PROPERTY C_STANDARD_REQUIRED ON)
         set_property(TARGET xymon-snmpcollect PROPERTY C_EXTENSIONS ON)
-        target_compile_options(xymon-snmpcollect PRIVATE ${NETSNMP_CFLAGS} -std=gnu99)
+        target_compile_options(xymon-snmpcollect PRIVATE
+            ${NETSNMP_CFLAGS}
+            -std=gnu99
+            -Wno-declaration-after-statement
+            -Wno-error=declaration-after-statement
+        )
         target_link_libraries(xymon-snmpcollect
             xymon
             xymoncomm
