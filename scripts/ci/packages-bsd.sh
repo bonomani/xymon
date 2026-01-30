@@ -7,7 +7,7 @@ ci_bsd_packages() {
   local variant="$2"
   local enable_snmp="${3:-}"
 
-  local common=(gmake cmake pcre)
+  local common=(gmake cmake pcre rrdtool)
   local server_pkg=(c-ares)
   local server_pkgin=(libcares)
   local server_pkg_add=(libcares)

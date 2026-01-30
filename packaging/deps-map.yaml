@@ -1,0 +1,104 @@
+# Generic dependency map for translating package names across OSes/packagers.
+map:
+  BUILD_TOOLS:
+    linux_github:
+      ubuntu_latest:
+        apt: [build-essential]
+    bsd:
+      freebsd:
+        pkg: [gmake, cmake]
+      netbsd:
+        pkg_add: [gmake, cmake]
+      openbsd:
+        pkg_add: [gmake, cmake]
+
+  PCRE:
+    linux_github:
+      ubuntu_latest:
+        apt: [libpcre3-dev]
+    bsd:
+      freebsd:
+        pkg: [pcre]
+      netbsd:
+        pkg_add: [pcre]
+      openbsd:
+        pkg_add: [pcre]
+
+  RRD:
+    linux_github:
+      ubuntu_latest:
+        apt: [librrd-dev]
+    bsd:
+      freebsd:
+        pkg: [rrdtool]
+      netbsd:
+        pkg_add: [rrdtool]
+      openbsd:
+        pkg_add: [rrdtool]
+
+  OpenSSL:
+    linux_github:
+      ubuntu_latest:
+        apt: [libssl-dev]
+    bsd:
+      freebsd:
+        pkg: [openssl]
+      netbsd:
+        pkg_add: [openssl]
+      openbsd:
+        pkg_add: [openssl]
+
+  LDAP:
+    linux_github:
+      ubuntu_latest:
+        apt: [libldap-dev]
+    bsd:
+      freebsd:
+        pkg: [openldap-client]
+      netbsd:
+        pkg_add: [openldap-client]
+      openbsd:
+        pkg_add: [openldap-client]
+
+  NETSNMP:
+    linux_github:
+      ubuntu_latest:
+        apt: [libsnmp-dev]
+    bsd:
+      freebsd:
+        pkg: [net-snmp]
+      netbsd:
+        pkg_add: [net-snmp]
+      openbsd:
+        pkg_add: [net-snmp]
+
+  CARES:
+    linux_github:
+      ubuntu_latest:
+        apt: [libc-ares-dev]
+    bsd:
+      freebsd:
+        pkg: [c-ares]
+      netbsd:
+        pkg_add: [libcares]
+      openbsd:
+        pkg_add: [libcares]
+
+  TIRPC:
+    linux_github:
+      ubuntu_latest:
+        apt: [libtirpc-dev]
+    bsd:
+      freebsd:
+        pkg: [libtirpc]
+      netbsd:
+        pkg_add: [libtirpc]
+      openbsd:
+        pkg_add: [libtirpc]
+
+aliases:
+  CARES_LIBRARY: CARES
+  LBER_LIBRARY: LDAP
+  LDAP_LIBRARY: LDAP
+  TIRPC_INCLUDE_DIR: TIRPC
+  TIRPC_LIBRARY: TIRPC

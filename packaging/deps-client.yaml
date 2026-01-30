@@ -5,11 +5,11 @@ build:
         apt:
           libs:
             mandatory:
-            - build-essential
-            - libssl-dev
-            - libpcre3-dev
-            - librrd-dev
-            - libtirpc-dev
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - RRD
+            - TIRPC
           tools:
             optional:
             - clang
@@ -19,24 +19,26 @@ build:
         pkg:
           libs:
             mandatory:
-            - gmake
-            - cmake
-            - pcre
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
             base_system:
-            - openssl
+            - OpenSSL
+            - TIRPC
           tools:
             optional:
             - clang
     netbsd:
       packagers:
-        pkgin:
+        pkg_add:
           libs:
             mandatory:
-            - gmake
-            - cmake
-            - pcre
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
             base_system:
-            - openssl
+            - OpenSSL
+            - TIRPC
           tools:
             optional:
             - clang
@@ -45,11 +47,12 @@ build:
         pkg_add:
           libs:
             mandatory:
-            - gmake
-            - cmake
-            - pcre
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
             base_system:
-            - openssl
+            - OpenSSL
+            - TIRPC
           tools:
             optional:
             - clang
@@ -64,6 +67,7 @@ runtime:
     mandatory:
     - sendmail (or equivalent)
     - fping
+    - mtr
     - perl
     - python
 version_notes:
@@ -74,6 +78,6 @@ version_notes:
     freebsd:
     - Verify package names for your FreeBSD release (ports/pkg naming can change).
     netbsd:
-    - Verify package names for your NetBSD release (pkgin naming can change).
+    - Verify package names for your NetBSD release (pkg_add naming can change).
     openbsd:
     - Verify package names for your OpenBSD release (pkg_add naming can change).
