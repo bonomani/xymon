@@ -70,6 +70,7 @@ if [[ "${OS_NAME}" == "NetBSD" ]]; then
   PKG_INSTALL_CONF="/tmp/pkg_install.conf"
   printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
   export PKG_INSTALL_CONF
+  export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -m)/10.1/All/"
 fi
 
 pick_ldap_pkg() {
