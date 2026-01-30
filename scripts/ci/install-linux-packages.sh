@@ -46,6 +46,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
+ENABLE_SNMP="${ENABLE_SNMP:-ON}"
 VARIANT="${VARIANT:-all}"
 CI_COMPILER="${CI_COMPILER:-}"
 
@@ -53,7 +54,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=packages-linux.sh
 source "${script_dir}/packages-linux.sh"
 
-mapfile -t ALL_PKGS < <(ci_linux_packages "${distro_family}" "${distro}" "${version}" "${VARIANT}" "${ENABLE_LDAP}" "${CI_COMPILER}")
+mapfile -t ALL_PKGS < <(ci_linux_packages "${distro_family}" "${distro}" "${version}" "${VARIANT}" "${ENABLE_LDAP}" "${CI_COMPILER}" "${ENABLE_SNMP}")
 
 if [[ "${mode}" == "print" ]]; then
   printf '%s\n' "${ALL_PKGS[@]}"

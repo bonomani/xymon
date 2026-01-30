@@ -8,6 +8,7 @@ ci_linux_packages() {
   local variant="$4"
   local enable_ldap="$5"
   local ci_compiler="$6"
+  local enable_snmp="$7"
 
   local base_pkgs=(
     build-essential
@@ -24,6 +25,9 @@ ci_linux_packages() {
     fi
     if [[ "${enable_ldap}" == "ON" ]]; then
       profile_pkgs+=(libldap-dev)
+    fi
+    if [[ "${enable_snmp}" == "ON" ]]; then
+      profile_pkgs+=(net-snmp)
     fi
     if [[ "${ci_compiler}" == "clang" ]]; then
       profile_pkgs+=(clang)

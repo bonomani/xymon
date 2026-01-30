@@ -5,11 +5,16 @@ set -euo pipefail
 ci_bsd_packages() {
   local pkgmgr="$1"
   local variant="$2"
+  local enable_snmp="${3:-}"
 
   local common=(gmake cmake pcre)
   local server_pkg=(c-ares)
   local server_pkgin=(libcares)
   local server_pkg_add=(libcares)
+
+  if [[ "${enable_snmp}" == "ON" && "${variant}" == "server" ]]; then
+    common+=(net-snmp)
+  fi
 
   case "${pkgmgr}" in
     pkg)

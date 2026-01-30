@@ -1,0 +1,79 @@
+build:
+  linux_github:
+    ubuntu_latest:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - build-essential
+            - libssl-dev
+            - libpcre3-dev
+            - librrd-dev
+            - libtirpc-dev
+          tools:
+            optional:
+            - clang
+  bsd:
+    freebsd:
+      packagers:
+        pkg:
+          libs:
+            mandatory:
+            - gmake
+            - cmake
+            - pcre
+            base_system:
+            - openssl
+          tools:
+            optional:
+            - clang
+    netbsd:
+      packagers:
+        pkgin:
+          libs:
+            mandatory:
+            - gmake
+            - cmake
+            - pcre
+            base_system:
+            - openssl
+          tools:
+            optional:
+            - clang
+    openbsd:
+      packagers:
+        pkg_add:
+          libs:
+            mandatory:
+            - gmake
+            - cmake
+            - pcre
+            base_system:
+            - openssl
+          tools:
+            optional:
+            - clang
+runtime:
+  libs:
+    optional:
+    - OpenSSL
+    - OpenLDAP client
+    - net-snmp
+    - c-ares
+  tools:
+    mandatory:
+    - sendmail (or equivalent)
+    - fping
+    - perl
+    - python
+version_notes:
+  linux:
+    ubuntu_latest:
+    - Package names are for Ubuntu-latest; adjust for other distros/versions.
+  bsd:
+    freebsd:
+    - Verify package names for your FreeBSD release (ports/pkg naming can change).
+    netbsd:
+    - Verify package names for your NetBSD release (pkgin naming can change).
+    openbsd:
+    - Verify package names for your OpenBSD release (pkg_add naming can change).

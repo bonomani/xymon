@@ -65,6 +65,7 @@ jobs:
       - name: Setup (Linux)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
@@ -154,6 +155,7 @@ jobs:
             export VARIANT="${{ matrix.variant }}"
             export PRESET="${{ matrix.preset }}"
             export ENABLE_LDAP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
+            export ENABLE_SNMP="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             export LOCALCLIENT="${{ matrix.localclient }}"
             export DEBUG=1
             bash scripts/ci/install-bsd-packages.sh

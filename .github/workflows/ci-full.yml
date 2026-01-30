@@ -46,6 +46,8 @@ jobs:
       - name: Setup (Linux)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
@@ -163,6 +165,8 @@ jobs:
       - name: Setup (Linux)
         env:
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           CI_COMPILER: ${{ matrix.compiler }}
         run: |
@@ -177,6 +181,7 @@ jobs:
           PRESET: ${{ matrix.preset }}
           ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |

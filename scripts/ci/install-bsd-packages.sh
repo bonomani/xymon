@@ -39,8 +39,9 @@ done
 
 VARIANT="${VARIANT:-}"
 ENABLE_LDAP="${ENABLE_LDAP:-}"
-if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" ]]; then
-  echo "VARIANT and ENABLE_LDAP must be set"
+ENABLE_SNMP="${ENABLE_SNMP:-}"
+if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" || -z "${ENABLE_SNMP}" ]]; then
+  echo "VARIANT, ENABLE_LDAP, and ENABLE_SNMP must be set"
   exit 1
 fi
 
@@ -137,9 +138,9 @@ pick_ldap_pkg() {
   fi
 }
 
-mapfile -t PKG_PKG < <(ci_bsd_packages pkg "${VARIANT}")
-mapfile -t PKG_PKGIN < <(ci_bsd_packages pkgin "${VARIANT}")
-mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}")
+mapfile -t PKG_PKG < <(ci_bsd_packages pkg "${VARIANT}" "${ENABLE_SNMP}")
+mapfile -t PKG_PKGIN < <(ci_bsd_packages pkgin "${VARIANT}" "${ENABLE_SNMP}")
+mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}" "${ENABLE_SNMP}")
 
 if [[ "${VARIANT}" == "server" ]]; then
   :
