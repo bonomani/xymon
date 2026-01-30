@@ -64,6 +64,11 @@ case "${OS_NAME}" in
     ;;
 esac
 
+# NetBSD CI runners may have OSABI mismatches; allow pkgin/pkg_add to proceed.
+if [[ "${OS_NAME}" == "NetBSD" ]]; then
+  export CHECK_OSABI=no
+fi
+
 pick_ldap_pkg() {
   local pkgmgr="${1:-}"
   local found=""
