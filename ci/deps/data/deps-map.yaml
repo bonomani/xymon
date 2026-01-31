@@ -128,10 +128,3 @@ map:
         pkg_add: [python3]
       openbsd:
         pkg_add: [python3]
-
-aliases:
-  CARES_LIBRARY: CARES
-  LBER_LIBRARY: LDAP
-  LDAP_LIBRARY: LDAP
-  TIRPC_INCLUDE_DIR: TIRPC
-  TIRPC_LIBRARY: TIRPC
