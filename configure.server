@@ -470,17 +470,17 @@ then
 	echo "PCRE_INCLUDE_DIR = -I$PCREINC"   >>Makefile
     fi
     if test "$PCRELIB" != ""; then
-	echo "PCRELIBS = -L$PCRELIB -lpcre" >>Makefile
+	echo "PCRE_LIBRARY_FLAGS = -L$PCRELIB -lpcre" >>Makefile
 	echo "RPATHVAL += ${PCRELIB}"       >>Makefile
     else
-	echo "PCRELIBS = -lpcre"         >>Makefile
+	echo "PCRE_LIBRARY_FLAGS = -lpcre"         >>Makefile
     fi
 fi
 echo ""                                  >>Makefile
 if test "$ENABLERRD" = "y"
 then
     echo "# RRDtool settings"            >>Makefile
-    echo "RRDDEF = $RRDDEF"              >>Makefile
+    echo "RRD_DEFS = $RRD_DEFS"              >>Makefile
     if test "$RRDINC" != ""; then
 	echo "RRD_INCLUDE_DIR = -I$RRDINC"     >>Makefile
     fi
@@ -496,21 +496,21 @@ echo "#"                                 >>Makefile
 echo "# OpenSSL settings"                >>Makefile
 if test "$ENABLESSL" = "y"
 then
-    echo "SSLFLAGS = $SSLFLAGS"          >>Makefile
+    echo "SSL_FLAGS = $SSL_FLAGS"          >>Makefile
     if test "$OSSLINC" != ""; then
 	echo "SSL_INCLUDE_DIR = -I$OSSLINC"    >>Makefile
     fi
     if test "$OSSLLIB" != ""; then
-	echo "SSLLIBS = -L$OSSLLIB -lssl -lcrypto" >>Makefile
+	echo "SSL_LIBRARY_FLAGS = -L$OSSLLIB -lssl -lcrypto" >>Makefile
 	echo "RPATHVAL += ${OSSLLIB}"    >>Makefile
     else
-	echo "SSLLIBS = -lssl -lcrypto"  >>Makefile
+	echo "SSL_LIBRARY_FLAGS = -lssl -lcrypto"  >>Makefile
     fi
     echo "DOSSL = yes"                   >>Makefile
 fi
 echo "#"                                 >>Makefile
 echo "# OpenLDAP settings"               >>Makefile
-echo "LDAPFLAGS = $LDAPDEF"              >>Makefile
+echo "LDAP_FLAGS = $LDAPDEF"              >>Makefile
 if test "$ENABLELDAP" = "y"
 then
     echo 

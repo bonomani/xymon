@@ -7,14 +7,14 @@ GENOBJS = xymongen.o loadlayout.o loaddata.o pagegen.o process.o wmlgen.o rssgen
 XYMONLIB = ../lib/libxymon.a
 XYMONLIBS = $(XYMONLIB)
 XYMONCOMMLIB = ../lib/libxymoncomm.a
-XYMONCOMMLIBS = $(XYMONCOMMLIB) $(ZLIBLIBS) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)
+XYMONCOMMLIBS = $(XYMONCOMMLIB) $(ZLIB_LIBRARY_FLAGS) $(SSL_LIBRARY_FLAGS) $(NETLIBS) $(LIBRTDEF)
 XYMONTIMELIB = ../lib/libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
 all: $(PROGRAMS)
 
 xymongen: $(GENOBJS) $(XYMONTIMELIB) $(XYMONCOMMLIB)
-	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(GENOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS) $(PCRELIBS)
+	$(CC) $(CFLAGS) $(LDFLAGS) -o $@ $(GENOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS) $(PCRE_LIBRARY_FLAGS)
 
 
 ################################################
