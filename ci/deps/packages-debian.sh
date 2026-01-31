@@ -19,7 +19,7 @@ ci_linux_packages() {
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
   local yaml_pkgs=()
   mapfile -t yaml_pkgs < <(
-    python3 "${script_dir}/packages-from-yaml.py" \
+    "${script_dir}/packages-from-yaml.sh" \
       --variant "${variant}" \
       --family "${distro_family}" \
       --os "${distro}_${version}" \

@@ -16,7 +16,7 @@ ci_bsd_packages() {
 
   local script_dir
   script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-  python3 "${script_dir}/packages-from-yaml.py" \
+  "${script_dir}/packages-from-yaml.sh" \
     --variant "${variant}" \
     --family bsd \
     --os "${os_name}" \

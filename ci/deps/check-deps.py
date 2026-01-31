@@ -140,14 +140,13 @@ def check_packages_from_yaml_mapping(data: dict, variant: str) -> bool:
     combos = gather_build_combinations(data)
     if not combos:
         return True
-    script = ROOT / "ci" / "deps" / "packages-from-yaml.py"
+    script = ROOT / "ci" / "deps" / "packages-from-yaml.sh"
     if not script.exists():
-        print("   ERROR: packages-from-yaml.py missing; cannot validate mappings")
+        print("   ERROR: packages-from-yaml.sh missing; cannot validate mappings")
         return False
     ok = True
     for family, os_name, pkgmgr in combos:
         cmd = [
-            sys.executable,
             str(script),
             "--variant",
             variant,
@@ -166,7 +165,7 @@ def check_packages_from_yaml_mapping(data: dict, variant: str) -> bool:
         if result.returncode != 0:
             ok = False
             print(
-                f"   ERROR: packages-from-yaml.py failed for variant={variant} family={family} "
+                f"   ERROR: packages-from-yaml.sh failed for variant={variant} family={family} "
                 f"os={os_name} pkgmgr={pkgmgr}"
             )
             if result.stdout.strip():
