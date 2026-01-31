@@ -13,7 +13,6 @@ build:
             - TIRPC
             - LDAP
             - NETSNMP
-            - CMAKE
           tools:
             optional:
             - clang
@@ -31,7 +30,6 @@ build:
             - TIRPC
             - LDAP
             - NETSNMP
-            - CMAKE
           tools:
             optional:
             - clang
@@ -47,7 +45,6 @@ build:
             - CARES
             - NETSNMP
             - LDAP
-            - CMAKE
             base_system:
             - OpenSSL
             - TIRPC
@@ -65,7 +62,6 @@ build:
             - CARES
             - NETSNMP
             - LDAP
-            - CMAKE
             base_system:
             - OpenSSL
             - TIRPC
@@ -83,7 +79,6 @@ build:
             - CARES
             - NETSNMP
             - LDAP
-            - CMAKE
             base_system:
             - OpenSSL
             - TIRPC

@@ -9,7 +9,6 @@ build:
             - OpenSSL
             - PCRE
             - TIRPC
-            - CMAKE
           tools:
             optional:
             - clang
@@ -47,7 +46,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - PCRE
-            - CMAKE
             base_system:
             - OpenSSL
             - TIRPC
