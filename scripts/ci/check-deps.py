@@ -260,6 +260,42 @@ def parse_ldap_pkg_name() -> str | None:
     return None
 
 
+def check_shell_scripts() -> bool:
+    scripts = [
+        ROOT / "cmake-local-setup.sh",
+        ROOT / "cmake-local-build.sh",
+        ROOT / "cmake-local-install.sh",
+        ROOT / "scripts" / "ci" / "install-bsd-packages.sh",
+        ROOT / "scripts" / "ci" / "install-debian-packages.sh",
+        ROOT / "scripts" / "ci" / "install-gh-debian-packages.sh",
+        ROOT / "scripts" / "ci" / "packages-bsd.sh",
+        ROOT / "scripts" / "ci" / "packages-debian.sh",
+        ROOT / "scripts" / "ci" / "packages-gh-debian.sh",
+    ]
+    existing = [str(path) for path in scripts if path.exists()]
+    if not existing:
+        print("   NOTE: no shell scripts found for linting")
+        return True
+
+    try:
+        subprocess.run(
+            ["shellcheck", "--version"],
+            check=True,
+            stdout=subprocess.DEVNULL,
+            stderr=subprocess.DEVNULL,
+        )
+    except FileNotFoundError:
+        print("   NOTE: shellcheck not installed; skipping shell lint")
+        return True
+
+    cmd = ["shellcheck", "--external-sources", "--shell", "bash"] + existing
+    result = subprocess.run(cmd)
+    if result.returncode != 0:
+        print("   ERROR: shellcheck reported issues")
+        return False
+    return True
+
+
 def extract_cmake_deps(text: str) -> set[str]:
     deps = set()
     for pattern in (
@@ -618,6 +654,10 @@ def main() -> int:
     yaml_ok = check_packages_from_yaml_mapping(client, "client")
     yaml_ok &= check_packages_from_yaml_mapping(server, "server")
     if not yaml_ok:
+        ok = False
+
+    print("-- shellcheck: local + CI helpers")
+    if not check_shell_scripts():
         ok = False
 
     if not ok:
