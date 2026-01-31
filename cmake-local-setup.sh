@@ -215,6 +215,50 @@ if [[ "${use_ci_packages}" == "1" ]]; then
   esac
 fi
 
+if [[ "${use_ci_configure}" == "1" ]]; then
+  if [[ -z "${preset_override}" ]]; then
+    echo "--use-ci-configure requires --preset"
+    exit 1
+  fi
+  if [[ -z "${variant_override}" ]]; then
+    echo "--use-ci-configure requires --variant"
+    exit 1
+  fi
+  if [[ "${variant_override}" == "client" && -z "${localclient_override}" ]]; then
+    echo "--use-ci-configure requires --localclient when --variant client"
+    exit 1
+  fi
+
+  ci_enable_rrd="${ENABLE_RRD_OVERRIDE:-ON}"
+  ci_enable_snmp="${ENABLE_SNMP_OVERRIDE:-ON}"
+  ci_enable_ssl="${ENABLE_SSL_OVERRIDE:-ON}"
+  ci_enable_ldap="${ENABLE_LDAP_OVERRIDE:-ON}"
+
+  export PRESET="${preset_override}"
+  export VARIANT="${variant_override}"
+  if [[ -n "${localclient_override}" ]]; then
+    export LOCALCLIENT="${localclient_override}"
+  fi
+  export ENABLE_RRD="${ci_enable_rrd}"
+  export ENABLE_SNMP="${ci_enable_snmp}"
+  export ENABLE_SSL="${ci_enable_ssl}"
+  export ENABLE_LDAP="${ci_enable_ldap}"
+  if [[ -n "${parallel_override}" ]]; then
+    export PARALLEL_OVERRIDE="${parallel_override}"
+  fi
+
+  echo "=== Running CI configure (preset=${PRESET}, variant=${VARIANT}) ==="
+  bash "${root_dir}/scripts/ci/cmake-configure.sh"
+  if [[ "${build_install}" == "1" ]]; then
+    echo "=== Running CI build (preset=${PRESET}) ==="
+    bash "${root_dir}/scripts/ci/cmake-build.sh"
+  else
+    echo "=== BUILD_INSTALL=0; skipping CI build ==="
+  fi
+  echo "CI configure/build complete; skipping local build/install."
+  exit 0
+fi
+
 prompt() {
   local prompt_text="$1"
   local default_value="$2"
