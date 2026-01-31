@@ -58,22 +58,22 @@ loadhosts.o: loadhosts.c loadhosts_file.c loadhosts_net.c
 	$(CC) $(CFLAGS) -c -o $@ loadhosts.c
 
 eventlog.o: eventlog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 notifylog.o: notifylog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 acknowledgementslog.o: acknowledgementslog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 headfoot.o: headfoot.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 loadalerts.o: loadalerts.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 matching.o: matching.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 sha1.o: sha1.c
 	$(CC) $(CFLAGS) `./test-endianness` -c -o $@ $<

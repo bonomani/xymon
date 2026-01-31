@@ -39,16 +39,16 @@ ENABLE_SSL_OVERRIDE=""
 ENABLE_LDAP_OVERRIDE=""
 FPING_OVERRIDE=""
 MAILPROGRAM_OVERRIDE=""
-RRDINCDIR_OVERRIDE=""
-RRDLIBDIR_OVERRIDE=""
-PCREINCDIR_OVERRIDE=""
-PCRELIBDIR_OVERRIDE=""
-SSLINCDIR_OVERRIDE=""
-SSLLIBDIR_OVERRIDE=""
-LDAPINCDIR_OVERRIDE=""
-LDAPLIBDIR_OVERRIDE=""
-CARESINCDIR_OVERRIDE=""
-CARESLIBDIR_OVERRIDE=""
+RRD_INCLUDE_DIR_OVERRIDE=""
+RRD_LIBRARY_DIR_OVERRIDE=""
+PCRE_INCLUDE_DIR_OVERRIDE=""
+PCRE_LIBRARY_DIR_OVERRIDE=""
+SSL_INCLUDE_DIR_OVERRIDE=""
+SSL_LIBRARY_DIR_OVERRIDE=""
+LDAP_INCLUDE_DIR_OVERRIDE=""
+LDAP_LIBRARY_DIR_OVERRIDE=""
+CARES_INCLUDE_DIR_OVERRIDE=""
+CARES_LIBRARY_DIR_OVERRIDE=""
 
 usage() {
   cat <<'EOF'
@@ -139,16 +139,16 @@ while [[ $# -gt 0 ]]; do
     --enable-ldap) ENABLE_LDAP_OVERRIDE="$2"; shift 2 ;;
     --fping) FPING_OVERRIDE="$2"; shift 2 ;;
     --mailprogram) MAILPROGRAM_OVERRIDE="$2"; shift 2 ;;
-    --rrdinclude) RRDINCDIR_OVERRIDE="$2"; shift 2 ;;
-    --rrdlib) RRDLIBDIR_OVERRIDE="$2"; shift 2 ;;
-    --pcreinclude) PCREINCDIR_OVERRIDE="$2"; shift 2 ;;
-    --pcrelib) PCRELIBDIR_OVERRIDE="$2"; shift 2 ;;
-    --sslinclude) SSLINCDIR_OVERRIDE="$2"; shift 2 ;;
-    --ssllib) SSLLIBDIR_OVERRIDE="$2"; shift 2 ;;
-    --ldapinclude) LDAPINCDIR_OVERRIDE="$2"; shift 2 ;;
-    --ldaplib) LDAPLIBDIR_OVERRIDE="$2"; shift 2 ;;
-    --caresinclude) CARESINCDIR_OVERRIDE="$2"; shift 2 ;;
-    --careslib) CARESLIBDIR_OVERRIDE="$2"; shift 2 ;;
+    --rrdinclude) RRD_INCLUDE_DIR_OVERRIDE="$2"; shift 2 ;;
+    --rrdlib) RRD_LIBRARY_DIR_OVERRIDE="$2"; shift 2 ;;
+    --pcreinclude) PCRE_INCLUDE_DIR_OVERRIDE="$2"; shift 2 ;;
+    --pcrelib) PCRE_LIBRARY_DIR_OVERRIDE="$2"; shift 2 ;;
+    --sslinclude) SSL_INCLUDE_DIR_OVERRIDE="$2"; shift 2 ;;
+    --ssllib) SSL_LIBRARY_DIR_OVERRIDE="$2"; shift 2 ;;
+    --ldapinclude) LDAP_INCLUDE_DIR_OVERRIDE="$2"; shift 2 ;;
+    --ldaplib) LDAP_LIBRARY_DIR_OVERRIDE="$2"; shift 2 ;;
+    --caresinclude) CARES_INCLUDE_DIR_OVERRIDE="$2"; shift 2 ;;
+    --careslib) CARES_LIBRARY_DIR_OVERRIDE="$2"; shift 2 ;;
     --build-dir) build_dir="$2"; build_dir_override="1"; shift 2 ;;
     --destdir) destdir_override="$2"; shift 2 ;;
     --use-ci-configure) use_ci_configure="1"; non_interactive="1"; shift ;;
@@ -407,7 +407,7 @@ advanced_mode="no"
 if [[ "${non_interactive}" != "1" ]]; then
   advanced_mode="$(normalize_onoff "$(prompt "Advanced mode (override auto-detected values) (yes/no)" "no")")"
 fi
-if [[ -n "${XYMONHOSTNAME_OVERRIDE}${XYMONHOSTIP_OVERRIDE}${XYMONHOSTOS_OVERRIDE}${XYMONHOSTURL_OVERRIDE}${XYMONCGIURL_OVERRIDE}${SECUREXYMONCGIURL_OVERRIDE}${MANROOT_OVERRIDE}${HTTPDGID_OVERRIDE}${HTTPDGID_CHGRP_OVERRIDE}${RRDINCDIR_OVERRIDE}${RRDLIBDIR_OVERRIDE}${PCREINCDIR_OVERRIDE}${PCRELIBDIR_OVERRIDE}${SSLINCDIR_OVERRIDE}${SSLLIBDIR_OVERRIDE}${LDAPINCDIR_OVERRIDE}${LDAPLIBDIR_OVERRIDE}${CARESINCDIR_OVERRIDE}${CARESLIBDIR_OVERRIDE}${ENABLE_RRD_OVERRIDE}${ENABLE_SNMP_OVERRIDE}${ENABLE_SSL_OVERRIDE}${ENABLE_LDAP_OVERRIDE}" ]]; then
+if [[ -n "${XYMONHOSTNAME_OVERRIDE}${XYMONHOSTIP_OVERRIDE}${XYMONHOSTOS_OVERRIDE}${XYMONHOSTURL_OVERRIDE}${XYMONCGIURL_OVERRIDE}${SECUREXYMONCGIURL_OVERRIDE}${MANROOT_OVERRIDE}${HTTPDGID_OVERRIDE}${HTTPDGID_CHGRP_OVERRIDE}${RRD_INCLUDE_DIR_OVERRIDE}${RRD_LIBRARY_DIR_OVERRIDE}${PCRE_INCLUDE_DIR_OVERRIDE}${PCRE_LIBRARY_DIR_OVERRIDE}${SSL_INCLUDE_DIR_OVERRIDE}${SSL_LIBRARY_DIR_OVERRIDE}${LDAP_INCLUDE_DIR_OVERRIDE}${LDAP_LIBRARY_DIR_OVERRIDE}${CARES_INCLUDE_DIR_OVERRIDE}${CARES_LIBRARY_DIR_OVERRIDE}${ENABLE_RRD_OVERRIDE}${ENABLE_SNMP_OVERRIDE}${ENABLE_SSL_OVERRIDE}${ENABLE_LDAP_OVERRIDE}" ]]; then
   advanced_mode="ON"
 fi
 if [[ -n "${HTTPDGID_CHGRP_OVERRIDE}" ]]; then
@@ -448,16 +448,16 @@ if [[ "${advanced_mode}" == "ON" ]]; then
   httpdgid_chgrp="$(normalize_onoff "$(choose_value "Apply HTTPDGID chgrp during install (yes/no)" "${httpdgid_chgrp_default}" "${HTTPDGID_CHGRP_OVERRIDE}")")"
 
   section "Libraries (advanced, leave empty for auto-detect)"
-  rrdinclude="$(choose_value "RRD include dir" "" "${RRDINCDIR_OVERRIDE}")"
-  rrdlib="$(choose_value "RRD library dir" "" "${RRDLIBDIR_OVERRIDE}")"
-  pcreinclude="$(choose_value "PCRE include dir" "" "${PCREINCDIR_OVERRIDE}")"
-  pcrelib="$(choose_value "PCRE library dir" "" "${PCRELIBDIR_OVERRIDE}")"
-  sslinclude="$(choose_value "OpenSSL include dir" "" "${SSLINCDIR_OVERRIDE}")"
-  ssllib="$(choose_value "OpenSSL library dir" "" "${SSLLIBDIR_OVERRIDE}")"
-  ldapinclude="$(choose_value "LDAP include dir" "" "${LDAPINCDIR_OVERRIDE}")"
-  ldaplib="$(choose_value "LDAP library dir" "" "${LDAPLIBDIR_OVERRIDE}")"
-  caresinclude="$(choose_value "C-ARES include dir" "" "${CARESINCDIR_OVERRIDE}")"
-  careslib="$(choose_value "C-ARES library dir" "" "${CARESLIBDIR_OVERRIDE}")"
+  rrdinclude="$(choose_value "RRD include dir" "" "${RRD_INCLUDE_DIR_OVERRIDE}")"
+  rrdlib="$(choose_value "RRD library dir" "" "${RRD_LIBRARY_DIR_OVERRIDE}")"
+  pcreinclude="$(choose_value "PCRE include dir" "" "${PCRE_INCLUDE_DIR_OVERRIDE}")"
+  pcrelib="$(choose_value "PCRE library dir" "" "${PCRE_LIBRARY_DIR_OVERRIDE}")"
+  sslinclude="$(choose_value "OpenSSL include dir" "" "${SSL_INCLUDE_DIR_OVERRIDE}")"
+  ssllib="$(choose_value "OpenSSL library dir" "" "${SSL_LIBRARY_DIR_OVERRIDE}")"
+  ldapinclude="$(choose_value "LDAP include dir" "" "${LDAP_INCLUDE_DIR_OVERRIDE}")"
+  ldaplib="$(choose_value "LDAP library dir" "" "${LDAP_LIBRARY_DIR_OVERRIDE}")"
+  caresinclude="$(choose_value "C-ARES include dir" "" "${CARES_INCLUDE_DIR_OVERRIDE}")"
+  careslib="$(choose_value "C-ARES library dir" "" "${CARES_LIBRARY_DIR_OVERRIDE}")"
 fi
 
 if [[ -z "${enable_rrd}" ]]; then
@@ -565,16 +565,16 @@ export HTTPDGID="${httpdgid}"
 export HTTPDGID_CHGRP="${httpdgid_chgrp}"
 export FPING_PATH="${fping_path}"
 export MAILPROGRAM="${mail_program}"
-export RRDINCDIR="${rrdinclude}"
-export RRDLIBDIR="${rrdlib}"
-export PCREINCDIR="${pcreinclude}"
-export PCRELIBDIR="${pcrelib}"
-export SSLINCDIR="${sslinclude}"
-export SSLLIBDIR="${ssllib}"
-export LDAPINCDIR="${ldapinclude}"
-export LDAPLIBDIR="${ldaplib}"
-export CARESINCDIR="${caresinclude}"
-export CARESLIBDIR="${careslib}"
+export RRD_INCLUDE_DIR="${rrdinclude}"
+export RRD_LIBRARY_DIR="${rrdlib}"
+export PCRE_INCLUDE_DIR="${pcreinclude}"
+export PCRE_LIBRARY_DIR="${pcrelib}"
+export SSL_INCLUDE_DIR="${sslinclude}"
+export SSL_LIBRARY_DIR="${ssllib}"
+export LDAP_INCLUDE_DIR="${ldapinclude}"
+export LDAP_LIBRARY_DIR="${ldaplib}"
+export CARES_INCLUDE_DIR="${caresinclude}"
+export CARES_LIBRARY_DIR="${careslib}"
 export ENABLE_RRD="${enable_rrd}"
 export ENABLE_SNMP="${enable_snmp}"
 export ENABLE_SSL="${enable_ssl}"

@@ -65,13 +65,13 @@ xymond.o: xymond.c
 	$(CC) $(CFLAGS) $(SSLFLAGS) -c -o $@ xymond.c
 
 do_alert.o: do_alert.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ do_alert.c
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ do_alert.c
 
 do_rrd.o: do_rrd.c do_rrd.h rrd/*.c
-	$(CC) $(CFLAGS) $(RRDINCDIR) $(PCREINCDIR) $(RRDDEF) -c -o $@ do_rrd.c
+	$(CC) $(CFLAGS) $(RRD_INCLUDE_DIR) $(PCRE_INCLUDE_DIR) $(RRDDEF) -c -o $@ do_rrd.c
 
 xymond_capture.o: xymond_capture.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ xymond_capture.c
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ xymond_capture.c
 
 xymond_sample: $(SAMPLEOBJS) $(XYMONCOMMLIB)
 	$(CC) $(LDFLAGS) -o $@ $(RPATHOPT) $(SAMPLEOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS)
@@ -95,13 +95,13 @@ xymond_client.o: xymond_client.c client/*.c
 	$(CC) $(CFLAGS) -c -o $@ xymond_client.c
 
 combostatus.o: combostatus.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 combostatus: $(COMBOTESTOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB)
 	$(CC) $(LDFLAGS) -o $@ $(RPATHOPT) $(COMBOTESTOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 xymon-mailack.o: xymon-mailack.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ xymon-mailack.c
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ xymon-mailack.c
 
 xymon-mailack: $(MAILACKOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(MAILACKOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)

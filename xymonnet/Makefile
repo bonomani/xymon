@@ -36,19 +36,19 @@ xymonping: $(PINGTESTOBJS) $(XYMONTIMELIB) ../lib/libxymon.a
 	$(CC) $(CFLAGS) -o $@ $(PINGTESTOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS)
 
 xymonnet.o: xymonnet.c
-	$(CC) $(CFLAGS) $(SSLFLAGS) $(LDAPFLAGS) $(SSLINCDIR) $(LDAPINCDIR) -c -o $@ xymonnet.c
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(LDAPFLAGS) $(SSL_INCLUDE_DIR) $(LDAP_INCLUDE_DIR) -c -o $@ xymonnet.c
 
 ldaptest.o: ldaptest.c
-	$(CC) $(CFLAGS) $(LDAPFLAGS) $(LDAPINCDIR) -c -o $@ ldaptest.c
+	$(CC) $(CFLAGS) $(LDAPFLAGS) $(LDAP_INCLUDE_DIR) -c -o $@ ldaptest.c
 
 httptest.o: httptest.c
-	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSLINCDIR) -c -o $@ httptest.c
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSL_INCLUDE_DIR) -c -o $@ httptest.c
 
 httpresult.o: httpresult.c
-	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSLINCDIR) -c -o $@ httpresult.c
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSL_INCLUDE_DIR) -c -o $@ httpresult.c
 
 contest.o: contest.c
-	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSLINCDIR) -c -o $@ contest.c
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSL_INCLUDE_DIR) -c -o $@ contest.c
 
 dns.o: $(LOCALCARES) dns.c
 	$(CC) $(CFLAGS) $(CARESINC) -c -o $@ dns.c
@@ -76,7 +76,7 @@ beastat: $(BEASTATOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(BEASTATOBJS) $(XYMONCOMMLIBS) $(XYMONTIMELIBS) $(PCRELIBS)
 
 beastat.o: beastat.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ beastat.c
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ beastat.c
 
 
 contest: contest.c httptest.o dns.o dns2.o httpcookies.o $(XYMONCOMMLIB) $(XYMONTIMELIB)

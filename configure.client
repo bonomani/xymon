@@ -234,7 +234,7 @@ echo "" >>Makefile
 if test "$CONFTYPE" = "client"
 then
 	if test "$PCREINC" != ""; then
-		echo "PCREINCDIR = -I$PCREINC"   >>Makefile
+		echo "PCRE_INCLUDE_DIR = -I$PCREINC"   >>Makefile
     	fi
     	if test "$PCRELIB" != ""; then
 		echo "PCRELIBS = -L$PCRELIB -lpcre" >>Makefile

@@ -90,7 +90,7 @@ datepage.cgi: $(DATEPAGEOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(DATEPAGEOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 showgraph.o: showgraph.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) $(RRDDEF) $(RRD_INCLUDE_DIR) -c -o $@ $<
 
 # Need NETLIBS on Solaris for getservbyname(), called by parse_url()
 showgraph.cgi: $(SHOWGRAPHOBJS) $(XYMONCOMMLIB)
@@ -112,7 +112,7 @@ criticalview.cgi: $(CRITVIEWOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(CRITVIEWOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 criticalview.o: criticalview.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 criticaleditor.cgi: $(CRITEDITOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(CRITEDITOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
@@ -139,7 +139,7 @@ hostlist.cgi: $(HOSTLISTOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(HOSTLISTOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 perfdata.o: perfdata.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) $(RRDDEF) $(RRD_INCLUDE_DIR) -c -o $@ $<
 
 # Need -lm on perfdata because it refers to isnan()
 perfdata.cgi: $(PERFDATAOBJS) $(XYMONCOMMLIB)
