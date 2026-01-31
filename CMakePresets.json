@@ -28,7 +28,6 @@
       "name": "packaging",
       "displayName": "Packaging (GNUInstallDirs, /usr prefix)",
       "generator": "Unix Makefiles",
-      "sourceDir": ".",
       "binaryDir": "${sourceDir}/build-cmake-packaging",
       "cacheVariables": {
         "USE_GNUINSTALLDIRS": "ON",
