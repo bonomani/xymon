@@ -191,18 +191,20 @@ if [[ "${use_ci_packages}" == "1" ]]; then
   case "${os_name}" in
     Linux)
       enable_ldap="${ENABLE_LDAP_OVERRIDE:-ON}"
+      enable_snmp="${ENABLE_SNMP_OVERRIDE:-ON}"
       variant="${variant_override:-server}"
-      if ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --check-only --os ubuntu --version local; then
+      if ENABLE_LDAP="${enable_ldap}" ENABLE_SNMP="${enable_snmp}" VARIANT="${variant}" \
+        bash "${root_dir}/scripts/ci/install-debian-packages.sh" --check-only --os ubuntu --version local; then
         echo "=== Install (Linux packages) ==="
         echo "All required packages already installed; skipping."
       else
-        ENABLE_LDAP="${enable_ldap}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-gh-debian-packages.sh" --install --os ubuntu --version local
+        ENABLE_LDAP="${enable_ldap}" ENABLE_SNMP="${enable_snmp}" VARIANT="${variant}" \
+        bash "${root_dir}/scripts/ci/install-debian-packages.sh" --install --os ubuntu --version local
       fi
       ;;
     FreeBSD|NetBSD|OpenBSD)
       ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
+      ENABLE_SNMP="${ENABLE_SNMP_OVERRIDE:-ON}" \
       VARIANT="${variant_override:-server}" \
       bash "${root_dir}/scripts/ci/install-bsd-packages.sh"
       ;;
@@ -402,6 +404,19 @@ if [[ "${advanced_mode}" == "ON" ]]; then
   ldaplib="$(choose_value "LDAP library dir" "" "${LDAPLIBDIR_OVERRIDE}")"
   caresinclude="$(choose_value "C-ARES include dir" "" "${CARESINCDIR_OVERRIDE}")"
   careslib="$(choose_value "C-ARES library dir" "" "${CARESLIBDIR_OVERRIDE}")"
+fi
+
+if [[ -z "${enable_rrd}" ]]; then
+  enable_rrd="ON"
+fi
+if [[ -z "${enable_snmp}" ]]; then
+  enable_snmp="ON"
+fi
+if [[ -z "${enable_ssl}" ]]; then
+  enable_ssl="ON"
+fi
+if [[ -z "${enable_ldap}" ]]; then
+  enable_ldap="ON"
 fi
 
 if [[ "${cgidir}" == "${securecgidir}" ]]; then
