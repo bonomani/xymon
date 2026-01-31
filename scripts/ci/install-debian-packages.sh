@@ -5,7 +5,7 @@ IFS=$' \t\n'
 
 usage() {
   cat <<'USAGE'
-Usage: install-gh-debian-packages.sh [--print] [--check-only] [--install]
+Usage: install-debian-packages.sh [--print] [--check-only] [--install]
                                [--os NAME] [--version NAME]
 
 Options:
@@ -13,14 +13,14 @@ Options:
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
   --os NAME       Override OS (default: ubuntu)
-  --version NAME  Override version (default: latest)
+  --version NAME  Override version (default: local)
 USAGE
 }
 
 mode="install"
 print_list="0"
 os_name="ubuntu"
-version="latest"
+version="local"
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --print)
@@ -46,12 +46,12 @@ ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 ENABLE_SNMP="${ENABLE_SNMP:-ON}"
 VARIANT="${VARIANT:-server}"
 CI_COMPILER="${CI_COMPILER:-}"
-distro_family="gh-debian"
+distro_family="debian"
 distro="${os_name}"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=packages-gh-debian.sh
-source "${script_dir}/packages-gh-debian.sh"
+# shellcheck source=packages-debian.sh
+source "${script_dir}/packages-debian.sh"
 
 mapfile -t ALL_PKGS < <(ci_linux_packages "${distro_family}" "${distro}" "${version}" "${VARIANT}" "${ENABLE_LDAP}" "${CI_COMPILER}" "${ENABLE_SNMP}")
 

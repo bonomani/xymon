@@ -119,6 +119,62 @@ def scan_runtime_tools(tokens: set[str]) -> set[str]:
     return found
 
 
+def gather_build_combinations(data: dict) -> list[tuple[str, str, str]]:
+    combos: list[tuple[str, str, str]] = []
+    for family, family_entry in data.get("build", {}).items():
+        if not isinstance(family_entry, dict):
+            continue
+        for os_name, os_entry in family_entry.items():
+            if not isinstance(os_entry, dict):
+                continue
+            packagers = os_entry.get("packagers", {})
+            if not isinstance(packagers, dict):
+                continue
+            for pkgmgr in packagers:
+                combos.append((family, os_name, pkgmgr))
+    return combos
+
+
+def check_packages_from_yaml_mapping(data: dict, variant: str) -> bool:
+    combos = gather_build_combinations(data)
+    if not combos:
+        return True
+    script = ROOT / "scripts" / "ci" / "packages-from-yaml.py"
+    if not script.exists():
+        print("   ERROR: packages-from-yaml.py missing; cannot validate mappings")
+        return False
+    ok = True
+    for family, os_name, pkgmgr in combos:
+        cmd = [
+            sys.executable,
+            str(script),
+            "--variant",
+            variant,
+            "--family",
+            family,
+            "--os",
+            os_name,
+            "--pkgmgr",
+            pkgmgr,
+            "--enable-ldap",
+            "ON",
+            "--enable-snmp",
+            "ON",
+        ]
+        result = subprocess.run(cmd, capture_output=True, text=True)
+        if result.returncode != 0:
+            ok = False
+            print(
+                f"   ERROR: packages-from-yaml.py failed for variant={variant} family={family} "
+                f"os={os_name} pkgmgr={pkgmgr}"
+            )
+            if result.stdout.strip():
+                print(f"      stdout: {result.stdout.strip()}")
+            if result.stderr.strip():
+                print(f"      stderr: {result.stderr.strip()}")
+    return ok
+
+
 def parse_workflow_yaml(path: Path) -> dict:
     try:
         data = yaml.safe_load(path.read_text())
@@ -166,13 +222,9 @@ def find_package_steps(workflow: dict) -> list[str]:
 
 
 def parse_linux_families() -> set[str]:
-    script = (ROOT / "scripts" / "ci" / "packages-gh-debian.sh").read_text()
-    families = set()
-    for line in script.splitlines():
-        if "distro_family" in line and "==" in line and "\"" in line:
-            match = re.search(r'==\s*"([^"]+)"', line)
-            if match:
-                families.add(match.group(1))
+    data = load_yaml(ROOT / "packaging" / "deps-client.yaml")
+    families = set(data.get("build", {}).keys())
+    families.discard("bsd")
     return families
 
 
@@ -197,21 +249,7 @@ def parse_bsd_pkgmgrs() -> dict[str, str]:
 
 
 def parse_bsd_pkgmgr_keys() -> set[str]:
-    script = (ROOT / "scripts" / "ci" / "packages-bsd.sh").read_text()
-    keys = set()
-    in_case = False
-    for line in script.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("case \"${pkgmgr}\""):
-            in_case = True
-            continue
-        if in_case and stripped.startswith("esac"):
-            break
-        if in_case and stripped.endswith(")"):
-            key = stripped.split(")")[0].strip()
-            if key and key != "*":
-                keys.add(key)
-    return keys
+    return {"pkg", "pkgin", "pkg_add"}
 
 
 def parse_ldap_pkg_name() -> str | None:
@@ -361,17 +399,20 @@ def main() -> int:
                 actual_server = resolve_packages(actual_server_raw, dep_map, family, os_name, pkg_name)
 
                 if family in linux_families:
+                    pkg_script = "packages-debian.sh" if family == "debian" else "packages-gh-debian.sh"
+                    distro = os_name.split("_", 1)[0]
+                    version = os_name.split("_", 1)[1] if "_" in os_name else ""
                     expected_sets = []
                     for enable_ldap in ("ON", "OFF"):
                         for enable_snmp in ("ON", "OFF"):
                             exp_client = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/packages-gh-debian.sh; "
-                                f"ci_linux_packages {family} {os_name} unknown client "
+                                f"cd '{ROOT}'; source scripts/ci/{pkg_script}; "
+                                f"ci_linux_packages {family} {distro} {version} client "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )
                             exp_server = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/packages-gh-debian.sh; "
-                                f"ci_linux_packages {family} {os_name} unknown server "
+                                f"cd '{ROOT}'; source scripts/ci/{pkg_script}; "
+                                f"ci_linux_packages {family} {distro} {version} server "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )
                             expected_sets.append((enable_ldap, enable_snmp, exp_client, exp_server))
@@ -402,11 +443,11 @@ def main() -> int:
                     for enable_snmp in ("ON", "OFF"):
                         exp_client = bash_list(
                             f"cd '{ROOT}'; source scripts/ci/packages-bsd.sh; "
-                            f"ci_bsd_packages {pkg_name} client {enable_snmp}"
+                            f"ci_bsd_packages {pkg_name} client {enable_snmp} {os_name}"
                         )
                         exp_server = bash_list(
                             f"cd '{ROOT}'; source scripts/ci/packages-bsd.sh; "
-                            f"ci_bsd_packages {pkg_name} server {enable_snmp}"
+                            f"ci_bsd_packages {pkg_name} server {enable_snmp} {os_name}"
                         )
                         if ldap_pkg_name and ldap_pkg_name in actual_server:
                             if ldap_pkg_name not in exp_server:
@@ -493,10 +534,17 @@ def main() -> int:
 
     # --- runtime tools checks ---
     print("-- runtime: tools checks")
-    runtime_tools = set(client["runtime"]["tools"].get("mandatory", []))
-    runtime_tools |= set(client["runtime"]["tools"].get("optional", []))
-    runtime_tools |= set(server["runtime"]["tools"].get("mandatory", []))
-    runtime_tools |= set(server["runtime"]["tools"].get("optional", []))
+    def normalize_tool_list(value) -> list[str]:
+        if value is None:
+            return []
+        if isinstance(value, list):
+            return value
+        return []
+
+    runtime_tools = set(normalize_tool_list(client["runtime"]["tools"].get("mandatory")))
+    runtime_tools |= set(normalize_tool_list(client["runtime"]["tools"].get("optional")))
+    runtime_tools |= set(normalize_tool_list(server["runtime"]["tools"].get("mandatory")))
+    runtime_tools |= set(normalize_tool_list(server["runtime"]["tools"].get("optional")))
     runtime_tokens = {normalize_token(tool.split()[0]) for tool in runtime_tools if tool}
     used_tokens = scan_runtime_tools(runtime_tokens)
 
@@ -565,6 +613,12 @@ def main() -> int:
         print(f"   ERROR: BSD packagers not supported by packages-bsd.sh: {', '.join(unknown_bsd)}")
     else:
         print("   OK: BSD packager keys align with packages-bsd.sh")
+
+    print("-- packages-from-yaml: validation")
+    yaml_ok = check_packages_from_yaml_mapping(client, "client")
+    yaml_ok &= check_packages_from_yaml_mapping(server, "server")
+    if not yaml_ok:
+        ok = False
 
     if not ok:
         return 1
