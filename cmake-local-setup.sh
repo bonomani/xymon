@@ -93,7 +93,7 @@ Options:
   --careslib DIR        Set C-ARES library dir
   --build-dir DIR       Override build directory (default: build-cmake)
   --destdir DIR         Stage install under DIR (for packaging)
-  --use-ci-configure    Use scripts/ci/cmake-configure.sh and presets
+  --use-ci-configure    Use ci/run/cmake-configure.sh and presets
   --preset NAME         CMake preset (required with --use-ci-configure)
   --variant NAME        server|client
   --localclient ON/OFF  Client mode for --variant client
@@ -225,7 +225,7 @@ if [[ "${use_ci_packages}" == "1" && "${use_ci_configure}" == "1" ]]; then
   echo "NOTE: --use-ci-packages and --use-ci-configure are both set; packages install runs before the CI configure/build."
 fi
 
-if [[ "${use_ci_configure}" == "1" ]]; then
+  if [[ "${use_ci_configure}" == "1" ]]; then
   if [[ -z "${preset_override}" ]]; then
     echo "--use-ci-configure requires --preset"
     exit 1
@@ -258,10 +258,10 @@ if [[ "${use_ci_configure}" == "1" ]]; then
   fi
 
   echo "=== Running CI configure (preset=${PRESET}, variant=${VARIANT}) ==="
-  bash "${root_dir}/scripts/ci/cmake-configure.sh"
+  bash "${root_dir}/ci/run/cmake-configure.sh"
   if [[ "${build_install}" == "1" ]]; then
     echo "=== Running CI build (preset=${PRESET}) ==="
-    bash "${root_dir}/scripts/ci/cmake-build.sh"
+    bash "${root_dir}/ci/run/cmake-build.sh"
   else
     echo "=== BUILD_INSTALL=0; skipping CI build ==="
   fi

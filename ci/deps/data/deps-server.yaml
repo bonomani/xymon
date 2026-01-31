@@ -5,14 +5,31 @@ build:
         apt:
           libs:
             mandatory:
-              - BUILD_TOOLS
-              - OpenSSL
-              - CARES
-              - PCRE
-              - RRD
-              - TIRPC
-              - LDAP
-              - NETSNMP
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  debian:
+    ubuntu_local:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
           tools:
             optional:
             - clang

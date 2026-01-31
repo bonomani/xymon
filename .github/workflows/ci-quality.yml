@@ -73,7 +73,7 @@ jobs:
 
       - name: Setup (Compiler)
         run: |
-          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
+          bash ci/run/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:
@@ -83,13 +83,13 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |
-          bash scripts/ci/cmake-configure.sh
+          bash ci/run/cmake-configure.sh
 
       - name: Build (CMake)
         env:
           PRESET: ${{ matrix.preset }}
         run: |
-          bash scripts/ci/cmake-build.sh
+          bash ci/run/cmake-build.sh
 
   bsd_cmake:
     name: bsd_cmake / OS=${{ matrix.os.name }} / VARIANT=${{ matrix.variant }}
@@ -167,6 +167,6 @@ jobs:
             fi
             export ENABLE_SSL="${{ matrix.variant == 'client' && 'OFF' || 'ON' }}"
             echo "=== Configure (CMake) ==="
-            bash scripts/ci/cmake-configure.sh
+            bash ci/run/cmake-configure.sh
             echo "=== Build (CMake) ==="
-            bash scripts/ci/cmake-build.sh
+            bash ci/run/cmake-build.sh

@@ -14,12 +14,13 @@ except Exception as exc:  # pragma: no cover
     sys.exit(2)
 
 ROOT = Path(__file__).resolve().parents[2]
+DATA_DIR = ROOT / "ci" / "deps" / "data"
 FILES = [
-    ROOT / "packaging" / "deps-client.yaml",
-    ROOT / "packaging" / "deps-server.yaml",
+    DATA_DIR / "deps-client.yaml",
+    DATA_DIR / "deps-server.yaml",
 ]
-MAP_FILE = ROOT / "packaging" / "deps-map.yaml"
-META_FILE = ROOT / "packaging" / "deps-meta.yaml"
+MAP_FILE = DATA_DIR / "deps-map.yaml"
+META_FILE = DATA_DIR / "deps-meta.yaml"
 
 
 def load_yaml(path: Path) -> dict:
@@ -222,7 +223,7 @@ def find_package_steps(workflow: dict) -> list[str]:
 
 
 def parse_linux_families() -> set[str]:
-    data = load_yaml(ROOT / "packaging" / "deps-client.yaml")
+    data = load_yaml(DATA_DIR / "deps-client.yaml")
     families = set(data.get("build", {}).keys())
     families.discard("bsd")
     return families
@@ -377,8 +378,8 @@ def main() -> int:
 
     print("deps YAML structure OK")
 
-    client = load_yaml(ROOT / "packaging" / "deps-client.yaml")
-    server = load_yaml(ROOT / "packaging" / "deps-server.yaml")
+    client = load_yaml(DATA_DIR / "deps-client.yaml")
+    server = load_yaml(DATA_DIR / "deps-server.yaml")
     dep_map = load_deps_map()
     dep_meta = load_deps_meta()
 

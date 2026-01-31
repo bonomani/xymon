@@ -4,6 +4,9 @@ map:
     gh-debian:
       ubuntu_latest:
         apt: [build-essential]
+    debian:
+      ubuntu_local:
+        apt: [build-essential]
     bsd:
       freebsd:
         pkg: [gmake, cmake]
@@ -15,6 +18,9 @@ map:
   PCRE:
     gh-debian:
       ubuntu_latest:
+        apt: [libpcre3-dev]
+    debian:
+      ubuntu_local:
         apt: [libpcre3-dev]
     bsd:
       freebsd:
@@ -28,6 +34,9 @@ map:
     gh-debian:
       ubuntu_latest:
         apt: [librrd-dev]
+    debian:
+      ubuntu_local:
+        apt: [librrd-dev]
     bsd:
       freebsd:
         pkg: [rrdtool]
@@ -39,6 +48,9 @@ map:
   OpenSSL:
     gh-debian:
       ubuntu_latest:
+        apt: [libssl-dev]
+    debian:
+      ubuntu_local:
         apt: [libssl-dev]
     bsd:
       freebsd:
@@ -52,6 +64,9 @@ map:
     gh-debian:
       ubuntu_latest:
         apt: [libldap-dev]
+    debian:
+      ubuntu_local:
+        apt: [libldap-dev]
     bsd:
       freebsd:
         pkg: [openldap-client]
@@ -63,6 +78,9 @@ map:
   NETSNMP:
     gh-debian:
       ubuntu_latest:
+        apt: [libsnmp-dev]
+    debian:
+      ubuntu_local:
         apt: [libsnmp-dev]
     bsd:
       freebsd:
@@ -76,6 +94,9 @@ map:
     gh-debian:
       ubuntu_latest:
         apt: [libc-ares-dev]
+    debian:
+      ubuntu_local:
+        apt: [libc-ares-dev]
     bsd:
       freebsd:
         pkg: [c-ares]
@@ -87,6 +108,9 @@ map:
   TIRPC:
     gh-debian:
       ubuntu_latest:
+        apt: [libtirpc-dev]
+    debian:
+      ubuntu_local:
         apt: [libtirpc-dev]
     bsd:
       freebsd:

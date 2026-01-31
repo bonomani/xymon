@@ -89,9 +89,12 @@ Runtime dependency notes (server/client)
 
 Server runtime:
   - Web server
+  - sendmail-compatible mailer
   - fping
-  - Mailer (sendmail-compatible)
-  - Optional: OpenSSL (SSL checks), OpenLDAP (LDAP checks), net-snmp (SNMP), c-ares
+  - mtr
+  - perl
+  - python
+  - Optional runtime libs: OpenSSL, OpenLDAP client, net-snmp, c-ares
 
 Client runtime:
-  - No extra runtime libraries beyond standard OS tools
+  - Optional tools: perl, python

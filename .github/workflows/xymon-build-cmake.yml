@@ -60,7 +60,7 @@ jobs:
 
       - name: Setup (Compiler)
         run: |
-          bash scripts/ci/setup-compiler.sh gcc
+          bash ci/run/setup-compiler.sh gcc
 
       - name: Configure (CMake)
         env:
@@ -70,10 +70,10 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |
-          bash scripts/ci/cmake-configure.sh
+          bash ci/run/cmake-configure.sh
 
       - name: Build (CMake)
         env:
           PRESET: ${{ matrix.preset }}
         run: |
-          bash scripts/ci/cmake-build.sh
+          bash ci/run/cmake-build.sh

@@ -55,18 +55,18 @@ jobs:
 
       - name: Setup (Compiler)
         run: |
-          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
+          bash ci/run/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (Legacy)
         env:
           LOCALCLIENT: ${{ matrix.localclient }}
           ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
         run: |
-          bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
+          bash ci/run/legacy-configure.sh ${{ matrix.variant }} debian
 
       - name: Build (Legacy)
         run: |
-          bash scripts/ci/legacy-build.sh
+          bash ci/run/legacy-build.sh
 
   linux_cmake:
     name: linux_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
@@ -174,7 +174,7 @@ jobs:
 
       - name: Setup (Compiler)
         run: |
-          bash scripts/ci/setup-compiler.sh ${{ matrix.compiler }}
+          bash ci/run/setup-compiler.sh ${{ matrix.compiler }}
 
       - name: Configure (CMake)
         env:
@@ -185,10 +185,10 @@ jobs:
           VARIANT: ${{ matrix.variant }}
           LOCALCLIENT: ${{ matrix.localclient }}
         run: |
-          bash scripts/ci/cmake-configure.sh
+          bash ci/run/cmake-configure.sh
 
       - name: Build (CMake)
         env:
           PRESET: ${{ matrix.preset }}
         run: |
-          bash scripts/ci/cmake-build.sh
+          bash ci/run/cmake-build.sh

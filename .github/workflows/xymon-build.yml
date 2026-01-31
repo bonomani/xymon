@@ -41,15 +41,15 @@ jobs:
 
       - name: Setup (Compiler)
         run: |
-          bash scripts/ci/setup-compiler.sh gcc
+          bash ci/run/setup-compiler.sh gcc
 
       - name: Configure (Legacy)
         env:
           LOCALCLIENT: ${{ matrix.localclient }}
           ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
         run: |
-          bash scripts/ci/legacy-configure.sh ${{ matrix.variant }} debian
+          bash ci/run/legacy-configure.sh ${{ matrix.variant }} debian
 
       - name: Build (Legacy)
         run: |
-          bash scripts/ci/legacy-build.sh
+          bash ci/run/legacy-build.sh

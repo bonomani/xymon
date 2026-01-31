@@ -87,9 +87,9 @@ if [[ "${use_ci_configure}" == "1" ]]; then
   if [[ -n "${parallel_override}" ]]; then
     export CMAKE_BUILD_PARALLEL_LEVEL="${parallel_override}"
   fi
-  bash "${root_dir}/scripts/ci/cmake-configure.sh"
+  bash "${root_dir}/ci/run/cmake-configure.sh"
   if [[ "${build_install}" == "1" ]]; then
-    bash "${root_dir}/scripts/ci/cmake-build.sh"
+    bash "${root_dir}/ci/run/cmake-build.sh"
   fi
   exit 0
 fi

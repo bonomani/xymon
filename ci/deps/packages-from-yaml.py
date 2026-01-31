@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Emit package list from packaging/deps-*.yaml and deps-map.yaml.
+"""Emit package list from ci/deps/data/deps-*.yaml and deps-map.yaml.
 
 Usage:
   packages-from-yaml.py --variant server|client --family FAMILY --os OS --pkgmgr PKG [--enable-ldap ON|OFF] [--enable-snmp ON|OFF]
@@ -68,8 +68,9 @@ def main() -> int:
     enable_ldap = normalize_onoff(args.enable_ldap, "OFF")
     enable_snmp = normalize_onoff(args.enable_snmp, "OFF")
 
-    deps_file = ROOT / "packaging" / f"deps-{args.variant}.yaml"
-    dep_map_file = ROOT / "packaging" / "deps-map.yaml"
+    deps_dir = ROOT / "ci" / "deps" / "data"
+    deps_file = deps_dir / f"deps-{args.variant}.yaml"
+    dep_map_file = deps_dir / "deps-map.yaml"
     data = load_yaml(deps_file)
     dep_map = load_yaml(dep_map_file) if dep_map_file.exists() else {}
 
