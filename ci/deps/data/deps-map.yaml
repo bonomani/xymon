@@ -120,6 +120,15 @@ map:
       openbsd:
         pkg_add: [libtirpc]
 
+  CMAKE:
+    bsd:
+      freebsd:
+        pkg: [cmake]
+      netbsd:
+        pkg_add: [cmake]
+      openbsd:
+        pkg_add: [cmake]
+
 aliases:
   CARES_LIBRARY: CARES
   LBER_LIBRARY: LDAP
