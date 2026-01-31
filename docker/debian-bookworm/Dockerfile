@@ -13,6 +13,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libldap2-dev \
     librrd-dev \
     libpcre3-dev \
+    libc-ares-dev \
     libsnmp-dev \
  && rm -rf /var/lib/apt/lists/*
 
