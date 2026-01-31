@@ -139,7 +139,7 @@ def check_packages_from_yaml_mapping(data: dict, variant: str) -> bool:
     combos = gather_build_combinations(data)
     if not combos:
         return True
-    script = ROOT / "scripts" / "ci" / "packages-from-yaml.py"
+    script = ROOT / "ci" / "deps" / "packages-from-yaml.py"
     if not script.exists():
         print("   ERROR: packages-from-yaml.py missing; cannot validate mappings")
         return False
@@ -216,7 +216,7 @@ def find_package_steps(workflow: dict) -> list[str]:
             if not isinstance(step, dict):
                 continue
             run = step.get("run", "")
-            if isinstance(run, str) and "scripts/ci/" in run and "packages" in run:
+            if isinstance(run, str) and "ci/deps/" in run and "packages" in run:
                 hits.append(run)
     return hits
 
@@ -229,7 +229,7 @@ def parse_linux_families() -> set[str]:
 
 
 def parse_bsd_pkgmgrs() -> dict[str, str]:
-    script = (ROOT / "scripts" / "ci" / "install-bsd-packages.sh").read_text()
+    script = (ROOT / "ci" / "deps" / "install-bsd-packages.sh").read_text()
     mapping: dict[str, str] = {}
     in_case = False
     for line in script.splitlines():
@@ -253,7 +253,7 @@ def parse_bsd_pkgmgr_keys() -> set[str]:
 
 
 def parse_ldap_pkg_name() -> str | None:
-    script = (ROOT / "scripts" / "ci" / "install-bsd-packages.sh").read_text()
+    script = (ROOT / "ci" / "deps" / "install-bsd-packages.sh").read_text()
     match = re.search(r"openldap-client", script)
     if match:
         return "openldap-client"
@@ -265,12 +265,12 @@ def check_shell_scripts() -> bool:
         ROOT / "cmake-local-setup.sh",
         ROOT / "cmake-local-build.sh",
         ROOT / "cmake-local-install.sh",
-        ROOT / "scripts" / "ci" / "install-bsd-packages.sh",
-        ROOT / "scripts" / "ci" / "install-debian-packages.sh",
-        ROOT / "scripts" / "ci" / "install-gh-debian-packages.sh",
-        ROOT / "scripts" / "ci" / "packages-bsd.sh",
-        ROOT / "scripts" / "ci" / "packages-debian.sh",
-        ROOT / "scripts" / "ci" / "packages-gh-debian.sh",
+        ROOT / "ci" / "deps" / "install-bsd-packages.sh",
+        ROOT / "ci" / "deps" / "install-debian-packages.sh",
+        ROOT / "ci" / "deps" / "install-gh-debian-packages.sh",
+        ROOT / "ci" / "deps" / "packages-bsd.sh",
+        ROOT / "ci" / "deps" / "packages-debian.sh",
+        ROOT / "ci" / "deps" / "packages-gh-debian.sh",
     ]
     existing = [str(path) for path in scripts if path.exists()]
     if not existing:
@@ -442,12 +442,12 @@ def main() -> int:
                     for enable_ldap in ("ON", "OFF"):
                         for enable_snmp in ("ON", "OFF"):
                             exp_client = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/{pkg_script}; "
+                                f"cd '{ROOT}'; source ci/deps/{pkg_script}; "
                                 f"ci_linux_packages {family} {distro} {version} client "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )
                             exp_server = bash_list(
-                                f"cd '{ROOT}'; source scripts/ci/{pkg_script}; "
+                                f"cd '{ROOT}'; source ci/deps/{pkg_script}; "
                                 f"ci_linux_packages {family} {distro} {version} server "
                                 f"{enable_ldap} '' {enable_snmp}"
                             )
@@ -478,11 +478,11 @@ def main() -> int:
                     expected_sets = []
                     for enable_snmp in ("ON", "OFF"):
                         exp_client = bash_list(
-                            f"cd '{ROOT}'; source scripts/ci/packages-bsd.sh; "
+                        f"cd '{ROOT}'; source ci/deps/packages-bsd.sh; "
                             f"ci_bsd_packages {pkg_name} client {enable_snmp} {os_name}"
                         )
                         exp_server = bash_list(
-                            f"cd '{ROOT}'; source scripts/ci/packages-bsd.sh; "
+                        f"cd '{ROOT}'; source ci/deps/packages-bsd.sh; "
                             f"ci_bsd_packages {pkg_name} server {enable_snmp} {os_name}"
                         )
                         if ldap_pkg_name and ldap_pkg_name in actual_server:
@@ -601,7 +601,7 @@ def main() -> int:
         text = wf.read_text()
         # Validate args/envs based on the referenced package script usage.
         for snippet in run_snippets:
-            match = re.search(r"(scripts/ci/[^\\s]+packages[^\\s]+\\.sh)", snippet)
+            match = re.search(r"(ci/deps/[^\\s]+packages[^\\s]+\\.sh)", snippet)
             if not match:
                 continue
             script_path = ROOT / match.group(1)

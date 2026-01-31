@@ -37,7 +37,7 @@ jobs:
           ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
           VARIANT: ${{ matrix.variant }}
         run: |
-          bash scripts/ci/install-gh-debian-packages.sh --os ubuntu --version latest
+          bash ci/deps/install-gh-debian-packages.sh --os ubuntu --version latest
 
       - name: Setup (Compiler)
         run: |

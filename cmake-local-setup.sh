@@ -98,10 +98,16 @@ Options:
   --variant NAME        server|client
   --localclient ON/OFF  Client mode for --variant client
   --parallel N          Build with N parallel jobs
-  --use-ci-packages     Run scripts/ci/install-*-packages.sh before configuring
+  --use-ci-packages     Run ci/deps/install-*-packages.sh before configuring
   --no-clean            Do not remove build directory before configuring
   --no-build-install    Configure only (skip build/install)
   --help                Show this help
+EOF
+  cat <<'EOF'
+Common workflows:
+  * Default interactive run: no special flags, prompts drive CMake, build/install happen locally.
+  * CI reproduction: set USE_CI_PACKAGES=1 --use-ci-packages --use-ci-configure --preset <name> --variant <server|client> [--localclient ON|OFF].
+  * Skip install: add --no-build-install when you only want configure/build without installing.
 EOF
 }
 
@@ -194,25 +200,29 @@ if [[ "${use_ci_packages}" == "1" ]]; then
       enable_snmp="${ENABLE_SNMP_OVERRIDE:-ON}"
       variant="${variant_override:-server}"
       if ENABLE_LDAP="${enable_ldap}" ENABLE_SNMP="${enable_snmp}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-debian-packages.sh" --check-only --os ubuntu --version local; then
+        bash "${root_dir}/ci/deps/install-debian-packages.sh" --check-only --os ubuntu --version local; then
         echo "=== Install (Linux packages) ==="
         echo "All required packages already installed; skipping."
       else
         ENABLE_LDAP="${enable_ldap}" ENABLE_SNMP="${enable_snmp}" VARIANT="${variant}" \
-        bash "${root_dir}/scripts/ci/install-debian-packages.sh" --install --os ubuntu --version local
+        bash "${root_dir}/ci/deps/install-debian-packages.sh" --install --os ubuntu --version local
       fi
       ;;
     FreeBSD|NetBSD|OpenBSD)
       ENABLE_LDAP="${ENABLE_LDAP_OVERRIDE:-ON}" \
       ENABLE_SNMP="${ENABLE_SNMP_OVERRIDE:-ON}" \
       VARIANT="${variant_override:-server}" \
-      bash "${root_dir}/scripts/ci/install-bsd-packages.sh"
+      bash "${root_dir}/ci/deps/install-bsd-packages.sh"
       ;;
     *)
       echo "Unsupported OS for --use-ci-packages: ${os_name}"
       exit 1
       ;;
   esac
+fi
+
+if [[ "${use_ci_packages}" == "1" && "${use_ci_configure}" == "1" ]]; then
+  echo "NOTE: --use-ci-packages and --use-ci-configure are both set; packages install runs before the CI configure/build."
 fi
 
 if [[ "${use_ci_configure}" == "1" ]]; then

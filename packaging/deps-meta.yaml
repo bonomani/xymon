@@ -1,6 +1,6 @@
 # Metadata for CI dependency scripts and workflow validation.
 scripts:
-  scripts/ci/install-gh-debian-packages.sh:
+  ci/deps/install-gh-debian-packages.sh:
     requires_flags: [--os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
@@ -10,7 +10,17 @@ scripts:
       pkgmgr: [apt]
     outputs: [packages]
 
-  scripts/ci/install-bsd-packages.sh:
+  ci/deps/install-debian-packages.sh:
+    requires_flags: [--os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [debian]
+      os: [ubuntu]
+      version: [local]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/install-bsd-packages.sh:
     requires_flags: [--os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
@@ -20,7 +30,7 @@ scripts:
       pkgmgr: [pkg, pkg_add, pkgin]
     outputs: [packages]
 
-  scripts/ci/packages-gh-debian.sh:
+  ci/deps/packages-gh-debian.sh:
     accepts:
       family: [gh-debian]
       os: [ubuntu]
@@ -28,7 +38,15 @@ scripts:
       pkgmgr: [apt]
     outputs: [packages]
 
-  scripts/ci/packages-bsd.sh:
+  ci/deps/packages-debian.sh:
+    accepts:
+      family: [debian]
+      os: [ubuntu]
+      version: [local]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/packages-bsd.sh:
     accepts:
       family: [bsd]
       os: [freebsd, netbsd, openbsd]
@@ -39,9 +57,12 @@ scripts:
 workflows:
   enforce:
     when_script_used:
-      scripts/ci/install-gh-debian-packages.sh:
+      ci/deps/install-gh-debian-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
         must_pass_flags: [--os, --version]
-      scripts/ci/install-bsd-packages.sh:
+      ci/deps/install-debian-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--os, --version]
+      ci/deps/install-bsd-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
         must_pass_flags: [--os, --version]
