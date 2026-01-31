@@ -55,6 +55,7 @@ case "${OS_NAME_LOWER}" in
   openbsd) OS_NAME="OpenBSD" ;;
   *) OS_NAME="${OS_NAME_RAW}" ;;
 esac
+echo "Normalized BSD OS_NAME override: requested='${OS_NAME_RAW}' resolved='${OS_NAME}'"
 OS_VERSION="${version_override:-$(uname -r)}"
 export OS_VERSION
 echo "$(uname -a)"
