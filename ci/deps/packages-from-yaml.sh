@@ -171,8 +171,9 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     if (list_context == "mandatory" && indent <= list_indent) {
       list_context = ""
     }
-    if (match(line, /^([^:]+):[[:space:]]*(.*)$/, arr)) {
-      key = trim(arr[1])
+    sep_pos = index(line, ":")
+    if (sep_pos > 0) {
+      key = trim(substr(line, 1, sep_pos - 1))
       set_key(key, depth)
       if (key == "mandatory" && path_matches()) {
         found = 1
@@ -238,9 +239,10 @@ if [[ -f "${dep_map_file}" ]]; then
         next
       }
       if (!in_map) next
-      if (match(line, /^([^:]+):[[:space:]]*(.*)$/, arr)) {
-        key = trim(arr[1])
-        value = trim(arr[2])
+      sep_pos = index(line, ":")
+      if (sep_pos > 0) {
+        key = trim(substr(line, 1, sep_pos - 1))
+        value = trim(substr(line, sep_pos + 1))
         set_key(key, depth)
         if (value ~ /^\[/) {
           data = value
