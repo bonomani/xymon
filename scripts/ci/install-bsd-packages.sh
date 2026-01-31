@@ -47,7 +47,14 @@ if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" || -z "${ENABLE_SNMP}" ]]; then
   exit 1
 fi
 
-OS_NAME="${os_override:-$(uname -s)}"
+OS_NAME_RAW="${os_override:-$(uname -s)}"
+OS_NAME_LOWER="$(printf '%s' "${OS_NAME_RAW}" | tr '[:upper:]' '[:lower:]')"
+case "${OS_NAME_LOWER}" in
+  freebsd) OS_NAME="FreeBSD" ;;
+  netbsd) OS_NAME="NetBSD" ;;
+  openbsd) OS_NAME="OpenBSD" ;;
+  *) OS_NAME="${OS_NAME_RAW}" ;;
+esac
 OS_VERSION="${version_override:-$(uname -r)}"
 export OS_VERSION
 echo "$(uname -a)"
