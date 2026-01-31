@@ -48,6 +48,7 @@ build:
             base_system:
             - OpenSSL
             - TIRPC
+            - PYTHON
           tools:
             optional:
             - clang

@@ -120,6 +120,15 @@ map:
       openbsd:
         pkg_add: [libtirpc]
 
+  PYTHON:
+    bsd:
+      freebsd:
+        pkg: [python3]
+      netbsd:
+        pkg_add: [python3]
+      openbsd:
+        pkg_add: [python3]
+
 aliases:
   CARES_LIBRARY: CARES
   LBER_LIBRARY: LDAP
