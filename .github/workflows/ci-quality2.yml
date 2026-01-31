@@ -1,0 +1,37 @@
+name: CI quality2 (extended)
+
+on:
+  workflow_dispatch:
+  schedule:
+    - cron: "0 3 * * *"
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  docker_debian_cmake:
+    name: docker_debian_cmake / OS=${{ matrix.os.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        os:
+          - name: debian-bullseye
+          - name: debian-bookworm
+          - name: debian-trixie
+          - name: ubuntu-22.04
+          - name: ubuntu-24.04
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Build Docker image (${{ matrix.os.name }})
+        run: |
+          cd docker
+          docker compose build ${{ matrix.os.name }}
+
+      - name: Run CMake build (${{ matrix.os.name }})
+        run: |
+          cd docker
+          docker compose up --abort-on-container-exit ${{ matrix.os.name }}
+
