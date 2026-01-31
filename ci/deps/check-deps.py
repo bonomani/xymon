@@ -21,6 +21,34 @@ FILES = [
 ]
 MAP_FILE = DATA_DIR / "deps-map.yaml"
 META_FILE = DATA_DIR / "deps-meta.yaml"
+CANONICAL_CMAKE_DEPS: dict[str, str] = {
+    "_CARES_LIB": "CARES",
+    "CARES_LIBRARY": "CARES",
+    "CARESINCDIR": "CARES",
+    "CARESLIBDIR": "CARES",
+    "CARES_INCLUDE_DIR": "CARES",
+    "CARES_LIBRARY_FILE": "CARES",
+    "_LDAP_LIB": "LDAP",
+    "LDAP_LIBRARY": "LDAP",
+    "LDAPINCDIR": "LDAP",
+    "LDAPLIBDIR": "LDAP",
+    "_PCRE_LIB": "PCRE",
+    "PCRE_LIBRARY": "PCRE",
+    "PCREINCDIR": "PCRE",
+    "PCRELIBDIR": "PCRE",
+    "_RRD_LIB": "RRD",
+    "RRD_LIBRARY": "RRD",
+    "RRDINCDIR": "RRD",
+    "RRDLIBDIR": "RRD",
+    "RRD_INCLUDE_DIR": "RRD",
+    "_SSL_LIB": "OpenSSL",
+    "SSL_LIBRARY": "OpenSSL",
+    "SSLINCDIR": "OpenSSL",
+    "SSLLIBDIR": "OpenSSL",
+    "TIRPC_LIBRARY": "TIRPC",
+    "TIRPC_INCLUDE_DIR": "TIRPC",
+    "LBER_LIBRARY": "LDAP",
+}
 
 
 def load_yaml(path: Path) -> dict:
@@ -296,19 +324,33 @@ def check_shell_scripts() -> bool:
     return True
 
 
-def extract_cmake_deps(text: str) -> set[str]:
-    deps = set()
+def extract_cmake_deps(text: str) -> tuple[set[str], set[str]]:
+    libs = set()
+    paths = set()
     for pattern in (
         r"find_package\(([^)]+)\)",
         r"find_library\(([^)\s]+)",
-        r"find_path\(([^)\s]+)",
     ):
         for match in re.finditer(pattern, text, flags=re.IGNORECASE):
             name = match.group(1).split()[0]
             name = re.sub(r"[^A-Za-z0-9_]+", "", name)
             if name:
-                deps.add(name)
-    return deps
+                libs.add(name)
+    for match in re.finditer(r"find_path\(([^)\s]+)", text, flags=re.IGNORECASE):
+        name = match.group(1).split()[0]
+        name = re.sub(r"[^A-Za-z0-9_]+", "", name)
+        if name:
+            paths.add(name)
+    return libs, paths
+
+
+def collect_all_cmake_deps() -> dict[Path, tuple[set[str], set[str]]]:
+    files: dict[Path, tuple[set[str], set[str]]] = {}
+    for path in sorted(ROOT.rglob("CMakeLists.txt")):
+        libs, paths = extract_cmake_deps(path.read_text())
+        if libs or paths:
+            files[path] = (libs, paths)
+    return files
 
 
 def normalize_token(token: str) -> str:
@@ -328,7 +370,7 @@ def resolve_alias(dep: str, dep_map: dict) -> str:
     aliases = dep_map.get("aliases", {})
     if isinstance(aliases, dict) and dep in aliases:
         return aliases[dep]
-    return dep
+    return CANONICAL_CMAKE_DEPS.get(dep, dep)
 
 
 def load_deps_meta() -> dict:
@@ -537,12 +579,10 @@ def main() -> int:
         if linux_client:
             break
 
-    client_cmake = (ROOT / "client" / "CMakeLists.txt").read_text()
-    xymonnet_cmake = (ROOT / "xymonnet" / "CMakeLists.txt").read_text()
-    client_deps = extract_cmake_deps(client_cmake)
-    server_deps = extract_cmake_deps(xymonnet_cmake)
+    cmake_files = collect_all_cmake_deps()
+    global_pkgs = linux_server + linux_client
 
-    def ensure_dep(deps: set[str], pkgs: list[str], label: str) -> None:
+    def ensure_dep(deps: set[str], pkgs: list[str], label: str, kind: str) -> None:
         for dep in sorted(deps):
             dep_key = resolve_alias(dep, dep_map)
             map_block = dep_map.get("map", {})
@@ -557,16 +597,20 @@ def main() -> int:
                         for pkg_list in os_entry.values():
                             mapped += list(pkg_list or [])
                 if mapped and not any(normalize_token(pkg) in {normalize_token(p) for p in pkgs} for pkg in mapped):
-                    print(f"   NOTE: {label} dependency '{dep}' not found in YAML package names")
+                    print(f"   NOTE: {label} {kind} dependency '{dep_key}' not found in YAML package names")
             else:
                 token = normalize_token(dep)
                 if not token:
                     continue
                 if not any(token in normalize_token(pkg) for pkg in pkgs):
-                    print(f"   NOTE: {label} dependency '{dep}' not found in YAML package names")
+                    print(f"   NOTE: {label} {kind} dependency '{dep_key}' not found in YAML package names")
 
-    ensure_dep(client_deps, linux_client, "client")
-    ensure_dep(server_deps, linux_server, "server")
+    for path, (libs, paths) in cmake_files.items():
+        label = str(path.relative_to(ROOT))
+        if libs:
+            ensure_dep(libs, global_pkgs, label, "library")
+        if paths:
+            ensure_dep(paths, global_pkgs, label, "header path")
 
     # --- runtime tools checks ---
     print("-- runtime: tools checks")
