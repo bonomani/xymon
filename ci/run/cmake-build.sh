@@ -7,7 +7,21 @@ if [[ -z "${PRESET:-}" ]]; then
   exit 1
 fi
 
+build_dir="build-cmake-${PRESET}"
+
+if [[ ! -d "${build_dir}" ]]; then
+  echo "Build directory not found: ${build_dir}"
+  exit 1
+fi
+
 parallel_level="${PARALLEL_OVERRIDE:-${CMAKE_BUILD_PARALLEL_LEVEL:-1}}"
-CMAKE_BUILD_PARALLEL_LEVEL="${parallel_level}"
-export CMAKE_BUILD_PARALLEL_LEVEL
-cmake --build --preset "${PRESET}" --parallel "${parallel_level}"
+export CMAKE_BUILD_PARALLEL_LEVEL="${parallel_level}"
+
+echo "=== CMake build ==="
+echo "PRESET=${PRESET}"
+echo "BUILD_DIR=${build_dir}"
+echo "PARALLEL=${parallel_level}"
+echo "==================="
+
+cmake --build "${build_dir}" --parallel "${parallel_level}"
+
