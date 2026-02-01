@@ -15,6 +15,7 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     libpcre3-dev \
     libc-ares-dev \
     libsnmp-dev \
+    libtirpc-dev \
  && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /src
