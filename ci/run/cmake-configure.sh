@@ -26,7 +26,7 @@ if [[ -z "$LOCALCLIENT" ]]; then
   fi
 fi
 
-cmake --preset "$PRESET" \
+cmake -S . --preset "$PRESET" \
   -DENABLE_SSL="$ENABLE_SSL" \
   -DENABLE_LDAP="$ENABLE_LDAP" \
   -DXYMON_VARIANT="$VARIANT" \
