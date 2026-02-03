@@ -68,3 +68,8 @@
 
 # Generated config files (keep ignored)
 /xymond/etcfiles/*.conf
+cmake-local.conf
+CMakePresets.user.json
+.vscode/
+build-cmake-gnu/
+build/*
