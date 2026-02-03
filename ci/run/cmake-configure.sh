@@ -30,7 +30,7 @@ if [[ -z "$LOCALCLIENT" ]]; then
   if [[ "$VARIANT" == "server" ]]; then
     LOCALCLIENT=OFF
   else
-    echo "LOCALCLIENT must be set for variant $VARIANT"
+    echo "LOCALCLIENT must be set for VARIANT=$VARIANT"
     exit 1
   fi
 fi
@@ -56,7 +56,7 @@ if (( use_presets )); then
     -DXYMON_VARIANT="$VARIANT" \
     -DLOCALCLIENT="$LOCALCLIENT"
 else
-  build_dir="build-cmake-$PRESET"
+  build_dir="build-cmake/$PRESET"
   cmake -S . -B "$build_dir" \
     -G "Unix Makefiles" \
     -DUSE_GNUINSTALLDIRS=ON \

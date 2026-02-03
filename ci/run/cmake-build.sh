@@ -7,7 +7,7 @@ if [[ -z "${PRESET:-}" ]]; then
   exit 1
 fi
 
-build_dir="build-cmake-${PRESET}"
+build_dir="build-cmake/${PRESET}"
 
 if [[ ! -d "${build_dir}" ]]; then
   echo "Build directory not found: ${build_dir}"
