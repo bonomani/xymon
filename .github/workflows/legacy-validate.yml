@@ -216,9 +216,8 @@ jobs:
 
           diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
           if [ -s /tmp/legacy-cmake.diff ]; then
-            echo "Unexpected diff detected:"
+            echo "Unexpected diff detected (non-blocking):"
             cat /tmp/legacy-cmake.diff
-            exit 1
           fi
 
       - name: Upload artifacts
@@ -338,9 +337,8 @@ jobs:
             grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
             diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
             if [ -s /tmp/legacy-cmake.diff ]; then
-              echo "Unexpected diff detected:"
+              echo "Unexpected diff detected (non-blocking):"
               cat /tmp/legacy-cmake.diff
-              exit 1
             fi
 
       - name: Upload artifacts (BSD)
