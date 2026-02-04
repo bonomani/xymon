@@ -87,7 +87,9 @@ find_path(PCRE_INCLUDE_DIR pcre.h
     PATHS
         /usr/pkg/include
         /usr/local/include
+        /usr/local/opt/pcre/include
         /opt/homebrew/include
+        /opt/homebrew/opt/pcre/include
         /opt/local/include
     PATH_SUFFIXES
         pcre
@@ -100,7 +102,9 @@ find_library(PCRE_LIBRARY pcre
     PATHS
         /usr/pkg/lib
         /usr/local/lib
+        /usr/local/opt/pcre/lib
         /opt/homebrew/lib
+        /opt/homebrew/opt/pcre/lib
         /opt/local/lib
 )
 if(PCRE_LIBRARY)
@@ -126,6 +130,10 @@ add_compile_definitions(
     _LARGEFILE_SOURCE
     _FILE_OFFSET_BITS=64
 )
+
+if(APPLE)
+    add_compile_definitions(XYMON_APPLE)
+endif()
 
 # ----------------------------------------------------------------------
 # Variant handling
