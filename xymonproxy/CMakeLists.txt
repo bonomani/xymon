@@ -25,3 +25,9 @@ target_link_libraries(xymoncgimsg.cgi
 install(TARGETS xymonproxy xymoncgimsg.cgi
     RUNTIME DESTINATION ${INSTALLBINDIR}
 )
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonproxy.8
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymoncgimsg.cgi.8
+    DESTINATION ${XYMONHOME}/man/man8
+)

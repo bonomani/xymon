@@ -140,3 +140,56 @@ install(TARGETS
     msgcache
     RUNTIME DESTINATION ${XYMONCLIENTHOME}/bin
 )
+
+file(GLOB _CLIENT_SCRIPTS
+    "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient-*.sh"
+    "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.sh"
+)
+
+install(PROGRAMS
+    ${_CLIENT_SCRIPTS}
+    DESTINATION ${XYMONCLIENTHOME}/bin
+)
+install(PROGRAMS
+    ${CMAKE_CURRENT_SOURCE_DIR}/runclient.sh
+    DESTINATION ${XYMONCLIENTHOME}
+)
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/localclient.cfg
+    DESTINATION ${XYMONCLIENTHOME}/etc
+)
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg
+    DESTINATION ${XYMONCLIENTHOME}/etc
+    RENAME xymonclient.cfg.bak
+)
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg
+    DESTINATION ${XYMONCLIENTHOME}/etc
+    RENAME clientlaunch.cfg.bak
+)
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/README-local
+    DESTINATION ${XYMONCLIENTHOME}/local
+    RENAME README
+)
+
+install(CODE [[
+    set(_dest "$ENV{DESTDIR}")
+    if(_dest STREQUAL "")
+        set(_dest "")
+    endif()
+    set(_clientroot "${_dest}${CMAKE_INSTALL_PREFIX}/client")
+    file(MAKE_DIRECTORY
+        "${_clientroot}"
+        "${_clientroot}/etc"
+        "${_clientroot}/ext"
+        "${_clientroot}/local"
+        "${_clientroot}/logs"
+        "${_clientroot}/tmp"
+    )
+]])

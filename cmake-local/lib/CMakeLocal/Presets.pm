@@ -89,6 +89,7 @@ sub collect_presets {
         $merged_by_name{$name} //= {
             preset => $p,
             source => 'system',
+            name   => $name,
         };
     }
 
@@ -103,6 +104,7 @@ sub collect_presets {
         $merged_by_name{$name} = {
             preset => $p,
             source => 'user',
+            name   => $name,
         };
     }
 
@@ -155,19 +157,56 @@ sub resolve_preset {
     my ($name_or_key, %opts) = @_;
 
     my $data = collect_presets(%opts);
-    my $entry;
-    if ($name_or_key =~ /^(system|user)::/) {
-        $entry = $data->{merged_keys}{$name_or_key};
-    }
-    else {
-        $entry = $data->{merged}{$name_or_key};
-    }
+    my $entry = _lookup_entry($data, $name_or_key);
     return undef unless $entry;
 
+    return _resolve_entry_with_inherits($entry, $data, undef, $name_or_key);
+}
+
+sub _lookup_entry {
+    my ($data, $name_or_key) = @_;
+    return undef unless defined $name_or_key;
+
+    if ($name_or_key =~ /^(system|user)::/) {
+        return $data->{merged_keys}{$name_or_key};
+    }
+
+    return $data->{merged}{$name_or_key};
+}
+
+sub _resolve_entry_with_inherits {
+    my ($entry, $data, $seen, $fallback_name) = @_;
+    return undef unless $entry && $entry->{preset};
+
+    $seen //= {};
+    my $entry_id = ($entry->{source} // '') . '::' . ($entry->{name} // '');
+    return undef if $seen->{$entry_id};
+
+    $seen->{$entry_id} = 1;
+
+    my %merged_preset;
+
+    my $inherits = $entry->{preset}{inherits};
+    if (defined $inherits && $inherits ne '') {
+        my $parent_entry = _lookup_entry($data, $inherits);
+        if ($parent_entry) {
+            my $parent_resolved = _resolve_entry_with_inherits($parent_entry, $data, $seen);
+            if ($parent_resolved && $parent_resolved->{preset}) {
+                %merged_preset = %{ $parent_resolved->{preset} };
+            }
+        }
+    }
+
+    %merged_preset = (%merged_preset, %{ $entry->{preset} });
+
+    delete $seen->{$entry_id};
+
+    my $resolved_name = $entry->{name} // $fallback_name;
+
     return {
-        name   => $entry->{name} // $name_or_key,
+        name   => $resolved_name,
         source => $entry->{source},
-        preset => $entry->{preset},
+        preset => \%merged_preset,
     };
 }
 
@@ -179,7 +218,7 @@ sub get_preset_binary_dir {
     my ($name, %opts) = @_;
     return undef unless defined $name;
 
-    my $resolved = resolve_preset($name, %opts)
+    my $resolved = delete $opts{resolved_preset} // resolve_preset($name, %opts)
         or return undef;
 
     my $preset = $resolved->{preset};
@@ -188,6 +227,11 @@ sub get_preset_binary_dir {
 
     if (defined $opts{source_dir}) {
         $dir =~ s/\$\{sourceDir\}/$opts{source_dir}/g;
+    }
+
+    my $resolved_name = $resolved->{name} // "";
+    if ($resolved_name ne "") {
+        $dir =~ s/\$\{presetName\}/$resolved_name/g;
     }
 
     return $dir;

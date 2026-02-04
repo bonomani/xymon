@@ -149,3 +149,34 @@ endif()
 install(TARGETS xymonnet xymonping beastat contest
     RUNTIME DESTINATION ${INSTALLBINDIR}
 )
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg
+    DESTINATION ${INSTALLETCDIR}
+)
+install(CODE "
+set(_dest \"\$ENV{DESTDIR}\")
+if(_dest STREQUAL \"\")
+  set(_dest \"\")
+endif()
+if(EXISTS \"\${_dest}${INSTALLETCDIR}/protocols.cfg\")
+  execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
+    \"\${_dest}${INSTALLETCDIR}/protocols.cfg\"
+    \"\${_dest}${INSTALLETCDIR}/protocols.cfg.bak\")
+endif()
+")
+install(PROGRAMS
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh
+    DESTINATION ${INSTALLEXTDIR}
+)
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet.1
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonping.1
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh.1
+    DESTINATION ${XYMONHOME}/man/man1
+)
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg.5
+    DESTINATION ${XYMONHOME}/man/man5
+)

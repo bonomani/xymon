@@ -73,3 +73,4 @@ CMakePresets.user.json
 .vscode/
 build-cmake-gnu/
 build/*
+artifacts/

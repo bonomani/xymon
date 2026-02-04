@@ -158,10 +158,33 @@ my %user_conf = $config_ref ? %{$config_ref} : ();
     print_variant_info($variant, $localclient, \%features);
     print_preset_summary(\%user_conf);
 
+    my $preset_name = config_value($config_ref, 'default_preset', 'default');
+    my $preset_source = normalize_source_label(
+        config_value($config_ref, 'default_preset_source', 'system')
+    );
+    my $preset_key = "${preset_source}::${preset_name}";
+    my %preset_opts = (
+        standard   => "$PROJECT_ROOT/CMakePresets.json",
+        user       => "$PROJECT_ROOT/CMakePresets.user.json",
+        source_dir => $PROJECT_ROOT,
+    );
+    my $resolved_preset = resolve_preset($preset_key, %preset_opts);
+    my $preset_binary_dir = get_preset_binary_dir(
+        $preset_key,
+        %preset_opts,
+        resolved_preset => $resolved_preset,
+    );
+    my $build_dir = $preset_binary_dir || "$PROJECT_ROOT/build-cmake";
+
+    my $preset_generator = $resolved_preset
+        ? $resolved_preset->{preset}{generator}
+        : undef;
+
     my %env_vars = (
         ROOT_DIR  => $PROJECT_ROOT,
-        BUILD_DIR => "$PROJECT_ROOT/build-cmake",
+        BUILD_DIR => $build_dir,
         VARIANT   => $variant,
+        (defined $preset_generator ? (generator => $preset_generator) : ()),
         ($variant eq "client" ? (LOCALCLIENT => $localclient) : ()),
         CMAKE_INSTALL_PREFIX =>
             $cli_values{CMAKE_INSTALL_PREFIX}

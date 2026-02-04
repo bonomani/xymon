@@ -1,0 +1,147 @@
+name: legacy-validate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  legacy-validate:
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-bullseye
+            runs_on: ubuntu-22.04
+            container: debian:bullseye
+          - name: debian-bookworm
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+          - name: debian-trixie
+            runs_on: ubuntu-22.04
+            container: debian:trixie
+          - name: ubuntu-22.04
+            runs_on: ubuntu-22.04
+          - name: ubuntu-24.04
+            runs_on: ubuntu-24.04
+          - name: rockylinux-8
+            runs_on: ubuntu-22.04
+            container: rockylinux:8
+            pkg_mgr: dnf
+          - name: rockylinux-9
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+          - name: debian-bookworm-no-nobody
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            drop_nobody: true
+          - name: ubuntu-22.04-no-nobody
+            runs_on: ubuntu-22.04
+            drop_nobody: true
+
+    name: ${{ matrix.name }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install build dependencies (apt)
+        if: ${{ matrix.pkg_mgr != 'dnf' }}
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential \
+            cmake \
+            git \
+            findutils \
+            libpcre2-dev \
+            librrd-dev \
+            libssl-dev \
+            libtirpc-dev \
+            zlib1g-dev
+
+      - name: Install build dependencies (dnf)
+        if: ${{ matrix.pkg_mgr == 'dnf' }}
+        run: |
+          dnf -y install \
+            gcc \
+            gcc-c++ \
+            make \
+            cmake \
+            git \
+            findutils \
+            pcre2-devel \
+            rrdtool-devel \
+            openssl-devel \
+            libtirpc-devel \
+            zlib-devel
+
+      - name: Remove "nobody" group (when requested)
+        if: ${{ matrix.drop_nobody }}
+        run: |
+          if getent group nobody; then
+            groupdel nobody || true
+          fi
+
+      - name: Configure (legacy)
+        run: |
+          cmake -S . -B build-cmake \
+            -DUSE_GNUINSTALLDIRS=OFF \
+            -DCMAKE_INSTALL_PREFIX=/ \
+            -DLEGACY_APPLY_OWNERSHIP=OFF \
+            -DLEGACY_DESTDIR=/tmp/cmake-ref-root
+
+      - name: Build
+        run: |
+          cmake --build build-cmake -j2
+
+      - name: Install legacy targets (staging)
+        run: |
+          LEGACY_DESTDIR=/tmp/cmake-ref-root \
+          cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
+
+      - name: Generate lists + diff
+        run: |
+          sed 's|/var/lib/xymon/$|/var/lib/xymon|' legacy.ref | sort > /tmp/legacy.list
+          find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+            | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+            | sort > /tmp/cmake.list
+
+          cat > /tmp/allowed-extras.list <<'EOF'
+/var/lib/xymon/cgi-bin/.stamp
+/var/lib/xymon/cgi-secure/.stamp
+/var/lib/xymon/install-cmake-legacy.log
+/var/lib/xymon/server/bin/availability
+/var/lib/xymon/server/bin/contest
+/var/lib/xymon/server/bin/loadhosts
+/var/lib/xymon/server/bin/locator
+/var/lib/xymon/server/bin/md5
+/var/lib/xymon/server/bin/rmd160
+/var/lib/xymon/server/bin/sha1
+/var/lib/xymon/server/bin/stackio
+/var/lib/xymon/server/bin/tree
+/var/lib/xymon/server/bin/xymon-snmpcollect
+EOF
+
+          grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
+
+          diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
+          if [ -s /tmp/legacy-cmake.diff ]; then
+            echo "Unexpected diff detected:"
+            cat /tmp/legacy-cmake.diff
+            exit 1
+          fi
+
+      - name: Upload artifacts
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-validate-${{ matrix.name }}
+          path: |
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/install-cmake-legacy.log

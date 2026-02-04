@@ -147,10 +147,26 @@ endif()
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cgi/
     DESTINATION ${CGIDIR}
     USE_SOURCE_PERMISSIONS
+    PATTERN ".stamp" EXCLUDE
 )
 install(DIRECTORY ${CMAKE_CURRENT_BINARY_DIR}/cgi-secure/
     DESTINATION ${SECURECGIDIR}
     USE_SOURCE_PERMISSIONS
+    PATTERN ".stamp" EXCLUDE
+)
+
+file(GLOB _WEB_MAN1 "${CMAKE_CURRENT_SOURCE_DIR}/*.1")
+file(GLOB _WEB_MAN5 "${CMAKE_CURRENT_SOURCE_DIR}/*.5")
+file(GLOB _WEB_MAN8 "${CMAKE_CURRENT_SOURCE_DIR}/*.8")
+
+install(FILES ${_WEB_MAN1}
+    DESTINATION ${XYMONHOME}/man/man1
+)
+install(FILES ${_WEB_MAN5}
+    DESTINATION ${XYMONHOME}/man/man5
+)
+install(FILES ${_WEB_MAN8}
+    DESTINATION ${XYMONHOME}/man/man8
 )
 
 # ----------------------------------------------------------------------
@@ -179,7 +195,9 @@ set(_CGI_SCRIPT_NAMES
     notifications.sh
     acknowledgements.sh
     hostlist.sh
+    perfdata.sh
     topchanges.sh
+    showgraph.sh
     appfeed.sh
     appfeed-critical.sh
 )

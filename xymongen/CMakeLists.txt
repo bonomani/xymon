@@ -32,3 +32,8 @@ target_link_libraries(xymongen
 install(TARGETS xymongen
     RUNTIME DESTINATION ${INSTALLBINDIR}
 )
+
+install(FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/xymongen.1
+    DESTINATION ${XYMONHOME}/man/man1
+)

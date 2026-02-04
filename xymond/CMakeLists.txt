@@ -377,12 +377,59 @@ install(FILES
     DESTINATION ${INSTALLETCDIR}
 )
 
+set(_LEGACY_ETC_FILES
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/analysis.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/combo.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/critical.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/graphs.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/holidays.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/rrddefinitions.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/snmpmibs.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/xymonmenu.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/client-local.cfg
+    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/columndoc.csv
+)
+install(FILES ${_LEGACY_ETC_FILES}
+    DESTINATION ${INSTALLETCDIR}
+)
+
 install(PROGRAMS
     ${CMAKE_CURRENT_BINARY_DIR}/xymon.sh
     ${CMAKE_CURRENT_BINARY_DIR}/xymonreports.sh
     ${CMAKE_CURRENT_BINARY_DIR}/moverrd.sh
     DESTINATION ${INSTALLBINDIR}
 )
+
+file(GLOB _XYMOND_MAN1 "${CMAKE_CURRENT_SOURCE_DIR}/*.1")
+file(GLOB _XYMOND_MAN5 "${CMAKE_CURRENT_SOURCE_DIR}/*.5")
+file(GLOB _XYMOND_MAN8 "${CMAKE_CURRENT_SOURCE_DIR}/*.8")
+install(FILES ${_XYMOND_MAN1}
+    DESTINATION ${XYMONHOME}/man/man1
+)
+install(FILES ${_XYMOND_MAN5}
+    DESTINATION ${XYMONHOME}/man/man5
+)
+install(FILES ${_XYMOND_MAN8}
+    DESTINATION ${XYMONHOME}/man/man8
+)
+
+install(CODE "
+set(_dest \"\$ENV{DESTDIR}\")
+if(_dest STREQUAL \"\")
+  set(_dest \"\")
+endif()
+set(_etc \"\${_dest}${INSTALLETCDIR}\")
+foreach(_name cgioptions.cfg client-local.cfg columndoc.csv graphs.cfg critical.cfg tasks.cfg xymonserver.cfg protocols.cfg)
+  if(EXISTS \"\${_etc}/\${_name}\")
+    execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different \"\${_etc}/\${_name}\" \"\${_etc}/\${_name}.bak\")
+  endif()
+endforeach()
+file(MAKE_DIRECTORY \"\${_etc}/tasks.d\")
+set(_server_root \"\${_dest}${XYMONHOME}\")
+if(EXISTS \"\${_server_root}/bin/xymon.sh\")
+  execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"bin/xymon.sh\" \"\${_server_root}/xymon.sh\")
+endif()
+")
 
 install(CODE "
 if(HTTPDGID_CHGRP AND NOT \"${HTTPDGID}\" STREQUAL \"\")
