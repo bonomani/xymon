@@ -49,6 +49,11 @@ jobs:
       - name: Install build dependencies (apt)
         if: ${{ matrix.pkg_mgr != 'dnf' }}
         run: |
+          pcre_pkg=libpcre3-dev
+          if [ "${{ matrix.name }}" = "debian-trixie" ]; then
+            pcre_pkg=libpcre2-dev
+          fi
+
           if [ -z "${{ matrix.container }}" ]; then
             sudo apt-get update
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
@@ -57,7 +62,7 @@ jobs:
               git \
               findutils \
               libc-ares-dev \
-              libpcre3-dev \
+              ${pcre_pkg} \
               libldap2-dev \
               librrd-dev \
               libssl-dev \
@@ -73,7 +78,7 @@ jobs:
             git \
             findutils \
             libc-ares-dev \
-            libpcre3-dev \
+            ${pcre_pkg} \
             libldap2-dev \
             librrd-dev \
             libssl-dev \
