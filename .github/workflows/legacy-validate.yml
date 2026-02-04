@@ -90,6 +90,8 @@ jobs:
             dnf config-manager --set-enabled crb || true
           fi
           dnf -y install epel-release || true
+          dnf clean all
+          dnf -y makecache
           dnf -y install \
             gcc \
             gcc-c++ \
@@ -104,7 +106,7 @@ jobs:
             openssl-devel \
             libtirpc-devel \
             zlib-devel
-          dnf -y install rrdtool-devel
+          dnf -y install rrdtool-devel libtirpc-devel
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}
