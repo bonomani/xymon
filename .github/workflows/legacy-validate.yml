@@ -83,6 +83,13 @@ jobs:
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
         run: |
+          dnf -y install dnf-plugins-core
+          if [ "${{ matrix.name }}" = "rockylinux-8" ]; then
+            dnf config-manager --set-enabled powertools || true
+          elif [ "${{ matrix.name }}" = "rockylinux-9" ]; then
+            dnf config-manager --set-enabled crb || true
+          fi
+          dnf -y install epel-release || true
           dnf -y install \
             gcc \
             gcc-c++ \
@@ -94,10 +101,10 @@ jobs:
             pcre-devel \
             pcre2-devel \
             openldap-devel \
-            rrdtool-devel \
             openssl-devel \
             libtirpc-devel \
             zlib-devel
+          dnf -y install rrdtool-devel
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}
