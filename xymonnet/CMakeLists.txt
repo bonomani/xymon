@@ -118,6 +118,15 @@ if(ENABLE_SNMP)
         )
         separate_arguments(NETSNMP_CFLAGS)
         separate_arguments(NETSNMP_LIBS)
+        if(APPLE)
+            set(_netsnmp_cflags_filtered "")
+            foreach(_flag IN LISTS NETSNMP_CFLAGS)
+                if(_flag MATCHES "^-I" OR _flag MATCHES "^-D" OR _flag MATCHES "^-U")
+                    list(APPEND _netsnmp_cflags_filtered "${_flag}")
+                endif()
+            endforeach()
+            set(NETSNMP_CFLAGS "${_netsnmp_cflags_filtered}")
+        endif()
 
         add_executable(xymon-snmpcollect
             xymon-snmpcollect.c
