@@ -11,6 +11,13 @@
 #ifndef __AVAILABILITY_H__
 #define __AVAILABILITY_H__
 
+#ifdef __APPLE__
+#include_next <Availability.h>
+#endif
+
+#include <time.h>
+#include <stdio.h>
+
 #include "color.h"
 
 typedef struct reportinfo_t {
@@ -53,4 +60,3 @@ extern void restore_replogs(replog_t *head);
 extern int history_color(FILE *fd, time_t snapshot, time_t *starttime, char **histlogname);
 
 #endif
-
