@@ -49,6 +49,23 @@ jobs:
       - name: Install build dependencies (apt)
         if: ${{ matrix.pkg_mgr != 'dnf' }}
         run: |
+          if [ -z "${{ matrix.container }}" ]; then
+            sudo apt-get update
+            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
+              build-essential \
+              cmake \
+              git \
+              findutils \
+              libc-ares-dev \
+              libpcre3-dev \
+              libldap2-dev \
+              librrd-dev \
+              libssl-dev \
+              libtirpc-dev \
+              zlib1g-dev
+            exit 0
+          fi
+
           apt-get update
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
             build-essential \
