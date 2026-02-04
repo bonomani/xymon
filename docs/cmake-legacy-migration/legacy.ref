@@ -1,0 +1,8 @@
+# Legacy reference list (versioned).
+#
+# Generate after a legacy Makefile change:
+# 1) sudo DESTDIR=/tmp/legacy-ref make install
+# 2) find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+#      | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+#      | sort > docs/cmake-legacy-migration/legacy.ref
+# 3) Record the update in STATUS-HISTORY.md

@@ -94,12 +94,32 @@ jobs:
           cmake -S . -B build-cmake \
             -DUSE_GNUINSTALLDIRS=OFF \
             -DCMAKE_INSTALL_PREFIX=/ \
-            -DLEGACY_APPLY_OWNERSHIP=OFF \
-            -DLEGACY_DESTDIR=/tmp/cmake-ref-root
+            -DLEGACY_APPLY_OWNERSHIP=OFF
 
       - name: Build
         run: |
           cmake --build build-cmake -j2
+
+      - name: Validate config.h parity
+        run: |
+          legacy_config=include/config.h
+          cmake_config=$(find build-cmake -name config.h | head -n1)
+          if [ -z "$cmake_config" ]; then
+            echo "No CMake-generated config.h found under build-cmake"
+            exit 1
+          fi
+
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | sort > /tmp/legacy.config.extract
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | sort > /tmp/cmake.config.extract
+
+          diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
+          if ! diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract > /tmp/config.diff; then
+            echo "config.h parity diff detected:"
+            cat /tmp/config.diff
+            exit 1
+          fi
 
       - name: Install legacy targets (staging)
         run: |
@@ -108,7 +128,17 @@ jobs:
 
       - name: Generate lists + diff
         run: |
-          sed 's|/var/lib/xymon/$|/var/lib/xymon|' legacy.ref | sort > /tmp/legacy.list
+          legacy_ref=docs/cmake-legacy-migration/legacy.ref
+          if [ ! -s "$legacy_ref" ]; then
+            echo "Missing or empty $legacy_ref. Generate it from legacy Makefiles and commit it."
+            exit 1
+          fi
+          grep -v '^[[:space:]]*#' "$legacy_ref" | grep -v '^[[:space:]]*$' \
+            | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
+          if [ ! -s /tmp/legacy.list ]; then
+            echo "legacy.ref contains no paths. Regenerate it from legacy Makefiles."
+            exit 1
+          fi
           find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
             | sort > /tmp/cmake.list
@@ -145,6 +175,9 @@ jobs:
         with:
           name: legacy-validate-${{ matrix.name }}
           path: |
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
             /tmp/legacy.list
             /tmp/cmake.list
             /tmp/cmake.filtered.list

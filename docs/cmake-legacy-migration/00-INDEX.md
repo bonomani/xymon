@@ -38,3 +38,4 @@ Contents
 - 30-REFERENCE.md: canonical legacy install layout and constraints
 - 40-STATUS.md: condensed progress and current status
 - STATUS-HISTORY.md: detailed run notes and historical context
+- legacy.ref: versioned legacy reference list used by CI

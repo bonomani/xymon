@@ -14,6 +14,7 @@ Naming Scheme
 - 30-REFERENCE.md: canonical legacy install contract
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
+- legacy.ref: versioned legacy reference list used by CI
 
 Guidelines
 ----------
@@ -21,3 +22,14 @@ Guidelines
 - Update `40-STATUS.md` after any significant change or validation run.
 - Append run details to `STATUS-HISTORY.md` when needed.
 - Track changes in `STATUS-HISTORY.md`.
+
+Generating `legacy.ref`
+-----------------------
+Use this only when legacy Makefiles change.
+
+```sh
+sudo DESTDIR=/tmp/legacy-ref make install
+find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+  | sort > docs/cmake-legacy-migration/legacy.ref
+```

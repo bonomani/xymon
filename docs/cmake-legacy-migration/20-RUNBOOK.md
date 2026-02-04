@@ -38,6 +38,12 @@ The only authoritative reference for legacy installation behavior is:
 
 The Makefiles are the contract, not the live filesystem or assumptions.
 
+Reference List Policy
+---------------------
+`docs/cmake-legacy-migration/legacy.ref` is a versioned reference snapshot.
+Update it only when legacy Makefiles change, and record the update in
+`STATUS-HISTORY.md`.
+
 Prerequisites
 -------------
 - `/bin/chown` and `/bin/chmod` for ownership/permission hooks.
@@ -89,6 +95,17 @@ sudo DESTDIR=/tmp/legacy-ref make install
 
 Note: legacy makefiles currently land under `/tmp/var/lib/xymon` even when
 DESTDIR is set, so use that path for the legacy reference list.
+
+To generate the reference list:
+
+```sh
+find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+  | sort > docs/cmake-legacy-migration/legacy.ref
+```
+
+Note: the CMake list is generated per run (e.g., `/tmp/cmake.list`) and is not
+a reference. It is only used for comparison against `legacy.ref`.
 
 Cleanup:
 
