@@ -27,8 +27,14 @@ jobs:
             libssl-dev \
             libtirpc-dev \
             zlib1g-dev
+          useradd -m -s /bin/sh xymon
 
       - name: Legacy configure
+        env:
+          ENABLESSL: y
+          ENABLELDAP: y
+          XYMONUSER: xymon
+          HTTPDGID: www-data
         run: |
           ./configure
 
