@@ -54,7 +54,7 @@ D. Ownership and Groups
 E. Parity With Legacy `make install`
 - [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/legacy-ref`.
 - [x] `docs/cmake-legacy-migration/legacy.ref` is up to date with legacy Makefiles.
-- [x] CMake legacy install uses `LEGACY_DESTDIR=/tmp/cmake-ref-root`.
+- [x] CMake legacy install uses `LEGACY_DESTDIR=/tmp/cmake-ref-root` (configured via `-DLEGACY_DESTDIR`).
 - [x] Path normalization produces comparable lists rooted at `/var/lib/xymon/...`.
 - [x] Diff between `legacy.ref` and the generated CMake list shows only documented exceptions.
 - [x] Install hook is inline `install(CODE ...)` and uses `$ENV{DESTDIR}`.

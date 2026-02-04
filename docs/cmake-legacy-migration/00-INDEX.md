@@ -24,7 +24,8 @@ Quick Start
 Quick Commands
 --------------
 ```sh
-cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/
+cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ \
+  -DLEGACY_DESTDIR=/tmp/cmake-ref-root
 LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
   --target install-legacy-dirs install-legacy-files
 sudo DESTDIR=/tmp/legacy-ref make install

@@ -63,7 +63,8 @@ Configure CMake exactly as follows:
 ```sh
 cmake -S . -B build-cmake \
   -DUSE_GNUINSTALLDIRS=OFF \
-  -DCMAKE_INSTALL_PREFIX=/
+  -DCMAKE_INSTALL_PREFIX=/ \
+  -DLEGACY_DESTDIR=/tmp/cmake-ref-root
 ```
 
 Legacy Install Targets and Modes
@@ -82,7 +83,8 @@ Sandbox Installation (Required)
 CMake validation must be done via a sandbox install:
 
 ```sh
-cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/
+cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ \
+  -DLEGACY_DESTDIR=/tmp/cmake-ref-root
 LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
   --target install-legacy-dirs install-legacy-files
 ```
