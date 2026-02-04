@@ -79,7 +79,6 @@
 /var/lib/xymon/data/hostdata
 /var/lib/xymon/data/logs
 /var/lib/xymon/data/rrd
-/var/lib/xymon/install-cmake-legacy.log
 /var/lib/xymon/server
 /var/lib/xymon/server/bin
 /var/lib/xymon/server/bin/ackinfo.cgi
