@@ -338,26 +338,37 @@ if(XYMON_BUILD_SERVER)
         endif()
         set(_target "${_dest}${CMAKE_INSTALL_PREFIX}/server/bin/xymonping")
         if(EXISTS "${_target}")
-            if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-                execute_process(COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}" OUTPUT_VARIABLE before_msg)
+            set(_use_chown 0)
+            execute_process(
+                COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}"
+                RESULT_VARIABLE _stat_c_res
+                OUTPUT_VARIABLE before_msg
+                ERROR_QUIET
+            )
+            if(_stat_c_res EQUAL 0)
+                set(_use_chown 1)
             else()
-                execute_process(COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}" OUTPUT_VARIABLE before_msg)
+                execute_process(
+                    COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}"
+                    OUTPUT_VARIABLE before_msg
+                    ERROR_QUIET
+                )
             endif()
             string(STRIP "${before_msg}" before_msg)
             message(STATUS "Legacy hook: existing perms before change ${before_msg}")
-            if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
+            if(_use_chown)
                 execute_process(COMMAND chown root:bc "${_target}" RESULT_VARIABLE chown_res)
                 if(NOT chown_res EQUAL 0)
                     message(WARNING "Legacy hook: chown root:bc failed with ${chown_res}")
                 endif()
             else()
-                message(STATUS "Legacy hook: skip chown root:bc on ${CMAKE_SYSTEM_NAME}")
+                message(STATUS "Legacy hook: skip chown root:bc on this platform")
             endif()
             execute_process(COMMAND chmod 4755 "${_target}")
-            if("${CMAKE_SYSTEM_NAME}" STREQUAL "Linux")
-                execute_process(COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}" OUTPUT_VARIABLE after_msg)
+            if(_use_chown)
+                execute_process(COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}" OUTPUT_VARIABLE after_msg ERROR_QUIET)
             else()
-                execute_process(COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}" OUTPUT_VARIABLE after_msg)
+                execute_process(COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}" OUTPUT_VARIABLE after_msg ERROR_QUIET)
             endif()
             string(STRIP "${after_msg}" after_msg)
             message(STATUS "Legacy hook: perms after change ${after_msg}")
