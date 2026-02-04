@@ -118,6 +118,34 @@ if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
     link_directories(/usr/pkg/lib)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/pkg/lib")
+elseif(APPLE)
+    find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h
+        PATHS
+            /opt/homebrew/opt/openssl@3/include
+            /opt/homebrew/opt/openssl@1.1/include
+            /usr/local/opt/openssl@3/include
+            /usr/local/opt/openssl@1.1/include
+            /opt/homebrew/include
+            /usr/local/include
+    )
+    if(OPENSSL_INCLUDE_DIR)
+        include_directories("${OPENSSL_INCLUDE_DIR}")
+    endif()
+
+    find_library(OPENSSL_SSL_LIBRARY ssl
+        PATHS
+            /opt/homebrew/opt/openssl@3/lib
+            /opt/homebrew/opt/openssl@1.1/lib
+            /usr/local/opt/openssl@3/lib
+            /usr/local/opt/openssl@1.1/lib
+            /opt/homebrew/lib
+            /usr/local/lib
+    )
+    if(OPENSSL_SSL_LIBRARY)
+        get_filename_component(OPENSSL_SSL_LIBRARY_DIR "${OPENSSL_SSL_LIBRARY}" DIRECTORY)
+        link_directories("${OPENSSL_SSL_LIBRARY_DIR}")
+        set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L${OPENSSL_SSL_LIBRARY_DIR}")
+    endif()
 endif()
 
 add_compile_options(
