@@ -8,7 +8,7 @@ merge-lines: merge-lines.c
 merge-sects: merge-sects.c
 	$(CC) -o $@ $(CFLAGS) $<
 
-setup-newfiles: setup-newfiles.c
+setup-newfiles: setup-newfiles.c ../lib/libxymonclient.a
 	$(CC) -o $@ $(CFLAGS) $< ../lib/libxymonclient.a
 
 renamevars: renamevars.c
@@ -19,4 +19,3 @@ renametasks: renametasks.c
 
 clean:
 	rm -f $(TOOLS) testfile *.o *~
-
