@@ -112,7 +112,8 @@ jobs:
             -DUSE_GNUINSTALLDIRS=OFF \
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
-            -DLEGACY_DESTDIR=/tmp/cmake-ref-root
+            -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
+            -DXYMON_VARIANT=all
 
       - name: Build
         run: |
@@ -148,6 +149,8 @@ jobs:
 
       - name: Install legacy targets (staging)
         run: |
+          set -o pipefail
+          cmake --build build-cmake --target web_cgi_links docs
           LEGACY_DESTDIR=/tmp/cmake-ref-root \
           cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
 
