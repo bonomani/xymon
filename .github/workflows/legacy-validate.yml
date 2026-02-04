@@ -39,6 +39,9 @@ jobs:
           - name: ubuntu-22.04-no-nobody
             runs_on: ubuntu-22.04
             drop_nobody: true
+          - name: macos-14
+            runs_on: macos-14
+            os: macos
 
     name: ${{ matrix.name }}
 
@@ -47,7 +50,7 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install build dependencies (apt)
-        if: ${{ matrix.pkg_mgr != 'dnf' }}
+        if: ${{ matrix.pkg_mgr != 'dnf' && matrix.os != 'macos' }}
         run: |
           pcre_pkg=libpcre3-dev
           if [ "${{ matrix.name }}" = "debian-trixie" ]; then
@@ -84,6 +87,12 @@ jobs:
             libssl-dev \
             libtirpc-dev \
             zlib1g-dev
+
+      - name: Install build dependencies (macos)
+        if: ${{ matrix.os == 'macos' }}
+        run: |
+          brew update
+          brew install cmake c-ares pcre2 openldap rrdtool openssl@3 libtirpc zlib
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
