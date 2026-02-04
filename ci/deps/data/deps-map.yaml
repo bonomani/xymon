@@ -11,7 +11,7 @@ map:
       freebsd:
         pkg: [gmake, cmake, ninja]
       netbsd:
-        pkg_add: [gmake, cmake, ninja]
+        pkg_add: [gmake, cmake, ninja-build]
       openbsd:
         pkg_add: [gmake, cmake, ninja]
 
