@@ -83,6 +83,11 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
+find_path(PCRE_INCLUDE_DIR pcre.h)
+if(PCRE_INCLUDE_DIR)
+    include_directories("${PCRE_INCLUDE_DIR}")
+endif()
+
 add_compile_options(
     -g -O2 -Wall -Wno-unused -Wno-pointer-sign
     -include "${CMAKE_BINARY_DIR}/config.h"
