@@ -80,7 +80,7 @@ client: include/config.h $(CLIENTTARGETS)
 include/config.h:
 	MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" $(BUILDTOPDIR)/build/genconfig.sh
 
-build-build: include/config.h
+build-build: include/config.h lib-client
 	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" RPATHOPT="$(RPATHOPT)" SSLLIBS="$(SSLLIBS)" NETLIBS="$(NETLIBS)" LIBRTDEF="$(LIBRTDEF)" XYMONHOME="$(XYMONHOME)" $(MAKE) -C build all
 
 lib-build: include/config.h
