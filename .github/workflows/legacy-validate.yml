@@ -180,7 +180,7 @@ jobs:
           set -o pipefail
           cmake --build build-cmake --target web_cgi_links docs
           LEGACY_DESTDIR=/tmp/cmake-ref-root \
-          cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
+          cmake --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 
       - name: Generate lists + diff
         run: |
@@ -315,7 +315,7 @@ jobs:
             echo "=== Install legacy targets (staging) ==="
             cmake --build build-cmake --target web_cgi_links docs
             LEGACY_DESTDIR=/tmp/cmake-ref-root \
-              cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
+              cmake --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 
             if [ "${{ matrix.os.name }}" = "freebsd" ] || [ "${{ matrix.os.name }}" = "netbsd" ] || [ "${{ matrix.os.name }}" = "openbsd" ]; then
               echo "=== Diff against legacy reference (skipped on ${{ matrix.os.name }}) ==="
