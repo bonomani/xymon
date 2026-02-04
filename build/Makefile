@@ -12,6 +12,7 @@ merge-sects: merge-sects.c
 	$(CC) -o $@ $(CFLAGS) $<
 
 setup-newfiles: setup-newfiles.c ../lib/libxymonclient.a
+	$(MAKE) -C ../lib client
 	$(CC) -o $@ $(CFLAGS) $< ../lib/libxymonclient.a
 
 renamevars: renamevars.c
