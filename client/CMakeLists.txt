@@ -155,19 +155,39 @@ install(PROGRAMS
     DESTINATION ${XYMONCLIENTHOME}
 )
 
+set(_clientlaunch_src "${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg")
+if(NOT EXISTS "${_clientlaunch_src}")
+    set(_clientlaunch_src "${CMAKE_CURRENT_BINARY_DIR}/clientlaunch.cfg")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg.DIST
+        ${_clientlaunch_src}
+        COPYONLY
+    )
+endif()
+
+set(_xymonclient_src "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg")
+if(NOT EXISTS "${_xymonclient_src}")
+    set(_xymonclient_src "${CMAKE_CURRENT_BINARY_DIR}/xymonclient.cfg")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg.DIST
+        ${_xymonclient_src}
+        COPYONLY
+    )
+endif()
+
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg
+    ${_clientlaunch_src}
+    ${_xymonclient_src}
     ${CMAKE_CURRENT_SOURCE_DIR}/localclient.cfg
     DESTINATION ${XYMONCLIENTHOME}/etc
 )
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg
+    ${_xymonclient_src}
     DESTINATION ${XYMONCLIENTHOME}/etc
     RENAME xymonclient.cfg.bak
 )
 install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg
+    ${_clientlaunch_src}
     DESTINATION ${XYMONCLIENTHOME}/etc
     RENAME clientlaunch.cfg.bak
 )
