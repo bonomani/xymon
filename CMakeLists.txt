@@ -96,6 +96,18 @@ if(PCRE_INCLUDE_DIR)
     include_directories("${PCRE_INCLUDE_DIR}")
 endif()
 
+find_library(PCRE_LIBRARY pcre
+    PATHS
+        /usr/pkg/lib
+        /usr/local/lib
+        /opt/homebrew/lib
+        /opt/local/lib
+)
+if(PCRE_LIBRARY)
+    get_filename_component(PCRE_LIBRARY_DIR "${PCRE_LIBRARY}" DIRECTORY)
+    link_directories("${PCRE_LIBRARY_DIR}")
+endif()
+
 add_compile_options(
     -g -O2 -Wall -Wno-unused -Wno-pointer-sign
     -include "${CMAKE_BINARY_DIR}/config.h"
