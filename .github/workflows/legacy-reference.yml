@@ -1,0 +1,55 @@
+name: legacy-reference
+
+on:
+  workflow_dispatch:
+
+jobs:
+  legacy-reference:
+    runs-on: ubuntu-22.04
+    container: debian:bookworm
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Install legacy build dependencies (apt)
+        run: |
+          apt-get update
+          DEBIAN_FRONTEND=noninteractive apt-get install -y \
+            build-essential \
+            make \
+            gcc \
+            git \
+            findutils \
+            libc-ares-dev \
+            libpcre3-dev \
+            libldap2-dev \
+            librrd-dev \
+            libssl-dev \
+            libtirpc-dev \
+            zlib1g-dev
+
+      - name: Legacy configure
+        run: |
+          ./configure
+
+      - name: Legacy build
+        run: |
+          make -j2
+
+      - name: Legacy install (staged)
+        run: |
+          DESTDIR=/tmp/legacy-ref make install
+
+      - name: Generate legacy.ref
+        run: |
+          find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+            | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+            | sort > /tmp/legacy.ref
+
+      - name: Upload legacy reference
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-reference
+          path: |
+            /tmp/legacy.ref
+            /tmp/var/lib/xymon
