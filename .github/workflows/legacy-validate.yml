@@ -55,7 +55,7 @@ jobs:
             cmake \
             git \
             findutils \
-            libpcre2-dev \
+            libpcre3-dev \
             librrd-dev \
             libssl-dev \
             libtirpc-dev \
@@ -71,6 +71,7 @@ jobs:
             cmake \
             git \
             findutils \
+            pcre-devel \
             pcre2-devel \
             rrdtool-devel \
             openssl-devel \
