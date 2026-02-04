@@ -1,4 +1,5 @@
-Xymon – Legacy Installation Reference
+Xymon - Legacy Installation Reference
+=====================================
 Installation contract derived from the legacy "configure + make" build system
 
 1. Purpose
@@ -186,7 +187,14 @@ Note on DESTDIR:
 
 ------------------------------------------------------------
 
-10. Status
+10. Change policy
+
+- Update this document only if `build/Makefile.rules` changes.
+- Record updates in `STATUS-HISTORY.md` and refresh `40-STATUS.md`.
+
+------------------------------------------------------------
+
+11. Status
 
 Status: Frozen legacy reference
 Source: build/Makefile.rules
