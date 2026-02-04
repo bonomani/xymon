@@ -55,6 +55,7 @@ jobs:
             cmake \
             git \
             findutils \
+            libc-ares-dev \
             libpcre3-dev \
             librrd-dev \
             libssl-dev \
@@ -71,6 +72,7 @@ jobs:
             cmake \
             git \
             findutils \
+            c-ares-devel \
             pcre-devel \
             pcre2-devel \
             rrdtool-devel \
