@@ -288,9 +288,21 @@ jobs:
               exit 1
             fi
 
+            NINJA_BIN=""
+            if [ "${{ matrix.os.name }}" = "netbsd" ]; then
+              if [ -x /usr/pkg/bin/ninja ]; then
+                export PATH="/usr/pkg/bin:${PATH}"
+                NINJA_BIN="/usr/pkg/bin/ninja"
+              elif [ -x /usr/pkg/bin/ninja-build ]; then
+                export PATH="/usr/pkg/bin:${PATH}"
+                NINJA_BIN="/usr/pkg/bin/ninja-build"
+              fi
+            fi
+
             echo "=== Configure (CMake legacy) ==="
             cmake -S . -B build-cmake \
               -G Ninja \
+              ${NINJA_BIN:+-DCMAKE_MAKE_PROGRAM="${NINJA_BIN}"} \
               -DUSE_GNUINSTALLDIRS=OFF \
               -DCMAKE_INSTALL_PREFIX=/ \
               -DLEGACY_APPLY_OWNERSHIP=OFF \

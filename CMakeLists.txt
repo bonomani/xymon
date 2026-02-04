@@ -108,6 +108,14 @@ if(PCRE_LIBRARY)
     link_directories("${PCRE_LIBRARY_DIR}")
 endif()
 
+if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
+    link_directories(/usr/local/lib /usr/X11R6/lib)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib -L/usr/X11R6/lib")
+elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+    link_directories(/usr/pkg/lib)
+    set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/pkg/lib")
+endif()
+
 add_compile_options(
     -g -O2 -Wall -Wno-unused -Wno-pointer-sign
     -include "${CMAKE_BINARY_DIR}/config.h"

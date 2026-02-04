@@ -104,11 +104,21 @@ if(XYMON_BUILD_SERVER)
     )
 
     # External libraries required by objects in libxymoncomm.a
-    target_link_libraries(xymoncomm
-        pcre
-        ssl
-        crypto
-    )
+    if(PCRE_LIBRARY)
+        target_link_libraries(xymoncomm
+            pcre
+            ssl
+            crypto
+        )
+    elseif(PCRE2_LIBRARY)
+        target_link_libraries(xymoncomm
+            pcre2
+            ssl
+            crypto
+        )
+    else()
+        message(FATAL_ERROR "Neither PCRE nor PCRE2 library found")
+    endif()
 endif()
 
 # ----------------------------------------------------------------------
