@@ -148,6 +148,7 @@ jobs:
           fi
 
       - name: Install legacy targets (staging)
+        shell: bash
         run: |
           set -o pipefail
           cmake --build build-cmake --target web_cgi_links docs
