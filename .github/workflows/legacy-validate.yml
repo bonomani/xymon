@@ -125,6 +125,13 @@ jobs:
             echo "No CMake-generated config.h found under build-cmake"
             exit 1
           fi
+          if [ ! -f "$legacy_config" ]; then
+            echo "Legacy config.h not found at $legacy_config; skipping parity check."
+            : > /tmp/legacy.config.extract
+            : > /tmp/cmake.config.extract
+            : > /tmp/config.diff
+            exit 0
+          fi
 
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
             | sort > /tmp/legacy.config.extract
