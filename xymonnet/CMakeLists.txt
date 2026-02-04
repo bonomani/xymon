@@ -173,13 +173,7 @@ if(NOT EXISTS "${_xymonnet_again_src}")
         ${_xymonnet_again_src}
         COPYONLY
     )
-    file(CHMOD
-        ${_xymonnet_again_src}
-        PERMISSIONS
-            OWNER_READ OWNER_WRITE OWNER_EXECUTE
-            GROUP_READ GROUP_EXECUTE
-            WORLD_READ WORLD_EXECUTE
-    )
+    execute_process(COMMAND "${CMAKE_COMMAND}" -E chmod 755 "${_xymonnet_again_src}")
 endif()
 
 install(PROGRAMS
