@@ -57,6 +57,7 @@ jobs:
             findutils \
             libc-ares-dev \
             libpcre3-dev \
+            libldap2-dev \
             librrd-dev \
             libssl-dev \
             libtirpc-dev \
@@ -75,6 +76,7 @@ jobs:
             c-ares-devel \
             pcre-devel \
             pcre2-devel \
+            openldap-devel \
             rrdtool-devel \
             openssl-devel \
             libtirpc-devel \
