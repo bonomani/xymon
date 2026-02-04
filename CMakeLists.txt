@@ -87,6 +87,8 @@ find_path(PCRE_INCLUDE_DIR pcre.h
     PATHS
         /usr/pkg/include
         /usr/local/include
+        /opt/homebrew/include
+        /opt/local/include
     PATH_SUFFIXES
         pcre
 )

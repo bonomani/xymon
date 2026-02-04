@@ -94,7 +94,7 @@ jobs:
         if: ${{ matrix.os == 'macos' }}
         run: |
           brew update
-          brew install cmake ninja c-ares pcre2 openldap rrdtool openssl@3 libtirpc zlib
+          brew install cmake ninja c-ares pcre openldap rrdtool openssl@3 libtirpc zlib
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}

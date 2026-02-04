@@ -21,13 +21,12 @@
 typedef unsigned int socklen_t;
 #endif
 
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) && !defined(__APPLE__)
 extern int snprintf(char *str, size_t size, const char *format, ...);
 #endif
 
-#ifndef HAVE_VSNPRINTF
+#if !defined(HAVE_VSNPRINTF) && !defined(__APPLE__)
 extern int vsnprintf(char *str, size_t size, const char *format, va_list ap);
 #endif
 
 #endif
-
