@@ -104,6 +104,14 @@ if(XYMON_BUILD_SERVER)
     )
 
     # External libraries required by objects in libxymoncomm.a
+    if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
+        target_link_directories(xymoncomm PUBLIC /usr/local/lib /usr/X11R6/lib)
+        target_link_options(xymoncomm PUBLIC -L/usr/local/lib -L/usr/X11R6/lib)
+    elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+        target_link_directories(xymoncomm PUBLIC /usr/pkg/lib)
+        target_link_options(xymoncomm PUBLIC -L/usr/pkg/lib)
+    endif()
+
     if(PCRE_LIBRARY)
         target_link_libraries(xymoncomm
             pcre
