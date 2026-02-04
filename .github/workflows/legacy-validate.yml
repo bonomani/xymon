@@ -195,7 +195,8 @@ jobs:
             echo "legacy.ref contains no paths. Regenerate it from legacy Makefiles."
             exit 1
           fi
-          find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+          find /tmp/cmake-ref-root/var/lib/xymon -print \
+            | sed 's|^/tmp/cmake-ref-root||' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
             | sort > /tmp/cmake.list
 
@@ -214,7 +215,8 @@ jobs:
           /var/lib/xymon/server/bin/tree
           /var/lib/xymon/server/bin/xymon-snmpcollect
           EOF
-          sed -i 's/^ *//' /tmp/allowed-extras.list
+          sed 's/^ *//' /tmp/allowed-extras.list > /tmp/allowed-extras.list.tmp
+          mv /tmp/allowed-extras.list.tmp /tmp/allowed-extras.list
 
           grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
 
