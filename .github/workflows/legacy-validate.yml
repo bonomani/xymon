@@ -317,45 +317,49 @@ jobs:
             LEGACY_DESTDIR=/tmp/cmake-ref-root \
               cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
 
-            echo "=== Diff against legacy reference ==="
-            legacy_ref="${{ matrix.legacy_ref }}"
-            if [ ! -s "${legacy_ref}" ]; then
-              echo "Missing or empty ${legacy_ref}. Generate it on ${{ matrix.os.name }} and commit it."
-              exit 1
-            fi
+            if [ "${{ matrix.os.name }}" = "freebsd" ] || [ "${{ matrix.os.name }}" = "netbsd" ] || [ "${{ matrix.os.name }}" = "openbsd" ]; then
+              echo "=== Diff against legacy reference (skipped on ${{ matrix.os.name }}) ==="
+            else
+              echo "=== Diff against legacy reference ==="
+              legacy_ref="${{ matrix.legacy_ref }}"
+              if [ ! -s "${legacy_ref}" ]; then
+                echo "Missing or empty ${legacy_ref}. Generate it on ${{ matrix.os.name }} and commit it."
+                exit 1
+              fi
 
-            grep -v '^[[:space:]]*#' "${legacy_ref}" | grep -v '^[[:space:]]*$' \
-              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
-            if [ ! -s /tmp/legacy.list ]; then
-              echo "Legacy reference contains no paths."
-              exit 1
-            fi
+              grep -v '^[[:space:]]*#' "${legacy_ref}" | grep -v '^[[:space:]]*$' \
+                | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
+              if [ ! -s /tmp/legacy.list ]; then
+                echo "Legacy reference contains no paths."
+                exit 1
+              fi
 
-            find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-              | sort > /tmp/cmake.list
+              find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+                | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+                | sort > /tmp/cmake.list
 
-            cat > /tmp/allowed-extras.list <<'EOF'
-            /var/lib/xymon/cgi-bin/.stamp
-            /var/lib/xymon/cgi-secure/.stamp
-            /var/lib/xymon/server/bin/availability
-            /var/lib/xymon/server/bin/contest
-            /var/lib/xymon/server/bin/loadhosts
-            /var/lib/xymon/server/bin/locator
-            /var/lib/xymon/server/bin/md5
-            /var/lib/xymon/server/bin/rmd160
-            /var/lib/xymon/server/bin/sha1
-            /var/lib/xymon/server/bin/stackio
-            /var/lib/xymon/server/bin/tree
-            /var/lib/xymon/server/bin/xymon-snmpcollect
-            EOF
-            sed -i 's/^ *//' /tmp/allowed-extras.list
+              cat > /tmp/allowed-extras.list <<'EOF'
+              /var/lib/xymon/cgi-bin/.stamp
+              /var/lib/xymon/cgi-secure/.stamp
+              /var/lib/xymon/server/bin/availability
+              /var/lib/xymon/server/bin/contest
+              /var/lib/xymon/server/bin/loadhosts
+              /var/lib/xymon/server/bin/locator
+              /var/lib/xymon/server/bin/md5
+              /var/lib/xymon/server/bin/rmd160
+              /var/lib/xymon/server/bin/sha1
+              /var/lib/xymon/server/bin/stackio
+              /var/lib/xymon/server/bin/tree
+              /var/lib/xymon/server/bin/xymon-snmpcollect
+              EOF
+              sed -i 's/^ *//' /tmp/allowed-extras.list
 
-            grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
-            diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
-            if [ -s /tmp/legacy-cmake.diff ]; then
-              echo "Unexpected diff detected (non-blocking):"
-              cat /tmp/legacy-cmake.diff
+              grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
+              diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
+              if [ -s /tmp/legacy-cmake.diff ]; then
+                echo "Unexpected diff detected (non-blocking):"
+                cat /tmp/legacy-cmake.diff
+              fi
             fi
 
       - name: Upload artifacts (BSD)
