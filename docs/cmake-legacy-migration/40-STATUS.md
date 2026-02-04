@@ -5,7 +5,7 @@ Current State
 -------------
 Legacy mode validation is complete and parity is accepted, with a documented
 exception list. OFF mode is deterministic without chown/chgrp, and ON mode
-under sudo restores `xymonping` to `4755 root:bc`.
+under sudo restores `xymonping` to `4755 root`.
 
 What Changed Last
 -----------------

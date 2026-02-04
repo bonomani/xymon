@@ -82,7 +82,7 @@ Targets:
 
 Modes:
 - Staging: `LEGACY_APPLY_OWNERSHIP=OFF`, use DESTDIR, no privileged ownership changes.
-- Root install: `LEGACY_APPLY_OWNERSHIP=ON`, run under sudo; `xymonping` is restored to `4755 root:bc`.
+- Root install: `LEGACY_APPLY_OWNERSHIP=ON`, run under sudo; `xymonping` is restored to `4755 root`.
 
 Sandbox Installation (Required)
 -------------------------------

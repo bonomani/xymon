@@ -66,7 +66,7 @@ B) Root installation (with privileges)
 - Key divergences needing justification:
   * Extra helper binaries (e.g., `availability`, `contest`, `loadhosts`, `locator`, `md5`, `rmd160`, `sha1`, `stackio`, `tree`, `xymon-snmpcollect`) appear only in the CMake tree and are now documented as intentional extras.
   * If `tee` is used during staging, `/var/lib/xymon/install-cmake-legacy.log` appears in the diff; treat it as a non-product artifact (exclude from parity checks or avoid `tee` when generating the list).
-  * The new `install-legacy-files` hook now chowns `root:bc`, logs the stat snapshots before/after the change, and then chmods `4755`; the latest run confirms the final `4755 root:bc` state.
+  * The new `install-legacy-files` hook now chowns `root`, logs the stat snapshots before/after the change, and then chmods `4755`; the latest run confirms the final `4755 root` state.
 - These points are documented in the validation plan (criteria OK).
 
 5) Install modes and portability (OK)
@@ -75,11 +75,11 @@ B) Root installation (with privileges)
 - `find /tmp/cmake-ref-root/var/lib/xymon -perm 777` returns nothing unexpected (OK).
 - `test -d /tmp/cmake-ref-root/var/lib/xymon/server/www/help`, `.../menu`, and `stat .../www | grep '755'` pass (OK).
 - DESTDIR packaging: `cmake -S . -B build-cmake-destdir -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ -DLEGACY_DESTDIR=/tmp/pkg`, followed by `cmake --build build-cmake-destdir` (to generate binaries) and `cmake --build build-cmake-destdir --target install-legacy-files`, succeeds and writes to `/tmp/pkg`; the first install attempt failed until the build artifacts existed.
-- After deleting `/tmp/cmake-ref-root` and rerunning the ON-mode install from scratch, `stat -c '%n|%U|%G|%a' /tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonping` now shows `4755|root|bc`; the inline hook runs after the recursive `chown -R` and re-applies `chown root:bc` + `chmod 4755`.
+- After deleting `/tmp/cmake-ref-root` and rerunning the ON-mode install from scratch, `stat -c '%n|%U|%G|%a' /tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonping` now shows `4755|root|root`; the inline hook runs after the recursive `chown -R` and re-applies `chown root` + `chmod 4755`.
 
 6) Result
 - OFF: install-legacy-files finishes without error (no chown), including the edge-case runs above.
-- ON + sudo: command runs successfully and the inline hook confirms `4755 root:bc` for `xymonping`.
+- ON + sudo: command runs successfully and the inline hook confirms `4755 root` for `xymonping`.
 
 7) Remaining watch point
 - The HTTPDGID/rep/snap mapping must stay conditional (HTTPDGID defined + group exists) if you want to avoid "invalid group" errors.

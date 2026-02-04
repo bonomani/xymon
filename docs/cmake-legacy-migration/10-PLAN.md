@@ -20,7 +20,7 @@ Acceptance Criteria
 - Permissions match legacy behavior or are explicitly documented exceptions.
 - Staged installs via DESTDIR succeed without touching real system paths.
 - OFF mode performs no chown/chgrp operations.
-- ON mode under sudo applies ownership and restores `xymonping` to `4755 root:bc`.
+- ON mode under sudo applies ownership and restores `xymonping` to `4755 root`.
 - Parity diff contains only documented exceptions.
 
 Checklist (Status)
@@ -49,7 +49,7 @@ D. Ownership and Groups
 - [x] OFF mode skips all chown/chgrp operations, even with missing `XYMONUSER` or `HTTPDGID`.
 - [x] ON mode applies chown only when `LEGACY_APPLY_OWNERSHIP=ON`.
 - [x] `HTTPDGID` group existence is checked before chgrp; warn if missing.
-- [x] Post-install hook restores `xymonping` to `4755 root:bc` and logs before/after.
+- [x] Post-install hook restores `xymonping` to `4755 root` and logs before/after.
 
 E. Parity With Legacy `make install`
 - [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/legacy-ref`.
@@ -75,7 +75,7 @@ H. Robustness and Portability
 - [x] Hardcoded tool prerequisites documented: `/bin/chown`, `/bin/chmod`, `/usr/bin/find`.
 - [x] DESTDIR packaging validation succeeds.
 - [x] Edge cases validated: `XYMONUSER` missing in OFF mode, `HTTPDGID` missing in OFF mode.
-- [x] Privileged ON-mode install validates `xymonping` ends as `4755 root:bc`.
+- [x] Privileged ON-mode install validates `xymonping` ends as `4755 root`.
 - [ ] Test matrix runs on Debian/Ubuntu.
 - [ ] Test matrix runs on RHEL/Rocky.
 - [ ] Test matrix runs without a `nobody` group.
@@ -85,7 +85,7 @@ I. Final Validation Criteria
 - [x] `install-legacy-files` reproduces the legacy tree (exceptions noted).
 - [x] Permissions diff identical or justified.
 - [x] OFF mode logs clean.
-- [x] ON mode logs clean and `xymonping` ends as `4755 root:bc`.
+- [x] ON mode logs clean and `xymonping` ends as `4755 root`.
 - [x] DESTDIR packaging works end-to-end.
 
 Accepted Exceptions
