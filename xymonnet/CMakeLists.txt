@@ -94,14 +94,23 @@ if(TIRPC_LIBRARY)
         target_include_directories(contest PRIVATE ${TIRPC_INCLUDE_DIR})
     endif()
 endif()
-target_link_libraries(contest
-    -Wl,--start-group
-    xymontime
-    xymoncomm
-    -Wl,--end-group
-    ssl
-    crypto
-)
+if(APPLE)
+    target_link_libraries(contest
+        xymontime
+        xymoncomm
+        ssl
+        crypto
+    )
+else()
+    target_link_libraries(contest
+        -Wl,--start-group
+        xymontime
+        xymoncomm
+        -Wl,--end-group
+        ssl
+        crypto
+    )
+endif()
 
 if(ENABLE_SNMP)
     find_program(NETSNMP_CONFIG net-snmp-config)
