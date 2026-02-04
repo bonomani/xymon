@@ -41,3 +41,6 @@ Contents
 - 40-STATUS.md: condensed progress and current status
 - STATUS-HISTORY.md: detailed run notes and historical context
 - legacy.ref: versioned legacy reference list used by CI
+- legacy.freebsd.ref: BSD legacy reference (FreeBSD)
+- legacy.openbsd.ref: BSD legacy reference (OpenBSD)
+- legacy.netbsd.ref: BSD legacy reference (NetBSD)

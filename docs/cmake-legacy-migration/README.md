@@ -15,6 +15,9 @@ Naming Scheme
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
 - legacy.ref: versioned legacy reference list used by CI
+- legacy.freebsd.ref: BSD legacy reference list (FreeBSD)
+- legacy.openbsd.ref: BSD legacy reference list (OpenBSD)
+- legacy.netbsd.ref: BSD legacy reference list (NetBSD)
 
 Guidelines
 ----------
@@ -33,3 +36,8 @@ find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
   | sort > docs/cmake-legacy-migration/legacy.ref
 ```
+
+BSD references follow the same procedure, replacing the output path:
+- `legacy.freebsd.ref`
+- `legacy.openbsd.ref`
+- `legacy.netbsd.ref`

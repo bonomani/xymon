@@ -236,3 +236,122 @@ jobs:
             /tmp/allowed-extras.list
             /tmp/legacy-cmake.diff
             /tmp/install-cmake-legacy.log
+
+  legacy-validate-bsd:
+    name: legacy-validate-bsd / OS=${{ matrix.os.name }}
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            legacy_ref: docs/cmake-legacy-migration/legacy.freebsd.ref
+          - os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            legacy_ref: docs/cmake-legacy-migration/legacy.openbsd.ref
+          - os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            legacy_ref: docs/cmake-legacy-migration/legacy.netbsd.ref
+    steps:
+      - uses: actions/checkout@v4
+      - name: Legacy validate (BSD) ${{ matrix.os.name }}
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ matrix.os.name }}
+          architecture: ${{ matrix.os.architecture }}
+          version: ${{ matrix.os.version }}
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            set -euo pipefail
+            echo "=== Setup (BSD legacy validate) ==="
+            export VARIANT=server
+            export ENABLE_LDAP=ON
+            export ENABLE_SNMP=ON
+            if ! bash ci/deps/install-bsd-packages.sh --os "${{ matrix.os.name }}" --version "${{ matrix.os.version }}"; then
+              if [ -f /var/db/pkgin/pkg_install-err.log ]; then
+                echo "=== pkgin error log ==="
+                cat /var/db/pkgin/pkg_install-err.log
+              fi
+              exit 1
+            fi
+
+            echo "=== Configure (CMake legacy) ==="
+            cmake -S . -B build-cmake \
+              -DUSE_GNUINSTALLDIRS=OFF \
+              -DCMAKE_INSTALL_PREFIX=/ \
+              -DLEGACY_APPLY_OWNERSHIP=OFF \
+              -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
+              -DXYMON_VARIANT=server
+
+            echo "=== Build ==="
+            cmake --build build-cmake -j2
+
+            echo "=== Install legacy targets (staging) ==="
+            cmake --build build-cmake --target web_cgi_links docs
+            LEGACY_DESTDIR=/tmp/cmake-ref-root \
+              cmake --build build-cmake --target install-legacy-dirs install-legacy-files |& tee /tmp/install-cmake-legacy.log
+
+            echo "=== Diff against legacy reference ==="
+            legacy_ref="${{ matrix.legacy_ref }}"
+            if [ ! -s "${legacy_ref}" ]; then
+              echo "Missing or empty ${legacy_ref}. Generate it on ${{ matrix.os.name }} and commit it."
+              exit 1
+            fi
+
+            grep -v '^[[:space:]]*#' "${legacy_ref}" | grep -v '^[[:space:]]*$' \
+              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
+            if [ ! -s /tmp/legacy.list ]; then
+              echo "Legacy reference contains no paths."
+              exit 1
+            fi
+
+            find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+              | sort > /tmp/cmake.list
+
+            cat > /tmp/allowed-extras.list <<'EOF'
+            /var/lib/xymon/cgi-bin/.stamp
+            /var/lib/xymon/cgi-secure/.stamp
+            /var/lib/xymon/server/bin/availability
+            /var/lib/xymon/server/bin/contest
+            /var/lib/xymon/server/bin/loadhosts
+            /var/lib/xymon/server/bin/locator
+            /var/lib/xymon/server/bin/md5
+            /var/lib/xymon/server/bin/rmd160
+            /var/lib/xymon/server/bin/sha1
+            /var/lib/xymon/server/bin/stackio
+            /var/lib/xymon/server/bin/tree
+            /var/lib/xymon/server/bin/xymon-snmpcollect
+            EOF
+            sed -i 's/^ *//' /tmp/allowed-extras.list
+
+            grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
+            diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
+            if [ -s /tmp/legacy-cmake.diff ]; then
+              echo "Unexpected diff detected:"
+              cat /tmp/legacy-cmake.diff
+              exit 1
+            fi
+
+      - name: Upload artifacts (BSD)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-validate-bsd-${{ matrix.os.name }}
+          path: |
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/install-cmake-legacy.log

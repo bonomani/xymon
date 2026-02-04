@@ -40,8 +40,13 @@ The Makefiles are the contract, not the live filesystem or assumptions.
 
 Reference List Policy
 ---------------------
-`docs/cmake-legacy-migration/legacy.ref` is a versioned reference snapshot.
-Update it only when legacy Makefiles change, and record the update in
+`docs/cmake-legacy-migration/legacy.ref` is the Linux reference snapshot.
+BSD validation uses:
+- `docs/cmake-legacy-migration/legacy.freebsd.ref`
+- `docs/cmake-legacy-migration/legacy.openbsd.ref`
+- `docs/cmake-legacy-migration/legacy.netbsd.ref`
+
+Update references only when legacy Makefiles change, and record the update in
 `STATUS-HISTORY.md`.
 
 Prerequisites
