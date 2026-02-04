@@ -87,6 +87,8 @@ find_path(PCRE_INCLUDE_DIR pcre.h
     PATHS
         /usr/pkg/include
         /usr/local/include
+    PATH_SUFFIXES
+        pcre
 )
 if(PCRE_INCLUDE_DIR)
     include_directories("${PCRE_INCLUDE_DIR}")
