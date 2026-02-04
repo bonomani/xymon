@@ -83,7 +83,11 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
-find_path(PCRE_INCLUDE_DIR pcre.h)
+find_path(PCRE_INCLUDE_DIR pcre.h
+    PATHS
+        /usr/pkg/include
+        /usr/local/include
+)
 if(PCRE_INCLUDE_DIR)
     include_directories("${PCRE_INCLUDE_DIR}")
 endif()
