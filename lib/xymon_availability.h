@@ -11,10 +11,6 @@
 #ifndef __AVAILABILITY_H__
 #define __AVAILABILITY_H__
 
-#ifdef __APPLE__
-#include_next <Availability.h>
-#endif
-
 #include <time.h>
 #include <stdio.h>
 
