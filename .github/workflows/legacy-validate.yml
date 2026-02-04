@@ -62,6 +62,7 @@ jobs:
             sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
               build-essential \
               cmake \
+              ninja-build \
               git \
               findutils \
               libc-ares-dev \
@@ -78,6 +79,7 @@ jobs:
           DEBIAN_FRONTEND=noninteractive apt-get install -y \
             build-essential \
             cmake \
+            ninja-build \
             git \
             findutils \
             libc-ares-dev \
@@ -92,7 +94,7 @@ jobs:
         if: ${{ matrix.os == 'macos' }}
         run: |
           brew update
-          brew install cmake c-ares pcre2 openldap rrdtool openssl@3 libtirpc zlib
+          brew install cmake ninja c-ares pcre2 openldap rrdtool openssl@3 libtirpc zlib
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
@@ -111,6 +113,7 @@ jobs:
             gcc-c++ \
             make \
             cmake \
+            ninja-build \
             git \
             findutils \
             c-ares-devel \
@@ -132,6 +135,7 @@ jobs:
       - name: Configure (legacy)
         run: |
           cmake -S . -B build-cmake \
+            -G Ninja \
             -DUSE_GNUINSTALLDIRS=OFF \
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
@@ -286,6 +290,7 @@ jobs:
 
             echo "=== Configure (CMake legacy) ==="
             cmake -S . -B build-cmake \
+              -G Ninja \
               -DUSE_GNUINSTALLDIRS=OFF \
               -DCMAKE_INSTALL_PREFIX=/ \
               -DLEGACY_APPLY_OWNERSHIP=OFF \

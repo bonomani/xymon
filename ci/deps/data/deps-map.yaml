@@ -9,11 +9,11 @@ map:
         apt: [build-essential]
     bsd:
       freebsd:
-        pkg: [gmake, cmake]
+        pkg: [gmake, cmake, ninja]
       netbsd:
-        pkg_add: [gmake, cmake]
+        pkg_add: [gmake, cmake, ninja]
       openbsd:
-        pkg_add: [gmake, cmake]
+        pkg_add: [gmake, cmake, ninja]
 
   PCRE:
     gh-debian:
