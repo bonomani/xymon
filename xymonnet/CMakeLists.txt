@@ -165,8 +165,25 @@ if(EXISTS \"\${_dest}${INSTALLETCDIR}/protocols.cfg\")
     \"\${_dest}${INSTALLETCDIR}/protocols.cfg.bak\")
 endif()
 ")
+set(_xymonnet_again_src "${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh")
+if(NOT EXISTS "${_xymonnet_again_src}")
+    set(_xymonnet_again_src "${CMAKE_CURRENT_BINARY_DIR}/xymonnet-again.sh")
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh.DIST
+        ${_xymonnet_again_src}
+        COPYONLY
+    )
+    file(CHMOD
+        ${_xymonnet_again_src}
+        PERMISSIONS
+            OWNER_READ OWNER_WRITE OWNER_EXECUTE
+            GROUP_READ GROUP_EXECUTE
+            WORLD_READ WORLD_EXECUTE
+    )
+endif()
+
 install(PROGRAMS
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh
+    ${_xymonnet_again_src}
     DESTINATION ${INSTALLEXTDIR}
 )
 
