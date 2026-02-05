@@ -8,6 +8,7 @@ build:
             - BUILD_TOOLS
             - OpenSSL
             - PCRE
+            - TIRPC
           tools:
             optional:
             - clang
@@ -20,6 +21,7 @@ build:
             - BUILD_TOOLS
             - OpenSSL
             - PCRE
+            - TIRPC
           tools:
             optional:
             - clang
@@ -33,6 +35,8 @@ build:
             - PCRE
             base_system:
             - OpenSSL
+            - TIRPC
+            - PYTHON
           tools:
             optional:
             - clang
@@ -45,6 +49,7 @@ build:
             - PCRE
             base_system:
             - OpenSSL
+            - TIRPC
           tools:
             optional:
             - clang
@@ -57,6 +62,7 @@ build:
             - PCRE
             base_system:
             - OpenSSL
+            - TIRPC
           tools:
             optional:
             - clang
