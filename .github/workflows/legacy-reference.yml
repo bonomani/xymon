@@ -49,28 +49,36 @@ jobs:
 
       - name: Generate legacy.ref
         run: |
-          root=/tmp/legacy-ref/var/lib/xymon
+          XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
+          if [ -z "$XYMONTOPDIR" ]; then
+            XYMONTOPDIR=/var/lib/xymon
+          fi
+          root="/tmp/legacy-ref${XYMONTOPDIR}"
           if [ ! -d "$root" ]; then
             echo "Missing $root"
             exit 1
           fi
           find "$root" -print \
             | sed 's|^/tmp/legacy-ref||' \
-            | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+            | sed "s|${XYMONTOPDIR}/$|${XYMONTOPDIR}|" \
             | sort > /tmp/legacy.ref
           cp /tmp/legacy.ref docs/cmake-legacy-migration/legacy.ref
 
       - name: Generate legacy.keyfiles.sha256
         run: |
+          XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
+          if [ -z "$XYMONTOPDIR" ]; then
+            XYMONTOPDIR=/var/lib/xymon
+          fi
           root=/tmp/legacy-ref
           key_files=(
-            /var/lib/xymon/server/etc/xymonserver.cfg
-            /var/lib/xymon/server/etc/tasks.cfg
-            /var/lib/xymon/server/etc/cgioptions.cfg
-            /var/lib/xymon/server/etc/graphs.cfg
-            /var/lib/xymon/server/etc/client-local.cfg
-            /var/lib/xymon/server/etc/columndoc.csv
-            /var/lib/xymon/server/etc/protocols.cfg
+            ${XYMONTOPDIR}/server/etc/xymonserver.cfg
+            ${XYMONTOPDIR}/server/etc/tasks.cfg
+            ${XYMONTOPDIR}/server/etc/cgioptions.cfg
+            ${XYMONTOPDIR}/server/etc/graphs.cfg
+            ${XYMONTOPDIR}/server/etc/client-local.cfg
+            ${XYMONTOPDIR}/server/etc/columndoc.csv
+            ${XYMONTOPDIR}/server/etc/protocols.cfg
           )
           : > /tmp/legacy.keyfiles.sha256
           for f in "${key_files[@]}"; do
@@ -166,14 +174,18 @@ jobs:
             DESTDIR=/tmp/legacy-ref make install
 
             echo "=== Generate legacy ref ==="
-            root=/tmp/legacy-ref/var/lib/xymon
+            XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
+            if [ -z "$XYMONTOPDIR" ]; then
+              XYMONTOPDIR=/var/lib/xymon
+            fi
+            root="/tmp/legacy-ref${XYMONTOPDIR}"
             if [ ! -d "$root" ]; then
               echo "Missing $root"
               exit 1
             fi
             find "$root" -print \
               | sed 's|^/tmp/legacy-ref||' \
-              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+              | sed "s|${XYMONTOPDIR}/$|${XYMONTOPDIR}|" \
               | sort > /tmp/legacy.ref
             cp /tmp/legacy.ref "${{ matrix.legacy_ref }}"
 
@@ -181,13 +193,13 @@ jobs:
             key_ref="${{ matrix.legacy_ref }}"
             key_ref="${key_ref%.ref}.keyfiles.sha256"
             key_files=(
-              /var/lib/xymon/server/etc/xymonserver.cfg
-              /var/lib/xymon/server/etc/tasks.cfg
-              /var/lib/xymon/server/etc/cgioptions.cfg
-              /var/lib/xymon/server/etc/graphs.cfg
-              /var/lib/xymon/server/etc/client-local.cfg
-              /var/lib/xymon/server/etc/columndoc.csv
-              /var/lib/xymon/server/etc/protocols.cfg
+              ${XYMONTOPDIR}/server/etc/xymonserver.cfg
+              ${XYMONTOPDIR}/server/etc/tasks.cfg
+              ${XYMONTOPDIR}/server/etc/cgioptions.cfg
+              ${XYMONTOPDIR}/server/etc/graphs.cfg
+              ${XYMONTOPDIR}/server/etc/client-local.cfg
+              ${XYMONTOPDIR}/server/etc/columndoc.csv
+              ${XYMONTOPDIR}/server/etc/protocols.cfg
             )
             : > /tmp/legacy.keyfiles.sha256
             for f in "${key_files[@]}"; do
