@@ -6,20 +6,20 @@ all: ../lib/libxymonclient.a $(TOOLS)
 	$(MAKE) -C ../lib client
 
 merge-lines: merge-lines.c
-	$(CC) -o $@ $(CFLAGS) -I../include $<
+	$(CC) -o $@ $(CFLAGS) $<
 
 merge-sects: merge-sects.c
-	$(CC) -o $@ $(CFLAGS) -I../include $<
+	$(CC) -o $@ $(CFLAGS) $<
 
 setup-newfiles: setup-newfiles.c ../lib/libxymonclient.a
 	$(MAKE) -C ../lib client
-	$(CC) -o $@ $(CFLAGS) -I../include $< ../lib/libxymonclient.a
+	$(CC) -o $@ $(CFLAGS) $< ../lib/libxymonclient.a
 
 renamevars: renamevars.c
-	$(CC) -o $@ $(CFLAGS) -I../include $<
+	$(CC) -o $@ $(CFLAGS) $<
 
 renametasks: renametasks.c
-	$(CC) -o $@ $(CFLAGS) -I../include $<
+	$(CC) -o $@ $(CFLAGS) $<
 
 clean:
 	rm -f $(TOOLS) testfile *.o *~
