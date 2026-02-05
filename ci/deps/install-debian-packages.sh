@@ -44,7 +44,7 @@ while [[ $# -gt 0 ]]; do
 done
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 ENABLE_SNMP="${ENABLE_SNMP:-ON}"
-# Supported VARIANT values (also used by packages-from-yaml.sh): 'server' or 'client'. Default to 'server' when not provided.
+# Supported VARIANT values (also used by packages-from-yaml.sh): 'server', 'client', or 'localclient'. Default to 'server' when not provided.
 VARIANT="${VARIANT:-server}"
 CI_COMPILER="${CI_COMPILER:-}"
 distro_family="debian"
