@@ -13,15 +13,12 @@ jobs:
         include:
           - name: server
             variant: server
-            ref_suffix: server
           - name: client ct-client
             variant: localclient
             conftype: client
-            ref_suffix: client.ct-client
           - name: client ct-server
             variant: client
             conftype: server
-            ref_suffix: client.ct-server
 
     steps:
       - name: Checkout
@@ -39,7 +36,7 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-linux-${{ matrix.ref_suffix }}
+          name: legacy-reference-linux-${{ matrix.variant }}
           path: |
             docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.ref
             docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.keyfiles.sha256
