@@ -44,18 +44,11 @@ jobs:
           shell: ${{ env.SHELL }}
           memory: ${{ env.MEMORY }}
           cpu_count: ${{ env.CPU_COUNT }}
-          environment_variables: |
-            OS=${{ env.OS }}
-            VERSION=${{ env.VERSION }}
-            REF_PREFIX=${{ env.REF_PREFIX }}
-            VARIANT=${{ matrix.variant }}
-            CONFTYPE=${{ matrix.conftype }}
-            REF_SUFFIX=${{ matrix.ref_suffix }}
           run: |
-            ref_base="${REF_PREFIX}${REF_SUFFIX}"
-            args=(--os "${OS}" --version "${VERSION}" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${VARIANT}")
-            if [ -n "${CONFTYPE}" ]; then
-              args+=(--conftype "${CONFTYPE}")
+            ref_base="legacy.freebsd.${{ matrix.ref_suffix }}"
+            args=(--os freebsd --version "15.0" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
+            if [ -n "${{ matrix.conftype }}" ]; then
+              args+=(--conftype "${{ matrix.conftype }}")
             fi
             bash ci/legacy-reference.sh "${args[@]}"
           sync_files: true
