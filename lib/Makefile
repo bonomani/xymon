@@ -40,7 +40,7 @@ XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
 CONFIG_H = ../include/config.h
 
-CFLAGS += -I../include 
+override CFLAGS += -I../include 
 
 all: $(CONFIG_H) test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree
 
