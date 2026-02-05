@@ -57,6 +57,7 @@ jobs:
             | sed 's|^/tmp/legacy-ref||' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
             | sort > /tmp/legacy.ref
+          cp /tmp/legacy.ref docs/cmake-legacy-migration/legacy.ref
 
       - name: Generate legacy.keyfiles.sha256
         run: |
@@ -88,3 +89,4 @@ jobs:
             /tmp/legacy.ref
             /tmp/legacy.keyfiles.sha256
             /tmp/legacy-ref/var/lib/xymon
+            docs/cmake-legacy-migration/legacy.ref
