@@ -12,8 +12,10 @@ ifeq ($(LOCALCLIENT),yes)
 endif
 # CLIENTONLY builds don't have (or need) PCRE-based config parsing.
 ifneq (,$(findstring -DCLIENTONLY,$(CFLAGS)))
+ifneq ($(LOCALCLIENT),yes)
 	CLIENTLIBOBJS := $(filter-out clientlocal.o matching.o,$(CLIENTLIBOBJS))
 	XYMONLIBOBJS := $(filter-out clientlocal.o matching.o,$(XYMONLIBOBJS))
+endif
 endif
 XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buffer.o
 
