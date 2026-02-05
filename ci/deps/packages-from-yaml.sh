@@ -102,7 +102,7 @@ if [[ -z "${variant}" || -z "${family}" || -z "${os_name}" || -z "${pkgmgr}" ]];
 fi
 
 case "${variant}" in
-  server|client)
+  server|client|localclient)
     ;;
   *)
     echo "Unknown variant: ${variant}" >&2
