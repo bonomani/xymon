@@ -11,6 +11,10 @@ jobs:
       OS: netbsd
       VERSION: "10.1"
       REF_PREFIX: legacy.netbsd.
+      ARCH: x86-64
+      SHELL: bash
+      MEMORY: 1024M
+      CPU_COUNT: "2"
     strategy:
       fail-fast: false
       matrix:
@@ -35,11 +39,11 @@ jobs:
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ env.OS }}
-          architecture: x86-64
+          architecture: ${{ env.ARCH }}
           version: ${{ env.VERSION }}
-          shell: bash
-          memory: 1024M
-          cpu_count: 2
+          shell: ${{ env.SHELL }}
+          memory: ${{ env.MEMORY }}
+          cpu_count: ${{ env.CPU_COUNT }}
           environment_variables: |
             OS=${{ env.OS }}
             VERSION=${{ env.VERSION }}
@@ -48,9 +52,8 @@ jobs:
             CONFTYPE=${{ matrix.conftype }}
             REF_SUFFIX=${{ matrix.ref_suffix }}
           run: |
-            ref_name="${REF_PREFIX}${REF_SUFFIX}.ref"
-            key_name="${REF_PREFIX}${REF_SUFFIX}.keyfiles.sha256"
-            args=(--os "${OS}" --version "${VERSION}" --ref-name "${ref_name}" --keyfiles-name "${key_name}" --variant "${VARIANT}")
+            ref_base="${REF_PREFIX}${REF_SUFFIX}"
+            args=(--os "${OS}" --version "${VERSION}" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${VARIANT}")
             if [ -n "${CONFTYPE}" ]; then
               args+=(--conftype "${CONFTYPE}")
             fi

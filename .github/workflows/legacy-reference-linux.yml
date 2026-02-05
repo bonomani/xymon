@@ -36,9 +36,8 @@ jobs:
           CONFTYPE: ${{ matrix.conftype }}
           REF_SUFFIX: ${{ matrix.ref_suffix }}
         run: |
-          ref_name="${REF_PREFIX}${REF_SUFFIX}.ref"
-          key_name="${REF_PREFIX}${REF_SUFFIX}.keyfiles.sha256"
-          args=(--os "${OS}" --ref-name "${ref_name}" --keyfiles-name "${key_name}" --variant "${VARIANT}")
+          ref_base="${REF_PREFIX}${REF_SUFFIX}"
+          args=(--os "${OS}" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${VARIANT}")
           if [ -n "${CONFTYPE}" ]; then
             args+=(--conftype "${CONFTYPE}")
           fi
