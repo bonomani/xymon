@@ -1,4 +1,4 @@
-# Legacy reference list (OpenBSD).
+# Legacy server reference list (OpenBSD).
 #
 # Generate after a legacy Makefile change on OpenBSD:
 # 1) sudo DESTDIR=/tmp/legacy-ref make install

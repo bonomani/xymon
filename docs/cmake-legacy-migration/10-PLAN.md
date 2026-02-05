@@ -53,12 +53,12 @@ D. Ownership and Groups
 
 E. Parity With Legacy `make install`
 - [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/legacy-ref`.
-- [x] `docs/cmake-legacy-migration/legacy.ref` is up to date with legacy Makefiles.
+- [x] `docs/cmake-legacy-migration/legacy.linux.server.ref` is up to date with legacy Makefiles.
 - [x] CMake legacy install uses `LEGACY_DESTDIR=/tmp/cmake-ref-root` (configured via `-DLEGACY_DESTDIR`).
 - [x] Path normalization produces comparable lists rooted at `/var/lib/xymon/...`.
-- [x] Diff between `legacy.ref` and the generated CMake list shows only documented exceptions.
+- [x] Diff between `legacy.linux.server.ref` and the generated CMake list shows only documented exceptions.
 - [x] Install hook is inline `install(CODE ...)` and uses `$ENV{DESTDIR}`.
-- [x] `legacy.ref` is versioned reference data and must only be updated when legacy Makefiles change, with updates recorded in `STATUS-HISTORY.md`.
+- [x] `legacy.linux.server.ref` is versioned reference data and must only be updated when legacy Makefiles change, with updates recorded in `STATUS-HISTORY.md`.
 
 F. Binaries and Non-Web Components
 - [x] `install-legacy-files` stages server binaries, CGIs, and client assets.

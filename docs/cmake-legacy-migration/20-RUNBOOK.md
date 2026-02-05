@@ -40,8 +40,8 @@ The Makefiles are the contract, not the live filesystem or assumptions.
 
 Reference List Policy
 ---------------------
-`docs/cmake-legacy-migration/legacy.ref` is the Linux reference snapshot.
-BSD validation uses:
+`docs/cmake-legacy-migration/legacy.linux.server.ref` is the Linux server reference snapshot.
+BSD validation uses server references:
 - `docs/cmake-legacy-migration/legacy.freebsd.ref`
 - `docs/cmake-legacy-migration/legacy.openbsd.ref`
 - `docs/cmake-legacy-migration/legacy.netbsd.ref`
@@ -110,11 +110,11 @@ To generate the reference list:
 ```sh
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/legacy.ref
+  | sort > docs/cmake-legacy-migration/legacy.linux.server.ref
 ```
 
 Note: the CMake list is generated per run (e.g., `/tmp/cmake.list`) and is not
-a reference. It is only used for comparison against `legacy.ref`.
+a reference. It is only used for comparison against `legacy.linux.server.ref`.
 
 Cleanup:
 

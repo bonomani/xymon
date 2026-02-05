@@ -1,4 +1,4 @@
-# Legacy reference list (NetBSD).
+# Legacy server reference list (NetBSD).
 #
 # Generate after a legacy Makefile change on NetBSD:
 # 1) sudo DESTDIR=/tmp/legacy-ref make install

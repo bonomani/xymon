@@ -1,4 +1,4 @@
-# Legacy reference list (FreeBSD).
+# Legacy server reference list (FreeBSD).
 #
 # Generate after a legacy Makefile change on FreeBSD:
 # 1) sudo DESTDIR=/tmp/legacy-ref make install

@@ -58,9 +58,9 @@ B) Root installation (with privileges)
   sudo cmake --build build-cmake --target install-legacy-files
 
 4) Parity diff (OK)
-- `sudo make install DESTDIR=/tmp/legacy-ref` (reference tree lives under `/tmp/var/lib/xymon`; collected with `find /tmp/var/lib/xymon … | sed 's|/tmp||' | sort > docs/cmake-legacy-migration/legacy.ref`)
+- `sudo make install DESTDIR=/tmp/legacy-ref` (reference tree lives under `/tmp/var/lib/xymon`; collected with `find /tmp/var/lib/xymon … | sed 's|/tmp||' | sort > docs/cmake-legacy-migration/legacy.linux.server.ref`)
 - `cmake --build build-cmake --target install-legacy-dirs`/`install-legacy-files` with `LEGACY_DESTDIR=/tmp/cmake-ref-root` (staging under `/tmp/cmake-ref-root`; normalized tree via `find /tmp/cmake-ref-root/var/lib/xymon … | sed 's|/tmp/cmake-ref-root||' | sort > /tmp/cmake.list`)
-- The diff compares `docs/cmake-legacy-migration/legacy.ref` against the generated CMake list with identical path roots.
+- The diff compares `docs/cmake-legacy-migration/legacy.linux.server.ref` against the generated CMake list with identical path roots.
 - The CMake list was regenerated after the clean ON-mode install; rerunning the diff now only highlights the documented extra helper binaries and the optional staging log file.
 - Latest ON-mode install succeeded: the inline hook logged `Legacy hook: existing perms before change 755|xymon|xymon` and `Legacy hook: perms after change 4755|root|bc`, closing the `xymonping` SUID/group parity gap.
 - Key divergences needing justification:

@@ -14,10 +14,10 @@ Naming Scheme
 - 30-REFERENCE.md: canonical legacy install contract
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
-- legacy.ref: versioned legacy reference list used by CI
-- legacy.freebsd.ref: BSD legacy reference list (FreeBSD)
-- legacy.openbsd.ref: BSD legacy reference list (OpenBSD)
-- legacy.netbsd.ref: BSD legacy reference list (NetBSD)
+- legacy.linux.server.ref: versioned legacy reference list used by CI (Linux server)
+- legacy.freebsd.ref: BSD legacy server reference list (FreeBSD)
+- legacy.openbsd.ref: BSD legacy server reference list (OpenBSD)
+- legacy.netbsd.ref: BSD legacy server reference list (NetBSD)
 
 Guidelines
 ----------
@@ -26,7 +26,7 @@ Guidelines
 - Append run details to `STATUS-HISTORY.md` when needed.
 - Track changes in `STATUS-HISTORY.md`.
 
-Generating `legacy.ref`
+Generating `legacy.linux.server.ref`
 -----------------------
 Use this only when legacy Makefiles change.
 
@@ -34,7 +34,7 @@ Use this only when legacy Makefiles change.
 sudo DESTDIR=/tmp/legacy-ref make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/legacy.ref
+  | sort > docs/cmake-legacy-migration/legacy.linux.server.ref
 ```
 
 BSD references follow the same procedure, replacing the output path:
