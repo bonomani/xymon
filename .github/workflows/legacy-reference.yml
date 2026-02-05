@@ -186,9 +186,9 @@ jobs:
               export PATH="/usr/pkg/bin:${PATH}"
             fi
             if command -v gmake >/dev/null 2>&1; then
-              yes "" | MAKE=gmake ./configure.server
+              printf '\n%.0s' {1..40} | MAKE=gmake ./configure.server
             else
-              yes "" | ./configure.server
+              printf '\n%.0s' {1..40} | ./configure.server
             fi
 
             echo "=== Build (legacy) ==="
