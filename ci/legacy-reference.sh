@@ -176,9 +176,10 @@ build_legacy() {
   if [ "${VARIANT:-server}" = "client" ]; then
     if [ "${CONFTYPE:-}" = "server" ]; then
       local base_cflags=""
-      local make_db=""
-      make_db="$(make -s -p -n 2>/dev/null || true)"
-      base_cflags="$(printf '%s\n' "${make_db}" | awk -F ' = ' '/^CFLAGS = /{print $2; exit}')"
+      base_cflags="$(
+        set +o pipefail
+        make -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
+      )"
       if [ -z "${base_cflags}" ]; then
         base_cflags="$(awk -F '=' '/^CFLAGS[[:space:]]*=/ {sub(/^[[:space:]]*/,"",$2); print $2; exit}' Makefile 2>/dev/null || true)"
       fi
