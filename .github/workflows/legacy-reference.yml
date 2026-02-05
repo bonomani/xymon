@@ -150,6 +150,9 @@ jobs:
             export XYMONUSER=xymon
             export HTTPDGID=www
             export XYMONTOPDIR=/var/lib/xymon
+            if [ -x /usr/pkg/bin/gmake ]; then
+              export PATH="/usr/pkg/bin:${PATH}"
+            fi
             if command -v gmake >/dev/null 2>&1; then
               MAKE=gmake ./configure.server
             else
