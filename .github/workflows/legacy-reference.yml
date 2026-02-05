@@ -55,6 +55,14 @@ jobs:
           fi
           root="/tmp/legacy-ref${XYMONTOPDIR}"
           if [ ! -d "$root" ]; then
+            cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
+            if [ -n "$cand" ]; then
+              topdir=$(dirname "$(dirname "$(dirname "$cand")")")
+              XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
+              root="$topdir"
+            fi
+          fi
+          if [ ! -d "$root" ]; then
             echo "Missing $root"
             exit 1
           fi
@@ -71,6 +79,13 @@ jobs:
             XYMONTOPDIR=/var/lib/xymon
           fi
           root=/tmp/legacy-ref
+          if [ ! -d "/tmp/legacy-ref${XYMONTOPDIR}" ]; then
+            cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
+            if [ -n "$cand" ]; then
+              topdir=$(dirname "$(dirname "$(dirname "$cand")")")
+              XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
+            fi
+          fi
           key_files=(
             ${XYMONTOPDIR}/server/etc/xymonserver.cfg
             ${XYMONTOPDIR}/server/etc/tasks.cfg
@@ -179,6 +194,14 @@ jobs:
               XYMONTOPDIR=/var/lib/xymon
             fi
             root="/tmp/legacy-ref${XYMONTOPDIR}"
+            if [ ! -d "$root" ]; then
+              cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
+              if [ -n "$cand" ]; then
+                topdir=$(dirname "$(dirname "$(dirname "$cand")")")
+                XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
+                root="$topdir"
+              fi
+            fi
             if [ ! -d "$root" ]; then
               echo "Missing $root"
               exit 1
