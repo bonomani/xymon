@@ -152,7 +152,11 @@ build_legacy() {
     caresinc="-I${CARES_PREFIX}/include"
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
-  "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
+  if [ "${VARIANT:-server}" = "client" ]; then
+    "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" client
+  else
+    "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
+  fi
 }
 
 install_staged() {
