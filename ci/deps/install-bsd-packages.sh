@@ -313,6 +313,21 @@ case "${mode}" in
         ;;
       pkg_add)
         sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+        if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+          need_gcc=0
+          for pkg in "${PKG_PKG_ADD[@]}"; do
+            if [[ "${pkg}" == gcc* ]]; then
+              need_gcc=1
+              break
+            fi
+          done
+          if [[ "${need_gcc}" == "1" && ! -e /usr/local/bin/gcc ]]; then
+            gcc_bin="$(ls /usr/local/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -n 1)"
+            if [[ -n "${gcc_bin}" ]]; then
+              sudo -E ln -s "${gcc_bin}" /usr/local/bin/gcc
+            fi
+          fi
+        fi
         exit 0
         ;;
     esac
