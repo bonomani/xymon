@@ -85,13 +85,10 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" != "server" ]; then
-        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
-        exit 1
+      if [ "${VARIANT:-server}" = "server" ]; then
+        export ENABLE_LDAP=ON
+        export ENABLE_SNMP=ON
       fi
-      export VARIANT=server
-      export ENABLE_LDAP=ON
-      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root pw groupadd www 2>/dev/null || true
       as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
@@ -100,13 +97,10 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" != "server" ]; then
-        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
-        exit 1
+      if [ "${VARIANT:-server}" = "server" ]; then
+        export ENABLE_LDAP=ON
+        export ENABLE_SNMP=ON
       fi
-      export VARIANT=server
-      export ENABLE_LDAP=ON
-      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
@@ -115,13 +109,10 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" != "server" ]; then
-        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
-        exit 1
+      if [ "${VARIANT:-server}" = "server" ]; then
+        export ENABLE_LDAP=ON
+        export ENABLE_SNMP=ON
       fi
-      export VARIANT=server
-      export ENABLE_LDAP=ON
-      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
@@ -152,8 +143,14 @@ configure_legacy() {
     echo "configure: ./configure --${linux_variant} (CONFTYPE=${CONFTYPE:-unset})"
     printf '\n%.0s' {1..40} | ./configure --"${linux_variant}"
   else
-    echo "configure: MAKE=${MAKE_BIN} ./configure.server"
-    printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
+    local bsd_variant="${VARIANT:-server}"
+    if [ "$bsd_variant" = "client" ]; then
+      echo "configure: MAKE=${MAKE_BIN} ./configure.client"
+      printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.client
+    else
+      echo "configure: MAKE=${MAKE_BIN} ./configure.server"
+      printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
+    fi
   fi
 }
 
