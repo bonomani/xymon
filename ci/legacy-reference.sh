@@ -7,6 +7,8 @@ REF_NAME=""
 KEYFILES_NAME=""
 VARIANT=""
 CONFTYPE=""
+CLIENTONLY=""
+LOCALCLIENT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -32,6 +34,14 @@ while [ $# -gt 0 ]; do
       ;;
     --conftype)
       CONFTYPE="${2:-}"
+      shift 2
+      ;;
+    --clientonly)
+      CLIENTONLY="${2:-}"
+      shift 2
+      ;;
+    --localclient)
+      LOCALCLIENT="${2:-}"
       shift 2
       ;;
     *)
@@ -151,25 +161,44 @@ configure_legacy() {
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
   if [ -z "${CONFTYPE}" ]; then
-    case "${VARIANT:-server}" in
-      client)
-        CLIENTONLY=yes
-        LOCALCLIENT=no
-        CONFTYPE="server"
-        ;;
-      localclient)
-        CLIENTONLY=yes
-        LOCALCLIENT=yes
-        CONFTYPE="client"
-        ;;
-      *)
-        CLIENTONLY=
-        LOCALCLIENT=
-        ;;
-    esac
+    if [ -n "${CLIENTONLY}" ] || [ -n "${LOCALCLIENT}" ]; then
+      case "${LOCALCLIENT}" in
+        yes|YES|on|ON|1|true|TRUE)
+          CONFTYPE="client"
+          ;;
+        *)
+          if [ -n "${CLIENTONLY}" ]; then
+            CONFTYPE="server"
+          fi
+          ;;
+      esac
+    else
+      case "${VARIANT:-server}" in
+        client)
+          CLIENTONLY=yes
+          LOCALCLIENT=no
+          CONFTYPE="server"
+          ;;
+        localclient)
+          CLIENTONLY=yes
+          LOCALCLIENT=yes
+          CONFTYPE="client"
+          ;;
+        *)
+          CLIENTONLY=
+          LOCALCLIENT=
+          ;;
+      esac
+    fi
   fi
   if [ -n "${CONFTYPE}" ]; then
     export CONFTYPE="${CONFTYPE}"
+  fi
+  if [ -n "${CLIENTONLY}" ]; then
+    export CLIENTONLY="${CLIENTONLY}"
+  fi
+  if [ -n "${LOCALCLIENT}" ]; then
+    export LOCALCLIENT="${LOCALCLIENT}"
   fi
 
   local cfg_variant="${VARIANT:-server}"
