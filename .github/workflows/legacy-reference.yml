@@ -90,3 +90,90 @@ jobs:
             /tmp/legacy.keyfiles.sha256
             /tmp/legacy-ref/var/lib/xymon
             docs/cmake-legacy-migration/legacy.ref
+
+  legacy-reference-bsd:
+    name: legacy-reference-bsd / OS=${{ matrix.os.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            legacy_ref: docs/cmake-legacy-migration/legacy.freebsd.ref
+          - os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            legacy_ref: docs/cmake-legacy-migration/legacy.openbsd.ref
+          - os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            legacy_ref: docs/cmake-legacy-migration/legacy.netbsd.ref
+    steps:
+      - uses: actions/checkout@v4
+      - name: Legacy reference (BSD) ${{ matrix.os.name }}
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ matrix.os.name }}
+          architecture: ${{ matrix.os.architecture }}
+          version: ${{ matrix.os.version }}
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            set -euo pipefail
+            echo "=== Setup (BSD legacy reference) ==="
+            export VARIANT=server
+            export ENABLE_LDAP=ON
+            export ENABLE_SNMP=ON
+            bash ci/deps/install-bsd-packages.sh --os "${{ matrix.os.name }}" --version "${{ matrix.os.version }}"
+
+            case "${{ matrix.os.name }}" in
+              freebsd)
+                pw groupadd www 2>/dev/null || true
+                pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+                ;;
+              netbsd|openbsd)
+                groupadd www 2>/dev/null || true
+                useradd -m -s /bin/sh xymon 2>/dev/null || true
+                ;;
+            esac
+
+            echo "=== Configure (legacy) ==="
+            export ENABLESSL=y
+            export ENABLELDAP=y
+            export XYMONUSER=xymon
+            export HTTPDGID=www
+            ./configure
+
+            echo "=== Build (legacy) ==="
+            make -j2
+
+            echo "=== Install (legacy staged) ==="
+            DESTDIR=/tmp/legacy-ref make install
+
+            echo "=== Generate legacy ref ==="
+            root=/tmp/legacy-ref/var/lib/xymon
+            if [ ! -d "$root" ]; then
+              echo "Missing $root"
+              exit 1
+            fi
+            find "$root" -print \
+              | sed 's|^/tmp/legacy-ref||' \
+              | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+              | sort > /tmp/legacy.ref
+            cp /tmp/legacy.ref "${{ matrix.legacy_ref }}"
+
+      - name: Upload legacy reference (BSD)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-reference-bsd-${{ matrix.os.name }}
+          path: |
+            /tmp/legacy.ref
+            /tmp/legacy-ref/var/lib/xymon
+            ${{ matrix.legacy_ref }}
