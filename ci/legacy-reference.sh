@@ -85,6 +85,9 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-}" = "localclient" ]; then
+        VARIANT="client"
+      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
@@ -101,6 +104,9 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-}" = "localclient" ]; then
+        VARIANT="client"
+      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
@@ -117,6 +123,9 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-}" = "localclient" ]; then
+        VARIANT="client"
+      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
