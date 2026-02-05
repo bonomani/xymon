@@ -152,8 +152,20 @@ configure_legacy() {
   export CC=cc
   if [ -z "${CONFTYPE}" ]; then
     case "${VARIANT:-server}" in
-      client) CONFTYPE="server" ;;
-      localclient) CONFTYPE="client" ;;
+      client)
+        CLIENTONLY=yes
+        LOCALCLIENT=no
+        CONFTYPE="server"
+        ;;
+      localclient)
+        CLIENTONLY=yes
+        LOCALCLIENT=yes
+        CONFTYPE="client"
+        ;;
+      *)
+        CLIENTONLY=
+        LOCALCLIENT=
+        ;;
     esac
   fi
   if [ -n "${CONFTYPE}" ]; then
