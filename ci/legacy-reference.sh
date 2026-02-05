@@ -41,17 +41,20 @@ DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
 
-SUDO=""
-if command -v sudo >/dev/null 2>&1; then
-  SUDO="sudo"
-fi
+as_root() {
+  if command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
 
 setup_os() {
   case "$OS_NAME" in
     linux)
       CARES_PREFIX="/usr"
-      $SUDO apt-get update
-      DEBIAN_FRONTEND=noninteractive $SUDO apt-get install -y \
+      as_root apt-get update
+      DEBIAN_FRONTEND=noninteractive as_root apt-get install -y \
         build-essential \
         make \
         gcc \
@@ -64,28 +67,28 @@ setup_os() {
         libssl-dev \
         libtirpc-dev \
         zlib1g-dev
-      $SUDO useradd -m -s /bin/sh xymon 2>/dev/null || true
+      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
     freebsd)
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
-      $SUDO pw groupadd www 2>/dev/null || true
-      $SUDO pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+      as_root pw groupadd www 2>/dev/null || true
+      as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
       ;;
     openbsd)
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
-      $SUDO groupadd www 2>/dev/null || true
-      $SUDO useradd -m -s /bin/sh xymon 2>/dev/null || true
+      as_root groupadd www 2>/dev/null || true
+      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
     netbsd)
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
-      $SUDO groupadd www 2>/dev/null || true
-      $SUDO useradd -m -s /bin/sh xymon 2>/dev/null || true
+      as_root groupadd www 2>/dev/null || true
+      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       if [ -x /usr/pkg/bin/gmake ]; then
         export PATH="/usr/pkg/bin:${PATH}"
       fi
@@ -123,7 +126,7 @@ build_legacy() {
 }
 
 install_staged() {
-  "${SUDO}" "${MAKE_BIN}" install \
+  as_root "${MAKE_BIN}" install \
     XYMONTOPDIR="${LEGACY_STAGING}${DEFAULT_TOP}" \
     XYMONHOME="${LEGACY_STAGING}${DEFAULT_TOP}/server" \
     XYMONVAR="${LEGACY_STAGING}${DEFAULT_TOP}/data" \
