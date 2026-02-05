@@ -174,7 +174,7 @@ build_legacy() {
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
   local base_cflags=""
-  if [ "${VARIANT:-server}" = "client" ]; then
+  if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     base_cflags="$(
       set +o pipefail
       make -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
@@ -200,7 +200,7 @@ build_legacy() {
 }
 
 install_staged() {
-  if [ "${VARIANT:-server}" = "client" ]; then
+  if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="lib-client common-client" \
       XYMONTOPDIR="${LEGACY_STAGING}${DEFAULT_TOP}" \
