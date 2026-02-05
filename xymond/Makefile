@@ -24,11 +24,7 @@ ALERTOBJS     = xymond_alert.o     xymond_worker.o do_alert.o
 RRDOBJS       = xymond_rrd.o       xymond_worker.o do_rrd.o client_config.o
 HOSTDATAOBJS  = xymond_hostdata.o  xymond_worker.o
 CAPTUREOBJS   = xymond_capture.o   xymond_worker.o
-ifeq ($(CLIENTONLY),yes)
-CLIENTOBJS    = xymond_client.o    xymond_worker.o
-else
 CLIENTOBJS    = xymond_client.o    xymond_worker.o client_config.o
-endif
 DISTRIBUTEOBJS= xymond_distribute.o xymond_worker.o
 COMBOTESTOBJS = combostatus.o
 MAILACKOBJS   = xymon-mailack.o
