@@ -85,7 +85,8 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" = "server" ]; then
+      export VARIANT="${VARIANT:-server}"
+      if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
       else
@@ -100,7 +101,8 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" = "server" ]; then
+      export VARIANT="${VARIANT:-server}"
+      if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
       else
@@ -115,7 +117,8 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-server}" = "server" ]; then
+      export VARIANT="${VARIANT:-server}"
+      if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
       else
