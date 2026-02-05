@@ -21,7 +21,7 @@ XYMONCLIENTLIBS = $(XYMONCLIENTLIB)
 XYMONCLIENTCOMMLIB = ../lib/libxymonclientcomm.a
 XYMONCLIENTCOMMLIBS = $(XYMONCLIENTCOMMLIB) $(SSLLIBS) $(ZLIBLIBS) $(NETLIBS) $(LIBRTDEF)
 
-override CFLAGS += -I../include
+override CFLAGS += -I../include $(PCREINCDIR)
 
 PROGRAMS=xymonlaunch logfetch clientupdate orcaxymon msgcache
 COMMONTOOLS=xymon xymoncmd xymongrep xymoncfg xymondigest
