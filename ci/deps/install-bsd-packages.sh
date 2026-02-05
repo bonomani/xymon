@@ -315,14 +315,25 @@ case "${mode}" in
         sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
         if [[ "${OS_NAME}" == "OpenBSD" ]]; then
           need_gcc=0
+          gcc_pkg=""
           for pkg in "${PKG_PKG_ADD[@]}"; do
             if [[ "${pkg}" == gcc* ]]; then
               need_gcc=1
+              gcc_pkg="${pkg}"
               break
             fi
           done
           if [[ "${need_gcc}" == "1" && ! -e /usr/local/bin/gcc ]]; then
-            gcc_bin="$(ls /usr/local/bin/gcc-[0-9]* 2>/dev/null | sort -V | tail -n 1)"
+            gcc_bin=""
+            if [[ -n "${gcc_pkg}" ]]; then
+              gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/(egcc|gcc)$' | head -n 1 || true)"
+              if [[ -z "${gcc_bin}" ]]; then
+                gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/gcc-[0-9]+' | sort -V | tail -n 1 || true)"
+              fi
+            fi
+            if [[ -z "${gcc_bin}" ]]; then
+              gcc_bin="$(ls /usr/local/bin/gcc-[0-9]* /usr/local/bin/egcc* 2>/dev/null | sort -V | tail -n 1 || true)"
+            fi
             if [[ -n "${gcc_bin}" ]]; then
               sudo -E ln -s "${gcc_bin}" /usr/local/bin/gcc
             fi
