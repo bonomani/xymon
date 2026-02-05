@@ -19,6 +19,8 @@ else ifneq (,$(wildcard /usr/pkg/include/pcre.h))
 endif
 endif
 
+export PCREINCDIR
+
 ifeq ($(CLIENTONLY),yes)
 	BUILDTARGETS = client
 	CFLAGS += -DCLIENTONLY=1
