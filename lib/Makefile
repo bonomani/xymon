@@ -142,7 +142,7 @@ sha1: sha1.c
 rmd160: rmd160c.c
 	$(CC) $(CFLAGS) -DSTANDALONE `./test-endianness` -o $@ rmd160c.c
 
-locator: locator.c $(XYMONCOMMLIB) $(XYMONLIB)
+locator: locator.c
 	$(CC) $(CFLAGS) -DSTANDALONE -o $@ locator.c $(XYMONCOMMLIBS) $(XYMONLIBS)
 
 tree: tree.c
