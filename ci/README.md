@@ -6,3 +6,19 @@ The repository splits CI-related helpers into two clear subtrees:
 - `ci/deps/` contains every dependency-related helper: the YAML-based package mappings (`ci/deps/data/deps-*.yaml`), the `packages-*.sh`/`packages-from-yaml.sh` translators, installers (`install-*-packages.sh`), and the Python `check-deps.py` validator. This keeps all packaging logic in one place.
 
 Use `ci/run` when you want to reuse the CI configure/build/install steps, and `ci/deps` when you need dependency lists, package installers, or validation. The legacy `scripts/ci/` folder now holds only the “wrapper” entry points (e.g., `check-deps.sh`) for compatibility; the real implementations live under `ci/`.
+
+## Legacy Makefile variants
+
+Legacy builds use three variants that map to Makefile variables as follows:
+
+```
+variant        CLIENTONLY     LOCALCLIENT
+server         (unset)        (unset)
+client         yes            no
+localclient    yes            yes
+```
+
+Notes:
+- `server` is the full server+client build (no CLIENTONLY/LOCALCLIENT set).
+- `client` corresponds to `CONFTYPE=server` (client tools using server-side config).
+- `localclient` corresponds to `CONFTYPE=client` (client tools using local config).
