@@ -188,7 +188,8 @@ pick_pkg_add_variant() {
       echo "${probe_out}" \
         | tr ' ' '\n' \
         | grep "^${base}-" \
-        | head -n 1 || true
+        | sort -V \
+        | tail -n 1 || true
     )"
     if [[ -n "${picked}" ]]; then
       echo "${picked}"
@@ -221,8 +222,14 @@ fi
 
 if [[ "${PKG_MGR}" == "pkg_add" ]]; then
   resolved=()
+  declare -A pkg_add_cache
   for pkg in "${PKG_PKG_ADD[@]}"; do
-    picked="$(pick_pkg_add_variant "${pkg}")" || true
+    if [[ -n "${pkg_add_cache[${pkg}]:-}" ]]; then
+      picked="${pkg_add_cache[${pkg}]}"
+    else
+      picked="$(pick_pkg_add_variant "${pkg}")" || true
+      pkg_add_cache["${pkg}"]="${picked}"
+    fi
     if [[ -n "${picked}" ]]; then
       resolved+=("${picked}")
     else
