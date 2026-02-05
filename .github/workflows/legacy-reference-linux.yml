@@ -7,9 +7,6 @@ jobs:
   legacy-reference-linux:
     name: legacy-reference-linux (${{ matrix.name }})
     runs-on: ubuntu-22.04
-    env:
-      OS: linux
-      REF_PREFIX: legacy.linux.
     strategy:
       fail-fast: false
       matrix:
@@ -31,23 +28,19 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Generate legacy references
-        env:
-          VARIANT: ${{ matrix.variant }}
-          CONFTYPE: ${{ matrix.conftype }}
-          REF_SUFFIX: ${{ matrix.ref_suffix }}
         run: |
-          ref_base="${REF_PREFIX}${REF_SUFFIX}"
-          args=(--os "${OS}" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${VARIANT}")
-          if [ -n "${CONFTYPE}" ]; then
-            args+=(--conftype "${CONFTYPE}")
+          ref_base="legacy.linux.${{ matrix.ref_suffix }}"
+          args=(--os linux --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
+          if [ -n "${{ matrix.conftype }}" ]; then
+            args+=(--conftype "${{ matrix.conftype }}")
           fi
           bash ci/legacy-reference.sh "${args[@]}"
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-${{ env.OS }}-${{ matrix.ref_suffix }}
+          name: legacy-reference-linux-${{ matrix.ref_suffix }}
           path: |
-            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.ref
-            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.linux.${{ matrix.ref_suffix }}.ref
+            docs/cmake-legacy-migration/legacy.linux.${{ matrix.ref_suffix }}.keyfiles.sha256
           if-no-files-found: error
