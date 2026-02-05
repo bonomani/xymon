@@ -254,6 +254,78 @@ jobs:
           LEGACY_DESTDIR=/tmp/cmake-ref-root \
           ${CMAKE_BIN:-cmake} --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 
+      - name: Validate key files + metadata (non-blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/cmake-ref-root/var/lib/xymon
+          if [ ! -d "$root" ]; then
+            echo "Missing $root; skipping key file validation."
+            exit 0
+          fi
+
+          key_files=(
+            /var/lib/xymon/server/etc/xymonserver.cfg
+            /var/lib/xymon/server/etc/tasks.cfg
+            /var/lib/xymon/server/etc/cgioptions.cfg
+            /var/lib/xymon/server/etc/graphs.cfg
+            /var/lib/xymon/server/etc/client-local.cfg
+            /var/lib/xymon/server/etc/columndoc.csv
+            /var/lib/xymon/server/etc/protocols.cfg
+          )
+
+          : > /tmp/legacy.keyfiles.missing
+          : > /tmp/legacy.keyfiles.sha256
+          for f in "${key_files[@]}"; do
+            p="/tmp/cmake-ref-root${f}"
+            if [ ! -f "$p" ]; then
+              echo "MISSING $f" >> /tmp/legacy.keyfiles.missing
+              continue
+            fi
+            if command -v sha256sum >/dev/null 2>&1; then
+              sha256sum "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
+            elif command -v shasum >/dev/null 2>&1; then
+              shasum -a 256 "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
+            fi
+          done
+
+          : > /tmp/legacy.symlinks.broken
+          while IFS= read -r link; do
+            if [ ! -e "$link" ]; then
+              echo "${link#/tmp/cmake-ref-root}" >> /tmp/legacy.symlinks.broken
+            fi
+          done < <(find "$root" -type l)
+
+          : > /tmp/legacy.keyfiles.perms
+          if [ "$(uname -s)" = "Darwin" ]; then
+            for f in "${key_files[@]}"; do
+              p="/tmp/cmake-ref-root${f}"
+              [ -e "$p" ] || continue
+              mode=$(stat -f '%Lp' "$p")
+              uid=$(stat -f '%u' "$p")
+              gid=$(stat -f '%g' "$p")
+              size=$(stat -f '%z' "$p")
+              printf '%s|%s|%s|%s|%s\n' "$f" "$mode" "$uid" "$gid" "$size" >> /tmp/legacy.keyfiles.perms
+            done
+          else
+            for f in "${key_files[@]}"; do
+              p="/tmp/cmake-ref-root${f}"
+              [ -e "$p" ] || continue
+              stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.perms
+            done
+          fi
+
+          legacy_key_ref=docs/cmake-legacy-migration/legacy.keyfiles.sha256
+          if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
+            sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
+            sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
+            diff -u /tmp/legacy.keyfiles.sha256.ref /tmp/legacy.keyfiles.sha256.cmake > /tmp/legacy.keyfiles.sha256.diff || true
+            if [ -s /tmp/legacy.keyfiles.sha256.diff ]; then
+              echo "Key file content diff detected (non-blocking):"
+              cat /tmp/legacy.keyfiles.sha256.diff
+            fi
+          fi
+
       - name: Generate lists + diff
         run: |
           legacy_ref=docs/cmake-legacy-migration/legacy.ref
@@ -312,4 +384,9 @@ jobs:
             /tmp/cmake.filtered.list
             /tmp/allowed-extras.list
             /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
             /tmp/install-cmake-legacy.log
