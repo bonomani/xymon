@@ -122,8 +122,6 @@ jobs:
           path: |
             /tmp/legacy.ref
             /tmp/legacy.keyfiles.sha256
-            /tmp/legacy-ref/var/lib/xymon
-            docs/cmake-legacy-migration/legacy.ref
 
   legacy-reference-bsd:
     name: legacy-reference-bsd / OS=${{ matrix.os.name }}
@@ -267,6 +265,4 @@ jobs:
           path: |
             /tmp/legacy.ref
             /tmp/legacy.keyfiles.sha256
-            /tmp/legacy-ref/var/lib/xymon
             ${{ matrix.legacy_ref }}
-            docs/cmake-legacy-migration/legacy.${{ matrix.os.name }}.keyfiles.sha256
