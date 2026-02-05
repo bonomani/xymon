@@ -170,6 +170,35 @@ pick_ldap_pkg() {
   fi
 }
 
+pick_pkg_add_variant() {
+  local base="${1:-}"
+  local probe_out=""
+  local picked=""
+
+  if [ -z "${base}" ] || [ ! -x /usr/sbin/pkg_add ]; then
+    return 1
+  fi
+
+  set +e
+  probe_out="$(/usr/sbin/pkg_add -n "${base}" 2>&1)"
+  set -e
+
+  if echo "${probe_out}" | grep -q '^Ambiguous:'; then
+    picked="$(
+      echo "${probe_out}" \
+        | tr ' ' '\n' \
+        | grep "^${base}-" \
+        | head -n 1 || true
+    )"
+    if [[ -n "${picked}" ]]; then
+      echo "${picked}"
+      return 0
+    fi
+  fi
+
+  return 1
+}
+
 mapfile -t PKG_PKG < <(ci_bsd_packages pkg "${VARIANT}" "${ENABLE_SNMP}")
 mapfile -t PKG_PKGIN < <(ci_bsd_packages pkgin "${VARIANT}" "${ENABLE_SNMP}")
 mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}" "${ENABLE_SNMP}")
@@ -188,6 +217,21 @@ if [[ "${ENABLE_LDAP}" == "ON" && "${VARIANT}" == "server" ]]; then
     PKG_PKGIN+=("${LDAP_PKG}")
     PKG_PKG_ADD+=("${LDAP_PKG}")
   fi
+fi
+
+if [[ "${PKG_MGR}" == "pkg_add" ]]; then
+  resolved=()
+  for pkg in "${PKG_PKG_ADD[@]}"; do
+    if [[ "${pkg}" == "gcc" ]]; then
+      picked="$(pick_pkg_add_variant "${pkg}")" || true
+      if [[ -n "${picked}" ]]; then
+        resolved+=("${picked}")
+        continue
+      fi
+    fi
+    resolved+=("${pkg}")
+  done
+  PKG_PKG_ADD=("${resolved[@]}")
 fi
 
 case "${mode}" in
