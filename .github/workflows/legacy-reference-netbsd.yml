@@ -1,0 +1,58 @@
+name: legacy-reference-netbsd
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  legacy-reference-netbsd:
+    name: legacy-reference-netbsd (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            variant: server
+            ref_suffix: server
+          - name: client ct-client
+            variant: client
+            conftype: client
+            ref_suffix: client.ct-client
+          - name: client ct-server
+            variant: client
+            conftype: server
+            ref_suffix: client.ct-server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate legacy references
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: netbsd
+          architecture: x86-64
+          version: 10.1
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            ref_name="legacy.netbsd.${{ matrix.ref_suffix }}.ref"
+            key_name="legacy.netbsd.${{ matrix.ref_suffix }}.keyfiles.sha256"
+            args=(--os netbsd --version "10.1" --ref-name "$ref_name" --keyfiles-name "$key_name" --variant "${{ matrix.variant }}")
+            if [ -n "${{ matrix.conftype }}" ]; then
+              args+=(--conftype "${{ matrix.conftype }}")
+            fi
+            bash ci/legacy-reference.sh "${args[@]}"
+          sync_files: true
+          shutdown_vm: true
+
+      - name: Upload legacy references
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-reference-netbsd-${{ matrix.ref_suffix }}
+          path: |
+            docs/cmake-legacy-migration/legacy.netbsd.${{ matrix.ref_suffix }}.ref
+            docs/cmake-legacy-migration/legacy.netbsd.${{ matrix.ref_suffix }}.keyfiles.sha256
+          if-no-files-found: error

@@ -1,0 +1,58 @@
+name: legacy-reference-freebsd
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  legacy-reference-freebsd:
+    name: legacy-reference-freebsd (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            variant: server
+            ref_suffix: server
+          - name: client ct-client
+            variant: client
+            conftype: client
+            ref_suffix: client.ct-client
+          - name: client ct-server
+            variant: client
+            conftype: server
+            ref_suffix: client.ct-server
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Generate legacy references
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: freebsd
+          architecture: x86-64
+          version: 15.0
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            ref_name="legacy.freebsd.${{ matrix.ref_suffix }}.ref"
+            key_name="legacy.freebsd.${{ matrix.ref_suffix }}.keyfiles.sha256"
+            args=(--os freebsd --version "15.0" --ref-name "$ref_name" --keyfiles-name "$key_name" --variant "${{ matrix.variant }}")
+            if [ -n "${{ matrix.conftype }}" ]; then
+              args+=(--conftype "${{ matrix.conftype }}")
+            fi
+            bash ci/legacy-reference.sh "${args[@]}"
+          sync_files: true
+          shutdown_vm: true
+
+      - name: Upload legacy references
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-reference-freebsd-${{ matrix.ref_suffix }}
+          path: |
+            docs/cmake-legacy-migration/legacy.freebsd.${{ matrix.ref_suffix }}.ref
+            docs/cmake-legacy-migration/legacy.freebsd.${{ matrix.ref_suffix }}.keyfiles.sha256
+          if-no-files-found: error

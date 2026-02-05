@@ -5,6 +5,8 @@ OS_NAME=""
 OS_VERSION=""
 REF_NAME=""
 KEYFILES_NAME=""
+VARIANT=""
+CONFTYPE=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -22,6 +24,14 @@ while [ $# -gt 0 ]; do
       ;;
     --keyfiles-name)
       KEYFILES_NAME="${2:-}"
+      shift 2
+      ;;
+    --variant)
+      VARIANT="${2:-}"
+      shift 2
+      ;;
+    --conftype)
+      CONFTYPE="${2:-}"
       shift 2
       ;;
     *)
@@ -121,9 +131,13 @@ configure_legacy() {
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
+  if [ -n "${CONFTYPE}" ]; then
+    export CONFTYPE="${CONFTYPE}"
+  fi
 
   if [ "$OS_NAME" = "linux" ]; then
-    printf '\n%.0s' {1..40} | ./configure
+    local linux_variant="${VARIANT:-server}"
+    printf '\n%.0s' {1..40} | ./configure --"${linux_variant}"
   else
     printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
   fi
@@ -240,6 +254,7 @@ write_refs() {
 
   if [ -d docs/cmake-legacy-migration ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/${REF_NAME}" || true
+    cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/${KEYFILES_NAME}" || true
   fi
 }
 
