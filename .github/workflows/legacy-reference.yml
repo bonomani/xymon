@@ -168,6 +168,35 @@ jobs:
               | sort > /tmp/legacy.ref
             cp /tmp/legacy.ref "${{ matrix.legacy_ref }}"
 
+            echo "=== Generate keyfile hashes ==="
+            key_ref="${{ matrix.legacy_ref }}"
+            key_ref="${key_ref%.ref}.keyfiles.sha256"
+            key_files=(
+              /var/lib/xymon/server/etc/xymonserver.cfg
+              /var/lib/xymon/server/etc/tasks.cfg
+              /var/lib/xymon/server/etc/cgioptions.cfg
+              /var/lib/xymon/server/etc/graphs.cfg
+              /var/lib/xymon/server/etc/client-local.cfg
+              /var/lib/xymon/server/etc/columndoc.csv
+              /var/lib/xymon/server/etc/protocols.cfg
+            )
+            : > /tmp/legacy.keyfiles.sha256
+            for f in "${key_files[@]}"; do
+              p="/tmp/legacy-ref${f}"
+              if [ ! -f "$p" ]; then
+                echo "MISSING $f" >> /tmp/legacy.keyfiles.sha256
+                continue
+              fi
+              if command -v sha256sum >/dev/null 2>&1; then
+                sha256sum "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
+              elif command -v shasum >/dev/null 2>&1; then
+                shasum -a 256 "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
+              fi
+            done
+            if [ -s /tmp/legacy.keyfiles.sha256 ]; then
+              cp /tmp/legacy.keyfiles.sha256 "$key_ref"
+            fi
+
       - name: Upload legacy reference (BSD)
         if: always()
         uses: actions/upload-artifact@v4
@@ -175,5 +204,7 @@ jobs:
           name: legacy-reference-bsd-${{ matrix.os.name }}
           path: |
             /tmp/legacy.ref
+            /tmp/legacy.keyfiles.sha256
             /tmp/legacy-ref/var/lib/xymon
             ${{ matrix.legacy_ref }}
+            ${{ matrix.legacy_ref%.ref }}.keyfiles.sha256
