@@ -12,6 +12,15 @@ PCRE_OBJS = matching.o clientlocal.o loadalerts.o
 CLIENTONLY := $(findstring -DCLIENTONLY,$(CFLAGS))
 LOCALCLIENT_YES := $(filter yes,$(LOCALCLIENT))
 
+# Provide a fallback for PCRE include dir on BSD if configure did not set it.
+ifeq ($(strip $(PCREINCDIR)),)
+ifneq (,$(wildcard /usr/local/include/pcre.h))
+	PCREINCDIR := -I/usr/local/include
+else ifneq (,$(wildcard /usr/pkg/include/pcre.h))
+	PCREINCDIR := -I/usr/pkg/include
+endif
+endif
+
 ifeq ($(LOCALCLIENT_YES),yes)
 	CLIENTLIBOBJS += matching.o
 endif
