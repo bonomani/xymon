@@ -150,7 +150,11 @@ jobs:
             export XYMONUSER=xymon
             export HTTPDGID=www
             export XYMONTOPDIR=/var/lib/xymon
-            MAKE=gmake ./configure
+            if command -v gmake >/dev/null 2>&1; then
+              MAKE=gmake ./configure.server
+            else
+              ./configure.server
+            fi
 
             echo "=== Build (legacy) ==="
             make -j2
