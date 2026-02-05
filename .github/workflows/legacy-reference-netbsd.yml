@@ -3,6 +3,7 @@ name: legacy-reference-netbsd
 on:
   push:
   pull_request:
+  workflow_dispatch:
 
 jobs:
   legacy-reference-netbsd:
