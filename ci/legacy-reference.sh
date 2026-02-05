@@ -150,19 +150,13 @@ configure_legacy() {
     export CONFTYPE="${CONFTYPE}"
   fi
 
-  if [ "$OS_NAME" = "linux" ]; then
-    local linux_variant="${VARIANT:-server}"
-    echo "configure: ./configure --${linux_variant} (CONFTYPE=${CONFTYPE:-unset})"
-    printf '\n%.0s' {1..40} | ./configure --"${linux_variant}"
+  local cfg_variant="${VARIANT:-server}"
+  if [ "$cfg_variant" = "client" ] || [ "$cfg_variant" = "localclient" ]; then
+    echo "configure: MAKE=${MAKE_BIN} ./configure.client"
+    printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.client
   else
-    local bsd_variant="${VARIANT:-server}"
-    if [ "$bsd_variant" = "client" ] || [ "$bsd_variant" = "localclient" ]; then
-      echo "configure: MAKE=${MAKE_BIN} ./configure.client"
-      printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.client
-    else
-      echo "configure: MAKE=${MAKE_BIN} ./configure.server"
-      printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
-    fi
+    echo "configure: MAKE=${MAKE_BIN} ./configure.server"
+    printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
   fi
 }
 
