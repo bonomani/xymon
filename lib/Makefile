@@ -15,12 +15,12 @@ XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buf
 XYMONCLIENTLIB = libxymonclient.a
 XYMONCLIENTLIBS = $(XYMONCLIENTLIB)
 XYMONCLIENTCOMMLIB = libxymonclientcomm.a
-XYMONCLIENTCOMMLIBS = $(XYMONCLIENTCOMMLIB) $(ZLIBLIBS) $(XYMONCLIENTLIB) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)
+XYMONCLIENTCOMMLIBS = $(XYMONCLIENTCOMMLIB) $(ZLIB_LIBRARY_FLAGS) $(XYMONCLIENTLIB) $(SSL_LIBRARY_FLAGS) $(NETLIBS) $(LIBRTDEF)
 
 XYMONLIB = libxymon.a
 XYMONLIBS = $(XYMONLIB)
 XYMONCOMMLIB = libxymoncomm.a
-XYMONCOMMLIBS = $(XYMONCOMMLIB) $(ZLIBLIBS) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)
+XYMONCOMMLIBS = $(XYMONCOMMLIB) $(ZLIB_LIBRARY_FLAGS) $(SSL_LIBRARY_FLAGS) $(NETLIBS) $(LIBRTDEF)
 XYMONTIMELIB = libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
@@ -58,22 +58,22 @@ loadhosts.o: loadhosts.c loadhosts_file.c loadhosts_net.c
 	$(CC) $(CFLAGS) -c -o $@ loadhosts.c
 
 eventlog.o: eventlog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 notifylog.o: notifylog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 acknowledgementslog.o: acknowledgementslog.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 headfoot.o: headfoot.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 loadalerts.o: loadalerts.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 matching.o: matching.c
-	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
+	$(CC) $(CFLAGS) $(PCRE_INCLUDE_DIR) -c -o $@ $<
 
 sha1.o: sha1.c
 	$(CC) $(CFLAGS) `./test-endianness` -c -o $@ $<

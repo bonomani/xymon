@@ -1,0 +1,68 @@
+# Metadata for CI dependency scripts and workflow validation.
+scripts:
+  ci/deps/install-gh-debian-packages.sh:
+    requires_flags: [--os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [gh-debian]
+      os: [ubuntu]
+      version: [latest]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/install-debian-packages.sh:
+    requires_flags: [--os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [debian]
+      os: [ubuntu]
+      version: [local]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/install-bsd-packages.sh:
+    requires_flags: [--os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [bsd]
+      os: [freebsd, netbsd, openbsd]
+      version: [auto]
+      pkgmgr: [pkg, pkg_add, pkgin]
+    outputs: [packages]
+
+  ci/deps/packages-gh-debian.sh:
+    accepts:
+      family: [gh-debian]
+      os: [ubuntu]
+      version: [latest]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/packages-debian.sh:
+    accepts:
+      family: [debian]
+      os: [ubuntu]
+      version: [local]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/packages-bsd.sh:
+    accepts:
+      family: [bsd]
+      os: [freebsd, netbsd, openbsd]
+      version: []
+      pkgmgr: [pkg, pkg_add, pkgin]
+    outputs: [packages]
+
+workflows:
+  enforce:
+    when_script_used:
+      ci/deps/install-gh-debian-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--os, --version]
+      ci/deps/install-debian-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--os, --version]
+      ci/deps/install-bsd-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--os, --version]
