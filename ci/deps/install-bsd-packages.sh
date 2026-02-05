@@ -176,7 +176,7 @@ mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}" "${ENABLE_SNMP}"
 
 if [[ "${VARIANT}" == "server" ]]; then
   :
-elif [[ "${VARIANT}" != "client" ]]; then
+elif [[ "${VARIANT}" != "client" && "${VARIANT}" != "localclient" ]]; then
   echo "Unknown VARIANT: ${VARIANT}"
   exit 1
 fi
