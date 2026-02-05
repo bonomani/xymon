@@ -45,7 +45,15 @@ jobs:
 
       - name: Legacy install (staged)
         run: |
-          DESTDIR=/tmp/legacy-ref make install
+          make install \
+            XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
+            XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
+            XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
+            XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
+            CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
+            SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
+            INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
+            INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
 
       - name: Generate legacy.ref
         run: |
@@ -186,7 +194,15 @@ jobs:
             make -j2
 
             echo "=== Install (legacy staged) ==="
-            DESTDIR=/tmp/legacy-ref make install
+            make install \
+              XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
+              XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
+              XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
+              XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
+              CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
+              SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
+              INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
+              INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
 
             echo "=== Generate legacy ref ==="
             XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
