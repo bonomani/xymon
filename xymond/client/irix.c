@@ -16,7 +16,9 @@ void handle_irix_client(char *hostname, char *clienttype, enum ostype_t os,
 			void *hinfo, char *sender, time_t timestamp,
 			char *clientdata)
 {
+#if defined(LOCALCLIENT) || !defined(CLIENTONLY)
 	static pcre *memptn = NULL;
+#endif
 	char *timestr;
 	char *uptimestr;
 	char *clockstr;
@@ -66,6 +68,7 @@ void handle_irix_client(char *hostname, char *clienttype, enum ostype_t os,
 	unix_ifstat_report(hostname, clienttype, os, hinfo, fromline, timestr, ifstatstr);
 	/* unix_sar_report(hostname, clienttype, os, hinfo, fromline, timestr, sarstr); */
 
+#if defined(LOCALCLIENT) || !defined(CLIENTONLY)
 	if (topstr) {
 		char *memline, *eoln = NULL;
 		int res;
@@ -119,7 +122,9 @@ void handle_irix_client(char *hostname, char *clienttype, enum ostype_t os,
 		unix_memory_report(hostname, clienttype, os, hinfo, fromline, timestr,
 				   memphystotal, memphysused, memacttotal, memactused, memswaptotal, memswapused);
 	}
+#else
+	/* CLIENTONLY builds don't require PCRE; skip IRIX memory parsing. */
+#endif
 
 	splitmsg_done();
 }
-
