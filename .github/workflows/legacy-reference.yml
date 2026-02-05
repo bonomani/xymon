@@ -11,109 +11,10 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install legacy build dependencies (apt)
-        run: |
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            make \
-            gcc \
-            git \
-            findutils \
-            libc-ares-dev \
-            libpcre3-dev \
-            libldap2-dev \
-            librrd-dev \
-            libssl-dev \
-            libtirpc-dev \
-            zlib1g-dev
-          useradd -m -s /bin/sh xymon
-
-      - name: Legacy configure
-        env:
-          ENABLESSL: y
-          ENABLELDAP: y
-          XYMONUSER: xymon
-          HTTPDGID: www-data
-          XYMONTOPDIR: /var/lib/xymon
-        run: |
-          ./configure
-
-      - name: Legacy build
-        run: |
-          make -j2
-
-      - name: Legacy install (staged)
-        run: |
-          make install \
-            XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
-            XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
-            XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
-            XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
-            CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
-            SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
-            INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
-            INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
-
-      - name: Generate legacy.ref
+      - name: Legacy reference (linux)
         shell: bash
         run: |
-          XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
-          if [ -z "$XYMONTOPDIR" ]; then
-            XYMONTOPDIR=/var/lib/xymon
-          fi
-          root="/tmp/legacy-ref${XYMONTOPDIR}"
-          if [ ! -d "$root" ]; then
-            cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
-            if [ -n "$cand" ]; then
-              topdir=$(dirname "$(dirname "$(dirname "$cand")")")
-              XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
-              root="$topdir"
-            fi
-          fi
-          if [ ! -d "$root" ]; then
-            echo "Missing $root"
-            exit 1
-          fi
-          find "$root" -print \
-            | sed 's|^/tmp/legacy-ref||' \
-            | sed "s|${XYMONTOPDIR}/$|${XYMONTOPDIR}|" \
-            | sort > /tmp/legacy.ref
-          cp /tmp/legacy.ref docs/cmake-legacy-migration/legacy.ref
-
-      - name: Generate legacy.keyfiles.sha256
-        shell: bash
-        run: |
-          XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
-          if [ -z "$XYMONTOPDIR" ]; then
-            XYMONTOPDIR=/var/lib/xymon
-          fi
-          root=/tmp/legacy-ref
-          if [ ! -d "/tmp/legacy-ref${XYMONTOPDIR}" ]; then
-            cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
-            if [ -n "$cand" ]; then
-              topdir=$(dirname "$(dirname "$(dirname "$cand")")")
-              XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
-            fi
-          fi
-          key_files=(
-            ${XYMONTOPDIR}/server/etc/xymonserver.cfg
-            ${XYMONTOPDIR}/server/etc/tasks.cfg
-            ${XYMONTOPDIR}/server/etc/cgioptions.cfg
-            ${XYMONTOPDIR}/server/etc/graphs.cfg
-            ${XYMONTOPDIR}/server/etc/client-local.cfg
-            ${XYMONTOPDIR}/server/etc/columndoc.csv
-            ${XYMONTOPDIR}/server/etc/protocols.cfg
-          )
-          : > /tmp/legacy.keyfiles.sha256
-          for f in "${key_files[@]}"; do
-            p="${root}${f}"
-            if [ ! -f "$p" ]; then
-              echo "MISSING $f" >> /tmp/legacy.keyfiles.sha256
-              continue
-            fi
-            sha256sum "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
-          done
+          bash ci/legacy-reference.sh --os linux
 
       - name: Upload legacy reference
         uses: actions/upload-artifact@v4
@@ -134,17 +35,14 @@ jobs:
               name: freebsd
               architecture: x86-64
               version: "15.0"
-            legacy_ref: docs/cmake-legacy-migration/legacy.freebsd.ref
           - os:
               name: openbsd
               architecture: x86-64
               version: "7.8"
-            legacy_ref: docs/cmake-legacy-migration/legacy.openbsd.ref
           - os:
               name: netbsd
               architecture: x86-64
               version: "10.1"
-            legacy_ref: docs/cmake-legacy-migration/legacy.netbsd.ref
     steps:
       - uses: actions/checkout@v4
       - name: Legacy reference (BSD) ${{ matrix.os.name }}
@@ -157,134 +55,11 @@ jobs:
           memory: 1024M
           cpu_count: 2
           run: |
-            set -euo pipefail
-            echo "=== Setup (BSD legacy reference) ==="
-            export VARIANT=server
-            export ENABLE_LDAP=ON
-            export ENABLE_SNMP=ON
-            bash ci/deps/install-bsd-packages.sh --os "${{ matrix.os.name }}" --version "${{ matrix.os.version }}"
-
-            case "${{ matrix.os.name }}" in
-              freebsd)
-                sudo pw groupadd www 2>/dev/null || true
-                sudo pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
-                ;;
-              netbsd|openbsd)
-                sudo groupadd www 2>/dev/null || true
-                sudo useradd -m -s /bin/sh xymon 2>/dev/null || true
-                ;;
-            esac
-
-            echo "=== Configure (legacy) ==="
-            export ENABLESSL=y
-            export ENABLELDAP=y
-            export XYMONUSER=xymon
-            export HTTPDGID=www
-            export XYMONTOPDIR=/var/lib/xymon
-            export CC=cc
-            if [ -x /usr/pkg/bin/gmake ]; then
-              export PATH="/usr/pkg/bin:${PATH}"
-            fi
-            if command -v gmake >/dev/null 2>&1; then
-              printf '\n%.0s' {1..40} | MAKE=gmake ./configure.server
-            else
-              printf '\n%.0s' {1..40} | ./configure.server
-            fi
-
-            echo "=== Build (legacy) ==="
-            CARESINCDIR=""
-            CARESLIBS=""
-            case "${{ matrix.os.name }}" in
-              freebsd|openbsd)
-                CARESINCDIR="-I/usr/local/include"
-                CARESLIBS="-L/usr/local/lib -lcares"
-                ;;
-              netbsd)
-                CARESINCDIR="-I/usr/pkg/include"
-                CARESLIBS="-L/usr/pkg/lib -lcares"
-                ;;
-            esac
-            if command -v gmake >/dev/null 2>&1; then
-              gmake -j2 CARESINCDIR="${CARESINCDIR}" CARESLIBS="${CARESLIBS}"
-            else
-              make -j2 CARESINCDIR="${CARESINCDIR}" CARESLIBS="${CARESLIBS}"
-            fi
-
-            echo "=== Install (legacy staged) ==="
-            if command -v gmake >/dev/null 2>&1; then
-              sudo gmake install \
-                XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
-                XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
-                XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
-                XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
-                CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
-                SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
-                INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
-                INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
-            else
-              sudo make install \
-                XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
-                XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
-                XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
-                XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
-                CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
-                SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
-                INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
-                INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
-            fi
-
-            echo "=== Generate legacy ref ==="
-            XYMONTOPDIR=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
-            if [ -z "$XYMONTOPDIR" ]; then
-              XYMONTOPDIR=/var/lib/xymon
-            fi
-            root="/tmp/legacy-ref${XYMONTOPDIR}"
-            if [ ! -d "$root" ]; then
-              cand=$(find /tmp/legacy-ref -path "*/server/etc/xymonserver.cfg" -print -quit)
-              if [ -n "$cand" ]; then
-                topdir=$(dirname "$(dirname "$(dirname "$cand")")")
-                XYMONTOPDIR="${topdir#/tmp/legacy-ref}"
-                root="$topdir"
-              fi
-            fi
-            if [ ! -d "$root" ]; then
-              echo "Missing $root"
-              exit 1
-            fi
-            find "$root" -print \
-              | sed 's|^/tmp/legacy-ref||' \
-              | sed "s|${XYMONTOPDIR}/$|${XYMONTOPDIR}|" \
-              | sort > /tmp/legacy.ref
-            cp /tmp/legacy.ref "${{ matrix.legacy_ref }}"
-
-            echo "=== Generate keyfile hashes ==="
-            key_ref="${{ matrix.legacy_ref }}"
-            key_ref="${key_ref%.ref}.keyfiles.sha256"
-            key_files=(
-              ${XYMONTOPDIR}/server/etc/xymonserver.cfg
-              ${XYMONTOPDIR}/server/etc/tasks.cfg
-              ${XYMONTOPDIR}/server/etc/cgioptions.cfg
-              ${XYMONTOPDIR}/server/etc/graphs.cfg
-              ${XYMONTOPDIR}/server/etc/client-local.cfg
-              ${XYMONTOPDIR}/server/etc/columndoc.csv
-              ${XYMONTOPDIR}/server/etc/protocols.cfg
-            )
-            : > /tmp/legacy.keyfiles.sha256
-            for f in "${key_files[@]}"; do
-              p="/tmp/legacy-ref${f}"
-              if [ ! -f "$p" ]; then
-                echo "MISSING $f" >> /tmp/legacy.keyfiles.sha256
-                continue
-              fi
-              if command -v sha256sum >/dev/null 2>&1; then
-                sha256sum "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
-              elif command -v shasum >/dev/null 2>&1; then
-                shasum -a 256 "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
-              fi
-            done
-            if [ -s /tmp/legacy.keyfiles.sha256 ]; then
-              cp /tmp/legacy.keyfiles.sha256 "$key_ref"
-            fi
+            bash ci/legacy-reference.sh \
+              --os "${{ matrix.os.name }}" \
+              --version "${{ matrix.os.version }}" \
+              --ref-name "legacy.${{ matrix.os.name }}.ref" \
+              --keyfiles-name "legacy.${{ matrix.os.name }}.keyfiles.sha256"
 
       - name: Upload legacy reference (BSD)
         if: always()
@@ -292,6 +67,6 @@ jobs:
         with:
           name: legacy-reference-bsd-${{ matrix.os.name }}
           path: |
-            /tmp/legacy.ref
-            /tmp/legacy.keyfiles.sha256
-            ${{ matrix.legacy_ref }}
+            /tmp/legacy.${{ matrix.os.name }}.ref
+            /tmp/legacy.${{ matrix.os.name }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.${{ matrix.os.name }}.ref
