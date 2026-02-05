@@ -23,6 +23,8 @@ XYMONCOMMLIBS = $(XYMONCOMMLIB) $(SSLLIBS) $(NETLIBS) $(ZLIBLIBS) $(LIBRTDEF)
 XYMONTIMELIB = ../lib/libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
+override CFLAGS += -I../include
+
 all: $(PROGRAMS)
 
 client: $(CLIENTPROGRAMS)
@@ -118,4 +120,3 @@ endif
 	cp -fp *.5 $(INSTALLROOT)$(MANROOT)/man5/
 	cp -fp *.7 $(INSTALLROOT)$(MANROOT)/man7/
 	cp -fp *.8 $(INSTALLROOT)$(MANROOT)/man8/
-
