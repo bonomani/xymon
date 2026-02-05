@@ -7,14 +7,20 @@ XYMONCOMMLIBOBJS = $(XYMONLIBOBJS) loadhosts.o locator.o sendmsg.o xymond_ipc.o 
 XYMONTIMELIBOBJS = run.o timing.o
 
 CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o environ-client.o errormsg.o holidays.o ipaccess.o md5.o memory.o misc.o msort.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc-client.o tree.o clientlocal.o
-ifeq ($(LOCALCLIENT),yes)
+
+PCRE_OBJS = matching.o clientlocal.o loadalerts.o
+CLIENTONLY := $(findstring -DCLIENTONLY,$(CFLAGS))
+LOCALCLIENT_YES := $(filter yes,$(LOCALCLIENT))
+
+ifeq ($(LOCALCLIENT_YES),yes)
 	CLIENTLIBOBJS += matching.o
 endif
+
 # CLIENTONLY builds don't have (or need) PCRE-based config parsing.
-ifneq (,$(findstring -DCLIENTONLY,$(CFLAGS)))
-ifneq ($(LOCALCLIENT),yes)
+ifneq ($(CLIENTONLY),)
+ifneq ($(LOCALCLIENT_YES),yes)
 	CLIENTLIBOBJS := $(filter-out clientlocal.o matching.o,$(CLIENTLIBOBJS))
-	XYMONLIBOBJS := $(filter-out clientlocal.o matching.o loadalerts.o,$(XYMONLIBOBJS))
+	XYMONLIBOBJS := $(filter-out $(PCRE_OBJS),$(XYMONLIBOBJS))
 endif
 endif
 XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buffer.o
