@@ -7,6 +7,10 @@ jobs:
   legacy-reference-freebsd:
     name: legacy-reference-freebsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
+    env:
+      OS: freebsd
+      VERSION: "15.0"
+      REF_PREFIX: legacy.freebsd.
     strategy:
       fail-fast: false
       matrix:
@@ -30,21 +34,19 @@ jobs:
       - name: Generate legacy references
         uses: cross-platform-actions/action@v0.32.0
         with:
-          operating_system: freebsd
+          operating_system: ${{ env.OS }}
           architecture: x86-64
-          version: "15.0"
+          version: ${{ env.VERSION }}
           shell: bash
           memory: 1024M
           cpu_count: 2
           env: |
-            OS=freebsd
-            VERSION=15.0
             VARIANT=${{ matrix.variant }}
             CONFTYPE=${{ matrix.conftype }}
             REF_SUFFIX=${{ matrix.ref_suffix }}
           run: |
-            ref_name="legacy.${OS}.${REF_SUFFIX}.ref"
-            key_name="legacy.${OS}.${REF_SUFFIX}.keyfiles.sha256"
+            ref_name="${REF_PREFIX}${REF_SUFFIX}.ref"
+            key_name="${REF_PREFIX}${REF_SUFFIX}.keyfiles.sha256"
             args=(--os "${OS}" --version "${VERSION}" --ref-name "${ref_name}" --keyfiles-name "${key_name}" --variant "${VARIANT}")
             if [ -n "${CONFTYPE}" ]; then
               args+=(--conftype "${CONFTYPE}")
@@ -54,13 +56,10 @@ jobs:
           shutdown_vm: true
 
       - name: Upload legacy references
-        env:
-          OS: freebsd
-          REF_SUFFIX: ${{ matrix.ref_suffix }}
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-${{ env.OS }}-${{ env.REF_SUFFIX }}
+          name: legacy-reference-${{ env.OS }}-${{ matrix.ref_suffix }}
           path: |
-            docs/cmake-legacy-migration/legacy.${{ env.OS }}.${{ env.REF_SUFFIX }}.ref
-            docs/cmake-legacy-migration/legacy.${{ env.OS }}.${{ env.REF_SUFFIX }}.keyfiles.sha256
+            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.ref
+            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.keyfiles.sha256
           if-no-files-found: error
