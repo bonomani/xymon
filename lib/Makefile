@@ -11,6 +11,12 @@ CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o
 PCRE_OBJS = matching.o clientlocal.o loadalerts.o
 CLIENTONLY := $(findstring -DCLIENTONLY,$(CFLAGS))
 LOCALCLIENT_YES := $(filter yes,$(LOCALCLIENT))
+NEED_PCRE := yes
+ifneq ($(CLIENTONLY),)
+ifneq ($(LOCALCLIENT_YES),yes)
+	NEED_PCRE := no
+endif
+endif
 
 # Provide a fallback for PCRE include dir on BSD if configure did not set it.
 ifeq ($(strip $(PCREINCDIR)),)
@@ -26,11 +32,9 @@ ifeq ($(LOCALCLIENT_YES),yes)
 endif
 
 # CLIENTONLY builds don't have (or need) PCRE-based config parsing.
-ifneq ($(CLIENTONLY),)
-ifneq ($(LOCALCLIENT_YES),yes)
+ifneq ($(NEED_PCRE),yes)
 	CLIENTLIBOBJS := $(filter-out clientlocal.o matching.o,$(CLIENTLIBOBJS))
 	XYMONLIBOBJS := $(filter-out $(PCRE_OBJS),$(XYMONLIBOBJS))
-endif
 endif
 XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buffer.o
 
@@ -138,7 +142,7 @@ sha1: sha1.c
 rmd160: rmd160c.c
 	$(CC) $(CFLAGS) -DSTANDALONE `./test-endianness` -o $@ rmd160c.c
 
-locator: locator.c $(XYMONCOMMLIB) $(XYMONLIB)
+locator: locator.c
 	$(CC) $(CFLAGS) -DSTANDALONE -o $@ locator.c $(XYMONCOMMLIBS) $(XYMONLIBS)
 
 tree: tree.c
