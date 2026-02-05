@@ -174,7 +174,11 @@ build_legacy() {
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
   if [ "${VARIANT:-server}" = "client" ]; then
-    "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" client
+    if [ "${CONFTYPE:-}" = "server" ]; then
+      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" CFLAGS="-DLOCALCLIENT=0" PCRELIBS="-lpcre" client
+    else
+      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" client
+    fi
   else
     "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
   fi
