@@ -85,9 +85,6 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-}" = "localclient" ]; then
-        VARIANT="client"
-      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
@@ -104,9 +101,6 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-}" = "localclient" ]; then
-        VARIANT="client"
-      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
@@ -123,9 +117,6 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
-      if [ "${VARIANT:-}" = "localclient" ]; then
-        VARIANT="client"
-      fi
       export VARIANT="${VARIANT:-server}"
       if [ "${VARIANT}" = "server" ]; then
         export ENABLE_LDAP=ON
@@ -165,7 +156,7 @@ configure_legacy() {
     printf '\n%.0s' {1..40} | ./configure --"${linux_variant}"
   else
     local bsd_variant="${VARIANT:-server}"
-    if [ "$bsd_variant" = "client" ]; then
+    if [ "$bsd_variant" = "client" ] || [ "$bsd_variant" = "localclient" ]; then
       echo "configure: MAKE=${MAKE_BIN} ./configure.client"
       printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.client
     else
