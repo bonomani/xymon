@@ -15,7 +15,7 @@ jobs:
             variant: server
             ref_suffix: server
           - name: client ct-client
-            variant: client
+            variant: localclient
             conftype: client
             ref_suffix: client.ct-client
           - name: client ct-server
