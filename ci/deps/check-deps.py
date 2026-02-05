@@ -17,6 +17,7 @@ ROOT = Path(__file__).resolve().parents[2]
 DATA_DIR = ROOT / "ci" / "deps" / "data"
 FILES = [
     DATA_DIR / "deps-client.yaml",
+    DATA_DIR / "deps-localclient.yaml",
     DATA_DIR / "deps-server.yaml",
 ]
 MAP_FILE = DATA_DIR / "deps-map.yaml"
