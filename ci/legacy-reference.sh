@@ -137,6 +137,7 @@ configure_legacy() {
 
   if [ "$OS_NAME" = "linux" ]; then
     local linux_variant="${VARIANT:-server}"
+    echo "configure: ./configure --${linux_variant} (CONFTYPE=${CONFTYPE:-unset})"
     printf '\n%.0s' {1..40} | ./configure --"${linux_variant}"
   else
     printf '\n%.0s' {1..40} | MAKE="${MAKE_BIN}" ./configure.server
