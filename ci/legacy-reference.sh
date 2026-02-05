@@ -150,6 +150,12 @@ configure_legacy() {
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
+  if [ -z "${CONFTYPE}" ]; then
+    case "${VARIANT:-server}" in
+      client) CONFTYPE="server" ;;
+      localclient) CONFTYPE="client" ;;
+    esac
+  fi
   if [ -n "${CONFTYPE}" ]; then
     export CONFTYPE="${CONFTYPE}"
   fi

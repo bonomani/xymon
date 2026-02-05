@@ -15,10 +15,8 @@ jobs:
             variant: server
           - name: client ct-client
             variant: localclient
-            conftype: client
           - name: client ct-server
             variant: client
-            conftype: server
 
     steps:
       - name: Checkout
@@ -36,9 +34,6 @@ jobs:
           run: |
             ref_base="legacy.netbsd.${{ matrix.variant }}"
             args=(--os netbsd --version "10.1" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
-            if [ -n "${{ matrix.conftype }}" ]; then
-              args+=(--conftype "${{ matrix.conftype }}")
-            fi
             bash ci/legacy-reference.sh "${args[@]}"
           sync_files: true
           shutdown_vm: true
