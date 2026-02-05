@@ -175,7 +175,12 @@ build_legacy() {
   fi
   if [ "${VARIANT:-server}" = "client" ]; then
     if [ "${CONFTYPE:-}" = "server" ]; then
-      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" CFLAGS="-DLOCALCLIENT=0" PCRELIBS="-lpcre" client
+      local base_cflags=""
+      base_cflags=$(awk -F ' = ' '/^CFLAGS[[:space:]]*=/{print $2; exit}' Makefile 2>/dev/null || true)
+      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+        CFLAGS="${base_cflags} -DLOCALCLIENT=0" \
+        PCRELIBS="-lpcre" \
+        client
     else
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" client
     fi
