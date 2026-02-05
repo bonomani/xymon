@@ -6,9 +6,31 @@ XYMONLIBOBJS = osdefs.o acklog.o availability.o calc.o cgi.o cgiurls.o clientloc
 XYMONCOMMLIBOBJS = $(XYMONLIBOBJS) loadhosts.o locator.o sendmsg.o xymond_ipc.o xymond_buffer.o
 XYMONTIMELIBOBJS = run.o timing.o
 
-CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o environ-client.o errormsg.o holidays.o ipaccess.o md5.o memory.o misc.o msort.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc-client.o tree.o
-ifeq ($(LOCALCLIENT),yes)
+CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o environ-client.o errormsg.o holidays.o ipaccess.o md5.o memory.o misc.o msort.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc-client.o tree.o clientlocal.o
+
+PCRE_OBJS = matching.o clientlocal.o loadalerts.o
+CLIENTONLY := $(findstring -DCLIENTONLY,$(CFLAGS))
+LOCALCLIENT_YES := $(filter yes,$(LOCALCLIENT))
+
+# Provide a fallback for PCRE include dir on BSD if configure did not set it.
+ifeq ($(strip $(PCREINCDIR)),)
+ifneq (,$(wildcard /usr/local/include/pcre.h))
+	PCREINCDIR := -I/usr/local/include
+else ifneq (,$(wildcard /usr/pkg/include/pcre.h))
+	PCREINCDIR := -I/usr/pkg/include
+endif
+endif
+
+ifeq ($(LOCALCLIENT_YES),yes)
 	CLIENTLIBOBJS += matching.o
+endif
+
+# CLIENTONLY builds don't have (or need) PCRE-based config parsing.
+ifneq ($(CLIENTONLY),)
+ifneq ($(LOCALCLIENT_YES),yes)
+	CLIENTLIBOBJS := $(filter-out clientlocal.o matching.o,$(CLIENTLIBOBJS))
+	XYMONLIBOBJS := $(filter-out $(PCRE_OBJS),$(XYMONLIBOBJS))
+endif
 endif
 XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buffer.o
 
@@ -25,11 +47,16 @@ XYMONTIMELIB = libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
 
-CFLAGS += -I../include 
+CONFIG_H = ../include/config.h
 
-all: test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree
+override CFLAGS += -I../include $(PCREINCDIR)
 
-client: test-endianness $(XYMONCLIENTLIB) $(XYMONCLIENTCOMMLIB) $(XYMONTIMELIB)
+all: $(CONFIG_H) test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree
+
+client: $(CONFIG_H) test-endianness $(XYMONCLIENTLIB) $(XYMONCLIENTCOMMLIB) $(XYMONTIMELIB)
+
+$(CONFIG_H):
+	MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" ../build/genconfig.sh
 
 test-endianness: test-endianness.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -119,4 +146,3 @@ tree: tree.c
 
 clean:
 	rm -f *.o *.a *~ loadhosts stackio availability test-endianness md5 sha1 rmd160 locator tree
-
