@@ -23,7 +23,7 @@ XYMONCOMMLIBS = $(XYMONCOMMLIB) $(SSLLIBS) $(NETLIBS) $(ZLIBLIBS) $(LIBRTDEF)
 XYMONTIMELIB = ../lib/libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
-override CFLAGS += -I../include
+override CFLAGS += -I../include $(PCREINCDIR)
 
 all: $(PROGRAMS)
 
