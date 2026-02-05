@@ -85,6 +85,10 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-server}" != "server" ]; then
+        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
+        exit 1
+      fi
       export VARIANT=server
       export ENABLE_LDAP=ON
       export ENABLE_SNMP=ON
@@ -96,6 +100,10 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-server}" != "server" ]; then
+        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
+        exit 1
+      fi
       export VARIANT=server
       export ENABLE_LDAP=ON
       export ENABLE_SNMP=ON
@@ -107,6 +115,10 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      if [ "${VARIANT:-server}" != "server" ]; then
+        echo "BSD legacy references are server-only; invalid variant: ${VARIANT}" >&2
+        exit 1
+      fi
       export VARIANT=server
       export ENABLE_LDAP=ON
       export ENABLE_SNMP=ON
@@ -233,7 +245,11 @@ write_refs() {
 
   if [ -z "$REF_NAME" ]; then
     if [ "$OS_NAME" = "linux" ]; then
-      REF_NAME="legacy.ref"
+      if [ "${VARIANT:-server}" = "server" ]; then
+        REF_NAME="legacy.linux.server.ref"
+      else
+        REF_NAME="legacy.linux.${VARIANT}.ref"
+      fi
     else
       REF_NAME="legacy.${OS_NAME}.ref"
     fi
@@ -241,7 +257,11 @@ write_refs() {
 
   if [ -z "$KEYFILES_NAME" ]; then
     if [ "$OS_NAME" = "linux" ]; then
-      KEYFILES_NAME="legacy.keyfiles.sha256"
+      if [ "${VARIANT:-server}" = "server" ]; then
+        KEYFILES_NAME="legacy.linux.server.keyfiles.sha256"
+      else
+        KEYFILES_NAME="legacy.linux.${VARIANT}.keyfiles.sha256"
+      fi
     else
       KEYFILES_NAME="legacy.${OS_NAME}.keyfiles.sha256"
     fi
@@ -252,6 +272,10 @@ write_refs() {
     | sed "s|${topdir}/$|${topdir}|" \
     | sort > "/tmp/${REF_NAME}"
 
+  if [ "${VARIANT:-server}" = "client" ]; then
+    : > "/tmp/${KEYFILES_NAME}"
+    echo "# Client variant: server keyfiles are not generated." >> "/tmp/${KEYFILES_NAME}"
+  else
   local key_files=(
     "${topdir}/server/etc/xymonserver.cfg"
     "${topdir}/server/etc/tasks.cfg"
@@ -271,6 +295,7 @@ write_refs() {
     fi
     printf '%s  %s\n' "$(sha256_of "$p")" "$f" >> "/tmp/${KEYFILES_NAME}"
   done
+  fi
 
   if [ -d docs/cmake-legacy-migration ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/${REF_NAME}" || true
