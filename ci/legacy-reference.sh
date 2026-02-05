@@ -75,6 +75,9 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      export VARIANT=server
+      export ENABLE_LDAP=ON
+      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root pw groupadd www 2>/dev/null || true
       as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
@@ -83,6 +86,9 @@ setup_os() {
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      export VARIANT=server
+      export ENABLE_LDAP=ON
+      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
@@ -91,6 +97,9 @@ setup_os() {
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
       HTTPDGID="www"
+      export VARIANT=server
+      export ENABLE_LDAP=ON
+      export ENABLE_SNMP=ON
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
