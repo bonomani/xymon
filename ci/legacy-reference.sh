@@ -88,6 +88,9 @@ setup_os() {
       if [ "${VARIANT:-server}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
+      else
+        export ENABLE_LDAP=OFF
+        export ENABLE_SNMP=OFF
       fi
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root pw groupadd www 2>/dev/null || true
@@ -100,6 +103,9 @@ setup_os() {
       if [ "${VARIANT:-server}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
+      else
+        export ENABLE_LDAP=OFF
+        export ENABLE_SNMP=OFF
       fi
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
@@ -112,6 +118,9 @@ setup_os() {
       if [ "${VARIANT:-server}" = "server" ]; then
         export ENABLE_LDAP=ON
         export ENABLE_SNMP=ON
+      else
+        export ENABLE_LDAP=OFF
+        export ENABLE_SNMP=OFF
       fi
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
