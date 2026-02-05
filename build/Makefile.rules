@@ -16,7 +16,7 @@ ifeq ($(CLIENTONLY),yes)
 	XYMONCLIENTHOME = $(XYMONTOPDIR)
 	XYMONHOME = $(XYMONTOPDIR)
 ifeq ($(LOCALCLIENT),yes)
-	CLIENTTARGETS = lib-client common-client build-build xymond-client
+	CLIENTTARGETS = lib-client common-client build-build
 	INSTALLTARGETS = install-client install-localclient install-clientmsg
 	CFLAGS += -DLOCALCLIENT=1 $(PCREINCDIR)
 else
