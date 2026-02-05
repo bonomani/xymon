@@ -10,6 +10,15 @@
 
 CFLAGS += -I../include
 
+# Provide a fallback for PCRE include dir on BSD if configure did not set it.
+ifeq ($(strip $(PCREINCDIR)),)
+ifneq (,$(wildcard /usr/local/include/pcre.h))
+	PCREINCDIR := -I/usr/local/include
+else ifneq (,$(wildcard /usr/pkg/include/pcre.h))
+	PCREINCDIR := -I/usr/pkg/include
+endif
+endif
+
 ifeq ($(CLIENTONLY),yes)
 	BUILDTARGETS = client
 	CFLAGS += -DCLIENTONLY=1
@@ -22,6 +31,7 @@ ifeq ($(LOCALCLIENT),yes)
 else
 	CLIENTTARGETS = lib-client common-client build-build
 	INSTALLTARGETS = install-client install-clientmsg
+	CFLAGS += $(PCREINCDIR)
 endif
 else
 	BUILDTARGETS = lib-build common-build xymongen-build xymonnet-build xymonproxy-build docs-build build-build xymond-build web-build client
