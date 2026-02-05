@@ -181,6 +181,7 @@ jobs:
             export XYMONUSER=xymon
             export HTTPDGID=www
             export XYMONTOPDIR=/var/lib/xymon
+            export CC=cc
             if [ -x /usr/pkg/bin/gmake ]; then
               export PATH="/usr/pkg/bin:${PATH}"
             fi
