@@ -1,9 +1,6 @@
 TOOLS = merge-lines merge-sects setup-newfiles renamevars renametasks
 
-all: ../lib/libxymonclient.a $(TOOLS)
-
-../lib/libxymonclient.a:
-	$(MAKE) -C ../lib client
+all: $(TOOLS)
 
 merge-lines: merge-lines.c
 	$(CC) -o $@ $(CFLAGS) $<
@@ -11,8 +8,7 @@ merge-lines: merge-lines.c
 merge-sects: merge-sects.c
 	$(CC) -o $@ $(CFLAGS) $<
 
-setup-newfiles: setup-newfiles.c ../lib/libxymonclient.a
-	$(MAKE) -C ../lib client
+setup-newfiles: setup-newfiles.c
 	$(CC) -o $@ $(CFLAGS) $< ../lib/libxymonclient.a
 
 renamevars: renamevars.c
@@ -23,3 +19,4 @@ renametasks: renametasks.c
 
 clean:
 	rm -f $(TOOLS) testfile *.o *~
+
