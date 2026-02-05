@@ -48,9 +48,37 @@ jobs:
 
       - name: Generate legacy.ref
         run: |
-          find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+          root=/tmp/legacy-ref/var/lib/xymon
+          if [ ! -d "$root" ]; then
+            echo "Missing $root"
+            exit 1
+          fi
+          find "$root" -print \
+            | sed 's|^/tmp/legacy-ref||' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
             | sort > /tmp/legacy.ref
+
+      - name: Generate legacy.keyfiles.sha256
+        run: |
+          root=/tmp/legacy-ref
+          key_files=(
+            /var/lib/xymon/server/etc/xymonserver.cfg
+            /var/lib/xymon/server/etc/tasks.cfg
+            /var/lib/xymon/server/etc/cgioptions.cfg
+            /var/lib/xymon/server/etc/graphs.cfg
+            /var/lib/xymon/server/etc/client-local.cfg
+            /var/lib/xymon/server/etc/columndoc.csv
+            /var/lib/xymon/server/etc/protocols.cfg
+          )
+          : > /tmp/legacy.keyfiles.sha256
+          for f in "${key_files[@]}"; do
+            p="${root}${f}"
+            if [ ! -f "$p" ]; then
+              echo "MISSING $f" >> /tmp/legacy.keyfiles.sha256
+              continue
+            fi
+            sha256sum "$p" | sed "s|$p|$f|" >> /tmp/legacy.keyfiles.sha256
+          done
 
       - name: Upload legacy reference
         uses: actions/upload-artifact@v4
@@ -58,4 +86,5 @@ jobs:
           name: legacy-reference
           path: |
             /tmp/legacy.ref
-            /tmp/var/lib/xymon
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy-ref/var/lib/xymon
