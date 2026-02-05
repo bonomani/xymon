@@ -7,14 +7,6 @@ jobs:
   legacy-reference-netbsd:
     name: legacy-reference-netbsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
-    env:
-      OS: netbsd
-      VERSION: "10.1"
-      REF_PREFIX: legacy.netbsd.
-      ARCH: x86-64
-      SHELL: bash
-      MEMORY: 1024M
-      CPU_COUNT: "2"
     strategy:
       fail-fast: false
       matrix:
@@ -38,12 +30,12 @@ jobs:
       - name: Generate legacy references
         uses: cross-platform-actions/action@v0.32.0
         with:
-          operating_system: ${{ env.OS }}
-          architecture: ${{ env.ARCH }}
-          version: ${{ env.VERSION }}
-          shell: ${{ env.SHELL }}
-          memory: ${{ env.MEMORY }}
-          cpu_count: ${{ env.CPU_COUNT }}
+          operating_system: netbsd
+          architecture: x86-64
+          version: "10.1"
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
           run: |
             ref_base="legacy.netbsd.${{ matrix.ref_suffix }}"
             args=(--os netbsd --version "10.1" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
@@ -57,8 +49,8 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-${{ env.OS }}-${{ matrix.ref_suffix }}
+          name: legacy-reference-netbsd-${{ matrix.ref_suffix }}
           path: |
-            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.ref
-            docs/cmake-legacy-migration/${{ env.REF_PREFIX }}${{ matrix.ref_suffix }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.netbsd.${{ matrix.ref_suffix }}.ref
+            docs/cmake-legacy-migration/legacy.netbsd.${{ matrix.ref_suffix }}.keyfiles.sha256
           if-no-files-found: error
