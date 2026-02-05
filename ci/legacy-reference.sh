@@ -62,22 +62,26 @@ as_root() {
 setup_os() {
   case "$OS_NAME" in
     linux)
-      CARES_PREFIX="/usr"
       HTTPDGID="www-data"
-      as_root apt-get update
-      DEBIAN_FRONTEND=noninteractive as_root apt-get install -y \
-        build-essential \
-        make \
-        gcc \
-        git \
-        findutils \
-        libc-ares-dev \
-        libpcre3-dev \
-        libldap2-dev \
-        librrd-dev \
-        libssl-dev \
-        libtirpc-dev \
-        zlib1g-dev
+      MAKE_BIN="gmake"
+      export VARIANT="${VARIANT:-server}"
+      if [ "${VARIANT}" = "server" ]; then
+        export ENABLE_LDAP=ON
+        export ENABLE_SNMP=ON
+      else
+        export ENABLE_LDAP=OFF
+        export ENABLE_SNMP=OFF
+      fi
+      bash ci/deps/install-debian-packages.sh --os ubuntu --version local
+      if ! command -v gmake >/dev/null 2>&1; then
+        if command -v make >/dev/null 2>&1; then
+          as_root ln -sf "$(command -v make)" /usr/local/bin/gmake
+        fi
+      fi
+      CARES_PREFIX="/usr/local"
+      if [ ! -f "${CARES_PREFIX}/include/ares.h" ]; then
+        CARES_PREFIX="/usr"
+      fi
       as_root groupadd -f www-data 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
