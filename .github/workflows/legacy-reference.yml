@@ -166,12 +166,12 @@ jobs:
 
             case "${{ matrix.os.name }}" in
               freebsd)
-                pw groupadd www 2>/dev/null || true
-                pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+                sudo pw groupadd www 2>/dev/null || true
+                sudo pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
                 ;;
               netbsd|openbsd)
-                groupadd www 2>/dev/null || true
-                useradd -m -s /bin/sh xymon 2>/dev/null || true
+                sudo groupadd www 2>/dev/null || true
+                sudo useradd -m -s /bin/sh xymon 2>/dev/null || true
                 ;;
             esac
 
@@ -212,7 +212,7 @@ jobs:
 
             echo "=== Install (legacy staged) ==="
             if command -v gmake >/dev/null 2>&1; then
-              gmake install \
+              sudo gmake install \
                 XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
                 XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
                 XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
@@ -222,15 +222,15 @@ jobs:
                 INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
                 INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
             else
-              make install \
-              XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
-              XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
-              XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
-              XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
-              CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
-              SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
-              INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
-              INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
+              sudo make install \
+                XYMONTOPDIR=/tmp/legacy-ref/var/lib/xymon \
+                XYMONHOME=/tmp/legacy-ref/var/lib/xymon/server \
+                XYMONVAR=/tmp/legacy-ref/var/lib/xymon/data \
+                XYMONLOGDIR=/tmp/legacy-ref/var/log/xymon \
+                CGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-bin \
+                SECURECGIDIR=/tmp/legacy-ref/var/lib/xymon/cgi-secure \
+                INSTALLWWWDIR=/tmp/legacy-ref/var/lib/xymon/server/www \
+                INSTALLETCDIR=/tmp/legacy-ref/var/lib/xymon/server/etc
             fi
 
             echo "=== Generate legacy ref ==="
