@@ -162,6 +162,7 @@ build_legacy() {
 install_staged() {
   if [ "${VARIANT:-server}" = "client" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
+      CLIENTTARGETS="lib-client common-client" \
       XYMONTOPDIR="${LEGACY_STAGING}${DEFAULT_TOP}" \
       XYMONHOME="${LEGACY_STAGING}${DEFAULT_TOP}" \
       XYMONCLIENTHOME="${LEGACY_STAGING}${DEFAULT_TOP}" \
