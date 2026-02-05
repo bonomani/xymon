@@ -222,14 +222,12 @@ fi
 if [[ "${PKG_MGR}" == "pkg_add" ]]; then
   resolved=()
   for pkg in "${PKG_PKG_ADD[@]}"; do
-    if [[ "${pkg}" == "gcc" ]]; then
-      picked="$(pick_pkg_add_variant "${pkg}")" || true
-      if [[ -n "${picked}" ]]; then
-        resolved+=("${picked}")
-        continue
-      fi
+    picked="$(pick_pkg_add_variant "${pkg}")" || true
+    if [[ -n "${picked}" ]]; then
+      resolved+=("${picked}")
+    else
+      resolved+=("${pkg}")
     fi
-    resolved+=("${pkg}")
   done
   PKG_PKG_ADD=("${resolved[@]}")
 fi
