@@ -69,19 +69,30 @@ as_root() {
   fi
 }
 
+set_variant_flags() {
+  export VARIANT="${VARIANT:-server}"
+  if [ "${VARIANT}" = "server" ]; then
+    export ENABLE_LDAP=ON
+    export ENABLE_SNMP=ON
+  else
+    export ENABLE_LDAP=OFF
+    export ENABLE_SNMP=OFF
+  fi
+}
+
+setup_bsd_common() {
+  MAKE_BIN="gmake"
+  HTTPDGID="www"
+  set_variant_flags
+  bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+}
+
 setup_os() {
   case "$OS_NAME" in
     linux)
       HTTPDGID="www-data"
       MAKE_BIN="gmake"
-      export VARIANT="${VARIANT:-server}"
-      if [ "${VARIANT}" = "server" ]; then
-        export ENABLE_LDAP=ON
-        export ENABLE_SNMP=ON
-      else
-        export ENABLE_LDAP=OFF
-        export ENABLE_SNMP=OFF
-      fi
+      set_variant_flags
       bash ci/deps/install-debian-packages.sh --os ubuntu --version local
       if ! command -v gmake >/dev/null 2>&1; then
         if command -v make >/dev/null 2>&1; then
@@ -97,49 +108,19 @@ setup_os() {
       ;;
     freebsd)
       CARES_PREFIX="/usr/local"
-      MAKE_BIN="gmake"
-      HTTPDGID="www"
-      export VARIANT="${VARIANT:-server}"
-      if [ "${VARIANT}" = "server" ]; then
-        export ENABLE_LDAP=ON
-        export ENABLE_SNMP=ON
-      else
-        export ENABLE_LDAP=OFF
-        export ENABLE_SNMP=OFF
-      fi
-      bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+      setup_bsd_common
       as_root pw groupadd www 2>/dev/null || true
       as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
       ;;
     openbsd)
       CARES_PREFIX="/usr/local"
-      MAKE_BIN="gmake"
-      HTTPDGID="www"
-      export VARIANT="${VARIANT:-server}"
-      if [ "${VARIANT}" = "server" ]; then
-        export ENABLE_LDAP=ON
-        export ENABLE_SNMP=ON
-      else
-        export ENABLE_LDAP=OFF
-        export ENABLE_SNMP=OFF
-      fi
-      bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+      setup_bsd_common
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
     netbsd)
       CARES_PREFIX="/usr/pkg"
-      MAKE_BIN="gmake"
-      HTTPDGID="www"
-      export VARIANT="${VARIANT:-server}"
-      if [ "${VARIANT}" = "server" ]; then
-        export ENABLE_LDAP=ON
-        export ENABLE_SNMP=ON
-      else
-        export ENABLE_LDAP=OFF
-        export ENABLE_SNMP=OFF
-      fi
-      bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+      setup_bsd_common
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       if [ -x /usr/pkg/bin/gmake ]; then
