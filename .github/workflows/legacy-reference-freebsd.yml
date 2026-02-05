@@ -36,22 +36,31 @@ jobs:
           shell: bash
           memory: 1024M
           cpu_count: 2
+          env: |
+            OS=freebsd
+            VERSION=15.0
+            VARIANT=${{ matrix.variant }}
+            CONFTYPE=${{ matrix.conftype }}
+            REF_SUFFIX=${{ matrix.ref_suffix }}
           run: |
-            ref_name="legacy.freebsd.${{ matrix.ref_suffix }}.ref"
-            key_name="legacy.freebsd.${{ matrix.ref_suffix }}.keyfiles.sha256"
-            args=(--os freebsd --version "15.0" --ref-name "$ref_name" --keyfiles-name "$key_name" --variant "${{ matrix.variant }}")
-            if [ -n "${{ matrix.conftype }}" ]; then
-              args+=(--conftype "${{ matrix.conftype }}")
+            ref_name="legacy.${OS}.${REF_SUFFIX}.ref"
+            key_name="legacy.${OS}.${REF_SUFFIX}.keyfiles.sha256"
+            args=(--os "${OS}" --version "${VERSION}" --ref-name "${ref_name}" --keyfiles-name "${key_name}" --variant "${VARIANT}")
+            if [ -n "${CONFTYPE}" ]; then
+              args+=(--conftype "${CONFTYPE}")
             fi
             bash ci/legacy-reference.sh "${args[@]}"
           sync_files: true
           shutdown_vm: true
 
       - name: Upload legacy references
+        env:
+          OS: freebsd
+          REF_SUFFIX: ${{ matrix.ref_suffix }}
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-freebsd-${{ matrix.ref_suffix }}
+          name: legacy-reference-${{ env.OS }}-${{ env.REF_SUFFIX }}
           path: |
-            docs/cmake-legacy-migration/legacy.freebsd.${{ matrix.ref_suffix }}.ref
-            docs/cmake-legacy-migration/legacy.freebsd.${{ matrix.ref_suffix }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.${{ env.OS }}.${{ env.REF_SUFFIX }}.ref
+            docs/cmake-legacy-migration/legacy.${{ env.OS }}.${{ env.REF_SUFFIX }}.keyfiles.sha256
           if-no-files-found: error
