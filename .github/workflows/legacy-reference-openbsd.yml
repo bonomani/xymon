@@ -40,7 +40,10 @@ jobs:
           shell: bash
           memory: 1024M
           cpu_count: 2
-          env: |
+          environment_variables: |
+            OS=${{ env.OS }}
+            VERSION=${{ env.VERSION }}
+            REF_PREFIX=${{ env.REF_PREFIX }}
             VARIANT=${{ matrix.variant }}
             CONFTYPE=${{ matrix.conftype }}
             REF_SUFFIX=${{ matrix.ref_suffix }}
