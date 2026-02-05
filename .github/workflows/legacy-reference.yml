@@ -207,4 +207,4 @@ jobs:
             /tmp/legacy.keyfiles.sha256
             /tmp/legacy-ref/var/lib/xymon
             ${{ matrix.legacy_ref }}
-            ${{ matrix.legacy_ref%.ref }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.${{ matrix.os.name }}.keyfiles.sha256
