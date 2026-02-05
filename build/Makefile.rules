@@ -80,7 +80,7 @@ client: include/config.h $(CLIENTTARGETS)
 include/config.h:
 	MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" $(BUILDTOPDIR)/build/genconfig.sh
 
-build-build:
+build-build: include/config.h lib-build
 	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" RPATHOPT="$(RPATHOPT)" SSLLIBS="$(SSLLIBS)" NETLIBS="$(NETLIBS)" LIBRTDEF="$(LIBRTDEF)" XYMONHOME="$(XYMONHOME)" $(MAKE) -C build all
 
 lib-build: include/config.h
@@ -360,4 +360,3 @@ install-clientmsg:
 
 install-localclient:
 	XYMONHOME="$(XYMONCLIENTHOME)" INSTALLROOT="$(INSTALLROOT)" XYMONUSER="$(XYMONUSER)" IDTOOL="$(IDTOOL)" LOCALCLIENT="$(LOCALCLIENT)" $(MAKE) -C client install-localclient
-
