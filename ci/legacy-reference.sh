@@ -270,11 +270,11 @@ write_refs() {
   local root="${LEGACY_STAGING}${topdir}"
 
   if [ -z "$REF_NAME" ]; then
-    REF_NAME="legacy.${OS_NAME}.ref"
+    REF_NAME="legacy.${OS_NAME}.${VARIANT:-server}.ref"
   fi
 
   if [ -z "$KEYFILES_NAME" ]; then
-    KEYFILES_NAME="legacy.${OS_NAME}.keyfiles.sha256"
+    KEYFILES_NAME="legacy.${OS_NAME}.${VARIANT:-server}.keyfiles.sha256"
   fi
 
   find "$root" -print \

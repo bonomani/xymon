@@ -29,7 +29,7 @@ jobs:
 
       - name: Generate legacy references
         run: |
-          ref_base="legacy.linux.${{ matrix.ref_suffix }}"
+          ref_base="legacy.linux.${{ matrix.variant }}"
           args=(--os linux --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
           if [ -n "${{ matrix.conftype }}" ]; then
             args+=(--conftype "${{ matrix.conftype }}")
@@ -41,6 +41,6 @@ jobs:
         with:
           name: legacy-reference-linux-${{ matrix.ref_suffix }}
           path: |
-            docs/cmake-legacy-migration/legacy.linux.${{ matrix.ref_suffix }}.ref
-            docs/cmake-legacy-migration/legacy.linux.${{ matrix.ref_suffix }}.keyfiles.sha256
+            docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.ref
+            docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.keyfiles.sha256
           if-no-files-found: error
