@@ -173,22 +173,26 @@ build_legacy() {
     caresinc="-I${CARES_PREFIX}/include"
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
+  local base_cflags=""
   if [ "${VARIANT:-server}" = "client" ]; then
+    base_cflags="$(
+      set +o pipefail
+      make -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
+    )"
+    if [ -z "${base_cflags}" ]; then
+      base_cflags="$(awk -F '=' '/^CFLAGS[[:space:]]*=/ {sub(/^[[:space:]]*/,"",$2); print $2; exit}' Makefile 2>/dev/null || true)"
+    fi
     if [ "${CONFTYPE:-}" = "server" ]; then
-      local base_cflags=""
-      base_cflags="$(
-        set +o pipefail
-        make -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
-      )"
-      if [ -z "${base_cflags}" ]; then
-        base_cflags="$(awk -F '=' '/^CFLAGS[[:space:]]*=/ {sub(/^[[:space:]]*/,"",$2); print $2; exit}' Makefile 2>/dev/null || true)"
-      fi
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
         CFLAGS="${base_cflags} -DLOCALCLIENT=0" \
+        LOCALCLIENT=no \
         PCRELIBS="-lpcre" \
         client
     else
-      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" client
+      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+        CFLAGS="${base_cflags} -DCLIENTONLY=1" \
+        LOCALCLIENT=yes \
+        client
     fi
   else
     "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
