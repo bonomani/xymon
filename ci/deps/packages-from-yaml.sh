@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE' >&2
-Usage: packages-from-yaml.sh --variant server|client --family FAMILY --os OS --pkgmgr PKG [--enable-ldap ON|OFF] [--enable-snmp ON|OFF]
+Usage: packages-from-yaml.sh --variant server|client|localclient --family FAMILY --os OS --pkgmgr PKG [--enable-ldap ON|OFF] [--enable-snmp ON|OFF]
 Print the mandatory dependency list for the requested configuration.
 USAGE
   exit 2
