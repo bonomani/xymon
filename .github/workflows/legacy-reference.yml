@@ -192,10 +192,22 @@ jobs:
             fi
 
             echo "=== Build (legacy) ==="
+            CARESINCDIR=""
+            CARESLIBS=""
+            case "${{ matrix.os.name }}" in
+              freebsd|openbsd)
+                CARESINCDIR="-I/usr/local/include"
+                CARESLIBS="-L/usr/local/lib -lcares"
+                ;;
+              netbsd)
+                CARESINCDIR="-I/usr/pkg/include"
+                CARESLIBS="-L/usr/pkg/lib -lcares"
+                ;;
+            esac
             if command -v gmake >/dev/null 2>&1; then
-              gmake -j2
+              gmake -j2 CARESINCDIR="${CARESINCDIR}" CARESLIBS="${CARESLIBS}"
             else
-              make -j2
+              make -j2 CARESINCDIR="${CARESINCDIR}" CARESLIBS="${CARESLIBS}"
             fi
 
             echo "=== Install (legacy staged) ==="
