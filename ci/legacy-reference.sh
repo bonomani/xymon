@@ -266,27 +266,11 @@ write_refs() {
   local root="${LEGACY_STAGING}${topdir}"
 
   if [ -z "$REF_NAME" ]; then
-    if [ "$OS_NAME" = "linux" ]; then
-      if [ "${VARIANT:-server}" = "server" ]; then
-        REF_NAME="legacy.linux.server.ref"
-      else
-        REF_NAME="legacy.linux.${VARIANT}.ref"
-      fi
-    else
-      REF_NAME="legacy.${OS_NAME}.ref"
-    fi
+    REF_NAME="legacy.${OS_NAME}.ref"
   fi
 
   if [ -z "$KEYFILES_NAME" ]; then
-    if [ "$OS_NAME" = "linux" ]; then
-      if [ "${VARIANT:-server}" = "server" ]; then
-        KEYFILES_NAME="legacy.linux.server.keyfiles.sha256"
-      else
-        KEYFILES_NAME="legacy.linux.${VARIANT}.keyfiles.sha256"
-      fi
-    else
-      KEYFILES_NAME="legacy.${OS_NAME}.keyfiles.sha256"
-    fi
+    KEYFILES_NAME="legacy.${OS_NAME}.keyfiles.sha256"
   fi
 
   find "$root" -print \
