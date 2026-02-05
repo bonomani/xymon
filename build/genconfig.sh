@@ -3,6 +3,12 @@
 # Simpler than autoconf, but it does what we need it to do right now.
 
 umask 022
+
+# Always operate from the source top dir so relative paths resolve correctly.
+script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)" || exit 1
+top_dir="$(CDPATH= cd -- "$script_dir/.." && pwd)" || exit 1
+cd "$top_dir" || exit 1
+
 tmpcfg="$(mktemp include/config.h.XXXXXX)" || exit 1
 trap 'rm -f "$tmpcfg"' EXIT
 
