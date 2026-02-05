@@ -53,6 +53,7 @@ setup_os() {
   case "$OS_NAME" in
     linux)
       CARES_PREFIX="/usr"
+      HTTPDGID="www-data"
       as_root apt-get update
       DEBIAN_FRONTEND=noninteractive as_root apt-get install -y \
         build-essential \
@@ -67,11 +68,13 @@ setup_os() {
         libssl-dev \
         libtirpc-dev \
         zlib1g-dev
+      as_root groupadd -f www-data 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
     freebsd)
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
+      HTTPDGID="www"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root pw groupadd www 2>/dev/null || true
       as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
@@ -79,6 +82,7 @@ setup_os() {
     openbsd)
       CARES_PREFIX="/usr/local"
       MAKE_BIN="gmake"
+      HTTPDGID="www"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
@@ -86,6 +90,7 @@ setup_os() {
     netbsd)
       CARES_PREFIX="/usr/pkg"
       MAKE_BIN="gmake"
+      HTTPDGID="www"
       bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
       as_root groupadd www 2>/dev/null || true
       as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
@@ -104,7 +109,7 @@ configure_legacy() {
   export ENABLESSL=y
   export ENABLELDAP=y
   export XYMONUSER=xymon
-  export HTTPDGID=www
+  export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
 
