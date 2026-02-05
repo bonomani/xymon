@@ -35,6 +35,7 @@ jobs:
           ENABLELDAP: y
           XYMONUSER: xymon
           HTTPDGID: www-data
+          XYMONTOPDIR: /var/lib/xymon
         run: |
           ./configure
 
@@ -148,6 +149,7 @@ jobs:
             export ENABLELDAP=y
             export XYMONUSER=xymon
             export HTTPDGID=www
+            export XYMONTOPDIR=/var/lib/xymon
             ./configure
 
             echo "=== Build (legacy) ==="
