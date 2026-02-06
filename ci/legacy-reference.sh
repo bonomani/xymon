@@ -237,12 +237,6 @@ install_staged() {
   else
     as_root "${MAKE_BIN}" install \
       DESTDIR="${LEGACY_STAGING}"
-
-    as_root "${MAKE_BIN}" install-man \
-      DESTDIR="${LEGACY_STAGING}" \
-      XYMONUSER="${XYMONUSER:-xymon}" \
-      IDTOOL="${IDTOOL:-id}" \
-      PKGBUILD="${PKGBUILD:-}"
   fi
 }
 
@@ -255,9 +249,7 @@ detect_topdir() {
 
   local root="${LEGACY_DESTROOT}"
   if [ ! -d "$root" ]; then
-    if [ -n "${topdir}" ]; then
-      root="${LEGACY_STAGING}${topdir}"
-    fi
+    root="${LEGACY_STAGING}${topdir}"
   fi
 
   if [ ! -d "$root" ]; then
@@ -265,7 +257,7 @@ detect_topdir() {
     exit 1
   fi
 
-  echo "${topdir}"
+  echo "${topdir}:${root}"
 }
 
 sha256_of() {
@@ -283,9 +275,10 @@ sha256_of() {
 }
 
 write_refs() {
-  local topdir
-  topdir="$(detect_topdir)"
-  local root="${LEGACY_DESTROOT}"
+  local detect
+  detect="$(detect_topdir)"
+  local topdir="${detect%%:*}"
+  local root="${detect#*:}"
 
   if [ -z "$REF_NAME" ]; then
     REF_NAME="legacy.${OS_NAME}.${VARIANT:-server}.ref"
@@ -316,7 +309,7 @@ write_refs() {
 
   : > "/tmp/${KEYFILES_NAME}"
   for f in "${key_files[@]}"; do
-    local p="${LEGACY_DESTROOT}${f#${topdir}}"
+    local p="${root}${f#${topdir}}"
     if [ ! -f "$p" ]; then
       echo "MISSING $f" >> "/tmp/${KEYFILES_NAME}"
       continue
