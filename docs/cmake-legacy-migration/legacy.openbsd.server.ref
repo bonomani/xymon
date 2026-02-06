@@ -76,6 +76,7 @@
 /var/lib/xymon/server/bin/moverrd.sh
 /var/lib/xymon/server/bin/msgcache
 /var/lib/xymon/server/bin/notifications.cgi
+/var/lib/xymon/server/bin/openbsd-meminfo
 /var/lib/xymon/server/bin/orcaxymon
 /var/lib/xymon/server/bin/perfdata.cgi
 /var/lib/xymon/server/bin/report.cgi

@@ -68,6 +68,7 @@
 /var/lib/xymon/server/bin/enadis.cgi
 /var/lib/xymon/server/bin/eventlog.cgi
 /var/lib/xymon/server/bin/findhost.cgi
+/var/lib/xymon/server/bin/freebsd-meminfo
 /var/lib/xymon/server/bin/ghostlist.cgi
 /var/lib/xymon/server/bin/history.cgi
 /var/lib/xymon/server/bin/hostgraphs.cgi

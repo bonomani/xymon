@@ -1,0 +1,7 @@
+c2a9723024da0ed07ad39e2db3f18807a3dc8febdb1a6c5c0f31c5b700222b42  /var/lib/xymon/server/etc/xymonserver.cfg
+90bee4d9b3e272253832046b04d21ca4f935784cc3f85ac78e936b29261c8f58  /var/lib/xymon/server/etc/tasks.cfg
+c376516eecccb99a0fc9814a91a1e3c37007910c4c54fc5f1d1b9c6ad9427baf  /var/lib/xymon/server/etc/cgioptions.cfg
+e5c134d058c24e25326c704a7187b20da1dc9ff2d4d1b55ce7125a0fc84389fd  /var/lib/xymon/server/etc/graphs.cfg
+804b59340f7b03280746e6c35c14a2bdd416c1d04ce029a3e20ac0e7f2844477  /var/lib/xymon/server/etc/client-local.cfg
+5b09f603b9dbeb24d59f615e0bc5ff795b11554b64cbbc9060203a6e9245fdc7  /var/lib/xymon/server/etc/columndoc.csv
+b25933f2fd31ed0130ec36c4d01ad986b6c2775542fd81e4a9084d91f7337c94  /var/lib/xymon/server/etc/protocols.cfg
