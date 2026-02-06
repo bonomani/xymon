@@ -6,11 +6,11 @@ on:
       source_branch:
         description: Branch to pull legacy reference artifacts from
         required: false
-        default: cmake/bootstrap
+        default: main
       target_branch:
         description: Branch to commit updated references into
         required: false
-        default: ci/update-legacy-references
+        default: cmake/bootstrap
 
 permissions:
   contents: write
@@ -87,7 +87,8 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          git checkout -B "${{ inputs.target_branch }}"
+          git fetch origin "${{ inputs.target_branch }}"
+          git checkout -B "${{ inputs.target_branch }}" "origin/${{ inputs.target_branch }}"
           git add docs/cmake-legacy-migration
           git commit -m "Update legacy reference artifacts"
           git push -u origin "${{ inputs.target_branch }}"
