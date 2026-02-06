@@ -24,37 +24,43 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download legacy reference artifacts (linux)
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: legacy-reference-linux.yml
-          branch: ${{ inputs.source_branch }}
-          workflow_conclusion: success
-          path: artifacts/legacy-reference-linux
+      - name: Download legacy reference artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          mkdir -p artifacts
 
-      - name: Download legacy reference artifacts (freebsd)
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: legacy-reference-freebsd.yml
-          branch: ${{ inputs.source_branch }}
-          workflow_conclusion: success
-          path: artifacts/legacy-reference-freebsd
+          workflows=(
+            legacy-reference-linux.yml
+            legacy-reference-freebsd.yml
+            legacy-reference-openbsd.yml
+            legacy-reference-netbsd.yml
+          )
 
-      - name: Download legacy reference artifacts (openbsd)
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: legacy-reference-openbsd.yml
-          branch: ${{ inputs.source_branch }}
-          workflow_conclusion: success
-          path: artifacts/legacy-reference-openbsd
+          for wf in "${workflows[@]}"; do
+            echo "Fetching latest successful run for ${wf} on ${{ inputs.source_branch }}"
+            run_id="$(
+              gh run list \
+                --repo "${GITHUB_REPOSITORY}" \
+                --workflow "${wf}" \
+                --branch "${{ inputs.source_branch }}" \
+                --status success \
+                --limit 1 \
+                --json databaseId \
+                -q '.[0].databaseId'
+            )"
 
-      - name: Download legacy reference artifacts (netbsd)
-        uses: dawidd6/action-download-artifact@v3
-        with:
-          workflow: legacy-reference-netbsd.yml
-          branch: ${{ inputs.source_branch }}
-          workflow_conclusion: success
-          path: artifacts/legacy-reference-netbsd
+            if [ -z "${run_id}" ]; then
+              echo "No successful run found for ${wf} on branch ${{ inputs.source_branch }}" >&2
+              exit 1
+            fi
+
+            out_dir="artifacts/${wf%.yml}"
+            mkdir -p "${out_dir}"
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${out_dir}"
+          done
 
       - name: Update docs references
         shell: bash
