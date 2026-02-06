@@ -55,6 +55,9 @@ if [ -z "$OS_NAME" ]; then
   echo "Missing --os" >&2
   exit 1
 fi
+if [ "$OS_NAME" = "ubuntu" ]; then
+  OS_NAME="linux"
+fi
 
 LEGACY_STAGING="/tmp/legacy-ref"
 DEFAULT_TOP="/var/lib/xymon"
