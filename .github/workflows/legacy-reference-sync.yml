@@ -24,6 +24,19 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Prepare target branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git fetch origin "${{ inputs.target_branch }}"; then
+            git checkout -B "${{ inputs.target_branch }}" "origin/${{ inputs.target_branch }}"
+          else
+            echo "Remote branch ${{ inputs.target_branch }} not found; creating from current HEAD."
+            git checkout -B "${{ inputs.target_branch }}"
+          fi
+          git clean -fd docs/cmake-legacy-migration
+          git checkout -- docs/cmake-legacy-migration
+
       - name: Download legacy reference artifacts
         shell: bash
         env:
@@ -87,12 +100,6 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
 
-          if git fetch origin "${{ inputs.target_branch }}"; then
-            git checkout -B "${{ inputs.target_branch }}" "origin/${{ inputs.target_branch }}"
-          else
-            echo "Remote branch ${{ inputs.target_branch }} not found; creating from current HEAD."
-            git checkout -B "${{ inputs.target_branch }}"
-          fi
           git add docs/cmake-legacy-migration
           git commit -m "Update legacy reference artifacts"
           git push -u origin "${{ inputs.target_branch }}"
