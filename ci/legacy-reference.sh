@@ -206,7 +206,7 @@ build_legacy() {
   if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     base_cflags="$(
       set +o pipefail
-      make -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
+      "${MAKE_BIN}" -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
     )"
     if [ -z "${base_cflags}" ]; then
       base_cflags="$(awk -F '=' '/^CFLAGS[[:space:]]*=/ {sub(/^[[:space:]]*/,"",$2); print $2; exit}' Makefile 2>/dev/null || true)"
@@ -234,8 +234,8 @@ install_staged() {
       CLIENTTARGETS="lib-client common-client" \
       INSTALLROOT="${LEGACY_STAGING}" \
       XYMONTOPDIR="${DEFAULT_TOP}" \
-      XYMONHOME="${DEFAULT_TOP}" \
-      XYMONCLIENTHOME="${DEFAULT_TOP}" \
+      XYMONHOME="${DEFAULT_TOP}/client" \
+      XYMONCLIENTHOME="${DEFAULT_TOP}/client" \
       XYMONVAR="${DEFAULT_TOP}/data" \
       XYMONLOGDIR="/var/log/xymon" \
       CGIDIR="${DEFAULT_TOP}/cgi-bin" \
@@ -254,18 +254,6 @@ install_staged() {
       SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
       INSTALLWWWDIR="${DEFAULT_TOP}/server/www" \
       INSTALLETCDIR="${DEFAULT_TOP}/server/etc"
-
-    as_root "${MAKE_BIN}" install-client \
-      INSTALLROOT="${LEGACY_STAGING}" \
-      XYMONTOPDIR="${DEFAULT_TOP}" \
-      XYMONHOME="${DEFAULT_TOP}/client" \
-      XYMONCLIENTHOME="${DEFAULT_TOP}/client" \
-      XYMONVAR="${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="/var/log/xymon" \
-      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${DEFAULT_TOP}/www" \
-      INSTALLETCDIR="${DEFAULT_TOP}/etc"
 
     as_root "${MAKE_BIN}" install-man \
       INSTALLROOT="${LEGACY_STAGING}" \
