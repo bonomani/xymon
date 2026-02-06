@@ -99,7 +99,9 @@ LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
 Legacy make install must also be staged under `/tmp`:
 
 ```sh
-sudo DESTDIR=/tmp/legacy-ref make install
+sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref make install
+sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref \
+  MANROOT=/var/lib/xymon/server/man make install-man
 ```
 
 Note: legacy makefiles currently land under `/tmp/var/lib/xymon` even when
