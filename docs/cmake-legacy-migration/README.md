@@ -31,6 +31,7 @@ Guidelines
 - Update `40-STATUS.md` after any significant change or validation run.
 - Append run details to `STATUS-HISTORY.md` when needed.
 - Track changes in `STATUS-HISTORY.md`.
+- Treat all `legacy.*.ref` and `legacy.*.keyfiles.sha256` files as read-only. Do not edit them by hand.
 
 Generating `legacy.linux.server.ref`
 -----------------------
