@@ -10,7 +10,7 @@ on:
       target_branch:
         description: Branch to commit updated references into
         required: false
-        default: cmake/bootstrap
+        default: ci/update-legacy-references
 
 permissions:
   contents: write
