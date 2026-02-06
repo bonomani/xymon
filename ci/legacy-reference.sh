@@ -240,6 +240,14 @@ install_staged() {
     as_root "${MAKE_BIN}" install \
       DESTDIR="${LEGACY_STAGING}" \
       INSTALLROOT="${LEGACY_STAGING}"
+
+    as_root "${MAKE_BIN}" install-man \
+      DESTDIR="${LEGACY_STAGING}" \
+      INSTALLROOT="${LEGACY_STAGING}" \
+      MANROOT="${DEFAULT_TOP}/server/man" \
+      XYMONUSER="${XYMONUSER:-xymon}" \
+      IDTOOL="${IDTOOL:-id}" \
+      PKGBUILD="${PKGBUILD:-}"
   fi
 }
 
