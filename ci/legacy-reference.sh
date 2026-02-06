@@ -232,25 +232,40 @@ install_staged() {
   if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="lib-client common-client" \
-      XYMONTOPDIR="${LEGACY_STAGING}${DEFAULT_TOP}" \
-      XYMONHOME="${LEGACY_STAGING}${DEFAULT_TOP}" \
-      XYMONCLIENTHOME="${LEGACY_STAGING}${DEFAULT_TOP}" \
-      XYMONVAR="${LEGACY_STAGING}${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="${LEGACY_STAGING}/var/log/xymon" \
-      CGIDIR="${LEGACY_STAGING}${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${LEGACY_STAGING}${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${LEGACY_STAGING}${DEFAULT_TOP}/www" \
-      INSTALLETCDIR="${LEGACY_STAGING}${DEFAULT_TOP}/etc"
+      INSTALLROOT="${LEGACY_STAGING}" \
+      XYMONTOPDIR="${DEFAULT_TOP}" \
+      XYMONHOME="${DEFAULT_TOP}" \
+      XYMONCLIENTHOME="${DEFAULT_TOP}" \
+      XYMONVAR="${DEFAULT_TOP}/data" \
+      XYMONLOGDIR="/var/log/xymon" \
+      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
+      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
+      INSTALLWWWDIR="${DEFAULT_TOP}/www" \
+      INSTALLETCDIR="${DEFAULT_TOP}/etc"
   else
     as_root "${MAKE_BIN}" install \
-      XYMONTOPDIR="${LEGACY_STAGING}${DEFAULT_TOP}" \
-      XYMONHOME="${LEGACY_STAGING}${DEFAULT_TOP}/server" \
-      XYMONVAR="${LEGACY_STAGING}${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="${LEGACY_STAGING}/var/log/xymon" \
-      CGIDIR="${LEGACY_STAGING}${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${LEGACY_STAGING}${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${LEGACY_STAGING}${DEFAULT_TOP}/server/www" \
-      INSTALLETCDIR="${LEGACY_STAGING}${DEFAULT_TOP}/server/etc"
+      INSTALLROOT="${LEGACY_STAGING}" \
+      MANROOT="${DEFAULT_TOP}/server/man" \
+      XYMONTOPDIR="${DEFAULT_TOP}" \
+      XYMONHOME="${DEFAULT_TOP}/server" \
+      XYMONVAR="${DEFAULT_TOP}/data" \
+      XYMONLOGDIR="/var/log/xymon" \
+      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
+      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
+      INSTALLWWWDIR="${DEFAULT_TOP}/server/www" \
+      INSTALLETCDIR="${DEFAULT_TOP}/server/etc"
+
+    as_root "${MAKE_BIN}" install-man \
+      INSTALLROOT="${LEGACY_STAGING}" \
+      MANROOT="${DEFAULT_TOP}/server/man" \
+      XYMONTOPDIR="${DEFAULT_TOP}" \
+      XYMONHOME="${DEFAULT_TOP}/server" \
+      XYMONVAR="${DEFAULT_TOP}/data" \
+      XYMONLOGDIR="/var/log/xymon" \
+      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
+      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
+      INSTALLWWWDIR="${DEFAULT_TOP}/server/www" \
+      INSTALLETCDIR="${DEFAULT_TOP}/server/etc"
   fi
 }
 
