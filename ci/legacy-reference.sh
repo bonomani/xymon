@@ -258,6 +258,9 @@ install_staged() {
     as_root "${MAKE_BIN}" install-man \
       INSTALLROOT="${LEGACY_STAGING}" \
       MANROOT="${DEFAULT_TOP}/server/man" \
+      XYMONUSER="${XYMONUSER:-xymon}" \
+      IDTOOL="${IDTOOL:-id}" \
+      PKGBUILD="${PKGBUILD:-}" \
       XYMONTOPDIR="${DEFAULT_TOP}" \
       XYMONHOME="${DEFAULT_TOP}/server" \
       XYMONVAR="${DEFAULT_TOP}/data" \
