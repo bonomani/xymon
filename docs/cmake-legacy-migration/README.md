@@ -41,3 +41,11 @@ BSD references follow the same procedure, replacing the output path:
 - `legacy.freebsd.ref`
 - `legacy.openbsd.ref`
 - `legacy.netbsd.ref`
+
+CI workflows
+------------
+Legacy references are generated via the per-OS workflows:
+- `.github/workflows/legacy-reference-linux.yml`
+- `.github/workflows/legacy-reference-freebsd.yml`
+- `.github/workflows/legacy-reference-openbsd.yml`
+- `.github/workflows/legacy-reference-netbsd.yml`
