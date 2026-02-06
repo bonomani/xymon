@@ -315,7 +315,7 @@ jobs:
             done
           fi
 
-          legacy_key_ref=docs/cmake-legacy-migration/legacy.keyfiles.sha256
+          legacy_key_ref=docs/cmake-legacy-migration/legacy.linux.server.keyfiles.sha256
           if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
             sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
             sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
@@ -328,7 +328,7 @@ jobs:
 
       - name: Generate lists + diff
         run: |
-          legacy_ref=docs/cmake-legacy-migration/legacy.ref
+          legacy_ref=docs/cmake-legacy-migration/legacy.linux.server.ref
           if [ ! -s "$legacy_ref" ]; then
             echo "Missing or empty $legacy_ref. Generate it from legacy Makefiles and commit it."
             exit 1
@@ -336,7 +336,7 @@ jobs:
           grep -v '^[[:space:]]*#' "$legacy_ref" | grep -v '^[[:space:]]*$' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
           if [ ! -s /tmp/legacy.list ]; then
-            echo "legacy.ref contains no paths. Regenerate it from legacy Makefiles."
+            echo "legacy.linux.server.ref contains no paths. Regenerate it from legacy Makefiles."
             exit 1
           fi
           find /tmp/cmake-ref-root/var/lib/xymon -print \

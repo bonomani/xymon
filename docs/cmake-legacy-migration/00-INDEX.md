@@ -41,6 +41,8 @@ Contents
 - 40-STATUS.md: condensed progress and current status
 - STATUS-HISTORY.md: detailed run notes and historical context
 - legacy.linux.server.ref: versioned legacy reference list used by CI (Linux server)
+- legacy.linux.client.ref: legacy reference list (Linux client ct-server)
+- legacy.linux.localclient.ref: legacy reference list (Linux client ct-client)
 - legacy.freebsd.ref: BSD legacy server reference (FreeBSD)
 - legacy.openbsd.ref: BSD legacy server reference (OpenBSD)
 - legacy.netbsd.ref: BSD legacy server reference (NetBSD)

@@ -1,0 +1,87 @@
+name: legacy-reference-sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: Branch to pull legacy reference artifacts from
+        required: false
+        default: cmake/bootstrap
+      target_branch:
+        description: Branch to commit updated references into
+        required: false
+        default: ci/update-legacy-references
+
+permissions:
+  contents: write
+
+jobs:
+  sync-legacy-references:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download legacy reference artifacts (linux)
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: legacy-reference-linux.yml
+          branch: ${{ inputs.source_branch }}
+          workflow_conclusion: success
+          path: artifacts/legacy-reference-linux
+
+      - name: Download legacy reference artifacts (freebsd)
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: legacy-reference-freebsd.yml
+          branch: ${{ inputs.source_branch }}
+          workflow_conclusion: success
+          path: artifacts/legacy-reference-freebsd
+
+      - name: Download legacy reference artifacts (openbsd)
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: legacy-reference-openbsd.yml
+          branch: ${{ inputs.source_branch }}
+          workflow_conclusion: success
+          path: artifacts/legacy-reference-openbsd
+
+      - name: Download legacy reference artifacts (netbsd)
+        uses: dawidd6/action-download-artifact@v3
+        with:
+          workflow: legacy-reference-netbsd.yml
+          branch: ${{ inputs.source_branch }}
+          workflow_conclusion: success
+          path: artifacts/legacy-reference-netbsd
+
+      - name: Update docs references
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_dir="docs/cmake-legacy-migration"
+          mkdir -p "${ref_dir}"
+
+          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -print0 \
+            | while IFS= read -r -d '' f; do
+                base="$(basename "$f")"
+                install -m 0644 "$f" "${ref_dir}/${base}"
+              done
+
+      - name: Commit changes
+        shell: bash
+        run: |
+          set -euo pipefail
+          if git diff --quiet; then
+            echo "No legacy reference changes to commit."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+
+          git checkout -B "${{ inputs.target_branch }}"
+          git add docs/cmake-legacy-migration
+          git commit -m "Update legacy reference artifacts"
+          git push -u origin "${{ inputs.target_branch }}"

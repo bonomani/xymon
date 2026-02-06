@@ -15,9 +15,15 @@ Naming Scheme
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
 - legacy.linux.server.ref: versioned legacy reference list used by CI (Linux server)
+- legacy.linux.client.ref: legacy reference list (Linux client ct-server)
+- legacy.linux.localclient.ref: legacy reference list (Linux client ct-client)
 - legacy.freebsd.ref: BSD legacy server reference list (FreeBSD)
 - legacy.openbsd.ref: BSD legacy server reference list (OpenBSD)
 - legacy.netbsd.ref: BSD legacy server reference list (NetBSD)
+Keyfile checksums follow the same naming scheme:
+- legacy.linux.server.keyfiles.sha256
+- legacy.linux.client.keyfiles.sha256
+- legacy.linux.localclient.keyfiles.sha256
 
 Guidelines
 ----------

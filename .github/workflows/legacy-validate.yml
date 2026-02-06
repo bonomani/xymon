@@ -11,22 +11,61 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: debian-bookworm
+          - name: debian-bookworm (server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
-          - name: ubuntu-22.04
+            variant: server
+          - name: debian-bookworm (client ct-client)
             runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: localclient
+          - name: debian-bookworm (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: client
+          - name: ubuntu-22.04 (server)
+            runs_on: ubuntu-22.04
+            variant: server
+          - name: ubuntu-22.04 (client ct-client)
+            runs_on: ubuntu-22.04
+            variant: localclient
+          - name: ubuntu-22.04 (client ct-server)
+            runs_on: ubuntu-22.04
+            variant: client
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
-          - name: alpine-3
+            variant: server
+          - name: rockylinux-9 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: localclient
+          - name: rockylinux-9 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: client
+          - name: alpine-3 (server)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
-          - name: macos-14
+            variant: server
+          - name: alpine-3 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: localclient
+          - name: alpine-3 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: client
+          - name: macos-14 (server)
             runs_on: macos-14
             os: macos
+            variant: server
 
     name: ${{ matrix.name }}
 
@@ -140,7 +179,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=all
+            -DXYMON_VARIANT=${{ matrix.variant }}
 
       - name: Build
         run: |
@@ -186,6 +225,14 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          if [ "${{ matrix.variant }}" != "server" ]; then
+            echo "Skipping key file validation for variant=${{ matrix.variant }}"
+            : > /tmp/legacy.keyfiles.missing
+            : > /tmp/legacy.keyfiles.sha256
+            : > /tmp/legacy.keyfiles.perms
+            : > /tmp/legacy.keyfiles.sha256.diff
+            exit 0
+          fi
           root=/tmp/cmake-ref-root/var/lib/xymon
           if [ ! -d "$root" ]; then
             echo "Missing $root; skipping key file validation."
@@ -243,7 +290,7 @@ jobs:
             done
           fi
 
-          legacy_key_ref=docs/cmake-legacy-migration/legacy.keyfiles.sha256
+          legacy_key_ref=docs/cmake-legacy-migration/legacy.linux.server.keyfiles.sha256
           if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
             sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
             sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
@@ -256,7 +303,7 @@ jobs:
 
       - name: Generate lists + diff
         run: |
-          legacy_ref=docs/cmake-legacy-migration/legacy.ref
+          legacy_ref=docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.ref
           if [ ! -s "$legacy_ref" ]; then
             echo "Missing or empty $legacy_ref. Generate it from legacy Makefiles and commit it."
             exit 1
@@ -264,7 +311,7 @@ jobs:
           grep -v '^[[:space:]]*#' "$legacy_ref" | grep -v '^[[:space:]]*$' \
             | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
           if [ ! -s /tmp/legacy.list ]; then
-            echo "legacy.ref contains no paths. Regenerate it from legacy Makefiles."
+            echo "legacy.linux.${{ matrix.variant }}.ref contains no paths. Regenerate it from legacy Makefiles."
             exit 1
           fi
           find /tmp/cmake-ref-root/var/lib/xymon -print \
