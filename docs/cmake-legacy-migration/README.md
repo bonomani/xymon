@@ -35,15 +35,7 @@ Guidelines
 Generating `legacy.linux.server.ref`
 -----------------------
 Use this only when legacy Makefiles change.
-
-```sh
-sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref make install
-sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref \
-  MANROOT=/var/lib/xymon/server/man make install-man
-find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/legacy.linux.server.ref
-```
+Follow the exact commands in `20-RUNBOOK.md`.
 
 BSD references follow the same procedure, replacing the output path:
 - `legacy.freebsd.ref`
