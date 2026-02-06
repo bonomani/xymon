@@ -60,6 +60,7 @@ if [ "$OS_NAME" = "ubuntu" ]; then
 fi
 
 LEGACY_STAGING="/tmp/legacy-ref"
+LEGACY_DESTROOT="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
@@ -232,43 +233,16 @@ install_staged() {
   if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="lib-client common-client" \
-      INSTALLROOT="${LEGACY_STAGING}" \
-      XYMONTOPDIR="${DEFAULT_TOP}" \
-      XYMONHOME="${DEFAULT_TOP}/client" \
-      XYMONCLIENTHOME="${DEFAULT_TOP}/client" \
-      XYMONVAR="${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="/var/log/xymon" \
-      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${DEFAULT_TOP}/www" \
-      INSTALLETCDIR="${DEFAULT_TOP}/etc"
+      DESTDIR="${LEGACY_STAGING}"
   else
     as_root "${MAKE_BIN}" install \
-      INSTALLROOT="${LEGACY_STAGING}" \
-      MANROOT="${DEFAULT_TOP}/server/man" \
-      XYMONTOPDIR="${DEFAULT_TOP}" \
-      XYMONHOME="${DEFAULT_TOP}/server" \
-      XYMONVAR="${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="/var/log/xymon" \
-      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${DEFAULT_TOP}/server/www" \
-      INSTALLETCDIR="${DEFAULT_TOP}/server/etc"
+      DESTDIR="${LEGACY_STAGING}"
 
     as_root "${MAKE_BIN}" install-man \
-      INSTALLROOT="${LEGACY_STAGING}" \
-      MANROOT="${DEFAULT_TOP}/server/man" \
+      DESTDIR="${LEGACY_STAGING}" \
       XYMONUSER="${XYMONUSER:-xymon}" \
       IDTOOL="${IDTOOL:-id}" \
-      PKGBUILD="${PKGBUILD:-}" \
-      XYMONTOPDIR="${DEFAULT_TOP}" \
-      XYMONHOME="${DEFAULT_TOP}/server" \
-      XYMONVAR="${DEFAULT_TOP}/data" \
-      XYMONLOGDIR="/var/log/xymon" \
-      CGIDIR="${DEFAULT_TOP}/cgi-bin" \
-      SECURECGIDIR="${DEFAULT_TOP}/cgi-secure" \
-      INSTALLWWWDIR="${DEFAULT_TOP}/server/www" \
-      INSTALLETCDIR="${DEFAULT_TOP}/server/etc"
+      PKGBUILD="${PKGBUILD:-}"
   fi
 }
 
@@ -279,15 +253,10 @@ detect_topdir() {
     topdir="${DEFAULT_TOP}"
   fi
 
-  local root="${LEGACY_STAGING}${topdir}"
+  local root="${LEGACY_DESTROOT}"
   if [ ! -d "$root" ]; then
-    local cand
-    cand=$(find "${LEGACY_STAGING}" -path "*/server/etc/xymonserver.cfg" -print -quit)
-    if [ -n "$cand" ]; then
-      local guessed
-      guessed=$(dirname "$(dirname "$(dirname "$cand")")")
-      topdir="${guessed#${LEGACY_STAGING}}"
-      root="${guessed}"
+    if [ -n "${topdir}" ]; then
+      root="${LEGACY_STAGING}${topdir}"
     fi
   fi
 
@@ -316,7 +285,7 @@ sha256_of() {
 write_refs() {
   local topdir
   topdir="$(detect_topdir)"
-  local root="${LEGACY_STAGING}${topdir}"
+  local root="${LEGACY_DESTROOT}"
 
   if [ -z "$REF_NAME" ]; then
     REF_NAME="legacy.${OS_NAME}.${VARIANT:-server}.ref"
@@ -327,7 +296,7 @@ write_refs() {
   fi
 
   find "$root" -print \
-    | sed "s|^${LEGACY_STAGING}||" \
+    | sed "s|^${root}|${topdir}|" \
     | sed "s|${topdir}/$|${topdir}|" \
     | sort > "/tmp/${REF_NAME}"
 
@@ -347,7 +316,7 @@ write_refs() {
 
   : > "/tmp/${KEYFILES_NAME}"
   for f in "${key_files[@]}"; do
-    local p="${LEGACY_STAGING}${f}"
+    local p="${LEGACY_DESTROOT}${f#${topdir}}"
     if [ ! -f "$p" ]; then
       echo "MISSING $f" >> "/tmp/${KEYFILES_NAME}"
       continue
