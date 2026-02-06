@@ -60,7 +60,8 @@ if [ "$OS_NAME" = "ubuntu" ]; then
 fi
 
 LEGACY_STAGING="/tmp/legacy-ref"
-LEGACY_DESTROOT="/tmp/var/lib/xymon"
+LEGACY_DESTROOT="/tmp/legacy-ref/var/lib/xymon"
+LEGACY_DESTROOT_FALLBACK="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
@@ -233,10 +234,12 @@ install_staged() {
   if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="lib-client common-client" \
-      DESTDIR="${LEGACY_STAGING}"
+      DESTDIR="${LEGACY_STAGING}" \
+      INSTALLROOT="${LEGACY_STAGING}"
   else
     as_root "${MAKE_BIN}" install \
-      DESTDIR="${LEGACY_STAGING}"
+      DESTDIR="${LEGACY_STAGING}" \
+      INSTALLROOT="${LEGACY_STAGING}"
   fi
 }
 
@@ -248,6 +251,9 @@ detect_topdir() {
   fi
 
   local root="${LEGACY_DESTROOT}"
+  if [ ! -d "$root" ]; then
+    root="${LEGACY_DESTROOT_FALLBACK}"
+  fi
   if [ ! -d "$root" ]; then
     root="${LEGACY_STAGING}${topdir}"
   fi
