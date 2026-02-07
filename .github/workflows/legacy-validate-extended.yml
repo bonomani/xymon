@@ -207,13 +207,14 @@ jobs:
       - name: Configure (legacy)
         run: |
           set -x
+          set -o pipefail
           ${CMAKE_BIN:-cmake} -S . -B build-cmake \
             -G Ninja \
             -DUSE_GNUINSTALLDIRS=OFF \
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=all
+            -DXYMON_VARIANT=all 2>&1 | tee /tmp/cmake.configure.log
 
       - name: Build
         run: |
@@ -222,6 +223,10 @@ jobs:
       - name: Capture CMake configure logs
         if: always()
         run: |
+          if [ -f /tmp/cmake.configure.log ]; then
+            echo "=== cmake.configure.log (cmake -E search) ==="
+            grep -n "cmake -E" /tmp/cmake.configure.log || true
+          fi
           if [ -f build-cmake/CMakeFiles/CMakeError.log ]; then
             echo "=== CMakeError.log ==="
             cat build-cmake/CMakeFiles/CMakeError.log
