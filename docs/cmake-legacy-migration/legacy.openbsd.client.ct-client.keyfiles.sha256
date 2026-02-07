@@ -1,7 +1,0 @@
-MISSING /var/lib/xymon/server/etc/xymonserver.cfg
-MISSING /var/lib/xymon/server/etc/tasks.cfg
-MISSING /var/lib/xymon/server/etc/cgioptions.cfg
-MISSING /var/lib/xymon/server/etc/graphs.cfg
-MISSING /var/lib/xymon/server/etc/client-local.cfg
-MISSING /var/lib/xymon/server/etc/columndoc.csv
-MISSING /var/lib/xymon/server/etc/protocols.cfg

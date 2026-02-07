@@ -326,6 +326,64 @@ jobs:
             fi
           fi
 
+      - name: Collect symlink targets + permissions
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/cmake-ref-root/var/lib/xymon
+          : > /tmp/legacy.symlinks.list
+          if [ -d "$root" ]; then
+            while IFS= read -r link; do
+              target=$(readlink "$link" || true)
+              printf '%s|%s\n' "${link#/tmp/cmake-ref-root}" "$target" >> /tmp/legacy.symlinks.list
+            done < <(find "$root" -type l)
+          fi
+
+          : > /tmp/legacy.perms.snapshot
+          if [ -d "$root" ]; then
+            if [ "$(uname -s)" = "Darwin" ]; then
+              find "$root" -type f -o -type d \
+                | while IFS= read -r p; do
+                    mode=$(stat -f '%Lp' "$p")
+                    uid=$(stat -f '%u' "$p")
+                    gid=$(stat -f '%g' "$p")
+                    size=$(stat -f '%z' "$p")
+                    printf '%s|%s|%s|%s|%s\n' "${p#/tmp/cmake-ref-root}" "$mode" "$uid" "$gid" "$size" >> /tmp/legacy.perms.snapshot
+                  done
+            else
+              find "$root" -type f -o -type d \
+                | while IFS= read -r p; do
+                    stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#/tmp/cmake-ref-root}|" >> /tmp/legacy.perms.snapshot
+                  done
+            fi
+          fi
+
+      - name: Collect binary linkage + embedded paths
+        shell: bash
+        run: |
+          set -euo pipefail
+          root=/tmp/cmake-ref-root/var/lib/xymon
+          : > /tmp/legacy.bin.links
+          : > /tmp/legacy.embedded.paths
+          if [ -d "$root/server/bin" ]; then
+            while IFS= read -r bin; do
+              echo "=== ${bin#/tmp/cmake-ref-root} ===" >> /tmp/legacy.bin.links
+              if [ "$(uname -s)" = "Darwin" ]; then
+                otool -L "$bin" >> /tmp/legacy.bin.links || true
+              elif command -v ldd >/dev/null 2>&1; then
+                ldd "$bin" >> /tmp/legacy.bin.links || true
+              fi
+              if command -v strings >/dev/null 2>&1; then
+                strings "$bin" | grep -E '/var/lib/xymon|/tmp/cmake-ref-root' >> /tmp/legacy.embedded.paths || true
+              fi
+            done < <(find "$root/server/bin" -type f -perm -111)
+          fi
+          if grep -q '/tmp/cmake-ref-root' /tmp/legacy.embedded.paths; then
+            echo "Embedded staging path detected in binaries:"
+            grep '/tmp/cmake-ref-root' /tmp/legacy.embedded.paths
+            exit 1
+          fi
+
       - name: Generate lists + diff
         run: |
           legacy_ref=docs/cmake-legacy-migration/legacy.linux.server.ref
@@ -389,4 +447,8 @@ jobs:
             /tmp/legacy.keyfiles.perms
             /tmp/legacy.keyfiles.sha256.diff
             /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
             /tmp/install-cmake-legacy.log
