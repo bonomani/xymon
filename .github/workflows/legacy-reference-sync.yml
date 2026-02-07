@@ -34,7 +34,9 @@ jobs:
           GH_TOKEN: ${{ github.token }}
         run: |
           set -euo pipefail
-          mkdir -p artifacts
+          artifacts_dir="/tmp/legacy-reference-artifacts"
+          rm -rf "${artifacts_dir}"
+          mkdir -p "${artifacts_dir}"
 
           workflows=(
             legacy-reference-linux.yml
@@ -61,7 +63,7 @@ jobs:
               exit 1
             fi
 
-            out_dir="artifacts/${wf%.yml}"
+            out_dir="${artifacts_dir}/${wf%.yml}"
             mkdir -p "${out_dir}"
             gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${out_dir}"
           done
@@ -71,6 +73,7 @@ jobs:
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration"
+          artifacts_dir="/tmp/legacy-reference-artifacts"
           archive_branch="${{ inputs.archive_branch }}"
 
           if git fetch origin "${archive_branch}"; then
@@ -84,7 +87,7 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -delete
 
-          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
+          find "${artifacts_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
             | while IFS= read -r -d '' f; do
                 base="$(basename "$f")"
                 install -m 0644 "$f" "${ref_dir}/${base}"
@@ -105,6 +108,7 @@ jobs:
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration"
+          artifacts_dir="/tmp/legacy-reference-artifacts"
           source_branch="${{ inputs.source_branch }}"
           target_branch="${{ inputs.target_branch }}"
 
@@ -126,7 +130,7 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -delete
 
-          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
+          find "${artifacts_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
             | while IFS= read -r -d '' f; do
                 base="$(basename "$f")"
                 install -m 0644 "$f" "${ref_dir}/${base}"
