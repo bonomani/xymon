@@ -315,7 +315,7 @@ jobs:
             done
           fi
 
-          legacy_key_ref=docs/cmake-legacy-migration/legacy.linux.server.keyfiles.sha256
+          legacy_key_ref=docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.sha256
           if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
             sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
             sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
@@ -388,7 +388,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_base="docs/cmake-legacy-migration/legacy.linux.server"
+          ref_base="docs/cmake-legacy-migration/refs/legacy.linux.server"
           : > /tmp/legacy.symlinks.diff
           : > /tmp/legacy.perms.diff
           : > /tmp/legacy.binlinks.diff
@@ -431,7 +431,7 @@ jobs:
           fi
       - name: Generate lists + diff
         run: |
-          legacy_ref=docs/cmake-legacy-migration/legacy.linux.server.ref
+          legacy_ref=docs/cmake-legacy-migration/refs/legacy.linux.server.ref
           if [ ! -s "$legacy_ref" ]; then
             echo "Missing or empty $legacy_ref. Generate it from legacy Makefiles and commit it."
             exit 1

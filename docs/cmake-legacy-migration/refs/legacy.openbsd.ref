@@ -1,8 +1,8 @@
-# Legacy server reference list (FreeBSD).
+# Legacy server reference list (OpenBSD).
 #
-# Generate after a legacy Makefile change on FreeBSD:
+# Generate after a legacy Makefile change on OpenBSD:
 # 1) sudo DESTDIR=/tmp/legacy-ref make install
 # 2) find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
 #      | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-#      | sort > docs/cmake-legacy-migration/legacy.freebsd.ref
+#      | sort > docs/cmake-legacy-migration/refs/legacy.openbsd.ref
 # 3) Record the update in STATUS-HISTORY.md

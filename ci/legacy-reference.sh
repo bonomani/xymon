@@ -336,9 +336,9 @@ write_refs() {
   done
   fi
 
-  if [ -d docs/cmake-legacy-migration ]; then
-    cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/${REF_NAME}" || true
-    cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/${KEYFILES_NAME}" || true
+  if [ -d docs/cmake-legacy-migration/refs ]; then
+    cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true
+    cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/refs/${KEYFILES_NAME}" || true
   fi
 
   : > "/tmp/${SYMLINKS_NAME}"
@@ -391,11 +391,11 @@ write_refs() {
     sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
   fi
 
-  if [ -d docs/cmake-legacy-migration ]; then
-    cp "/tmp/${SYMLINKS_NAME}" "docs/cmake-legacy-migration/${SYMLINKS_NAME}" || true
-    cp "/tmp/${PERMS_NAME}" "docs/cmake-legacy-migration/${PERMS_NAME}" || true
-    cp "/tmp/${BINLINKS_NAME}" "docs/cmake-legacy-migration/${BINLINKS_NAME}" || true
-    cp "/tmp/${EMBED_NAME}" "docs/cmake-legacy-migration/${EMBED_NAME}" || true
+  if [ -d docs/cmake-legacy-migration/refs ]; then
+    cp "/tmp/${SYMLINKS_NAME}" "docs/cmake-legacy-migration/refs/${SYMLINKS_NAME}" || true
+    cp "/tmp/${PERMS_NAME}" "docs/cmake-legacy-migration/refs/${PERMS_NAME}" || true
+    cp "/tmp/${BINLINKS_NAME}" "docs/cmake-legacy-migration/refs/${BINLINKS_NAME}" || true
+    cp "/tmp/${EMBED_NAME}" "docs/cmake-legacy-migration/refs/${EMBED_NAME}" || true
   fi
 }
 

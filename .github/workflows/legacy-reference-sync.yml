@@ -72,7 +72,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_dir="docs/cmake-legacy-migration"
+          ref_dir="docs/cmake-legacy-migration/refs"
           artifacts_dir="/tmp/legacy-reference-artifacts"
           archive_branch="${{ inputs.archive_branch }}"
 
@@ -107,7 +107,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_dir="docs/cmake-legacy-migration"
+          ref_dir="docs/cmake-legacy-migration/refs"
           artifacts_dir="/tmp/legacy-reference-artifacts"
           source_branch="${{ inputs.source_branch }}"
           target_branch="${{ inputs.target_branch }}"

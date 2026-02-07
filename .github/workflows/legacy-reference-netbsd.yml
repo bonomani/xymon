@@ -43,5 +43,5 @@ jobs:
         with:
           name: legacy-reference-netbsd-${{ matrix.variant }}
           path: |
-            docs/cmake-legacy-migration/legacy.netbsd.${{ matrix.variant }}.*
+            docs/cmake-legacy-migration/refs/legacy.netbsd.${{ matrix.variant }}.*
           if-no-files-found: error

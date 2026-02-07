@@ -290,7 +290,7 @@ jobs:
             done
           fi
 
-          legacy_key_ref=docs/cmake-legacy-migration/legacy.linux.server.keyfiles.sha256
+          legacy_key_ref=docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.sha256
           if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
             sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
             sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
@@ -363,7 +363,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_base="docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}"
+          ref_base="docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}"
           : > /tmp/legacy.symlinks.diff
           : > /tmp/legacy.perms.diff
           : > /tmp/legacy.binlinks.diff
@@ -407,7 +407,7 @@ jobs:
 
       - name: Generate lists + diff
         run: |
-          legacy_ref=docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.ref
+          legacy_ref=docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.ref
           if [ ! -s "$legacy_ref" ]; then
             echo "Missing or empty $legacy_ref. Generate it from legacy Makefiles and commit it."
             exit 1
@@ -490,17 +490,17 @@ jobs:
               name: freebsd
               architecture: x86-64
               version: "15.0"
-            legacy_ref: docs/cmake-legacy-migration/legacy.freebsd.ref
+            legacy_ref: docs/cmake-legacy-migration/refs/legacy.freebsd.ref
           - os:
               name: openbsd
               architecture: x86-64
               version: "7.8"
-            legacy_ref: docs/cmake-legacy-migration/legacy.openbsd.ref
+            legacy_ref: docs/cmake-legacy-migration/refs/legacy.openbsd.ref
           - os:
               name: netbsd
               architecture: x86-64
               version: "10.1"
-            legacy_ref: docs/cmake-legacy-migration/legacy.netbsd.ref
+            legacy_ref: docs/cmake-legacy-migration/refs/legacy.netbsd.ref
     steps:
       - uses: actions/checkout@v4
       - name: Legacy validate (BSD) ${{ matrix.os.name }}

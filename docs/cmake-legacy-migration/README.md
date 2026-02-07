@@ -14,16 +14,16 @@ Naming Scheme
 - 30-REFERENCE.md: canonical legacy install contract
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
-- legacy.linux.server.ref: versioned legacy reference list used by CI (Linux server)
-- legacy.linux.client.ref: legacy reference list (Linux client ct-server)
-- legacy.linux.localclient.ref: legacy reference list (Linux client ct-client)
-- legacy.freebsd.ref: BSD legacy server reference list (FreeBSD)
-- legacy.openbsd.ref: BSD legacy server reference list (OpenBSD)
-- legacy.netbsd.ref: BSD legacy server reference list (NetBSD)
+- refs/legacy.linux.server.ref: versioned legacy reference list used by CI (Linux server)
+- refs/legacy.linux.client.ref: legacy reference list (Linux client ct-server)
+- refs/legacy.linux.localclient.ref: legacy reference list (Linux client ct-client)
+- refs/legacy.freebsd.ref: BSD legacy server reference list (FreeBSD)
+- refs/legacy.openbsd.ref: BSD legacy server reference list (OpenBSD)
+- refs/legacy.netbsd.ref: BSD legacy server reference list (NetBSD)
 Keyfile checksums follow the same naming scheme:
-- legacy.linux.server.keyfiles.sha256
-- legacy.linux.client.keyfiles.sha256
-- legacy.linux.localclient.keyfiles.sha256
+- refs/legacy.linux.server.keyfiles.sha256
+- refs/legacy.linux.client.keyfiles.sha256
+- refs/legacy.linux.localclient.keyfiles.sha256
 
 Guidelines
 ----------

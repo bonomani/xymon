@@ -33,5 +33,5 @@ jobs:
         with:
           name: legacy-reference-linux-${{ matrix.variant }}
           path: |
-            docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.*
+            docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.*
           if-no-files-found: error
