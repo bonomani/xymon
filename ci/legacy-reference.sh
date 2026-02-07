@@ -301,6 +301,10 @@ write_refs() {
   if [ -z "$KEYFILES_NAME" ]; then
     KEYFILES_NAME="legacy.${OS_NAME}.${VARIANT:-server}.keyfiles.sha256"
   fi
+  local SYMLINKS_NAME="legacy.${OS_NAME}.${VARIANT:-server}.symlinks"
+  local PERMS_NAME="legacy.${OS_NAME}.${VARIANT:-server}.perms"
+  local BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT:-server}.binlinks"
+  local EMBED_NAME="legacy.${OS_NAME}.${VARIANT:-server}.embedded.paths"
 
   find "$root" -print \
     | sed "s|^${root}|${topdir}|" \
@@ -335,6 +339,60 @@ write_refs() {
   if [ -d docs/cmake-legacy-migration ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/${REF_NAME}" || true
     cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/${KEYFILES_NAME}" || true
+  fi
+
+  : > "/tmp/${SYMLINKS_NAME}"
+  if [ -d "$root" ]; then
+    while IFS= read -r link; do
+      target=$(readlink "$link" || true)
+      printf '%s|%s\n' "${link#${root}}" "$target" >> "/tmp/${SYMLINKS_NAME}"
+    done < <(find "$root" -type l)
+  fi
+
+  : > "/tmp/${PERMS_NAME}"
+  if [ -d "$root" ]; then
+    if [ "$(uname -s)" = "Darwin" ]; then
+      find "$root" -type f -o -type d \
+        | while IFS= read -r p; do
+            mode=$(stat -f '%Lp' "$p")
+            uid=$(stat -f '%u' "$p")
+            gid=$(stat -f '%g' "$p")
+            size=$(stat -f '%z' "$p")
+            printf '%s|%s|%s|%s|%s\n' "${p#${root}}" "$mode" "$uid" "$gid" "$size" >> "/tmp/${PERMS_NAME}"
+          done
+    else
+      find "$root" -type f -o -type d \
+        | while IFS= read -r p; do
+            stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#${root}}|" >> "/tmp/${PERMS_NAME}"
+          done
+    fi
+  fi
+
+  : > "/tmp/${BINLINKS_NAME}"
+  if [ -d "$root/server/bin" ]; then
+    while IFS= read -r bin; do
+      echo "=== ${bin#${root}} ===" >> "/tmp/${BINLINKS_NAME}"
+      if [ "$(uname -s)" = "Darwin" ]; then
+        otool -L "$bin" >> "/tmp/${BINLINKS_NAME}" || true
+      elif command -v ldd >/dev/null 2>&1; then
+        ldd "$bin" >> "/tmp/${BINLINKS_NAME}" || true
+      fi
+    done < <(find "$root/server/bin" -type f -perm -111)
+  fi
+
+  : > "/tmp/${EMBED_NAME}"
+  if [ -d "$root/server/bin" ] && command -v strings >/dev/null 2>&1; then
+    while IFS= read -r bin; do
+      strings "$bin" | grep -E '/var/lib/xymon' >> "/tmp/${EMBED_NAME}" || true
+    done < <(find "$root/server/bin" -type f -perm -111)
+    sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
+  fi
+
+  if [ -d docs/cmake-legacy-migration ]; then
+    cp "/tmp/${SYMLINKS_NAME}" "docs/cmake-legacy-migration/${SYMLINKS_NAME}" || true
+    cp "/tmp/${PERMS_NAME}" "docs/cmake-legacy-migration/${PERMS_NAME}" || true
+    cp "/tmp/${BINLINKS_NAME}" "docs/cmake-legacy-migration/${BINLINKS_NAME}" || true
+    cp "/tmp/${EMBED_NAME}" "docs/cmake-legacy-migration/${EMBED_NAME}" || true
   fi
 }
 

@@ -359,6 +359,52 @@ jobs:
             exit 1
           fi
 
+      - name: Compare legacy snapshots (non-blocking)
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_base="docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}"
+          : > /tmp/legacy.symlinks.diff
+          : > /tmp/legacy.perms.diff
+          : > /tmp/legacy.binlinks.diff
+          : > /tmp/legacy.embedded.diff
+
+          if [ -s "${ref_base}.symlinks" ] && [ -s /tmp/legacy.symlinks.list ]; then
+            sort "${ref_base}.symlinks" > /tmp/legacy.symlinks.ref
+            sort /tmp/legacy.symlinks.list > /tmp/legacy.symlinks.cmake
+            diff -u /tmp/legacy.symlinks.ref /tmp/legacy.symlinks.cmake > /tmp/legacy.symlinks.diff || true
+            if [ -s /tmp/legacy.symlinks.diff ]; then
+              echo "Symlink target diff detected (non-blocking):"
+              cat /tmp/legacy.symlinks.diff
+            fi
+          fi
+
+          if [ -s "${ref_base}.perms" ] && [ -s /tmp/legacy.perms.snapshot ]; then
+            sort "${ref_base}.perms" > /tmp/legacy.perms.ref
+            sort /tmp/legacy.perms.snapshot > /tmp/legacy.perms.cmake
+            diff -u /tmp/legacy.perms.ref /tmp/legacy.perms.cmake > /tmp/legacy.perms.diff || true
+            if [ -s /tmp/legacy.perms.diff ]; then
+              echo "Permissions diff detected (non-blocking):"
+              cat /tmp/legacy.perms.diff
+            fi
+          fi
+
+          if [ -s "${ref_base}.binlinks" ] && [ -s /tmp/legacy.bin.links ]; then
+            diff -u "${ref_base}.binlinks" /tmp/legacy.bin.links > /tmp/legacy.binlinks.diff || true
+            if [ -s /tmp/legacy.binlinks.diff ]; then
+              echo "Binary linkage diff detected (non-blocking):"
+              cat /tmp/legacy.binlinks.diff
+            fi
+          fi
+
+          if [ -s "${ref_base}.embedded.paths" ] && [ -s /tmp/legacy.embedded.paths ]; then
+            diff -u "${ref_base}.embedded.paths" /tmp/legacy.embedded.paths > /tmp/legacy.embedded.diff || true
+            if [ -s /tmp/legacy.embedded.diff ]; then
+              echo "Embedded path diff detected (non-blocking):"
+              cat /tmp/legacy.embedded.diff
+            fi
+          fi
+
       - name: Generate lists + diff
         run: |
           legacy_ref=docs/cmake-legacy-migration/legacy.linux.${{ matrix.variant }}.ref
@@ -426,6 +472,10 @@ jobs:
             /tmp/legacy.perms.snapshot
             /tmp/legacy.bin.links
             /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.embedded.diff
             /tmp/install-cmake-legacy.log
 
   legacy-validate-bsd:

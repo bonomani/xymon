@@ -82,9 +82,9 @@ jobs:
 
           git clean -fd
           mkdir -p "${ref_dir}"
-          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -delete
+          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -delete
 
-          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -print0 \
+          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
             | while IFS= read -r -d '' f; do
                 base="$(basename "$f")"
                 install -m 0644 "$f" "${ref_dir}/${base}"
@@ -124,9 +124,9 @@ jobs:
           git clean -fd "${ref_dir}"
           git checkout -- "${ref_dir}" || true
           mkdir -p "${ref_dir}"
-          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -delete
+          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -delete
 
-          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -print0 \
+          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -print0 \
             | while IFS= read -r -d '' f; do
                 base="$(basename "$f")"
                 install -m 0644 "$f" "${ref_dir}/${base}"
