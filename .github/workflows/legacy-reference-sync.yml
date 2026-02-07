@@ -8,9 +8,13 @@ on:
         required: false
         default: cmake/bootstrap
       target_branch:
-        description: Branch to commit updated references into
+        description: Merge-friendly branch to commit updated references into
         required: false
-        default: ci/update-legacy-references
+        default: ci/references-update
+      archive_branch:
+        description: Refs-only archival branch
+        required: false
+        default: ci/references-update-archive
 
 permissions:
   contents: write
@@ -23,19 +27,6 @@ jobs:
         uses: actions/checkout@v4
         with:
           fetch-depth: 0
-
-      - name: Prepare target branch
-        shell: bash
-        run: |
-          set -euo pipefail
-          if git fetch origin "${{ inputs.target_branch }}"; then
-            git checkout -B "${{ inputs.target_branch }}" "origin/${{ inputs.target_branch }}"
-          else
-            echo "Remote branch ${{ inputs.target_branch }} not found; creating from current HEAD."
-            git checkout -B "${{ inputs.target_branch }}"
-          fi
-          git clean -fd docs/cmake-legacy-migration
-          git checkout -- docs/cmake-legacy-migration
 
       - name: Download legacy reference artifacts
         shell: bash
@@ -75,12 +66,23 @@ jobs:
             gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${out_dir}"
           done
 
-      - name: Update docs references
+      - name: Sync archive branch
         shell: bash
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration"
+          archive_branch="${{ inputs.archive_branch }}"
+
+          if git fetch origin "${archive_branch}"; then
+            git checkout -B "${archive_branch}" "origin/${archive_branch}"
+          else
+            git checkout --orphan "${archive_branch}"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          git clean -fd
           mkdir -p "${ref_dir}"
+          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -delete
 
           find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -print0 \
             | while IFS= read -r -d '' f; do
@@ -88,18 +90,55 @@ jobs:
                 install -m 0644 "$f" "${ref_dir}/${base}"
               done
 
-      - name: Commit changes
+          if git diff --quiet; then
+            echo "No legacy reference changes to commit on archive branch."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "${ref_dir}"
+            git commit -m "Update legacy reference artifacts"
+            git push -u origin "${archive_branch}"
+          fi
+
+      - name: Sync merge-friendly branch
         shell: bash
         run: |
           set -euo pipefail
+          ref_dir="docs/cmake-legacy-migration"
+          source_branch="${{ inputs.source_branch }}"
+          target_branch="${{ inputs.target_branch }}"
+
+          git fetch origin "${source_branch}"
+          if git fetch origin "${target_branch}"; then
+            if ! git merge-base --is-ancestor "origin/${source_branch}" "origin/${target_branch}"; then
+              echo "Target branch is not based on ${source_branch}; recreating ${target_branch}."
+              git push origin --delete "${target_branch}" || true
+              git checkout -B "${target_branch}" "origin/${source_branch}"
+            else
+              git checkout -B "${target_branch}" "origin/${target_branch}"
+            fi
+          else
+            git checkout -B "${target_branch}" "origin/${source_branch}"
+          fi
+
+          git clean -fd "${ref_dir}"
+          git checkout -- "${ref_dir}" || true
+          mkdir -p "${ref_dir}"
+          find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -delete
+
+          find artifacts -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' \) -print0 \
+            | while IFS= read -r -d '' f; do
+                base="$(basename "$f")"
+                install -m 0644 "$f" "${ref_dir}/${base}"
+              done
+
           if git diff --quiet; then
-            echo "No legacy reference changes to commit."
+            echo "No legacy reference changes to commit on merge-friendly branch."
             exit 0
           fi
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-
-          git add docs/cmake-legacy-migration
+          git add "${ref_dir}"
           git commit -m "Update legacy reference artifacts"
-          git push -u origin "${{ inputs.target_branch }}"
+          git push -u origin "${target_branch}"
