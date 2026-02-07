@@ -351,21 +351,24 @@ write_refs() {
 
   : > "/tmp/${PERMS_NAME}"
   if [ -d "$root" ]; then
-    if [ "$(uname -s)" = "Darwin" ]; then
-      find "$root" -type f -o -type d \
-        | while IFS= read -r p; do
-            mode=$(stat -f '%Lp' "$p")
-            uid=$(stat -f '%u' "$p")
-            gid=$(stat -f '%g' "$p")
-            size=$(stat -f '%z' "$p")
-            printf '%s|%s|%s|%s|%s\n' "${p#${root}}" "$mode" "$uid" "$gid" "$size" >> "/tmp/${PERMS_NAME}"
-          done
-    else
-      find "$root" -type f -o -type d \
-        | while IFS= read -r p; do
-            stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#${root}}|" >> "/tmp/${PERMS_NAME}"
-          done
-    fi
+    case "$(uname -s)" in
+      Darwin|FreeBSD|OpenBSD|NetBSD)
+        find "$root" -type f -o -type d \
+          | while IFS= read -r p; do
+              mode=$(stat -f '%Lp' "$p")
+              uid=$(stat -f '%u' "$p")
+              gid=$(stat -f '%g' "$p")
+              size=$(stat -f '%z' "$p")
+              printf '%s|%s|%s|%s|%s\n' "${p#${root}}" "$mode" "$uid" "$gid" "$size" >> "/tmp/${PERMS_NAME}"
+            done
+        ;;
+      *)
+        find "$root" -type f -o -type d \
+          | while IFS= read -r p; do
+              stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#${root}}|" >> "/tmp/${PERMS_NAME}"
+            done
+        ;;
+    esac
   fi
 
   : > "/tmp/${BINLINKS_NAME}"
