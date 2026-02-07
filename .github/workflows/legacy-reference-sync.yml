@@ -93,7 +93,7 @@ jobs:
                 install -m 0644 "$f" "${ref_dir}/${base}"
               done
 
-          if git diff --quiet; then
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No legacy reference changes to commit on archive branch."
           else
             git config user.name "github-actions[bot]"
@@ -129,7 +129,7 @@ jobs:
           fi
 
           git clean -fd "${ref_dir}"
-          git checkout -- "${ref_dir}" || true
+          git checkout -- "${ref_dir}" >/dev/null 2>&1 || true
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f \( -name 'legacy.*.ref' -o -name 'legacy.*.keyfiles.sha256' -o -name 'legacy.*.symlinks' -o -name 'legacy.*.perms' -o -name 'legacy.*.binlinks' -o -name 'legacy.*.embedded.paths' \) -delete
 
@@ -139,7 +139,7 @@ jobs:
                 install -m 0644 "$f" "${ref_dir}/${base}"
               done
 
-          if git diff --quiet; then
+          if [ -z "$(git status --porcelain)" ]; then
             echo "No legacy reference changes to commit on merge-friendly branch."
             exit 0
           fi
