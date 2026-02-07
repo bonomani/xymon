@@ -206,6 +206,7 @@ jobs:
 
       - name: Configure (legacy)
         run: |
+          set -x
           ${CMAKE_BIN:-cmake} -S . -B build-cmake \
             -G Ninja \
             -DUSE_GNUINSTALLDIRS=OFF \
