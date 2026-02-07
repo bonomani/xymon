@@ -112,9 +112,6 @@ jobs:
           source_branch="${{ inputs.source_branch }}"
           target_branch="${{ inputs.target_branch }}"
 
-          git reset --hard
-          git clean -fd
-
           git fetch origin "${source_branch}"
           if git fetch origin "${target_branch}"; then
             if ! git merge-base --is-ancestor "origin/${source_branch}" "origin/${target_branch}"; then
