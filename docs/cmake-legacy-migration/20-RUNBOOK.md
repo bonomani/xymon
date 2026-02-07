@@ -49,6 +49,36 @@ BSD validation uses server references:
 Update references only when legacy Makefiles change, and record the update in
 `STATUS-HISTORY.md`.
 
+BSD Reference Generation (Server)
+--------------------------------
+Run on the target BSD host after legacy Makefile changes:
+
+FreeBSD:
+```sh
+sudo DESTDIR=/tmp/legacy-ref make install
+find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+  | sort > docs/cmake-legacy-migration/refs/legacy.freebsd.ref
+```
+
+OpenBSD:
+```sh
+sudo DESTDIR=/tmp/legacy-ref make install
+find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+  | sort > docs/cmake-legacy-migration/refs/legacy.openbsd.ref
+```
+
+NetBSD:
+```sh
+sudo DESTDIR=/tmp/legacy-ref make install
+find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+  | sort > docs/cmake-legacy-migration/refs/legacy.netbsd.ref
+```
+
+After updating any BSD reference file, record the change in `STATUS-HISTORY.md`.
+
 Prerequisites
 -------------
 - `/bin/chown` and `/bin/chmod` for ownership/permission hooks.
