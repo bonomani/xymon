@@ -185,6 +185,18 @@ jobs:
         run: |
           ${CMAKE_BIN:-cmake} --build build-cmake -j2
 
+      - name: Capture CMake configure logs
+        if: always()
+        run: |
+          if [ -f build-cmake/CMakeFiles/CMakeError.log ]; then
+            echo "=== CMakeError.log ==="
+            cat build-cmake/CMakeFiles/CMakeError.log
+          fi
+          if [ -f build-cmake/CMakeFiles/CMakeOutput.log ]; then
+            echo "=== CMakeOutput.log ==="
+            cat build-cmake/CMakeFiles/CMakeOutput.log
+          fi
+
       - name: Validate config.h parity
         run: |
           legacy_config=include/config.h
