@@ -172,6 +172,7 @@ jobs:
           fi
 
       - name: Configure (legacy)
+        shell: bash
         run: |
           set -x
           set -o pipefail
