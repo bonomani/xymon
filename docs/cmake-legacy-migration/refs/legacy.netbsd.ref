@@ -1,8 +1,0 @@
-# Legacy server reference list (NetBSD).
-#
-# Generate after a legacy Makefile change on NetBSD:
-# 1) sudo DESTDIR=/tmp/legacy-ref make install
-# 2) find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-#      | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-#      | sort > docs/cmake-legacy-migration/refs/legacy.netbsd.ref
-# 3) Record the update in STATUS-HISTORY.md
