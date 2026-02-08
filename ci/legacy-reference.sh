@@ -384,6 +384,11 @@ write_refs() {
             ldd "$bin" | awk '
               /Start[[:space:]]+End[[:space:]]+Type/ {next}
               /:$/ {next}
+              /=>/ {
+                for (i = 1; i < NF; i++) {
+                  if ($i == "=>") {print $(i+1); next}
+                }
+              }
               NF && $NF ~ /^\// {print $NF}
             ' >> "/tmp/${BINLINKS_NAME}" || true
           fi
