@@ -41,55 +41,17 @@ jobs:
       - name: Install build dependencies (macos)
         if: ${{ matrix.os == 'macos' }}
         run: |
-          brew update
-          brew install cmake ninja c-ares pcre openldap rrdtool openssl@3 libtirpc zlib
+          bash ci/deps/install-brew-packages.sh
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
         run: |
-          dnf -y install dnf-plugins-core
-          if [ "${{ matrix.name }}" = "rockylinux-8" ]; then
-            dnf config-manager --set-enabled powertools || true
-          elif [ "${{ matrix.name }}" = "rockylinux-9" ]; then
-            dnf config-manager --set-enabled crb || true
-          fi
-          dnf -y install epel-release || true
-          dnf clean all
-          dnf -y makecache
-          dnf -y install \
-            gcc \
-            gcc-c++ \
-            make \
-            cmake \
-            ninja-build \
-            git \
-            findutils \
-            c-ares-devel \
-            pcre-devel \
-            pcre2-devel \
-            openldap-devel \
-            openssl-devel \
-            libtirpc-devel \
-            zlib-devel
-          dnf -y install rrdtool-devel libtirpc-devel
+          bash ci/deps/install-dnf-packages.sh --name "${{ matrix.name }}"
 
       - name: Install build dependencies (apk)
         if: ${{ matrix.pkg_mgr == 'apk' }}
         run: |
-          apk add --no-cache \
-            bash \
-            build-base \
-            cmake \
-            ninja \
-            git \
-            findutils \
-            c-ares-dev \
-            pcre-dev \
-            openldap-dev \
-            rrdtool-dev \
-            openssl-dev \
-            libtirpc-dev \
-            zlib-dev
+          bash ci/deps/install-apk-packages.sh
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}

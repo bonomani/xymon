@@ -64,145 +64,32 @@ jobs:
       - name: Install build dependencies (apt)
         if: ${{ (matrix.pkg_mgr == '' || matrix.pkg_mgr == 'apt') }}
         run: |
-          pcre_pkg=libpcre3-dev
-
-          if [ -z "${{ matrix.container }}" ]; then
-            sudo apt-get update
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              build-essential \
-              cmake \
-              ninja-build \
-              git \
-              findutils \
-              libc-ares-dev \
-              ${pcre_pkg} \
-              libldap2-dev \
-              librrd-dev \
-              libssl-dev \
-              libtirpc-dev \
-              zlib1g-dev
-            exit 0
-          fi
-
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            git \
-            findutils \
-            libc-ares-dev \
-            ${pcre_pkg} \
-            libldap2-dev \
-            librrd-dev \
-            libssl-dev \
-            libtirpc-dev \
-            zlib1g-dev
+          bash ci/deps/install-apt-packages.sh
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
         run: |
-          dnf -y install dnf-plugins-core
-          if [ "${{ matrix.name }}" = "rockylinux-8" ] || [ "${{ matrix.name }}" = "almalinux-8" ]; then
-            dnf config-manager --set-enabled powertools || true
-          elif [ "${{ matrix.name }}" = "rockylinux-9" ] || [ "${{ matrix.name }}" = "almalinux-9" ]; then
-            dnf config-manager --set-enabled crb || true
-          fi
-          dnf -y install epel-release || true
-          dnf clean all
-          dnf -y makecache
-          dnf -y install \
-            gcc \
-            gcc-c++ \
-            make \
-            cmake \
-            ninja-build \
-            git \
-            findutils \
-            c-ares-devel \
-            pcre-devel \
-            pcre2-devel \
-            openldap-devel \
-            openssl-devel \
-            libtirpc-devel \
-            zlib-devel
-          dnf -y install rrdtool-devel libtirpc-devel
+          bash ci/deps/install-dnf-packages.sh --name "${{ matrix.name }}"
 
       - name: Install build dependencies (yum)
         if: ${{ matrix.pkg_mgr == 'yum' }}
         run: |
-          yum -y install epel-release || true
-          yum -y install \
-            gcc \
-            gcc-c++ \
-            make \
-            cmake3 \
-            ninja-build \
-            git \
-            findutils \
-            c-ares-devel \
-            pcre-devel \
-            openldap-devel \
-            openssl-devel \
-            libtirpc-devel \
-            zlib-devel \
-            rrdtool-devel
+          bash ci/deps/install-yum-packages.sh
 
       - name: Install build dependencies (zypper)
         if: ${{ matrix.pkg_mgr == 'zypper' }}
         run: |
-          zypper --non-interactive refresh
-          zypper --non-interactive install \
-            gcc \
-            gcc-c++ \
-            make \
-            cmake \
-            ninja \
-            git \
-            findutils \
-            c-ares-devel \
-            pcre-devel \
-            openldap2-devel \
-            libopenssl-devel \
-            libtirpc-devel \
-            zlib-devel \
-            rrdtool-devel
+          bash ci/deps/install-zypper-packages.sh
 
       - name: Install build dependencies (apk)
         if: ${{ matrix.pkg_mgr == 'apk' }}
         run: |
-          apk add --no-cache \
-            bash \
-            build-base \
-            cmake \
-            ninja \
-            git \
-            findutils \
-            c-ares-dev \
-            pcre-dev \
-            openldap-dev \
-            rrdtool-dev \
-            openssl-dev \
-            libtirpc-dev \
-            zlib-dev
+          bash ci/deps/install-apk-packages.sh
 
       - name: Install build dependencies (pacman)
         if: ${{ matrix.pkg_mgr == 'pacman' }}
         run: |
-          pacman -Sy --noconfirm archlinux-keyring
-          pacman -Syu --noconfirm \
-            base-devel \
-            cmake \
-            ninja \
-            git \
-            findutils \
-            c-ares \
-            pcre \
-            openldap \
-            rrdtool \
-            openssl \
-            libtirpc \
-            zlib
+          bash ci/deps/install-pacman-packages.sh
 
       - name: Configure (legacy)
         shell: bash
