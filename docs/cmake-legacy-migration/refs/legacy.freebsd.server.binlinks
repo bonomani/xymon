@@ -1,635 +1,517 @@
 === /server/bin/xymongrep ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymongrep:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0xe89b2bab000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0xe89b4e00000)
-	libc.so.7 => /lib/libc.so.7 (0xe89b5478000)
-	libthr.so.3 => /lib/libthr.so.3 (0xe89b3c28000)
-	libsys.so.7 => /lib/libsys.so.7 (0xe89b6380000)
-	[vdso] (0xe89b1fa1000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymondigest ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymondigest:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x11e49c7b9000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x11e49de00000)
-	libc.so.7 => /lib/libc.so.7 (0x11e49cc6d000)
-	libthr.so.3 => /lib/libthr.so.3 (0x11e49bcaa000)
-	libsys.so.7 => /lib/libsys.so.7 (0x11e49f343000)
-	[vdso] (0x11e49b4ef000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymon ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymon:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x7793ea43000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x77940a00000)
-	libc.so.7 => /lib/libc.so.7 (0x7793db21000)
-	libthr.so.3 => /lib/libthr.so.3 (0x7793f6e6000)
-	libsys.so.7 => /lib/libsys.so.7 (0x77940800000)
-	[vdso] (0x7793ceec000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymoncmd ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncmd:
-	libc.so.7 => /lib/libc.so.7 (0xba914c7d000)
-	libsys.so.7 => /lib/libsys.so.7 (0xba915443000)
-	[vdso] (0xba913eb5000)
+/lib/libc.so.7
+/lib/libsys.so.7
 === /server/bin/xymonlaunch ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonlaunch:
-	libc.so.7 => /lib/libc.so.7 (0x15c2a5eb4000)
-	libsys.so.7 => /lib/libsys.so.7 (0x15c2a6ff2000)
-	[vdso] (0x15c2a52da000)
+/lib/libc.so.7
+/lib/libsys.so.7
 === /server/bin/xymoncfg ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncfg:
-	libc.so.7 => /lib/libc.so.7 (0x16737d652000)
-	libsys.so.7 => /lib/libsys.so.7 (0x16737eed7000)
-	[vdso] (0x16737cc10000)
+/lib/libc.so.7
+/lib/libsys.so.7
 === /server/bin/xymongen ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymongen:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x32e6c7525000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x32e6c9400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x32e6c9fcb000)
-	libc.so.7 => /lib/libc.so.7 (0x32e6c8bd0000)
-	libthr.so.3 => /lib/libthr.so.3 (0x32e6cb00f000)
-	libsys.so.7 => /lib/libsys.so.7 (0x32e6cb6d0000)
-	[vdso] (0x32e6c685b000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymonnet ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonnet:
-	libcares.so.2 => /usr/local/lib/libcares.so.2 (0x20af9e15c000)
-	libldap.so.2 => /usr/local/lib/libldap.so.2 (0x20af9f62a000)
-	liblber.so.2 => /usr/local/lib/liblber.so.2 (0x20afa05aa000)
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x20afa10e5000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x20afa2400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x20afa180c000)
-	libc.so.7 => /lib/libc.so.7 (0x20afa2c89000)
-	libthr.so.3 => /lib/libthr.so.3 (0x20afa387f000)
-	libsasl2.so.3 => /usr/local/lib/libsasl2.so.3 (0x20af9edc4000)
-	libsys.so.7 => /lib/libsys.so.7 (0x20afa408d000)
-	libdl.so.1 => /usr/lib/libdl.so.1 (0x20afa4f04000)
-	[vdso] (0x20af9dbf3000)
+/usr/local/lib/libcares.so.2
+/usr/local/lib/libldap.so.2
+/usr/local/lib/liblber.so.2
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/usr/local/lib/libsasl2.so.3
+/lib/libsys.so.7
+/usr/lib/libdl.so.1
 === /server/bin/xymonping ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonping:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x7749e38d000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x7749f000000)
-	libc.so.7 => /lib/libc.so.7 (0x774a00ad000)
-	libthr.so.3 => /lib/libthr.so.3 (0x774a0c23000)
-	libsys.so.7 => /lib/libsys.so.7 (0x7749d324000)
-	[vdso] (0x7749ce56000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/beastat ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/beastat:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x3568e72b1000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x3568e7600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x3568e7c4b000)
-	libc.so.7 => /lib/libc.so.7 (0x3568e8668000)
-	libthr.so.3 => /lib/libthr.so.3 (0x3568e98ca000)
-	libsys.so.7 => /lib/libsys.so.7 (0x3568e9dc5000)
-	[vdso] (0x3568e5cac000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymonproxy ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonproxy:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x16d05c3c1000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x16d05e800000)
-	libc.so.7 => /lib/libc.so.7 (0x16d05d961000)
-	libthr.so.3 => /lib/libthr.so.3 (0x16d05fba5000)
-	libsys.so.7 => /lib/libsys.so.7 (0x16d06068f000)
-	[vdso] (0x16d05b9a9000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymoncgimsg.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncgimsg.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x1b2f9e1dd000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x1b2f9f200000)
-	libc.so.7 => /lib/libc.so.7 (0x1b2fa04e3000)
-	libthr.so.3 => /lib/libthr.so.3 (0x1b2fa17e5000)
-	libsys.so.7 => /lib/libsys.so.7 (0x1b2fa23fa000)
-	[vdso] (0x1b2f9d318000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymon.sh ===
 === /server/bin/xymond ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x208a36785000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x208a39400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x208a36e16000)
-	libc.so.7 => /lib/libc.so.7 (0x208a37c02000)
-	libthr.so.3 => /lib/libthr.so.3 (0x208a38c8e000)
-	libsys.so.7 => /lib/libsys.so.7 (0x208a3b279000)
-	[vdso] (0x208a35990000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_channel ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_channel:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x18bd7fa94000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x18bd80600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x18bd7f454000)
-	libc.so.7 => /lib/libc.so.7 (0x18bd810ca000)
-	libthr.so.3 => /lib/libthr.so.3 (0x18bd81e64000)
-	libsys.so.7 => /lib/libsys.so.7 (0x18bd82732000)
-	[vdso] (0x18bd7e3d5000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_locator ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_locator:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x3753ad59a000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x3753ae800000)
-	libc.so.7 => /lib/libc.so.7 (0x3753af32d000)
-	libthr.so.3 => /lib/libthr.so.3 (0x3753af715000)
-	libsys.so.7 => /lib/libsys.so.7 (0x3753affca000)
-	[vdso] (0x3753acf30000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_filestore ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_filestore:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x6c90a7ba000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x6c90c800000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x6c90b7d9000)
-	libc.so.7 => /lib/libc.so.7 (0x6c90e0ce000)
-	libthr.so.3 => /lib/libthr.so.3 (0x6c90efa9000)
-	libsys.so.7 => /lib/libsys.so.7 (0x6c90fb35000)
-	[vdso] (0x6c909b3f000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_history ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_history:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x3050dceb3000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x3050de800000)
-	libc.so.7 => /lib/libc.so.7 (0x3050df383000)
-	libthr.so.3 => /lib/libthr.so.3 (0x3050de500000)
-	libsys.so.7 => /lib/libsys.so.7 (0x3050ddec6000)
-	[vdso] (0x3050dc3dc000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_alert ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_alert:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x382fc5905000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x382fc6600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x382fc5136000)
-	libc.so.7 => /lib/libc.so.7 (0x382fc8a11000)
-	libthr.so.3 => /lib/libthr.so.3 (0x382fc757b000)
-	libsys.so.7 => /lib/libsys.so.7 (0x382fc8fed000)
-	[vdso] (0x382fc4313000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_sample ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_sample:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2c0ef8987000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2c0efb400000)
-	libc.so.7 => /lib/libc.so.7 (0x2c0ef997f000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2c0efa322000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2c0efc8f3000)
-	[vdso] (0x2c0ef812b000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_client ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_client:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x28936b001000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x28936ba00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x28936c9b0000)
-	libc.so.7 => /lib/libc.so.7 (0x28936df01000)
-	libthr.so.3 => /lib/libthr.so.3 (0x28936d0a7000)
-	libsys.so.7 => /lib/libsys.so.7 (0x28936ea2e000)
-	[vdso] (0x28936a5a4000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_hostdata ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_hostdata:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0xe1d90354000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0xe1d91600000)
-	libc.so.7 => /lib/libc.so.7 (0xe1d926fb000)
-	libthr.so.3 => /lib/libthr.so.3 (0xe1d9392f000)
-	libsys.so.7 => /lib/libsys.so.7 (0xe1d9417d000)
-	[vdso] (0xe1d8fe9f000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_capture ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_capture:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2f0fb26b1000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2f0fb2a00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2f0fb3a0e000)
-	libc.so.7 => /lib/libc.so.7 (0x2f0fb5101000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2f0fb541f000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2f0fb5f0c000)
-	[vdso] (0x2f0fb22ba000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_distribute ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_distribute:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x14eb5b5ae000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x14eb5d400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x14eb5c684000)
-	libc.so.7 => /lib/libc.so.7 (0x14eb5e03a000)
-	libthr.so.3 => /lib/libthr.so.3 (0x14eb5f231000)
-	libsys.so.7 => /lib/libsys.so.7 (0x14eb6012f000)
-	[vdso] (0x14eb5a88e000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymonfetch ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonfetch:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x1f02f81d5000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x1f02f9c00000)
-	libc.so.7 => /lib/libc.so.7 (0x1f02fafeb000)
-	libthr.so.3 => /lib/libthr.so.3 (0x1f02fc065000)
-	libsys.so.7 => /lib/libsys.so.7 (0x1f02f96a4000)
-	[vdso] (0x1f02f772e000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymon-mailack ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymon-mailack:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x38f72be1b000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x38f72d600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x38f72b41d000)
-	libc.so.7 => /lib/libc.so.7 (0x38f72acbc000)
-	libthr.so.3 => /lib/libthr.so.3 (0x38f72cbe0000)
-	libsys.so.7 => /lib/libsys.so.7 (0x38f72e5e2000)
-	[vdso] (0x38f729fbd000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/trimhistory ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/trimhistory:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2a3fd6b2000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2a3fea00000)
-	libc.so.7 => /lib/libc.so.7 (0x2a3ff064000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2a3fdf45000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2a3ff4f8000)
-	[vdso] (0x2a3fc1a6000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/combostatus ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/combostatus:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x24a71a774000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x24a71b600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x24a71d1b4000)
-	libc.so.7 => /lib/libc.so.7 (0x24a71da04000)
-	libthr.so.3 => /lib/libthr.so.3 (0x24a71bce6000)
-	libsys.so.7 => /lib/libsys.so.7 (0x24a71de47000)
-	[vdso] (0x24a7199c2000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymonreports.sh ===
 === /server/bin/moverrd.sh ===
 === /server/bin/convertnk ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/convertnk:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x20d8bf8dd000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x20d8c0000000)
-	libc.so.7 => /lib/libc.so.7 (0x20d8c0d11000)
-	libthr.so.3 => /lib/libthr.so.3 (0x20d8c1b2a000)
-	libsys.so.7 => /lib/libsys.so.7 (0x20d8c220e000)
-	[vdso] (0x20d8be170000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/rrdcachectl ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/rrdcachectl:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2522bf26a000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2522c1400000)
-	libc.so.7 => /lib/libc.so.7 (0x2522c0906000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2522c1c55000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2522bf69b000)
-	[vdso] (0x2522bed72000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymond_rrd ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_rrd:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0xb02c7787000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0xb02c9e00000)
-	librrd.so.8 => /usr/local/lib/librrd.so.8 (0xb02c805b000)
-	libpng16.so.16 => /usr/local/lib/libpng16.so.16 (0xb02c9578000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0xb02caa64000)
-	libc.so.7 => /lib/libc.so.7 (0xb02c8660000)
-	libthr.so.3 => /lib/libthr.so.3 (0xb02cba25000)
-	libcairo.so.2 => /usr/local/lib/libcairo.so.2 (0xb02cc466000)
-	libglib-2.0.so.0 => /usr/local/lib/libglib-2.0.so.0 (0xb02cd916000)
-	libgobject-2.0.so.0 => /usr/local/lib/libgobject-2.0.so.0 (0xb02cda92000)
-	libharfbuzz.so.0 => /usr/local/lib/libharfbuzz.so.0 (0xb02cdde0000)
-	libintl.so.8 => /usr/local/lib/libintl.so.8 (0xb02cdf24000)
-	libm.so.5 => /lib/libm.so.5 (0xb02ce83e000)
-	libpango-1.0.so.0 => /usr/local/lib/libpango-1.0.so.0 (0xb02cef47000)
-	libpangocairo-1.0.so.0 => /usr/local/lib/libpangocairo-1.0.so.0 (0xb02cd360000)
-	libwrap.so.6 => /usr/lib/libwrap.so.6 (0xb02d0ac8000)
-	libxml2.so.16 => /usr/local/lib/libxml2.so.16 (0xb02cf4ea000)
-	libz.so.6 => /lib/libz.so.6 (0xb02d14cf000)
-	libsys.so.7 => /lib/libsys.so.7 (0xb02d2048000)
-	libfontconfig.so.1 => /usr/local/lib/libfontconfig.so.1 (0xb02d25fe000)
-	libfreetype.so.6 => /usr/local/lib/libfreetype.so.6 (0xb02d268d000)
-	libX11.so.6 => /usr/local/lib/libX11.so.6 (0xb02d0549000)
-	libXext.so.6 => /usr/local/lib/libXext.so.6 (0xb02d35e1000)
-	libXrender.so.1 => /usr/local/lib/libXrender.so.1 (0xb02d42b8000)
-	libxcb.so.1 => /usr/local/lib/libxcb.so.1 (0xb02d497c000)
-	libxcb-render.so.0 => /usr/local/lib/libxcb-render.so.0 (0xb02d5c89000)
-	libxcb-shm.so.0 => /usr/local/lib/libxcb-shm.so.0 (0xb02d571f000)
-	libpixman-1.so.0 => /usr/local/lib/libpixman-1.so.0 (0xb02d6f4a000)
-	libiconv.so.2 => /usr/local/lib/libiconv.so.2 (0xb02d76e7000)
-	libpcre2-8.so.0 => /usr/local/lib/libpcre2-8.so.0 (0xb02d879d000)
-	libutil.so.10 => /lib/libutil.so.10 (0xb02d6601000)
-	libffi.so.8 => /usr/local/lib/libffi.so.8 (0xb02d9b04000)
-	libgraphite2.so.3 => /usr/local/lib/libgraphite2.so.3 (0xb02d9ec7000)
-	libgio-2.0.so.0 => /usr/local/lib/libgio-2.0.so.0 (0xb02da1dc000)
-	libfribidi.so.0 => /usr/local/lib/libfribidi.so.0 (0xb02d8c22000)
-	libthai.so.0 => /usr/local/lib/libthai.so.0 (0xb02db1e4000)
-	libpangoft2-1.0.so.0 => /usr/local/lib/libpangoft2-1.0.so.0 (0xb02dbea4000)
-	libexpat.so.1 => /usr/local/lib/libexpat.so.1 (0xb02dcb49000)
-	libbz2.so.4 => /usr/lib/libbz2.so.4 (0xb02de2d7000)
-	libbrotlidec.so.1 => /usr/local/lib/libbrotlidec.so.1 (0xb02ded73000)
-	libXau.so.6 => /usr/local/lib/libXau.so.6 (0xb02dd2aa000)
-	libXdmcp.so.6 => /usr/local/lib/libXdmcp.so.6 (0xb02df8a1000)
-	libcxxrt.so.1 => /lib/libcxxrt.so.1 (0xb02dfb1b000)
-	libgcc_s.so.1 => /lib/libgcc_s.so.1 (0xb02dfdf5000)
-	libgmodule-2.0.so.0 => /usr/local/lib/libgmodule-2.0.so.0 (0xb02e03fd000)
-	libdatrie.so.1 => /usr/local/lib/libdatrie.so.1 (0xb02e0f0e000)
-	libbrotlicommon.so.1 => /usr/local/lib/libbrotlicommon.so.1 (0xb02e1d42000)
-	[vdso] (0xb02c6d18000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/librrd.so.8
+/usr/local/lib/libpng16.so.16
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/usr/local/lib/libcairo.so.2
+/usr/local/lib/libglib-2.0.so.0
+/usr/local/lib/libgobject-2.0.so.0
+/usr/local/lib/libharfbuzz.so.0
+/usr/local/lib/libintl.so.8
+/lib/libm.so.5
+/usr/local/lib/libpango-1.0.so.0
+/usr/local/lib/libpangocairo-1.0.so.0
+/usr/lib/libwrap.so.6
+/usr/local/lib/libxml2.so.16
+/lib/libz.so.6
+/lib/libsys.so.7
+/usr/local/lib/libfontconfig.so.1
+/usr/local/lib/libfreetype.so.6
+/usr/local/lib/libX11.so.6
+/usr/local/lib/libXext.so.6
+/usr/local/lib/libXrender.so.1
+/usr/local/lib/libxcb.so.1
+/usr/local/lib/libxcb-render.so.0
+/usr/local/lib/libxcb-shm.so.0
+/usr/local/lib/libpixman-1.so.0
+/usr/local/lib/libiconv.so.2
+/usr/local/lib/libpcre2-8.so.0
+/lib/libutil.so.10
+/usr/local/lib/libffi.so.8
+/usr/local/lib/libgraphite2.so.3
+/usr/local/lib/libgio-2.0.so.0
+/usr/local/lib/libfribidi.so.0
+/usr/local/lib/libthai.so.0
+/usr/local/lib/libpangoft2-1.0.so.0
+/usr/local/lib/libexpat.so.1
+/usr/lib/libbz2.so.4
+/usr/local/lib/libbrotlidec.so.1
+/usr/local/lib/libXau.so.6
+/usr/local/lib/libXdmcp.so.6
+/lib/libcxxrt.so.1
+/lib/libgcc_s.so.1
+/usr/local/lib/libgmodule-2.0.so.0
+/usr/local/lib/libdatrie.so.1
+/usr/local/lib/libbrotlicommon.so.1
 === /server/bin/history.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/history.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2b6af82b6000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2b6afa000000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2b6af93b6000)
-	libc.so.7 => /lib/libc.so.7 (0x2b6afaec6000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2b6afbe8f000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2b6afcc28000)
-	[vdso] (0x2b6af70b3000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/eventlog.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/eventlog.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2e5602d1d000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2e5603400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2e56023e9000)
-	libc.so.7 => /lib/libc.so.7 (0x2e56049ae000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2e56051b8000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2e5605300000)
-	[vdso] (0x2e560139d000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/report.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/report.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x679f1099000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x679f1e00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x679f39da000)
-	libc.so.7 => /lib/libc.so.7 (0x679f3c03000)
-	libthr.so.3 => /lib/libthr.so.3 (0x679f40dc000)
-	libsys.so.7 => /lib/libsys.so.7 (0x679f421d000)
-	[vdso] (0x679f0543000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/reportlog.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/reportlog.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x14123967f000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x14123c200000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x14123a3e6000)
-	libc.so.7 => /lib/libc.so.7 (0x14123b22b000)
-	libthr.so.3 => /lib/libthr.so.3 (0x14123d4d8000)
-	libsys.so.7 => /lib/libsys.so.7 (0x14123dd5b000)
-	[vdso] (0x141238a7d000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/snapshot.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/snapshot.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x18986975a000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x18986a800000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x18986bdee000)
-	libc.so.7 => /lib/libc.so.7 (0x18986c324000)
-	libthr.so.3 => /lib/libthr.so.3 (0x18986d849000)
-	libsys.so.7 => /lib/libsys.so.7 (0x18986d3f5000)
-	[vdso] (0x189868bf3000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/findhost.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/findhost.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x6031f827000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x60320a00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x603215fb000)
-	libc.so.7 => /lib/libc.so.7 (0x603224bb000)
-	libthr.so.3 => /lib/libthr.so.3 (0x60322c31000)
-	libsys.so.7 => /lib/libsys.so.7 (0x603231a8000)
-	[vdso] (0x6031ea9a000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/csvinfo.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/csvinfo.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x1361fc0e1000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x1361fcc00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x1361fd407000)
-	libc.so.7 => /lib/libc.so.7 (0x1361fd4f9000)
-	libthr.so.3 => /lib/libthr.so.3 (0x1361fe277000)
-	libsys.so.7 => /lib/libsys.so.7 (0x1361fe365000)
-	[vdso] (0x1361fae86000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/acknowledge.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/acknowledge.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2ce80c9ee000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2ce80e800000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2ce80d23a000)
-	libc.so.7 => /lib/libc.so.7 (0x2ce80de1f000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2ce80fb4f000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2ce80febb000)
-	[vdso] (0x2ce80b9cb000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/xymonpage ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonpage:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x1c01fa1b5000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x1c01fb600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x1c01fac4a000)
-	libc.so.7 => /lib/libc.so.7 (0x1c01fcb29000)
-	libthr.so.3 => /lib/libthr.so.3 (0x1c01fd0d4000)
-	libsys.so.7 => /lib/libsys.so.7 (0x1c01fd1b5000)
-	[vdso] (0x1c01f90f8000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/datepage.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/datepage.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x112d65751000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x112d67800000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x112d65e5e000)
-	libc.so.7 => /lib/libc.so.7 (0x112d6634f000)
-	libthr.so.3 => /lib/libthr.so.3 (0x112d6477d000)
-	libsys.so.7 => /lib/libsys.so.7 (0x112d68335000)
-	[vdso] (0x112d63fe0000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/svcstatus.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/svcstatus.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x3f28fa116000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x3f28fc200000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x3f28fb263000)
-	libc.so.7 => /lib/libc.so.7 (0x3f28fd006000)
-	libthr.so.3 => /lib/libthr.so.3 (0x3f28fe206000)
-	libsys.so.7 => /lib/libsys.so.7 (0x3f28fe35d000)
-	[vdso] (0x3f28f9799000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/enadis.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/enadis.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x18ea9ae15000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x18ea9be00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x18ea9db66000)
-	libc.so.7 => /lib/libc.so.7 (0x18ea9c524000)
-	libthr.so.3 => /lib/libthr.so.3 (0x18ea9e2fd000)
-	libsys.so.7 => /lib/libsys.so.7 (0x18ea9e874000)
-	[vdso] (0x18ea9a6d2000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/confreport.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/confreport.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2019e867000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2019ee00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2019d863000)
-	libc.so.7 => /lib/libc.so.7 (0x2019fcc8000)
-	libthr.so.3 => /lib/libthr.so.3 (0x201a14f3000)
-	libsys.so.7 => /lib/libsys.so.7 (0x201a0708000)
-	[vdso] (0x2019d571000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/criticalview.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/criticalview.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x12ccb73cf000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x12ccb7c00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x12ccb6328000)
-	libc.so.7 => /lib/libc.so.7 (0x12ccb89ed000)
-	libthr.so.3 => /lib/libthr.so.3 (0x12ccb8dac000)
-	libsys.so.7 => /lib/libsys.so.7 (0x12ccb92a0000)
-	[vdso] (0x12ccb5b26000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/criticaleditor.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/criticaleditor.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x158afecc000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x158b2600000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x158b180b000)
-	libc.so.7 => /lib/libc.so.7 (0x158b2f77000)
-	libthr.so.3 => /lib/libthr.so.3 (0x158b3886000)
-	libsys.so.7 => /lib/libsys.so.7 (0x158b3aa0000)
-	[vdso] (0x158af7cd000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/ackinfo.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/ackinfo.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x24d90cb69000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x24d90d600000)
-	libc.so.7 => /lib/libc.so.7 (0x24d90dc99000)
-	libthr.so.3 => /lib/libthr.so.3 (0x24d90c1d1000)
-	libsys.so.7 => /lib/libsys.so.7 (0x24d90e635000)
-	[vdso] (0x24d90b8d2000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/statusreport.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/statusreport.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x36059c902000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x36059e400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x36059c723000)
-	libc.so.7 => /lib/libc.so.7 (0x36059cb6a000)
-	libthr.so.3 => /lib/libthr.so.3 (0x36059bc55000)
-	libsys.so.7 => /lib/libsys.so.7 (0x36059f23b000)
-	[vdso] (0x36059b23c000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/boilerplate.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/boilerplate.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x29791433e000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x297914800000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x297915179000)
-	libc.so.7 => /lib/libc.so.7 (0x297915628000)
-	libthr.so.3 => /lib/libthr.so.3 (0x297914072000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2979165ff000)
-	[vdso] (0x2979132c1000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/hostgraphs.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/hostgraphs.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x14fc19da9000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x14fc1a000000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x14fc18c9a000)
-	libc.so.7 => /lib/libc.so.7 (0x14fc1b218000)
-	libthr.so.3 => /lib/libthr.so.3 (0x14fc1b780000)
-	libsys.so.7 => /lib/libsys.so.7 (0x14fc1c3bc000)
-	[vdso] (0x14fc186b9000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/ghostlist.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/ghostlist.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x34e263954000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x34e264e00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x34e26610c000)
-	libc.so.7 => /lib/libc.so.7 (0x34e26716e000)
-	libthr.so.3 => /lib/libthr.so.3 (0x34e26789e000)
-	libsys.so.7 => /lib/libsys.so.7 (0x34e267cb4000)
-	[vdso] (0x34e262d20000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/notifications.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/notifications.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x30c7bb349000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x30c7bc200000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x30c7bcd6d000)
-	libc.so.7 => /lib/libc.so.7 (0x30c7bda83000)
-	libthr.so.3 => /lib/libthr.so.3 (0x30c7be9a1000)
-	libsys.so.7 => /lib/libsys.so.7 (0x30c7bee77000)
-	[vdso] (0x30c7ba0f8000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/acknowledgements.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/acknowledgements.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x33608c329000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x33608e000000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x33608cd72000)
-	libc.so.7 => /lib/libc.so.7 (0x33608eb15000)
-	libthr.so.3 => /lib/libthr.so.3 (0x33608d3a4000)
-	libsys.so.7 => /lib/libsys.so.7 (0x33608fc08000)
-	[vdso] (0x33608b23c000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/hostlist.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/hostlist.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x194e7bace000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x194e7be00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x194e7d22e000)
-	libc.so.7 => /lib/libc.so.7 (0x194e7e1be000)
-	libthr.so.3 => /lib/libthr.so.3 (0x194e7f399000)
-	libsys.so.7 => /lib/libsys.so.7 (0x194e803a7000)
-	[vdso] (0x194e7a768000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/useradm.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/useradm.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0xa5cb0bbd000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0xa5cb2c00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0xa5cb1245000)
-	libc.so.7 => /lib/libc.so.7 (0xa5cb1db9000)
-	libthr.so.3 => /lib/libthr.so.3 (0xa5cafea4000)
-	libsys.so.7 => /lib/libsys.so.7 (0xa5cb4481000)
-	[vdso] (0xa5caf3eb000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/chpasswd.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/chpasswd.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x37fbee1f9000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x37fbefc00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x37fbeeb3a000)
-	libc.so.7 => /lib/libc.so.7 (0x37fbf036a000)
-	libthr.so.3 => /lib/libthr.so.3 (0x37fbef450000)
-	libsys.so.7 => /lib/libsys.so.7 (0x37fbed741000)
-	[vdso] (0x37fbed011000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/appfeed.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/appfeed.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x2685f6f22000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x2685f9400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x2685f7a8a000)
-	libc.so.7 => /lib/libc.so.7 (0x2685f86d2000)
-	libthr.so.3 => /lib/libthr.so.3 (0x2685faa27000)
-	libsys.so.7 => /lib/libsys.so.7 (0x2685fb008000)
-	[vdso] (0x2685f601b000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/cgiwrap ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/cgiwrap:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0xd454e7ac000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0xd454f400000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0xd455070c000)
-	libc.so.7 => /lib/libc.so.7 (0xd4550cb7000)
-	libthr.so.3 => /lib/libthr.so.3 (0xd454e550000)
-	libsys.so.7 => /lib/libsys.so.7 (0xd454d6a4000)
-	[vdso] (0xd454d4ec000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
 === /server/bin/showgraph.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/showgraph.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x3f5cf5585000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x3f5cf7a00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x3f5cf6506000)
-	librrd.so.8 => /usr/local/lib/librrd.so.8 (0x3f5cf710a000)
-	libpng16.so.16 => /usr/local/lib/libpng16.so.16 (0x3f5cf8e76000)
-	libc.so.7 => /lib/libc.so.7 (0x3f5cf9b0c000)
-	libthr.so.3 => /lib/libthr.so.3 (0x3f5cfb5a5000)
-	libcairo.so.2 => /usr/local/lib/libcairo.so.2 (0x3f5cfc331000)
-	libglib-2.0.so.0 => /usr/local/lib/libglib-2.0.so.0 (0x3f5cfd458000)
-	libgobject-2.0.so.0 => /usr/local/lib/libgobject-2.0.so.0 (0x3f5cfdb73000)
-	libharfbuzz.so.0 => /usr/local/lib/libharfbuzz.so.0 (0x3f5cfadf9000)
-	libintl.so.8 => /usr/local/lib/libintl.so.8 (0x3f5cfe0d3000)
-	libm.so.5 => /lib/libm.so.5 (0x3f5cffcc2000)
-	libpango-1.0.so.0 => /usr/local/lib/libpango-1.0.so.0 (0x3f5cfe799000)
-	libpangocairo-1.0.so.0 => /usr/local/lib/libpangocairo-1.0.so.0 (0x3f5cffea1000)
-	libwrap.so.6 => /usr/lib/libwrap.so.6 (0x3f5d00c79000)
-	libxml2.so.16 => /usr/local/lib/libxml2.so.16 (0x3f5cff8fb000)
-	libz.so.6 => /lib/libz.so.6 (0x3f5d014fe000)
-	libsys.so.7 => /lib/libsys.so.7 (0x3f5d02348000)
-	libfontconfig.so.1 => /usr/local/lib/libfontconfig.so.1 (0x3f5d02860000)
-	libfreetype.so.6 => /usr/local/lib/libfreetype.so.6 (0x3f5d03873000)
-	libX11.so.6 => /usr/local/lib/libX11.so.6 (0x3f5d03c6d000)
-	libXext.so.6 => /usr/local/lib/libXext.so.6 (0x3f5d04a02000)
-	libXrender.so.1 => /usr/local/lib/libXrender.so.1 (0x3f5d04ca3000)
-	libxcb.so.1 => /usr/local/lib/libxcb.so.1 (0x3f5d05816000)
-	libxcb-render.so.0 => /usr/local/lib/libxcb-render.so.0 (0x3f5d05c6c000)
-	libxcb-shm.so.0 => /usr/local/lib/libxcb-shm.so.0 (0x3f5d05eba000)
-	libpixman-1.so.0 => /usr/local/lib/libpixman-1.so.0 (0x3f5d060fa000)
-	libiconv.so.2 => /usr/local/lib/libiconv.so.2 (0x3f5d071c1000)
-	libpcre2-8.so.0 => /usr/local/lib/libpcre2-8.so.0 (0x3f5d07e7f000)
-	libutil.so.10 => /lib/libutil.so.10 (0x3f5cff4bd000)
-	libffi.so.8 => /usr/local/lib/libffi.so.8 (0x3f5d08f24000)
-	libgraphite2.so.3 => /usr/local/lib/libgraphite2.so.3 (0x3f5d09a1d000)
-	libgio-2.0.so.0 => /usr/local/lib/libgio-2.0.so.0 (0x3f5d0b815000)
-	libfribidi.so.0 => /usr/local/lib/libfribidi.so.0 (0x3f5d0aa3b000)
-	libthai.so.0 => /usr/local/lib/libthai.so.0 (0x3f5d0ca08000)
-	libpangoft2-1.0.so.0 => /usr/local/lib/libpangoft2-1.0.so.0 (0x3f5d0d2d5000)
-	libexpat.so.1 => /usr/local/lib/libexpat.so.1 (0x3f5d0e14d000)
-	libbz2.so.4 => /usr/lib/libbz2.so.4 (0x3f5d0f053000)
-	libbrotlidec.so.1 => /usr/local/lib/libbrotlidec.so.1 (0x3f5d0f12f000)
-	libXau.so.6 => /usr/local/lib/libXau.so.6 (0x3f5d0fd89000)
-	libXdmcp.so.6 => /usr/local/lib/libXdmcp.so.6 (0x3f5d1034e000)
-	libcxxrt.so.1 => /lib/libcxxrt.so.1 (0x3f5d10f97000)
-	libgcc_s.so.1 => /lib/libgcc_s.so.1 (0x3f5d11e1a000)
-	libgmodule-2.0.so.0 => /usr/local/lib/libgmodule-2.0.so.0 (0x3f5d12759000)
-	libdatrie.so.1 => /usr/local/lib/libdatrie.so.1 (0x3f5d12f26000)
-	libbrotlicommon.so.1 => /usr/local/lib/libbrotlicommon.so.1 (0x3f5d13053000)
-	[vdso] (0x3f5cf4753000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/usr/local/lib/librrd.so.8
+/usr/local/lib/libpng16.so.16
+/lib/libc.so.7
+/lib/libthr.so.3
+/usr/local/lib/libcairo.so.2
+/usr/local/lib/libglib-2.0.so.0
+/usr/local/lib/libgobject-2.0.so.0
+/usr/local/lib/libharfbuzz.so.0
+/usr/local/lib/libintl.so.8
+/lib/libm.so.5
+/usr/local/lib/libpango-1.0.so.0
+/usr/local/lib/libpangocairo-1.0.so.0
+/usr/lib/libwrap.so.6
+/usr/local/lib/libxml2.so.16
+/lib/libz.so.6
+/lib/libsys.so.7
+/usr/local/lib/libfontconfig.so.1
+/usr/local/lib/libfreetype.so.6
+/usr/local/lib/libX11.so.6
+/usr/local/lib/libXext.so.6
+/usr/local/lib/libXrender.so.1
+/usr/local/lib/libxcb.so.1
+/usr/local/lib/libxcb-render.so.0
+/usr/local/lib/libxcb-shm.so.0
+/usr/local/lib/libpixman-1.so.0
+/usr/local/lib/libiconv.so.2
+/usr/local/lib/libpcre2-8.so.0
+/lib/libutil.so.10
+/usr/local/lib/libffi.so.8
+/usr/local/lib/libgraphite2.so.3
+/usr/local/lib/libgio-2.0.so.0
+/usr/local/lib/libfribidi.so.0
+/usr/local/lib/libthai.so.0
+/usr/local/lib/libpangoft2-1.0.so.0
+/usr/local/lib/libexpat.so.1
+/usr/lib/libbz2.so.4
+/usr/local/lib/libbrotlidec.so.1
+/usr/local/lib/libXau.so.6
+/usr/local/lib/libXdmcp.so.6
+/lib/libcxxrt.so.1
+/lib/libgcc_s.so.1
+/usr/local/lib/libgmodule-2.0.so.0
+/usr/local/lib/libdatrie.so.1
+/usr/local/lib/libbrotlicommon.so.1
 === /server/bin/perfdata.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/perfdata.cgi:
-	libssl.so.35 => /usr/lib/libssl.so.35 (0x1ce343779000)
-	libcrypto.so.35 => /lib/libcrypto.so.35 (0x1ce343e00000)
-	libpcre.so.1 => /usr/local/lib/libpcre.so.1 (0x1ce344861000)
-	librrd.so.8 => /usr/local/lib/librrd.so.8 (0x1ce34584f000)
-	libpng16.so.16 => /usr/local/lib/libpng16.so.16 (0x1ce34640e000)
-	libm.so.5 => /lib/libm.so.5 (0x1ce346943000)
-	libc.so.7 => /lib/libc.so.7 (0x1ce346bc9000)
-	libthr.so.3 => /lib/libthr.so.3 (0x1ce347884000)
-	libcairo.so.2 => /usr/local/lib/libcairo.so.2 (0x1ce347ae7000)
-	libglib-2.0.so.0 => /usr/local/lib/libglib-2.0.so.0 (0x1ce347ca5000)
-	libgobject-2.0.so.0 => /usr/local/lib/libgobject-2.0.so.0 (0x1ce34818a000)
-	libharfbuzz.so.0 => /usr/local/lib/libharfbuzz.so.0 (0x1ce34821c000)
-	libintl.so.8 => /usr/local/lib/libintl.so.8 (0x1ce348c08000)
-	libpango-1.0.so.0 => /usr/local/lib/libpango-1.0.so.0 (0x1ce349a43000)
-	libpangocairo-1.0.so.0 => /usr/local/lib/libpangocairo-1.0.so.0 (0x1ce34a18d000)
-	libwrap.so.6 => /usr/lib/libwrap.so.6 (0x1ce342f6f000)
-	libxml2.so.16 => /usr/local/lib/libxml2.so.16 (0x1ce34b04d000)
-	libz.so.6 => /lib/libz.so.6 (0x1ce34ca98000)
-	libsys.so.7 => /lib/libsys.so.7 (0x1ce34d88f000)
-	libfontconfig.so.1 => /usr/local/lib/libfontconfig.so.1 (0x1ce34c1db000)
-	libfreetype.so.6 => /usr/local/lib/libfreetype.so.6 (0x1ce34e2ee000)
-	libX11.so.6 => /usr/local/lib/libX11.so.6 (0x1ce34f3ad000)
-	libXext.so.6 => /usr/local/lib/libXext.so.6 (0x1ce34f980000)
-	libXrender.so.1 => /usr/local/lib/libXrender.so.1 (0x1ce3504e8000)
-	libxcb.so.1 => /usr/local/lib/libxcb.so.1 (0x1ce350bca000)
-	libxcb-render.so.0 => /usr/local/lib/libxcb-render.so.0 (0x1ce3512a5000)
-	libxcb-shm.so.0 => /usr/local/lib/libxcb-shm.so.0 (0x1ce3514fe000)
-	libpixman-1.so.0 => /usr/local/lib/libpixman-1.so.0 (0x1ce35242e000)
-	libiconv.so.2 => /usr/local/lib/libiconv.so.2 (0x1ce352ed7000)
-	libpcre2-8.so.0 => /usr/local/lib/libpcre2-8.so.0 (0x1ce3537e6000)
-	libutil.so.10 => /lib/libutil.so.10 (0x1ce3540d1000)
-	libffi.so.8 => /usr/local/lib/libffi.so.8 (0x1ce354fe8000)
-	libgraphite2.so.3 => /usr/local/lib/libgraphite2.so.3 (0x1ce355de1000)
-	libgio-2.0.so.0 => /usr/local/lib/libgio-2.0.so.0 (0x1ce356773000)
-	libfribidi.so.0 => /usr/local/lib/libfribidi.so.0 (0x1ce356f4f000)
-	libthai.so.0 => /usr/local/lib/libthai.so.0 (0x1ce357360000)
-	libpangoft2-1.0.so.0 => /usr/local/lib/libpangoft2-1.0.so.0 (0x1ce3573ab000)
-	libexpat.so.1 => /usr/local/lib/libexpat.so.1 (0x1ce357e5e000)
-	libbz2.so.4 => /usr/lib/libbz2.so.4 (0x1ce358bb0000)
-	libbrotlidec.so.1 => /usr/local/lib/libbrotlidec.so.1 (0x1ce358cbe000)
-	libXau.so.6 => /usr/local/lib/libXau.so.6 (0x1ce3592bf000)
-	libXdmcp.so.6 => /usr/local/lib/libXdmcp.so.6 (0x1ce359321000)
-	libcxxrt.so.1 => /lib/libcxxrt.so.1 (0x1ce3599d0000)
-	libgcc_s.so.1 => /lib/libgcc_s.so.1 (0x1ce35a5f6000)
-	libgmodule-2.0.so.0 => /usr/local/lib/libgmodule-2.0.so.0 (0x1ce35b15c000)
-	libdatrie.so.1 => /usr/local/lib/libdatrie.so.1 (0x1ce35c05d000)
-	libbrotlicommon.so.1 => /usr/local/lib/libbrotlicommon.so.1 (0x1ce35cc42000)
-	[vdso] (0x1ce34254d000)
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/usr/local/lib/librrd.so.8
+/usr/local/lib/libpng16.so.16
+/lib/libm.so.5
+/lib/libc.so.7
+/lib/libthr.so.3
+/usr/local/lib/libcairo.so.2
+/usr/local/lib/libglib-2.0.so.0
+/usr/local/lib/libgobject-2.0.so.0
+/usr/local/lib/libharfbuzz.so.0
+/usr/local/lib/libintl.so.8
+/usr/local/lib/libpango-1.0.so.0
+/usr/local/lib/libpangocairo-1.0.so.0
+/usr/lib/libwrap.so.6
+/usr/local/lib/libxml2.so.16
+/lib/libz.so.6
+/lib/libsys.so.7
+/usr/local/lib/libfontconfig.so.1
+/usr/local/lib/libfreetype.so.6
+/usr/local/lib/libX11.so.6
+/usr/local/lib/libXext.so.6
+/usr/local/lib/libXrender.so.1
+/usr/local/lib/libxcb.so.1
+/usr/local/lib/libxcb-render.so.0
+/usr/local/lib/libxcb-shm.so.0
+/usr/local/lib/libpixman-1.so.0
+/usr/local/lib/libiconv.so.2
+/usr/local/lib/libpcre2-8.so.0
+/lib/libutil.so.10
+/usr/local/lib/libffi.so.8
+/usr/local/lib/libgraphite2.so.3
+/usr/local/lib/libgio-2.0.so.0
+/usr/local/lib/libfribidi.so.0
+/usr/local/lib/libthai.so.0
+/usr/local/lib/libpangoft2-1.0.so.0
+/usr/local/lib/libexpat.so.1
+/usr/lib/libbz2.so.4
+/usr/local/lib/libbrotlidec.so.1
+/usr/local/lib/libXau.so.6
+/usr/local/lib/libXdmcp.so.6
+/lib/libcxxrt.so.1
+/lib/libgcc_s.so.1
+/usr/local/lib/libgmodule-2.0.so.0
+/usr/local/lib/libdatrie.so.1
+/usr/local/lib/libbrotlicommon.so.1

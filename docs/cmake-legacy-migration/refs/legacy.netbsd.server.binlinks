@@ -1,513 +1,454 @@
 === /server/bin/xymongrep ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymongrep:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymondigest ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymondigest:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymon ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymon:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymoncmd ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncmd:
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libc.so.12
 === /server/bin/xymonlaunch ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonlaunch:
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libc.so.12
 === /server/bin/xymoncfg ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncfg:
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libc.so.12
 === /server/bin/xymongen ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymongen:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonnet ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonnet:
-	-lcares.2 => /usr/pkg/lib/libcares.so.2
-	-lpthread.1 => /usr/lib/libpthread.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lldap.2 => /usr/pkg/lib/libldap.so.2
-	-llber.2 => /usr/pkg/lib/liblber.so.2
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/pkg/lib/libcares.so.2
+/usr/lib/libpthread.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libldap.so.2
+/usr/pkg/lib/liblber.so.2
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonping ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonping:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/beastat ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/beastat:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonproxy ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonproxy:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymoncgimsg.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymoncgimsg.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymon.sh ===
 === /server/bin/xymond ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_channel ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_channel:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_locator ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_locator:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymond_filestore ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_filestore:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_history ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_history:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymond_alert ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_alert:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_sample ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_sample:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymond_client ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_client:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_hostdata ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_hostdata:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymond_capture ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_capture:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymond_distribute ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_distribute:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonfetch ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonfetch:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymon-mailack ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymon-mailack:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/trimhistory ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/trimhistory:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/combostatus ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/combostatus:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonreports.sh ===
 === /server/bin/moverrd.sh ===
 === /server/bin/convertnk ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/convertnk:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/rrdcachectl ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/rrdcachectl:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/xymond_rrd ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymond_rrd:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lrrd.8 => /usr/pkg/lib/librrd.so.8
-	-lcairo.2 => /usr/pkg/lib/libcairo.so.2
-	-lpthread.1 => /usr/lib/libpthread.so.1
-	-lm.0 => /usr/lib/libm.so.0
-	-lz.1 => /usr/lib/libz.so.1
-	-lpng16.16 => /usr/pkg/lib/libpng16.so.16
-	-lfontconfig.2 => /usr/X11R7/lib/libfontconfig.so.2
-	-lexpat.2 => /usr/lib/libexpat.so.2
-	-lfreetype.19 => /usr/X11R7/lib/libfreetype.so.19
-	-lbz2.1 => /usr/lib/libbz2.so.1
-	-lgcc_s.1 => /usr/lib/libgcc_s.so.1
-	-lfreetype.6 => /usr/pkg/lib/libfreetype.so.6
-	-lbrotlidec.1 => /usr/pkg/lib/libbrotlidec.so.1
-	-lbrotlicommon.1 => /usr/pkg/lib/libbrotlicommon.so.1
-	-lX11.7 => /usr/X11R7/lib/libX11.so.7
-	-lxcb.2 => /usr/X11R7/lib/libxcb.so.2
-	-lXau.7 => /usr/X11R7/lib/libXau.so.7
-	-lXdmcp.7 => /usr/X11R7/lib/libXdmcp.so.7
-	-lXext.7 => /usr/X11R7/lib/libXext.so.7
-	-lXrender.2 => /usr/X11R7/lib/libXrender.so.2
-	-lxcb-render.0 => /usr/X11R7/lib/libxcb-render.so.0
-	-lxcb-shm.0 => /usr/X11R7/lib/libxcb-shm.so.0
-	-lpixman-1.0 => /usr/pkg/lib/libpixman-1.so.0
-	-lglib-2.0.0 => /usr/pkg/lib/libglib-2.0.so.0
-	-lintl.1 => /usr/lib/libintl.so.1
-	-lpcre2-8.0 => /usr/pkg/lib/libpcre2-8.so.0
-	-lgobject-2.0.0 => /usr/pkg/lib/libgobject-2.0.so.0
-	-lffi.8 => /usr/pkg/lib/libffi.so.8
-	-lharfbuzz.0 => /usr/pkg/lib/libharfbuzz.so.0
-	-lgraphite2.3 => /usr/pkg/lib/libgraphite2.so.3
-	-lstdc++.9 => /usr/lib/libstdc++.so.9
-	-lpango-1.0.0 => /usr/pkg/lib/libpango-1.0.so.0
-	-lgio-2.0.0 => /usr/pkg/lib/libgio-2.0.so.0
-	-lgmodule-2.0.0 => /usr/pkg/lib/libgmodule-2.0.so.0
-	-lfribidi.0 => /usr/pkg/lib/libfribidi.so.0
-	-lpangocairo-1.0.0 => /usr/pkg/lib/libpangocairo-1.0.so.0
-	-lpangoft2-1.0.0 => /usr/pkg/lib/libpangoft2-1.0.so.0
-	-lfontconfig.1 => /usr/pkg/lib/libfontconfig.so.1
-	-lxml2.16 => /usr/pkg/lib/libxml2.so.16
-	-llzma.2 => /usr/lib/liblzma.so.2
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/librrd.so.8
+/usr/pkg/lib/libcairo.so.2
+/usr/lib/libpthread.so.1
+/usr/lib/libm.so.0
+/usr/lib/libz.so.1
+/usr/pkg/lib/libpng16.so.16
+/usr/X11R7/lib/libfontconfig.so.2
+/usr/lib/libexpat.so.2
+/usr/X11R7/lib/libfreetype.so.19
+/usr/lib/libbz2.so.1
+/usr/lib/libgcc_s.so.1
+/usr/pkg/lib/libfreetype.so.6
+/usr/pkg/lib/libbrotlidec.so.1
+/usr/pkg/lib/libbrotlicommon.so.1
+/usr/X11R7/lib/libX11.so.7
+/usr/X11R7/lib/libxcb.so.2
+/usr/X11R7/lib/libXau.so.7
+/usr/X11R7/lib/libXdmcp.so.7
+/usr/X11R7/lib/libXext.so.7
+/usr/X11R7/lib/libXrender.so.2
+/usr/X11R7/lib/libxcb-render.so.0
+/usr/X11R7/lib/libxcb-shm.so.0
+/usr/pkg/lib/libpixman-1.so.0
+/usr/pkg/lib/libglib-2.0.so.0
+/usr/lib/libintl.so.1
+/usr/pkg/lib/libpcre2-8.so.0
+/usr/pkg/lib/libgobject-2.0.so.0
+/usr/pkg/lib/libffi.so.8
+/usr/pkg/lib/libharfbuzz.so.0
+/usr/pkg/lib/libgraphite2.so.3
+/usr/lib/libstdc++.so.9
+/usr/pkg/lib/libpango-1.0.so.0
+/usr/pkg/lib/libgio-2.0.so.0
+/usr/pkg/lib/libgmodule-2.0.so.0
+/usr/pkg/lib/libfribidi.so.0
+/usr/pkg/lib/libpangocairo-1.0.so.0
+/usr/pkg/lib/libpangoft2-1.0.so.0
+/usr/pkg/lib/libfontconfig.so.1
+/usr/pkg/lib/libxml2.so.16
+/usr/lib/liblzma.so.2
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/history.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/history.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/eventlog.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/eventlog.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/report.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/report.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/reportlog.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/reportlog.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/snapshot.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/snapshot.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/findhost.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/findhost.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/csvinfo.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/csvinfo.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/acknowledge.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/acknowledge.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonpage ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/xymonpage:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/datepage.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/datepage.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/svcstatus.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/svcstatus.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/enadis.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/enadis.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/confreport.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/confreport.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/criticalview.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/criticalview.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/criticaleditor.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/criticaleditor.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/ackinfo.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/ackinfo.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
 === /server/bin/statusreport.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/statusreport.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/boilerplate.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/boilerplate.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/hostgraphs.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/hostgraphs.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/ghostlist.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/ghostlist.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/notifications.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/notifications.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/acknowledgements.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/acknowledgements.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/hostlist.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/hostlist.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/useradm.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/useradm.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/chpasswd.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/chpasswd.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/appfeed.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/appfeed.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/cgiwrap ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/cgiwrap:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
 === /server/bin/showgraph.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/showgraph.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
-	-lrrd.8 => /usr/pkg/lib/librrd.so.8
-	-lcairo.2 => /usr/pkg/lib/libcairo.so.2
-	-lpthread.1 => /usr/lib/libpthread.so.1
-	-lm.0 => /usr/lib/libm.so.0
-	-lz.1 => /usr/lib/libz.so.1
-	-lpng16.16 => /usr/pkg/lib/libpng16.so.16
-	-lfontconfig.2 => /usr/X11R7/lib/libfontconfig.so.2
-	-lexpat.2 => /usr/lib/libexpat.so.2
-	-lfreetype.19 => /usr/X11R7/lib/libfreetype.so.19
-	-lbz2.1 => /usr/lib/libbz2.so.1
-	-lgcc_s.1 => /usr/lib/libgcc_s.so.1
-	-lfreetype.6 => /usr/pkg/lib/libfreetype.so.6
-	-lbrotlidec.1 => /usr/pkg/lib/libbrotlidec.so.1
-	-lbrotlicommon.1 => /usr/pkg/lib/libbrotlicommon.so.1
-	-lX11.7 => /usr/X11R7/lib/libX11.so.7
-	-lxcb.2 => /usr/X11R7/lib/libxcb.so.2
-	-lXau.7 => /usr/X11R7/lib/libXau.so.7
-	-lXdmcp.7 => /usr/X11R7/lib/libXdmcp.so.7
-	-lXext.7 => /usr/X11R7/lib/libXext.so.7
-	-lXrender.2 => /usr/X11R7/lib/libXrender.so.2
-	-lxcb-render.0 => /usr/X11R7/lib/libxcb-render.so.0
-	-lxcb-shm.0 => /usr/X11R7/lib/libxcb-shm.so.0
-	-lpixman-1.0 => /usr/pkg/lib/libpixman-1.so.0
-	-lglib-2.0.0 => /usr/pkg/lib/libglib-2.0.so.0
-	-lintl.1 => /usr/lib/libintl.so.1
-	-lpcre2-8.0 => /usr/pkg/lib/libpcre2-8.so.0
-	-lgobject-2.0.0 => /usr/pkg/lib/libgobject-2.0.so.0
-	-lffi.8 => /usr/pkg/lib/libffi.so.8
-	-lharfbuzz.0 => /usr/pkg/lib/libharfbuzz.so.0
-	-lgraphite2.3 => /usr/pkg/lib/libgraphite2.so.3
-	-lstdc++.9 => /usr/lib/libstdc++.so.9
-	-lpango-1.0.0 => /usr/pkg/lib/libpango-1.0.so.0
-	-lgio-2.0.0 => /usr/pkg/lib/libgio-2.0.so.0
-	-lgmodule-2.0.0 => /usr/pkg/lib/libgmodule-2.0.so.0
-	-lfribidi.0 => /usr/pkg/lib/libfribidi.so.0
-	-lpangocairo-1.0.0 => /usr/pkg/lib/libpangocairo-1.0.so.0
-	-lpangoft2-1.0.0 => /usr/pkg/lib/libpangoft2-1.0.so.0
-	-lfontconfig.1 => /usr/pkg/lib/libfontconfig.so.1
-	-lxml2.16 => /usr/pkg/lib/libxml2.so.16
-	-llzma.2 => /usr/lib/liblzma.so.2
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
+/usr/pkg/lib/librrd.so.8
+/usr/pkg/lib/libcairo.so.2
+/usr/lib/libpthread.so.1
+/usr/lib/libm.so.0
+/usr/lib/libz.so.1
+/usr/pkg/lib/libpng16.so.16
+/usr/X11R7/lib/libfontconfig.so.2
+/usr/lib/libexpat.so.2
+/usr/X11R7/lib/libfreetype.so.19
+/usr/lib/libbz2.so.1
+/usr/lib/libgcc_s.so.1
+/usr/pkg/lib/libfreetype.so.6
+/usr/pkg/lib/libbrotlidec.so.1
+/usr/pkg/lib/libbrotlicommon.so.1
+/usr/X11R7/lib/libX11.so.7
+/usr/X11R7/lib/libxcb.so.2
+/usr/X11R7/lib/libXau.so.7
+/usr/X11R7/lib/libXdmcp.so.7
+/usr/X11R7/lib/libXext.so.7
+/usr/X11R7/lib/libXrender.so.2
+/usr/X11R7/lib/libxcb-render.so.0
+/usr/X11R7/lib/libxcb-shm.so.0
+/usr/pkg/lib/libpixman-1.so.0
+/usr/pkg/lib/libglib-2.0.so.0
+/usr/lib/libintl.so.1
+/usr/pkg/lib/libpcre2-8.so.0
+/usr/pkg/lib/libgobject-2.0.so.0
+/usr/pkg/lib/libffi.so.8
+/usr/pkg/lib/libharfbuzz.so.0
+/usr/pkg/lib/libgraphite2.so.3
+/usr/lib/libstdc++.so.9
+/usr/pkg/lib/libpango-1.0.so.0
+/usr/pkg/lib/libgio-2.0.so.0
+/usr/pkg/lib/libgmodule-2.0.so.0
+/usr/pkg/lib/libfribidi.so.0
+/usr/pkg/lib/libpangocairo-1.0.so.0
+/usr/pkg/lib/libpangoft2-1.0.so.0
+/usr/pkg/lib/libfontconfig.so.1
+/usr/pkg/lib/libxml2.so.16
+/usr/lib/liblzma.so.2
 === /server/bin/perfdata.cgi ===
-/tmp/legacy-ref/var/lib/xymon/server/bin/perfdata.cgi:
-	-lssl.15 => /usr/lib/libssl.so.15
-	-lcrypto.15 => /usr/lib/libcrypto.so.15
-	-lcrypt.1 => /lib/libcrypt.so.1
-	-lc.12 => /usr/lib/libc.so.12
-	-lpcre.1 => /usr/pkg/lib/libpcre.so.1
-	-lrrd.8 => /usr/pkg/lib/librrd.so.8
-	-lcairo.2 => /usr/pkg/lib/libcairo.so.2
-	-lpthread.1 => /usr/lib/libpthread.so.1
-	-lm.0 => /usr/lib/libm.so.0
-	-lz.1 => /usr/lib/libz.so.1
-	-lpng16.16 => /usr/pkg/lib/libpng16.so.16
-	-lfontconfig.2 => /usr/X11R7/lib/libfontconfig.so.2
-	-lexpat.2 => /usr/lib/libexpat.so.2
-	-lfreetype.19 => /usr/X11R7/lib/libfreetype.so.19
-	-lbz2.1 => /usr/lib/libbz2.so.1
-	-lgcc_s.1 => /usr/lib/libgcc_s.so.1
-	-lfreetype.6 => /usr/pkg/lib/libfreetype.so.6
-	-lbrotlidec.1 => /usr/pkg/lib/libbrotlidec.so.1
-	-lbrotlicommon.1 => /usr/pkg/lib/libbrotlicommon.so.1
-	-lX11.7 => /usr/X11R7/lib/libX11.so.7
-	-lxcb.2 => /usr/X11R7/lib/libxcb.so.2
-	-lXau.7 => /usr/X11R7/lib/libXau.so.7
-	-lXdmcp.7 => /usr/X11R7/lib/libXdmcp.so.7
-	-lXext.7 => /usr/X11R7/lib/libXext.so.7
-	-lXrender.2 => /usr/X11R7/lib/libXrender.so.2
-	-lxcb-render.0 => /usr/X11R7/lib/libxcb-render.so.0
-	-lxcb-shm.0 => /usr/X11R7/lib/libxcb-shm.so.0
-	-lpixman-1.0 => /usr/pkg/lib/libpixman-1.so.0
-	-lglib-2.0.0 => /usr/pkg/lib/libglib-2.0.so.0
-	-lintl.1 => /usr/lib/libintl.so.1
-	-lpcre2-8.0 => /usr/pkg/lib/libpcre2-8.so.0
-	-lgobject-2.0.0 => /usr/pkg/lib/libgobject-2.0.so.0
-	-lffi.8 => /usr/pkg/lib/libffi.so.8
-	-lharfbuzz.0 => /usr/pkg/lib/libharfbuzz.so.0
-	-lgraphite2.3 => /usr/pkg/lib/libgraphite2.so.3
-	-lstdc++.9 => /usr/lib/libstdc++.so.9
-	-lpango-1.0.0 => /usr/pkg/lib/libpango-1.0.so.0
-	-lgio-2.0.0 => /usr/pkg/lib/libgio-2.0.so.0
-	-lgmodule-2.0.0 => /usr/pkg/lib/libgmodule-2.0.so.0
-	-lfribidi.0 => /usr/pkg/lib/libfribidi.so.0
-	-lpangocairo-1.0.0 => /usr/pkg/lib/libpangocairo-1.0.so.0
-	-lpangoft2-1.0.0 => /usr/pkg/lib/libpangoft2-1.0.so.0
-	-lfontconfig.1 => /usr/pkg/lib/libfontconfig.so.1
-	-lxml2.16 => /usr/pkg/lib/libxml2.so.16
-	-llzma.2 => /usr/lib/liblzma.so.2
+/usr/lib/libssl.so.15
+/usr/lib/libcrypto.so.15
+/lib/libcrypt.so.1
+/usr/lib/libc.so.12
+/usr/pkg/lib/libpcre.so.1
+/usr/pkg/lib/librrd.so.8
+/usr/pkg/lib/libcairo.so.2
+/usr/lib/libpthread.so.1
+/usr/lib/libm.so.0
+/usr/lib/libz.so.1
+/usr/pkg/lib/libpng16.so.16
+/usr/X11R7/lib/libfontconfig.so.2
+/usr/lib/libexpat.so.2
+/usr/X11R7/lib/libfreetype.so.19
+/usr/lib/libbz2.so.1
+/usr/lib/libgcc_s.so.1
+/usr/pkg/lib/libfreetype.so.6
+/usr/pkg/lib/libbrotlidec.so.1
+/usr/pkg/lib/libbrotlicommon.so.1
+/usr/X11R7/lib/libX11.so.7
+/usr/X11R7/lib/libxcb.so.2
+/usr/X11R7/lib/libXau.so.7
+/usr/X11R7/lib/libXdmcp.so.7
+/usr/X11R7/lib/libXext.so.7
+/usr/X11R7/lib/libXrender.so.2
+/usr/X11R7/lib/libxcb-render.so.0
+/usr/X11R7/lib/libxcb-shm.so.0
+/usr/pkg/lib/libpixman-1.so.0
+/usr/pkg/lib/libglib-2.0.so.0
+/usr/lib/libintl.so.1
+/usr/pkg/lib/libpcre2-8.so.0
+/usr/pkg/lib/libgobject-2.0.so.0
+/usr/pkg/lib/libffi.so.8
+/usr/pkg/lib/libharfbuzz.so.0
+/usr/pkg/lib/libgraphite2.so.3
+/usr/lib/libstdc++.so.9
+/usr/pkg/lib/libpango-1.0.so.0
+/usr/pkg/lib/libgio-2.0.so.0
+/usr/pkg/lib/libgmodule-2.0.so.0
+/usr/pkg/lib/libfribidi.so.0
+/usr/pkg/lib/libpangocairo-1.0.so.0
+/usr/pkg/lib/libpangoft2-1.0.so.0
+/usr/pkg/lib/libfontconfig.so.1
+/usr/pkg/lib/libxml2.so.16
+/usr/lib/liblzma.so.2
