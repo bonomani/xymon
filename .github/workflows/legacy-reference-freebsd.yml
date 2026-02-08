@@ -43,7 +43,7 @@ jobs:
 
       - name: List keyfiles archive
         run: |
-          ls -l /tmp/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz || true
+          ls -l docs/cmake-legacy-migration/refs/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz || true
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
@@ -51,5 +51,4 @@ jobs:
           name: legacy-reference-freebsd-${{ matrix.variant }}
           path: |
             docs/cmake-legacy-migration/refs/legacy.freebsd.${{ matrix.variant }}.*
-            /tmp/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz
           if-no-files-found: error

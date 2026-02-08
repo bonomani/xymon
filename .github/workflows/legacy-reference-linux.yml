@@ -33,7 +33,7 @@ jobs:
 
       - name: List keyfiles archive
         run: |
-          ls -l /tmp/legacy.linux.${{ matrix.variant }}.keyfiles.tgz || true
+          ls -l docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.keyfiles.tgz || true
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
@@ -41,5 +41,4 @@ jobs:
           name: legacy-reference-linux-${{ matrix.variant }}
           path: |
             docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.*
-            /tmp/legacy.linux.${{ matrix.variant }}.keyfiles.tgz
           if-no-files-found: error

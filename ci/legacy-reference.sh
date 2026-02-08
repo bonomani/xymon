@@ -357,6 +357,9 @@ write_refs() {
     fi
   done
   tar -C /tmp -czf "/tmp/${keyfiles_archive}" "$(basename "${keyfiles_root}")"
+  if [ -d docs/cmake-legacy-migration/refs ]; then
+    cp "/tmp/${keyfiles_archive}" "docs/cmake-legacy-migration/refs/${keyfiles_archive}" || true
+  fi
 
   if [ -d docs/cmake-legacy-migration/refs ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true
