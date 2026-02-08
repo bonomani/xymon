@@ -41,6 +41,10 @@ jobs:
           sync_files: true
           shutdown_vm: true
 
+      - name: List keyfiles archive
+        run: |
+          ls -l /tmp/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz || true
+
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
