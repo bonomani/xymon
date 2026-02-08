@@ -307,6 +307,25 @@ jobs:
             if [ -s /tmp/legacy.keyfiles.sha256.diff ]; then
               echo "Key file content diff detected (non-blocking):"
               cat /tmp/legacy.keyfiles.sha256.diff
+              legacy_root="/tmp/legacy-ref/var/lib/xymon"
+              if [ ! -d "$legacy_root" ] && [ -d "/tmp/var/lib/xymon" ]; then
+                legacy_root="/tmp/var/lib/xymon"
+              fi
+              if [ -d "$legacy_root" ]; then
+                echo "Key file content diff (legacy vs cmake):"
+                for f in "${key_files[@]}"; do
+                  legacy_path="${legacy_root}${f#/var/lib/xymon}"
+                  cmake_path="/tmp/cmake-ref-root${f}"
+                  if [ -f "$legacy_path" ] && [ -f "$cmake_path" ]; then
+                    if ! cmp -s "$legacy_path" "$cmake_path"; then
+                      echo "=== $f ==="
+                      diff -u "$legacy_path" "$cmake_path" || true
+                    fi
+                  fi
+                done
+              else
+                echo "Legacy keyfile content not available; showing hashes only."
+              fi
             fi
           fi
 
