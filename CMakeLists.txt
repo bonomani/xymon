@@ -288,6 +288,43 @@ add_custom_command(
             --prefix "${XYMONTOPDIR}"
 )
 
+set(SETUP_NEWFILES_SCRIPT "${CMAKE_BINARY_DIR}/run-setup-newfiles.cmake")
+file(WRITE "${SETUP_NEWFILES_SCRIPT}"
+"if(NOT DEFINED SRC_DIR OR NOT DEFINED DEST_DIR OR NOT DEFINED MD5_FILE OR NOT DEFINED SETUP_NEWFILES_EXE OR NOT DEFINED TMP_FILE)\n"
+"  message(FATAL_ERROR \"run-setup-newfiles: missing required variables\")\n"
+"endif()\n"
+"execute_process(\n"
+"  COMMAND /usr/bin/find .\n"
+"  WORKING_DIRECTORY \"${SRC_DIR}\"\n"
+"  OUTPUT_VARIABLE _raw\n"
+"  RESULT_VARIABLE _find_res\n"
+")\n"
+"if(NOT _find_res EQUAL 0)\n"
+"  message(FATAL_ERROR \"run-setup-newfiles: find failed in ${SRC_DIR}\")\n"
+"endif()\n"
+"string(REPLACE \"\\n\" \";\" _lines \"${_raw}\")\n"
+"set(_filtered \"\")\n"
+"foreach(_line IN LISTS _lines)\n"
+"  if(_line STREQUAL \"\")\n"
+"    continue()\n"
+"  endif()\n"
+"  if(_line MATCHES \"RCS\" OR _line MATCHES \"\\\\.svn\" OR _line MATCHES \"DIST\")\n"
+"    continue()\n"
+"  endif()\n"
+"  list(APPEND _filtered \"${_line}\")\n"
+"endforeach()\n"
+"list(JOIN _filtered \"\\n\" _joined)\n"
+"file(WRITE \"${TMP_FILE}\" \"${_joined}\\n\")\n"
+"execute_process(\n"
+"  COMMAND \"${SETUP_NEWFILES_EXE}\" \"${DEST_DIR}\" \"${MD5_FILE}\"\n"
+"  INPUT_FILE \"${TMP_FILE}\"\n"
+"  RESULT_VARIABLE _setup_res\n"
+")\n"
+"if(NOT _setup_res EQUAL 0)\n"
+"  message(FATAL_ERROR \"run-setup-newfiles: setup-newfiles failed\")\n"
+"endif()\n"
+)
+
 if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
@@ -299,8 +336,13 @@ endif()
 if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/sh -c
-                "cd \"${CMAKE_SOURCE_DIR}/xymond/webfiles\" && /usr/bin/find . | grep -v RCS | grep -v \"\\.svn\" | grep -v DIST | \"$<TARGET_FILE:setup-newfiles>\" \"${LEGACY_DESTDIR}${INSTALLWEBDIR}/\" \"${CMAKE_SOURCE_DIR}/build/md5.dat\""
+        COMMAND "${CMAKE_COMMAND}"
+                -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
+                -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/webfiles"
+                -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWEBDIR}/"
+                -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
+                -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.web.list"
+                -P "${SETUP_NEWFILES_SCRIPT}"
     )
 endif()
 
@@ -315,8 +357,13 @@ endif()
 if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/sh -c
-                "cd \"${CMAKE_SOURCE_DIR}/xymond/wwwfiles\" && /usr/bin/find . | grep -v RCS | grep -v \"\\.svn\" | grep -v DIST | \"$<TARGET_FILE:setup-newfiles>\" \"${LEGACY_DESTDIR}${INSTALLWWWDIR}/\" \"${CMAKE_SOURCE_DIR}/build/md5.dat\""
+        COMMAND "${CMAKE_COMMAND}"
+                -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
+                -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/wwwfiles"
+                -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWWWDIR}/"
+                -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
+                -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.www.list"
+                -P "${SETUP_NEWFILES_SCRIPT}"
     )
 endif()
 
