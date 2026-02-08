@@ -307,14 +307,19 @@ jobs:
             if [ -s /tmp/legacy.keyfiles.sha256.diff ]; then
               echo "Key file content diff detected (non-blocking):"
               cat /tmp/legacy.keyfiles.sha256.diff
-              legacy_root="/tmp/legacy-ref/var/lib/xymon"
-              if [ ! -d "$legacy_root" ] && [ -d "/tmp/var/lib/xymon" ]; then
-                legacy_root="/tmp/var/lib/xymon"
+              legacy_tar="docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.keyfiles.tgz"
+              legacy_root=""
+              if [ -f "${legacy_tar}" ]; then
+                legacy_root="/tmp/legacy-keyfiles-${{ matrix.variant }}"
+                rm -rf "${legacy_root}"
+                mkdir -p "${legacy_root}"
+                tar -C "${legacy_root}" -xzf "${legacy_tar}"
+                legacy_root="$(find "${legacy_root}" -mindepth 1 -maxdepth 1 -type d | head -1)"
               fi
-              if [ -d "$legacy_root" ]; then
+              if [ -n "${legacy_root}" ] && [ -d "${legacy_root}" ]; then
                 echo "Key file content diff (legacy vs cmake):"
                 for f in "${key_files[@]}"; do
-                  legacy_path="${legacy_root}${f#/var/lib/xymon}"
+                  legacy_path="${legacy_root}${f}"
                   cmake_path="/tmp/cmake-ref-root${f}"
                   if [ -f "$legacy_path" ] && [ -f "$cmake_path" ]; then
                     if ! cmp -s "$legacy_path" "$cmake_path"; then
