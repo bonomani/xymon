@@ -201,6 +201,8 @@ def find_install_steps(workflow: dict) -> list[str]:
             run = step.get("run", "")
             if isinstance(run, str) and "install-apt-packages.sh" in run:
                 hits.append(run)
+            if isinstance(run, str) and "install-default-packages.sh" in run:
+                hits.append(run)
     return hits
 
 
@@ -265,6 +267,7 @@ def check_shell_scripts() -> bool:
         ROOT / "cmake-local-setup.sh",
         ROOT / "cmake-local-build.sh",
         ROOT / "cmake-local-install.sh",
+        ROOT / "ci" / "deps" / "install-default-packages.sh",
         ROOT / "ci" / "deps" / "install-apt-packages.sh",
         ROOT / "ci" / "deps" / "install-apk-packages.sh",
         ROOT / "ci" / "deps" / "install-bsd-packages.sh",

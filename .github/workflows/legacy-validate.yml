@@ -31,37 +31,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies (apt)
-        if: ${{ matrix.pkg_mgr == 'apt' }}
+      - name: Install build dependencies
         run: |
-          bash ci/deps/install-apt-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (macos)
-        if: ${{ matrix.os == 'macos' }}
-        run: |
-          bash ci/deps/install-brew-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (dnf)
-        if: ${{ matrix.pkg_mgr == 'dnf' }}
-        run: |
-          bash ci/deps/install-dnf-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (apk)
-        if: ${{ matrix.pkg_mgr == 'apk' }}
-        run: |
-          bash ci/deps/install-apk-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
+          bash ci/deps/install-default-packages.sh
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}

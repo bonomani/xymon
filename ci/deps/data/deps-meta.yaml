@@ -1,5 +1,14 @@
 # Metadata for CI dependency scripts and workflow validation.
 scripts:
+  ci/deps/install-default-packages.sh:
+    requires_flags: []
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [gh-debian, debian, rpm, suse, alpine, arch, macos]
+      os: [ubuntu, debian, rockylinux, almalinux, fedora, centos, opensuse_leap, alpine, archlinux, macos]
+      version: [latest, local, bookworm, bullseye, 9, 40, 7, 15_6, 3]
+      pkgmgr: [apt, dnf, yum, zypper, apk, pacman, brew]
+    outputs: [packages]
   ci/deps/install-apt-packages.sh:
     requires_flags: [--family, --os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
