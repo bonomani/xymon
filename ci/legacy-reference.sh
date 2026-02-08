@@ -135,18 +135,22 @@ detect_cares_prefix() {
   fi
 }
 
+install_default_packages() {
+  bash ci/deps/install-default-packages.sh
+}
+
 install_bsd_deps() {
   MAKE_BIN="gmake"
   HTTPDGID="www"
   set_variant_flags
-  bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+  install_default_packages
 }
 
 setup_linux() {
   HTTPDGID="www-data"
   MAKE_BIN="gmake"
   set_variant_flags
-  bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
+  install_default_packages
   ensure_gmake
   detect_cares_prefix "/usr/local" "/usr" "/usr/pkg"
   ensure_user_group "$HTTPDGID"
