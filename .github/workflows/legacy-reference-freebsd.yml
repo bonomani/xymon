@@ -44,4 +44,5 @@ jobs:
           name: legacy-reference-freebsd-${{ matrix.variant }}
           path: |
             docs/cmake-legacy-migration/refs/legacy.freebsd.${{ matrix.variant }}.*
+            /tmp/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz
           if-no-files-found: error

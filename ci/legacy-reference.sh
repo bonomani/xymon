@@ -343,6 +343,21 @@ write_refs() {
     printf '%s  %s\n' "$(sha256_of "$p")" "$f" >> "/tmp/${KEYFILES_NAME}"
   done
 
+  # Archive keyfiles content for artifact inspection.
+  local keyfiles_archive="legacy.${OS_NAME}.${VARIANT:-server}.keyfiles.tgz"
+  local keyfiles_root="/tmp/legacy-keyfiles-${OS_NAME}-${VARIANT:-server}"
+  rm -rf "${keyfiles_root}"
+  mkdir -p "${keyfiles_root}"
+  for f in "${key_files[@]}"; do
+    local p="${root}${f#${topdir}}"
+    if [ -f "$p" ]; then
+      local rel="${f#/}"
+      mkdir -p "${keyfiles_root}/$(dirname "${rel}")"
+      cp -p "$p" "${keyfiles_root}/${rel}"
+    fi
+  done
+  tar -C /tmp -czf "/tmp/${keyfiles_archive}" "$(basename "${keyfiles_root}")"
+
   if [ -d docs/cmake-legacy-migration/refs ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true
     cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/refs/${KEYFILES_NAME}" || true

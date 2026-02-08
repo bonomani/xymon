@@ -44,4 +44,5 @@ jobs:
           name: legacy-reference-openbsd-${{ matrix.variant }}
           path: |
             docs/cmake-legacy-migration/refs/legacy.openbsd.${{ matrix.variant }}.*
+            /tmp/legacy.openbsd.${{ matrix.variant }}.keyfiles.tgz
           if-no-files-found: error
