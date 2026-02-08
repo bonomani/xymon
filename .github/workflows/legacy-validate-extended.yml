@@ -150,17 +150,22 @@ jobs:
         run: |
           set -euo pipefail
           tarball="docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.tgz"
-          if [ -f "${tarball}" ]; then
-            legacy_host="$(
-              tar -xOf "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
-                | sed -n 's/^XYMONSERVERHOSTNAME="\\(.*\\)".*/\\1/p' \
-                | head -n1
-            )"
-            if [ -n "${legacy_host}" ]; then
-              echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
-              echo "Using legacy hostname: ${legacy_host}"
-            fi
+          echo "Legacy hostname: checking ${tarball}"
+          if [ ! -f "${tarball}" ]; then
+            echo "Legacy hostname: skipped (missing ${tarball})"
+            exit 0
           fi
+          legacy_host="$(
+            tar -xOf "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
+              | sed -n 's/^XYMONSERVERHOSTNAME="\\(.*\\)".*/\\1/p' \
+              | head -n1
+          )"
+          if [ -z "${legacy_host}" ]; then
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${tarball})"
+            exit 0
+          fi
+          echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+          echo "Using legacy hostname: ${legacy_host}"
 
       - name: Configure (legacy)
         shell: bash
