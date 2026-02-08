@@ -1,617 +1,617 @@
 === /server/bin/xymongrep ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymongrep:
 	Start            End              Type  Open Ref GrpRef Name
-	00000da24e9ca000 00000da24e9f4000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymongrep
-	00000da4bd9ff000 00000da4bda6c000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000da4b28da000 00000da4b2b23000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000da4ac377000 00000da4ac47d000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000da4ffcf2000 00000da4ffcf2000 ld.so 0    1   0      /usr/libexec/ld.so
+	000003146bc82000 000003146bcac000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymongrep
+	00000317043c4000 0000031704431000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000317049af000 0000031704bf8000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000031720b48000 0000031720c4e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000003170cdb3000 000003170cdb3000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymondigest ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymondigest:
 	Start            End              Type  Open Ref GrpRef Name
-	00000abd9f3aa000 00000abd9f3c9000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymondigest
-	00000ac01c1aa000 00000ac01c217000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000ac0660d5000 00000ac06631e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000ac024c73000 00000ac024d79000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000abff21eb000 00000abff21eb000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000de6f9926000 00000de6f9945000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymondigest
+	00000de90d5fb000 00000de90d668000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000de996f1c000 00000de997165000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000de9c5e18000 00000de9c5f1e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000de99e7d5000 00000de99e7d5000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymon ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymon:
 	Start            End              Type  Open Ref GrpRef Name
-	00000094ce4c7000 00000094ce4e5000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymon
-	00000097a6d2b000 00000097a6d98000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000000973ffe8000 0000009740231000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000009795e0c000 0000009795f12000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000000971a38c000 000000971a38c000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000eead35f8000 00000eead3616000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymon
+	00000eed5e1b1000 00000eed5e21e000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000eedc15d5000 00000eedc181e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000eed07fd7000 00000eed080dd000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000eece7f28000 00000eece7f28000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymoncmd ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncmd:
 	Start            End              Type  Open Ref GrpRef Name
-	00000d408c654000 00000d408c66d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncmd
-	00000d42a8de2000 00000d42a8ee8000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000d42ea2c1000 00000d42ea2c1000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a2d98c6a000 00000a2d98c83000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncmd
+	00000a2ffbac6000 00000a2ffbbcc000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a2fe035b000 00000a2fe035b000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonlaunch ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonlaunch:
 	Start            End              Type  Open Ref GrpRef Name
-	000009fcc72bf000 000009fcc72dd000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonlaunch
-	000009ff55d06000 000009ff55e0c000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000009feea72c000 000009feea72c000 ld.so 0    1   0      /usr/libexec/ld.so
+	000007ad5eb4d000 000007ad5eb6b000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonlaunch
+	000007b00f3b7000 000007b00f4bd000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000007afb76bc000 000007afb76bc000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymoncfg ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncfg:
 	Start            End              Type  Open Ref GrpRef Name
-	00000350ad23b000 00000350ad253000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncfg
-	00000353124cd000 00000353125d3000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000353881d3000 00000353881d3000 ld.so 0    1   0      /usr/libexec/ld.so
+	000003e6bfde7000 000003e6bfdff000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncfg
+	000003e9b2f29000 000003e9b302f000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000003e8ef736000 000003e8ef736000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymongen ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymongen:
 	Start            End              Type  Open Ref GrpRef Name
-	000003a12c9ec000 000003a12ca49000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymongen
-	000003a40697f000 000003a4069ec000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000003a344e29000 000003a345072000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000003a348783000 000003a3487c7000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000003a3e96cf000 000003a3e97d5000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000003a36eb4c000 000003a36eb4c000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000031a80da8000 0000031a80e05000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymongen
+	0000031d4f83e000 0000031d4f8ab000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000031cbe4c9000 0000031cbe712000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000031cfe9b2000 0000031cfe9f6000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000031d4d9d8000 0000031d4dade000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000031cceb14000 0000031cceb14000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonnet ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonnet:
 	Start            End              Type  Open Ref GrpRef Name
-	00000aa0a6633000 00000aa0a667f000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonnet
-	00000aa30515b000 00000aa30519d000 rlib  0    1   0      /usr/local/lib/libcares.so.4.4
-	00000aa2fea9e000 00000aa2feb07000 rlib  0    1   0      /usr/local/lib/libldap.so.16.0
-	00000aa2e3f16000 00000aa2e3f2a000 rlib  0    2   0      /usr/local/lib/liblber.so.16.0
-	00000aa2eeec5000 00000aa2eef32000 rlib  0    2   0      /usr/lib/libssl.so.60.1
-	00000aa3113d0000 00000aa311619000 rlib  0    4   0      /usr/lib/libcrypto.so.57.1
-	00000aa2bf545000 00000aa2bf589000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000aa33f35f000 00000aa33f465000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000aa38d6ec000 00000aa38d6f9000 rlib  0    2   0      /usr/lib/libpthread.so.28.0
-	00000aa332584000 00000aa3325a6000 rlib  0    1   0      /usr/local/lib/libsasl2.so.3.1
-	00000aa343a56000 00000aa343a56000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000e51946f0000 00000e519473c000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonnet
+	00000e539cdc5000 00000e539ce07000 rlib  0    1   0      /usr/local/lib/libcares.so.4.4
+	00000e545f21e000 00000e545f287000 rlib  0    1   0      /usr/local/lib/libldap.so.16.0
+	00000e5413c00000 00000e5413c14000 rlib  0    2   0      /usr/local/lib/liblber.so.16.0
+	00000e5457dbc000 00000e5457e29000 rlib  0    2   0      /usr/lib/libssl.so.60.1
+	00000e53bf33f000 00000e53bf588000 rlib  0    4   0      /usr/lib/libcrypto.so.57.1
+	00000e5458bff000 00000e5458c43000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000e546684c000 00000e5466952000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000e5397d6d000 00000e5397d7a000 rlib  0    2   0      /usr/lib/libpthread.so.28.0
+	00000e53af043000 00000e53af065000 rlib  0    1   0      /usr/local/lib/libsasl2.so.3.1
+	00000e545b6d3000 00000e545b6d3000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonping ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonping:
 === /server/bin/beastat ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/beastat:
 	Start            End              Type  Open Ref GrpRef Name
-	00000383723c8000 00000383723f8000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/beastat
-	0000038633865000 00000386338d2000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000003865549c000 00000386556e5000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000003866e75d000 000003866e7a1000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000003864177c000 0000038641882000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000385788e6000 00000385788e6000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000074b86350000 0000074b86380000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/beastat
+	0000074e58b89000 0000074e58bf6000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000074dc21c1000 0000074dc240a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000074e1c64c000 0000074e1c690000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000074e08a7c000 0000074e08b82000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000074dccaf3000 0000074dccaf3000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonproxy ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonproxy:
 	Start            End              Type  Open Ref GrpRef Name
-	00000e50d12b5000 00000e50d12d3000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonproxy
-	00000e5320e04000 00000e5320e71000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000e530ba10000 00000e530bc59000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000e52dcb20000 00000e52dcc26000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000e531d114000 00000e531d114000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a053270e000 00000a053272c000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonproxy
+	00000a073e417000 00000a073e484000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000a07bccb8000 00000a07bcf01000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000a0752cf3000 00000a0752df9000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a078075e000 00000a078075e000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymoncgimsg.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncgimsg.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000b374db0b000 00000b374db2c000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncgimsg.cgi
-	00000b396d874000 00000b396d8e1000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000b39795af000 00000b39797f8000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000b39b15a0000 00000b39b16a6000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000b397c89c000 00000b397c89c000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000080705319000 000008070533a000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymoncgimsg.cgi
+	0000080916c65000 0000080916cd2000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000080943a1a000 0000080943c63000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000008099285b000 0000080992961000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000809a1279000 00000809a1279000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymon.sh ===
 === /server/bin/xymond ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond:
 	Start            End              Type  Open Ref GrpRef Name
-	000009f8434cd000 000009f84350f000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond
-	000009fb089c7000 000009fb08a34000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000009fb0f0c6000 000009fb0f30f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000009fa69faf000 000009fa69ff3000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000009fa47f6f000 000009fa48075000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000009fb1b041000 000009fb1b041000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000f157e099000 00000f157e0db000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond
+	00000f17ac864000 00000f17ac8d1000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000f184b5ab000 00000f184b7f4000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000f18100bf000 00000f1810103000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000f17c82c1000 00000f17c83c7000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000f17ca0e4000 00000f17ca0e4000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_channel ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_channel:
 	Start            End              Type  Open Ref GrpRef Name
-	00000f57a9b54000 00000f57a9b7b000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_channel
-	00000f5a0f601000 00000f5a0f66e000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000f5a272a9000 00000f5a274f2000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000f5a309b7000 00000f5a309fb000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000f59e65eb000 00000f59e66f1000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000f5a66226000 00000f5a66226000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000db1c4674000 00000db1c469b000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_channel
+	00000db4b4e47000 00000db4b4eb4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000db442cf6000 00000db442f3f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000db42e41d000 00000db42e461000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000db44ad6c000 00000db44ae72000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000db4a5f39000 00000db4a5f39000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_locator ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_locator:
 	Start            End              Type  Open Ref GrpRef Name
-	0000023a2df21000 0000023a2df3f000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_locator
-	0000023c4b153000 0000023c4b1c0000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000023c3fc6c000 0000023c3feb5000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000023cf0177000 0000023cf027d000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000023c786c7000 0000023c786c7000 ld.so 0    1   0      /usr/libexec/ld.so
+	000005a1d31fb000 000005a1d3219000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_locator
+	000005a499dfa000 000005a499e67000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000005a4a967a000 000005a4a98c3000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000005a42be08000 000005a42bf0e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000005a48ef12000 000005a48ef12000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_filestore ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_filestore:
 	Start            End              Type  Open Ref GrpRef Name
-	0000064d9aeec000 0000064d9af2d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_filestore
-	0000065064f00000 0000065064f6d000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000064fe76a4000 0000064fe78ed000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000064fe6550000 0000064fe6594000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000064fd3ce1000 0000064fd3de7000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000064fede32000 0000064fede32000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000806205b5000 00000806205f6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_filestore
+	00000808e1b27000 00000808e1b94000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000808ee921000 00000808eeb6a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000008088e188000 000008088e1cc000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000080857de3000 0000080857ee9000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000808aa308000 00000808aa308000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_history ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_history:
 	Start            End              Type  Open Ref GrpRef Name
-	00000b5357e05000 00000b5357e27000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_history
-	00000b55fcd5d000 00000b55fcdca000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000b564adb9000 00000b564b002000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000b5584bd1000 00000b5584cd7000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000b55bc212000 00000b55bc212000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000084883092000 00000848830b4000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_history
+	0000084a83ba8000 0000084a83c15000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000084a99251000 0000084a9949a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000084ac487c000 0000084ac4982000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000084ab5595000 0000084ab5595000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_alert ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_alert:
 	Start            End              Type  Open Ref GrpRef Name
-	00000c911e157000 00000c911e192000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_alert
-	00000c936dd0c000 00000c936dd79000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000c93aa04b000 00000c93aa294000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000c93e8b68000 00000c93e8bac000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000c936e207000 00000c936e30d000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000c935226f000 00000c935226f000 ld.so 0    1   0      /usr/libexec/ld.so
+	000006b701014000 000006b70104f000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_alert
+	000006b9c53fd000 000006b9c546a000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000006b90ad17000 000006b90af60000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000006b938401000 000006b938445000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000006b965df1000 000006b965ef7000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000006b95c112000 000006b95c112000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_sample ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_sample:
 	Start            End              Type  Open Ref GrpRef Name
-	00000c4332d86000 00000c4332da5000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_sample
-	00000c458437c000 00000c45843e9000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000c45c075e000 00000c45c09a7000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000c4580c29000 00000c4580d2f000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000c45db470000 00000c45db470000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000013e62774000 0000013e62793000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_sample
+	000001406d0a6000 000001406d113000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000141184a2000 00000141186eb000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000141595a5000 00000141596ab000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000140d928e000 00000140d928e000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_client ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_client:
 	Start            End              Type  Open Ref GrpRef Name
-	000002d0bec0a000 000002d0bec62000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_client
-	000002d381cb3000 000002d381d20000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000002d2ddbea000 000002d2dde33000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000002d2f7042000 000002d2f7086000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000002d2c30f2000 000002d2c31f8000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000002d38f892000 000002d38f892000 ld.so 0    1   0      /usr/libexec/ld.so
+	000008a42484e000 000008a4248a6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_client
+	000008a70376b000 000008a7037d8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000008a6a2b86000 000008a6a2dcf000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000008a67e6fe000 000008a67e742000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000008a6eec61000 000008a6eed67000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000008a6963b7000 000008a6963b7000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_hostdata ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_hostdata:
 	Start            End              Type  Open Ref GrpRef Name
-	0000000702bda000 0000000702bfa000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_hostdata
-	00000009d8a27000 00000009d8a94000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000000097286a000 0000000972ab3000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000009cf0f1000 00000009cf1f7000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000000098a126000 000000098a126000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000eec10582000 00000eec105a2000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_hostdata
+	00000eee47018000 00000eee47085000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000eee3a1f2000 00000eee3a43b000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000eeeb559a000 00000eeeb56a0000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000eee4e3c5000 00000eee4e3c5000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_capture ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_capture:
 	Start            End              Type  Open Ref GrpRef Name
-	00000756727d9000 00000756727f9000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_capture
-	0000075876664000 00000758766d1000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000007589d403000 000007589d64c000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000759703c4000 0000075970408000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000007592f769000 000007592f86f000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000758781e5000 00000758781e5000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a1cbbcae000 00000a1cbbcce000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_capture
+	00000a1f66fb2000 00000a1f6701f000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000a1f14ae6000 00000a1f14d2f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000a1f254f3000 00000a1f25537000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000a1ec1013000 00000a1ec1119000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a1f87a65000 00000a1f87a65000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_distribute ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_distribute:
 	Start            End              Type  Open Ref GrpRef Name
-	0000085e7dec4000 0000085e7dee8000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_distribute
-	00000860bb6d2000 00000860bb73f000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000086161324000 000008616156d000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000008607e128000 000008607e16c000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000860fc5ca000 00000860fc6d0000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000860802fe000 00000860802fe000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a2e134ee000 00000a2e13512000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_distribute
+	00000a3072069000 00000a30720d6000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000a30d3a1e000 00000a30d3c67000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000a3036caa000 00000a3036cee000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000a30b4cde000 00000a30b4de4000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a30fe600000 00000a30fe600000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonfetch ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonfetch:
 	Start            End              Type  Open Ref GrpRef Name
-	00000efd88b26000 00000efd88b53000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonfetch
-	00000effa20d8000 00000effa2145000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000effb4dd7000 00000effb5020000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000f008718a000 00000f0087290000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000f008773d000 00000f008773d000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000fddd2f79000 00000fddd2fa6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonfetch
+	00000fe0c9092000 00000fe0c90ff000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000fdfeadde000 00000fdfeb027000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000fe071018000 00000fe07111e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000fe0bbcee000 00000fe0bbcee000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymon-mailack ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymon-mailack:
 	Start            End              Type  Open Ref GrpRef Name
-	000001a11ebb8000 000001a11ebd6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymon-mailack
-	000001a322857000 000001a3228c4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000001a3351e2000 000001a33542b000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000001a387714000 000001a387758000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000001a39be77000 000001a39bf7d000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000001a3b8a0f000 000001a3b8a0f000 ld.so 0    1   0      /usr/libexec/ld.so
+	000003903aa33000 000003903aa51000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymon-mailack
+	00000392b8acc000 00000392b8b39000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000392c1d2e000 00000392c1f77000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000003926f339000 000003926f37d000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000003927c77b000 000003927c881000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000003925465e000 000003925465e000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/trimhistory ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/trimhistory:
 	Start            End              Type  Open Ref GrpRef Name
-	00000c22b699c000 00000c22b69c7000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/trimhistory
-	00000c24e30e7000 00000c24e3154000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000c25a3741000 00000c25a398a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000c2516840000 00000c2516946000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000c25b408c000 00000c25b408c000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000464121dc000 0000046412207000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/trimhistory
+	000004663aa73000 000004663aae0000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000466d6d8f000 00000466d6fd8000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000004667712d000 0000046677233000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000046653b2c000 0000046653b2c000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/combostatus ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/combostatus:
 	Start            End              Type  Open Ref GrpRef Name
-	000008295a3eb000 000008295a410000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/combostatus
-	0000082b65541000 0000082b655ae000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000082c11614000 0000082c1185d000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000082c12dce000 0000082c12e12000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000082c44de8000 0000082c44eee000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000082c2204a000 0000082c2204a000 ld.so 0    1   0      /usr/libexec/ld.so
+	000004befdd9b000 000004befddc0000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/combostatus
+	000004c13fdb2000 000004c13fe1f000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000004c19ac2d000 000004c19ae76000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000004c113305000 000004c113349000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000004c1a8c53000 000004c1a8d59000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000004c19effd000 000004c19effd000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonreports.sh ===
 === /server/bin/moverrd.sh ===
 === /server/bin/convertnk ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/convertnk:
 	Start            End              Type  Open Ref GrpRef Name
-	0000051260378000 00000512603a1000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/convertnk
-	000005149b867000 000005149b8d4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000005149490c000 0000051494b55000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000514b04cd000 00000514b05d3000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000515297dd000 00000515297dd000 ld.so 0    1   0      /usr/libexec/ld.so
+	000006c8eb79f000 000006c8eb7c8000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/convertnk
+	000006cbe5ace000 000006cbe5b3b000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000006cb0aca8000 000006cb0aef1000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000006cbe6d2a000 000006cbe6e30000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000006cb93992000 000006cb93992000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/rrdcachectl ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/rrdcachectl:
 	Start            End              Type  Open Ref GrpRef Name
-	000008e0deb11000 000008e0deb16000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/rrdcachectl
-	000008e2df052000 000008e2df0bf000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000008e2f8453000 000008e2f869c000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000008e32d063000 000008e32d169000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000008e3a9fef000 000008e3a9fef000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a2b88e38000 00000a2b88e3d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/rrdcachectl
+	00000a2e3bd36000 00000a2e3bda3000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000a2d8d3c6000 00000a2d8d60f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000a2dd9f4a000 00000a2dda050000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a2df399d000 00000a2df399d000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymond_rrd ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_rrd:
 	Start            End              Type  Open Ref GrpRef Name
-	0000072e70e92000 0000072e70efa000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_rrd
-	0000073166bb1000 0000073166c1e000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000073094a03000 0000073094c4c000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000073137fde000 000007313803f000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
-	000007311c3f7000 000007311c438000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
-	000007316e51b000 000007316e55f000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000730e2893000 00000730e2999000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000730b87a5000 00000730b87d6000 rlib  0    11   0      /usr/lib/libm.so.10.1
-	00000730ec982000 00000730ecae9000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
-	00000730ed90b000 00000730ed92e000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
-	00000731204fa000 000007312060c000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
-	000007311c165000 000007311c2b4000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
-	00000730fa1b5000 00000730fa1c2000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
-	0000073155c6a000 0000073155c88000 rlib  0    7   0      /usr/lib/libz.so.7.1
-	000007313a9da000 000007313aa2f000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
-	0000073130129000 000007313022a000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
-	0000073125fc8000 0000073125ffb000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
-	0000073122cb0000 0000073122e07000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
-	00000730e8a22000 00000730e8a53000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
-	000007309115a000 0000073091170000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
-	000007310cc83000 000007310cc90000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
-	00000730b16ef000 00000730b16f5000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
-	00000730e9e55000 00000730e9e5e000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
-	00000730f4f2f000 00000730f4f41000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
-	0000073168efa000 0000073168f00000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
-	000007316e6d0000 000007316e7b1000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
-	0000073095e87000 0000073095ee8000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
-	000007316bdf4000 000007316be5f000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
-	0000073143f46000 0000073143f53000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
-	0000073150561000 00000731506b7000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
-	00000730c1a6e000 00000730c1a9d000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
-	0000073159912000 0000073159a2d000 rlib  0    2   0      /usr/lib/libc++.so.12.0
-	00000730ffd33000 00000730ffd7e000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
-	0000073130f77000 0000073130ff6000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
-	00000730c0322000 00000730c0533000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
-	00000730cacf6000 00000730cacfd000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
-	00000730b57dc000 00000730b57fd000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
-	0000073081133000 0000073081146000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
-	00000730f6696000 00000730f66b6000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
-	00000730c46a5000 00000730c480e000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
-	00000730ba8d6000 00000730ba90c000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
-	000007311faa9000 000007311faa9000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000605f0ed9000 00000605f0f41000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymond_rrd
+	00000608506bd000 000006085072a000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000608db481000 00000608db6ca000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000608f00ce000 00000608f012f000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
+	000006084edc2000 000006084ee03000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
+	000006089fe6b000 000006089feaf000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000006089571d000 0000060895823000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000060877d8a000 0000060877dbb000 rlib  0    11   0      /usr/lib/libm.so.10.1
+	000006089827a000 00000608983e1000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
+	000006080c7f3000 000006080c816000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
+	00000608c28dc000 00000608c29ee000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
+	0000060811654000 00000608117a3000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
+	00000608da755000 00000608da762000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
+	000006084f1d8000 000006084f1f6000 rlib  0    7   0      /usr/lib/libz.so.7.1
+	000006086582c000 0000060865881000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
+	0000060829180000 0000060829281000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
+	00000608b5651000 00000608b5684000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
+	0000060815213000 000006081536a000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
+	0000060878c69000 0000060878c9a000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
+	00000608bd448000 00000608bd45e000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
+	00000608d2c25000 00000608d2c32000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
+	0000060823248000 000006082324e000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
+	000006086c533000 000006086c53c000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
+	000006085aa06000 000006085aa18000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
+	0000060804b10000 0000060804b16000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
+	00000607f55bd000 00000607f569e000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
+	000006085b4fd000 000006085b55e000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
+	00000608aa952000 00000608aa9bd000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
+	000006082a3c8000 000006082a3d5000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
+	00000608808a6000 00000608809fc000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
+	000006086dbde000 000006086dc0d000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
+	0000060829df7000 0000060829f12000 rlib  0    2   0      /usr/lib/libc++.so.12.0
+	0000060871b47000 0000060871b92000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
+	00000608da339000 00000608da3b8000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
+	0000060838455000 0000060838666000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
+	0000060827058000 000006082705f000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
+	000006081f0fc000 000006081f11d000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
+	000006080f286000 000006080f299000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
+	00000607fb032000 00000607fb052000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
+	000006088ce17000 000006088cf80000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
+	00000608dff0a000 00000608dff40000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
+	00000608aba07000 00000608aba07000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/history.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/history.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000794fc708000 00000794fc741000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/history.cgi
-	0000079703bb6000 0000079703c23000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000079770a74000 0000079770cbd000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000007971b7cb000 000007971b80f000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000079775ff8000 00000797760fe000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000797dbdff000 00000797dbdff000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000739ee215000 00000739ee24e000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/history.cgi
+	0000073c51047000 0000073c510b4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000073c575c5000 0000073c5780e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000073bf66b1000 0000073bf66f5000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000073cec7ab000 0000073cec8b1000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000073ce8a8e000 0000073ce8a8e000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/eventlog.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/eventlog.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000498bf432000 00000498bf46a000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/eventlog.cgi
-	0000049b6d443000 0000049b6d4b0000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000049b7fed6000 0000049b8011f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000049af1dc9000 0000049af1e0d000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000049b566f0000 0000049b567f6000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000049b827a4000 0000049b827a4000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000092265e61000 0000092265e99000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/eventlog.cgi
+	000009250d824000 000009250d891000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000925410b6000 00000925412ff000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000925026af000 00000925026f3000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000924a39a5000 00000924a3aab000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000924bfb3a000 00000924bfb3a000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/report.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/report.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	0000026310e0e000 0000026310e42000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/report.cgi
-	00000265e6f83000 00000265e6ff0000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000265a06df000 00000265a0928000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000265e1831000 00000265e1875000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000026545a7c000 0000026545b82000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000265963e5000 00000265963e5000 ld.so 0    1   0      /usr/libexec/ld.so
+	000006a2ffa42000 000006a2ffa76000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/report.cgi
+	000006a513b70000 000006a513bdd000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000006a5a2293000 000006a5a24dc000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000006a52b71a000 000006a52b75e000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000006a5facfc000 000006a5fae02000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000006a5b0721000 000006a5b0721000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/reportlog.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/reportlog.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000f73aaa13000 00000f73aaa4b000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/reportlog.cgi
-	00000f765ec1e000 00000f765ec8b000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000f75e3b6b000 00000f75e3db4000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000f75acadc000 00000f75acb20000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000f764e28c000 00000f764e392000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000f75d0bcf000 00000f75d0bcf000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000455e958f000 00000455e95c7000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/reportlog.cgi
+	00000457f24f0000 00000457f255d000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000458d46b4000 00000458d48fd000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000458df431000 00000458df475000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000458bcf74000 00000458bd07a000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000458c76fa000 00000458c76fa000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/snapshot.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/snapshot.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000ecd1354a000 00000ecd1357e000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/snapshot.cgi
-	00000ecff0d57000 00000ecff0dc4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000ecf75479000 00000ecf756c2000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000ecfc2d41000 00000ecfc2d85000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000ecf86a35000 00000ecf86b3b000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000ecf262d6000 00000ecf262d6000 ld.so 0    1   0      /usr/libexec/ld.so
+	000006e0eee33000 000006e0eee67000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/snapshot.cgi
+	000006e3a4463000 000006e3a44d0000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000006e373531000 000006e37377a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000006e38fe22000 000006e38fe66000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000006e31b96f000 000006e31ba75000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000006e32671b000 000006e32671b000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/findhost.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/findhost.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000369f2372000 00000369f23a6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/findhost.cgi
-	0000036c9cfc3000 0000036c9d030000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000036c3e28c000 0000036c3e4d5000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000036ce7629000 0000036ce766d000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000036bffe53000 0000036bfff59000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000036c4bde7000 0000036c4bde7000 ld.so 0    1   0      /usr/libexec/ld.so
+	000002cd501aa000 000002cd501de000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/findhost.cgi
+	000002cf7287b000 000002cf728e8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000002d02671b000 000002d026964000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000002cfe6996000 000002cfe69da000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000002d03a4e3000 000002d03a5e9000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000002cff7b12000 000002cff7b12000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/csvinfo.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/csvinfo.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000008d80c29c000 000008d80c2cf000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/csvinfo.cgi
-	000008da4274e000 000008da427bb000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000008da114b6000 000008da116ff000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000008daf54be000 000008daf5502000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000008da7e469000 000008da7e56f000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000008da845fa000 000008da845fa000 ld.so 0    1   0      /usr/libexec/ld.so
+	000000e6a5a5e000 000000e6a5a91000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/csvinfo.cgi
+	000000e8afab0000 000000e8afb1d000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000000e94c6c7000 000000e94c910000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000000e99bf54000 000000e99bf98000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000000e8f2905000 000000e8f2a0b000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000000e8c7fb9000 000000e8c7fb9000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/acknowledge.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledge.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000255ad537000 00000255ad56d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledge.cgi
-	000002580f29f000 000002580f30c000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000257ec545000 00000257ec78e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000002589a8fc000 000002589a940000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000257d69da000 00000257d6ae0000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000257c4052000 00000257c4052000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000f9ed9420000 00000f9ed9456000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledge.cgi
+	00000fa0effff000 00000fa0f006c000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000fa1a53f8000 00000fa1a5641000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000fa1bfee8000 00000fa1bff2c000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000fa1a9578000 00000fa1a967e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000fa0f3782000 00000fa0f3782000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/xymonpage ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/xymonpage:
 	Start            End              Type  Open Ref GrpRef Name
-	000000e0cd46e000 000000e0cd49d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonpage
-	000000e32d8f8000 000000e32d965000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000000e3cd2e2000 000000e3cd52b000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000000e2e15d3000 000000e2e1617000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000000e3a0f32000 000000e3a1038000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000000e36d909000 000000e36d909000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000040033dca000 0000040033df9000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/xymonpage
+	000004025eaa7000 000004025eb14000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000004028de2a000 000004028e073000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000040274f16000 0000040274f5a000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000402e0392000 00000402e0498000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000402bb1d4000 00000402bb1d4000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/datepage.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/datepage.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000c73f57fb000 00000c73f582e000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/datepage.cgi
-	00000c76d60fd000 00000c76d616a000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000c76d9323000 00000c76d956c000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000c75f980f000 00000c75f9853000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000c7608a2a000 00000c7608b30000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000c7672e9c000 00000c7672e9c000 ld.so 0    1   0      /usr/libexec/ld.so
+	000009c949345000 000009c949378000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/datepage.cgi
+	000009cba54f1000 000009cba555e000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000009cb8a514000 000009cb8a75d000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000009cc3d180000 000009cc3d1c4000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000009cbebc03000 000009cbebd09000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000009cbf52c5000 000009cbf52c5000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/svcstatus.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/svcstatus.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000002f91dfc7000 000002f91e016000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/svcstatus.cgi
-	000002fb2736a000 000002fb273d7000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000002fbac9bc000 000002fbacc05000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000002fb38e1d000 000002fb38e61000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000002fb213fb000 000002fb21501000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000002fb69323000 000002fb69323000 ld.so 0    1   0      /usr/libexec/ld.so
+	000004448be8b000 000004448beda000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/svcstatus.cgi
+	000004474715a000 00000447471c7000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000044721ce5000 0000044721f2e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000446b0893000 00000446b08d7000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000044727a0b000 0000044727b11000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000044782f2d000 0000044782f2d000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/enadis.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/enadis.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000a8ffa8a2000 00000a8ffa8d7000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/enadis.cgi
-	00000a92998d8000 00000a9299945000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000a92415a9000 00000a92417f2000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000a922803d000 00000a9228081000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000a92f19ef000 00000a92f1af5000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000a9249714000 00000a9249714000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000862e3b89000 00000862e3bbe000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/enadis.cgi
+	0000086532f8c000 0000086532ff9000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000865b08be000 00000865b0b07000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000865ac598000 00000865ac5dc000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000865bf6fd000 00000865bf803000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000865290fa000 00000865290fa000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/confreport.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/confreport.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000009361574d000 000009361578d000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/confreport.cgi
-	000009387d450000 000009387d4bd000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000938e4173000 00000938e43bc000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000938b9b49000 00000938b9b8d000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000009383721e000 0000093837324000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000938e33d3000 00000938e33d3000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000061d28f30000 0000061d28f70000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/confreport.cgi
+	0000061ff867b000 0000061ff86e8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000061f667a3000 0000061f669ec000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000061f6b8e5000 0000061f6b929000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000061fad232000 0000061fad338000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000620285f5000 00000620285f5000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/criticalview.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/criticalview.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000589823c3000 0000058982407000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/criticalview.cgi
-	0000058c45f81000 0000058c45fee000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000058bdb3c6000 0000058bdb60f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000058c2d2ac000 0000058c2d2f0000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000058b8acd4000 0000058b8adda000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000058bff9f3000 0000058bff9f3000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000d8aa7986000 00000d8aa79ca000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/criticalview.cgi
+	00000d8cd4ff4000 00000d8cd5061000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000d8d6d2ba000 00000d8d6d503000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000d8cf9cf0000 00000d8cf9d34000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000d8cba428000 00000d8cba52e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000d8d03692000 00000d8d03692000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/criticaleditor.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/criticaleditor.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	0000030479258000 000003047928e000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/criticaleditor.cgi
-	00000306b3699000 00000306b3706000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000003069fdf7000 00000306a0040000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000306d431a000 00000306d435e000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000307659b5000 0000030765abb000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000003070eba7000 000003070eba7000 ld.so 0    1   0      /usr/libexec/ld.so
+	000008b9b0adb000 000008b9b0b11000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/criticaleditor.cgi
+	000008bc71d5e000 000008bc71dcb000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000008bc27e98000 000008bc280e1000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000008bc704f3000 000008bc70537000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000008bc44fb6000 000008bc450bc000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000008bc0adc7000 000008bc0adc7000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/ackinfo.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/ackinfo.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000003e7839a4000 000003e7839c6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/ackinfo.cgi
-	000003e9d4e44000 000003e9d4eb1000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000003e9e7d45000 000003e9e7f8e000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000003ea34654000 000003ea3475a000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000003ea54ae6000 000003ea54ae6000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000139e13e1000 00000139e1403000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/ackinfo.cgi
+	0000013c11e62000 0000013c11ecf000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000013c1169b000 0000013c118e4000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000013c9eb51000 0000013c9ec57000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000013c53d3c000 0000013c53d3c000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/statusreport.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/statusreport.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000d3987cb1000 00000d3987cd5000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/statusreport.cgi
-	00000d3c0ed05000 00000d3c0ed72000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000d3bc13ec000 00000d3bc1635000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000d3c5b32e000 00000d3c5b372000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000d3bfeb10000 00000d3bfec16000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000d3bd9805000 00000d3bd9805000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000094ad54ec000 0000094ad5510000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/statusreport.cgi
+	0000094d74a2d000 0000094d74a9a000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	0000094d55e8f000 0000094d560d8000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000094d6b9fb000 0000094d6ba3f000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000094d9fe52000 0000094d9ff58000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000094dabbf7000 0000094dabbf7000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/boilerplate.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/boilerplate.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000a90d2a6d000 00000a90d2aa0000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/boilerplate.cgi
-	00000a93388c2000 00000a933892f000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000a938f143000 00000a938f38c000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000a937df50000 00000a937df94000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000a92d81cd000 00000a92d82d3000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000a936acba000 00000a936acba000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000028f6799d000 0000028f679d0000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/boilerplate.cgi
+	00000291d8e7b000 00000291d8ee8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000002917c2f6000 000002917c53f000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000002919def4000 000002919df38000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000291a91a0000 00000291a92a6000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000291c06bc000 00000291c06bc000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/hostgraphs.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/hostgraphs.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000008ac6e757000 000008ac6e78b000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/hostgraphs.cgi
-	000008aecf2bb000 000008aecf328000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000008aed961b000 000008aed9864000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000008aed8cdd000 000008aed8d21000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000008ae728b5000 000008ae729bb000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000008af004d4000 000008af004d4000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000004e3e8fa000 0000004e3e92e000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/hostgraphs.cgi
+	0000005122832000 000000512289f000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000051076f2000 000000510793b000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000000505a4e6000 000000505a52a000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000000507b0c2000 000000507b1c8000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000000513ccd1000 000000513ccd1000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/ghostlist.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/ghostlist.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000041bdbd2000 00000041bdc06000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/ghostlist.cgi
-	00000043ca5f7000 00000043ca664000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000000448e14f000 000000448e398000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000000444f1b1000 000000444f1f5000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000004491456000 000000449155c000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000044b7a95000 00000044b7a95000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000ace55544000 00000ace55578000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/ghostlist.cgi
+	00000ad137d7a000 00000ad137de7000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000ad14b9aa000 00000ad14bbf3000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000ad076e48000 00000ad076e8c000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000ad0e6183000 00000ad0e6289000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000ad1124b9000 00000ad1124b9000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/notifications.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/notifications.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	000004c8f9ade000 000004c8f9b13000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/notifications.cgi
-	000004cbd38fb000 000004cbd3968000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000004cba7a9c000 000004cba7ce5000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000004cbe3c56000 000004cbe3c9a000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000004cb85fac000 000004cb860b2000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000004cb0f9c6000 000004cb0f9c6000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000079ea8434000 0000079ea8469000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/notifications.cgi
+	000007a106047000 000007a1060b4000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000007a10c380000 000007a10c5c9000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000007a0f868c000 000007a0f86d0000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000007a135dee000 000007a135ef4000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000007a125c5a000 000007a125c5a000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/acknowledgements.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledgements.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000acef09a7000 00000acef09dc000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledgements.cgi
-	00000ad1a3559000 00000ad1a35c6000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000ad1383d4000 00000ad13861d000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000ad19ecd7000 00000ad19ed1b000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000ad19362c000 00000ad193732000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000ad1a3722000 00000ad1a3722000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000ffaedbed000 00000ffaedc22000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/acknowledgements.cgi
+	00000ffcfd74f000 00000ffcfd7bc000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000ffd83e87000 00000ffd840d0000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000ffd3dd5c000 00000ffd3dda0000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000ffde3a7e000 00000ffde3b84000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000ffdac0f6000 00000ffdac0f6000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/hostlist.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/hostlist.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000eb6065ad000 00000eb6065e1000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/hostlist.cgi
-	00000eb8d616b000 00000eb8d61d8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000eb90184e000 00000eb901a97000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000eb8e679a000 00000eb8e67de000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000eb8d58fd000 00000eb8d5a03000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000eb8c08d8000 00000eb8c08d8000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000e8a7daae000 00000e8a7dae2000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/hostlist.cgi
+	00000e8c9013e000 00000e8c901ab000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000e8d0b9da000 00000e8d0bc23000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000e8cbb8de000 00000e8cbb922000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000e8d13255000 00000e8d1335b000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000e8d31086000 00000e8d31086000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/useradm.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/useradm.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000360f0deb000 00000360f0e1f000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/useradm.cgi
-	000003631a5f3000 000003631a660000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000036351dc1000 000003635200a000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	000003634c247000 000003634c28b000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000003638fbfa000 000003638fd00000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	000003637ade9000 000003637ade9000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000a4857377000 00000a48573ab000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/useradm.cgi
+	00000a4b0d286000 00000a4b0d2f3000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000a4ad06a3000 00000a4ad08ec000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000a4ae2d32000 00000a4ae2d76000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000a4b13002000 00000a4b13108000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000a4b0a5fe000 00000a4b0a5fe000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/chpasswd.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/chpasswd.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000338a7bd2000 00000338a7c06000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/chpasswd.cgi
-	0000033aabd78000 0000033aabde5000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000033ae96e9000 0000033ae9932000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000033b189cc000 0000033b18a10000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000033b60ba1000 0000033b60ca7000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000033aa864c000 0000033aa864c000 ld.so 0    1   0      /usr/libexec/ld.so
+	000004a7c2004000 000004a7c2038000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/chpasswd.cgi
+	000004a9d6e60000 000004a9d6ecd000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000004a9fdf5c000 000004a9fe1a5000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000004aa93801000 000004aa93845000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000004aac0aa9000 000004aac0baf000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	000004a9e16e9000 000004a9e16e9000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/appfeed.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/appfeed.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	0000047c2d768000 0000047c2d798000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/appfeed.cgi
-	0000047e425ec000 0000047e42659000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	0000047e6f632000 0000047e6f87b000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000047e6b3b1000 0000047e6b3f5000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	0000047e2edc9000 0000047e2eecf000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	0000047e7b925000 0000047e7b925000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000085d83186000 0000085d831b6000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/appfeed.cgi
+	000008607857b000 00000860785e8000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	000008605f898000 000008605fae1000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	000008604bc24000 000008604bc68000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000008604559b000 00000860456a1000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	0000085fd8ed3000 0000085fd8ed3000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/cgiwrap ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/cgiwrap:
 	Start            End              Type  Open Ref GrpRef Name
-	0000072e6d6a0000 0000072e6d6b9000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/cgiwrap
-	00000730eabcc000 00000730eac39000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	000007313aae9000 000007313ad32000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	0000073120074000 00000731200b8000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	000007310e9c0000 000007310eac6000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000730a3aaf000 00000730a3aaf000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000666e7aa7000 00000666e7ac0000 exe   1    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/cgiwrap
+	000006695a71c000 000006695a789000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000669ae5ca000 00000669ae813000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000066982f20000 0000066982f64000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	0000066945874000 000006694597a000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000669335b7000 00000669335b7000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/showgraph.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/showgraph.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000a42ca65d000 00000a42ca69a000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/showgraph.cgi
-	00000a4593897000 00000a4593904000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000a44dd62b000 00000a44dd874000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000a4504675000 00000a45046b9000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000a4589cda000 00000a4589d3b000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
-	00000a455d037000 00000a455d078000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
-	00000a45344ad000 00000a45345b3000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000a458cd0e000 00000a458cd3f000 rlib  0    11   0      /usr/lib/libm.so.10.1
-	00000a44cdfb1000 00000a44ce118000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
-	00000a458d688000 00000a458d6ab000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
-	00000a44f8297000 00000a44f83a9000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
-	00000a45c2bf8000 00000a45c2d47000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
-	00000a45bc48f000 00000a45bc49c000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
-	00000a45a4e87000 00000a45a4ea5000 rlib  0    7   0      /usr/lib/libz.so.7.1
-	00000a450d064000 00000a450d0b9000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
-	00000a4529306000 00000a4529407000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
-	00000a44f5184000 00000a44f51b7000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
-	00000a45c929f000 00000a45c93f6000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
-	00000a45209b0000 00000a45209e1000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
-	00000a456fb3b000 00000a456fb51000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
-	00000a456fcfa000 00000a456fd07000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
-	00000a44cadbe000 00000a44cadc4000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
-	00000a456c4ca000 00000a456c4d3000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
-	00000a4587a5f000 00000a4587a71000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
-	00000a44f5ba9000 00000a44f5baf000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
-	00000a456fb51000 00000a456fc32000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
-	00000a4540e15000 00000a4540e76000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
-	00000a44d76ce000 00000a44d7739000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
-	00000a4571cf4000 00000a4571d01000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
-	00000a458ab3a000 00000a458ac90000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
-	00000a44d1c2b000 00000a44d1c5a000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
-	00000a44e4be3000 00000a44e4cfe000 rlib  0    2   0      /usr/lib/libc++.so.12.0
-	00000a44f0399000 00000a44f03e4000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
-	00000a44d100f000 00000a44d108e000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
-	00000a4530448000 00000a4530659000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
-	00000a458f0e1000 00000a458f0e8000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
-	00000a45c7830000 00000a45c7851000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
-	00000a4529407000 00000a452941a000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
-	00000a452aea2000 00000a452aec2000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
-	00000a453483c000 00000a45349a5000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
-	00000a44dd217000 00000a44dd24d000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
-	00000a44cce20000 00000a44cce20000 ld.so 0    1   0      /usr/libexec/ld.so
+	00000abc51f04000 00000abc51f41000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/showgraph.cgi
+	00000abf2bb81000 00000abf2bbee000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000abe5c800000 00000abe5ca49000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	00000abe9d07d000 00000abe9d0c1000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	00000abefac0c000 00000abefac6d000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
+	00000abe77622000 00000abe77663000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
+	00000abea9738000 00000abea983e000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000abf3d2b6000 00000abf3d2e7000 rlib  0    11   0      /usr/lib/libm.so.10.1
+	00000abea4bf9000 00000abea4d60000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
+	00000abe5db13000 00000abe5db36000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
+	00000abf428d2000 00000abf429e4000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
+	00000abe67710000 00000abe6785f000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
+	00000abf50b51000 00000abf50b5e000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
+	00000abeac868000 00000abeac886000 rlib  0    7   0      /usr/lib/libz.so.7.1
+	00000abf06103000 00000abf06158000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
+	00000abe991bc000 00000abe992bd000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
+	00000abe82700000 00000abe82733000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
+	00000abef1566000 00000abef16bd000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
+	00000abe6ca7f000 00000abe6cab0000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
+	00000abe7a1f3000 00000abe7a209000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
+	00000abefe254000 00000abefe261000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
+	00000abefff7d000 00000abefff83000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
+	00000abe787e2000 00000abe787eb000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
+	00000abea49fd000 00000abea4a0f000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
+	00000abeec66d000 00000abeec673000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
+	00000abedbe2d000 00000abedbf0e000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
+	00000abec504e000 00000abec50af000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
+	00000abead07b000 00000abead0e6000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
+	00000abed749d000 00000abed74aa000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
+	00000abefa9b9000 00000abefab0f000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
+	00000abe9a1f8000 00000abe9a227000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
+	00000abe87d6f000 00000abe87e8a000 rlib  0    2   0      /usr/lib/libc++.so.12.0
+	00000abf260f9000 00000abf26144000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
+	00000abe73f4a000 00000abe73fc9000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
+	00000abe9d48c000 00000abe9d69d000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
+	00000abec54a0000 00000abec54a7000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
+	00000abea1731000 00000abea1752000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
+	00000abf03a0a000 00000abf03a1d000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
+	00000abec4160000 00000abec4180000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
+	00000abf4f625000 00000abf4f78e000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
+	00000abe86224000 00000abe8625a000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
+	00000abe981db000 00000abe981db000 ld.so 0    1   0      /usr/libexec/ld.so
 === /server/bin/perfdata.cgi ===
 /tmp/legacy-ref/var/lib/xymon/server/bin/perfdata.cgi:
 	Start            End              Type  Open Ref GrpRef Name
-	00000b12eefca000 00000b12eefff000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/perfdata.cgi
-	00000b15cadd5000 00000b15cae42000 rlib  0    1   0      /usr/lib/libssl.so.60.1
-	00000b15e286b000 00000b15e2ab4000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
-	00000b1579cdb000 00000b1579d1f000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
-	00000b155833b000 00000b155839c000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
-	00000b15c2e09000 00000b15c2e4a000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
-	00000b14efd67000 00000b14efd98000 rlib  0    12   0      /usr/lib/libm.so.10.1
-	00000b152318b000 00000b1523291000 rlib  0    1   0      /usr/lib/libc.so.102.0
-	00000b15ba651000 00000b15ba7b8000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
-	00000b1579f92000 00000b1579fb5000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
-	00000b15b5927000 00000b15b5a39000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
-	00000b15b657d000 00000b15b66cc000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
-	00000b15a4cfd000 00000b15a4d0a000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
-	00000b15a0eec000 00000b15a0f0a000 rlib  0    7   0      /usr/lib/libz.so.7.1
-	00000b1530ea0000 00000b1530ef5000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
-	00000b151266f000 00000b1512770000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
-	00000b158c486000 00000b158c4b9000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
-	00000b153d707000 00000b153d85e000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
-	00000b15136bd000 00000b15136ee000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
-	00000b1529b63000 00000b1529b79000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
-	00000b15580b4000 00000b15580c1000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
-	00000b15d1027000 00000b15d102d000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
-	00000b153ec07000 00000b153ec10000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
-	00000b14f1dac000 00000b14f1dbe000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
-	00000b152e3ad000 00000b152e3b3000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
-	00000b14f31a0000 00000b14f3281000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
-	00000b150d22b000 00000b150d28c000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
-	00000b1545290000 00000b15452fb000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
-	00000b1562651000 00000b156265e000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
-	00000b15c5a2b000 00000b15c5b81000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
-	00000b15bae6c000 00000b15bae9b000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
-	00000b15b967d000 00000b15b9798000 rlib  0    2   0      /usr/lib/libc++.so.12.0
-	00000b158daee000 00000b158db39000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
-	00000b151c12b000 00000b151c1aa000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
-	00000b15363f0000 00000b1536601000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
-	00000b1585ed0000 00000b1585ed7000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
-	00000b157e372000 00000b157e393000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
-	00000b1517d68000 00000b1517d7b000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
-	00000b150e1ec000 00000b150e20c000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
-	00000b1564a3a000 00000b1564ba3000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
-	00000b1580423000 00000b1580459000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
-	00000b153fc2a000 00000b153fc2a000 ld.so 0    1   0      /usr/libexec/ld.so
+	0000045242f31000 0000045242f66000 exe   2    0   0      /tmp/legacy-ref/var/lib/xymon/server/bin/perfdata.cgi
+	000004547be79000 000004547bee6000 rlib  0    1   0      /usr/lib/libssl.so.60.1
+	00000454681ea000 0000045468433000 rlib  0    2   0      /usr/lib/libcrypto.so.57.1
+	0000045492473000 00000454924b7000 rlib  0    1   0      /usr/local/lib/libpcre.so.3.0
+	000004552077c000 00000455207dd000 rlib  0    1   0      /usr/local/lib/librrd.so.6.0
+	00000454ca796000 00000454ca7d7000 rlib  0    3   0      /usr/local/lib/libpng.so.18.2
+	000004546a425000 000004546a456000 rlib  0    12   0      /usr/lib/libm.so.10.1
+	000004550718d000 0000045507293000 rlib  0    1   0      /usr/lib/libc.so.102.0
+	00000454ee9fd000 00000454eeb64000 rlib  0    8   0      /usr/local/lib/libglib-2.0.so.4201.14
+	000004548c2fa000 000004548c31d000 rlib  0    3   0      /usr/local/lib/libintl.so.8.1
+	00000454a7027000 00000454a7139000 rlib  0    4   0      /usr/local/lib/libiconv.so.7.1
+	00000454e2abd000 00000454e2c0c000 rlib  0    2   0      /usr/local/lib/libcairo.so.13.5
+	000004553cf80000 000004553cf8d000 rlib  0    10   0      /usr/lib/libpthread.so.28.0
+	00000454a20b6000 00000454a20d4000 rlib  0    7   0      /usr/lib/libz.so.7.1
+	0000045496752000 00000454967a7000 rlib  0    4   0      /usr/X11R6/lib/libfontconfig.so.14.0
+	0000045527650000 0000045527751000 rlib  0    5   0      /usr/X11R6/lib/libfreetype.so.31.1
+	000004552c28c000 000004552c2bf000 rlib  0    2   0      /usr/lib/libexpat.so.17.0
+	00000454a3630000 00000454a3787000 rlib  0    4   0      /usr/X11R6/lib/libX11.so.19.0
+	000004547f558000 000004547f589000 rlib  0    7   0      /usr/X11R6/lib/libxcb.so.4.1
+	0000045514b19000 0000045514b2f000 rlib  0    2   0      /usr/X11R6/lib/libXext.so.13.0
+	000004545baf2000 000004545baff000 rlib  0    2   0      /usr/X11R6/lib/libXrender.so.6.0
+	0000045461d74000 0000045461d7a000 rlib  0    2   0      /usr/X11R6/lib/libXau.so.10.0
+	00000454dc9de000 00000454dc9e7000 rlib  0    2   0      /usr/X11R6/lib/libXdmcp.so.11.0
+	000004544de58000 000004544de6a000 rlib  0    2   0      /usr/X11R6/lib/libxcb-render.so.1.1
+	000004548c3d3000 000004548c3d9000 rlib  0    2   0      /usr/X11R6/lib/libxcb-shm.so.1.1
+	000004547079d000 000004547087e000 rlib  0    2   0      /usr/X11R6/lib/libpixman-1.so.46.4
+	0000045528e1c000 0000045528e7d000 rlib  0    2   0      /usr/local/lib/libpcre2-8.so.0.7
+	00000454b596a000 00000454b59d5000 rlib  0    5   0      /usr/local/lib/libgobject-2.0.so.4200.21
+	000004544b132000 000004544b13f000 rlib  0    2   0      /usr/local/lib/libffi.so.2.4
+	000004549dd23000 000004549de79000 rlib  0    4   0      /usr/local/lib/libharfbuzz.so.18.20
+	00000454911eb000 000004549121a000 rlib  0    2   0      /usr/local/lib/libgraphite2.so.2.0
+	00000454a7f8c000 00000454a80a7000 rlib  0    2   0      /usr/lib/libc++.so.12.0
+	00000455121a9000 00000455121f4000 rlib  0    3   0      /usr/lib/libc++abi.so.9.0
+	00000455169ff000 0000045516a7e000 rlib  0    3   0      /usr/local/lib/libpango-1.0.so.3801.6
+	00000454f9ad4000 00000454f9ce5000 rlib  0    3   0      /usr/local/lib/libgio-2.0.so.4200.21
+	000004547e534000 000004547e53b000 rlib  0    2   0      /usr/local/lib/libgmodule-2.0.so.4200.21
+	00000454575b2000 00000454575d3000 rlib  0    2   0      /usr/local/lib/libfribidi.so.3.1
+	00000454f3259000 00000454f326c000 rlib  0    1   0      /usr/local/lib/libpangocairo-1.0.so.3801.3
+	00000454958d9000 00000454958f9000 rlib  0    2   0      /usr/local/lib/libpangoft2-1.0.so.3801.3
+	00000454c9523000 00000454c968c000 rlib  0    1   0      /usr/local/lib/libxml2.so.22.0
+	0000045484bf0000 0000045484c26000 rlib  0    2   0      /usr/local/lib/liblzma.so.2.4
+	00000454f2bdb000 00000454f2bdb000 ld.so 0    1   0      /usr/libexec/ld.so
