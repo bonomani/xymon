@@ -156,7 +156,7 @@ jobs:
             exit 0
           fi
           legacy_host="$(
-            tar -xOf "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
+            tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
               | sed -n 's/^XYMONSERVERHOSTNAME="\\(.*\\)".*/\\1/p' \
               | head -n1
           )"
