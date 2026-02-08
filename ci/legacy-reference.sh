@@ -372,7 +372,14 @@ write_refs() {
   fi
 
   : > "/tmp/${BINLINKS_NAME}"
+  bin_roots=()
   if [ -d "$root/server/bin" ]; then
+    bin_roots+=("$root/server/bin")
+  fi
+  if [ -d "$root/bin" ]; then
+    bin_roots+=("$root/bin")
+  fi
+  if [ "${#bin_roots[@]}" -gt 0 ]; then
     while IFS= read -r bin; do
       echo "=== ${bin#${root}} ===" >> "/tmp/${BINLINKS_NAME}"
       case "$(uname -s)" in
@@ -405,7 +412,7 @@ write_refs() {
           fi
           ;;
       esac
-    done < <(find "$root/server/bin" -type f -perm -111)
+    done < <(find "${bin_roots[@]}" -type f -perm -111)
   fi
 
   : > "/tmp/${EMBED_NAME}"
