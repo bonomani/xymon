@@ -139,42 +139,31 @@ install_default_packages() {
   bash ci/deps/install-default-packages.sh
 }
 
-install_bsd_deps() {
-  MAKE_BIN="gmake"
-  HTTPDGID="www"
-  set_variant_flags
-  install_default_packages
-}
-
-setup_linux() {
-  HTTPDGID="www-data"
+prepare_os() {
+  local http_group="$1"
+  shift
+  HTTPDGID="$http_group"
   MAKE_BIN="gmake"
   set_variant_flags
   install_default_packages
   ensure_gmake
-  detect_cares_prefix "/usr/local" "/usr" "/usr/pkg"
-  ensure_user_group "$HTTPDGID"
-}
-
-setup_bsd() {
-  install_bsd_deps
-  detect_cares_prefix "$1" "/usr/local" "/usr/pkg"
+  detect_cares_prefix "$@"
   ensure_user_group "$HTTPDGID"
 }
 
 setup_os() {
   case "$OS_NAME" in
     linux)
-      setup_linux
+      prepare_os "www-data" "/usr/local" "/usr" "/usr/pkg"
       ;;
     freebsd)
-      setup_bsd "/usr/local"
+      prepare_os "www" "/usr/local" "/usr/pkg"
       ;;
     openbsd)
-      setup_bsd "/usr/local"
+      prepare_os "www" "/usr/local" "/usr/pkg"
       ;;
     netbsd)
-      setup_bsd "/usr/pkg"
+      prepare_os "www" "/usr/pkg" "/usr/local" "/usr/pkg"
       if [ -x /usr/pkg/bin/gmake ]; then
         export PATH="/usr/pkg/bin:${PATH}"
       fi
