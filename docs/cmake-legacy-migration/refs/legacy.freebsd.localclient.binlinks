@@ -1,0 +1,46 @@
+=== /bin/xymonlaunch ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/logfetch ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/clientupdate ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/orcaxymon ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/msgcache ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient.sh ===
+=== /bin/xymon ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymoncmd ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymongrep ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymoncfg ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymondigest ===
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/freebsd-meminfo ===
+/lib/libc.so.7
+/lib/libsys.so.7
