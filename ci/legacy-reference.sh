@@ -311,19 +311,27 @@ write_refs() {
     | sed "s|${topdir}/$|${topdir}|" \
     | sort > "/tmp/${REF_NAME}"
 
-  if [ "${VARIANT:-server}" = "client" ]; then
-    : > "/tmp/${KEYFILES_NAME}"
-    echo "# Client variant: server keyfiles are not generated." >> "/tmp/${KEYFILES_NAME}"
-  else
-  local key_files=(
-    "${topdir}/server/etc/xymonserver.cfg"
-    "${topdir}/server/etc/tasks.cfg"
-    "${topdir}/server/etc/cgioptions.cfg"
-    "${topdir}/server/etc/graphs.cfg"
-    "${topdir}/server/etc/client-local.cfg"
-    "${topdir}/server/etc/columndoc.csv"
-    "${topdir}/server/etc/protocols.cfg"
-  )
+  local key_files=()
+  case "${VARIANT:-server}" in
+    client|localclient)
+      key_files=(
+        "${topdir}/etc/clientlaunch.cfg"
+        "${topdir}/etc/xymonclient.cfg"
+        "${topdir}/etc/localclient.cfg"
+      )
+      ;;
+    *)
+      key_files=(
+        "${topdir}/server/etc/xymonserver.cfg"
+        "${topdir}/server/etc/tasks.cfg"
+        "${topdir}/server/etc/cgioptions.cfg"
+        "${topdir}/server/etc/graphs.cfg"
+        "${topdir}/server/etc/client-local.cfg"
+        "${topdir}/server/etc/columndoc.csv"
+        "${topdir}/server/etc/protocols.cfg"
+      )
+      ;;
+  esac
 
   : > "/tmp/${KEYFILES_NAME}"
   for f in "${key_files[@]}"; do
@@ -334,7 +342,6 @@ write_refs() {
     fi
     printf '%s  %s\n' "$(sha256_of "$p")" "$f" >> "/tmp/${KEYFILES_NAME}"
   done
-  fi
 
   if [ -d docs/cmake-legacy-migration/refs ]; then
     cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true

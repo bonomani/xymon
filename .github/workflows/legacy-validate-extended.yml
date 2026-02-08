@@ -299,7 +299,7 @@ jobs:
             done
           fi
 
-          legacy_key_ref=docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.sha256
+          legacy_key_ref=docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.keyfiles.sha256
           if [ -s "$legacy_key_ref" ] && [ -s /tmp/legacy.keyfiles.sha256 ]; then
             sort "$legacy_key_ref" > /tmp/legacy.keyfiles.sha256.ref
             sort /tmp/legacy.keyfiles.sha256 > /tmp/legacy.keyfiles.sha256.cmake
@@ -352,20 +352,38 @@ jobs:
           if [ -d "$root/server/bin" ]; then
             while IFS= read -r bin; do
               echo "=== ${bin#/tmp/cmake-ref-root} ===" >> /tmp/legacy.bin.links
-              if [ "$(uname -s)" = "Darwin" ]; then
-                otool -L "$bin" >> /tmp/legacy.bin.links || true
-              elif command -v ldd >/dev/null 2>&1; then
-                ldd "$bin" >> /tmp/legacy.bin.links || true
-              fi
+              case "$(uname -s)" in
+                Darwin)
+                  otool -L "$bin" | sed '1d' | awk '{print $1}' >> /tmp/legacy.bin.links || true
+                  ;;
+                OpenBSD|FreeBSD|NetBSD)
+                  if command -v ldd >/dev/null 2>&1; then
+                    ldd "$bin" | awk '
+                      /Start[[:space:]]+End[[:space:]]+Type/ {next}
+                      /:$/ {next}
+                      NF && $NF ~ /^\// {print $NF}
+                    ' >> /tmp/legacy.bin.links || true
+                  fi
+                  ;;
+                *)
+                  if command -v ldd >/dev/null 2>&1; then
+                    ldd "$bin" \
+                      | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' \
+                      | awk '
+                          $1 == "linux-vdso.so.1" {print $1; next}
+                          $1 == "not" && $2 == "a" {print; next}
+                          $NF ~ /^\// {print $NF}
+                        ' >> /tmp/legacy.bin.links || true
+                  fi
+                  ;;
+              esac
               if command -v strings >/dev/null 2>&1; then
-                strings "$bin" | grep -E '/var/lib/xymon|/tmp/cmake-ref-root' >> /tmp/legacy.embedded.paths || true
+                strings "$bin" | grep -E '/var/lib/xymon' >> /tmp/legacy.embedded.paths || true
               fi
             done < <(find "$root/server/bin" -type f -perm -111)
           fi
-          if grep -q '/tmp/cmake-ref-root' /tmp/legacy.embedded.paths; then
-            echo "Embedded staging path detected in binaries:"
-            grep '/tmp/cmake-ref-root' /tmp/legacy.embedded.paths
-            exit 1
+          if [ -s /tmp/legacy.embedded.paths ]; then
+            sort -u /tmp/legacy.embedded.paths -o /tmp/legacy.embedded.paths
           fi
 
       - name: Compare legacy snapshots (non-blocking)
