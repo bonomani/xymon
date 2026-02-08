@@ -289,41 +289,41 @@ add_custom_command(
 )
 
 set(SETUP_NEWFILES_SCRIPT "${CMAKE_BINARY_DIR}/run-setup-newfiles.cmake")
-file(WRITE "${SETUP_NEWFILES_SCRIPT}"
-"if(NOT DEFINED SRC_DIR OR NOT DEFINED DEST_DIR OR NOT DEFINED MD5_FILE OR NOT DEFINED SETUP_NEWFILES_EXE OR NOT DEFINED TMP_FILE)\n"
-"  message(FATAL_ERROR \"run-setup-newfiles: missing required variables\")\n"
-"endif()\n"
-"execute_process(\n"
-"  COMMAND /usr/bin/find .\n"
-"  WORKING_DIRECTORY \"${SRC_DIR}\"\n"
-"  OUTPUT_VARIABLE _raw\n"
-"  RESULT_VARIABLE _find_res\n"
-")\n"
-"if(NOT _find_res EQUAL 0)\n"
-"  message(FATAL_ERROR \"run-setup-newfiles: find failed in ${SRC_DIR}\")\n"
-"endif()\n"
-"string(REPLACE \"\\n\" \";\" _lines \"${_raw}\")\n"
-"set(_filtered \"\")\n"
-"foreach(_line IN LISTS _lines)\n"
-"  if(_line STREQUAL \"\")\n"
-"    continue()\n"
-"  endif()\n"
-"  if(_line MATCHES \"RCS\" OR _line MATCHES \"\\\\.svn\" OR _line MATCHES \"DIST\")\n"
-"    continue()\n"
-"  endif()\n"
-"  list(APPEND _filtered \"${_line}\")\n"
-"endforeach()\n"
-"list(JOIN _filtered \"\\n\" _joined)\n"
-"file(WRITE \"${TMP_FILE}\" \"${_joined}\\n\")\n"
-"execute_process(\n"
-"  COMMAND \"${SETUP_NEWFILES_EXE}\" \"${DEST_DIR}\" \"${MD5_FILE}\"\n"
-"  INPUT_FILE \"${TMP_FILE}\"\n"
-"  RESULT_VARIABLE _setup_res\n"
-")\n"
-"if(NOT _setup_res EQUAL 0)\n"
-"  message(FATAL_ERROR \"run-setup-newfiles: setup-newfiles failed\")\n"
-"endif()\n"
+file(WRITE "${SETUP_NEWFILES_SCRIPT}" [=[
+if(NOT DEFINED SRC_DIR OR NOT DEFINED DEST_DIR OR NOT DEFINED MD5_FILE OR NOT DEFINED SETUP_NEWFILES_EXE OR NOT DEFINED TMP_FILE)
+  message(FATAL_ERROR "run-setup-newfiles: missing required variables")
+endif()
+execute_process(
+  COMMAND /usr/bin/find .
+  WORKING_DIRECTORY "${SRC_DIR}"
+  OUTPUT_VARIABLE _raw
+  RESULT_VARIABLE _find_res
 )
+if(NOT _find_res EQUAL 0)
+  message(FATAL_ERROR "run-setup-newfiles: find failed in ${SRC_DIR}")
+endif()
+string(REPLACE "\n" ";" _lines "${_raw}")
+set(_filtered "")
+foreach(_line IN LISTS _lines)
+  if(_line STREQUAL "")
+    continue()
+  endif()
+  if(_line MATCHES "RCS" OR _line MATCHES "\\.svn" OR _line MATCHES "DIST")
+    continue()
+  endif()
+  list(APPEND _filtered "${_line}")
+endforeach()
+list(JOIN _filtered "\n" _joined)
+file(WRITE "${TMP_FILE}" "${_joined}\n")
+execute_process(
+  COMMAND "${SETUP_NEWFILES_EXE}" "${DEST_DIR}" "${MD5_FILE}"
+  INPUT_FILE "${TMP_FILE}"
+  RESULT_VARIABLE _setup_res
+)
+if(NOT _setup_res EQUAL 0)
+  message(FATAL_ERROR "run-setup-newfiles: setup-newfiles failed")
+endif()
+]=])
 
 if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
     add_custom_command(
