@@ -20,7 +20,6 @@ jobs:
             dep_family: debian
             dep_os: debian
             dep_version: bookworm
-            stop_after_configure: true
 
     name: ${{ matrix.name }}
     env:
@@ -84,53 +83,11 @@ jobs:
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
             -DXYMON_VARIANT=${{ matrix.variant }} 2>&1 | tee /tmp/cmake.configure.log
 
-      - name: Trace CMake configure (debug)
-        if: ${{ !matrix.stop_after_configure && matrix.name == 'debian-bookworm' && matrix.variant == 'server' }}
-        shell: bash
-        run: |
-          set -o pipefail
-          ${CMAKE_BIN:-cmake} -S . -B build-cmake-trace \
-            -G Ninja \
-            -DUSE_GNUINSTALLDIRS=OFF \
-            -DCMAKE_INSTALL_PREFIX=/ \
-            -DLEGACY_APPLY_OWNERSHIP=OFF \
-            -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=${{ matrix.variant }} \
-            --trace-expand \
-            --trace-format=json-v1 \
-            --trace-redirect=/tmp/cmake.trace.json 2>&1 | tee /tmp/cmake.trace.log
-
       - name: Build
-        if: ${{ !matrix.stop_after_configure }}
         run: |
           ${CMAKE_BIN:-cmake} --build build-cmake -j2
 
-      - name: Capture CMake configure logs
-        if: ${{ always() && !matrix.stop_after_configure }}
-        run: |
-          if [ -f /tmp/cmake.configure.log ]; then
-            echo "=== cmake.configure.log (cmake -E search) ==="
-            grep -n "cmake -E" /tmp/cmake.configure.log || true
-          fi
-          if [ -f /tmp/cmake.trace.json ]; then
-            echo "=== cmake.trace.json (cmake -E search) ==="
-            rg -n --fixed-strings -- '"cmake","-E"' /tmp/cmake.trace.json || true
-          fi
-          if [ -f /tmp/cmake.trace.log ]; then
-            echo "=== cmake.trace.log (cmake -E search) ==="
-            rg -n --fixed-strings -- "cmake -E" /tmp/cmake.trace.log || true
-          fi
-          if [ -f build-cmake/CMakeFiles/CMakeError.log ]; then
-            echo "=== CMakeError.log ==="
-            cat build-cmake/CMakeFiles/CMakeError.log
-          fi
-          if [ -f build-cmake/CMakeFiles/CMakeOutput.log ]; then
-            echo "=== CMakeOutput.log ==="
-            cat build-cmake/CMakeFiles/CMakeOutput.log
-          fi
-
       - name: Validate config.h parity
-        if: ${{ !matrix.stop_after_configure }}
         run: |
           legacy_config=include/config.h
           cmake_config=$(find build-cmake -name config.h | head -n1)
@@ -159,7 +116,6 @@ jobs:
           fi
 
       - name: Install legacy targets (staging)
-        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -o pipefail
@@ -168,7 +124,6 @@ jobs:
           ${CMAKE_BIN:-cmake} --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 
       - name: Validate key files + metadata (non-blocking)
-        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
