@@ -416,10 +416,10 @@ write_refs() {
   fi
 
   : > "/tmp/${EMBED_NAME}"
-  if [ -d "$root/server/bin" ] && command -v strings >/dev/null 2>&1; then
+  if [ "${#bin_roots[@]}" -gt 0 ] && command -v strings >/dev/null 2>&1; then
     while IFS= read -r bin; do
       strings "$bin" | grep -E '/var/lib/xymon' >> "/tmp/${EMBED_NAME}" || true
-    done < <(find "$root/server/bin" -type f -perm -111)
+    done < <(find "${bin_roots[@]}" -type f -perm -111)
     sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
   fi
 
