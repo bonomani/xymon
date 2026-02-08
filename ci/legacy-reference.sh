@@ -375,11 +375,31 @@ write_refs() {
   if [ -d "$root/server/bin" ]; then
     while IFS= read -r bin; do
       echo "=== ${bin#${root}} ===" >> "/tmp/${BINLINKS_NAME}"
-      if [ "$(uname -s)" = "Darwin" ]; then
-        otool -L "$bin" >> "/tmp/${BINLINKS_NAME}" || true
-      elif command -v ldd >/dev/null 2>&1; then
-        ldd "$bin" | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' >> "/tmp/${BINLINKS_NAME}" || true
-      fi
+      case "$(uname -s)" in
+        Darwin)
+          otool -L "$bin" | sed '1d' | awk '{print $1}' >> "/tmp/${BINLINKS_NAME}" || true
+          ;;
+        OpenBSD|FreeBSD|NetBSD)
+          if command -v ldd >/dev/null 2>&1; then
+            ldd "$bin" | awk '
+              /Start[[:space:]]+End[[:space:]]+Type/ {next}
+              /:$/ {next}
+              NF && $NF ~ /^\// {print $NF}
+            ' >> "/tmp/${BINLINKS_NAME}" || true
+          fi
+          ;;
+        *)
+          if command -v ldd >/dev/null 2>&1; then
+            ldd "$bin" \
+              | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' \
+              | awk '
+                  $1 == "linux-vdso.so.1" {print $1; next}
+                  $1 == "not" && $2 == "a" {print; next}
+                  $NF ~ /^\// {print $NF}
+                ' >> "/tmp/${BINLINKS_NAME}" || true
+          fi
+          ;;
+      esac
     done < <(find "$root/server/bin" -type f -perm -111)
   fi
 
