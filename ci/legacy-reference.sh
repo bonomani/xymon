@@ -260,7 +260,7 @@ build_legacy() {
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
         CFLAGS="${base_cflags} -DLOCALCLIENT=0" \
         LOCALCLIENT=no \
-        PCRELIBS="-lpcre" \
+        PCRELIBS= \
         client
     else
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
