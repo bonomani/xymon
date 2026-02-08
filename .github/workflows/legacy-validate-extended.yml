@@ -145,24 +145,50 @@ jobs:
             --os "${{ matrix.dep_os }}" \
             --version "${{ matrix.dep_version }}"
 
+      - name: Load legacy hostname (server only)
+        shell: bash
+        run: |
+          set -euo pipefail
+          tarball="docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.tgz"
+          if [ -f "${tarball}" ]; then
+            legacy_host="$(
+              tar -xOf "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
+                | sed -n 's/^XYMONSERVERHOSTNAME="\\(.*\\)".*/\\1/p' \
+                | head -n1
+            )"
+            if [ -n "${legacy_host}" ]; then
+              echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+              echo "Using legacy hostname: ${legacy_host}"
+            fi
+          fi
+
       - name: Configure (legacy)
         shell: bash
         run: |
           set -x
           set -o pipefail
+          extra_args=()
+          if [ -n "${XYMONHOSTNAME:-}" ]; then
+            extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
+          fi
           ${CMAKE_BIN:-cmake} -S . -B build-cmake \
             -G Ninja \
             -DUSE_GNUINSTALLDIRS=OFF \
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=all 2>&1 | tee /tmp/cmake.configure.log
+            -DXYMON_VARIANT=all \
+            "${extra_args[@]}" 2>&1 | tee /tmp/cmake.configure.log
 
       - name: Trace CMake configure (debug)
         if: ${{ matrix.name == 'debian-bookworm' }}
         shell: bash
         run: |
           set -o pipefail
+          extra_args=()
+          if [ -n "${XYMONHOSTNAME:-}" ]; then
+            extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
+          fi
           ${CMAKE_BIN:-cmake} -S . -B build-cmake-trace \
             -G Ninja \
             -DUSE_GNUINSTALLDIRS=OFF \
@@ -170,6 +196,7 @@ jobs:
             -DLEGACY_APPLY_OWNERSHIP=OFF \
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
             -DXYMON_VARIANT=all \
+            "${extra_args[@]}" \
             --trace-expand \
             --trace-format=json-v1 \
             --trace-redirect=/tmp/cmake.trace.json 2>&1 | tee /tmp/cmake.trace.log
