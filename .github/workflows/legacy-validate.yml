@@ -54,15 +54,21 @@ jobs:
             echo "Legacy hostname: skipped (missing ${tarball})"
             exit 0
           fi
-          legacy_host="$(
+          legacy_line="$(
             tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
-              | sed -n 's/^XYMONSERVERHOSTNAME="\\(.*\\)".*/\\1/p' \
-              | head -n1
+              | tr -d '\r' \
+              | grep -m1 '^XYMONSERVERHOSTNAME=' || true
           )"
-          if [ -z "${legacy_host}" ]; then
+          if [ -z "${legacy_line}" ]; then
             echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${tarball})"
+            echo "Legacy hostname: first 5 non-comment lines for debug:"
+            tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
+              | tr -d '\r' \
+              | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+              | head -n5
             exit 0
           fi
+          legacy_host="$(printf '%s\n' "${legacy_line}" | cut -d= -f2- | tr -d '"')"
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
