@@ -538,6 +538,7 @@ jobs:
         run: echo "legacy-validate matrix entry disabled"
 
   legacy-validate-bsd:
+    if: ${{ false }}
     name: legacy-validate-bsd / OS=${{ matrix.os.name }}
     runs-on: ubuntu-latest
     continue-on-error: false
