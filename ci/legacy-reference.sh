@@ -378,7 +378,7 @@ write_refs() {
       if [ "$(uname -s)" = "Darwin" ]; then
         otool -L "$bin" >> "/tmp/${BINLINKS_NAME}" || true
       elif command -v ldd >/dev/null 2>&1; then
-        ldd "$bin" >> "/tmp/${BINLINKS_NAME}" || true
+        ldd "$bin" | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' >> "/tmp/${BINLINKS_NAME}" || true
       fi
     done < <(find "$root/server/bin" -type f -perm -111)
   fi
