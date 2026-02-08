@@ -9,6 +9,7 @@ VARIANT=""
 CONFTYPE=""
 CLIENTONLY=""
 LOCALCLIENT=""
+HTTPDGID=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -75,59 +76,101 @@ as_root() {
 }
 
 set_variant_flags() {
-  export VARIANT="${VARIANT:-server}"
+  VARIANT="${VARIANT:-server}"
   if [ "${VARIANT}" = "server" ]; then
-    export ENABLE_LDAP=ON
-    export ENABLE_SNMP=ON
+    ENABLE_LDAP=ON
+    ENABLE_SNMP=ON
   else
-    export ENABLE_LDAP=OFF
-    export ENABLE_SNMP=OFF
+    ENABLE_LDAP=OFF
+    ENABLE_SNMP=OFF
+  fi
+  export VARIANT ENABLE_LDAP ENABLE_SNMP
+}
+
+ensure_group() {
+  if [ "$OS_NAME" = "freebsd" ]; then
+    as_root pw groupadd "$1" 2>/dev/null || true
+  else
+    as_root groupadd "$1" 2>/dev/null || true
   fi
 }
 
-setup_bsd_common() {
+ensure_user() {
+  if [ "$OS_NAME" = "freebsd" ]; then
+    as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+  else
+    as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+  fi
+}
+
+ensure_user_group() {
+  ensure_group "$1"
+  ensure_user
+}
+
+ensure_gmake() {
+  if command -v gmake >/dev/null 2>&1; then
+    return
+  fi
+  if command -v make >/dev/null 2>&1; then
+    as_root ln -sf "$(command -v make)" /usr/local/bin/gmake
+  fi
+}
+
+detect_cares_prefix() {
+  CARES_PREFIX=""
+  local fallback=""
+  for candidate in "$@"; do
+    [ -n "${candidate}" ] || continue
+    if [ -z "${fallback}" ]; then
+      fallback="${candidate}"
+    fi
+    if [ -f "${candidate}/include/ares.h" ]; then
+      CARES_PREFIX="${candidate}"
+      return
+    fi
+  done
+  if [ -n "${fallback}" ]; then
+    CARES_PREFIX="${fallback}"
+  fi
+}
+
+install_bsd_deps() {
   MAKE_BIN="gmake"
   HTTPDGID="www"
   set_variant_flags
   bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
 }
 
+setup_linux() {
+  HTTPDGID="www-data"
+  MAKE_BIN="gmake"
+  set_variant_flags
+  bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
+  ensure_gmake
+  detect_cares_prefix "/usr/local" "/usr" "/usr/pkg"
+  ensure_user_group "$HTTPDGID"
+}
+
+setup_bsd() {
+  install_bsd_deps
+  detect_cares_prefix "$1" "/usr/local" "/usr/pkg"
+  ensure_user_group "$HTTPDGID"
+}
+
 setup_os() {
   case "$OS_NAME" in
     linux)
-      HTTPDGID="www-data"
-      MAKE_BIN="gmake"
-      set_variant_flags
-      bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
-      if ! command -v gmake >/dev/null 2>&1; then
-        if command -v make >/dev/null 2>&1; then
-          as_root ln -sf "$(command -v make)" /usr/local/bin/gmake
-        fi
-      fi
-      CARES_PREFIX="/usr/local"
-      if [ ! -f "${CARES_PREFIX}/include/ares.h" ]; then
-        CARES_PREFIX="/usr"
-      fi
-      as_root groupadd -f www-data 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+      setup_linux
       ;;
     freebsd)
-      CARES_PREFIX="/usr/local"
-      setup_bsd_common
-      as_root pw groupadd www 2>/dev/null || true
-      as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+      setup_bsd "/usr/local"
       ;;
     openbsd)
-      CARES_PREFIX="/usr/local"
-      setup_bsd_common
-      as_root groupadd www 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+      setup_bsd "/usr/local"
       ;;
     netbsd)
-      CARES_PREFIX="/usr/pkg"
-      setup_bsd_common
-      as_root groupadd www 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+      setup_bsd "/usr/pkg"
       if [ -x /usr/pkg/bin/gmake ]; then
         export PATH="/usr/pkg/bin:${PATH}"
       fi
