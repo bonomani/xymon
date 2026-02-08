@@ -1,428 +1,428 @@
 === /server/bin/notifications.cgi ===
-	linux-vdso.so.1 (0x00007ffcf8361000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f027506a000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f0274e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f0275120000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymon-mailack ===
-	linux-vdso.so.1 (0x00007ffeb13c8000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f729c47c000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f729c200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f729c51c000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/eventlog.cgi ===
-	linux-vdso.so.1 (0x00007ffc09d2c000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fe67d270000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fe67d000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fe67d32a000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_distribute ===
-	linux-vdso.so.1 (0x00007fff92eef000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007ffb9ca00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007ffb9cd72000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/csvinfo.cgi ===
-	linux-vdso.so.1 (0x00007fffb27e4000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f3b32031000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3b31e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f3b320e6000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonreports.sh ===
 === /server/bin/cgiwrap ===
-	linux-vdso.so.1 (0x00007ffed051b000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2e7a200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f2e7a4e8000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonfetch ===
-	linux-vdso.so.1 (0x00007fff241fa000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f04e6a00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f04e6db5000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/history.cgi ===
-	linux-vdso.so.1 (0x00007ffda2bc8000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fe1d4651000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fe1d4400000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fe1d470c000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/statusreport.cgi ===
-	linux-vdso.so.1 (0x00007ffd506d4000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f6ca53ad000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f6ca5000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f6ca5453000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/convertnk ===
-	linux-vdso.so.1 (0x00007ffcdb1d8000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f8f31600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f8f31a29000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_channel ===
-	linux-vdso.so.1 (0x00007ffc6a78c000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f22d6551000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f22d6200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f22d65fb000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_hostdata ===
-	linux-vdso.so.1 (0x00007ffe143ce000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f7e30e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f7e31231000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/acknowledgements.cgi ===
-	linux-vdso.so.1 (0x00007ffe6fe26000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f298384e000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2983600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f2983904000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonproxy ===
-	linux-vdso.so.1 (0x00007fff527fb000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fbbff600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fbbff9c9000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/confreport.cgi ===
-	linux-vdso.so.1 (0x00007ffdfe5dd000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f71c8e9b000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f71c8c00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f71c8f5d000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/criticaleditor.cgi ===
-	linux-vdso.so.1 (0x00007fffa20ea000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f93e23b6000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f93e2000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f93e246d000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/boilerplate.cgi ===
-	linux-vdso.so.1 (0x00007ffc30a82000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fb2d8d6b000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fb2d8a00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fb2d8e20000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonlaunch ===
-	linux-vdso.so.1 (0x00007ffd0af50000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f1066200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f1066474000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonnet ===
-	linux-vdso.so.1 (0x00007ffe069ce000)
-	libcares.so.2 => /lib/x86_64-linux-gnu/libcares.so.2 (0x00007f3265f82000)
-	libldap-2.5.so.0 => /lib/x86_64-linux-gnu/libldap-2.5.so.0 (0x00007f3265f22000)
-	liblber-2.5.so.0 => /lib/x86_64-linux-gnu/liblber-2.5.so.0 (0x00007f3265f11000)
-	libssl.so.3 => /lib/x86_64-linux-gnu/libssl.so.3 (0x00007f3265e6d000)
-	libcrypto.so.3 => /lib/x86_64-linux-gnu/libcrypto.so.3 (0x00007f3265a00000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f326598a000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3265600000)
-	libsasl2.so.2 => /lib/x86_64-linux-gnu/libsasl2.so.2 (0x00007f3265e50000)
-	libgnutls.so.30 => /lib/x86_64-linux-gnu/libgnutls.so.30 (0x00007f3265415000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f3265ff3000)
-	libp11-kit.so.0 => /lib/x86_64-linux-gnu/libp11-kit.so.0 (0x00007f326584f000)
-	libidn2.so.0 => /lib/x86_64-linux-gnu/libidn2.so.0 (0x00007f326582e000)
-	libunistring.so.2 => /lib/x86_64-linux-gnu/libunistring.so.2 (0x00007f326526b000)
-	libtasn1.so.6 => /lib/x86_64-linux-gnu/libtasn1.so.6 (0x00007f3265253000)
-	libnettle.so.8 => /lib/x86_64-linux-gnu/libnettle.so.8 (0x00007f326520d000)
-	libhogweed.so.6 => /lib/x86_64-linux-gnu/libhogweed.so.6 (0x00007f32651c5000)
-	libgmp.so.10 => /lib/x86_64-linux-gnu/libgmp.so.10 (0x00007f3265143000)
-	libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f3265136000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libcares.so.2
+/lib/x86_64-linux-gnu/libldap-2.5.so.0
+/lib/x86_64-linux-gnu/liblber-2.5.so.0
+/lib/x86_64-linux-gnu/libssl.so.3
+/lib/x86_64-linux-gnu/libcrypto.so.3
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib/x86_64-linux-gnu/libsasl2.so.2
+/lib/x86_64-linux-gnu/libgnutls.so.30
+/lib64/ld-linux-x86-64.so.2
+/lib/x86_64-linux-gnu/libp11-kit.so.0
+/lib/x86_64-linux-gnu/libidn2.so.0
+/lib/x86_64-linux-gnu/libunistring.so.2
+/lib/x86_64-linux-gnu/libtasn1.so.6
+/lib/x86_64-linux-gnu/libnettle.so.8
+/lib/x86_64-linux-gnu/libhogweed.so.6
+/lib/x86_64-linux-gnu/libgmp.so.10
+/lib/x86_64-linux-gnu/libffi.so.8
 === /server/bin/hostgraphs.cgi ===
-	linux-vdso.so.1 (0x00007ffea29d7000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fa2363c6000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa236000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fa23647c000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/perfdata.cgi ===
-	linux-vdso.so.1 (0x00007ffc495b2000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fb8a71ee000)
-	librrd.so.8 => /lib/x86_64-linux-gnu/librrd.so.8 (0x00007fb8a7191000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fb8a6e00000)
-	libpng16.so.16 => /lib/x86_64-linux-gnu/libpng16.so.16 (0x00007fb8a7156000)
-	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007fb8a706f000)
-	libdbi.so.1 => /lib/x86_64-linux-gnu/libdbi.so.1 (0x00007fb8a705b000)
-	libpangocairo-1.0.so.0 => /lib/x86_64-linux-gnu/libpangocairo-1.0.so.0 (0x00007fb8a7049000)
-	libpango-1.0.so.0 => /lib/x86_64-linux-gnu/libpango-1.0.so.0 (0x00007fb8a6d99000)
-	libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007fb8a6d39000)
-	libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007fb8a6bff000)
-	libcairo.so.2 => /lib/x86_64-linux-gnu/libcairo.so.2 (0x00007fb8a6ad7000)
-	libxml2.so.2 => /lib/x86_64-linux-gnu/libxml2.so.2 (0x00007fb8a68f5000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fb8a72a5000)
-	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007fb8a702b000)
-	libpangoft2-1.0.so.0 => /lib/x86_64-linux-gnu/libpangoft2-1.0.so.0 (0x00007fb8a68da000)
-	libharfbuzz.so.0 => /lib/x86_64-linux-gnu/libharfbuzz.so.0 (0x00007fb8a680b000)
-	libfontconfig.so.1 => /lib/x86_64-linux-gnu/libfontconfig.so.1 (0x00007fb8a67c1000)
-	libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007fb8a65e6000)
-	libfribidi.so.0 => /lib/x86_64-linux-gnu/libfribidi.so.0 (0x00007fb8a65ca000)
-	libthai.so.0 => /lib/x86_64-linux-gnu/libthai.so.0 (0x00007fb8a65bf000)
-	libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007fb8a65b2000)
-	libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007fb8a6507000)
-	libfreetype.so.6 => /lib/x86_64-linux-gnu/libfreetype.so.6 (0x00007fb8a643f000)
-	libxcb-shm.so.0 => /lib/x86_64-linux-gnu/libxcb-shm.so.0 (0x00007fb8a643a000)
-	libxcb.so.1 => /lib/x86_64-linux-gnu/libxcb.so.1 (0x00007fb8a640e000)
-	libxcb-render.so.0 => /lib/x86_64-linux-gnu/libxcb-render.so.0 (0x00007fb8a63ff000)
-	libXrender.so.1 => /lib/x86_64-linux-gnu/libXrender.so.1 (0x00007fb8a63f2000)
-	libX11.so.6 => /lib/x86_64-linux-gnu/libX11.so.6 (0x00007fb8a62b2000)
-	libXext.so.6 => /lib/x86_64-linux-gnu/libXext.so.6 (0x00007fb8a629d000)
-	libicuuc.so.70 => /lib/x86_64-linux-gnu/libicuuc.so.70 (0x00007fb8a60a2000)
-	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x00007fb8a6077000)
-	libgraphite2.so.3 => /lib/x86_64-linux-gnu/libgraphite2.so.3 (0x00007fb8a604e000)
-	libexpat.so.1 => /lib/x86_64-linux-gnu/libexpat.so.1 (0x00007fb8a601d000)
-	libuuid.so.1 => /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007fb8a6014000)
-	libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007fb8a600d000)
-	libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007fb8a5fc9000)
-	libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007fb8a5f9b000)
-	libdatrie.so.1 => /lib/x86_64-linux-gnu/libdatrie.so.1 (0x00007fb8a5f92000)
-	libbrotlidec.so.1 => /lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x00007fb8a5f84000)
-	libXau.so.6 => /lib/x86_64-linux-gnu/libXau.so.6 (0x00007fb8a5f7e000)
-	libXdmcp.so.6 => /lib/x86_64-linux-gnu/libXdmcp.so.6 (0x00007fb8a5f76000)
-	libicudata.so.70 => /lib/x86_64-linux-gnu/libicudata.so.70 (0x00007fb8a4200000)
-	libstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007fb8a3e00000)
-	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007fb8a5f54000)
-	libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007fb8a5f1d000)
-	libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007fb8a5e86000)
-	libbrotlicommon.so.1 => /lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x00007fb8a5e61000)
-	libbsd.so.0 => /lib/x86_64-linux-gnu/libbsd.so.0 (0x00007fb8a5e49000)
-	libmd.so.0 => /lib/x86_64-linux-gnu/libmd.so.0 (0x00007fb8a5e3c000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/librrd.so.8
+/lib/x86_64-linux-gnu/libc.so.6
+/lib/x86_64-linux-gnu/libpng16.so.16
+/lib/x86_64-linux-gnu/libm.so.6
+/lib/x86_64-linux-gnu/libdbi.so.1
+/lib/x86_64-linux-gnu/libpangocairo-1.0.so.0
+/lib/x86_64-linux-gnu/libpango-1.0.so.0
+/lib/x86_64-linux-gnu/libgobject-2.0.so.0
+/lib/x86_64-linux-gnu/libglib-2.0.so.0
+/lib/x86_64-linux-gnu/libcairo.so.2
+/lib/x86_64-linux-gnu/libxml2.so.2
+/lib64/ld-linux-x86-64.so.2
+/lib/x86_64-linux-gnu/libz.so.1
+/lib/x86_64-linux-gnu/libpangoft2-1.0.so.0
+/lib/x86_64-linux-gnu/libharfbuzz.so.0
+/lib/x86_64-linux-gnu/libfontconfig.so.1
+/lib/x86_64-linux-gnu/libgio-2.0.so.0
+/lib/x86_64-linux-gnu/libfribidi.so.0
+/lib/x86_64-linux-gnu/libthai.so.0
+/lib/x86_64-linux-gnu/libffi.so.8
+/lib/x86_64-linux-gnu/libpixman-1.so.0
+/lib/x86_64-linux-gnu/libfreetype.so.6
+/lib/x86_64-linux-gnu/libxcb-shm.so.0
+/lib/x86_64-linux-gnu/libxcb.so.1
+/lib/x86_64-linux-gnu/libxcb-render.so.0
+/lib/x86_64-linux-gnu/libXrender.so.1
+/lib/x86_64-linux-gnu/libX11.so.6
+/lib/x86_64-linux-gnu/libXext.so.6
+/lib/x86_64-linux-gnu/libicuuc.so.70
+/lib/x86_64-linux-gnu/liblzma.so.5
+/lib/x86_64-linux-gnu/libgraphite2.so.3
+/lib/x86_64-linux-gnu/libexpat.so.1
+/lib/x86_64-linux-gnu/libuuid.so.1
+/lib/x86_64-linux-gnu/libgmodule-2.0.so.0
+/lib/x86_64-linux-gnu/libmount.so.1
+/lib/x86_64-linux-gnu/libselinux.so.1
+/lib/x86_64-linux-gnu/libdatrie.so.1
+/lib/x86_64-linux-gnu/libbrotlidec.so.1
+/lib/x86_64-linux-gnu/libXau.so.6
+/lib/x86_64-linux-gnu/libXdmcp.so.6
+/lib/x86_64-linux-gnu/libicudata.so.70
+/lib/x86_64-linux-gnu/libstdc++.so.6
+/lib/x86_64-linux-gnu/libgcc_s.so.1
+/lib/x86_64-linux-gnu/libblkid.so.1
+/lib/x86_64-linux-gnu/libpcre2-8.so.0
+/lib/x86_64-linux-gnu/libbrotlicommon.so.1
+/lib/x86_64-linux-gnu/libbsd.so.0
+/lib/x86_64-linux-gnu/libmd.so.0
 === /server/bin/xymonpage ===
-	linux-vdso.so.1 (0x00007ffca0fb8000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f6b981db000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f6b97e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f6b9828c000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymoncmd ===
-	linux-vdso.so.1 (0x00007ffd4f9a6000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007efe9dc00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007efe9df9d000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/combostatus ===
-	linux-vdso.so.1 (0x00007ffd607ea000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f6cc8a00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f6cc8d17000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/snapshot.cgi ===
-	linux-vdso.so.1 (0x00007ffc031c2000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fca5a0e0000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fca59e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fca5a195000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/reportlog.cgi ===
-	linux-vdso.so.1 (0x00007fff0ed8f000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fc1104ee000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fc110200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fc1105a8000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/findhost.cgi ===
-	linux-vdso.so.1 (0x00007ffc8e4c8000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fdff6070000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fdff5e00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fdff6125000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/report.cgi ===
-	linux-vdso.so.1 (0x00007ffc7bcda000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fd576840000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fd576600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fd5768f5000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/trimhistory ===
-	linux-vdso.so.1 (0x00007ffe7266f000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f65c0000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f65c0306000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/rrdcachectl ===
-	linux-vdso.so.1 (0x00007ffc98df4000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f767b000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f767b387000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/appfeed.cgi ===
-	linux-vdso.so.1 (0x00007ffe1b5ee000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f9198000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f9198326000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/useradm.cgi ===
-	linux-vdso.so.1 (0x00007ffdaf597000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fa7e72dd000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa7e7000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fa7e7392000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/datepage.cgi ===
-	linux-vdso.so.1 (0x00007ffdabb2b000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f3b6fdaf000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3b6fa00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f3b6fe64000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/enadis.cgi ===
-	linux-vdso.so.1 (0x00007ffd817ed000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f287684c000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2876600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f2876903000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_capture ===
-	linux-vdso.so.1 (0x00007fff82a93000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f1950210000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f194fe00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f19502b4000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymoncgimsg.cgi ===
-	linux-vdso.so.1 (0x00007fffb89d6000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa745c00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fa745e93000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymondigest ===
-	linux-vdso.so.1 (0x00007ffdf2fcb000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4e8ae00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f4e8b11f000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymonping ===
-	linux-vdso.so.1 (0x00007ffd76196000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fe7c4c00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fe7c4f37000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymon ===
-	linux-vdso.so.1 (0x00007ffce5bcd000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4222800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f4222ac5000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/criticalview.cgi ===
-	linux-vdso.so.1 (0x00007fffb9748000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f4f24d18000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4f24a00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f4f24dde000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_locator ===
-	linux-vdso.so.1 (0x00007ffccc991000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f4acce00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f4acd185000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond ===
-	linux-vdso.so.1 (0x00007ffcc0bbe000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f468a7a7000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f468a400000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f468a86d000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_rrd ===
-	linux-vdso.so.1 (0x00007fff627e3000)
-	librrd.so.8 => /lib/x86_64-linux-gnu/librrd.so.8 (0x00007f14414a7000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f1441431000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f1441200000)
-	libpng16.so.16 => /lib/x86_64-linux-gnu/libpng16.so.16 (0x00007f14411c5000)
-	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f14410de000)
-	libdbi.so.1 => /lib/x86_64-linux-gnu/libdbi.so.1 (0x00007f14410cc000)
-	libpangocairo-1.0.so.0 => /lib/x86_64-linux-gnu/libpangocairo-1.0.so.0 (0x00007f14410ba000)
-	libpango-1.0.so.0 => /lib/x86_64-linux-gnu/libpango-1.0.so.0 (0x00007f1441053000)
-	libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007f1440ff3000)
-	libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007f1440eb9000)
-	libcairo.so.2 => /lib/x86_64-linux-gnu/libcairo.so.2 (0x00007f1440d91000)
-	libxml2.so.2 => /lib/x86_64-linux-gnu/libxml2.so.2 (0x00007f1440baf000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f144157a000)
-	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f1440b93000)
-	libpangoft2-1.0.so.0 => /lib/x86_64-linux-gnu/libpangoft2-1.0.so.0 (0x00007f1440b78000)
-	libharfbuzz.so.0 => /lib/x86_64-linux-gnu/libharfbuzz.so.0 (0x00007f1440aa9000)
-	libfontconfig.so.1 => /lib/x86_64-linux-gnu/libfontconfig.so.1 (0x00007f1440a5f000)
-	libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007f1440884000)
-	libfribidi.so.0 => /lib/x86_64-linux-gnu/libfribidi.so.0 (0x00007f1440868000)
-	libthai.so.0 => /lib/x86_64-linux-gnu/libthai.so.0 (0x00007f144085d000)
-	libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f1440850000)
-	libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007f14407a5000)
-	libfreetype.so.6 => /lib/x86_64-linux-gnu/libfreetype.so.6 (0x00007f14406dd000)
-	libxcb-shm.so.0 => /lib/x86_64-linux-gnu/libxcb-shm.so.0 (0x00007f14406d8000)
-	libxcb.so.1 => /lib/x86_64-linux-gnu/libxcb.so.1 (0x00007f14406ae000)
-	libxcb-render.so.0 => /lib/x86_64-linux-gnu/libxcb-render.so.0 (0x00007f144069f000)
-	libXrender.so.1 => /lib/x86_64-linux-gnu/libXrender.so.1 (0x00007f1440692000)
-	libX11.so.6 => /lib/x86_64-linux-gnu/libX11.so.6 (0x00007f1440552000)
-	libXext.so.6 => /lib/x86_64-linux-gnu/libXext.so.6 (0x00007f144053d000)
-	libicuuc.so.70 => /lib/x86_64-linux-gnu/libicuuc.so.70 (0x00007f1440342000)
-	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x00007f1440317000)
-	libgraphite2.so.3 => /lib/x86_64-linux-gnu/libgraphite2.so.3 (0x00007f14402ee000)
-	libexpat.so.1 => /lib/x86_64-linux-gnu/libexpat.so.1 (0x00007f14402bd000)
-	libuuid.so.1 => /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007f14402b4000)
-	libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007f14402ad000)
-	libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007f1440269000)
-	libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007f144023b000)
-	libdatrie.so.1 => /lib/x86_64-linux-gnu/libdatrie.so.1 (0x00007f1440232000)
-	libbrotlidec.so.1 => /lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x00007f1440224000)
-	libXau.so.6 => /lib/x86_64-linux-gnu/libXau.so.6 (0x00007f144021e000)
-	libXdmcp.so.6 => /lib/x86_64-linux-gnu/libXdmcp.so.6 (0x00007f1440216000)
-	libicudata.so.70 => /lib/x86_64-linux-gnu/libicudata.so.70 (0x00007f143e400000)
-	libstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f143e000000)
-	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f14401f4000)
-	libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007f14401bd000)
-	libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f1440126000)
-	libbrotlicommon.so.1 => /lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x00007f1440101000)
-	libbsd.so.0 => /lib/x86_64-linux-gnu/libbsd.so.0 (0x00007f14400e9000)
-	libmd.so.0 => /lib/x86_64-linux-gnu/libmd.so.0 (0x00007f14400dc000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/librrd.so.8
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib/x86_64-linux-gnu/libpng16.so.16
+/lib/x86_64-linux-gnu/libm.so.6
+/lib/x86_64-linux-gnu/libdbi.so.1
+/lib/x86_64-linux-gnu/libpangocairo-1.0.so.0
+/lib/x86_64-linux-gnu/libpango-1.0.so.0
+/lib/x86_64-linux-gnu/libgobject-2.0.so.0
+/lib/x86_64-linux-gnu/libglib-2.0.so.0
+/lib/x86_64-linux-gnu/libcairo.so.2
+/lib/x86_64-linux-gnu/libxml2.so.2
+/lib64/ld-linux-x86-64.so.2
+/lib/x86_64-linux-gnu/libz.so.1
+/lib/x86_64-linux-gnu/libpangoft2-1.0.so.0
+/lib/x86_64-linux-gnu/libharfbuzz.so.0
+/lib/x86_64-linux-gnu/libfontconfig.so.1
+/lib/x86_64-linux-gnu/libgio-2.0.so.0
+/lib/x86_64-linux-gnu/libfribidi.so.0
+/lib/x86_64-linux-gnu/libthai.so.0
+/lib/x86_64-linux-gnu/libffi.so.8
+/lib/x86_64-linux-gnu/libpixman-1.so.0
+/lib/x86_64-linux-gnu/libfreetype.so.6
+/lib/x86_64-linux-gnu/libxcb-shm.so.0
+/lib/x86_64-linux-gnu/libxcb.so.1
+/lib/x86_64-linux-gnu/libxcb-render.so.0
+/lib/x86_64-linux-gnu/libXrender.so.1
+/lib/x86_64-linux-gnu/libX11.so.6
+/lib/x86_64-linux-gnu/libXext.so.6
+/lib/x86_64-linux-gnu/libicuuc.so.70
+/lib/x86_64-linux-gnu/liblzma.so.5
+/lib/x86_64-linux-gnu/libgraphite2.so.3
+/lib/x86_64-linux-gnu/libexpat.so.1
+/lib/x86_64-linux-gnu/libuuid.so.1
+/lib/x86_64-linux-gnu/libgmodule-2.0.so.0
+/lib/x86_64-linux-gnu/libmount.so.1
+/lib/x86_64-linux-gnu/libselinux.so.1
+/lib/x86_64-linux-gnu/libdatrie.so.1
+/lib/x86_64-linux-gnu/libbrotlidec.so.1
+/lib/x86_64-linux-gnu/libXau.so.6
+/lib/x86_64-linux-gnu/libXdmcp.so.6
+/lib/x86_64-linux-gnu/libicudata.so.70
+/lib/x86_64-linux-gnu/libstdc++.so.6
+/lib/x86_64-linux-gnu/libgcc_s.so.1
+/lib/x86_64-linux-gnu/libblkid.so.1
+/lib/x86_64-linux-gnu/libpcre2-8.so.0
+/lib/x86_64-linux-gnu/libbrotlicommon.so.1
+/lib/x86_64-linux-gnu/libbsd.so.0
+/lib/x86_64-linux-gnu/libmd.so.0
 === /server/bin/acknowledge.cgi ===
-	linux-vdso.so.1 (0x00007fff517ee000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007ffb53bdf000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007ffb53800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007ffb53c97000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/svcstatus.cgi ===
-	linux-vdso.so.1 (0x00007ffd86926000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f3c90c17000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f3c90800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f3c90ce9000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymoncfg ===
-	linux-vdso.so.1 (0x00007fff98370000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f47a8600000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f47a8911000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_filestore ===
-	linux-vdso.so.1 (0x00007ffeeb3fe000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f5696bfa000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f5696800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f5696cc0000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/chpasswd.cgi ===
-	linux-vdso.so.1 (0x00007ffd94db3000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f0f9bb26000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f0f9b800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f0f9bbdb000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/ghostlist.cgi ===
-	linux-vdso.so.1 (0x00007fff4d5d3000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f2535aac000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f2535800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f2535b62000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/showgraph.cgi ===
-	linux-vdso.so.1 (0x00007ffe81f9b000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f7dd8076000)
-	librrd.so.8 => /lib/x86_64-linux-gnu/librrd.so.8 (0x00007f7dd8019000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f7dd7c00000)
-	libpng16.so.16 => /lib/x86_64-linux-gnu/libpng16.so.16 (0x00007f7dd7fde000)
-	libm.so.6 => /lib/x86_64-linux-gnu/libm.so.6 (0x00007f7dd7ef7000)
-	libdbi.so.1 => /lib/x86_64-linux-gnu/libdbi.so.1 (0x00007f7dd7ee3000)
-	libpangocairo-1.0.so.0 => /lib/x86_64-linux-gnu/libpangocairo-1.0.so.0 (0x00007f7dd7ed1000)
-	libpango-1.0.so.0 => /lib/x86_64-linux-gnu/libpango-1.0.so.0 (0x00007f7dd7e6a000)
-	libgobject-2.0.so.0 => /lib/x86_64-linux-gnu/libgobject-2.0.so.0 (0x00007f7dd7ba0000)
-	libglib-2.0.so.0 => /lib/x86_64-linux-gnu/libglib-2.0.so.0 (0x00007f7dd7a66000)
-	libcairo.so.2 => /lib/x86_64-linux-gnu/libcairo.so.2 (0x00007f7dd793e000)
-	libxml2.so.2 => /lib/x86_64-linux-gnu/libxml2.so.2 (0x00007f7dd775c000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f7dd8135000)
-	libz.so.1 => /lib/x86_64-linux-gnu/libz.so.1 (0x00007f7dd7e4c000)
-	libpangoft2-1.0.so.0 => /lib/x86_64-linux-gnu/libpangoft2-1.0.so.0 (0x00007f7dd7e31000)
-	libharfbuzz.so.0 => /lib/x86_64-linux-gnu/libharfbuzz.so.0 (0x00007f7dd768d000)
-	libfontconfig.so.1 => /lib/x86_64-linux-gnu/libfontconfig.so.1 (0x00007f7dd7643000)
-	libgio-2.0.so.0 => /lib/x86_64-linux-gnu/libgio-2.0.so.0 (0x00007f7dd7468000)
-	libfribidi.so.0 => /lib/x86_64-linux-gnu/libfribidi.so.0 (0x00007f7dd744c000)
-	libthai.so.0 => /lib/x86_64-linux-gnu/libthai.so.0 (0x00007f7dd7441000)
-	libffi.so.8 => /lib/x86_64-linux-gnu/libffi.so.8 (0x00007f7dd7434000)
-	libpixman-1.so.0 => /lib/x86_64-linux-gnu/libpixman-1.so.0 (0x00007f7dd7389000)
-	libfreetype.so.6 => /lib/x86_64-linux-gnu/libfreetype.so.6 (0x00007f7dd72c1000)
-	libxcb-shm.so.0 => /lib/x86_64-linux-gnu/libxcb-shm.so.0 (0x00007f7dd7e2a000)
-	libxcb.so.1 => /lib/x86_64-linux-gnu/libxcb.so.1 (0x00007f7dd7295000)
-	libxcb-render.so.0 => /lib/x86_64-linux-gnu/libxcb-render.so.0 (0x00007f7dd7286000)
-	libXrender.so.1 => /lib/x86_64-linux-gnu/libXrender.so.1 (0x00007f7dd7279000)
-	libX11.so.6 => /lib/x86_64-linux-gnu/libX11.so.6 (0x00007f7dd7139000)
-	libXext.so.6 => /lib/x86_64-linux-gnu/libXext.so.6 (0x00007f7dd7124000)
-	libicuuc.so.70 => /lib/x86_64-linux-gnu/libicuuc.so.70 (0x00007f7dd6f29000)
-	liblzma.so.5 => /lib/x86_64-linux-gnu/liblzma.so.5 (0x00007f7dd6efe000)
-	libgraphite2.so.3 => /lib/x86_64-linux-gnu/libgraphite2.so.3 (0x00007f7dd6ed5000)
-	libexpat.so.1 => /lib/x86_64-linux-gnu/libexpat.so.1 (0x00007f7dd6ea4000)
-	libuuid.so.1 => /lib/x86_64-linux-gnu/libuuid.so.1 (0x00007f7dd6e9b000)
-	libgmodule-2.0.so.0 => /lib/x86_64-linux-gnu/libgmodule-2.0.so.0 (0x00007f7dd6e94000)
-	libmount.so.1 => /lib/x86_64-linux-gnu/libmount.so.1 (0x00007f7dd6e50000)
-	libselinux.so.1 => /lib/x86_64-linux-gnu/libselinux.so.1 (0x00007f7dd6e22000)
-	libdatrie.so.1 => /lib/x86_64-linux-gnu/libdatrie.so.1 (0x00007f7dd6e19000)
-	libbrotlidec.so.1 => /lib/x86_64-linux-gnu/libbrotlidec.so.1 (0x00007f7dd6e0b000)
-	libXau.so.6 => /lib/x86_64-linux-gnu/libXau.so.6 (0x00007f7dd6e05000)
-	libXdmcp.so.6 => /lib/x86_64-linux-gnu/libXdmcp.so.6 (0x00007f7dd6dfd000)
-	libicudata.so.70 => /lib/x86_64-linux-gnu/libicudata.so.70 (0x00007f7dd5000000)
-	libstdc++.so.6 => /lib/x86_64-linux-gnu/libstdc++.so.6 (0x00007f7dd4c00000)
-	libgcc_s.so.1 => /lib/x86_64-linux-gnu/libgcc_s.so.1 (0x00007f7dd6ddb000)
-	libblkid.so.1 => /lib/x86_64-linux-gnu/libblkid.so.1 (0x00007f7dd6da4000)
-	libpcre2-8.so.0 => /lib/x86_64-linux-gnu/libpcre2-8.so.0 (0x00007f7dd6d0d000)
-	libbrotlicommon.so.1 => /lib/x86_64-linux-gnu/libbrotlicommon.so.1 (0x00007f7dd6ce8000)
-	libbsd.so.0 => /lib/x86_64-linux-gnu/libbsd.so.0 (0x00007f7dd6cd0000)
-	libmd.so.0 => /lib/x86_64-linux-gnu/libmd.so.0 (0x00007f7dd6cc3000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/librrd.so.8
+/lib/x86_64-linux-gnu/libc.so.6
+/lib/x86_64-linux-gnu/libpng16.so.16
+/lib/x86_64-linux-gnu/libm.so.6
+/lib/x86_64-linux-gnu/libdbi.so.1
+/lib/x86_64-linux-gnu/libpangocairo-1.0.so.0
+/lib/x86_64-linux-gnu/libpango-1.0.so.0
+/lib/x86_64-linux-gnu/libgobject-2.0.so.0
+/lib/x86_64-linux-gnu/libglib-2.0.so.0
+/lib/x86_64-linux-gnu/libcairo.so.2
+/lib/x86_64-linux-gnu/libxml2.so.2
+/lib64/ld-linux-x86-64.so.2
+/lib/x86_64-linux-gnu/libz.so.1
+/lib/x86_64-linux-gnu/libpangoft2-1.0.so.0
+/lib/x86_64-linux-gnu/libharfbuzz.so.0
+/lib/x86_64-linux-gnu/libfontconfig.so.1
+/lib/x86_64-linux-gnu/libgio-2.0.so.0
+/lib/x86_64-linux-gnu/libfribidi.so.0
+/lib/x86_64-linux-gnu/libthai.so.0
+/lib/x86_64-linux-gnu/libffi.so.8
+/lib/x86_64-linux-gnu/libpixman-1.so.0
+/lib/x86_64-linux-gnu/libfreetype.so.6
+/lib/x86_64-linux-gnu/libxcb-shm.so.0
+/lib/x86_64-linux-gnu/libxcb.so.1
+/lib/x86_64-linux-gnu/libxcb-render.so.0
+/lib/x86_64-linux-gnu/libXrender.so.1
+/lib/x86_64-linux-gnu/libX11.so.6
+/lib/x86_64-linux-gnu/libXext.so.6
+/lib/x86_64-linux-gnu/libicuuc.so.70
+/lib/x86_64-linux-gnu/liblzma.so.5
+/lib/x86_64-linux-gnu/libgraphite2.so.3
+/lib/x86_64-linux-gnu/libexpat.so.1
+/lib/x86_64-linux-gnu/libuuid.so.1
+/lib/x86_64-linux-gnu/libgmodule-2.0.so.0
+/lib/x86_64-linux-gnu/libmount.so.1
+/lib/x86_64-linux-gnu/libselinux.so.1
+/lib/x86_64-linux-gnu/libdatrie.so.1
+/lib/x86_64-linux-gnu/libbrotlidec.so.1
+/lib/x86_64-linux-gnu/libXau.so.6
+/lib/x86_64-linux-gnu/libXdmcp.so.6
+/lib/x86_64-linux-gnu/libicudata.so.70
+/lib/x86_64-linux-gnu/libstdc++.so.6
+/lib/x86_64-linux-gnu/libgcc_s.so.1
+/lib/x86_64-linux-gnu/libblkid.so.1
+/lib/x86_64-linux-gnu/libpcre2-8.so.0
+/lib/x86_64-linux-gnu/libbrotlicommon.so.1
+/lib/x86_64-linux-gnu/libbsd.so.0
+/lib/x86_64-linux-gnu/libmd.so.0
 === /server/bin/hostlist.cgi ===
-	linux-vdso.so.1 (0x00007ffd3ff51000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f780101b000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f7800c00000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f78010d0000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/moverrd.sh ===
 === /server/bin/xymon.sh ===
 === /server/bin/xymond_client ===
-	linux-vdso.so.1 (0x00007ffe76393000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f1424704000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f1424400000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f14247df000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_alert ===
-	linux-vdso.so.1 (0x00007ffc47b89000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007fa24a3a2000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007fa24a000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007fa24a460000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_sample ===
-	linux-vdso.so.1 (0x00007ffffb4bb000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f238c200000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f238c631000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymongen ===
-	linux-vdso.so.1 (0x00007ffd80169000)
-	libpcre.so.3 => /lib/x86_64-linux-gnu/libpcre.so.3 (0x00007f82f9333000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f82f9000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f82f9416000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libpcre.so.3
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymongrep ===
-	linux-vdso.so.1 (0x00007fffa51ee000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f1752000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f17522fc000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/xymond_history ===
-	linux-vdso.so.1 (0x00007fff8ed90000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f78e4000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f78e42e1000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/ackinfo.cgi ===
-	linux-vdso.so.1 (0x00007ffef21cb000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f329d800000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f329da91000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
 === /server/bin/beastat ===
-	linux-vdso.so.1 (0x00007fff6c7f6000)
-	libc.so.6 => /lib/x86_64-linux-gnu/libc.so.6 (0x00007f60ad000000)
-	/lib64/ld-linux-x86-64.so.2 (0x00007f60ad317000)
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
