@@ -17,9 +17,16 @@ jobs:
             os: linux
             pkg_mgr: apt
             variant: server
+            dep_family: debian
+            dep_os: debian
+            dep_version: bookworm
             stop_after_configure: true
 
     name: ${{ matrix.name }}
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
 
     steps:
       - name: Checkout
@@ -28,30 +35,34 @@ jobs:
       - name: Install build dependencies (apt)
         if: ${{ matrix.pkg_mgr == 'apt' }}
         run: |
-          if [ "${{ matrix.variant }}" = "server" ]; then
-            export ENABLE_LDAP=ON
-            export ENABLE_SNMP=ON
-          else
-            export ENABLE_LDAP=OFF
-            export ENABLE_SNMP=OFF
-          fi
-          export VARIANT="${{ matrix.variant }}"
-          bash ci/deps/install-debian-packages.sh --os ubuntu --version local
+          bash ci/deps/install-apt-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (macos)
         if: ${{ matrix.os == 'macos' }}
         run: |
-          bash ci/deps/install-brew-packages.sh
+          bash ci/deps/install-brew-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
         run: |
-          bash ci/deps/install-dnf-packages.sh --name "${{ matrix.name }}"
+          bash ci/deps/install-dnf-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (apk)
         if: ${{ matrix.pkg_mgr == 'apk' }}
         run: |
-          bash ci/deps/install-apk-packages.sh
+          bash ci/deps/install-apk-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}

@@ -199,7 +199,7 @@ def find_install_steps(workflow: dict) -> list[str]:
             if not isinstance(step, dict):
                 continue
             run = step.get("run", "")
-            if isinstance(run, str) and "install-gh-debian-packages.sh" in run:
+            if isinstance(run, str) and "install-apt-packages.sh" in run:
                 hits.append(run)
     return hits
 
@@ -225,8 +225,7 @@ def find_package_steps(workflow: dict) -> list[str]:
 def parse_linux_families() -> set[str]:
     data = load_yaml(DATA_DIR / "deps-client.yaml")
     families = set(data.get("build", {}).keys())
-    families.discard("bsd")
-    return families
+    return {family for family in families if family in {"debian", "gh-debian"}}
 
 
 def parse_bsd_pkgmgrs() -> dict[str, str]:
@@ -270,9 +269,7 @@ def check_shell_scripts() -> bool:
         ROOT / "ci" / "deps" / "install-apk-packages.sh",
         ROOT / "ci" / "deps" / "install-bsd-packages.sh",
         ROOT / "ci" / "deps" / "install-brew-packages.sh",
-        ROOT / "ci" / "deps" / "install-debian-packages.sh",
         ROOT / "ci" / "deps" / "install-dnf-packages.sh",
-        ROOT / "ci" / "deps" / "install-gh-debian-packages.sh",
         ROOT / "ci" / "deps" / "install-pacman-packages.sh",
         ROOT / "ci" / "deps" / "install-yum-packages.sh",
         ROOT / "ci" / "deps" / "install-zypper-packages.sh",

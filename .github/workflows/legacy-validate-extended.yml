@@ -13,49 +13,85 @@ jobs:
         include:
           - name: ubuntu-22.04
             runs_on: ubuntu-22.04
+            dep_family: gh-debian
+            dep_os: ubuntu
+            dep_version: latest
           - name: ubuntu-24.04
             runs_on: ubuntu-24.04
+            dep_family: gh-debian
+            dep_os: ubuntu
+            dep_version: latest
           - name: debian-bookworm
             runs_on: ubuntu-22.04
             container: debian:bookworm
             pkg_mgr: apt
+            dep_family: debian
+            dep_os: debian
+            dep_version: bookworm
           - name: debian-bullseye
             runs_on: ubuntu-22.04
             container: debian:bullseye
             pkg_mgr: apt
+            dep_family: debian
+            dep_os: debian
+            dep_version: bullseye
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
+            dep_family: rpm
+            dep_os: rockylinux
+            dep_version: 9
           - name: almalinux-9
             runs_on: ubuntu-22.04
             container: almalinux:9
             pkg_mgr: dnf
+            dep_family: rpm
+            dep_os: almalinux
+            dep_version: 9
           - name: centos-7
             runs_on: ubuntu-22.04
             container: centos:7
             pkg_mgr: yum
             cmake_bin: cmake3
+            dep_family: rpm
+            dep_os: centos
+            dep_version: 7
           - name: fedora-40
             runs_on: ubuntu-22.04
             container: fedora:40
             pkg_mgr: dnf
+            dep_family: rpm
+            dep_os: fedora
+            dep_version: 40
           - name: opensuse-leap-15.6
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
             pkg_mgr: zypper
+            dep_family: suse
+            dep_os: opensuse_leap
+            dep_version: 15_6
           - name: alpine-3
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
+            dep_family: alpine
+            dep_os: alpine
+            dep_version: 3
           - name: archlinux
             runs_on: ubuntu-22.04
             container: archlinux:latest
             pkg_mgr: pacman
+            dep_family: arch
+            dep_os: archlinux
+            dep_version: latest
 
     name: ${{ matrix.name }}
     env:
       CMAKE_BIN: ${{ matrix.cmake_bin }}
+      VARIANT: server
+      ENABLE_LDAP: ON
+      ENABLE_SNMP: ON
 
     steps:
       - name: Checkout
@@ -64,32 +100,50 @@ jobs:
       - name: Install build dependencies (apt)
         if: ${{ (matrix.pkg_mgr == '' || matrix.pkg_mgr == 'apt') }}
         run: |
-          bash ci/deps/install-apt-packages.sh
+          bash ci/deps/install-apt-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (dnf)
         if: ${{ matrix.pkg_mgr == 'dnf' }}
         run: |
-          bash ci/deps/install-dnf-packages.sh --name "${{ matrix.name }}"
+          bash ci/deps/install-dnf-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (yum)
         if: ${{ matrix.pkg_mgr == 'yum' }}
         run: |
-          bash ci/deps/install-yum-packages.sh
+          bash ci/deps/install-yum-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (zypper)
         if: ${{ matrix.pkg_mgr == 'zypper' }}
         run: |
-          bash ci/deps/install-zypper-packages.sh
+          bash ci/deps/install-zypper-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (apk)
         if: ${{ matrix.pkg_mgr == 'apk' }}
         run: |
-          bash ci/deps/install-apk-packages.sh
+          bash ci/deps/install-apk-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Install build dependencies (pacman)
         if: ${{ matrix.pkg_mgr == 'pacman' }}
         run: |
-          bash ci/deps/install-pacman-packages.sh
+          bash ci/deps/install-pacman-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Configure (legacy)
         shell: bash

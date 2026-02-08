@@ -98,7 +98,7 @@ setup_os() {
       HTTPDGID="www-data"
       MAKE_BIN="gmake"
       set_variant_flags
-      bash ci/deps/install-debian-packages.sh --os ubuntu --version local
+      bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
       if ! command -v gmake >/dev/null 2>&1; then
         if command -v make >/dev/null 2>&1; then
           as_root ln -sf "$(command -v make)" /usr/local/bin/gmake

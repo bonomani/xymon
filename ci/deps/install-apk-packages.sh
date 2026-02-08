@@ -6,16 +6,23 @@ IFS=$' \t\n'
 usage() {
   cat <<'USAGE'
 Usage: install-apk-packages.sh [--print] [--check-only] [--install]
+                               --family FAMILY --os NAME [--version NAME]
 
 Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
+  --family NAME   Dependency family (e.g. alpine)
+  --os NAME       OS key (e.g. alpine)
+  --version NAME  Optional version key (e.g. 3)
 USAGE
 }
 
 mode="install"
 print_list="0"
+family=""
+os_name=""
+version=""
 while [[ $# -gt 0 ]]; do
   case "$1" in
     --print)
@@ -27,6 +34,9 @@ while [[ $# -gt 0 ]]; do
       ;;
     --check-only) mode="check"; shift ;;
     --install) mode="install"; shift ;;
+    --family) family="$2"; shift 2 ;;
+    --os) os_name="$2"; shift 2 ;;
+    --version) version="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
     *)
       echo "Unknown argument: $1" >&2
@@ -36,21 +46,36 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-PKGS=(
-  bash
-  build-base
-  cmake
-  ninja
-  git
-  findutils
-  c-ares-dev
-  pcre-dev
-  openldap-dev
-  rrdtool-dev
-  openssl-dev
-  libtirpc-dev
-  zlib-dev
+if [[ -z "${family}" || -z "${os_name}" ]]; then
+  echo "Missing required --family/--os flags." >&2
+  usage
+  exit 2
+fi
+
+ENABLE_LDAP="${ENABLE_LDAP:-ON}"
+ENABLE_SNMP="${ENABLE_SNMP:-ON}"
+VARIANT="${VARIANT:-server}"
+CI_COMPILER="${CI_COMPILER:-}"
+
+os_key="${os_name}"
+if [[ -n "${version}" ]]; then
+  os_key="${os_name}_${version}"
+fi
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+mapfile -t PKGS < <(
+  "${script_dir}/packages-from-yaml.sh" \
+    --variant "${VARIANT}" \
+    --family "${family}" \
+    --os "${os_key}" \
+    --pkgmgr apk \
+    --enable-ldap "${ENABLE_LDAP}" \
+    --enable-snmp "${ENABLE_SNMP}"
 )
+
+if [[ "${CI_COMPILER}" == "clang" ]]; then
+  PKGS+=(clang)
+fi
 
 if [[ "${mode}" == "print" ]]; then
   printf '%s\n' "${PKGS[@]}"

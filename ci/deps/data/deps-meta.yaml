@@ -1,23 +1,73 @@
 # Metadata for CI dependency scripts and workflow validation.
 scripts:
-  ci/deps/install-gh-debian-packages.sh:
-    requires_flags: [--os, --version]
+  ci/deps/install-apt-packages.sh:
+    requires_flags: [--family, --os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
-      family: [gh-debian]
-      os: [ubuntu]
-      version: [latest]
+      family: [gh-debian, debian]
+      os: [ubuntu, debian]
+      version: [latest, local, bookworm, bullseye]
       pkgmgr: [apt]
     outputs: [packages]
 
-  ci/deps/install-debian-packages.sh:
-    requires_flags: [--os, --version]
+  ci/deps/install-dnf-packages.sh:
+    requires_flags: [--family, --os, --version]
     requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
     accepts:
-      family: [debian]
-      os: [ubuntu]
-      version: [local]
-      pkgmgr: [apt]
+      family: [rpm]
+      os: [rockylinux, almalinux, fedora]
+      version: [9, 40]
+      pkgmgr: [dnf]
+    outputs: [packages]
+
+  ci/deps/install-yum-packages.sh:
+    requires_flags: [--family, --os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [rpm]
+      os: [centos]
+      version: [7]
+      pkgmgr: [yum]
+    outputs: [packages]
+
+  ci/deps/install-zypper-packages.sh:
+    requires_flags: [--family, --os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [suse]
+      os: [opensuse_leap]
+      version: [15_6]
+      pkgmgr: [zypper]
+    outputs: [packages]
+
+  ci/deps/install-apk-packages.sh:
+    requires_flags: [--family, --os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [alpine]
+      os: [alpine]
+      version: [3]
+      pkgmgr: [apk]
+    outputs: [packages]
+
+  ci/deps/install-pacman-packages.sh:
+    requires_flags: [--family, --os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [arch]
+      os: [archlinux]
+      version: [latest]
+      pkgmgr: [pacman]
+    outputs: [packages]
+
+  ci/deps/install-brew-packages.sh:
+    requires_flags: [--family, --os, --version]
+    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    accepts:
+      family: [macos]
+      os: [macos]
+      version: [latest]
+      pkgmgr: [brew]
     outputs: [packages]
 
   ci/deps/install-bsd-packages.sh:
@@ -41,8 +91,8 @@ scripts:
   ci/deps/packages-debian.sh:
     accepts:
       family: [debian]
-      os: [ubuntu]
-      version: [local]
+      os: [ubuntu, debian]
+      version: [local, bookworm, bullseye]
       pkgmgr: [apt]
     outputs: [packages]
 
@@ -57,12 +107,27 @@ scripts:
 workflows:
   enforce:
     when_script_used:
-      ci/deps/install-gh-debian-packages.sh:
+      ci/deps/install-apt-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--os, --version]
-      ci/deps/install-debian-packages.sh:
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-dnf-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--os, --version]
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-yum-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-zypper-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-apk-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-pacman-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--family, --os, --version]
+      ci/deps/install-brew-packages.sh:
+        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+        must_pass_flags: [--family, --os, --version]
       ci/deps/install-bsd-packages.sh:
         must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
         must_pass_flags: [--os, --version]
