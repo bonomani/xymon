@@ -99,6 +99,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Hostname: $(hostname)"
+          cat /etc/hostname || true
           if [ "${{ matrix.variant }}" != "server" ]; then
             echo "Skipping key file validation for variant=${{ matrix.variant }}"
             : > /tmp/legacy.keyfiles.missing

@@ -242,6 +242,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          echo "Hostname: $(hostname)"
+          cat /etc/hostname || true
           root=/tmp/cmake-ref-root/var/lib/xymon
           if [ ! -d "$root" ]; then
             echo "Missing $root; skipping key file validation."
