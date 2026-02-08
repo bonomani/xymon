@@ -7,7 +7,6 @@ jobs:
   legacy-validate:
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
-    if: ${{ matrix.enabled }}
     strategy:
       fail-fast: false
       matrix:
@@ -80,6 +79,19 @@ jobs:
             os: macos
             variant: server
             enabled: false
+        exclude:
+          - name: debian-bookworm (client ct-client)
+          - name: debian-bookworm (client ct-server)
+          - name: ubuntu-22.04 (server)
+          - name: ubuntu-22.04 (client ct-client)
+          - name: ubuntu-22.04 (client ct-server)
+          - name: rockylinux-9
+          - name: rockylinux-9 (client ct-client)
+          - name: rockylinux-9 (client ct-server)
+          - name: alpine-3 (server)
+          - name: alpine-3 (client ct-client)
+          - name: alpine-3 (client ct-server)
+          - name: macos-14 (server)
 
     name: ${{ matrix.name }}
 
