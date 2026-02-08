@@ -15,83 +15,6 @@ jobs:
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: server
-            enabled: true
-          - name: debian-bookworm (client ct-client)
-            runs_on: ubuntu-22.04
-            container: debian:bookworm
-            variant: localclient
-            enabled: false
-          - name: debian-bookworm (client ct-server)
-            runs_on: ubuntu-22.04
-            container: debian:bookworm
-            variant: client
-            enabled: false
-          - name: ubuntu-22.04 (server)
-            runs_on: ubuntu-22.04
-            variant: server
-            enabled: false
-          - name: ubuntu-22.04 (client ct-client)
-            runs_on: ubuntu-22.04
-            variant: localclient
-            enabled: false
-          - name: ubuntu-22.04 (client ct-server)
-            runs_on: ubuntu-22.04
-            variant: client
-            enabled: false
-          - name: rockylinux-9
-            runs_on: ubuntu-22.04
-            container: rockylinux:9
-            pkg_mgr: dnf
-            variant: server
-            enabled: false
-          - name: rockylinux-9 (client ct-client)
-            runs_on: ubuntu-22.04
-            container: rockylinux:9
-            pkg_mgr: dnf
-            variant: localclient
-            enabled: false
-          - name: rockylinux-9 (client ct-server)
-            runs_on: ubuntu-22.04
-            container: rockylinux:9
-            pkg_mgr: dnf
-            variant: client
-            enabled: false
-          - name: alpine-3 (server)
-            runs_on: ubuntu-22.04
-            container: alpine:3.19
-            pkg_mgr: apk
-            variant: server
-            enabled: false
-          - name: alpine-3 (client ct-client)
-            runs_on: ubuntu-22.04
-            container: alpine:3.19
-            pkg_mgr: apk
-            variant: localclient
-            enabled: false
-          - name: alpine-3 (client ct-server)
-            runs_on: ubuntu-22.04
-            container: alpine:3.19
-            pkg_mgr: apk
-            variant: client
-            enabled: false
-          - name: macos-14 (server)
-            runs_on: macos-14
-            os: macos
-            variant: server
-            enabled: false
-        exclude:
-          - name: debian-bookworm (client ct-client)
-          - name: debian-bookworm (client ct-server)
-          - name: ubuntu-22.04 (server)
-          - name: ubuntu-22.04 (client ct-client)
-          - name: ubuntu-22.04 (client ct-server)
-          - name: rockylinux-9
-          - name: rockylinux-9 (client ct-client)
-          - name: rockylinux-9 (client ct-server)
-          - name: alpine-3 (server)
-          - name: alpine-3 (client ct-client)
-          - name: alpine-3 (client ct-server)
-          - name: macos-14 (server)
 
     name: ${{ matrix.name }}
 
@@ -549,6 +472,70 @@ jobs:
             /tmp/cmake.configure.log
             /tmp/cmake.trace.json
             /tmp/cmake.trace.log
+
+  legacy-validate-disabled:
+    if: ${{ false }}
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-bookworm (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: localclient
+          - name: debian-bookworm (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: client
+          - name: ubuntu-22.04 (server)
+            runs_on: ubuntu-22.04
+            variant: server
+          - name: ubuntu-22.04 (client ct-client)
+            runs_on: ubuntu-22.04
+            variant: localclient
+          - name: ubuntu-22.04 (client ct-server)
+            runs_on: ubuntu-22.04
+            variant: client
+          - name: rockylinux-9
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: server
+          - name: rockylinux-9 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: localclient
+          - name: rockylinux-9 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: client
+          - name: alpine-3 (server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: server
+          - name: alpine-3 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: localclient
+          - name: alpine-3 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: client
+          - name: macos-14 (server)
+            runs_on: macos-14
+            os: macos
+            variant: server
+    name: disabled / ${{ matrix.name }}
+    steps:
+      - name: Disabled
+        run: echo "legacy-validate matrix entry disabled"
 
   legacy-validate-bsd:
     name: legacy-validate-bsd / OS=${{ matrix.os.name }}
