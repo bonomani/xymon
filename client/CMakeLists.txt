@@ -182,17 +182,6 @@ install(FILES
     DESTINATION ${XYMONCLIENTHOME}/etc
 )
 install(FILES
-    ${_xymonclient_src}
-    DESTINATION ${XYMONCLIENTHOME}/etc
-    RENAME xymonclient.cfg.bak
-)
-install(FILES
-    ${_clientlaunch_src}
-    DESTINATION ${XYMONCLIENTHOME}/etc
-    RENAME clientlaunch.cfg.bak
-)
-
-install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/README-local
     DESTINATION ${XYMONCLIENTHOME}/local
     RENAME README

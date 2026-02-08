@@ -18,10 +18,15 @@ message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
 option(USE_GNUINSTALLDIRS "Use GNUInstallDirs layout (FHS-style)" OFF)
 option(LEGACY_APPLY_OWNERSHIP "Apply chown/chgrp in legacy install" OFF)
 
-set(XYMONHOSTNAME "localhost" CACHE STRING "")
+if(NOT DEFINED XYMONHOSTNAME OR XYMONHOSTNAME STREQUAL "")
+    set(XYMONHOSTNAME "localhost" CACHE STRING "" FORCE)
+endif()
 set(XYMONHOSTIP "127.0.0.1" CACHE STRING "")
-set(XYMONHOSTOS "linux" CACHE STRING "")
-set(XYMONHOSTURL "http://localhost" CACHE STRING "")
+if(NOT DEFINED XYMONHOSTOS OR XYMONHOSTOS STREQUAL "")
+    string(TOLOWER "${CMAKE_SYSTEM_NAME}" _DEFAULT_HOSTOS)
+    set(XYMONHOSTOS "${_DEFAULT_HOSTOS}" CACHE STRING "" FORCE)
+endif()
+set(XYMONHOSTURL "/xymon" CACHE STRING "")
 set(XYMONCGIURL "/xymon-cgi" CACHE STRING "")
 set(SECUREXYMONCGIURL "/xymon-seccgi" CACHE STRING "")
 
@@ -35,6 +40,15 @@ option(ENABLE_SSL "Enable SSL checks" ON)
 
 set(XYMON_VARIANT "all" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)
+
+# Match legacy Makefile defaults for runtime helpers.
+if(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" OR CMAKE_SYSTEM_NAME STREQUAL "SunOS" OR CMAKE_SYSTEM_NAME STREQUAL "SCO_SV")
+    set(_DEFAULT_MAILPROGRAM "mailx")
+else()
+    set(_DEFAULT_MAILPROGRAM "mail")
+endif()
+set(MAILPROGRAM "${_DEFAULT_MAILPROGRAM}" CACHE STRING "")
+set(FPING "xymonping" CACHE STRING "")
 
 # ----------------------------------------------------------------------
 # Legacy layout
@@ -177,6 +191,7 @@ if(XYMON_VARIANT STREQUAL "all")
     set(XYMON_BUILD_CLIENT ON)
 elseif(XYMON_VARIANT STREQUAL "server")
     set(XYMON_BUILD_SERVER ON)
+    set(XYMON_BUILD_CLIENT ON)
 elseif(XYMON_VARIANT STREQUAL "client")
     set(XYMON_BUILD_CLIENT ON)
 else()
@@ -242,6 +257,20 @@ add_custom_target(install-legacy-dirs
         "${LEGACY_DESTDIR}${SECURECGIDIR}"
 )
 
+if(XYMON_BUILD_CLIENT)
+    add_custom_command(
+        TARGET install-legacy-dirs POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/bin"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/etc"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/tmp"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/logs"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/ext"
+            "${LEGACY_DESTDIR}${XYMONCLIENTHOME}/local"
+    )
+endif()
+
 # ----------------------------------------------------------------------
 # install-legacy-files (SAFE / DETERMINISTIC)
 # ----------------------------------------------------------------------
@@ -249,6 +278,7 @@ add_custom_target(install-legacy-dirs
 add_custom_target(install-legacy-files
     DEPENDS install-legacy-dirs
 )
+add_dependencies(install-legacy-files setup-newfiles)
 
 add_custom_command(
     TARGET install-legacy-files POST_BUILD
@@ -266,12 +296,11 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
                 "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
     )
 endif()
-if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles")
+if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${CMAKE_SOURCE_DIR}/xymond/webfiles"
-                "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
+        COMMAND /bin/sh -c
+                "cd \"${CMAKE_SOURCE_DIR}/xymond/webfiles\" && /usr/bin/find . | grep -v RCS | grep -v \"\\.svn\" | grep -v DIST | \"$<TARGET_FILE:setup-newfiles>\" \"${LEGACY_DESTDIR}${INSTALLWEBDIR}/\" \"${CMAKE_SOURCE_DIR}/build/md5.dat\""
     )
 endif()
 
@@ -283,12 +312,11 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/web/www")
                 "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
     )
 endif()
-if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles")
+if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${CMAKE_SOURCE_DIR}/xymond/wwwfiles"
-                "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
+        COMMAND /bin/sh -c
+                "cd \"${CMAKE_SOURCE_DIR}/xymond/wwwfiles\" && /usr/bin/find . | grep -v RCS | grep -v \"\\.svn\" | grep -v DIST | \"$<TARGET_FILE:setup-newfiles>\" \"${LEGACY_DESTDIR}${INSTALLWWWDIR}/\" \"${CMAKE_SOURCE_DIR}/build/md5.dat\""
     )
 endif()
 

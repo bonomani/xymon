@@ -172,17 +172,6 @@ install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg
     DESTINATION ${INSTALLETCDIR}
 )
-install(CODE "
-set(_dest \"\$ENV{DESTDIR}\")
-if(_dest STREQUAL \"\")
-  set(_dest \"\")
-endif()
-if(EXISTS \"\${_dest}${INSTALLETCDIR}/protocols.cfg\")
-  execute_process(COMMAND \"${CMAKE_COMMAND}\" -E copy_if_different
-    \"\${_dest}${INSTALLETCDIR}/protocols.cfg\"
-    \"\${_dest}${INSTALLETCDIR}/protocols.cfg.bak\")
-endif()
-")
 set(_xymonnet_again_src "${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh")
 if(NOT EXISTS "${_xymonnet_again_src}")
     set(_xymonnet_again_src "${CMAKE_CURRENT_BINARY_DIR}/xymonnet-again.sh")
