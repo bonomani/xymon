@@ -15,6 +15,7 @@ jobs:
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: server
+            stop_after_configure: true
 
     name: ${{ matrix.name }}
 
@@ -134,7 +135,7 @@ jobs:
             -DXYMON_VARIANT=${{ matrix.variant }} 2>&1 | tee /tmp/cmake.configure.log
 
       - name: Trace CMake configure (debug)
-        if: ${{ matrix.name == 'debian-bookworm' && matrix.variant == 'server' }}
+        if: ${{ !matrix.stop_after_configure && matrix.name == 'debian-bookworm' && matrix.variant == 'server' }}
         shell: bash
         run: |
           set -o pipefail
@@ -150,11 +151,12 @@ jobs:
             --trace-redirect=/tmp/cmake.trace.json 2>&1 | tee /tmp/cmake.trace.log
 
       - name: Build
+        if: ${{ !matrix.stop_after_configure }}
         run: |
           ${CMAKE_BIN:-cmake} --build build-cmake -j2
 
       - name: Capture CMake configure logs
-        if: always()
+        if: ${{ always() && !matrix.stop_after_configure }}
         run: |
           if [ -f /tmp/cmake.configure.log ]; then
             echo "=== cmake.configure.log (cmake -E search) ==="
@@ -178,6 +180,7 @@ jobs:
           fi
 
       - name: Validate config.h parity
+        if: ${{ !matrix.stop_after_configure }}
         run: |
           legacy_config=include/config.h
           cmake_config=$(find build-cmake -name config.h | head -n1)
@@ -206,6 +209,7 @@ jobs:
           fi
 
       - name: Install legacy targets (staging)
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -o pipefail
@@ -214,6 +218,7 @@ jobs:
           ${CMAKE_BIN:-cmake} --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 
       - name: Validate key files + metadata (non-blocking)
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -294,6 +299,7 @@ jobs:
           fi
 
       - name: Collect symlink targets + permissions
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -326,6 +332,7 @@ jobs:
           fi
 
       - name: Collect binary linkage + embedded paths
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -352,6 +359,7 @@ jobs:
           fi
 
       - name: Compare legacy snapshots (non-blocking)
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -398,6 +406,7 @@ jobs:
           fi
 
       - name: Generate lists + diff
+        if: ${{ !matrix.stop_after_configure }}
         run: |
           legacy_ref=docs/cmake-legacy-migration/refs/legacy.linux.${{ matrix.variant }}.ref
           if [ ! -s "$legacy_ref" ]; then
@@ -442,7 +451,7 @@ jobs:
           fi
 
       - name: Upload artifacts
-        if: always()
+        if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
         with:
           name: legacy-validate-${{ matrix.name }}
