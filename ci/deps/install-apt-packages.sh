@@ -110,11 +110,7 @@ as_root() {
   fi
 }
 
-apt_cmd() {
-  as_root env NEEDRESTART_SUSPEND=1 apt-get "$@"
-}
-
 echo "=== Install (Linux packages) ==="
-apt_cmd update
-apt_cmd install -y --no-install-recommends \
+as_root apt-get update
+as_root apt-get install -y --no-install-recommends \
   "${PKGS[@]}"
