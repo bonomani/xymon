@@ -50,6 +50,14 @@ CI_COMPILER="${CI_COMPILER:-}"
 distro_family="gh-debian"
 distro="${os_name}"
 
+as_root() {
+  if command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}
+
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=packages-gh-debian.sh
 source "${script_dir}/packages-gh-debian.sh"
@@ -82,6 +90,6 @@ fi
 
 echo "=== Install (Linux packages) ==="
 
-sudo apt-get update
-sudo apt-get install -y --no-install-recommends \
+as_root apt-get update
+as_root apt-get install -y --no-install-recommends \
   "${ALL_PKGS[@]}"

@@ -3,10 +3,10 @@ map:
   BUILD_TOOLS:
     gh-debian:
       ubuntu_latest:
-        apt: [build-essential]
+        apt: [build-essential, cmake, ninja-build, git, findutils]
     debian:
       ubuntu_local:
-        apt: [build-essential]
+        apt: [build-essential, cmake, ninja-build, git, findutils]
     bsd:
       freebsd:
         pkg: [gmake, cmake, ninja]

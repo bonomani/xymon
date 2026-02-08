@@ -14,6 +14,8 @@ jobs:
           - name: debian-bookworm (server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
+            os: linux
+            pkg_mgr: apt
             variant: server
             stop_after_configure: true
 
@@ -24,42 +26,17 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Install build dependencies (apt)
-        if: ${{ matrix.pkg_mgr == '' && matrix.os != 'macos' }}
+        if: ${{ matrix.pkg_mgr == 'apt' }}
         run: |
-          pcre_pkg=libpcre3-dev
-
-          if [ -z "${{ matrix.container }}" ]; then
-            sudo apt-get update
-            sudo DEBIAN_FRONTEND=noninteractive apt-get install -y \
-              build-essential \
-              cmake \
-              ninja-build \
-              git \
-              findutils \
-              libc-ares-dev \
-              ${pcre_pkg} \
-              libldap2-dev \
-              librrd-dev \
-              libssl-dev \
-              libtirpc-dev \
-              zlib1g-dev
-            exit 0
+          if [ "${{ matrix.variant }}" = "server" ]; then
+            export ENABLE_LDAP=ON
+            export ENABLE_SNMP=ON
+          else
+            export ENABLE_LDAP=OFF
+            export ENABLE_SNMP=OFF
           fi
-
-          apt-get update
-          DEBIAN_FRONTEND=noninteractive apt-get install -y \
-            build-essential \
-            cmake \
-            ninja-build \
-            git \
-            findutils \
-            libc-ares-dev \
-            ${pcre_pkg} \
-            libldap2-dev \
-            librrd-dev \
-            libssl-dev \
-            libtirpc-dev \
-            zlib1g-dev
+          export VARIANT="${{ matrix.variant }}"
+          bash ci/deps/install-debian-packages.sh --os ubuntu --version local
 
       - name: Install build dependencies (macos)
         if: ${{ matrix.os == 'macos' }}
