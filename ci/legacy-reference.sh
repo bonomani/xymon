@@ -12,133 +12,103 @@ LOCALCLIENT=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
-    --os)
-      OS_NAME="${2:-}"
-      shift 2
-      ;;
-    --version)
-      OS_VERSION="${2:-}"
-      shift 2
-      ;;
-    --ref-name)
-      REF_NAME="${2:-}"
-      shift 2
-      ;;
-    --keyfiles-name)
-      KEYFILES_NAME="${2:-}"
-      shift 2
-      ;;
-    --variant)
-      VARIANT="${2:-}"
-      shift 2
-      ;;
-    --conftype)
-      CONFTYPE="${2:-}"
-      shift 2
-      ;;
-    --clientonly)
-      CLIENTONLY="${2:-}"
-      shift 2
-      ;;
-    --localclient)
-      LOCALCLIENT="${2:-}"
-      shift 2
-      ;;
-    *)
-      echo "Unknown arg: $1" >&2
-      exit 1
-      ;;
+    --os)             OS_NAME="${2:-}"; shift 2 ;;
+    --version)        OS_VERSION="${2:-}"; shift 2 ;;
+    --ref-name)       REF_NAME="${2:-}"; shift 2 ;;
+    --keyfiles-name)  KEYFILES_NAME="${2:-}"; shift 2 ;;
+    --variant)        VARIANT="${2:-}"; shift 2 ;;
+    --conftype)       CONFTYPE="${2:-}"; shift 2 ;;
+    --clientonly)     CLIENTONLY="${2:-}"; shift 2 ;;
+    --localclient)    LOCALCLIENT="${2:-}"; shift 2 ;;
+    *) echo "Unknown arg: $1" >&2; exit 1 ;;
   esac
 done
 
-if [ -z "$OS_NAME" ]; then
-  echo "Missing --os" >&2
-  exit 1
-fi
-if [ "$OS_NAME" = "ubuntu" ]; then
-  OS_NAME="linux"
-fi
+[ -n "$OS_NAME" ] || { echo "Missing --os" >&2; exit 1; }
+[ "$OS_NAME" = "ubuntu" ] && OS_NAME="linux"
 
 LEGACY_STAGING="/tmp/legacy-ref"
-LEGACY_DESTROOT="/tmp/legacy-ref/var/lib/xymon"
+LEGACY_DESTROOT="$LEGACY_STAGING/var/lib/xymon"
 LEGACY_DESTROOT_FALLBACK="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
-MAKE_BIN="make"
+
+MAKE_BIN="gmake"
+HTTPDGID=""
 CARES_PREFIX=""
 
-as_root() {
-  if command -v sudo >/dev/null 2>&1; then
-    sudo "$@"
-  else
-    "$@"
-  fi
-}
+as_root() { command -v sudo >/dev/null 2>&1 && sudo "$@" || "$@"; }
 
 set_variant_flags() {
-  export VARIANT="${VARIANT:-server}"
-  if [ "${VARIANT}" = "server" ]; then
-    export ENABLE_LDAP=ON
-    export ENABLE_SNMP=ON
-  else
-    export ENABLE_LDAP=OFF
-    export ENABLE_SNMP=OFF
-  fi
+  VARIANT="${VARIANT:-server}"
+  case "$VARIANT" in
+    server) ENABLE_LDAP=ON;  ENABLE_SNMP=ON  ;;
+    *)      ENABLE_LDAP=OFF; ENABLE_SNMP=OFF ;;
+  esac
+  export VARIANT ENABLE_LDAP ENABLE_SNMP
 }
 
-setup_bsd_common() {
-  MAKE_BIN="gmake"
-  HTTPDGID="www"
-  set_variant_flags
-  bash ci/deps/install-bsd-packages.sh --os "${OS_NAME}" --version "${OS_VERSION}"
+ensure_gmake() {
+  command -v gmake >/dev/null 2>&1 && return
+  command -v make  >/dev/null 2>&1 && as_root ln -sf "$(command -v make)" /usr/local/bin/gmake
+}
+
+ensure_user_group() {
+  case "$OS_NAME" in
+    freebsd)
+      as_root pw groupadd "$1" 2>/dev/null || true
+      as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+      ;;
+    *)
+      as_root groupadd "$1" 2>/dev/null || true
+      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+      ;;
+  esac
+}
+
+detect_cares_prefix() {
+  for p in /usr/local /usr /usr/pkg; do
+    [ -f "$p/include/ares.h" ] && { CARES_PREFIX="$p"; return; }
+  done
+}
+
+install_deps() {
+  case "$OS_NAME" in
+    linux)
+      bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
+      ;;
+    freebsd|openbsd|netbsd)
+      bash ci/deps/install-bsd-packages.sh --os "$OS_NAME" --version "$OS_VERSION"
+      ;;
+  esac
 }
 
 setup_os() {
+
+  set_variant_flags
+
   case "$OS_NAME" in
     linux)
       HTTPDGID="www-data"
-      MAKE_BIN="gmake"
-      set_variant_flags
-      bash ci/deps/install-apt-packages.sh --family debian --os ubuntu --version local
-      if ! command -v gmake >/dev/null 2>&1; then
-        if command -v make >/dev/null 2>&1; then
-          as_root ln -sf "$(command -v make)" /usr/local/bin/gmake
-        fi
-      fi
-      CARES_PREFIX="/usr/local"
-      if [ ! -f "${CARES_PREFIX}/include/ares.h" ]; then
-        CARES_PREFIX="/usr"
-      fi
-      as_root groupadd -f www-data 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
       ;;
-    freebsd)
-      CARES_PREFIX="/usr/local"
-      setup_bsd_common
-      as_root pw groupadd www 2>/dev/null || true
-      as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
-      ;;
-    openbsd)
-      CARES_PREFIX="/usr/local"
-      setup_bsd_common
-      as_root groupadd www 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
-      ;;
-    netbsd)
-      CARES_PREFIX="/usr/pkg"
-      setup_bsd_common
-      as_root groupadd www 2>/dev/null || true
-      as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
-      if [ -x /usr/pkg/bin/gmake ]; then
-        export PATH="/usr/pkg/bin:${PATH}"
-      fi
+    freebsd|openbsd|netbsd)
+      HTTPDGID="www"
       ;;
     *)
       echo "Unsupported OS: $OS_NAME" >&2
       exit 1
       ;;
   esac
-}
 
+  install_deps
+  ensure_gmake
+  detect_cares_prefix
+  ensure_user_group "$HTTPDGID"
+
+  if [ "$OS_NAME" = "netbsd" ] && [ -x /usr/pkg/bin/gmake ]; then
+    export PATH="/usr/pkg/bin:${PATH}"
+  fi
+}
+ 
 configure_legacy() {
   export ENABLESSL=y
   export ENABLELDAP=y
