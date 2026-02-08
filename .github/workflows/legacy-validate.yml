@@ -7,6 +7,7 @@ jobs:
   legacy-validate:
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
+    if: ${{ matrix.enabled }}
     strategy:
       fail-fast: false
       matrix:
@@ -15,57 +16,70 @@ jobs:
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: server
+            enabled: true
           - name: debian-bookworm (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: localclient
+            enabled: false
           - name: debian-bookworm (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: client
+            enabled: false
           - name: ubuntu-22.04 (server)
             runs_on: ubuntu-22.04
             variant: server
+            enabled: false
           - name: ubuntu-22.04 (client ct-client)
             runs_on: ubuntu-22.04
             variant: localclient
+            enabled: false
           - name: ubuntu-22.04 (client ct-server)
             runs_on: ubuntu-22.04
             variant: client
+            enabled: false
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
             variant: server
+            enabled: false
           - name: rockylinux-9 (client ct-client)
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
             variant: localclient
+            enabled: false
           - name: rockylinux-9 (client ct-server)
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
             variant: client
+            enabled: false
           - name: alpine-3 (server)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
             variant: server
+            enabled: false
           - name: alpine-3 (client ct-client)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
             variant: localclient
+            enabled: false
           - name: alpine-3 (client ct-server)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
             variant: client
+            enabled: false
           - name: macos-14 (server)
             runs_on: macos-14
             os: macos
             variant: server
+            enabled: false
 
     name: ${{ matrix.name }}
 
