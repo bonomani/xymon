@@ -1,0 +1,35 @@
+=== /bin/xymonlaunch ===
+/usr/lib/libc.so.12
+=== /bin/logfetch ===
+/usr/lib/libc.so.12
+=== /bin/clientupdate ===
+/usr/lib/libc.so.12
+=== /bin/orcaxymon ===
+/usr/lib/libc.so.12
+=== /bin/msgcache ===
+/usr/lib/libc.so.12
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient.sh ===
+=== /bin/xymon ===
+/usr/lib/libc.so.12
+=== /bin/xymoncmd ===
+/usr/lib/libc.so.12
+=== /bin/xymongrep ===
+/usr/lib/libc.so.12
+=== /bin/xymoncfg ===
+/usr/lib/libc.so.12
+=== /bin/xymondigest ===
+/usr/lib/libc.so.12
+=== /bin/netbsd-meminfo ===
+/usr/lib/libc.so.12
