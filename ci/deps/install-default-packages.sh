@@ -49,7 +49,13 @@ case "${RUNNER_OS:-}" in
 esac
 
 if [[ -z "${family}" ]]; then
-  case "${os_name}" in
+if [[ -z "${os_name}" ]]; then
+  os_name="$(uname -s 2>/dev/null || true)"
+  os_name="$(printf '%s' "${os_name}" | awk '{print tolower($0)}')"
+  version="$(uname -r 2>/dev/null || true)"
+fi
+
+case "${os_name}" in
     debian)
       family="debian"
       pkgmgr="apt"
@@ -57,6 +63,9 @@ if [[ -z "${family}" ]]; then
     ubuntu)
       family="gh-debian"
       pkgmgr="apt"
+      ;;
+    netbsd|freebsd|openbsd)
+      exec "${script_dir}/install-bsd-packages.sh" --os "${os_name}" --version "${version:-}"
       ;;
     rockylinux|almalinux|fedora)
       family="rpm"
