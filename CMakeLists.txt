@@ -318,6 +318,7 @@ file(WRITE "${TMP_FILE}" "${_joined}\n")
 execute_process(
   COMMAND "${SETUP_NEWFILES_EXE}" "${DEST_DIR}" "${MD5_FILE}"
   INPUT_FILE "${TMP_FILE}"
+  WORKING_DIRECTORY "${SRC_DIR}"
   RESULT_VARIABLE _setup_res
 )
 if(NOT _setup_res EQUAL 0)
