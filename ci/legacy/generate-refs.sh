@@ -80,7 +80,9 @@ copy_to_refs() {
   local suffix="$2"
   local dst="docs/refs/${REF_TOOL}.${OS_NAME}.${VARIANT}.${suffix}"
   mkdir -p docs/refs
-  cp "$src" "$dst"
+  if [ -e "$src" ]; then
+    cp "$src" "$dst"
+  fi
 }
 
 sha256_of() {
