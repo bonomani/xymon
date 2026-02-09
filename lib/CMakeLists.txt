@@ -247,6 +247,7 @@ if(XYMON_BUILD_SERVER)
         xymoncomm
     )
 
+    if(ENABLE_EXTRA_HELPERS)
     add_executable(stackio
         stackio.c
     )
@@ -256,6 +257,7 @@ if(XYMON_BUILD_SERVER)
         xymoncomm
         xymon
     )
+    endif()
 
     add_executable(availability
         availability.c
@@ -297,6 +299,7 @@ if(XYMON_BUILD_SERVER)
         target_compile_definitions(rmd160 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
     endif()
 
+    if(ENABLE_EXTRA_HELPERS)
     add_executable(locator
         locator.c
     )
@@ -306,20 +309,24 @@ if(XYMON_BUILD_SERVER)
         xymoncomm
         xymon
     )
+    endif()
     add_executable(tree
         tree.c
     )
     target_compile_definitions(tree PRIVATE STANDALONE)
 
-    install(TARGETS
+    set(_helper_targets
         loadhosts
-        stackio
         availability
         md5
         sha1
         rmd160
-        locator
         tree
+    )
+    if(ENABLE_EXTRA_HELPERS)
+        list(APPEND _helper_targets stackio locator)
+    endif()
+    install(TARGETS ${_helper_targets}
         RUNTIME DESTINATION ${INSTALLBINDIR}
     )
 endif()
