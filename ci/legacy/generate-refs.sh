@@ -73,6 +73,15 @@ PERMS_NAME="legacy.${OS_NAME}.${VARIANT}.perms"
 BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.binlinks"
 EMBED_NAME="legacy.${OS_NAME}.${VARIANT}.embedded.paths"
 CONFIG_NAME="legacy.${OS_NAME}.${VARIANT}.config.h"
+REF_TOOL="make"
+
+copy_to_refs() {
+  local src="$1"
+  local suffix="$2"
+  local dst="docs/refs/${REF_TOOL}.${OS_NAME}.${VARIANT}.${suffix}"
+  mkdir -p docs/refs
+  cp "$src" "$dst"
+}
 
 sha256_of() {
   local file="$1"
