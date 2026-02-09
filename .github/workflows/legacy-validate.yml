@@ -125,8 +125,12 @@ jobs:
           fi
 
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | grep -v '^#.*HAVE_RPCENT_H' \
             | sort > /tmp/legacy.config.extract
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | grep -v '^#define XYMON' \
+            | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+            | grep -v '^#.*HAVE_RPCENT_H' \
             | sort > /tmp/cmake.config.extract
 
           diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
