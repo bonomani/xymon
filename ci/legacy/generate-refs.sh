@@ -72,6 +72,7 @@ SYMLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.symlinks"
 PERMS_NAME="legacy.${OS_NAME}.${VARIANT}.perms"
 BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.binlinks"
 EMBED_NAME="legacy.${OS_NAME}.${VARIANT}.embedded.paths"
+CONFIG_NAME="legacy.${OS_NAME}.${VARIANT}.config.h"
 
 sha256_of() {
   local file="$1"
@@ -91,6 +92,12 @@ find "$ROOT" -print \
   | sed "s|^$ROOT|$TOPDIR|" \
   | sed "s|$TOPDIR/$|$TOPDIR|" \
   | sort > "/tmp/${REF_NAME}"
+
+if [ -f "$ROOT/include/config.h" ]; then
+  cp "$ROOT/include/config.h" "/tmp/${CONFIG_NAME}"
+else
+  : > "/tmp/${CONFIG_NAME}"
+fi
 
 key_files=()
 case "$VARIANT" in
@@ -146,6 +153,9 @@ fi
 if [ -d docs/cmake-legacy-migration/refs ]; then
   cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true
   cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/refs/${KEYFILES_NAME}" || true
+  if [ -f "/tmp/${CONFIG_NAME}" ]; then
+    cp "/tmp/${CONFIG_NAME}" "docs/cmake-legacy-migration/refs/${CONFIG_NAME}" || true
+  fi
 fi
 
 : > "/tmp/${SYMLINKS_NAME}"
