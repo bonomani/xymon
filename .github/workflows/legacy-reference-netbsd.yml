@@ -35,11 +35,12 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
+            build_tool=make
             bash ci/bootstrap-install-and-refs.sh \
               --os netbsd \
               --version "10.1" \
               --variant "${{ matrix.variant }}" \
-              --build make
+              --build "$build_tool"
           sync_files: true
           shutdown_vm: true
 
