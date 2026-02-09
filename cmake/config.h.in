@@ -5,16 +5,57 @@
 #define PACKAGE_NAME "@PACKAGE_NAME@"
 #define PACKAGE_VERSION "@PACKAGE_VERSION@"
 
-#cmakedefine01 HAVE_SOCKLEN_T
-#cmakedefine01 HAVE_SNPRINTF
-#cmakedefine01 HAVE_VSNPRINTF
-#cmakedefine01 HAVE_RPCENT_H
-#cmakedefine01 HAVE_SYS_SELECT_H
-#cmakedefine01 HAVE_UINT32_TYPEDEF
-#cmakedefine01 HAVE_UNAME
-#cmakedefine01 HAVE_SETENV
-#cmakedefine01 HAVE_STRTOLL_H
-#cmakedefine01 HAVE_BINARY_TREE
+// Preprocessor detection helpers
+#if HAVE_SOCKLEN_T
+#define HAVE_SOCKLEN_T 1
+#else
+#undef HAVE_SOCKLEN_T
+#endif
+#if HAVE_SNPRINTF
+#define HAVE_SNPRINTF 1
+#else
+#undef HAVE_SNPRINTF
+#endif
+#if HAVE_VSNPRINTF
+#define HAVE_VSNPRINTF 1
+#else
+#undef HAVE_VSNPRINTF
+#endif
+#if HAVE_RPCENT_H
+#define HAVE_RPCENT_H 1
+#else
+#undef HAVE_RPCENT_H
+#endif
+#if HAVE_SYS_SELECT_H
+#define HAVE_SYS_SELECT_H 1
+#else
+#undef HAVE_SYS_SELECT_H
+#endif
+#if HAVE_UINT32_TYPEDEF
+#define HAVE_UINT32_TYPEDEF 1
+#else
+#undef HAVE_UINT32_TYPEDEF
+#endif
+#if HAVE_UNAME
+#define HAVE_UNAME 1
+#else
+#undef HAVE_UNAME
+#endif
+#if HAVE_SETENV
+#define HAVE_SETENV 1
+#else
+#undef HAVE_SETENV
+#endif
+#if HAVE_STRTOLL_H
+#define HAVE_STRTOLL_H 1
+#else
+#undef HAVE_STRTOLL_H
+#endif
+#if HAVE_BINARY_TREE
+#define HAVE_BINARY_TREE 1
+#else
+#undef HAVE_BINARY_TREE
+#endif
 
 #define XYMONTOPDIR "@XYMONTOPDIR@"
 #define XYMONHOME "@XYMONHOME@"
