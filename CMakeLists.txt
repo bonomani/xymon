@@ -2,11 +2,29 @@ cmake_minimum_required(VERSION 3.16)
 
 project(xymon C)
 
+include(CheckCSourceCompiles)
 include(CheckFunctionExists)
+include(CheckIncludeFile)
 check_function_exists(setenv HAVE_SETENV)
 if(HAVE_SETENV)
     add_compile_definitions(HAVE_SETENV=1)
 endif()
+check_function_exists(uname HAVE_UNAME)
+check_include_file(rpc/rpcent.h HAVE_RPCENT_H)
+check_include_file(sys/select.h HAVE_SYS_SELECT_H)
+check_c_source_compiles(
+"#include <sys/socket.h>\n#include <sys/types.h>\nint main(void) { socklen_t s; (void)s; return 0; }"
+    HAVE_SOCKLEN_T)
+check_c_source_compiles(
+"#include <stdio.h>\nint main(void) { char buf[1]; snprintf(buf, sizeof(buf), \"%s\", \"a\"); return 0; }"
+    HAVE_SNPRINTF)
+check_c_source_compiles(
+"#include <stdio.h>\n#include <stdarg.h>\nint main(void) { char buf[1]; va_list ap; va_start(ap, buf); vsnprintf(buf, sizeof(buf), \"%s\", ap); va_end(ap); return 0; }"
+    HAVE_VSNPRINTF)
+check_c_source_compiles(
+"#include <sys/types.h>\nint main(void) { u_int32_t x; (void)x; return 0; }"
+    HAVE_UINT32_TYPEDEF)
+check_function_exists(strtoll HAVE_STRTOLL_H)
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
@@ -86,20 +104,17 @@ endif()
 # config.h
 # ----------------------------------------------------------------------
 
-file(WRITE "${CMAKE_BINARY_DIR}/config.h"
-"#ifndef __CONFIG_H__
-#define __CONFIG_H__ 1
-#define PACKAGE_NAME \"xymon\"
-#define PACKAGE_VERSION \"cmake\"
-#define XYMONTOPDIR \"${XYMONTOPDIR}\"
-#define XYMONHOME \"${XYMONHOME}\"
-#define XYMONCLIENTHOME \"${XYMONCLIENTHOME}\"
-#define XYMONLOGDIR \"${XYMONLOGDIR}\"
-#define XYMONHOSTNAME \"${XYMONHOSTNAME}\"
-#define XYMONHOSTIP \"${XYMONHOSTIP}\"
-#define XYMONHOSTOS \"${XYMONHOSTOS}\"
-#endif
-")
+set(CONFIG_GUARD "__CONFIG_H__" CACHE INTERNAL "Guard macro for config.h")
+set(PACKAGE_NAME "xymon" CACHE INTERNAL "Package name")
+set(PACKAGE_VERSION "cmake" CACHE INTERNAL "Package version")
+set(HAVE_BINARY_TREE 0 CACHE INTERNAL "Binary tree feature")
+foreach(_flag HAVE_SNPRINTF HAVE_VSNPRINTF HAVE_SOCKLEN_T HAVE_RPCENT_H HAVE_SYS_SELECT_H HAVE_UINT32_TYPEDEF HAVE_UNAME HAVE_SETENV HAVE_STRTOLL_H)
+    if(NOT DEFINED ${_flag})
+        set(${_flag} 0 CACHE INTERNAL "${_flag} detection" FORCE)
+    endif()
+endforeach()
+
+configure_file(${CMAKE_SOURCE_DIR}/cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h @ONLY)
 
 include_directories(
     "${CMAKE_SOURCE_DIR}/include"
