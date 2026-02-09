@@ -107,11 +107,11 @@ jobs:
 
       - name: Validate config.h parity
         run: |
-      legacy_config=include/config.h
-      cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
-      if [ -z "$cmake_config" ]; then
-        cmake_config=$(find build-cmake -name config.h | head -n1)
-      fi
+          legacy_config=include/config.h
+          cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+          if [ -z "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -name config.h | head -n1)
+          fi
           if [ -z "$cmake_config" ]; then
             echo "No CMake-generated config.h found under build-cmake"
             exit 1
