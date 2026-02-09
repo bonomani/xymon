@@ -40,15 +40,6 @@ jobs:
             groupdel nobody || true
           fi
 
-      - name: Bootstrap legacy tree
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/bootstrap-install-and-refs.sh \
-            --os linux \
-            --version local \
-            --variant ${{ matrix.variant }}
-
       - name: Load legacy hostname (runs for all variants)
         shell: bash
         run: |
