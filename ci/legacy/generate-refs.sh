@@ -248,9 +248,7 @@ if [ "${#bin_roots[@]}" -gt 0 ] && command -v strings >/dev/null 2>&1; then
   sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
 fi
 
-if [ -d docs/cmake-legacy-migration/refs ]; then
-  cp "/tmp/${SYMLINKS_NAME}" "docs/cmake-legacy-migration/refs/${SYMLINKS_NAME}" || true
-  cp "/tmp/${PERMS_NAME}" "docs/cmake-legacy-migration/refs/${PERMS_NAME}" || true
-  cp "/tmp/${BINLINKS_NAME}" "docs/cmake-legacy-migration/refs/${BINLINKS_NAME}" || true
-  cp "/tmp/${EMBED_NAME}" "docs/cmake-legacy-migration/refs/${EMBED_NAME}" || true
-fi
+copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
+copy_to_refs "/tmp/${PERMS_NAME}" "perms"
+copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
+copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"

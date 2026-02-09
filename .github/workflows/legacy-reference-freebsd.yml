@@ -36,19 +36,19 @@ jobs:
             gcc --version || true
             ld --version || true
             ref_base="legacy.freebsd.${{ matrix.variant }}"
-            args=(--os freebsd --version "15.0" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
-            bash ci/legacy-reference.sh "${args[@]}"
+            bash ci/bootstrap-install-and-refs.sh \
+              --os freebsd \
+              --version "15.0" \
+              --variant "${{ matrix.variant }}" \
+              --ref-name "${ref_base}.ref" \
+              --keyfiles-name "${ref_base}.keyfiles.sha256"
           sync_files: true
           shutdown_vm: true
-
-      - name: List keyfiles archive
-        run: |
-          ls -l docs/cmake-legacy-migration/refs/legacy.freebsd.${{ matrix.variant }}.keyfiles.tgz || true
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
           name: legacy-reference-freebsd-${{ matrix.variant }}
           path: |
-            docs/cmake-legacy-migration/refs/legacy.freebsd.${{ matrix.variant }}.*
+            docs/refs/make.freebsd.${{ matrix.variant }}.*
           if-no-files-found: error

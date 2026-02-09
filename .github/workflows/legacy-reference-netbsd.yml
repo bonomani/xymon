@@ -36,19 +36,19 @@ jobs:
             gcc --version || true
             ld --version || true
             ref_base="legacy.netbsd.${{ matrix.variant }}"
-            args=(--os netbsd --version "10.1" --ref-name "${ref_base}.ref" --keyfiles-name "${ref_base}.keyfiles.sha256" --variant "${{ matrix.variant }}")
-            bash ci/legacy-reference.sh "${args[@]}"
+            bash ci/bootstrap-install-and-refs.sh \
+              --os netbsd \
+              --version "10.1" \
+              --variant "${{ matrix.variant }}" \
+              --ref-name "${ref_base}.ref" \
+              --keyfiles-name "${ref_base}.keyfiles.sha256"
           sync_files: true
           shutdown_vm: true
-
-      - name: List keyfiles archive
-        run: |
-          ls -l docs/cmake-legacy-migration/refs/legacy.netbsd.${{ matrix.variant }}.keyfiles.tgz || true
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
           name: legacy-reference-netbsd-${{ matrix.variant }}
           path: |
-            docs/cmake-legacy-migration/refs/legacy.netbsd.${{ matrix.variant }}.*
+            docs/refs/make.netbsd.${{ matrix.variant }}.*
           if-no-files-found: error
