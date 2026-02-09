@@ -35,13 +35,11 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
-            ref_base="legacy.freebsd.${{ matrix.variant }}"
             bash ci/bootstrap-install-and-refs.sh \
               --os freebsd \
               --version "15.0" \
               --variant "${{ matrix.variant }}" \
-              --ref-name "${ref_base}.ref" \
-              --keyfiles-name "${ref_base}.keyfiles.sha256"
+              --build make
           sync_files: true
           shutdown_vm: true
 

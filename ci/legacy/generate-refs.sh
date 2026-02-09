@@ -34,6 +34,10 @@ while [ $# -gt 0 ]; do
       KEYFILES_NAME="${2:-}"
       shift 2
       ;;
+    --build)
+      BUILD_TOOL="${2:-}"
+      shift 2
+      ;;
     *)
       echo "Unknown arg: $1" >&2
       exit 1
@@ -63,10 +67,10 @@ if [ ! -d "$ROOT" ]; then
 fi
 
 if [ -z "$REF_NAME" ]; then
-  REF_NAME="legacy.${OS_NAME}.${VARIANT}.ref"
+  REF_NAME="${BUILD_TOOL}.${OS_NAME}.${VARIANT}.ref"
 fi
 if [ -z "$KEYFILES_NAME" ]; then
-  KEYFILES_NAME="legacy.${OS_NAME}.${VARIANT}.keyfiles.sha256"
+  KEYFILES_NAME="${BUILD_TOOL}.${OS_NAME}.${VARIANT}.keyfiles.sha256"
 fi
 SYMLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.symlinks"
 PERMS_NAME="legacy.${OS_NAME}.${VARIANT}.perms"

@@ -27,12 +27,10 @@ jobs:
           uname -a || true
           gcc --version || true
           ld --version || true
-          ref_base="legacy.linux.${{ matrix.variant }}"
           bash ci/bootstrap-install-and-refs.sh \
             --os linux \
             --variant "${{ matrix.variant }}" \
-            --ref-name "${ref_base}.ref" \
-            --keyfiles-name "${ref_base}.keyfiles.sha256"
+            --build make
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:

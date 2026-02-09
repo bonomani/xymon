@@ -10,6 +10,7 @@ CONFTYPE=""
 CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
+BUILD_TOOL="make"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -43,6 +44,10 @@ while [ $# -gt 0 ]; do
       ;;
     --localclient)
       LOCALCLIENT="${2:-}"
+      shift 2
+      ;;
+    --build)
+      BUILD_TOOL="${2:-}"
       shift 2
       ;;
     *)
@@ -328,6 +333,9 @@ if [ -n "$REF_NAME" ]; then
 fi
 if [ -n "$KEYFILES_NAME" ]; then
   ref_args+=(--keyfiles-name "$KEYFILES_NAME")
+fi
+if [ -n "$BUILD_TOOL" ]; then
+  ref_args+=(--build "$BUILD_TOOL")
 fi
 bash ci/legacy/generate-refs.sh \
   --os "$OS_NAME" \
