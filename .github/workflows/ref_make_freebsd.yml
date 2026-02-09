@@ -47,7 +47,7 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-freebsd-${{ matrix.variant }}
+          name: ref_make_freebsd-${{ matrix.variant }}
           path: |
             docs/refs/make.freebsd.${{ matrix.variant }}.*
           if-no-files-found: error
