@@ -107,15 +107,9 @@ endif()
 set(CONFIG_GUARD "__CONFIG_H__" CACHE INTERNAL "Guard macro for config.h")
 set(PACKAGE_NAME "xymon" CACHE INTERNAL "Package name")
 set(PACKAGE_VERSION "cmake" CACHE INTERNAL "Package version")
-foreach(_flag HAVE_SNPRINTF HAVE_VSNPRINTF HAVE_SOCKLEN_T HAVE_RPCENT_H HAVE_SYS_SELECT_H HAVE_UINT32_TYPEDEF HAVE_UNAME HAVE_SETENV HAVE_STRTOLL_H HAVE_BINARY_TREE)
-    if(NOT DEFINED ${_flag})
-        set(${_flag} 0 CACHE INTERNAL "${_flag} detection" FORCE)
-    endif()
-endforeach()
-
-foreach(_flag HAVE_SNPRINTF HAVE_VSNPRINTF HAVE_SOCKLEN_T HAVE_RPCENT_H HAVE_SYS_SELECT_H HAVE_UINT32_TYPEDEF HAVE_UNAME HAVE_SETENV HAVE_STRTOLL_H)
-    set(${_flag} 1 CACHE INTERNAL "${_flag} detection" FORCE)
-endforeach()
+unset(HAVE_RPCENT_H CACHE)
+unset(HAVE_BINARY_TREE CACHE)
+set(HAVE_VSNPRINTF 1 CACHE INTERNAL "vsnprintf detection" FORCE)
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h @ONLY)
 
