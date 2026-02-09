@@ -5,16 +5,16 @@
 #define PACKAGE_NAME "@PACKAGE_NAME@"
 #define PACKAGE_VERSION "@PACKAGE_VERSION@"
 
-#cmakedefine HAVE_SOCKLEN_T
-#cmakedefine HAVE_SNPRINTF
-#cmakedefine HAVE_VSNPRINTF
-#cmakedefine HAVE_RPCENT_H
-#cmakedefine HAVE_SYS_SELECT_H
-#cmakedefine HAVE_UINT32_TYPEDEF
-#cmakedefine HAVE_UNAME
-#cmakedefine HAVE_SETENV
-#cmakedefine HAVE_STRTOLL_H
-#cmakedefine HAVE_BINARY_TREE
+#cmakedefine01 HAVE_SOCKLEN_T
+#cmakedefine01 HAVE_SNPRINTF
+#cmakedefine01 HAVE_VSNPRINTF
+#cmakedefine01 HAVE_RPCENT_H
+#cmakedefine01 HAVE_SYS_SELECT_H
+#cmakedefine01 HAVE_UINT32_TYPEDEF
+#cmakedefine01 HAVE_UNAME
+#cmakedefine01 HAVE_SETENV
+#cmakedefine01 HAVE_STRTOLL_H
+#cmakedefine01 HAVE_BINARY_TREE
 
 #define XYMONTOPDIR "@XYMONTOPDIR@"
 #define XYMONHOME "@XYMONHOME@"
