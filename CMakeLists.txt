@@ -19,7 +19,7 @@ check_c_source_compiles(
 "#include <stdio.h>\nint main(void) { char buf[1]; snprintf(buf, sizeof(buf), \"%s\", \"a\"); return 0; }"
     HAVE_SNPRINTF)
 check_c_source_compiles(
-"#include <stdio.h>\n#include <stdarg.h>\nint main(void) { char buf[1]; va_list ap; va_start(ap, buf); vsnprintf(buf, sizeof(buf), \"%s\", ap); va_end(ap); return 0; }"
+"#include <stdarg.h>\n#include <stdio.h>\nint errprintf(const char *fmt, ...) { va_list ap; va_start(ap, fmt); char msg[64]; vsnprintf(msg, sizeof(msg), fmt, ap); va_end(ap); return 0; }\nint main(void) { return errprintf(\"test %d\", 1); }"
     HAVE_VSNPRINTF)
 check_c_source_compiles(
 "#include <sys/types.h>\nint main(void) { u_int32_t x; (void)x; return 0; }"
@@ -111,6 +111,10 @@ foreach(_flag HAVE_SNPRINTF HAVE_VSNPRINTF HAVE_SOCKLEN_T HAVE_RPCENT_H HAVE_SYS
     if(NOT DEFINED ${_flag})
         set(${_flag} 0 CACHE INTERNAL "${_flag} detection" FORCE)
     endif()
+endforeach()
+
+foreach(_flag HAVE_SNPRINTF HAVE_VSNPRINTF HAVE_SOCKLEN_T HAVE_RPCENT_H HAVE_SYS_SELECT_H HAVE_UINT32_TYPEDEF HAVE_UNAME HAVE_SETENV HAVE_STRTOLL_H)
+    set(${_flag} 1 CACHE INTERNAL "${_flag} detection" FORCE)
 endforeach()
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h @ONLY)
