@@ -265,7 +265,12 @@ jobs:
           if [ -d "$root" ]; then
             while IFS= read -r link; do
               target=$(readlink "$link" || true)
-              printf '%s|%s\n' "${link#/tmp/cmake-ref-root}" "$target" >> /tmp/legacy.symlinks.list
+              rel=${link#/tmp/cmake-ref-root}
+              rel=${rel#/var/lib/xymon}
+              if [ -z "$rel" ]; then
+                rel=/
+              fi
+              printf '%s|%s\n' "$rel" "$target" >> /tmp/legacy.symlinks.list
             done < <(find "$root" -type l)
           fi
 
