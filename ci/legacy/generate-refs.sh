@@ -155,17 +155,14 @@ for f in "${key_files[@]}"; do
 done
 
 tar -C /tmp -czf "/tmp/${keyfiles_archive}" "$(basename "${keyfiles_root}")"
-if [ -d docs/cmake-legacy-migration/refs ]; then
-  cp "/tmp/${keyfiles_archive}" "docs/cmake-legacy-migration/refs/${keyfiles_archive}" || true
-fi
-
-if [ -d docs/cmake-legacy-migration/refs ]; then
-  cp "/tmp/${REF_NAME}" "docs/cmake-legacy-migration/refs/${REF_NAME}" || true
-  cp "/tmp/${KEYFILES_NAME}" "docs/cmake-legacy-migration/refs/${KEYFILES_NAME}" || true
-  if [ -f "/tmp/${CONFIG_NAME}" ]; then
-    cp "/tmp/${CONFIG_NAME}" "docs/cmake-legacy-migration/refs/${CONFIG_NAME}" || true
-  fi
-fi
+copy_to_refs "/tmp/${REF_NAME}" "ref"
+copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
+copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
+copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
+copy_to_refs "/tmp/${PERMS_NAME}" "perms"
+copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
+copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
+copy_to_refs "/tmp/${keyfiles_archive}" "keyfiles.tgz"
 
 : > "/tmp/${SYMLINKS_NAME}"
 if [ -d "$ROOT" ]; then
