@@ -74,6 +74,11 @@ jobs:
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
+      - name: Install build dependencies
+        shell: bash
+        run: |
+          bash ci/deps/install-default-packages.sh --family ${{ matrix.dep_family }} --os ${{ matrix.dep_os }} --version ${{ matrix.dep_version }}
+
       - name: Configure (legacy)
         shell: bash
         run: |
