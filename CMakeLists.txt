@@ -84,10 +84,28 @@ set(CONFIG_GUARD "__CONFIG_H__" CACHE INTERNAL "Guard macro for config.h")
 set(PACKAGE_NAME "xymon" CACHE INTERNAL "Package name")
 set(PACKAGE_VERSION "cmake" CACHE INTERNAL "Package version")
 
+# Legacy build assumes these helpers and headers exist; mirror the legacy defaults here.
+set(HAVE_SOCKLEN_T 1 CACHE INTERNAL "" FORCE)
+set(HAVE_SNPRINTF 1 CACHE INTERNAL "" FORCE)
+set(HAVE_VSNPRINTF 1 CACHE INTERNAL "" FORCE)
+set(HAVE_RPCENT_H 1 CACHE INTERNAL "" FORCE)
+set(HAVE_SYS_SELECT_H 1 CACHE INTERNAL "" FORCE)
+set(HAVE_UINT32_TYPEDEF 1 CACHE INTERNAL "" FORCE)
+set(HAVE_UNAME 1 CACHE INTERNAL "" FORCE)
+set(HAVE_SETENV 1 CACHE INTERNAL "" FORCE)
+set(HAVE_STRTOLL_H 1 CACHE INTERNAL "" FORCE)
+set(HAVE_BINARY_TREE 0 CACHE INTERNAL "" FORCE)
+
 include_directories(
     "${CMAKE_SOURCE_DIR}/include"
     "${CMAKE_SOURCE_DIR}/lib"
     "${CMAKE_BINARY_DIR}"
+)
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/config.h.in"
+    "${CMAKE_BINARY_DIR}/config.h"
+    @ONLY
 )
 
 find_path(PCRE_INCLUDE_DIR pcre.h
