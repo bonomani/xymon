@@ -9,6 +9,26 @@ script_dir="$(CDPATH= cd -- "$(dirname "$0")" && pwd)" || exit 1
 top_dir="$(CDPATH= cd -- "$script_dir/.." && pwd)" || exit 1
 cd "$top_dir" || exit 1
 
+makefile_vals() {
+  local key="$1"
+  local file="$top_dir/Makefile"
+  if [ ! -f "$file" ]; then
+    return
+  fi
+  awk -F '=' -v key="$key" '$1 ~ "^"key"[[:space:]]*$" { val=$2; gsub(/^[[:space:]]+|[[:space:]]+$/, "", val); print val; exit }' "$file"
+}
+
+write_xydefs() {
+  local topdir="${1:-/var/lib/xymon}"
+  local logdir="${2:-/var/log/xymon}"
+  local home="${3:-$topdir/server}"
+  local client_home="${4:-$topdir/client}"
+  local host="${5:-$(uname -n)}"
+  local ip="${6:-127.0.0.1}"
+  local os="${7:-$(uname -s | tr '[:upper:]' '[:lower:]')}"
+  printf '%s\n' "#define XYMONTOPDIR \"$topdir\"" "#define XYMONHOME \"$home\"" "#define XYMONCLIENTHOME \"$client_home\"" "#define XYMONLOGDIR \"$logdir\"" "#define XYMONHOSTNAME \"$host\"" "#define XYMONHOSTIP \"$ip\"" "#define XYMONHOSTOS \"$os\"" >>"$tmpcfg"
+}
+
 tmpcfg="$(mktemp include/config.h.XXXXXX)" || exit 1
 trap 'rm -f "$tmpcfg"' EXIT
 
@@ -116,6 +136,16 @@ fi
 	echo "#undef HAVE_BINARY_TREE" >>"$tmpcfg"
 #fi
 
+if [ -f "$top_dir/Makefile" ]; then
+  xy_topdir="$(makefile_vals XYMONTOPDIR)"
+  xy_logdir="$(makefile_vals XYMONLOGDIR)"
+  xy_home="$(makefile_vals XYMONHOME)"
+  xy_client_home="$(makefile_vals XYMONCLIENTHOME)"
+  xy_host="$(makefile_vals XYMONHOSTNAME)"
+  xy_ip="$(makefile_vals XYMONHOSTIP)"
+  xy_os="$(makefile_vals XYMONHOSTOS)"
+  write_xydefs "$xy_topdir" "$xy_logdir" "$xy_home" "$xy_client_home" "$xy_host" "$xy_ip" "$xy_os"
+fi
 
 
 echo "#endif" >>"$tmpcfg"
