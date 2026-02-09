@@ -39,5 +39,5 @@ jobs:
         with:
           name: ref_${{ env.BUILD_TOOL }}_linux-${{ matrix.variant }}
           path: |
-            docs/refs/make.linux.${{ matrix.variant }}.*
+            docs/refs/${{ env.BUILD_TOOL }}.linux.${{ matrix.variant }}.*
           if-no-files-found: error

@@ -51,5 +51,5 @@ jobs:
         with:
           name: ref_${{ env.BUILD_TOOL }}_netbsd-${{ matrix.variant }}
           path: |
-            docs/refs/make.netbsd.${{ matrix.variant }}.*
+            docs/refs/${{ env.BUILD_TOOL }}.netbsd.${{ matrix.variant }}.*
           if-no-files-found: error
