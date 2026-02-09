@@ -1,11 +1,11 @@
-name: legacy-reference-linux
+name: ref_make_linux
 
 on:
   workflow_dispatch:
 
 jobs:
-  legacy-reference-linux:
-    name: legacy-reference-linux (${{ matrix.name }})
+  ref-make-linux:
+    name: ref_make_linux (${{ matrix.name }})
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false

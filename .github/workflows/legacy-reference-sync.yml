@@ -39,10 +39,10 @@ jobs:
           mkdir -p "${artifacts_dir}"
 
           workflows=(
-            legacy-reference-linux.yml
-            legacy-reference-freebsd.yml
-            legacy-reference-openbsd.yml
-            legacy-reference-netbsd.yml
+            ref_make_linux.yml
+            ref_make_freebsd.yml
+            ref_make_openbsd.yml
+            ref_make_netbsd.yml
           )
 
           for wf in "${workflows[@]}"; do

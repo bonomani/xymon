@@ -1,11 +1,11 @@
-name: legacy-reference-openbsd
+name: ref_make_netbsd
 
 on:
   workflow_dispatch:
 
 jobs:
-  legacy-reference-openbsd:
-    name: legacy-reference-openbsd (${{ matrix.name }})
+  ref-make-netbsd:
+    name: ref_make_netbsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -25,9 +25,9 @@ jobs:
       - name: Generate legacy references
         uses: cross-platform-actions/action@v0.32.0
         with:
-          operating_system: openbsd
+          operating_system: netbsd
           architecture: x86-64
-          version: "7.8"
+          version: "10.1"
           shell: bash
           memory: 1024M
           cpu_count: 2
@@ -37,8 +37,8 @@ jobs:
             ld --version || true
             build_tool=make
             bash ci/bootstrap-install-and-refs.sh \
-              --os openbsd \
-              --version "7.8" \
+              --os netbsd \
+              --version "10.1" \
               --variant "${{ matrix.variant }}" \
               --build "$build_tool"
           sync_files: true
@@ -47,7 +47,7 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-reference-openbsd-${{ matrix.variant }}
+          name: legacy-reference-netbsd-${{ matrix.variant }}
           path: |
-            docs/refs/make.openbsd.${{ matrix.variant }}.*
+            docs/refs/make.netbsd.${{ matrix.variant }}.*
           if-no-files-found: error

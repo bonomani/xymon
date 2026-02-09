@@ -1,11 +1,11 @@
-name: legacy-reference-freebsd
+name: ref_make_freebsd
 
 on:
   workflow_dispatch:
 
 jobs:
-  legacy-reference-freebsd:
-    name: legacy-reference-freebsd (${{ matrix.name }})
+  ref-make-freebsd:
+    name: ref_make_freebsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
