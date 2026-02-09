@@ -33,16 +33,21 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install build dependencies
-        run: |
-          bash ci/deps/install-default-packages.sh
-
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}
         run: |
           if getent group nobody; then
             groupdel nobody || true
           fi
+
+      - name: Bootstrap legacy tree
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/bootstrap-install-and-refs.sh \
+            --os linux \
+            --version local \
+            --variant ${{ matrix.variant }}
 
       - name: Load legacy hostname (runs for all variants)
         shell: bash
