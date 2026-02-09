@@ -286,6 +286,11 @@ jobs:
                     rel=${p#/tmp/cmake-ref-root}
                     rel=${rel#/var/lib/xymon}
                     [ -z "$rel" ] && rel=/
+                    case "$rel" in
+                      / | /server | /server/www*)
+                        continue
+                        ;;
+                    esac
                     printf '%s|%s|%s|%s|%s\n' "$rel" "$mode" "$uid" "$gid" "$size" >> /tmp/legacy.perms.snapshot
                   done
             else
