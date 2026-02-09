@@ -6,6 +6,8 @@ on:
 jobs:
   ref-make-linux:
     name: ref_make_linux (${{ matrix.name }})
+    env:
+      BUILD_TOOL: make
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -27,7 +29,7 @@ jobs:
           uname -a || true
           gcc --version || true
           ld --version || true
-          build_tool=make
+          build_tool="${BUILD_TOOL}"
           bash ci/bootstrap-install-and-refs.sh \
             --os linux \
             --variant "${{ matrix.variant }}" \
@@ -35,7 +37,7 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: ref_make_linux-${{ matrix.variant }}
+          name: ref_${{ env.BUILD_TOOL }}_linux-${{ matrix.variant }}
           path: |
             docs/refs/make.linux.${{ matrix.variant }}.*
           if-no-files-found: error
