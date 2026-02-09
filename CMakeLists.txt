@@ -108,7 +108,6 @@ set(CONFIG_GUARD "__CONFIG_H__" CACHE INTERNAL "Guard macro for config.h")
 set(PACKAGE_NAME "xymon" CACHE INTERNAL "Package name")
 set(PACKAGE_VERSION "cmake" CACHE INTERNAL "Package version")
 set(HAVE_BINARY_TREE 0 CACHE INTERNAL "Binary tree feature" FORCE)
-set(HAVE_RPCENT_H 0 CACHE INTERNAL "rpc feature" FORCE)
 
 configure_file(${CMAKE_SOURCE_DIR}/cmake/config.h.in ${CMAKE_BINARY_DIR}/config.h @ONLY)
 
