@@ -283,12 +283,18 @@ jobs:
                     uid=$(stat -f '%u' "$p")
                     gid=$(stat -f '%g' "$p")
                     size=$(stat -f '%z' "$p")
-                    printf '%s|%s|%s|%s|%s\n' "${p#/tmp/cmake-ref-root}" "$mode" "$uid" "$gid" "$size" >> /tmp/legacy.perms.snapshot
+                    rel=${p#/tmp/cmake-ref-root}
+                    rel=${rel#/var/lib/xymon}
+                    [ -z "$rel" ] && rel=/
+                    printf '%s|%s|%s|%s|%s\n' "$rel" "$mode" "$uid" "$gid" "$size" >> /tmp/legacy.perms.snapshot
                   done
             else
               find "$root" -type f -o -type d \
                 | while IFS= read -r p; do
-                    stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#/tmp/cmake-ref-root}|" >> /tmp/legacy.perms.snapshot
+                    rel=${p#/tmp/cmake-ref-root}
+                    rel=${rel#/var/lib/xymon}
+                    [ -z "$rel" ] && rel=/
+                    stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|$rel|" >> /tmp/legacy.perms.snapshot
                   done
             fi
           fi
