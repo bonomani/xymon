@@ -41,7 +41,7 @@ option(HTTPDGID_CHGRP "Apply HTTPDGID chgrp during install" ON)
 option(ENABLE_RRD "Build rrd-based components" ON)
 option(ENABLE_LDAP "Enable LDAP checks" ON)
 option(ENABLE_SSL "Enable SSL checks" ON)
-option(ENABLE_EXTRA_HELPERS "Build/install optional helpers (stackio, locator)" ON)
+option(ENABLE_EXTRA_HELPERS "Build/install optional helpers (stackio, locator)" OFF)
 
 set(XYMON_VARIANT "all" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)
