@@ -309,7 +309,10 @@ jobs:
           : > /tmp/legacy.embedded.paths
           if [ -d "$root/server/bin" ]; then
             while IFS= read -r bin; do
-              echo "=== ${bin#/tmp/cmake-ref-root} ===" >> /tmp/legacy.bin.links
+              rel=${bin#/tmp/cmake-ref-root}
+              rel=${rel#/var/lib/xymon}
+              [ -z "$rel" ] && rel=/
+              echo "=== $rel ===" >> /tmp/legacy.bin.links
               case "$(uname -s)" in
                 Darwin)
                   otool -L "$bin" | sed '1d' | awk '{print $1}' >> /tmp/legacy.bin.links || true
@@ -336,7 +339,7 @@ jobs:
                   ;;
               esac
               if command -v strings >/dev/null 2>&1; then
-                strings "$bin" | grep -E '/var/lib/xymon' >> /tmp/legacy.embedded.paths || true
+                strings "$bin" | grep -E '/var/lib/xymon' | sed 's|/var/lib/xymon|/server|' >> /tmp/legacy.embedded.paths || true
               fi
             done < <(find "$root/server/bin" -type f -perm -111)
           fi
