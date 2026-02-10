@@ -338,3 +338,4 @@ export LEGACY_TOPDIR="${topdir}"
 export LEGACY_ROOT="${root}"
 EOF
   echo "Legacy topdir=${topdir}, root=${root}" >/tmp/legacy-root-vars.sh
+fi
