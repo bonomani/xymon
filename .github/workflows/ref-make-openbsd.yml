@@ -38,6 +38,8 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
+            export REF_STAGE_ROOT="${{ github.workspace }}/tmp/xymon-refs"
+            mkdir -p "$REF_STAGE_ROOT"
             build_tool="${{ env.BUILD_TOOL }}"
             bash ci/bootstrap-install.sh \
               --os "${{ env.REF_OS }}" \
@@ -55,6 +57,7 @@ jobs:
               --root "${LEGACY_ROOT}" \
               --topdir "${LEGACY_TOPDIR}" \
               --build "${{ env.BUILD_TOOL }}"
+              --build-ref-root "$REF_STAGE_ROOT"
           sync_files: true
           shutdown_vm: true
 
