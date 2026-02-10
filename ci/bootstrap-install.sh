@@ -180,7 +180,7 @@ setup_os() {
   esac
 }
 
-configure_legacy() {
+configure_build() {
   export ENABLESSL=y
   export ENABLELDAP=y
   export XYMONUSER=xymon
@@ -238,7 +238,7 @@ configure_legacy() {
   fi
 }
 
-build_legacy() {
+build_project() {
   local caresinc=""
   local careslib=""
   if [ -n "$CARES_PREFIX" ]; then
@@ -317,16 +317,17 @@ detect_topdir() {
 
 echo "=== Setup ($OS_NAME) ==="
 setup_os
-echo "=== Configure (legacy) ==="
-configure_legacy
-echo "=== Build (legacy) ==="
-build_legacy
-echo "=== Install (legacy staged) ==="
+echo "=== Configure ==="
+configure_build
+echo "=== Build ==="
+build_project
+echo "=== Install staged tree ==="
 install_staged
+echo "=== Record staged tree metadata ==="
 detect="$(detect_topdir)"
 topdir="${detect%%:*}"
 root="${detect#*:}"
-cat <<EOF >/tmp/legacy-root-vars.sh
+cat <<EOF >/tmp/xymon-root-vars.sh
 export LEGACY_TOPDIR="${topdir}"
 export LEGACY_ROOT="${root}"
 EOF
