@@ -25,7 +25,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bootstrap legacy install
+      - name: Bootstrap install
         run: |
           uname -a || true
           gcc --version || true
@@ -36,7 +36,7 @@ jobs:
             --variant "${{ matrix.variant }}" \
             --build "$build_tool"
 
-      - name: Generate legacy references
+      - name: Generate references
         run: |
           if [ ! -f /tmp/legacy-root-vars.sh ]; then
             echo "Legacy root vars missing" >&2
