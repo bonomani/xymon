@@ -144,6 +144,7 @@ generate_keyfiles_list() {
     fi
     printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
   done
+  LC_ALL=C sort "${TMPDIR}/${KEYFILES_NAME}" -o "${TMPDIR}/${KEYFILES_NAME}"
   [ -z "$missing" ]
 }
 
@@ -168,6 +169,7 @@ dump_symlinks() {
           printf '%s|%s\n' "${link#$ROOT}" "$target" >> "/tmp/${SYMLINKS_NAME}"
         fi
       done
+  LC_ALL=C sort "/tmp/${SYMLINKS_NAME}" -o "/tmp/${SYMLINKS_NAME}"
 }
 
 dump_perms() {
@@ -190,6 +192,7 @@ dump_perms() {
           done
       ;;
   esac
+  LC_ALL=C sort "/tmp/${PERMS_NAME}" -o "/tmp/${PERMS_NAME}"
 }
 
 dump_binlinks() {
