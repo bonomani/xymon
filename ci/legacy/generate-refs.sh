@@ -225,13 +225,23 @@ dump_embedded() {
 }
 
 copy_artifacts() {
-  copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
-  copy_to_refs "/tmp/${PERMS_NAME}" "perms"
-  copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
-  copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
-  copy_to_refs "/tmp/${REF_NAME}" "ref"
-  copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
-  copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
+  for entry in \
+    "${SYMLINKS_NAME}:symlinks" \
+    "${PERMS_NAME}:perms" \
+    "${BINLINKS_NAME}:binlinks" \
+    "${EMBED_NAME}:embedded.paths" \
+    "${REF_NAME}:ref" \
+    "${KEYFILES_NAME}:keyfiles.sha256" \
+    "${CONFIG_NAME}:config.h"; do
+    src="/tmp/${entry%%:*}"
+    dst="${entry#*:}"
+    if [ -e "$src" ]; then
+      echo "Copying $src -> $dst" >&2
+    else
+      echo "Skipping missing $src" >&2
+    fi
+    copy_to_refs "$src" "$dst"
+  done
 }
 
 cleanup_temp_files() {
