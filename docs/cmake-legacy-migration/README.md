@@ -26,6 +26,7 @@ Keyfile checksums follow the same naming scheme:
 - refs/legacy.linux.localclient.keyfiles.sha256
 
 CI now also stages `docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/` for each build tool (e.g. `make`, `cmake`). That folder mirrors the legacy artifacts (plain `ref`, `config.h`, `keyfiles.sha256`, `perms`, `symlinks`, `binlinks`, `embedded.paths`) and adds a tarball (`${BUILD_TOOL}.${OS}.${VARIANT}.tar.gz`) suitable for uploading.
+During CI runs these files are first copied into `/tmp/xymon-refs/${BUILD_TOOL}.${OS}.${VARIANT}` before landing in `docs/refs/...`, so you can inspect `/tmp/xymon-refs` to verify the staged refs before the archive is produced.
 
 Guidelines
 ----------

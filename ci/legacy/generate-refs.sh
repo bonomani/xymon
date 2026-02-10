@@ -80,16 +80,21 @@ BINLINKS_NAME="binlinks"
 EMBED_NAME="embedded.paths"
 CONFIG_NAME="config.h"
 KEYFILES_ARCHIVE="keyfiles.tgz"
+REF_STAGE_ROOT="/tmp/xymon-refs"
+REF_DIR_STAGE="${REF_STAGE_ROOT}/${TEMP_PREFIX}"
 REF_DIR="docs/refs/${TEMP_PREFIX}"
 TARBALL="docs/refs/${TEMP_PREFIX}.tar.gz"
 
 copy_to_refs() {
   local src="$1"
-  local dst="${REF_DIR}/${2}"
-  mkdir -p "$REF_DIR"
-  if [ -e "$src" ]; then
-    cp "$src" "$dst"
+  local dst="$2"
+  if [ ! -e "$src" ]; then
+    return
   fi
+  for dir in "$REF_DIR_STAGE" "$REF_DIR"; do
+    mkdir -p "$dir"
+    cp "$src" "$dir/$dst"
+  done
 }
 
 sha256_of() {
