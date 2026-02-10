@@ -291,11 +291,6 @@ install_staged() {
       PKGBUILD="${PKGBUILD:-}"
   fi
 
-  # Make sure the generated config.h travels with the staged tree
-  if [ -f include/config.h ]; then
-    as_root mkdir -p "${LEGACY_STAGING}/include"
-    as_root cp -p include/config.h "${LEGACY_STAGING}/include/config.h"
-  fi
 }
 
 detect_topdir() {
@@ -333,6 +328,13 @@ echo "=== Record staged tree metadata ==="
 detect="$(detect_topdir)"
 topdir="${detect%%:*}"
 root="${detect#*:}"
+
+# Make sure the generated config.h travels with the detected staged root.
+if [ -f include/config.h ]; then
+  as_root mkdir -p "${root}/include"
+  as_root cp -p include/config.h "${root}/include/config.h"
+fi
+
 cat <<EOF >/tmp/xymon-root-vars.sh
 export LEGACY_TOPDIR="${topdir}"
 export LEGACY_ROOT="${root}"
