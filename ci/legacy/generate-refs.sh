@@ -78,12 +78,13 @@ BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.binlinks"
 EMBED_NAME="legacy.${OS_NAME}.${VARIANT}.embedded.paths"
 CONFIG_NAME="legacy.${OS_NAME}.${VARIANT}.config.h"
 REF_TOOL="make"
+REF_DIR="docs/refs/${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
 
 copy_to_refs() {
   local src="$1"
   local suffix="$2"
-  local dst="docs/refs/${REF_TOOL}.${OS_NAME}.${VARIANT}.${suffix}"
-  mkdir -p docs/refs
+  local dst="${REF_DIR}/${suffix}"
+  mkdir -p "$REF_DIR"
   if [ -e "$src" ]; then
     cp "$src" "$dst"
   fi
