@@ -66,6 +66,7 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 source "${script_dir}/packages-bsd.sh"
 
 PKG_MGR=""
+NETBSD_PKG_PATHS=()
 case "${OS_NAME}" in
   FreeBSD) PKG_MGR="pkg" ;;
   NetBSD) PKG_MGR="pkg_add" ;;
@@ -78,13 +79,29 @@ esac
 
 # NetBSD CI runners may have OSABI mismatches; allow pkgin/pkg_add to proceed.
 if [[ "${OS_NAME}" == "NetBSD" ]]; then
+  netbsd_arch="$(uname -m)"
+  netbsd_pkg_ver="${OS_VERSION%%_*}"
+  netbsd_pkg_ver="${netbsd_pkg_ver%%-*}"
+  netbsd_pkg_ver="$(printf '%s' "${netbsd_pkg_ver}" | sed -E 's/^([0-9]+\\.[0-9]+).*/\\1/')"
+  if [[ -z "${netbsd_pkg_ver}" ]]; then
+    netbsd_pkg_ver="$(uname -r | sed -E 's/^([0-9]+\\.[0-9]+).*/\\1/')"
+  fi
+  netbsd_pkg_path_primary="https://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
+  netbsd_pkg_path_fallback1="https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
+  netbsd_pkg_path_fallback2="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
+  NETBSD_PKG_PATHS=(
+    "${netbsd_pkg_path_primary}"
+    "${netbsd_pkg_path_fallback1}"
+    "${netbsd_pkg_path_fallback2}"
+  )
+
   export CHECK_OSABI=no
   PKG_INSTALL_CONF="/tmp/pkg_install.conf"
   printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
   export PKG_INSTALL_CONF
-  export PKG_PATH="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -m)/10.1/All/"
+  export PKG_PATH="${NETBSD_PKG_PATHS[0]}"
   if [ -x /usr/bin/sudo ]; then
-    sudo sh -c 'printf "%s\n" "http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/$(uname -m)/10.1/All/" > /usr/pkg/etc/pkgin/repositories.conf'
+    sudo sh -c "printf '%s\n' '${NETBSD_PKG_PATHS[0]}' > /usr/pkg/etc/pkgin/repositories.conf"
   fi
 fi
 
@@ -312,7 +329,24 @@ case "${mode}" in
         exit 0
         ;;
       pkg_add)
-        sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+        if [[ "${OS_NAME}" == "NetBSD" && "${#NETBSD_PKG_PATHS[@]}" -gt 0 ]]; then
+          install_ok=0
+          for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
+            echo "NetBSD pkg_add install using PKG_PATH=${pkg_path_try}"
+            if sudo -E PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"; then
+              export PKG_PATH="${pkg_path_try}"
+              install_ok=1
+              break
+            fi
+            echo "pkg_add failed for PKG_PATH=${pkg_path_try}, trying next mirror if available"
+          done
+          if [[ "${install_ok}" != "1" ]]; then
+            echo "pkg_add failed on all configured NetBSD package mirrors" >&2
+            exit 1
+          fi
+        else
+          sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+        fi
         if [[ "${OS_NAME}" == "OpenBSD" ]]; then
           need_gcc=0
           gcc_pkg=""
