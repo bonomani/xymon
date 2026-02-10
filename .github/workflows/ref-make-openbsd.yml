@@ -39,9 +39,9 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
-            VARIANT="${{ matrix.variant }}"
-            ENABLE_LDAP=ON
-            ENABLE_SNMP=ON
+            export VARIANT="${{ matrix.variant }}"
+            export ENABLE_LDAP=ON
+            export ENABLE_SNMP=ON
             bash ci/deps/install-bsd-packages.sh \
               --os "${{ env.REF_OS }}" \
               --version "7.8"
