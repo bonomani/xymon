@@ -54,5 +54,5 @@ jobs:
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
           path: |
-            docs/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}.*
+            docs/refs/${{ env.BUILD_TOOL }}-${{ env.REF_OS }}-${{ matrix.variant }}.tar.gz
           if-no-files-found: error

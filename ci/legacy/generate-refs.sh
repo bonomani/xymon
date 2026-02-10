@@ -78,7 +78,8 @@ BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.binlinks"
 EMBED_NAME="legacy.${OS_NAME}.${VARIANT}.embedded.paths"
 CONFIG_NAME="legacy.${OS_NAME}.${VARIANT}.config.h"
 REF_TOOL="make"
-REF_DIR="docs/refs/${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
+REF_DIR="docs/refs/${BUILD_TOOL}-${OS_NAME}-${VARIANT}"
+TARBALL="${REF_DIR}.tar.gz"
 
 copy_to_refs() {
   local src="$1"
@@ -173,6 +174,7 @@ copy_to_refs "/tmp/${REF_NAME}" "${REF_NAME}"
 copy_to_refs "/tmp/${KEYFILES_NAME}" "${KEYFILES_NAME}"
 copy_to_refs "/tmp/${CONFIG_NAME}" "${CONFIG_NAME}"
 copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
+mkdir -p "$(dirname "$TARBALL")"
 pushd "docs/refs" >/dev/null
 tar -czf "${TARBALL##docs/refs/}" "${REF_DIR##docs/refs/}" >/dev/null 2>&1 || true
 popd >/dev/null
