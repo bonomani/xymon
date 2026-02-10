@@ -123,7 +123,7 @@ copy_config() {
     cat "$ROOT/include/config.h" >&2
     cp "$ROOT/include/config.h" "$TMPDIR/${CONFIG_NAME}"
   else
-    : > "$TMPDIR/${CONFIG_NAME}"
+    echo "No include/config.h under ${ROOT}; skipping copy" >&2
   fi
 }
 
