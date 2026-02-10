@@ -328,14 +328,10 @@ echo "=== Build (legacy) ==="
 build_legacy
 echo "=== Install (legacy staged) ==="
 install_staged
-if [ "$MODE" = "refs" ] || [ "$MODE" = "both" ]; then
-  echo "=== Generate legacy refs ==="
-  detect="$(detect_topdir)"
-  topdir="${detect%%:*}"
-  root="${detect#*:}"
-  cat <<EOF >/tmp/legacy-root-vars.sh
+detect="$(detect_topdir)"
+topdir="${detect%%:*}"
+root="${detect#*:}"
+cat <<EOF >/tmp/legacy-root-vars.sh
 export LEGACY_TOPDIR="${topdir}"
 export LEGACY_ROOT="${root}"
 EOF
-  echo "Legacy topdir=${topdir}, root=${root}" >/tmp/legacy-root-vars.sh
-fi
