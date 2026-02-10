@@ -88,9 +88,7 @@ TARBALL="docs/refs/${TEMP_PREFIX}.tar.gz"
 copy_to_refs() {
   local src="$1"
   local dst="$2"
-  if [ ! -e "$src" ]; then
-    return
-  fi
+  [ -e "$src" ] || return
   for dir in "$REF_DIR_STAGE" "$REF_DIR"; do
     mkdir -p "$dir"
     cp "$src" "$dir/$dst"
@@ -260,6 +258,7 @@ copy_to_refs "/tmp/${REF_NAME}" "ref"
 copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
 copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
 copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
+
 mkdir -p "$(dirname "$TARBALL")"
 pushd "$REF_DIR" >/dev/null
 tar -czf "../${TEMP_PREFIX}.tar.gz" . >/dev/null 2>&1 || true
