@@ -56,8 +56,8 @@ jobs:
               --variant "${{ matrix.variant }}" \
               --root "${LEGACY_ROOT}" \
               --topdir "${LEGACY_TOPDIR}" \
-              --build "${{ env.BUILD_TOOL }}"
-              --build-ref-root "$REF_STAGE_ROOT"
+              --build "${{ env.BUILD_TOOL }}" \
+              --refs-root "$REF_STAGE_ROOT"
           sync_files: true
           shutdown_vm: true
 
