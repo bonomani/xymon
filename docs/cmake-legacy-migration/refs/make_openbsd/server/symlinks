@@ -1,8 +1,8 @@
-/server/bin/bb|xymon
 /server/bin/bbcmd|xymoncmd
-/server/bin/bbhostgrep|xymongrep
 /server/bin/bbdigest|xymondigest
+/server/bin/bbhostgrep|xymongrep
 /server/bin/bbhostshow|xymoncfg
+/server/bin/bb|xymon
 /server/web/acknowledge_footer|stdnormal_footer
 /server/web/acknowledgements_footer|stdnormal_footer
 /server/web/chpasswd_footer|stdnormal_footer
