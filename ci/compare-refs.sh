@@ -7,7 +7,7 @@ CANDIDATE_ROOT=""
 
 usage() {
   cat <<'USAGE' >&2
-Usage: $0 --baseline-prefix PATH --candidate-dir DIR [--candidate-root DIR]
+Usage: $0 --baseline-prefix PATH_OR_DIR --candidate-dir DIR [--candidate-root DIR]
 USAGE
   exit 1
 }
@@ -46,31 +46,80 @@ copy_if_present() {
   fi
 }
 
+resolve_baseline_file() {
+  local name="$1"
+  if [ -d "$BASELINE_PREFIX" ]; then
+    echo "${BASELINE_PREFIX}/${name}"
+  else
+    echo "${BASELINE_PREFIX}.${name}"
+  fi
+}
+
 emit_sorted_diff() {
   local left="$1" right="$2" out="$3" label="$4"
+  local left_sorted right_sorted
   : > "$out"
-  if [ ! -s "$left" ] || [ ! -s "$right" ]; then
+  echo "=== Compare: ${label} ==="
+  if [ -s "$left" ]; then
+    echo "baseline: ${left} ($(wc -l < "$left") lines)"
+  else
+    echo "baseline: ${left} (missing or empty)"
+  fi
+  if [ -s "$right" ]; then
+    echo "candidate: ${right} ($(wc -l < "$right") lines)"
+  else
+    echo "candidate: ${right} (missing or empty)"
+  fi
+  if [ ! -s "$left" ]; then
+    echo "skip: baseline missing/empty"
     return 0
   fi
-  sort "$left" > "${left}.sorted"
-  sort "$right" > "${right}.sorted"
-  diff -u "${left}.sorted" "${right}.sorted" > "$out" || true
+  if [ ! -s "$right" ]; then
+    echo "skip: candidate missing/empty"
+    return 0
+  fi
+  left_sorted="$(mktemp /tmp/xymon-compare-left.XXXXXX)"
+  right_sorted="$(mktemp /tmp/xymon-compare-right.XXXXXX)"
+  sort "$left" > "$left_sorted"
+  sort "$right" > "$right_sorted"
+  diff -u "$left_sorted" "$right_sorted" > "$out" || true
+  rm -f "$left_sorted" "$right_sorted"
   if [ -s "$out" ]; then
-    echo "${label} diff detected (non-blocking):"
+    echo "result: different (non-blocking)"
     cat "$out"
+  else
+    echo "result: identical"
   fi
 }
 
 emit_diff() {
   local left="$1" right="$2" out="$3" label="$4"
   : > "$out"
-  if [ ! -s "$left" ] || [ ! -s "$right" ]; then
+  echo "=== Compare: ${label} ==="
+  if [ -s "$left" ]; then
+    echo "baseline: ${left} ($(wc -l < "$left") lines)"
+  else
+    echo "baseline: ${left} (missing or empty)"
+  fi
+  if [ -s "$right" ]; then
+    echo "candidate: ${right} ($(wc -l < "$right") lines)"
+  else
+    echo "candidate: ${right} (missing or empty)"
+  fi
+  if [ ! -s "$left" ]; then
+    echo "skip: baseline missing/empty"
+    return 0
+  fi
+  if [ ! -s "$right" ]; then
+    echo "skip: candidate missing/empty"
     return 0
   fi
   diff -u "$left" "$right" > "$out" || true
   if [ -s "$out" ]; then
-    echo "${label} diff detected (non-blocking):"
+    echo "result: different (non-blocking)"
     cat "$out"
+  else
+    echo "result: identical"
   fi
 }
 
@@ -124,12 +173,12 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
 fi
 
 # Baseline files.
-BASE_KEYFILES="${BASELINE_PREFIX}.keyfiles.sha256"
-BASE_SYMLINKS="${BASELINE_PREFIX}.symlinks"
-BASE_PERMS="${BASELINE_PREFIX}.perms"
-BASE_BINLINKS="${BASELINE_PREFIX}.binlinks"
-BASE_EMBEDDED="${BASELINE_PREFIX}.embedded.paths"
-BASE_REF="${BASELINE_PREFIX}.ref"
+BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
+BASE_SYMLINKS="$(resolve_baseline_file symlinks)"
+BASE_PERMS="$(resolve_baseline_file perms)"
+BASE_BINLINKS="$(resolve_baseline_file binlinks)"
+BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
+BASE_REF="$(resolve_baseline_file ref)"
 
 emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content"
 emit_sorted_diff "$BASE_SYMLINKS" /tmp/legacy.symlinks.list /tmp/legacy.symlinks.diff "Symlink target"
@@ -141,6 +190,17 @@ emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff 
 : > /tmp/cmake.filtered.list
 : > /tmp/allowed-extras.list
 : > /tmp/legacy-cmake.diff
+echo "=== Compare: Tree reference ==="
+if [ -s "$BASE_REF" ]; then
+  echo "baseline: ${BASE_REF} ($(wc -l < "$BASE_REF") lines)"
+else
+  echo "baseline: ${BASE_REF} (missing or empty)"
+fi
+if [ -s /tmp/cmake.list ]; then
+  echo "candidate: /tmp/cmake.list ($(wc -l < /tmp/cmake.list) lines)"
+else
+  echo "candidate: /tmp/cmake.list (missing or empty)"
+fi
 if [ -s "$BASE_REF" ] && [ -s /tmp/cmake.list ]; then
   grep -v '^[[:space:]]*#' "$BASE_REF" | grep -v '^[[:space:]]*$' \
     | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
@@ -165,9 +225,13 @@ EOF
   grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
-    echo "Unexpected tree diff detected (non-blocking):"
+    echo "result: different (non-blocking)"
     cat /tmp/legacy-cmake.diff
+  else
+    echo "result: identical"
   fi
+else
+  echo "skip: baseline or candidate missing/empty"
 fi
 
 echo "Reference comparison completed."

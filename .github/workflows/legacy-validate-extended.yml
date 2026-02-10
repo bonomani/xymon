@@ -149,29 +149,26 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          tarball="docs/cmake-legacy-migration/refs/legacy.linux.server.keyfiles.tgz"
-          echo "Legacy hostname: checking ${tarball}"
-          if [ ! -f "${tarball}" ]; then
-            echo "Legacy hostname: skipped (missing ${tarball})"
+          legacy_cfg="docs/cmake-legacy-migration/refs/make_linux/server/var/lib/xymon/server/etc/xymonserver.cfg"
+          echo "Legacy hostname: checking ${legacy_cfg}"
+          if [ ! -f "${legacy_cfg}" ]; then
+            echo "Legacy hostname: skipped (missing ${legacy_cfg})"
             exit 0
           fi
           legacy_host="$(
-            tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
-              | tr -d '\r' \
+            tr -d '\r' < "${legacy_cfg}" \
               | awk -F'"' '/^XYMONSERVERHOSTNAME=/{if(!found){print $2; found=1}} END{if(!found) exit 1}'
           )"
           if [ -z "${legacy_host}" ]; then
             legacy_host="$(
-              tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
-                | tr -d '\r' \
+              tr -d '\r' < "${legacy_cfg}" \
                 | awk '/^XYMONSERVERHOSTNAME=/{sub(/^.*=/,""); sub(/[[:space:]]*#.*/,""); gsub(/^[[:space:]]+|[[:space:]]+$/,""); gsub(/^\"|\"$/,""); if(!found){print; found=1}} END{if(!found) exit 1}'
             )"
           fi
           if [ -z "${legacy_host}" ]; then
-            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${tarball})"
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${legacy_cfg})"
             echo "Legacy hostname: first 5 non-comment lines for debug:"
-            tar -xOz -f "${tarball}" --wildcards '*/var/lib/xymon/server/etc/xymonserver.cfg' \
-              | tr -d '\r' \
+            tr -d '\r' < "${legacy_cfg}" \
               | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
               | head -n5
             exit 0
@@ -300,7 +297,7 @@ jobs:
         run: |
           set -euo pipefail
           bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/legacy.linux.server" \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/server" \
             --candidate-dir "/tmp/xymon-refs/cmake.linux.server" \
             --candidate-root "/tmp/cmake-ref-root/var/lib/xymon"
 

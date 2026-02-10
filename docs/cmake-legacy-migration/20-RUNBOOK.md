@@ -40,9 +40,9 @@ The Makefiles are the contract, not the live filesystem or assumptions.
 
 Reference List Policy
 ---------------------
-`docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/ref` is the Linux server reference snapshot.
+`docs/cmake-legacy-migration/refs/make_linux/server/ref` is the Linux server reference snapshot.
 BSD validation uses server references under the same naming pattern:
-- `docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/ref` (BSD variants).
+- `docs/cmake-legacy-migration/refs/make_<bsd>/server/ref` (BSD variants).
 
 
 
@@ -58,7 +58,7 @@ FreeBSD:
 sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/legacy.freebsd.ref
+  | sort > docs/cmake-legacy-migration/refs/make_freebsd/server/ref
 ```
 
 OpenBSD:
@@ -66,7 +66,7 @@ OpenBSD:
 sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/legacy.openbsd.ref
+  | sort > docs/cmake-legacy-migration/refs/make_openbsd/server/ref
 ```
 
 NetBSD:
@@ -74,7 +74,7 @@ NetBSD:
 sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/legacy.netbsd.ref
+  | sort > docs/cmake-legacy-migration/refs/make_netbsd/server/ref
 ```
 
 After updating any BSD reference file, record the change in `STATUS-HISTORY.md`.
@@ -142,11 +142,11 @@ To generate the reference list:
 ```sh
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/legacy.linux.server.ref
+  | sort > docs/cmake-legacy-migration/refs/make_linux/server/ref
 ```
 
 Note: the CMake list is generated per run (e.g., `/tmp/cmake.list`) and is not
-a reference. It is only used for comparison against `legacy.linux.server.ref`.
+a reference. It is only used for comparison against `refs/make_linux/server/ref`.
 
 Cleanup:
 
