@@ -278,6 +278,9 @@ case "$VARIANT" in
       "${TOPDIR}/server/etc/client-local.cfg"
       "${TOPDIR}/server/etc/columndoc.csv"
       "${TOPDIR}/server/etc/protocols.cfg"
+      "${TOPDIR}/client/etc/clientlaunch.cfg"
+      "${TOPDIR}/client/etc/xymonclient.cfg"
+      "${TOPDIR}/client/etc/localclient.cfg"
     )
     ;;
 esac
