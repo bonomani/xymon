@@ -25,27 +25,31 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Generate legacy references
-        uses: cross-platform-actions/action@v0.32.0
-        with:
-          operating_system: netbsd
-          architecture: x86-64
-          version: "10.1"
-          shell: bash
-          memory: 1024M
-          cpu_count: 2
-          run: |
-            uname -a || true
-            gcc --version || true
-            ld --version || true
+      - name: Bootstrap legacy install
+        run: |
+          uname -a || true
+          gcc --version || true
+          ld --version || true
           build_tool="${BUILD_TOOL}"
-          bash ci/bootstrap-install-and-refs.sh \
+          bash ci/bootstrap-install.sh \
             --os "${REF_OS}" \
             --version "10.1" \
             --variant "${{ matrix.variant }}" \
             --build "$build_tool"
-          sync_files: true
-          shutdown_vm: true
+
+      - name: Generate legacy references
+        run: |
+          if [ ! -f /tmp/legacy-root-vars.sh ]; then
+            echo "Legacy root vars missing" >&2
+            exit 1
+          fi
+          source /tmp/legacy-root-vars.sh
+          bash ci/legacy/generate-refs.sh \
+            --os "${REF_OS}" \
+            --variant "${{ matrix.variant }}" \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --build "${BUILD_TOOL}"
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4

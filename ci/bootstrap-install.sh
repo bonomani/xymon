@@ -10,7 +10,6 @@ CONFTYPE=""
 CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
-MODE="both"
 BUILD_TOOL="make"
 BUILD_TOOL="make"
 
@@ -46,10 +45,6 @@ while [ $# -gt 0 ]; do
       ;;
     --localclient)
       LOCALCLIENT="${2:-}"
-      shift 2
-      ;;
-    --mode)
-      MODE="${2:-}"
       shift 2
       ;;
     --build)
@@ -338,20 +333,8 @@ if [ "$MODE" = "refs" ] || [ "$MODE" = "both" ]; then
   detect="$(detect_topdir)"
   topdir="${detect%%:*}"
   root="${detect#*:}"
-  ref_args=()
-  if [ -n "$REF_NAME" ]; then
-    ref_args+=(--ref-name "$REF_NAME")
-  fi
-  if [ -n "$KEYFILES_NAME" ]; then
-    ref_args+=(--keyfiles-name "$KEYFILES_NAME")
-  fi
-  if [ -n "$BUILD_TOOL" ]; then
-    ref_args+=(--build "$BUILD_TOOL")
-  fi
-  bash ci/legacy/generate-refs.sh \
-    --os "$OS_NAME" \
-    --variant "${VARIANT:-server}" \
-    --root "$root" \
-    --topdir "$topdir" \
-    "${ref_args[@]}"
-fi
+  cat <<EOF >/tmp/legacy-root-vars.sh
+export LEGACY_TOPDIR="${topdir}"
+export LEGACY_ROOT="${root}"
+EOF
+  echo "Legacy topdir=${topdir}, root=${root}" >/tmp/legacy-root-vars.sh
