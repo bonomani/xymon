@@ -120,7 +120,7 @@ copy_config() {
 
 generate_keyfiles_list() {
   : > "${TMPDIR}/${KEYFILES_NAME}"
-  local missing
+  local missing=""
   for f in "${key_files[@]}"; do
     local local_p="${ROOT}${f#${TOPDIR}}"
     if [ ! -f "$local_p" ]; then
