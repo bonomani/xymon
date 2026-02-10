@@ -11,7 +11,6 @@ CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
 BUILD_TOOL="make"
-BUILD_TOOL="make"
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -45,10 +44,6 @@ while [ $# -gt 0 ]; do
       ;;
     --localclient)
       LOCALCLIENT="${2:-}"
-      shift 2
-      ;;
-    --build)
-      BUILD_TOOL="${2:-}"
       shift 2
       ;;
     --build)

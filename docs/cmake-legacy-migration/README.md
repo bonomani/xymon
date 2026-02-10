@@ -25,6 +25,8 @@ Keyfile checksums follow the same naming scheme:
 - refs/legacy.linux.client.keyfiles.sha256
 - refs/legacy.linux.localclient.keyfiles.sha256
 
+CI now also stages `docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/` for each build tool (e.g. `make`, `cmake`). That folder mirrors the legacy artifacts (plain `ref`, `config.h`, `keyfiles.sha256`, `perms`, `symlinks`, `binlinks`, `embedded.paths`) and adds a tarball (`${BUILD_TOOL}.${OS}.${VARIANT}.tar.gz`) suitable for uploading.
+
 Guidelines
 ----------
 - Keep one source of truth per topic.

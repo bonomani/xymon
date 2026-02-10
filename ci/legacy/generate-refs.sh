@@ -7,6 +7,8 @@ OS_NAME=""
 VARIANT="server"
 REF_NAME=""
 KEYFILES_NAME=""
+BUILD_TOOL=""
+BUILD_TOOL=""
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -53,6 +55,9 @@ if [ -z "$OS_NAME" ]; then
   echo "Missing --os" >&2
   exit 1
 fi
+if [ -z "$BUILD_TOOL" ]; then
+  BUILD_TOOL="make"
+fi
 if [ -z "$VARIANT" ]; then
   VARIANT="server"
 fi
@@ -66,25 +71,21 @@ if [ ! -d "$ROOT" ]; then
   exit 1
 fi
 
-if [ -z "$REF_NAME" ]; then
-  REF_NAME="${BUILD_TOOL}.${OS_NAME}.${VARIANT}.ref"
-fi
-if [ -z "$KEYFILES_NAME" ]; then
-  KEYFILES_NAME="${BUILD_TOOL}.${OS_NAME}.${VARIANT}.keyfiles.sha256"
-fi
-SYMLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.symlinks"
-PERMS_NAME="legacy.${OS_NAME}.${VARIANT}.perms"
-BINLINKS_NAME="legacy.${OS_NAME}.${VARIANT}.binlinks"
-EMBED_NAME="legacy.${OS_NAME}.${VARIANT}.embedded.paths"
-CONFIG_NAME="legacy.${OS_NAME}.${VARIANT}.config.h"
-REF_TOOL="make"
-REF_DIR="docs/refs/${BUILD_TOOL}-${OS_NAME}-${VARIANT}"
-TARBALL="${REF_DIR}.tar.gz"
+TEMP_PREFIX="${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
+REF_NAME="ref"
+KEYFILES_NAME="keyfiles.sha256"
+SYMLINKS_NAME="symlinks"
+PERMS_NAME="perms"
+BINLINKS_NAME="binlinks"
+EMBED_NAME="embedded.paths"
+CONFIG_NAME="config.h"
+KEYFILES_ARCHIVE="keyfiles.tgz"
+REF_DIR="docs/refs/${TEMP_PREFIX}"
+TARBALL="docs/refs/${TEMP_PREFIX}.tar.gz"
 
 copy_to_refs() {
   local src="$1"
-  local suffix="$2"
-  local dst="${REF_DIR}/${suffix}"
+  local dst="${REF_DIR}/${2}"
   mkdir -p "$REF_DIR"
   if [ -e "$src" ]; then
     cp "$src" "$dst"
@@ -163,22 +164,6 @@ for f in "${key_files[@]}"; do
 done
 
 tar -C /tmp -czf "/tmp/${keyfiles_archive}" "$(basename "${keyfiles_root}")"
-copy_to_refs "/tmp/${REF_NAME}" "ref"
-copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
-copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
-copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
-copy_to_refs "/tmp/${PERMS_NAME}" "perms"
-copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
-copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
-copy_to_refs "/tmp/${REF_NAME}" "${REF_NAME}"
-copy_to_refs "/tmp/${KEYFILES_NAME}" "${KEYFILES_NAME}"
-copy_to_refs "/tmp/${CONFIG_NAME}" "${CONFIG_NAME}"
-copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
-mkdir -p "$(dirname "$TARBALL")"
-pushd "docs/refs" >/dev/null
-tar -czf "${TARBALL##docs/refs/}" "${REF_DIR##docs/refs/}" >/dev/null 2>&1 || true
-popd >/dev/null
-copy_to_refs "/tmp/${keyfiles_archive}" "keyfiles.tgz"
 
 : > "/tmp/${SYMLINKS_NAME}"
 if [ -d "$ROOT" ]; then
@@ -266,3 +251,16 @@ copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
 copy_to_refs "/tmp/${PERMS_NAME}" "perms"
 copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
 copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
+copy_to_refs "/tmp/${REF_NAME}" "ref"
+copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
+copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
+copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
+copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
+copy_to_refs "/tmp/${REF_NAME}" "${REF_NAME}"
+copy_to_refs "/tmp/${KEYFILES_NAME}" "${KEYFILES_NAME}"
+copy_to_refs "/tmp/${CONFIG_NAME}" "${CONFIG_NAME}"
+copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
+mkdir -p "$(dirname "$TARBALL")"
+pushd "docs/refs" >/dev/null
+tar -czf "${TARBALL##docs/refs/}" "${REF_DIR##docs/refs/}" >/dev/null 2>&1 || true
+popd >/dev/null
