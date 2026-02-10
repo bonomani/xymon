@@ -8,6 +8,7 @@ jobs:
     name: ref_make_netbsd (${{ matrix.name }})
     env:
       BUILD_TOOL: make
+      REF_OS: netbsd
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -39,7 +40,7 @@ jobs:
             ld --version || true
           build_tool="${BUILD_TOOL}"
           bash ci/bootstrap-install-and-refs.sh \
-            --os netbsd \
+            --os "${REF_OS}" \
             --version "10.1" \
             --variant "${{ matrix.variant }}" \
             --build "$build_tool"
@@ -49,7 +50,7 @@ jobs:
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
-          name: ref_${{ env.BUILD_TOOL }}_netbsd-${{ matrix.variant }}
+          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
           path: |
-            docs/refs/${{ env.BUILD_TOOL }}.netbsd.${{ matrix.variant }}.*
+            docs/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}.*
           if-no-files-found: error
