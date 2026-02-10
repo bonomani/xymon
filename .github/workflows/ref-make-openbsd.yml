@@ -28,6 +28,8 @@ jobs:
 
       - name: Bootstrap install + refs on OpenBSD
         uses: cross-platform-actions/action@v0.32.0
+        env:
+          REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
         with:
           operating_system: openbsd
           architecture: x86-64
