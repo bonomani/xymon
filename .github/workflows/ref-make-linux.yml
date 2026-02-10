@@ -26,7 +26,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bootstrap install
+      - name: Bootstrap install + refs on Linux
         run: |
           uname -a || true
           gcc --version || true
@@ -37,9 +37,6 @@ jobs:
             --os "${REF_OS}" \
             --variant "${{ matrix.variant }}" \
             --build "$build_tool"
-
-      - name: Generate references
-        run: |
           if [ ! -f /tmp/xymon-root-vars.sh ]; then
             echo "Staged tree metadata missing" >&2
             exit 1
