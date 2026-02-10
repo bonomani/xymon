@@ -1,9 +1,9 @@
-Legacy Mode Validation Runbook
+Reference Mode Validation Runbook
 ==============================
 
 Scope
 -----
-This runbook defines the exact steps required to validate the CMake Legacy mode
+This runbook defines the exact steps required to validate the CMake reference staging mode
 against the existing `configure + make` build system.
 
 Important Safety Rule
@@ -13,12 +13,12 @@ real system paths such as `/var/lib/xymon` or `/var/log/xymon`.
 
 Rules
 -----
-- Legacy `make install` must run with a safe DESTDIR and must land under `/tmp/...`.
-- Never run legacy `make install` without DESTDIR.
+- Reference `make install` must run with a safe DESTDIR and must land under `/tmp/...`.
+- Never run reference `make install` without DESTDIR.
 - CMake validation must use a sandbox install via DESTDIR.
 - Do not pass `-D` options to `cmake --build`; pass them to `cmake -S/-B`.
 
-Definition of Legacy Mode
+Definition of Reference Mode
 -------------------------
 Legacy mode in CMake is defined as:
 - `USE_GNUINSTALLDIRS = OFF`
@@ -29,22 +29,22 @@ Legacy mode in CMake is defined as:
 - No invented paths
 - No behavior change
 
-CMake must emulate the legacy system, not modernize it.
+CMake must emulate the reference system, not modernize it.
 
 Source of Truth
 ---------------
-The only authoritative reference for legacy installation behavior is:
+The only authoritative reference for reference installation behavior is:
 - `build/Makefile.rules` target `install-dirs`
 
 The Makefiles are the contract, not the live filesystem or assumptions.
 
 Reference List Policy
 ---------------------
-`docs/cmake-legacy-migration/refs/legacy.linux.server.ref` is the Linux server reference snapshot.
-BSD validation uses server references:
-- `docs/cmake-legacy-migration/refs/legacy.freebsd.ref`
-- `docs/cmake-legacy-migration/refs/legacy.openbsd.ref`
-- `docs/cmake-legacy-migration/refs/legacy.netbsd.ref`
+`docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/ref` is the Linux server reference snapshot.
+BSD validation uses server references under the same naming pattern:
+- `docs/refs/${BUILD_TOOL}.${OS}.${VARIANT}/ref` (BSD variants).
+
+
 
 Update references only when legacy Makefiles change, and record the update in
 `STATUS-HISTORY.md`.

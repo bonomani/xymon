@@ -1,4 +1,4 @@
-CMake Legacy Validation Plan
+Reference Validation Plan
 ============================
 
 Purpose
@@ -9,13 +9,13 @@ use `20-RUNBOOK.md`.
 
 Scope
 -----
-- Legacy mode only (`USE_GNUINSTALLDIRS=OFF`).
-- Absolute paths must match the legacy Makefile contract.
+- Reference mode only (`USE_GNUINSTALLDIRS=OFF`).
+- Absolute paths must match the reference Makefile contract.
 - No behavior changes, refactors, or modernizations.
 
 Acceptance Criteria
 -------------------
-- Directory layout matches the legacy contract in `30-REFERENCE.md`.
+- Directory layout matches the reference contract in `30-REFERENCE.md`.
 - Symlinks are created only when legacy rules require them.
 - Permissions match legacy behavior or are explicitly documented exceptions.
 - Staged installs via DESTDIR succeed without touching real system paths.
@@ -53,12 +53,12 @@ D. Ownership and Groups
 
 E. Parity With Legacy `make install`
 - [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/xymon-stage`.
-- [x] `docs/cmake-legacy-migration/refs/legacy.linux.server.ref` is up to date with legacy Makefiles.
+- [x] `docs/cmake-legacy-migration/refs/legacy.linux.server.ref` is up to date with reference Makefiles.
 - [x] CMake legacy install uses `LEGACY_DESTDIR=/tmp/cmake-ref-root` (configured via `-DLEGACY_DESTDIR`).
 - [x] Path normalization produces comparable lists rooted at `/var/lib/xymon/...`.
 - [x] Diff between `legacy.linux.server.ref` and the generated CMake list shows only documented exceptions.
 - [x] Install hook is inline `install(CODE ...)` and uses `$ENV{DESTDIR}`.
-- [x] `legacy.linux.server.ref` is versioned reference data and must only be updated when legacy Makefiles change, with updates recorded in `STATUS-HISTORY.md`.
+- [x] `legacy.linux.server.ref` is versioned reference data and must only be updated when reference Makefiles change, with updates recorded in `STATUS-HISTORY.md`.
 
 F. Binaries and Non-Web Components
 - [x] `install-legacy-files` stages server binaries, CGIs, and client assets.
@@ -82,7 +82,7 @@ H. Robustness and Portability
 - [ ] OFF mode validation when `XYMONUSER` does not exist.
 
 I. Final Validation Criteria
-- [x] `install-legacy-files` reproduces the legacy tree (exceptions noted).
+- [x] `install-legacy-files` reproduces the reference tree (exceptions noted).
 - [x] Permissions diff identical or justified.
 - [x] OFF mode logs clean.
 - [x] ON mode logs clean and `xymonping` ends as `4755 root`.
