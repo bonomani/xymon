@@ -80,7 +80,7 @@ REF_DIR_STAGE="${REF_STAGE_ROOT}/${TEMP_PREFIX}"
 
 copy_to_refs() {
   local src="$1" dst="$2" dst_dir
-  [ -e "$src" ] || return
+  [ -e "$src" ] || return 0
   dst_dir="$(dirname "$REF_DIR_STAGE/$dst")"
   mkdir -p "$dst_dir"
   cp -p "$src" "$REF_DIR_STAGE/$dst"
