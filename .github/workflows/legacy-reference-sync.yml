@@ -1,4 +1,4 @@
-name: legacy-reference-sync
+name: ref-sync
 
 on:
   workflow_dispatch:
