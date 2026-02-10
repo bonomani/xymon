@@ -5,10 +5,16 @@ ROOT=""
 TOPDIR="/var/lib/xymon"
 OS_NAME=""
 VARIANT="server"
-REF_NAME=""
-KEYFILES_NAME=""
+REF_NAME="ref"
+KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
-BUILD_TOOL=""
+
+usage() {
+  cat <<'EOF' >&2
+Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--ref-name NAME] [--keyfiles-name NAME]
+EOF
+  exit 1
+}
 
 while [ $# -gt 0 ]; do
   case "$1" in
@@ -42,7 +48,7 @@ while [ $# -gt 0 ]; do
       ;;
     *)
       echo "Unknown arg: $1" >&2
-      exit 1
+      usage
       ;;
   esac
 done
@@ -67,6 +73,7 @@ if [ -z "$TOPDIR" ]; then
 fi
 
 TMPDIR="${TMPDIR:-/tmp}"
+TMPDIR="${TMPDIR%/}"
 
 if [ ! -d "$ROOT" ]; then
   echo "Missing $ROOT" >&2
@@ -74,31 +81,22 @@ if [ ! -d "$ROOT" ]; then
 fi
 
 TEMP_PREFIX="${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
-REF_NAME="ref"
-KEYFILES_NAME="keyfiles.sha256"
 SYMLINKS_NAME="symlinks"
 PERMS_NAME="perms"
 BINLINKS_NAME="binlinks"
 EMBED_NAME="embedded.paths"
 CONFIG_NAME="config.h"
-REF_STAGE_ROOT="/tmp/xymon-refs"
+REF_STAGE_ROOT="${REF_STAGE_ROOT:-${TMPDIR}/xymon-refs}"
 REF_DIR_STAGE="${REF_STAGE_ROOT}/${TEMP_PREFIX}"
-TARBALL="${REF_DIR_STAGE}.tar.gz"
 
 copy_to_refs() {
   local src="$1"
   local dst="$2"
   [ -e "$src" ] || return
-  mkdir -p "$REF_DIR_STAGE"
-  cp "$src" "$REF_DIR_STAGE/$dst"
-}
-
-copy_tree() {
-  local src="$1"
-  local dst="$2"
-  [ -d "$src" ] || return
-  mkdir -p "$REF_DIR_STAGE/$dst"
-  cp -a "$src/." "$REF_DIR_STAGE/$dst/"
+  local dst_dir
+  dst_dir="$(dirname "$REF_DIR_STAGE/$dst")"
+  mkdir -p "$dst_dir"
+  cp -p "$src" "$REF_DIR_STAGE/$dst"
 }
 
 cleanup_temp_files() {
@@ -273,8 +271,4 @@ copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
 copy_to_refs "/tmp/${REF_NAME}" "ref"
 copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
 copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
-copy_tree "/tmp/xymon-keyfiles-${TEMP_PREFIX}" "keyfiles"
-
-mkdir -p "$(dirname "$TARBALL")"
-tar -czf "$TARBALL" -C "$REF_DIR_STAGE" . >/dev/null 2>&1 || true
 cleanup_temp_files
