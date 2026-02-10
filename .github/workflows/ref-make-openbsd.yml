@@ -25,31 +25,38 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bootstrap install
-        run: |
-          uname -a || true
-          gcc --version || true
-          ld --version || true
-          build_tool="${BUILD_TOOL}"
-          bash ci/bootstrap-install.sh \
-            --os "${REF_OS}" \
-            --version "7.8" \
-            --variant "${{ matrix.variant }}" \
-            --build "$build_tool"
-
-      - name: Generate references
-        run: |
-          if [ ! -f /tmp/xymon-root-vars.sh ]; then
-            echo "Staged tree metadata missing" >&2
-            exit 1
-          fi
-          source /tmp/xymon-root-vars.sh
-          bash ci/legacy/generate-refs.sh \
-            --os "${REF_OS}" \
-            --variant "${{ matrix.variant }}" \
-            --root "${LEGACY_ROOT}" \
-            --topdir "${LEGACY_TOPDIR}" \
-            --build "${BUILD_TOOL}"
+      - name: Bootstrap install + refs on OpenBSD
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: openbsd
+          architecture: x86-64
+          version: "7.8"
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            uname -a || true
+            gcc --version || true
+            ld --version || true
+            build_tool="${{ env.BUILD_TOOL }}"
+            bash ci/bootstrap-install.sh \
+              --os "${{ env.REF_OS }}" \
+              --version "7.8" \
+              --variant "${{ matrix.variant }}" \
+              --build "$build_tool"
+            if [ ! -f /tmp/xymon-root-vars.sh ]; then
+              echo "Staged tree metadata missing" >&2
+              exit 1
+            fi
+            source /tmp/xymon-root-vars.sh
+            bash ci/legacy/generate-refs.sh \
+              --os "${{ env.REF_OS }}" \
+              --variant "${{ matrix.variant }}" \
+              --root "${LEGACY_ROOT}" \
+              --topdir "${LEGACY_TOPDIR}" \
+              --build "${{ env.BUILD_TOOL }}"
+          sync_files: true
+          shutdown_vm: true
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
