@@ -221,7 +221,7 @@ copy_artifacts() {
     "${EMBED_NAME}:embedded.paths" \
     "${REF_NAME}:ref" \
     "${KEYFILES_NAME}:keyfiles.sha256" \
-    "${CONFIG_NAME}:config.h"; do
+    "${CONFIG_NAME}:include/config.h"; do
     src="/tmp/${entry%%:*}"
     dst="${entry#*:}"
     if [ ! -e "$src" ]; then
