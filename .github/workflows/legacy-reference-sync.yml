@@ -63,9 +63,9 @@ jobs:
               exit 1
             fi
 
-            out_dir="${artifacts_dir}/${wf%.yml}"
-            mkdir -p "${out_dir}"
-            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${out_dir}"
+            # Download into a single root. gh creates one subdir per artifact name.
+            # This avoids an extra workflow-name directory layer.
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
           done
 
       - name: Sync archive branch
@@ -87,12 +87,19 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f -delete
 
-          # Preserve relative artifact structure to avoid collisions across
-          # OS/variant artifacts that share file basenames.
           find "${artifacts_dir}" -type f -print0 \
             | while IFS= read -r -d '' f; do
                 rel="${f#${artifacts_dir}/}"
-                dst="${ref_dir}/${rel}"
+                artifact="${rel%%/*}"
+                rest="${rel#*/}"
+                dst_rel="${rel}"
+                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
+                  tool="${BASH_REMATCH[1]}"
+                  os="${BASH_REMATCH[2]}"
+                  variant="${BASH_REMATCH[3]}"
+                  dst_rel="${tool}_${os}/${variant}/${rest}"
+                fi
+                dst="${ref_dir}/${dst_rel}"
                 mkdir -p "$(dirname "${dst}")"
                 install -m 0644 "$f" "${dst}"
               done
@@ -140,7 +147,16 @@ jobs:
           find "${artifacts_dir}" -type f -print0 \
             | while IFS= read -r -d '' f; do
                 rel="${f#${artifacts_dir}/}"
-                dst="${ref_dir}/${rel}"
+                artifact="${rel%%/*}"
+                rest="${rel#*/}"
+                dst_rel="${rel}"
+                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
+                  tool="${BASH_REMATCH[1]}"
+                  os="${BASH_REMATCH[2]}"
+                  variant="${BASH_REMATCH[3]}"
+                  dst_rel="${tool}_${os}/${variant}/${rest}"
+                fi
+                dst="${ref_dir}/${dst_rel}"
                 mkdir -p "$(dirname "${dst}")"
                 install -m 0644 "$f" "${dst}"
               done
