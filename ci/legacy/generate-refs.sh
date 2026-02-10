@@ -117,6 +117,10 @@ collect_tree_list() {
 
 copy_config() {
   if [ -f "$ROOT/include/config.h" ]; then
+    echo "Listing include dir: $ROOT/include" >&2
+    ls -l "$ROOT/include" >&2
+    echo "Contents of config.h:" >&2
+    cat "$ROOT/include/config.h" >&2
     cp "$ROOT/include/config.h" "$TMPDIR/${CONFIG_NAME}"
   else
     : > "$TMPDIR/${CONFIG_NAME}"
