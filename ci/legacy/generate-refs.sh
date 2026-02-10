@@ -255,12 +255,7 @@ copy_to_refs "/tmp/${REF_NAME}" "ref"
 copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
 copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
 copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
-copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
-copy_to_refs "/tmp/${REF_NAME}" "${REF_NAME}"
-copy_to_refs "/tmp/${KEYFILES_NAME}" "${KEYFILES_NAME}"
-copy_to_refs "/tmp/${CONFIG_NAME}" "${CONFIG_NAME}"
-copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
 mkdir -p "$(dirname "$TARBALL")"
 pushd "docs/refs" >/dev/null
-tar -czf "${TARBALL##docs/refs/}" "${REF_DIR##docs/refs/}" >/dev/null 2>&1 || true
+tar -czf "${TARBALL##docs/refs/}" -C "${REF_DIR##docs/refs/}" . >/dev/null 2>&1 || true
 popd >/dev/null
