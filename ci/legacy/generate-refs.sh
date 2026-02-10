@@ -79,20 +79,24 @@ PERMS_NAME="perms"
 BINLINKS_NAME="binlinks"
 EMBED_NAME="embedded.paths"
 CONFIG_NAME="config.h"
-KEYFILES_ARCHIVE="keyfiles.tgz"
 REF_STAGE_ROOT="/tmp/xymon-refs"
 REF_DIR_STAGE="${REF_STAGE_ROOT}/${TEMP_PREFIX}"
-REF_DIR="docs/refs/${TEMP_PREFIX}"
-TARBALL="docs/refs/${TEMP_PREFIX}.tar.gz"
+TARBALL="${REF_DIR_STAGE}.tar.gz"
 
 copy_to_refs() {
   local src="$1"
   local dst="$2"
   [ -e "$src" ] || return
-  for dir in "$REF_DIR_STAGE" "$REF_DIR"; do
-    mkdir -p "$dir"
-    cp "$src" "$dir/$dst"
-  done
+  mkdir -p "$REF_DIR_STAGE"
+  cp "$src" "$REF_DIR_STAGE/$dst"
+}
+
+copy_tree() {
+  local src="$1"
+  local dst="$2"
+  [ -d "$src" ] || return
+  mkdir -p "$REF_DIR_STAGE/$dst"
+  cp -a "$src/." "$REF_DIR_STAGE/$dst/"
 }
 
 sha256_of() {
