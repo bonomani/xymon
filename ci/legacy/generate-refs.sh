@@ -113,6 +113,20 @@ run_step() {
   fi
 }
 
+error_steps=()
+
+run_step() {
+  local name="$1"
+  shift
+  echo "=== Step: $name ==="
+  if "$@"; then
+    echo "=== Step '$name' succeeded ==="
+  else
+    echo "=== Step '$name' FAILED ==="
+    error_steps+=("$name")
+  fi
+}
+
 collect_tree_list() {
   echo "Using ROOT=$ROOT TOPDIR=$TOPDIR" >/dev/null
   find "$ROOT" -print \
