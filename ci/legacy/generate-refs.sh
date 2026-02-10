@@ -256,10 +256,6 @@ copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
 copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
 copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
 mkdir -p "$(dirname "$TARBALL")"
-pushd "docs/refs" >/dev/null
-subdir="${REF_DIR##docs/refs/}"
-list="/tmp/${TEMP_PREFIX}.files"
-find "$subdir" -print > "$list"
-tar -czf "${TARBALL##docs/refs/}" -T "$list" >/dev/null 2>&1 || true
-rm -f "$list"
+pushd "$REF_DIR" >/dev/null
+tar -czf "../${TEMP_PREFIX}.tar.gz" . >/dev/null 2>&1 || true
 popd >/dev/null
