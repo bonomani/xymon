@@ -99,6 +99,14 @@ copy_tree() {
   cp -a "$src/." "$REF_DIR_STAGE/$dst/"
 }
 
+copy_tree() {
+  local src="$1"
+  local dst="$2"
+  [ -d "$src" ] || return
+  mkdir -p "$REF_DIR_STAGE/$dst"
+  cp -a "$src/." "$REF_DIR_STAGE/$dst/"
+}
+
 sha256_of() {
   local file="$1"
   if command -v sha256sum >/dev/null 2>&1; then
@@ -157,20 +165,14 @@ for f in "${key_files[@]}"; do
 
 done
 
-keyfiles_archive="legacy.${OS_NAME}.${VARIANT}.keyfiles.tgz"
-keyfiles_root="/tmp/legacy-keyfiles-${OS_NAME}-${VARIANT}"
-rm -rf "${keyfiles_root}"
-mkdir -p "${keyfiles_root}"
 for f in "${key_files[@]}"; do
   local_p="${ROOT}${f#${TOPDIR}}"
   if [ -f "$local_p" ]; then
     rel="${f#/}"
-    mkdir -p "${keyfiles_root}/$(dirname "${rel}")"
-    cp -p "$local_p" "${keyfiles_root}/${rel}"
+    mkdir -p "$REF_DIR_STAGE/$(dirname "${rel}")"
+    cp -p "$local_p" "$REF_DIR_STAGE/${rel}"
   fi
 done
-
-tar -C /tmp -czf "/tmp/${keyfiles_archive}" "$(basename "${keyfiles_root}")"
 
 : > "/tmp/${SYMLINKS_NAME}"
 if [ -d "$ROOT" ]; then
