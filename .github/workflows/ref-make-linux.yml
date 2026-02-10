@@ -42,7 +42,7 @@ jobs:
             exit 1
           fi
           source /tmp/xymon-root-vars.sh
-          bash ci/legacy/generate-refs.sh \
+          bash ci/generate-refs.sh \
             --os "${REF_OS}" \
             --variant "${{ matrix.variant }}" \
             --root "${LEGACY_ROOT}" \
