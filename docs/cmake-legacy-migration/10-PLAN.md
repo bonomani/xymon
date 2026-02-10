@@ -52,7 +52,7 @@ D. Ownership and Groups
 - [x] Post-install hook restores `xymonping` to `4755 root` and logs before/after.
 
 E. Parity With Legacy `make install`
-- [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/legacy-ref`.
+- [x] Legacy reference captured with `sudo make install DESTDIR=/tmp/xymon-stage`.
 - [x] `docs/cmake-legacy-migration/refs/legacy.linux.server.ref` is up to date with legacy Makefiles.
 - [x] CMake legacy install uses `LEGACY_DESTDIR=/tmp/cmake-ref-root` (configured via `-DLEGACY_DESTDIR`).
 - [x] Path normalization produces comparable lists rooted at `/var/lib/xymon/...`.

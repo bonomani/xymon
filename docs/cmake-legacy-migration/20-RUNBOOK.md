@@ -55,7 +55,7 @@ Run on the target BSD host after legacy Makefile changes:
 
 FreeBSD:
 ```sh
-sudo DESTDIR=/tmp/legacy-ref make install
+sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
   | sort > docs/cmake-legacy-migration/refs/legacy.freebsd.ref
@@ -63,7 +63,7 @@ find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
 
 OpenBSD:
 ```sh
-sudo DESTDIR=/tmp/legacy-ref make install
+sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
   | sort > docs/cmake-legacy-migration/refs/legacy.openbsd.ref
@@ -71,7 +71,7 @@ find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
 
 NetBSD:
 ```sh
-sudo DESTDIR=/tmp/legacy-ref make install
+sudo DESTDIR=/tmp/xymon-stage make install
 find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
   | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
   | sort > docs/cmake-legacy-migration/refs/legacy.netbsd.ref
@@ -129,8 +129,8 @@ LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
 Legacy make install must also be staged under `/tmp`:
 
 ```sh
-sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref make install
-sudo DESTDIR=/tmp/legacy-ref INSTALLROOT=/tmp/legacy-ref \
+sudo DESTDIR=/tmp/xymon-stage INSTALLROOT=/tmp/xymon-stage make install
+sudo DESTDIR=/tmp/xymon-stage INSTALLROOT=/tmp/xymon-stage \
   MANROOT=/var/lib/xymon/server/man make install-man
 ```
 
@@ -151,7 +151,7 @@ a reference. It is only used for comparison against `legacy.linux.server.ref`.
 Cleanup:
 
 ```sh
-rm -rf /tmp/cmake-ref-root /tmp/legacy-ref /tmp/var/lib/xymon
+rm -rf /tmp/cmake-ref-root /tmp/xymon-stage /tmp/var/lib/xymon
 ```
 
 Validation Procedure

@@ -30,7 +30,7 @@ RUN SUMMARY - IMPORTANT POINTS
 - "chgrp nobody" fails because the "nobody" group does not exist (depends on distro).
 - "chown" fails in non-root mode (Operation not permitted).
 - "cmake --build ... -D..." is invalid: -D options are passed to "cmake -S/-B" (configure), not to "cmake --build" (build).
-- DESTDIR must be passed as an environment/Make variable (e.g., `DESTDIR=/tmp/legacy-ref make install` or `env DESTDIR=/tmp/legacy-ref make install`), not as a separate argument.
+- DESTDIR must be passed as an environment/Make variable (e.g., `DESTDIR=/tmp/xymon-stage make install` or `env DESTDIR=/tmp/xymon-stage make install`), not as a separate argument.
 
 2) Applied CMake fixes
 - Added a CMake switch: LEGACY_APPLY_OWNERSHIP (ON/OFF)
@@ -58,7 +58,7 @@ B) Root installation (with privileges)
   sudo cmake --build build-cmake --target install-legacy-files
 
 4) Parity diff (OK)
-- `sudo make install DESTDIR=/tmp/legacy-ref` (reference tree lives under `/tmp/var/lib/xymon`; collected with `find /tmp/var/lib/xymon … | sed 's|/tmp||' | sort > docs/cmake-legacy-migration/refs/legacy.linux.server.ref`)
+- `sudo make install DESTDIR=/tmp/xymon-stage` (reference tree lives under `/tmp/var/lib/xymon`; collected with `find /tmp/var/lib/xymon … | sed 's|/tmp||' | sort > docs/cmake-legacy-migration/refs/legacy.linux.server.ref`)
 - `cmake --build build-cmake --target install-legacy-dirs`/`install-legacy-files` with `LEGACY_DESTDIR=/tmp/cmake-ref-root` (staging under `/tmp/cmake-ref-root`; normalized tree via `find /tmp/cmake-ref-root/var/lib/xymon … | sed 's|/tmp/cmake-ref-root||' | sort > /tmp/cmake.list`)
 - The diff compares `docs/cmake-legacy-migration/refs/legacy.linux.server.ref` against the generated CMake list with identical path roots.
 - The CMake list was regenerated after the clean ON-mode install; rerunning the diff now only highlights the documented extra helper binaries and the optional staging log file.

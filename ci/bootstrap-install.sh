@@ -65,8 +65,8 @@ if [ "$OS_NAME" = "ubuntu" ]; then
   OS_NAME="linux"
 fi
 
-LEGACY_STAGING="/tmp/legacy-ref"
-LEGACY_DESTROOT="/tmp/legacy-ref/var/lib/xymon"
+LEGACY_STAGING="/tmp/xymon-stage"
+LEGACY_DESTROOT="/tmp/xymon-stage/var/lib/xymon"
 LEGACY_DESTROOT_FALLBACK="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
