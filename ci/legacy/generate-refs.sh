@@ -116,18 +116,7 @@ collect_tree_list() {
 }
 
 copy_config() {
-  echo "Inspecting ${ROOT}/include" >&2
-  if [ -d "$ROOT/include" ]; then
-    ls -ld "$ROOT/include" >&2
-    ls -l "$ROOT/include" >&2
-  else
-    echo "Directory ${ROOT}/include does not exist" >&2
-  fi
   if [ -f "$ROOT/include/config.h" ]; then
-    echo "Listing include dir: $ROOT/include" >&2
-    ls -l "$ROOT/include" >&2
-    echo "Contents of config.h:" >&2
-    cat "$ROOT/include/config.h" >&2
     cp "$ROOT/include/config.h" "$TMPDIR/${CONFIG_NAME}"
   else
     echo "No include/config.h under ${ROOT}; skipping copy" >&2
@@ -235,9 +224,7 @@ copy_artifacts() {
     "${CONFIG_NAME}:config.h"; do
     src="/tmp/${entry%%:*}"
     dst="${entry#*:}"
-    if [ -e "$src" ]; then
-      echo "Copying $src -> $dst" >&2
-    else
+    if [ ! -e "$src" ]; then
       echo "Skipping missing $src" >&2
     fi
     copy_to_refs "$src" "$dst"
