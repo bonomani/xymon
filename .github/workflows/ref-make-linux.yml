@@ -9,6 +9,7 @@ jobs:
     env:
       BUILD_TOOL: make
       REF_OS: linux
+      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -30,6 +31,7 @@ jobs:
           uname -a || true
           gcc --version || true
           ld --version || true
+          mkdir -p "${REF_STAGE_ROOT}"
           build_tool="${BUILD_TOOL}"
           bash ci/bootstrap-install.sh \
             --os "${REF_OS}" \
@@ -48,11 +50,12 @@ jobs:
             --variant "${{ matrix.variant }}" \
             --root "${LEGACY_ROOT}" \
             --topdir "${LEGACY_TOPDIR}" \
-            --build "${BUILD_TOOL}"
+            --build "${BUILD_TOOL}" \
+            --refs-root "${REF_STAGE_ROOT}"
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
           path: |
-            /tmp/xymon-refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
+            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
           if-no-files-found: error
