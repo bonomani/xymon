@@ -38,6 +38,8 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
+            export REF_STAGE_ROOT="${{ github.workspace }}/tmp/xymon-refs"
+            mkdir -p "$REF_STAGE_ROOT"
             build_tool="${{ env.BUILD_TOOL }}"
             bash ci/bootstrap-install.sh \
               --os "${{ env.REF_OS }}" \
@@ -54,7 +56,8 @@ jobs:
               --variant "${{ matrix.variant }}" \
               --root "${LEGACY_ROOT}" \
               --topdir "${LEGACY_TOPDIR}" \
-              --build "${{ env.BUILD_TOOL }}"
+              --build "${{ env.BUILD_TOOL }}" \
+              --refs-root "$REF_STAGE_ROOT"
           sync_files: true
           shutdown_vm: true
 
@@ -63,5 +66,5 @@ jobs:
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
           path: |
-            /tmp/xymon-refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
+            ${REF_STAGE_ROOT}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
           if-no-files-found: error

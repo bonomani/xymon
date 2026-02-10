@@ -8,10 +8,11 @@ VARIANT="server"
 REF_NAME="ref"
 KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
+REF_STAGE_ROOT=""
 
 usage() {
   cat <<'USAGE' >&2
-Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--ref-name NAME] [--keyfiles-name NAME]
+Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--ref-name NAME] [--keyfiles-name NAME] [--refs-root DIR]
 USAGE
   exit 1
 }
@@ -44,6 +45,10 @@ while [ $# -gt 0 ]; do
       ;;
     --build)
       BUILD_TOOL="${2:-}"
+      shift 2
+      ;;
+    --refs-root)
+      REF_STAGE_ROOT="${2:-}"
       shift 2
       ;;
     *)
