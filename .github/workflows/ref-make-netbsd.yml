@@ -49,6 +49,7 @@ jobs:
               --version "10.1"
             mkdir -p "${REF_STAGE_ROOT}"
             build_tool="${{ env.BUILD_TOOL }}"
+            REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
             bash ci/bootstrap-install.sh \
               --os "${{ env.REF_OS }}" \
               --version "10.1" \
