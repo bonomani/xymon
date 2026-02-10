@@ -290,6 +290,12 @@ install_staged() {
       IDTOOL="${IDTOOL:-id}" \
       PKGBUILD="${PKGBUILD:-}"
   fi
+
+  # Make sure the generated config.h travels with the staged tree
+  if [ -f include/config.h ]; then
+    mkdir -p "${LEGACY_STAGING}/include"
+    cp -p include/config.h "${LEGACY_STAGING}/include/config.h"
+  fi
 }
 
 detect_topdir() {
