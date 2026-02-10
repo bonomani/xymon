@@ -47,6 +47,7 @@ jobs:
             bash ci/deps/install-bsd-packages.sh \
               --os "${{ env.REF_OS }}" \
               --version "7.8"
+            REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
             mkdir -p "${REF_STAGE_ROOT}"
             build_tool="${{ env.BUILD_TOOL }}"
             bash ci/bootstrap-install.sh \
