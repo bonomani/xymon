@@ -293,8 +293,8 @@ install_staged() {
 
   # Make sure the generated config.h travels with the staged tree
   if [ -f include/config.h ]; then
-    mkdir -p "${LEGACY_STAGING}/include"
-    cp -p include/config.h "${LEGACY_STAGING}/include/config.h"
+    as_root mkdir -p "${LEGACY_STAGING}/include"
+    as_root cp -p include/config.h "${LEGACY_STAGING}/include/config.h"
   fi
 }
 
