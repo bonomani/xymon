@@ -87,10 +87,14 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f -delete
 
+          # Preserve relative artifact structure to avoid collisions across
+          # OS/variant artifacts that share file basenames.
           find "${artifacts_dir}" -type f -print0 \
             | while IFS= read -r -d '' f; do
-                base="$(basename "$f")"
-                install -m 0644 "$f" "${ref_dir}/${base}"
+                rel="${f#${artifacts_dir}/}"
+                dst="${ref_dir}/${rel}"
+                mkdir -p "$(dirname "${dst}")"
+                install -m 0644 "$f" "${dst}"
               done
 
           if [ -z "$(git status --porcelain)" ]; then
@@ -135,8 +139,10 @@ jobs:
 
           find "${artifacts_dir}" -type f -print0 \
             | while IFS= read -r -d '' f; do
-                base="$(basename "$f")"
-                install -m 0644 "$f" "${ref_dir}/${base}"
+                rel="${f#${artifacts_dir}/}"
+                dst="${ref_dir}/${rel}"
+                mkdir -p "$(dirname "${dst}")"
+                install -m 0644 "$f" "${dst}"
               done
 
           if [ -z "$(git status --porcelain)" ]; then
