@@ -116,6 +116,13 @@ collect_tree_list() {
 }
 
 copy_config() {
+  echo "Inspecting ${ROOT}/include" >&2
+  if [ -d "$ROOT/include" ]; then
+    ls -ld "$ROOT/include" >&2
+    ls -l "$ROOT/include" >&2
+  else
+    echo "Directory ${ROOT}/include does not exist" >&2
+  fi
   if [ -f "$ROOT/include/config.h" ]; then
     echo "Listing include dir: $ROOT/include" >&2
     ls -l "$ROOT/include" >&2
