@@ -9,6 +9,7 @@ jobs:
     env:
       BUILD_TOOL: make
       REF_OS: openbsd
+      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
@@ -38,8 +39,7 @@ jobs:
             uname -a || true
             gcc --version || true
             ld --version || true
-            export REF_STAGE_ROOT="${{ github.workspace }}/tmp/xymon-refs"
-            mkdir -p "$REF_STAGE_ROOT"
+            mkdir -p "${REF_STAGE_ROOT}"
             build_tool="${{ env.BUILD_TOOL }}"
             bash ci/bootstrap-install.sh \
               --os "${{ env.REF_OS }}" \
@@ -57,7 +57,7 @@ jobs:
               --root "${LEGACY_ROOT}" \
               --topdir "${LEGACY_TOPDIR}" \
               --build "${{ env.BUILD_TOOL }}" \
-              --refs-root "$REF_STAGE_ROOT"
+              --refs-root "${REF_STAGE_ROOT}"
           sync_files: true
           shutdown_vm: true
 
@@ -66,5 +66,5 @@ jobs:
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
           path: |
-            ${REF_STAGE_ROOT}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
+            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
           if-no-files-found: error
