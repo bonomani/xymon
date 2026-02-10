@@ -1,6 +1,4 @@
 |755|0|0|4096
-/include|755|0|0|4096
-/include/config.h|600|1001|1001|333
 /server|755|1002|1002|4096
 /server/web|755|1002|1002|4096
 /server/web/findhost_form|644|1002|1002|907

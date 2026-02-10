@@ -77,8 +77,6 @@
 /var/lib/xymon/data/hostdata
 /var/lib/xymon/data/logs
 /var/lib/xymon/data/rrd
-/var/lib/xymon/include
-/var/lib/xymon/include/config.h
 /var/lib/xymon/server
 /var/lib/xymon/server/bin
 /var/lib/xymon/server/bin/ackinfo.cgi

@@ -1,4 +1,4 @@
-|755|0|0|288
+|755|0|0|240
 /server|755|1001|100|432
 /server/download|755|1001|100|0
 /server/bin|755|1001|100|3216
@@ -466,5 +466,3 @@
 /client/local|755|1001|100|48
 /client/local/README|644|1001|100|625
 /client/runclient.sh|755|1001|100|4400
-/include|755|0|0|48
-/include/config.h|600|1000|100|330

@@ -29,8 +29,6 @@
 /var/lib/xymon/etc/localclient.cfg
 /var/lib/xymon/etc/xymonclient.cfg
 /var/lib/xymon/ext
-/var/lib/xymon/include
-/var/lib/xymon/include/config.h
 /var/lib/xymon/local
 /var/lib/xymon/local/README
 /var/lib/xymon/logs

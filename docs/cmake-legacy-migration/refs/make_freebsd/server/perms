@@ -466,5 +466,3 @@
 /client/local|755|1002|1002|512
 /client/local/README|644|1002|1002|625
 /client/runclient.sh|755|1002|1002|4400
-/include|755|0|0|512
-/include/config.h|600|1001|1001|330

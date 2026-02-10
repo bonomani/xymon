@@ -32,6 +32,4 @@
 /etc/localclient.cfg|644|1002|1002|21716
 /etc/clientlaunch.cfg|644|1002|1002|982
 /tmp|755|1002|1002|4096
-/include|755|0|0|4096
-/include/config.h|600|1001|1001|333
 /logs|755|1002|1002|4096
