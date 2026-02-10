@@ -245,18 +245,15 @@ jobs:
 
       - name: Validate config.h parity
         run: |
-          legacy_config=include/config.h
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/server/meta/config.h"
           cmake_config=$(find build-cmake -name config.h | head -n1)
           if [ -z "$cmake_config" ]; then
             echo "No CMake-generated config.h found under build-cmake"
             exit 1
           fi
           if [ ! -f "$legacy_config" ]; then
-            echo "Legacy config.h not found at $legacy_config; skipping parity check."
-            : > /tmp/legacy.config.extract
-            : > /tmp/cmake.config.extract
-            : > /tmp/config.diff
-            exit 0
+            echo "Baseline config.h not found at $legacy_config"
+            exit 1
           fi
 
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
