@@ -257,5 +257,8 @@ copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
 copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
 mkdir -p "$(dirname "$TARBALL")"
 pushd "docs/refs" >/dev/null
-tar -czf "${TARBALL##docs/refs/}" -C "${REF_DIR##docs/refs/}" . >/dev/null 2>&1 || true
+list="/tmp/${TEMP_PREFIX}.files"
+find "${REF_DIR##docs/refs/}" -print | sed 's|^\./||' > "$list"
+tar -czf "${TARBALL##docs/refs/}" -T "$list" >/dev/null 2>&1 || true
+rm -f "$list"
 popd >/dev/null
