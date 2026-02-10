@@ -328,14 +328,13 @@ echo "=== Record staged tree metadata ==="
 detect="$(detect_topdir)"
 topdir="${detect%%:*}"
 root="${detect#*:}"
-
-# Make sure the generated config.h travels with the detected staged root.
+config_h_path=""
 if [ -f include/config.h ]; then
-  as_root mkdir -p "${root}/include"
-  as_root cp -p include/config.h "${root}/include/config.h"
+  config_h_path="$(pwd)/include/config.h"
 fi
 
 cat <<EOF >/tmp/xymon-root-vars.sh
 export LEGACY_TOPDIR="${topdir}"
 export LEGACY_ROOT="${root}"
+export XYMON_CONFIG_H="${config_h_path}"
 EOF
