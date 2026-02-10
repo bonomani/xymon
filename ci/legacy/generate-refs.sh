@@ -99,6 +99,140 @@ copy_to_refs() {
   cp -p "$src" "$REF_DIR_STAGE/$dst"
 }
 
+error_steps=()
+
+run_step() {
+  local name="$1"
+  shift
+  echo "=== Step: $name ==="
+  if "$@"; then
+    echo "=== Step '$name' succeeded ==="
+  else
+    echo "=== Step '$name' FAILED ==="
+    error_steps+=("$name")
+  fi
+}
+
+collect_tree_list() {
+  echo "Using ROOT=$ROOT TOPDIR=$TOPDIR" >/dev/null
+  find "$ROOT" -print \
+    | sed "s|^$ROOT|$TOPDIR|" \
+    | sed "s|$TOPDIR/$|$TOPDIR|" \
+    | sort > "$TMPDIR/${REF_NAME}"
+}
+
+copy_config() {
+  if [ -f "$ROOT/include/config.h" ]; then
+    cp "$ROOT/include/config.h" "$TMPDIR/${CONFIG_NAME}"
+  else
+    : > "$TMPDIR/${CONFIG_NAME}"
+  fi
+}
+
+generate_keyfiles() {
+  : > "${TMPDIR}/${KEYFILES_NAME}"
+  unset missing
+  for f in "${key_files[@]}"; do
+    local local_p="${ROOT}${f#${TOPDIR}}"
+    if [ ! -f "$local_p" ]; then
+      echo "MISSING $f" >> "${TMPDIR}/${KEYFILES_NAME}"
+      missing=yes
+      continue
+    fi
+    printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
+  done
+  [ -z "$missing" ]
+}
+
+stage_keyfiles() {
+  for f in "${key_files[@]}"; do
+    local local_p="${ROOT}${f#${TOPDIR}}"
+    if [ -f "$local_p" ]; then
+      rel="${f#/}"
+      rel_dir=$(dirname "${rel}")
+      mkdir -p "$REF_DIR_STAGE/${rel_dir}"
+      echo "Staging $rel" # verbose
+      cp -p "$local_p" "$REF_DIR_STAGE/${rel}"
+    fi
+  done
+}
+
+dump_symlinks() {
+  : > "/tmp/${SYMLINKS_NAME}"
+  while IFS= read -r link; do
+    if ! target=$(readlink "$link" 2>/dev/null); then
+      continue
+    fi
+    printf '%s|%s\n' "${link#$ROOT}" "$target" >> "/tmp/${SYMLINKS_NAME}"
+  done < <(find "$ROOT" -type l)
+}
+
+dump_perms() {
+  : > "/tmp/${PERMS_NAME}"
+  case "$(uname -s)" in
+    Darwin|FreeBSD|OpenBSD|NetBSD)
+      find "$ROOT" -type f -o -type d \
+        | while IFS= read -r p; do
+            mode=$(stat -f '%Lp' "$p")
+            uid=$(stat -f '%u' "$p")
+            gid=$(stat -f '%g' "$p")
+            size=$(stat -f '%z' "$p")
+            printf '%s|%s|%s|%s|%s\n' "${p#$ROOT}" "$mode" "$uid" "$gid" "$size" >> "/tmp/${PERMS_NAME}"
+          done
+      ;;
+    *)
+      find "$ROOT" -type f -o -type d \
+        | while IFS= read -r p; do
+            stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#$ROOT}|" >> "/tmp/${PERMS_NAME}"
+          done
+      ;;
+  esac
+}
+
+dump_binlinks() {
+  : > "/tmp/${BINLINKS_NAME}"
+  bin_roots=()
+  [ -d "$ROOT/server/bin" ] && bin_roots+=("$ROOT/server/bin")
+  [ -d "$ROOT/bin" ] && bin_roots+=("$ROOT/bin")
+  [ "${#bin_roots[@]}" -eq 0 ] && return
+  while IFS= read -r bin; do
+    echo "=== ${bin#$ROOT} ===" >> "/tmp/${BINLINKS_NAME}"
+    case "$(uname -s)" in
+      Darwin)
+        otool -L "$bin" | sed '1d' | awk '{print $1}' >> "/tmp/${BINLINKS_NAME}" || true
+        ;;
+      OpenBSD|FreeBSD|NetBSD)
+        ldd "$bin" 2>/dev/null | awk '...'
+        ;;
+      *)
+        printf 'ldd: %s\n' "$bin"
+        ldd "$bin" 2>/dev/null \
+          | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' \
+          | awk '...' >> "/tmp/${BINLINKS_NAME}" || true
+        ;;
+    esac
+  done < <(find "${bin_roots[@]}" -type f -perm -111)
+}
+
+dump_embedded() {
+  : > "/tmp/${EMBED_NAME}"
+  [ "${#bin_roots[@]}" -gt 0 ] || return
+  while IFS= read -r bin; do
+    strings "$bin" | grep -E '/var/lib/xymon' >> "/tmp/${EMBED_NAME}" || true
+  done < <(find "${bin_roots[@]}" -type f -perm -111)
+  sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
+}
+
+copy_artifacts() {
+  copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
+  copy_to_refs "/tmp/${PERMS_NAME}" "perms"
+  copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
+  copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
+  copy_to_refs "/tmp/${REF_NAME}" "ref"
+  copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
+  copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
+}
+
 cleanup_temp_files() {
   local temp_files=(
     "/tmp/${REF_NAME}"
@@ -243,6 +377,7 @@ if [ "${#bin_roots[@]}" -gt 0 ]; then
         ;;
       *)
         if command -v ldd >/dev/null 2>&1; then
+          printf 'ldd: %s\n' "$bin"
           ldd "$bin" \
             | sed -E 's/ \(0x[0-9a-fA-F]+\)//g' \
             | awk '
