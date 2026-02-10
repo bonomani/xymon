@@ -66,6 +66,8 @@ if [ -z "$TOPDIR" ]; then
   TOPDIR="/"
 fi
 
+TMPDIR="${TMPDIR:-/tmp}"
+
 if [ ! -d "$ROOT" ]; then
   echo "Missing $ROOT" >&2
   exit 1
@@ -99,12 +101,19 @@ copy_tree() {
   cp -a "$src/." "$REF_DIR_STAGE/$dst/"
 }
 
-copy_tree() {
-  local src="$1"
-  local dst="$2"
-  [ -d "$src" ] || return
-  mkdir -p "$REF_DIR_STAGE/$dst"
-  cp -a "$src/." "$REF_DIR_STAGE/$dst/"
+cleanup_temp_files() {
+  local temp_files=(
+    "/tmp/${REF_NAME}"
+    "/tmp/${KEYFILES_NAME}"
+    "/tmp/${CONFIG_NAME}"
+    "/tmp/${SYMLINKS_NAME}"
+    "/tmp/${PERMS_NAME}"
+    "/tmp/${BINLINKS_NAME}"
+    "/tmp/${EMBED_NAME}"
+  )
+  for file in "${temp_files[@]}"; do
+    rm -f "$file"
+  done
 }
 
 sha256_of() {
@@ -154,14 +163,14 @@ case "$VARIANT" in
     ;;
 esac
 
-: > "/tmp/${KEYFILES_NAME}"
+: > "${TMPDIR}/${KEYFILES_NAME}"
 for f in "${key_files[@]}"; do
   local_p="${ROOT}${f#${TOPDIR}}"
   if [ ! -f "$local_p" ]; then
-    echo "MISSING $f" >> "/tmp/${KEYFILES_NAME}"
+    echo "MISSING $f" >> "${TMPDIR}/${KEYFILES_NAME}"
     continue
   fi
-  printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "/tmp/${KEYFILES_NAME}"
+  printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
 
 done
 
@@ -169,7 +178,8 @@ for f in "${key_files[@]}"; do
   local_p="${ROOT}${f#${TOPDIR}}"
   if [ -f "$local_p" ]; then
     rel="${f#/}"
-    mkdir -p "$REF_DIR_STAGE/$(dirname "${rel}")"
+    rel_dir=$(dirname "${rel}")
+    mkdir -p "$REF_DIR_STAGE/${rel_dir}"
     cp -p "$local_p" "$REF_DIR_STAGE/${rel}"
   fi
 done
@@ -263,9 +273,8 @@ copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
 copy_to_refs "/tmp/${REF_NAME}" "ref"
 copy_to_refs "/tmp/${KEYFILES_NAME}" "keyfiles.sha256"
 copy_to_refs "/tmp/${CONFIG_NAME}" "config.h"
-copy_to_refs "/tmp/${keyfiles_archive}" "${KEYFILES_ARCHIVE}"
+copy_tree "/tmp/xymon-keyfiles-${TEMP_PREFIX}" "keyfiles"
 
 mkdir -p "$(dirname "$TARBALL")"
-pushd "$REF_DIR" >/dev/null
-tar -czf "../${TEMP_PREFIX}.tar.gz" . >/dev/null 2>&1 || true
-popd >/dev/null
+tar -czf "$TARBALL" -C "$REF_DIR_STAGE" . >/dev/null 2>&1 || true
+cleanup_temp_files
