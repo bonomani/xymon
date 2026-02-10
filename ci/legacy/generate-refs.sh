@@ -169,6 +169,13 @@ copy_to_refs "/tmp/${SYMLINKS_NAME}" "symlinks"
 copy_to_refs "/tmp/${PERMS_NAME}" "perms"
 copy_to_refs "/tmp/${BINLINKS_NAME}" "binlinks"
 copy_to_refs "/tmp/${EMBED_NAME}" "embedded.paths"
+copy_to_refs "/tmp/${REF_NAME}" "${REF_NAME}"
+copy_to_refs "/tmp/${KEYFILES_NAME}" "${KEYFILES_NAME}"
+copy_to_refs "/tmp/${CONFIG_NAME}" "${CONFIG_NAME}"
+copy_to_refs "/tmp/${keyfiles_archive}" "${keyfiles_archive}"
+pushd "docs/refs" >/dev/null
+tar -czf "${TARBALL##docs/refs/}" "${REF_DIR##docs/refs/}" >/dev/null 2>&1 || true
+popd >/dev/null
 copy_to_refs "/tmp/${keyfiles_archive}" "keyfiles.tgz"
 
 : > "/tmp/${SYMLINKS_NAME}"
