@@ -485,7 +485,18 @@ fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 normalize_needed_tsv "$BASE_NEEDED_NORM" /tmp/baseline.needed.norm.canon
 normalize_needed_tsv /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.canon
-emit_sorted_diff /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "blocking"
+emit_sorted_diff /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "non-blocking"
+comm -23 /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon > /tmp/legacy.needed.norm.missing
+comm -13 /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon > /tmp/legacy.needed.norm.extra
+if [ -s /tmp/legacy.needed.norm.missing ]; then
+  echo "blocking: candidate missing baseline direct dependencies"
+  cat /tmp/legacy.needed.norm.missing
+  BLOCKING_FAILURE=1
+fi
+if [ -s /tmp/legacy.needed.norm.extra ]; then
+  echo "note: candidate introduces extra direct dependencies (bin/soname)"
+  head -n 20 /tmp/legacy.needed.norm.extra
+fi
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path" "" "blocking"
 
 : > /tmp/legacy.list
