@@ -5,7 +5,7 @@ on:
 
 jobs:
   validate_debian:
-    runs-on: ${{ matrix.runs_on }}
+    runs-on: ubuntu-22.04
     container: ${{ matrix.container }}
     continue-on-error: ${{ matrix.allow_failure }}
     strategy:
@@ -13,84 +13,34 @@ jobs:
       matrix:
         include:
           - name: debian-bullseye
-            runs_on: ubuntu-22.04
             container: debian:bullseye
-            pkg_mgr: apt
-            variant: server
             allow_failure: false
           - name: debian-bookworm
-            runs_on: ubuntu-22.04
             container: debian:bookworm
-            pkg_mgr: apt
-            variant: server
             allow_failure: false
           - name: debian-trixie
-            runs_on: ubuntu-22.04
             container: debian:trixie
-            pkg_mgr: apt
-            variant: server
             allow_failure: true
 
     name: ${{ matrix.name }}
     env:
-      CMAKE_BIN: ${{ matrix.cmake_bin }}
-      VARIANT: ${{ matrix.variant }}
-      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
-      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      VARIANT: server
+      ENABLE_LDAP: ON
+      ENABLE_SNMP: ON
       LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
       - name: Checkout
-        if: ${{ !matrix.container }}
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Checkout (container fallback)
-        if: ${{ matrix.container }}
         shell: sh
         env:
           GH_REPO: ${{ github.repository }}
           GH_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
-          PKG_MGR: ${{ matrix.pkg_mgr }}
         run: |
           set -eu
 
-          case "${PKG_MGR:-}" in
-            apt)
-              apt-get update
-              apt-get install -y --no-install-recommends bash git ca-certificates
-              ;;
-            dnf)
-              dnf -y install bash git ca-certificates tar
-              ;;
-            yum)
-              printf '%s\n' \
-                '[centos7-vault-base]' \
-                'name=CentOS 7 Vault Base' \
-                'baseurl=http://vault.centos.org/7.9.2009/os/x86_64/' \
-                'enabled=1' \
-                'gpgcheck=0' \
-                > /etc/yum.repos.d/centos7-vault.repo
-              yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
-              ;;
-            zypper)
-              zypper --non-interactive refresh
-              zypper --non-interactive install bash git tar ca-certificates
-              ;;
-            apk)
-              apk add --no-cache bash git ca-certificates tar
-              ;;
-            pacman)
-              pacman -Sy --noconfirm archlinux-keyring || true
-              pacman -S --noconfirm bash git ca-certificates tar
-              ;;
-            *)
-              echo "Unsupported or missing PKG_MGR='${PKG_MGR:-}' for container checkout fallback" >&2
-              exit 2
-              ;;
-          esac
+          apt-get update
+          apt-get install -y --no-install-recommends bash git ca-certificates
 
           git --version
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
@@ -139,7 +89,7 @@ jobs:
           set -euo pipefail
           bash ci/bootstrap-install.sh \
             --os linux \
-            --variant "${{ matrix.variant }}" \
+            --variant "${VARIANT}" \
             --build cmake
 
       - name: Load staged tree metadata
@@ -159,7 +109,7 @@ jobs:
 
       - name: Validate config.h parity
         run: |
-          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${VARIANT}/meta/config.h"
           cmake_config="${XYMON_CONFIG_H:-}"
           if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
             cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
@@ -193,14 +143,13 @@ jobs:
           fi
 
       - name: Generate CMake refs snapshot
-        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/xymon-refs
           bash ci/generate-refs.sh \
             --os linux \
-            --variant "${{ matrix.variant }}" \
+            --variant "${VARIANT}" \
             --build cmake \
             --root "${LEGACY_ROOT}" \
             --topdir "${LEGACY_TOPDIR}" \
@@ -208,17 +157,16 @@ jobs:
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (blocking policy checks)
-        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
           bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
-            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${VARIANT}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${VARIANT}" \
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
-        if: ${{ always() && !matrix.stop_after_configure }}
+        if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
           name: validate-debian-${{ matrix.name }}
