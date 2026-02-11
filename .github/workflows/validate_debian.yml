@@ -267,7 +267,7 @@ jobs:
         if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
         with:
-          name: validate-debian-${{ matrix.name }}
+          name: legacy-validate-${{ matrix.name }}
           path: |
             /tmp/legacy.config.extract
             /tmp/cmake.config.extract
