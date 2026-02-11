@@ -13,22 +13,22 @@ map:
         apt: [build-essential, cmake, ninja-build, git, findutils]
     rpm:
       rockylinux_9:
-        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils]
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
       almalinux_9:
-        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils]
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
       centos_7:
-        yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils]
+        yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
       fedora_40:
-        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils]
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
     suse:
       opensuse_leap_15_6:
-        zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils]
+        zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
     alpine:
       alpine_3:
-        apk: [bash, build-base, cmake, ninja, git, findutils]
+        apk: [bash, build-base, cmake, ninja, git, findutils, diffutils]
     arch:
       archlinux_latest:
-        pacman: [base-devel, cmake, ninja, git, findutils]
+        pacman: [base-devel, cmake, ninja, git, findutils, diffutils]
     macos:
       macos_latest:
         brew: [cmake, ninja]
