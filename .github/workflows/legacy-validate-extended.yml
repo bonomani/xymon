@@ -125,24 +125,24 @@ jobs:
           case "${PKG_MGR:-}" in
             apt)
               apt-get update
-              apt-get install -y --no-install-recommends git ca-certificates
+              apt-get install -y --no-install-recommends bash git ca-certificates
               ;;
             dnf)
-              dnf -y install git ca-certificates tar
+              dnf -y install bash git ca-certificates tar
               ;;
             yum)
-              yum -y install git ca-certificates tar
+              yum -y install bash git ca-certificates tar
               ;;
             zypper)
               zypper --non-interactive refresh
-              zypper --non-interactive install git tar ca-certificates
+              zypper --non-interactive install bash git tar ca-certificates
               ;;
             apk)
-              apk add --no-cache git ca-certificates tar
+              apk add --no-cache bash git ca-certificates tar
               ;;
             pacman)
               pacman -Sy --noconfirm archlinux-keyring || true
-              pacman -S --noconfirm git ca-certificates tar
+              pacman -S --noconfirm bash git ca-certificates tar
               ;;
             *)
               echo "Unsupported or missing PKG_MGR='${PKG_MGR:-}' for container checkout fallback" >&2
