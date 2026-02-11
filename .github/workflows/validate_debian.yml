@@ -7,23 +7,56 @@ jobs:
   validate_debian:
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
-    continue-on-error: false
+    continue-on-error: ${{ matrix.allow_failure }}
     strategy:
       fail-fast: false
       matrix:
         include:
+          - name: debian-bullseye (server)
+            runs_on: ubuntu-22.04
+            container: debian:bullseye
+            variant: server
+            allow_failure: false
+          - name: debian-bullseye (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:bullseye
+            variant: localclient
+            allow_failure: false
+          - name: debian-bullseye (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bullseye
+            variant: client
+            allow_failure: false
           - name: debian-bookworm (server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: server
+            allow_failure: false
           - name: debian-bookworm (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: localclient
+            allow_failure: false
           - name: debian-bookworm (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: client
+            allow_failure: false
+          - name: debian-trixie (server)
+            runs_on: ubuntu-22.04
+            container: debian:trixie
+            variant: server
+            allow_failure: true
+          - name: debian-trixie (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:trixie
+            variant: localclient
+            allow_failure: true
+          - name: debian-trixie (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:trixie
+            variant: client
+            allow_failure: true
 
     name: ${{ matrix.name }}
     env:
