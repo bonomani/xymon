@@ -20,6 +20,24 @@ jobs:
             dep_family: debian
             dep_os: debian
             dep_version: bookworm
+          - name: debian-bookworm (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            os: linux
+            pkg_mgr: apt
+            variant: localclient
+            dep_family: debian
+            dep_os: debian
+            dep_version: bookworm
+          - name: debian-bookworm (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            os: linux
+            pkg_mgr: apt
+            variant: client
+            dep_family: debian
+            dep_os: debian
+            dep_version: bookworm
 
     name: ${{ matrix.name }}
     env:
@@ -223,7 +241,7 @@ jobs:
             --config-h "${XYMON_CONFIG_H:-}" \
             --refs-root /tmp/xymon-refs
 
-      - name: Compare refs snapshot (non-blocking)
+      - name: Compare refs snapshot (blocking on direct deps)
         if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |

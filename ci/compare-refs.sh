@@ -5,6 +5,7 @@ BASELINE_PREFIX=""
 CANDIDATE_DIR=""
 CANDIDATE_ROOT=""
 DIFF_PREVIEW_LINES="${DIFF_PREVIEW_LINES:-120}"
+BLOCKING_FAILURE=0
 
 usage() {
   cat <<'USAGE' >&2
@@ -454,6 +455,10 @@ if [ -s /tmp/legacy.owners.diff ]; then
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_sorted_diff "$BASE_NEEDED_NORM" /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed"
+if [ -s /tmp/legacy.needed.norm.diff ]; then
+  BLOCKING_FAILURE=1
+  echo "blocking: Direct dependencies (normalized SONAME) mismatch"
+fi
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 
 : > /tmp/legacy.list
@@ -487,6 +492,11 @@ if [ -s "$BASE_REF" ] && [ -s "$CANDIDATE_REF" ]; then
   fi
 else
   echo "skip: baseline or candidate missing/empty"
+fi
+
+if [ "$BLOCKING_FAILURE" -ne 0 ]; then
+  echo "Reference comparison failed due to blocking differences." >&2
+  exit 1
 fi
 
 echo "Reference comparison completed."
