@@ -26,6 +26,7 @@ jobs:
       VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
       - name: Checkout
@@ -70,6 +71,75 @@ jobs:
           fi
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
+
+      - name: Seed baseline UID/GID identities (container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_inventory="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/inventory.tsv"
+          if [ ! -s "${legacy_inventory}" ]; then
+            echo "Identity seed skipped (missing ${legacy_inventory})"
+            exit 0
+          fi
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "Identity seed skipped (not running as root)"
+            exit 0
+          fi
+          if ! command -v getent >/dev/null 2>&1; then
+            echo "Identity seed skipped (getent unavailable)"
+            exit 0
+          fi
+
+          ensure_group() {
+            local gid="$1"
+            local gname
+            [ -n "$gid" ] || return 0
+            if getent group "$gid" >/dev/null 2>&1; then
+              return 0
+            fi
+            gname="xymonrefg${gid}"
+            if getent group "$gname" >/dev/null 2>&1; then
+              gname="${gname}_legacy"
+            fi
+            if command -v groupadd >/dev/null 2>&1; then
+              groupadd -g "$gid" "$gname" >/dev/null 2>&1 || true
+            elif command -v addgroup >/dev/null 2>&1; then
+              addgroup --gid "$gid" --system "$gname" >/dev/null 2>&1 || addgroup -g "$gid" "$gname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          ensure_user() {
+            local uid="$1" gid="$2"
+            local uname
+            [ -n "$uid" ] || return 0
+            [ -n "$gid" ] || return 0
+            if getent passwd "$uid" >/dev/null 2>&1; then
+              return 0
+            fi
+            ensure_group "$gid"
+            uname="xymonrefu${uid}"
+            if getent passwd "$uname" >/dev/null 2>&1; then
+              uname="${uname}_legacy"
+            fi
+            if command -v useradd >/dev/null 2>&1; then
+              useradd --uid "$uid" --gid "$gid" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$uname" >/dev/null 2>&1 || true
+            elif command -v adduser >/dev/null 2>&1; then
+              adduser --uid "$uid" --gid "$gid" --home /nonexistent --no-create-home --disabled-password --gecos "" "$uname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          awk -F '\t' '($3=="f" || $3=="d") {print $6}' "${legacy_inventory}" | sort -u > /tmp/legacy.ref.gids
+          awk -F '\t' '($3=="f" || $3=="d") && !seen[$5]++ {print $5 "|" $6}' "${legacy_inventory}" | sort -t '|' -k1,1n > /tmp/legacy.ref.uid_gid
+
+          while IFS= read -r gid; do
+            ensure_group "$gid"
+          done < /tmp/legacy.ref.gids
+
+          while IFS='|' read -r uid gid; do
+            ensure_user "$uid" "$gid"
+          done < /tmp/legacy.ref.uid_gid
+
+          echo "Seeded identity entries from ${legacy_inventory}"
 
       - name: Bootstrap install + metadata (CMake)
         shell: bash
@@ -182,6 +252,7 @@ jobs:
             /tmp/legacy.symlinks.diff
             /tmp/legacy.perms.diff
             /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
             /tmp/legacy.binlinks.diff
             /tmp/legacy.embedded.diff
             /tmp/install-cmake-legacy.log

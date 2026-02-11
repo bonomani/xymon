@@ -207,6 +207,47 @@ derive_views_from_inventory() {
     "$inventory" > "$out_owners"
 }
 
+is_container_runtime() {
+  if [ -f /.dockerenv ] || [ -f /run/.containerenv ]; then
+    return 0
+  fi
+  if [ -r /proc/1/cgroup ] && grep -qaE '(docker|containerd|kubepods|podman|lxc)' /proc/1/cgroup; then
+    return 0
+  fi
+  [ "${container:-}" = "docker" ] || [ "${container:-}" = "podman" ]
+}
+
+render_owner_names() {
+  local src="$1" dst="$2"
+  : > "$dst"
+  if [ ! -s "$src" ]; then
+    return 0
+  fi
+
+  if ! command -v getent >/dev/null 2>&1; then
+    cp -p "$src" "$dst"
+    return 0
+  fi
+
+  declare -A uid_cache=()
+  declare -A gid_cache=()
+  local path uid gid user_name group_name
+  while IFS='|' read -r path uid gid; do
+    if [ -z "${uid_cache[$uid]+x}" ]; then
+      user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
+      [ -n "$user_name" ] || user_name="$uid"
+      uid_cache[$uid]="$user_name"
+    fi
+    if [ -z "${gid_cache[$gid]+x}" ]; then
+      group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
+      [ -n "$group_name" ] || group_name="$gid"
+      gid_cache[$gid]="$group_name"
+    fi
+
+    printf '%s|%s|%s\n' "$path" "${uid_cache[$uid]}" "${gid_cache[$gid]}" >> "$dst"
+  done < "$src"
+}
+
 write_allowed_extras() {
   cat > /tmp/allowed-extras.list <<'EOF'
 /var/lib/xymon/cgi-bin/.stamp
@@ -371,6 +412,20 @@ emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfil
 emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink"
 emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms"
 emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
+if [ -s /tmp/legacy.owners.diff ]; then
+  if is_container_runtime; then
+    echo "note: container runtime detected; ownership uid/gid may differ from host refs unless ownership is applied."
+  fi
+  if command -v getent >/dev/null 2>&1; then
+    BASE_OWNERS_DISPLAY="/tmp/baseline.owners.display"
+    CANDIDATE_OWNERS_DISPLAY="/tmp/legacy.owners.display"
+    render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY"
+    render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY"
+    emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
+  else
+    echo "note: getent not available; skipping ownership user/group fallback."
+  fi
+fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 

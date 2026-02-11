@@ -349,9 +349,11 @@ configure_build_make() {
 
 configure_build_cmake() {
   local cmake_enable_ldap
+  local cmake_apply_ownership
   local extra_args=()
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
+  cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
   if [ -n "${XYMONHOSTNAME:-}" ]; then
     extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
   fi
@@ -361,7 +363,7 @@ configure_build_cmake() {
     -G Ninja \
     -DUSE_GNUINSTALLDIRS=OFF \
     -DCMAKE_INSTALL_PREFIX=/ \
-    -DLEGACY_APPLY_OWNERSHIP=OFF \
+    -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}" \
     -DLEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
     -DXYMON_VARIANT="${CMAKE_VARIANT}" \
     -DLOCALCLIENT="${CMAKE_LOCALCLIENT}" \
