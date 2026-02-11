@@ -225,9 +225,9 @@ ensure_user() {
   fi
 
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+    as_root pw useradd -n xymon -m -g xymon -s /bin/sh 2>/dev/null || true
   elif command -v useradd >/dev/null 2>&1; then
-    as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+    as_root useradd -m -g xymon -s /bin/sh xymon 2>/dev/null || true
   elif command -v adduser >/dev/null 2>&1; then
     # Alpine/busybox path
     as_root adduser -S -D -s /bin/sh -G xymon xymon 2>/dev/null \
@@ -241,6 +241,7 @@ ensure_user() {
 
 ensure_user_group() {
   ensure_group "$1"
+  ensure_group "xymon"
   ensure_user
 }
 
