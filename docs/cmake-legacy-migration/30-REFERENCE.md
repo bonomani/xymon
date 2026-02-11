@@ -191,8 +191,8 @@ Note on DESTDIR:
 
 - Update this document only if `build/Makefile.rules` changes.
 - Record updates in `STATUS-HISTORY.md` and refresh `40-STATUS.md`.
-- The canonical legacy reference list used by CI is
-  `docs/cmake-legacy-migration/refs/make_linux/server/ref`.
+- The canonical legacy reference inventory used by CI is
+  `docs/cmake-legacy-migration/refs/make_linux/server/inventory.tsv`.
 
 ------------------------------------------------------------
 

@@ -40,9 +40,9 @@ The Makefiles are the contract, not the live filesystem or assumptions.
 
 Reference List Policy
 ---------------------
-`docs/cmake-legacy-migration/refs/make_linux/server/ref` is the Linux server reference snapshot.
+`docs/cmake-legacy-migration/refs/make_linux/server/inventory.tsv` is the Linux server reference snapshot.
 BSD validation uses server references under the same naming pattern:
-- `docs/cmake-legacy-migration/refs/make_<bsd>/server/ref` (BSD variants).
+- `docs/cmake-legacy-migration/refs/make_<bsd>/server/inventory.tsv` (BSD variants).
 
 
 
@@ -56,25 +56,43 @@ Run on the target BSD host after legacy Makefile changes:
 FreeBSD:
 ```sh
 sudo DESTDIR=/tmp/xymon-stage make install
-find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/make_freebsd/server/ref
+bash ci/generate-refs.sh \
+  --os freebsd \
+  --variant server \
+  --build make \
+  --root /tmp/var/lib/xymon \
+  --topdir /var/lib/xymon \
+  --refs-root /tmp/xymon-refs
+cp /tmp/xymon-refs/make.freebsd.server/inventory.tsv \
+  docs/cmake-legacy-migration/refs/make_freebsd/server/inventory.tsv
 ```
 
 OpenBSD:
 ```sh
 sudo DESTDIR=/tmp/xymon-stage make install
-find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/make_openbsd/server/ref
+bash ci/generate-refs.sh \
+  --os openbsd \
+  --variant server \
+  --build make \
+  --root /tmp/var/lib/xymon \
+  --topdir /var/lib/xymon \
+  --refs-root /tmp/xymon-refs
+cp /tmp/xymon-refs/make.openbsd.server/inventory.tsv \
+  docs/cmake-legacy-migration/refs/make_openbsd/server/inventory.tsv
 ```
 
 NetBSD:
 ```sh
 sudo DESTDIR=/tmp/xymon-stage make install
-find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/make_netbsd/server/ref
+bash ci/generate-refs.sh \
+  --os netbsd \
+  --variant server \
+  --build make \
+  --root /tmp/var/lib/xymon \
+  --topdir /var/lib/xymon \
+  --refs-root /tmp/xymon-refs
+cp /tmp/xymon-refs/make.netbsd.server/inventory.tsv \
+  docs/cmake-legacy-migration/refs/make_netbsd/server/inventory.tsv
 ```
 
 After updating any BSD reference file, record the change in `STATUS-HISTORY.md`.
@@ -137,16 +155,22 @@ sudo DESTDIR=/tmp/xymon-stage INSTALLROOT=/tmp/xymon-stage \
 Note: legacy makefiles currently land under `/tmp/var/lib/xymon` even when
 DESTDIR is set, so use that path for the legacy reference list.
 
-To generate the reference list:
+To generate the reference inventory:
 
 ```sh
-find /tmp/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
-  | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
-  | sort > docs/cmake-legacy-migration/refs/make_linux/server/ref
+bash ci/generate-refs.sh \
+  --os linux \
+  --variant server \
+  --build make \
+  --root /tmp/var/lib/xymon \
+  --topdir /var/lib/xymon \
+  --refs-root /tmp/xymon-refs
+cp /tmp/xymon-refs/make.linux.server/inventory.tsv \
+  docs/cmake-legacy-migration/refs/make_linux/server/inventory.tsv
 ```
 
 Note: the CMake list is generated per run (e.g., `/tmp/cmake.list`) and is not
-a reference. It is only used for comparison against `refs/make_linux/server/ref`.
+a reference. It is only used for comparison against `refs/make_linux/server/inventory.tsv`.
 
 Cleanup:
 

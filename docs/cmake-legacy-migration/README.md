@@ -14,7 +14,6 @@ Naming Scheme
 - 30-REFERENCE.md: canonical reference install contract
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
-- refs/make_<os>/<variant>/ref: versioned reference list used by CI
 - refs/make_<os>/<variant>/inventory.tsv: canonical inventory used to derive ref/perms/symlinks
 - refs/make_<os>/<variant>/keyfiles.sha256: corresponding keyfile checksums
 - refs/make_<os>/<variant>/meta/config.h: captured legacy config header
@@ -36,15 +35,15 @@ Guidelines
 - `.github/workflows/ref-sync.yml` collects artifacts and writes them to `origin/ci/update-legacy-references`.
 - Manually merge `origin/ci/update-legacy-references` into your code branch after reviewing the changes.
 
-Generating `refs/make_linux/server/ref`
+Generating `refs/make_linux/server/inventory.tsv`
 -----------------------
 Use this only when legacy Makefiles change.
 Follow the exact commands in `20-RUNBOOK.md`.
 
 BSD references follow the same procedure, replacing the output path:
-- `refs/make_freebsd/server/ref`
-- `refs/make_openbsd/server/ref`
-- `refs/make_netbsd/server/ref`
+- `refs/make_freebsd/server/inventory.tsv`
+- `refs/make_openbsd/server/inventory.tsv`
+- `refs/make_netbsd/server/inventory.tsv`
 
 CI workflows
 ------------

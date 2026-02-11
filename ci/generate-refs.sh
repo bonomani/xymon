@@ -5,7 +5,6 @@ ROOT=""
 TOPDIR="/var/lib/xymon"
 OS_NAME=""
 VARIANT="server"
-REF_NAME="ref"
 KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
 REF_STAGE_ROOT=""
@@ -14,7 +13,7 @@ INVENTORY_NAME="inventory.tsv"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--ref-name NAME] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
+Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
 USAGE
   exit 1
 }
@@ -35,10 +34,6 @@ while [ $# -gt 0 ]; do
       ;;
     --variant)
       VARIANT="${2:-}"
-      shift 2
-      ;;
-    --ref-name)
-      REF_NAME="${2:-}"
       shift 2
       ;;
     --keyfiles-name)
@@ -76,8 +71,6 @@ TMPDIR="${TMPDIR%/}"
 [ -d "$ROOT" ] || { echo "Missing $ROOT" >&2; exit 1; }
 
 TEMP_PREFIX="${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
-SYMLINKS_NAME="symlinks"
-PERMS_NAME="perms"
 BINLINKS_NAME="binlinks"
 EMBED_NAME="embedded.paths"
 CONFIG_NAME="config.h"
@@ -172,11 +165,6 @@ build_inventory() {
   LC_ALL=C sort "${TMPDIR}/${INVENTORY_NAME}" -o "${TMPDIR}/${INVENTORY_NAME}"
 }
 
-collect_tree_list() {
-  echo "Building file list from ${TMPDIR}/${INVENTORY_NAME}" >&2
-  awk -F $'\t' '{print $1}' "${TMPDIR}/${INVENTORY_NAME}" > "$TMPDIR/${REF_NAME}"
-}
-
 copy_config() {
   if [ -n "${CONFIG_H_PATH}" ] && [ -f "${CONFIG_H_PATH}" ]; then
     echo "Copying config metadata from ${CONFIG_H_PATH}" >&2
@@ -216,20 +204,6 @@ stage_keyfiles() {
   done
 }
 
-dump_symlinks() {
-  : > "/tmp/${SYMLINKS_NAME}"
-  awk -F $'\t' '$3 == "l" { printf "%s|%s\n", $2, $8 }' "${TMPDIR}/${INVENTORY_NAME}" \
-    >> "/tmp/${SYMLINKS_NAME}"
-  LC_ALL=C sort "/tmp/${SYMLINKS_NAME}" -o "/tmp/${SYMLINKS_NAME}"
-}
-
-dump_perms() {
-  : > "/tmp/${PERMS_NAME}"
-  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s|%s|%s\n", $2, $4, $5, $6, $7 }' \
-    "${TMPDIR}/${INVENTORY_NAME}" >> "/tmp/${PERMS_NAME}"
-  LC_ALL=C sort "/tmp/${PERMS_NAME}" -o "/tmp/${PERMS_NAME}"
-}
-
 dump_binlinks() {
   : > "/tmp/${BINLINKS_NAME}"
   collect_bin_roots || return 0
@@ -263,11 +237,8 @@ dump_embedded() {
 copy_artifacts() {
   for entry in \
     "${INVENTORY_NAME}:inventory.tsv" \
-    "${SYMLINKS_NAME}:symlinks" \
-    "${PERMS_NAME}:perms" \
     "${BINLINKS_NAME}:binlinks" \
     "${EMBED_NAME}:embedded.paths" \
-    "${REF_NAME}:ref" \
     "${KEYFILES_NAME}:keyfiles.sha256" \
     "${CONFIG_NAME}:meta/config.h" \
     "${CONFIG_DEFINES_NAME}:meta/config.defines"; do
@@ -283,12 +254,9 @@ copy_artifacts() {
 cleanup_temp_files() {
   local temp_files=(
     "/tmp/${INVENTORY_NAME}"
-    "/tmp/${REF_NAME}"
     "/tmp/${KEYFILES_NAME}"
     "/tmp/${CONFIG_NAME}"
     "/tmp/${CONFIG_DEFINES_NAME}"
-    "/tmp/${SYMLINKS_NAME}"
-    "/tmp/${PERMS_NAME}"
     "/tmp/${BINLINKS_NAME}"
     "/tmp/${EMBED_NAME}"
   )
@@ -339,13 +307,10 @@ sha256_of() {
 key_files=()
 
 run_step "Build inventory" build_inventory
-run_step "Collect tree list" collect_tree_list
 run_step "Copy config" copy_config
 run_step "Discover key files" discover_key_files
 run_step "Generate keyfile list" generate_keyfiles_list
 run_step "Stage keyfiles" stage_keyfiles
-run_step "Dump symlinks" dump_symlinks
-run_step "Dump perms" dump_perms
 run_step "Dump binlinks" dump_binlinks
 run_step "Dump embedded paths" dump_embedded
 run_step "Copy artifacts" copy_artifacts

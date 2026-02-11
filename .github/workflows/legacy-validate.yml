@@ -264,17 +264,17 @@ jobs:
               name: freebsd
               architecture: x86-64
               version: "15.0"
-            legacy_ref: docs/cmake-legacy-migration/refs/make_freebsd/server/ref
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/server/inventory.tsv
           - os:
               name: openbsd
               architecture: x86-64
               version: "7.8"
-            legacy_ref: docs/cmake-legacy-migration/refs/make_openbsd/server/ref
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_openbsd/server/inventory.tsv
           - os:
               name: netbsd
               architecture: x86-64
               version: "10.1"
-            legacy_ref: docs/cmake-legacy-migration/refs/make_netbsd/server/ref
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_netbsd/server/inventory.tsv
     steps:
       - uses: actions/checkout@v4
       - name: Legacy validate (BSD) ${{ matrix.os.name }}
@@ -333,13 +333,14 @@ jobs:
               echo "=== Diff against legacy reference (skipped on ${{ matrix.os.name }}) ==="
             else
               echo "=== Diff against legacy reference ==="
-              legacy_ref="${{ matrix.legacy_ref }}"
-              if [ ! -s "${legacy_ref}" ]; then
-                echo "Missing or empty ${legacy_ref}. Generate it on ${{ matrix.os.name }} and commit it."
+              legacy_inventory="${{ matrix.legacy_inventory }}"
+              if [ ! -s "${legacy_inventory}" ]; then
+                echo "Missing or empty ${legacy_inventory}. Generate it on ${{ matrix.os.name }} and commit it."
                 exit 1
               fi
 
-              grep -v '^[[:space:]]*#' "${legacy_ref}" | grep -v '^[[:space:]]*$' \
+              awk -F '\t' '{print $1}' "${legacy_inventory}" \
+                | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' \
                 | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
               if [ ! -s /tmp/legacy.list ]; then
                 echo "Legacy reference contains no paths."

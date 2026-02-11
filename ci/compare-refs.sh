@@ -139,12 +139,9 @@ emit_diff() {
 }
 
 # Candidate snapshots exported from ci/generate-refs.sh output folder.
-copy_if_present "${CANDIDATE_DIR}/symlinks" /tmp/legacy.symlinks.list
-copy_if_present "${CANDIDATE_DIR}/perms" /tmp/legacy.perms.snapshot
 copy_if_present "${CANDIDATE_DIR}/binlinks" /tmp/legacy.bin.links
 copy_if_present "${CANDIDATE_DIR}/embedded.paths" /tmp/legacy.embedded.paths
 copy_if_present "${CANDIDATE_DIR}/keyfiles.sha256" /tmp/legacy.keyfiles.sha256
-copy_if_present "${CANDIDATE_DIR}/ref" /tmp/cmake.list
 copy_if_present "${CANDIDATE_DIR}/inventory.tsv" /tmp/legacy.inventory.tsv
 
 # Baseline files.
@@ -152,27 +149,25 @@ BASE_INVENTORY="$(resolve_baseline_file inventory.tsv)"
 BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
 BASE_BINLINKS="$(resolve_baseline_file binlinks)"
 BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
-BASE_REF_LEGACY="$(resolve_baseline_file ref)"
-BASE_SYMLINKS_LEGACY="$(resolve_baseline_file symlinks)"
-BASE_PERMS_LEGACY="$(resolve_baseline_file perms)"
+
+if [ ! -s "${BASE_INVENTORY}" ]; then
+  echo "Missing or empty baseline inventory: ${BASE_INVENTORY}" >&2
+  exit 1
+fi
+if [ ! -s /tmp/legacy.inventory.tsv ]; then
+  echo "Missing or empty candidate inventory: /tmp/legacy.inventory.tsv" >&2
+  exit 1
+fi
 
 BASE_REF="/tmp/baseline.ref"
 BASE_SYMLINKS="/tmp/baseline.symlinks"
 BASE_PERMS="/tmp/baseline.perms"
-if [ -s "${BASE_INVENTORY}" ]; then
-  derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}"
-else
-  copy_if_present "${BASE_REF_LEGACY}" "${BASE_REF}"
-  copy_if_present "${BASE_SYMLINKS_LEGACY}" "${BASE_SYMLINKS}"
-  copy_if_present "${BASE_PERMS_LEGACY}" "${BASE_PERMS}"
-fi
+derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}"
 
 CANDIDATE_REF="/tmp/cmake.list"
 CANDIDATE_SYMLINKS="/tmp/legacy.symlinks.list"
 CANDIDATE_PERMS="/tmp/legacy.perms.snapshot"
-if [ -s /tmp/legacy.inventory.tsv ]; then
-  derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}"
-fi
+derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}"
 
 : > /tmp/legacy.keyfiles.missing
 if [ -s /tmp/legacy.keyfiles.sha256 ]; then

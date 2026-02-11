@@ -40,6 +40,5 @@ Contents
 - 30-REFERENCE.md: canonical reference install layout and constraints
 - 40-STATUS.md: condensed progress and current status
 - STATUS-HISTORY.md: detailed run notes and historical context
-- refs/${BUILD_TOOL}.${OS}.${VARIANT}/ref: versioned reference list used by CI (per host variant)
 - refs/${BUILD_TOOL}.${OS}.${VARIANT}/inventory.tsv: canonical inventory used to derive ref/perms/symlinks
 - refs/${BUILD_TOOL}.${OS}.${VARIANT}/keyfiles.sha256: corresponding keyfile checksums
