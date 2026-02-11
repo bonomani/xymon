@@ -353,6 +353,21 @@ emit_diff() {
   fi
 }
 
+filter_keyfiles_dynamic() {
+  local src="$1" dst="$2"
+  : > "$dst"
+  while IFS= read -r line; do
+    [ -n "$line" ] || continue
+    path="${line##*  }"
+    case "$path" in
+      /var/lib/xymon/server/etc/xymonserver.cfg|/var/lib/xymon/client/etc/xymonclient.cfg)
+        continue
+        ;;
+    esac
+    printf '%s\n' "$line" >> "$dst"
+  done < "$src"
+}
+
 normalize_needed_tsv() {
   local src="$1" dst="$2"
   : > "$dst"
@@ -468,7 +483,9 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
 fi
 
 emit_sorted_diff "$BASE_INVENTORY_SHAPE" /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory" "blocking"
-emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles" "blocking"
+filter_keyfiles_dynamic "$BASE_KEYFILES" /tmp/baseline.keyfiles.filtered
+filter_keyfiles_dynamic /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.filtered
+emit_sorted_diff /tmp/baseline.keyfiles.filtered /tmp/legacy.keyfiles.filtered /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles" "blocking"
 emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink" "blocking"
 emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms" "blocking"
 emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
