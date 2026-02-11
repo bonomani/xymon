@@ -76,11 +76,10 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          legacy_inventory="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/inventory.tsv"
           legacy_idmap="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.idmap.tsv"
-          if [ ! -s "${legacy_inventory}" ]; then
-            echo "Identity seed skipped (missing ${legacy_inventory})"
-            exit 0
+          if [ ! -s "${legacy_idmap}" ]; then
+            echo "Identity seed failed: missing ${legacy_idmap}" >&2
+            exit 1
           fi
           if [ "$(id -u)" -ne 0 ]; then
             echo "Identity seed skipped (not running as root)"
@@ -131,27 +130,13 @@ jobs:
             fi
           }
 
-          if [ -s "${legacy_idmap}" ]; then
-            while IFS=$'\t' read -r uid user_name gid group_name; do
-              [ -n "$uid" ] || continue
-              [ -n "$gid" ] || continue
-              ensure_group "$gid" "$group_name"
-              ensure_user "$uid" "$gid" "$user_name"
-            done < "${legacy_idmap}"
-            echo "Seeded identity entries from ${legacy_idmap}"
-          else
-            awk -F '\t' '($3=="f" || $3=="d") {print $6}' "${legacy_inventory}" | sort -u > /tmp/legacy.ref.gids
-            awk -F '\t' '($3=="f" || $3=="d") && !seen[$5]++ {print $5 "|" $6}' "${legacy_inventory}" | sort -t '|' -k1,1n > /tmp/legacy.ref.uid_gid
-
-            while IFS= read -r gid; do
-              ensure_group "$gid"
-            done < /tmp/legacy.ref.gids
-
-            while IFS='|' read -r uid gid; do
-              ensure_user "$uid" "$gid"
-            done < /tmp/legacy.ref.uid_gid
-            echo "Seeded identity entries from ${legacy_inventory}"
-          fi
+          while IFS=$'\t' read -r uid user_name gid group_name; do
+            [ -n "$uid" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_group "$gid" "$group_name"
+            ensure_user "$uid" "$gid" "$user_name"
+          done < "${legacy_idmap}"
+          echo "Seeded identity entries from ${legacy_idmap}"
 
       - name: Bootstrap install + metadata (CMake)
         shell: bash

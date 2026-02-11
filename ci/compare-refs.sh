@@ -218,7 +218,7 @@ is_container_runtime() {
 }
 
 render_owner_names() {
-  local src="$1" dst="$2" idmap="${3:-}"
+  local src="$1" dst="$2" idmap="$3"
   : > "$dst"
   if [ ! -s "$src" ]; then
     return 0
@@ -226,16 +226,14 @@ render_owner_names() {
 
   declare -A map_uid=()
   declare -A map_gid=()
-  if [ -n "$idmap" ] && [ -s "$idmap" ]; then
-    while IFS=$'\t' read -r map_u map_un map_g map_gn; do
-      [ -n "$map_u" ] || continue
-      [ -n "$map_g" ] || continue
-      [ -n "$map_un" ] || map_un="$map_u"
-      [ -n "$map_gn" ] || map_gn="$map_g"
-      map_uid[$map_u]="$map_un"
-      map_gid[$map_g]="$map_gn"
-    done < "$idmap"
-  fi
+  while IFS=$'\t' read -r map_u map_un map_g map_gn; do
+    [ -n "$map_u" ] || continue
+    [ -n "$map_g" ] || continue
+    [ -n "$map_un" ] || map_un="$map_u"
+    [ -n "$map_gn" ] || map_gn="$map_g"
+    map_uid[$map_u]="$map_un"
+    map_gid[$map_g]="$map_gn"
+  done < "$idmap"
 
   local has_getent=0
   if command -v getent >/dev/null 2>&1; then
@@ -359,6 +357,10 @@ BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
 
 if [ ! -s "${BASE_INVENTORY}" ]; then
   echo "Missing or empty baseline inventory: ${BASE_INVENTORY}" >&2
+  exit 1
+fi
+if [ ! -s "${BASE_OWNER_IDMAP}" ]; then
+  echo "Missing or empty baseline owner idmap: ${BASE_OWNER_IDMAP}" >&2
   exit 1
 fi
 if [ ! -s /tmp/legacy.inventory.tsv ]; then
