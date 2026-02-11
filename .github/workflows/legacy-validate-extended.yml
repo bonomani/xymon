@@ -99,13 +99,13 @@ jobs:
               dnf -y install bash git ca-certificates tar
               ;;
             yum)
-              cat <<'EOF' >/etc/yum.repos.d/centos7-vault.repo
-[centos7-vault-base]
-name=CentOS 7 Vault Base
-baseurl=http://vault.centos.org/7.9.2009/os/x86_64/
-enabled=1
-gpgcheck=0
-EOF
+              printf '%s\n' \
+                '[centos7-vault-base]' \
+                'name=CentOS 7 Vault Base' \
+                'baseurl=http://vault.centos.org/7.9.2009/os/x86_64/' \
+                'enabled=1' \
+                'gpgcheck=0' \
+                > /etc/yum.repos.d/centos7-vault.repo
               yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
               ;;
             zypper)
