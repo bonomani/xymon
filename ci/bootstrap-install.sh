@@ -434,7 +434,9 @@ install_staged_make() {
 }
 
 install_staged_cmake() {
-  "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target web_cgi_links docs
+  if [ "${VARIANT}" = "server" ]; then
+    "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target web_cgi_links docs
+  fi
   LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
     "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 }
