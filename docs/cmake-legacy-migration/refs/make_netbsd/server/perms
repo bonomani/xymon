@@ -132,7 +132,7 @@
 /server/bin/xymonfetch|755|1001|100|547432
 /server/bin/xymongen|755|1001|100|1202600
 /server/bin/xymongrep|755|1001|100|518264
-/server/bin/xymonlaunch|755|1001|100|314808
+/server/bin/xymonlaunch|755|1001|100|314776
 /server/bin/xymonnet|755|1001|100|978072
 /server/bin/xymonpage|755|1001|100|598272
 /server/bin/xymonping|755|0|100|281288
