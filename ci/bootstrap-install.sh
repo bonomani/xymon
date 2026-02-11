@@ -202,18 +202,40 @@ select_build_adapter() {
 }
 
 ensure_group() {
+  local group_name="$1"
+  if getent group "${group_name}" >/dev/null 2>&1 || grep -q "^${group_name}:" /etc/group 2>/dev/null; then
+    return
+  fi
+
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw groupadd "$1" 2>/dev/null || true
+    as_root pw groupadd "${group_name}" 2>/dev/null || true
+  elif command -v groupadd >/dev/null 2>&1; then
+    as_root groupadd "${group_name}" 2>/dev/null || true
+  elif command -v addgroup >/dev/null 2>&1; then
+    # Alpine/busybox path
+    as_root addgroup -S "${group_name}" 2>/dev/null || as_root addgroup "${group_name}" 2>/dev/null || true
   else
-    as_root groupadd "$1" 2>/dev/null || true
+    true
   fi
 }
 
 ensure_user() {
+  if id -u xymon >/dev/null 2>&1; then
+    return
+  fi
+
   if [ "${OS_NAME}" = "freebsd" ]; then
     as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
-  else
+  elif command -v useradd >/dev/null 2>&1; then
     as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+  elif command -v adduser >/dev/null 2>&1; then
+    # Alpine/busybox path
+    as_root adduser -S -D -s /bin/sh -G xymon xymon 2>/dev/null \
+      || as_root adduser -D -s /bin/sh -G xymon xymon 2>/dev/null \
+      || as_root adduser -D -s /bin/sh xymon 2>/dev/null \
+      || true
+  else
+    true
   fi
 }
 
