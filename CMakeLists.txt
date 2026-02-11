@@ -421,7 +421,10 @@ if(LEGACY_APPLY_OWNERSHIP)
         TARGET install-legacy-files POST_BUILD
         COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
                 "${LEGACY_DESTDIR}${XYMONHOME}"
+                "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
                 "${LEGACY_DESTDIR}${XYMONVAR}"
+                "${LEGACY_DESTDIR}${CGIDIR}"
+                "${LEGACY_DESTDIR}${SECURECGIDIR}"
     )
 endif()
 
