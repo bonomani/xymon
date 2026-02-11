@@ -15,69 +15,128 @@ jobs:
           - name: debian-bullseye (server)
             runs_on: ubuntu-22.04
             container: debian:bullseye
+            pkg_mgr: apt
             variant: server
+            ref_variant: server
             allow_failure: false
           - name: debian-bullseye (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bullseye
+            pkg_mgr: apt
             variant: localclient
+            ref_variant: client
             allow_failure: false
           - name: debian-bullseye (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bullseye
+            pkg_mgr: apt
             variant: client
+            ref_variant: client
             allow_failure: false
           - name: debian-bookworm (server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
+            pkg_mgr: apt
             variant: server
+            ref_variant: server
             allow_failure: false
           - name: debian-bookworm (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bookworm
+            pkg_mgr: apt
             variant: localclient
+            ref_variant: client
             allow_failure: false
           - name: debian-bookworm (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
+            pkg_mgr: apt
             variant: client
+            ref_variant: client
             allow_failure: false
           - name: debian-trixie (server)
             runs_on: ubuntu-22.04
             container: debian:trixie
+            pkg_mgr: apt
             variant: server
+            ref_variant: server
             allow_failure: true
           - name: debian-trixie (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:trixie
+            pkg_mgr: apt
             variant: localclient
+            ref_variant: client
             allow_failure: true
           - name: debian-trixie (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:trixie
+            pkg_mgr: apt
             variant: client
+            ref_variant: client
             allow_failure: true
 
     name: ${{ matrix.name }}
     env:
+      CMAKE_BIN: ${{ matrix.cmake_bin }}
       VARIANT: ${{ matrix.variant }}
-      REFS_VARIANT: ${{ matrix.variant == 'localclient' && 'client' || matrix.variant }}
-      ENABLE_LDAP: ON
-      ENABLE_SNMP: ON
+      REFS_VARIANT: ${{ matrix.ref_variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
       - name: Checkout
+        if: ${{ !matrix.container }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout (container fallback)
+        if: ${{ matrix.container }}
         shell: sh
         env:
           GH_REPO: ${{ github.repository }}
           GH_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
+          PKG_MGR: ${{ matrix.pkg_mgr }}
         run: |
           set -eu
 
-          apt-get update
-          apt-get install -y --no-install-recommends bash git ca-certificates
+          case "${PKG_MGR:-}" in
+            apt)
+              apt-get update
+              apt-get install -y --no-install-recommends bash git ca-certificates
+              ;;
+            dnf)
+              dnf -y install bash git ca-certificates tar
+              ;;
+            yum)
+              printf '%s\n' \
+                '[centos7-vault-base]' \
+                'name=CentOS 7 Vault Base' \
+                'baseurl=http://vault.centos.org/7.9.2009/os/x86_64/' \
+                'enabled=1' \
+                'gpgcheck=0' \
+                > /etc/yum.repos.d/centos7-vault.repo
+              yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
+              ;;
+            zypper)
+              zypper --non-interactive refresh
+              zypper --non-interactive install bash git tar ca-certificates
+              ;;
+            apk)
+              apk add --no-cache bash git ca-certificates tar
+              ;;
+            pacman)
+              pacman -Sy --noconfirm archlinux-keyring || true
+              pacman -S --noconfirm bash git ca-certificates tar
+              ;;
+            *)
+              echo "Unsupported or missing PKG_MGR='${PKG_MGR:-}' for container checkout fallback" >&2
+              exit 2
+              ;;
+          esac
 
           git --version
           git config --global --add safe.directory "${GITHUB_WORKSPACE}"
@@ -180,6 +239,7 @@ jobs:
           fi
 
       - name: Generate CMake refs snapshot
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -194,6 +254,7 @@ jobs:
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (blocking policy checks)
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
@@ -203,7 +264,7 @@ jobs:
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
-        if: ${{ always() }}
+        if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
         with:
           name: validate-debian-${{ matrix.name }}
