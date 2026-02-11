@@ -109,12 +109,6 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
-configure_file(
-    "${CMAKE_SOURCE_DIR}/cmake/config.h.in"
-    "${CMAKE_BINARY_DIR}/config.h"
-    @ONLY
-)
-
 find_path(PCRE_INCLUDE_DIR pcre.h
     PATHS
         /usr/pkg/include
@@ -217,6 +211,25 @@ elseif(XYMON_VARIANT STREQUAL "client")
 else()
     message(FATAL_ERROR "XYMON_VARIANT must be server or client")
 endif()
+
+# Legacy Makefile client-only layout installs directly under XYMONTOPDIR
+# (bin/, etc/, ...), while server builds use the split server/client tree.
+if(NOT USE_GNUINSTALLDIRS AND XYMON_BUILD_CLIENT AND NOT XYMON_BUILD_SERVER)
+    set(XYMONHOME "${XYMONTOPDIR}")
+    set(XYMONCLIENTHOME "${XYMONTOPDIR}")
+    set(INSTALLBINDIR "${XYMONTOPDIR}/bin")
+    set(INSTALLETCDIR "${XYMONTOPDIR}/etc")
+    set(INSTALLEXTDIR "${XYMONTOPDIR}/ext")
+    set(INSTALLTMPDIR "${XYMONTOPDIR}/tmp")
+    set(INSTALLWEBDIR "${XYMONTOPDIR}/web")
+    set(INSTALLWWWDIR "${XYMONTOPDIR}/www")
+endif()
+
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/config.h.in"
+    "${CMAKE_BINARY_DIR}/config.h"
+    @ONLY
+)
 
 # ----------------------------------------------------------------------
 # Subdirectories

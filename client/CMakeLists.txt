@@ -198,18 +198,18 @@ install(FILES
     RENAME README
 )
 
-install(CODE [[
-    set(_dest "$ENV{DESTDIR}")
-    if(_dest STREQUAL "")
-        set(_dest "")
+install(CODE "
+    set(_dest \"\$ENV{DESTDIR}\")
+    if(_dest STREQUAL \"\")
+        set(_dest \"\")
     endif()
-    set(_clientroot "${_dest}${CMAKE_INSTALL_PREFIX}/client")
+    set(_clientroot \"\${_dest}${XYMONCLIENTHOME}\")
     file(MAKE_DIRECTORY
-        "${_clientroot}"
-        "${_clientroot}/etc"
-        "${_clientroot}/ext"
-        "${_clientroot}/local"
-        "${_clientroot}/logs"
-        "${_clientroot}/tmp"
+        \"\${_clientroot}\"
+        \"\${_clientroot}/etc\"
+        \"\${_clientroot}/ext\"
+        \"\${_clientroot}/local\"
+        \"\${_clientroot}/logs\"
+        \"\${_clientroot}/tmp\"
     )
-]])
+")
