@@ -5,6 +5,12 @@ project(xymon C)
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
 
+# RPM-hardened linkers can force PIE at link time. Build static archives as
+# position-independent objects so they remain linkable in that mode.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    set(CMAKE_POSITION_INDEPENDENT_CODE ON)
+endif()
+
 # ----------------------------------------------------------------------
 # Xymon identity / options
 # ----------------------------------------------------------------------
