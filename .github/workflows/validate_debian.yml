@@ -7,6 +7,7 @@ jobs:
   validate_debian:
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
+    continue-on-error: ${{ matrix.allow_failure }}
     strategy:
       fail-fast: false
       matrix:
@@ -16,11 +17,19 @@ jobs:
             container: debian:bullseye
             pkg_mgr: apt
             variant: server
+            allow_failure: false
           - name: debian-bookworm
             runs_on: ubuntu-22.04
             container: debian:bookworm
             pkg_mgr: apt
             variant: server
+            allow_failure: false
+          - name: debian-trixie
+            runs_on: ubuntu-22.04
+            container: debian:trixie
+            pkg_mgr: apt
+            variant: server
+            allow_failure: true
 
     name: ${{ matrix.name }}
     env:
