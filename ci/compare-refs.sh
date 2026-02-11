@@ -346,6 +346,7 @@ emit_diff() {
 
 # Candidate snapshots exported from ci/generate-refs.sh output folder.
 copy_if_present "${CANDIDATE_DIR}/binlinks" /tmp/legacy.bin.links
+copy_if_present "${CANDIDATE_DIR}/needed.norm.tsv" /tmp/legacy.needed.norm.tsv
 copy_if_present "${CANDIDATE_DIR}/embedded.paths" /tmp/legacy.embedded.paths
 copy_if_present "${CANDIDATE_DIR}/keyfiles.sha256" /tmp/legacy.keyfiles.sha256
 copy_if_present "${CANDIDATE_DIR}/inventory.tsv" /tmp/legacy.inventory.tsv
@@ -356,6 +357,7 @@ BASE_OWNER_PASSWD="$(resolve_baseline_file owners.passwd)"
 BASE_OWNER_GROUP="$(resolve_baseline_file owners.group)"
 BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
 BASE_BINLINKS="$(resolve_baseline_file binlinks)"
+BASE_NEEDED_NORM="$(resolve_baseline_file needed.norm.tsv)"
 BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
 
 if [ ! -s "${BASE_INVENTORY}" ]; then
@@ -451,6 +453,7 @@ if [ -s /tmp/legacy.owners.diff ]; then
   emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
+emit_sorted_diff "$BASE_NEEDED_NORM" /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 
 : > /tmp/legacy.list

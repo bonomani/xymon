@@ -74,6 +74,7 @@ TMPDIR="${TMPDIR%/}"
 
 TEMP_PREFIX="${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
 BINLINKS_NAME="binlinks"
+NEEDED_NORM_NAME="needed.norm.tsv"
 EMBED_NAME="embedded.paths"
 CONFIG_NAME="config.h"
 CONFIG_DEFINES_NAME="config.defines"
@@ -343,6 +344,40 @@ dump_binlinks() {
       done
 }
 
+extract_direct_needed() {
+  local bin="$1"
+  if command -v readelf >/dev/null 2>&1; then
+    readelf -d "$bin" 2>/dev/null \
+      | awk '
+          /NEEDED/ {
+            if (match($0, /\[[^]]+\]/)) {
+              print substr($0, RSTART + 1, RLENGTH - 2)
+            }
+          }
+        '
+    return 0
+  fi
+  if command -v objdump >/dev/null 2>&1; then
+    objdump -p "$bin" 2>/dev/null \
+      | awk '$1 == "NEEDED" { print $2 }'
+    return 0
+  fi
+  return 1
+}
+
+dump_needed_norm() {
+  : > "/tmp/${NEEDED_NORM_NAME}"
+  collect_bin_roots || return 0
+  find "${bin_roots[@]}" -type f -perm -111 \
+    | while IFS= read -r bin; do
+        extract_direct_needed "$bin" \
+          | sed -E 's/\.so(\.[0-9]+)+$/.so/' \
+          | awk -v exe="${bin#$ROOT}" 'NF { printf "%s\t%s\n", exe, $0 }' \
+          >> "/tmp/${NEEDED_NORM_NAME}" || true
+      done
+  sort -u "/tmp/${NEEDED_NORM_NAME}" -o "/tmp/${NEEDED_NORM_NAME}"
+}
+
 dump_embedded() {
   : > "/tmp/${EMBED_NAME}"
   collect_bin_roots || return 0
@@ -359,6 +394,7 @@ copy_artifacts() {
     "${OWNERS_PASSWD_NAME}:owners.passwd" \
     "${OWNERS_GROUP_NAME}:owners.group" \
     "${BINLINKS_NAME}:binlinks" \
+    "${NEEDED_NORM_NAME}:needed.norm.tsv" \
     "${EMBED_NAME}:embedded.paths" \
     "${KEYFILES_NAME}:keyfiles.sha256" \
     "${CONFIG_NAME}:meta/config.h" \
@@ -381,6 +417,7 @@ cleanup_temp_files() {
     "/tmp/${CONFIG_NAME}"
     "/tmp/${CONFIG_DEFINES_NAME}"
     "/tmp/${BINLINKS_NAME}"
+    "/tmp/${NEEDED_NORM_NAME}"
     "/tmp/${EMBED_NAME}"
   )
   for file in "${temp_files[@]}"; do
@@ -436,6 +473,7 @@ run_step "Discover key files" discover_key_files
 run_step "Generate keyfile list" generate_keyfiles_list
 run_step "Stage keyfiles" stage_keyfiles
 run_step "Dump binlinks" dump_binlinks
+run_step "Dump normalized direct deps" dump_needed_norm
 run_step "Dump embedded paths" dump_embedded
 run_step "Copy artifacts" copy_artifacts
 
