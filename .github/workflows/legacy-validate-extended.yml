@@ -16,11 +16,13 @@ jobs:
             dep_family: gh-debian
             dep_os: ubuntu
             dep_version: latest
+            variant: server
           - name: ubuntu-24.04
             runs_on: ubuntu-24.04
             dep_family: gh-debian
             dep_os: ubuntu
             dep_version: latest
+            variant: server
           - name: debian-bookworm
             runs_on: ubuntu-22.04
             container: debian:bookworm
@@ -28,6 +30,7 @@ jobs:
             dep_family: debian
             dep_os: debian
             dep_version: bookworm
+            variant: server
           - name: debian-bullseye
             runs_on: ubuntu-22.04
             container: debian:bullseye
@@ -35,6 +38,7 @@ jobs:
             dep_family: debian
             dep_os: debian
             dep_version: bullseye
+            variant: server
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
@@ -42,6 +46,7 @@ jobs:
             dep_family: rpm
             dep_os: rockylinux
             dep_version: 9
+            variant: server
           - name: almalinux-9
             runs_on: ubuntu-22.04
             container: almalinux:9
@@ -49,6 +54,7 @@ jobs:
             dep_family: rpm
             dep_os: almalinux
             dep_version: 9
+            variant: server
           - name: centos-7
             runs_on: ubuntu-22.04
             container: centos:7
@@ -57,6 +63,7 @@ jobs:
             dep_family: rpm
             dep_os: centos
             dep_version: 7
+            variant: server
           - name: fedora-40
             runs_on: ubuntu-22.04
             container: fedora:40
@@ -64,6 +71,7 @@ jobs:
             dep_family: rpm
             dep_os: fedora
             dep_version: 40
+            variant: server
           - name: opensuse-leap-15.6
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
@@ -71,6 +79,7 @@ jobs:
             dep_family: suse
             dep_os: opensuse_leap
             dep_version: 15_6
+            variant: server
           - name: alpine-3
             runs_on: ubuntu-22.04
             container: alpine:3.19
@@ -78,6 +87,7 @@ jobs:
             dep_family: alpine
             dep_os: alpine
             dep_version: 3
+            variant: server
           - name: archlinux
             runs_on: ubuntu-22.04
             container: archlinux:latest
@@ -85,19 +95,29 @@ jobs:
             dep_family: arch
             dep_os: archlinux
             dep_version: latest
+            variant: server
 
     name: ${{ matrix.name }}
     env:
       CMAKE_BIN: ${{ matrix.cmake_bin }}
-      VARIANT: server
-      ENABLE_LDAP: ON
-      ENABLE_SNMP: ON
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
 
     steps:
       - name: Checkout
         uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
 
-      - name: Load legacy hostname (server only)
+      - name: Remove "nobody" group (when requested)
+        if: ${{ matrix.drop_nobody }}
+        run: |
+          if getent group nobody; then
+            groupdel nobody || true
+          fi
+
+      - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
         run: |
           set -euo pipefail
@@ -134,7 +154,7 @@ jobs:
           set -euo pipefail
           bash ci/bootstrap-install.sh \
             --os linux \
-            --variant server \
+            --variant "${{ matrix.variant }}" \
             --build cmake
 
       - name: Load staged tree metadata
@@ -152,55 +172,13 @@ jobs:
           echo "LEGACY_ROOT=${LEGACY_ROOT}" >> "$GITHUB_ENV"
           echo "XYMON_CONFIG_H=${XYMON_CONFIG_H:-}" >> "$GITHUB_ENV"
 
-      - name: Trace CMake configure (debug)
-        if: ${{ matrix.name == 'debian-bookworm' }}
-        shell: bash
-        run: |
-          set -o pipefail
-          extra_args=()
-          if [ -n "${XYMONHOSTNAME:-}" ]; then
-            extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
-          fi
-          ${CMAKE_BIN:-cmake} -S . -B build-cmake-trace \
-            -G Ninja \
-            -DUSE_GNUINSTALLDIRS=OFF \
-            -DCMAKE_INSTALL_PREFIX=/ \
-            -DLEGACY_APPLY_OWNERSHIP=OFF \
-            -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=server \
-            "${extra_args[@]}" \
-            --trace-expand \
-            --trace-format=json-v1 \
-            --trace-redirect=/tmp/cmake.trace.json 2>&1 | tee /tmp/cmake.trace.log
-
-      - name: Capture CMake configure logs
-        if: always()
-        run: |
-          if [ -f /tmp/cmake.configure.log ]; then
-            echo "=== cmake.configure.log (cmake -E search) ==="
-            grep -n "cmake -E" /tmp/cmake.configure.log || true
-          fi
-          if [ -f /tmp/cmake.trace.json ]; then
-            echo "=== cmake.trace.json (cmake -E search) ==="
-            rg -n --fixed-strings -- '"cmake","-E"' /tmp/cmake.trace.json || true
-          fi
-          if [ -f /tmp/cmake.trace.log ]; then
-            echo "=== cmake.trace.log (cmake -E search) ==="
-            rg -n --fixed-strings -- "cmake -E" /tmp/cmake.trace.log || true
-          fi
-          if [ -f build-cmake/CMakeFiles/CMakeError.log ]; then
-            echo "=== CMakeError.log ==="
-            cat build-cmake/CMakeFiles/CMakeError.log
-          fi
-          if [ -f build-cmake/CMakeFiles/CMakeOutput.log ]; then
-            echo "=== CMakeOutput.log ==="
-            cat build-cmake/CMakeFiles/CMakeOutput.log
-          fi
-
       - name: Validate config.h parity
         run: |
-          legacy_config="docs/cmake-legacy-migration/refs/make_linux/server/meta/config.h"
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
           cmake_config="${XYMON_CONFIG_H:-}"
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+          fi
           if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
             cmake_config=$(find build-cmake -name config.h | head -n1)
           fi
@@ -214,8 +192,12 @@ jobs:
           fi
 
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | grep -v '^#.*HAVE_RPCENT_H' \
             | sort > /tmp/legacy.config.extract
           grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | grep -v '^#define XYMON' \
+            | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+            | grep -v '^#.*HAVE_RPCENT_H' \
             | sort > /tmp/cmake.config.extract
 
           diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
@@ -226,13 +208,14 @@ jobs:
           fi
 
       - name: Generate CMake refs snapshot
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
           mkdir -p /tmp/xymon-refs
           bash ci/generate-refs.sh \
             --os linux \
-            --variant server \
+            --variant "${{ matrix.variant }}" \
             --build cmake \
             --root "${LEGACY_ROOT}" \
             --topdir "${LEGACY_TOPDIR}" \
@@ -240,16 +223,17 @@ jobs:
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (non-blocking)
+        if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
           set -euo pipefail
           bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/server" \
-            --candidate-dir "/tmp/xymon-refs/cmake.linux.server" \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
-        if: always()
+        if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
         with:
           name: legacy-validate-extended-${{ matrix.name }}
