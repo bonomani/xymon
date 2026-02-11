@@ -204,23 +204,36 @@ select_build_adapter() {
 }
 
 ensure_group() {
+  local group_name="${1:-${XYMONGROUP}}"
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw groupadd "$1" 2>/dev/null || true
+    as_root pw groupadd "${group_name}" 2>/dev/null || true
   else
-    as_root groupadd "$1" 2>/dev/null || true
+    as_root groupadd "${group_name}" 2>/dev/null || true
   fi
 }
 
 ensure_user() {
+  if id -u "${XYMONUSER}" >/dev/null 2>&1; then
+    return
+  fi
+
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
+    as_root pw useradd -n "${XYMONUSER}" -m -g "${XYMONGROUP}" -s /bin/sh 2>/dev/null || true
+  elif command -v useradd >/dev/null 2>&1; then
+    as_root useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
+  elif command -v adduser >/dev/null 2>&1; then
+    as_root adduser -S -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
+      || as_root adduser -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
+      || as_root adduser -D -s /bin/sh "${XYMONUSER}" 2>/dev/null \
+      || true
   else
-    as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
+    true
   fi
 }
 
 ensure_user_group() {
   ensure_group "$1"
+  ensure_group "${XYMONGROUP}"
   ensure_user
 }
 
