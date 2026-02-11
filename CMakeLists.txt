@@ -298,7 +298,9 @@ endif()
 add_custom_target(install-legacy-files
     DEPENDS install-legacy-dirs
 )
-add_dependencies(install-legacy-files setup-newfiles)
+if(TARGET setup-newfiles)
+    add_dependencies(install-legacy-files setup-newfiles)
+endif()
 
 add_custom_command(
     TARGET install-legacy-files POST_BUILD
@@ -354,7 +356,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
                 "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
     )
 endif()
-if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
+if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
@@ -375,7 +377,7 @@ if(EXISTS "${CMAKE_SOURCE_DIR}/web/www")
                 "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
     )
 endif()
-if(EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
+if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
         COMMAND "${CMAKE_COMMAND}"
