@@ -13,88 +13,55 @@ jobs:
         include:
           - name: ubuntu-22.04
             runs_on: ubuntu-22.04
-            dep_family: gh-debian
-            dep_os: ubuntu
-            dep_version: latest
             variant: server
           - name: ubuntu-24.04
             runs_on: ubuntu-24.04
-            dep_family: gh-debian
-            dep_os: ubuntu
-            dep_version: latest
             variant: server
           - name: debian-bookworm
             runs_on: ubuntu-22.04
             container: debian:bookworm
             pkg_mgr: apt
-            dep_family: debian
-            dep_os: debian
-            dep_version: bookworm
             variant: server
           - name: debian-bullseye
             runs_on: ubuntu-22.04
             container: debian:bullseye
             pkg_mgr: apt
-            dep_family: debian
-            dep_os: debian
-            dep_version: bullseye
             variant: server
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
             pkg_mgr: dnf
-            dep_family: rpm
-            dep_os: rockylinux
-            dep_version: 9
             variant: server
           - name: almalinux-9
             runs_on: ubuntu-22.04
             container: almalinux:9
             pkg_mgr: dnf
-            dep_family: rpm
-            dep_os: almalinux
-            dep_version: 9
             variant: server
           - name: centos-7
             runs_on: ubuntu-22.04
             container: centos:7
             pkg_mgr: yum
             cmake_bin: cmake3
-            dep_family: rpm
-            dep_os: centos
-            dep_version: 7
             variant: server
           - name: fedora-40
             runs_on: ubuntu-22.04
             container: fedora:40
             pkg_mgr: dnf
-            dep_family: rpm
-            dep_os: fedora
-            dep_version: 40
             variant: server
           - name: opensuse-leap-15.6
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
             pkg_mgr: zypper
-            dep_family: suse
-            dep_os: opensuse_leap
-            dep_version: 15_6
             variant: server
           - name: alpine-3
             runs_on: ubuntu-22.04
             container: alpine:3.19
             pkg_mgr: apk
-            dep_family: alpine
-            dep_os: alpine
-            dep_version: 3
             variant: server
           - name: archlinux
             runs_on: ubuntu-22.04
             container: archlinux:latest
             pkg_mgr: pacman
-            dep_family: arch
-            dep_os: archlinux
-            dep_version: latest
             variant: server
 
     name: ${{ matrix.name }}
@@ -159,13 +126,6 @@ jobs:
           git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
           git fetch --depth=1 origin "${GH_SHA}"
           git checkout --detach FETCH_HEAD
-
-      - name: Remove "nobody" group (when requested)
-        if: ${{ matrix.drop_nobody }}
-        run: |
-          if getent group nobody; then
-            groupdel nobody || true
-          fi
 
       - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
