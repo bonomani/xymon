@@ -205,10 +205,18 @@ select_build_adapter() {
 
 ensure_group() {
   local group_name="${1:-${XYMONGROUP}}"
+  if getent group "${group_name}" >/dev/null 2>&1 || grep -q "^${group_name}:" /etc/group 2>/dev/null; then
+    return
+  fi
+
   if [ "${OS_NAME}" = "freebsd" ]; then
     as_root pw groupadd "${group_name}" 2>/dev/null || true
-  else
+  elif command -v groupadd >/dev/null 2>&1; then
     as_root groupadd "${group_name}" 2>/dev/null || true
+  elif command -v addgroup >/dev/null 2>&1; then
+    as_root addgroup -S "${group_name}" 2>/dev/null || as_root addgroup "${group_name}" 2>/dev/null || true
+  else
+    true
   fi
 }
 
