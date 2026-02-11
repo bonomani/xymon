@@ -243,6 +243,14 @@ jobs:
             --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
             --candidate-root "${LEGACY_ROOT}"
 
+      - name: Install Node.js 16 (CentOS 7 only)
+        if: ${{ matrix.name == 'centos-7' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
+          yum install -y nodejs
+
       - name: Upload artifacts
         if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
