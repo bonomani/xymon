@@ -426,84 +426,40 @@ if(LEGACY_APPLY_OWNERSHIP)
                 "${LEGACY_DESTDIR}${CGIDIR}"
                 "${LEGACY_DESTDIR}${SECURECGIDIR}"
     )
+
+    # Legacy make keeps these top-level directories owned by root.
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
+        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
+        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
+    )
 endif()
 
 # ----------------------------------------------------------------------
 # Vérification et application du groupe HTTPDGID
 # ----------------------------------------------------------------------
-find_program(GETENT_EXECUTABLE getent)
-
 if(LEGACY_APPLY_OWNERSHIP AND HTTPDGID_CHGRP AND HTTPDGID)
-    set(HTTPDGID_EXISTS OFF)
-    if(GETENT_EXECUTABLE)
-        execute_process(
-            COMMAND "${GETENT_EXECUTABLE}" group "${HTTPDGID}"
-            RESULT_VARIABLE HTTPDGID_GETENT_RESULT
-            OUTPUT_QUIET ERROR_QUIET
-        )
-        if(HTTPDGID_GETENT_RESULT EQUAL 0)
-            set(HTTPDGID_EXISTS ON)
-        endif()
-    endif()
-
-    if(HTTPDGID_EXISTS)
-        add_custom_command(
-            TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
-            COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-            COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
-            COMMENT "Application du groupe web ${HTTPDGID} sur les dossiers de rapports"
-        )
-    endif()
+    # Legacy make applies the HTTP group only to report/snapshot outputs and critical cfg.
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /bin/chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND /bin/chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+        COMMAND /bin/chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg"
+        COMMAND /bin/chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg.bak"
+        COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+        COMMENT "Application du groupe web ${HTTPDGID} sur les dossiers de rapports"
+    )
 endif()
 
 # ----------------------------------------------------------------------
 # Cas spécifique : xymonping (SETUID) via CMake Scripting
 # ----------------------------------------------------------------------
-if(XYMON_BUILD_SERVER)
-    install(CODE [[
-        set(_dest "$ENV{DESTDIR}")
-        if(_dest STREQUAL "")
-            set(_dest "")
-        endif()
-        set(_target "${_dest}${CMAKE_INSTALL_PREFIX}/server/bin/xymonping")
-        if(EXISTS "${_target}")
-            set(_use_chown 0)
-            execute_process(
-                COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}"
-                RESULT_VARIABLE _stat_c_res
-                OUTPUT_VARIABLE before_msg
-                ERROR_QUIET
-            )
-            if(_stat_c_res EQUAL 0)
-                set(_use_chown 1)
-            else()
-                execute_process(
-                    COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}"
-                    OUTPUT_VARIABLE before_msg
-                    ERROR_QUIET
-                )
-            endif()
-            string(STRIP "${before_msg}" before_msg)
-            message(STATUS "Legacy hook: existing perms before change ${before_msg}")
-            if(_use_chown)
-                execute_process(COMMAND chown root "${_target}" RESULT_VARIABLE chown_res)
-                if(NOT chown_res EQUAL 0)
-                    message(WARNING "Legacy hook: chown root failed with ${chown_res}")
-                endif()
-            else()
-                message(STATUS "Legacy hook: skip chown root on this platform")
-            endif()
-            execute_process(COMMAND chmod 4755 "${_target}")
-            if(_use_chown)
-                execute_process(COMMAND /usr/bin/stat -c "%a|%U|%G" "${_target}" OUTPUT_VARIABLE after_msg ERROR_QUIET)
-            else()
-                execute_process(COMMAND /usr/bin/stat -f "%Lp|%Su|%Sg" "${_target}" OUTPUT_VARIABLE after_msg ERROR_QUIET)
-            endif()
-            string(STRIP "${after_msg}" after_msg)
-            message(STATUS "Legacy hook: perms after change ${after_msg}")
-        else()
-            message(STATUS "Legacy hook: xymonping missing at ${_target}; cannot set perms")
-        endif()
-    ]])
+if(LEGACY_APPLY_OWNERSHIP AND XYMON_BUILD_SERVER)
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /bin/chown root:"${XYMONUSER}" "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
+        COMMAND /bin/chmod 4755 "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
+    )
 endif()
