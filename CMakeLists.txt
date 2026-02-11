@@ -248,34 +248,41 @@ set(LEGACY_DESTDIR "" CACHE PATH "DESTDIR for legacy install")
 add_custom_target(install-legacy-dirs
     COMMAND "${CMAKE_COMMAND}" -E make_directory
         "${LEGACY_DESTDIR}${XYMONTOPDIR}"
-        "${LEGACY_DESTDIR}${XYMONHOME}"
-        "${LEGACY_DESTDIR}${XYMONHOME}/download"
-        "${LEGACY_DESTDIR}${XYMONVAR}"
-        "${LEGACY_DESTDIR}${XYMONVAR}/acks"
-        "${LEGACY_DESTDIR}${XYMONVAR}/data"
-        "${LEGACY_DESTDIR}${XYMONVAR}/disabled"
-        "${LEGACY_DESTDIR}${XYMONVAR}/hist"
-        "${LEGACY_DESTDIR}${XYMONVAR}/histlogs"
-        "${LEGACY_DESTDIR}${XYMONVAR}/hostdata"
-        "${LEGACY_DESTDIR}${XYMONVAR}/logs"
-        "${LEGACY_DESTDIR}${XYMONVAR}/rrd"
-        "${LEGACY_DESTDIR}${INSTALLBINDIR}"
-        "${LEGACY_DESTDIR}${INSTALLETCDIR}"
-        "${LEGACY_DESTDIR}${INSTALLEXTDIR}"
-        "${LEGACY_DESTDIR}${INSTALLTMPDIR}"
-        "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/gifs"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/help"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/html"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/menu"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/notes"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
-        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/wml"
-        "${LEGACY_DESTDIR}${CGIDIR}"
-        "${LEGACY_DESTDIR}${SECURECGIDIR}"
 )
+
+if(XYMON_BUILD_SERVER)
+    add_custom_command(
+        TARGET install-legacy-dirs POST_BUILD
+        COMMAND "${CMAKE_COMMAND}" -E make_directory
+            "${LEGACY_DESTDIR}${XYMONHOME}"
+            "${LEGACY_DESTDIR}${XYMONHOME}/download"
+            "${LEGACY_DESTDIR}${XYMONVAR}"
+            "${LEGACY_DESTDIR}${XYMONVAR}/acks"
+            "${LEGACY_DESTDIR}${XYMONVAR}/data"
+            "${LEGACY_DESTDIR}${XYMONVAR}/disabled"
+            "${LEGACY_DESTDIR}${XYMONVAR}/hist"
+            "${LEGACY_DESTDIR}${XYMONVAR}/histlogs"
+            "${LEGACY_DESTDIR}${XYMONVAR}/hostdata"
+            "${LEGACY_DESTDIR}${XYMONVAR}/logs"
+            "${LEGACY_DESTDIR}${XYMONVAR}/rrd"
+            "${LEGACY_DESTDIR}${INSTALLBINDIR}"
+            "${LEGACY_DESTDIR}${INSTALLETCDIR}"
+            "${LEGACY_DESTDIR}${INSTALLEXTDIR}"
+            "${LEGACY_DESTDIR}${INSTALLTMPDIR}"
+            "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/gifs"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/help"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/html"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/menu"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/notes"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/wml"
+            "${LEGACY_DESTDIR}${CGIDIR}"
+            "${LEGACY_DESTDIR}${SECURECGIDIR}"
+    )
+endif()
 
 if(XYMON_BUILD_CLIENT)
     add_custom_command(
@@ -354,105 +361,115 @@ if(NOT _setup_res EQUAL 0)
 endif()
 ]=])
 
-if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${CMAKE_SOURCE_DIR}/web/webfiles"
-                "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
-    )
-endif()
-if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-                -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
-                -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/webfiles"
-                -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWEBDIR}/"
-                -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
-                -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.web.list"
-                -P "${SETUP_NEWFILES_SCRIPT}"
-    )
-endif()
-
-if(EXISTS "${CMAKE_SOURCE_DIR}/web/www")
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                "${CMAKE_SOURCE_DIR}/web/www"
-                "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
-    )
-endif()
-if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND "${CMAKE_COMMAND}"
-                -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
-                -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/wwwfiles"
-                -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWWWDIR}/"
-                -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
-                -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.www.list"
-                -P "${SETUP_NEWFILES_SCRIPT}"
-    )
-endif()
-
-foreach(subdir help menu gifs)
-    if(EXISTS "${CMAKE_SOURCE_DIR}/web/${subdir}")
+if(XYMON_BUILD_SERVER)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/web/webfiles")
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
             COMMAND "${CMAKE_COMMAND}" -E copy_directory
-                    "${CMAKE_SOURCE_DIR}/web/${subdir}"
-                    "${LEGACY_DESTDIR}${INSTALLWWWDIR}/${subdir}"
+                    "${CMAKE_SOURCE_DIR}/web/webfiles"
+                    "${LEGACY_DESTDIR}${INSTALLWEBDIR}"
         )
     endif()
-endforeach()
+    if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/webfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                    -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
+                    -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/webfiles"
+                    -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWEBDIR}/"
+                    -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
+                    -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.web.list"
+                    -P "${SETUP_NEWFILES_SCRIPT}"
+        )
+    endif()
 
-add_custom_command(
-    TARGET install-legacy-files POST_BUILD
-    COMMAND /usr/bin/find
-            "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
-            -type d -exec chmod 755 {} +
-)
+    if(EXISTS "${CMAKE_SOURCE_DIR}/web/www")
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                    "${CMAKE_SOURCE_DIR}/web/www"
+                    "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
+        )
+    endif()
+    if(TARGET setup-newfiles AND EXISTS "${CMAKE_SOURCE_DIR}/xymond/wwwfiles" AND EXISTS "${CMAKE_SOURCE_DIR}/build/md5.dat")
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND "${CMAKE_COMMAND}"
+                    -DSETUP_NEWFILES_EXE="$<TARGET_FILE:setup-newfiles>"
+                    -DSRC_DIR="${CMAKE_SOURCE_DIR}/xymond/wwwfiles"
+                    -DDEST_DIR="${LEGACY_DESTDIR}${INSTALLWWWDIR}/"
+                    -DMD5_FILE="${CMAKE_SOURCE_DIR}/build/md5.dat"
+                    -DTMP_FILE="${CMAKE_BINARY_DIR}/setup-newfiles.www.list"
+                    -P "${SETUP_NEWFILES_SCRIPT}"
+        )
+    endif()
 
-add_custom_command(
-    TARGET install-legacy-files POST_BUILD
-    COMMAND /usr/bin/find
-            "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
-            -type f -exec chmod 644 {} +
-)
+    foreach(subdir help menu gifs)
+        if(EXISTS "${CMAKE_SOURCE_DIR}/web/${subdir}")
+            add_custom_command(
+                TARGET install-legacy-files POST_BUILD
+                COMMAND "${CMAKE_COMMAND}" -E copy_directory
+                        "${CMAKE_SOURCE_DIR}/web/${subdir}"
+                        "${LEGACY_DESTDIR}${INSTALLWWWDIR}/${subdir}"
+            )
+        endif()
+    endforeach()
 
-# Legacy make install keeps report/snapshot directories group-writable.
-# Apply this even in staging mode (LEGACY_APPLY_OWNERSHIP=OFF).
-add_custom_command(
-    TARGET install-legacy-files POST_BUILD
-    COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-    COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
-)
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /usr/bin/find
+                "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
+                -type d -exec chmod 755 {} +
+    )
+
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /usr/bin/find
+                "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
+                -type f -exec chmod 644 {} +
+    )
+
+    # Legacy make install keeps report/snapshot directories group-writable.
+    # Apply this even in staging mode (LEGACY_APPLY_OWNERSHIP=OFF).
+    add_custom_command(
+        TARGET install-legacy-files POST_BUILD
+        COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+    )
+endif()
 
 if(LEGACY_APPLY_OWNERSHIP)
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
-                "${LEGACY_DESTDIR}${XYMONHOME}"
-                "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
-                "${LEGACY_DESTDIR}${XYMONVAR}"
-                "${LEGACY_DESTDIR}${CGIDIR}"
-                "${LEGACY_DESTDIR}${SECURECGIDIR}"
-    )
+    if(XYMON_BUILD_CLIENT)
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
+                    "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
+        )
+    endif()
+    if(XYMON_BUILD_SERVER)
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
+                    "${LEGACY_DESTDIR}${XYMONHOME}"
+                    "${LEGACY_DESTDIR}${XYMONVAR}"
+                    "${LEGACY_DESTDIR}${CGIDIR}"
+                    "${LEGACY_DESTDIR}${SECURECGIDIR}"
+        )
 
-    # Legacy make keeps these top-level directories owned by root.
-    add_custom_command(
-        TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
-        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
-        COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
-    )
+        # Legacy make keeps these top-level directories owned by root.
+        add_custom_command(
+            TARGET install-legacy-files POST_BUILD
+            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
+            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
+            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
+        )
+    endif()
 endif()
 
 # ----------------------------------------------------------------------
 # Vérification et application du groupe HTTPDGID
 # ----------------------------------------------------------------------
-if(LEGACY_APPLY_OWNERSHIP AND HTTPDGID_CHGRP AND HTTPDGID)
+if(LEGACY_APPLY_OWNERSHIP AND HTTPDGID_CHGRP AND HTTPDGID AND XYMON_BUILD_SERVER)
     # Legacy make applies the HTTP group only to report/snapshot outputs and critical cfg.
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
