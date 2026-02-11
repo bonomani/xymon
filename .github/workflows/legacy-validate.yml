@@ -241,7 +241,7 @@ jobs:
             --config-h "${XYMON_CONFIG_H:-}" \
             --refs-root /tmp/xymon-refs
 
-      - name: Compare refs snapshot (blocking on direct deps)
+      - name: Compare refs snapshot (blocking policy checks)
         if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
@@ -280,6 +280,7 @@ jobs:
             /tmp/legacy.owners.diff
             /tmp/legacy.owners.names.diff
             /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
             /tmp/legacy.embedded.diff
             /tmp/install-cmake-legacy.log
             /tmp/cmake.configure.log
@@ -468,7 +469,7 @@ jobs:
               grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
               diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
               if [ -s /tmp/legacy-cmake.diff ]; then
-                echo "Unexpected diff detected (non-blocking):"
+                echo "Unexpected diff detected (informational in BSD legacy lane):"
                 cat /tmp/legacy-cmake.diff
               fi
             fi

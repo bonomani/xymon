@@ -272,7 +272,7 @@ jobs:
             --config-h "${XYMON_CONFIG_H:-}" \
             --refs-root /tmp/xymon-refs
 
-      - name: Compare refs snapshot (non-blocking)
+      - name: Compare refs snapshot (blocking policy checks)
         if: ${{ !matrix.stop_after_configure }}
         shell: bash
         run: |
@@ -310,6 +310,7 @@ jobs:
             /tmp/legacy.perms.diff
             /tmp/legacy.owners.diff
             /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
             /tmp/legacy.embedded.diff
             /tmp/install-cmake-legacy.log
             /tmp/cmake.configure.log
