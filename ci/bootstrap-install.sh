@@ -11,6 +11,8 @@ CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
 BUILD_TOOL="make"
+XYMONUSER="${XYMONUSER:-xymon}"
+XYMONGROUP="${XYMONGROUP:-${XYMONUSER}}"
 
 LEGACY_CONFTYPE=""
 LEGACY_CLIENTONLY=""
@@ -220,19 +222,19 @@ ensure_group() {
 }
 
 ensure_user() {
-  if id -u xymon >/dev/null 2>&1; then
+  if id -u "${XYMONUSER}" >/dev/null 2>&1; then
     return
   fi
 
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw useradd -n xymon -m -g xymon -s /bin/sh 2>/dev/null || true
+    as_root pw useradd -n "${XYMONUSER}" -m -g "${XYMONGROUP}" -s /bin/sh 2>/dev/null || true
   elif command -v useradd >/dev/null 2>&1; then
-    as_root useradd -m -g xymon -s /bin/sh xymon 2>/dev/null || true
+    as_root useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
   elif command -v adduser >/dev/null 2>&1; then
     # Alpine/busybox path
-    as_root adduser -S -D -s /bin/sh -G xymon xymon 2>/dev/null \
-      || as_root adduser -D -s /bin/sh -G xymon xymon 2>/dev/null \
-      || as_root adduser -D -s /bin/sh xymon 2>/dev/null \
+    as_root adduser -S -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
+      || as_root adduser -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
+      || as_root adduser -D -s /bin/sh "${XYMONUSER}" 2>/dev/null \
       || true
   else
     true
@@ -241,7 +243,7 @@ ensure_user() {
 
 ensure_user_group() {
   ensure_group "$1"
-  ensure_group "xymon"
+  ensure_group "${XYMONGROUP}"
   ensure_user
 }
 
@@ -347,7 +349,7 @@ configure_build_make() {
   export ENABLESSL=y
   export ENABLELDAP
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
-  export XYMONUSER=xymon
+  export XYMONUSER
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
@@ -449,7 +451,7 @@ install_staged_make() {
         DESTDIR="${LEGACY_STAGING}" \
         INSTALLROOT="${LEGACY_STAGING}" \
         MANROOT="${DEFAULT_TOP}/server/man" \
-        XYMONUSER="${XYMONUSER:-xymon}" \
+        XYMONUSER="${XYMONUSER}" \
         IDTOOL="${IDTOOL:-id}" \
         PKGBUILD="${PKGBUILD:-}"
     } 2>&1 | tee /tmp/install-make-legacy.log
