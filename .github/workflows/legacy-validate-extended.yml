@@ -97,51 +97,20 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies (apt)
-        if: ${{ (matrix.pkg_mgr == '' || matrix.pkg_mgr == 'apt') }}
+      - name: Install build dependencies (Linux)
+        if: ${{ matrix.dep_family != 'bsd' }}
+        shell: bash
         run: |
-          bash ci/deps/install-apt-packages.sh \
+          bash ci/deps/install-default-packages.sh \
             --family "${{ matrix.dep_family }}" \
             --os "${{ matrix.dep_os }}" \
             --version "${{ matrix.dep_version }}"
 
-      - name: Install build dependencies (dnf)
-        if: ${{ matrix.pkg_mgr == 'dnf' }}
+      - name: Install build dependencies (BSD)
+        if: ${{ matrix.dep_family == 'bsd' }}
+        shell: bash
         run: |
-          bash ci/deps/install-dnf-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (yum)
-        if: ${{ matrix.pkg_mgr == 'yum' }}
-        run: |
-          bash ci/deps/install-yum-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (zypper)
-        if: ${{ matrix.pkg_mgr == 'zypper' }}
-        run: |
-          bash ci/deps/install-zypper-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (apk)
-        if: ${{ matrix.pkg_mgr == 'apk' }}
-        run: |
-          bash ci/deps/install-apk-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (pacman)
-        if: ${{ matrix.pkg_mgr == 'pacman' }}
-        run: |
-          bash ci/deps/install-pacman-packages.sh \
-            --family "${{ matrix.dep_family }}" \
+          bash ci/deps/install-bsd-packages.sh \
             --os "${{ matrix.dep_os }}" \
             --version "${{ matrix.dep_version }}"
 

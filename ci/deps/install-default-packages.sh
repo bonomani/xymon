@@ -83,9 +83,10 @@ case "${os_name}" in
       family="alpine"
       pkgmgr="apk"
       ;;
-    arch)
+    arch|archlinux)
       family="arch"
       pkgmgr="pacman"
+      os_name="archlinux"
       ;;
     *)
       echo "Unsupported or unknown OS ID: ${os_name}" >&2
