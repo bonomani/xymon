@@ -113,14 +113,14 @@ jobs:
 
       - name: Checkout (container fallback)
         if: ${{ matrix.container }}
-        shell: bash
+        shell: sh
         env:
           GH_REPO: ${{ github.repository }}
           GH_SHA: ${{ github.sha }}
           GH_TOKEN: ${{ github.token }}
           PKG_MGR: ${{ matrix.pkg_mgr }}
         run: |
-          set -euo pipefail
+          set -eu
 
           case "${PKG_MGR:-}" in
             apt)
