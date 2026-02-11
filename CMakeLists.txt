@@ -455,24 +455,18 @@ if(LEGACY_APPLY_OWNERSHIP)
     if(XYMON_BUILD_CLIENT)
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chown -R "${XYMONUSER}"
+            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
                     "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
-            # Legacy make uses the primary group of XYMONUSER (`id -g`), not a fixed group name.
-            COMMAND /bin/sh -ec
-                    "gid=$$(id -g '${XYMONUSER}'); /bin/chgrp -R \"$$gid\" '${LEGACY_DESTDIR}${XYMONCLIENTHOME}'"
         )
     endif()
     if(XYMON_BUILD_SERVER)
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chown -R "${XYMONUSER}"
+            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
                     "${LEGACY_DESTDIR}${XYMONHOME}"
                     "${LEGACY_DESTDIR}${XYMONVAR}"
                     "${LEGACY_DESTDIR}${CGIDIR}"
                     "${LEGACY_DESTDIR}${SECURECGIDIR}"
-            # Legacy make uses the primary group of XYMONUSER (`id -g`), not a fixed group name.
-            COMMAND /bin/sh -ec
-                    "gid=$$(id -g '${XYMONUSER}'); /bin/chgrp -R \"$$gid\" '${LEGACY_DESTDIR}${XYMONHOME}' '${LEGACY_DESTDIR}${XYMONVAR}' '${LEGACY_DESTDIR}${CGIDIR}' '${LEGACY_DESTDIR}${SECURECGIDIR}'"
         )
 
         # Legacy make keeps these top-level directories owned by root.
@@ -508,9 +502,7 @@ endif()
 if(LEGACY_APPLY_OWNERSHIP AND XYMON_BUILD_SERVER)
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/sh -ec
-                "/bin/chown root:$$(id -g '${XYMONUSER}') '${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping' || echo 'Could not make xymonping owned by root, continuing'"
-        COMMAND /bin/sh -ec
-                "/bin/chmod 4755 '${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping' || echo 'Could not make xymonping suid-root, continuing'"
+        COMMAND /bin/chown root:"${XYMONUSER}" "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
+        COMMAND /bin/chmod 4755 "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
     )
 endif()

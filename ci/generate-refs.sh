@@ -365,19 +365,13 @@ extract_direct_needed() {
   return 1
 }
 
-normalize_needed_names() {
-  sed -E \
-    -e 's/\.so(\.[0-9]+)+$/.so/' \
-    -e 's/^lib(lber|ldap)-[0-9]+(\.[0-9]+)?\.so$/lib\1.so/'
-}
-
 dump_needed_norm() {
   : > "/tmp/${NEEDED_NORM_NAME}"
   collect_bin_roots || return 0
   find "${bin_roots[@]}" -type f -perm -111 \
     | while IFS= read -r bin; do
         extract_direct_needed "$bin" \
-          | normalize_needed_names \
+          | sed -E 's/\.so(\.[0-9]+)+$/.so/' \
           | awk -v exe="${bin#$ROOT}" 'NF { printf "%s\t%s\n", exe, $0 }' \
           >> "/tmp/${NEEDED_NORM_NAME}" || true
       done

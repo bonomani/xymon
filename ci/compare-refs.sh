@@ -353,27 +353,6 @@ emit_diff() {
   fi
 }
 
-normalize_needed_tsv() {
-  local src="$1" dst="$2"
-  : > "$dst"
-  if [ ! -s "$src" ]; then
-    return 0
-  fi
-  awk -F $'\t' '
-    function norm(lib, out) {
-      out = lib
-      sub(/\.so(\.[0-9]+)+$/, ".so", out)
-      sub(/^liblber-[0-9]+(\.[0-9]+)?\.so$/, "liblber.so", out)
-      sub(/^libldap-[0-9]+(\.[0-9]+)?\.so$/, "libldap.so", out)
-      return out
-    }
-    NF >= 2 {
-      $2 = norm($2)
-      print $1 "\t" $2
-    }
-  ' "$src" | sort -u > "$dst"
-}
-
 # Candidate snapshots exported from ci/generate-refs.sh output folder.
 copy_if_present "${CANDIDATE_DIR}/binlinks" /tmp/legacy.bin.links
 copy_if_present "${CANDIDATE_DIR}/needed.norm.tsv" /tmp/legacy.needed.norm.tsv
@@ -483,9 +462,7 @@ if [ -s /tmp/legacy.owners.diff ]; then
   emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
-normalize_needed_tsv "$BASE_NEEDED_NORM" /tmp/baseline.needed.norm.canon
-normalize_needed_tsv /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.canon
-emit_sorted_diff /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "blocking"
+emit_sorted_diff "$BASE_NEEDED_NORM" /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "blocking"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path" "" "blocking"
 
 : > /tmp/legacy.list

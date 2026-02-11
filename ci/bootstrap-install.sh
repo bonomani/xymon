@@ -11,8 +11,6 @@ CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
 BUILD_TOOL="make"
-XYMONUSER="${XYMONUSER:-xymon}"
-XYMONGROUP="${XYMONGROUP:-${XYMONUSER}}"
 
 LEGACY_CONFTYPE=""
 LEGACY_CLIENTONLY=""
@@ -204,46 +202,23 @@ select_build_adapter() {
 }
 
 ensure_group() {
-  local group_name="$1"
-  if getent group "${group_name}" >/dev/null 2>&1 || grep -q "^${group_name}:" /etc/group 2>/dev/null; then
-    return
-  fi
-
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw groupadd "${group_name}" 2>/dev/null || true
-  elif command -v groupadd >/dev/null 2>&1; then
-    as_root groupadd "${group_name}" 2>/dev/null || true
-  elif command -v addgroup >/dev/null 2>&1; then
-    # Alpine/busybox path
-    as_root addgroup -S "${group_name}" 2>/dev/null || as_root addgroup "${group_name}" 2>/dev/null || true
+    as_root pw groupadd "$1" 2>/dev/null || true
   else
-    true
+    as_root groupadd "$1" 2>/dev/null || true
   fi
 }
 
 ensure_user() {
-  if id -u "${XYMONUSER}" >/dev/null 2>&1; then
-    return
-  fi
-
   if [ "${OS_NAME}" = "freebsd" ]; then
-    as_root pw useradd -n "${XYMONUSER}" -m -g "${XYMONGROUP}" -s /bin/sh 2>/dev/null || true
-  elif command -v useradd >/dev/null 2>&1; then
-    as_root useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
-  elif command -v adduser >/dev/null 2>&1; then
-    # Alpine/busybox path
-    as_root adduser -S -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
-      || as_root adduser -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
-      || as_root adduser -D -s /bin/sh "${XYMONUSER}" 2>/dev/null \
-      || true
+    as_root pw useradd -n xymon -m -s /bin/sh 2>/dev/null || true
   else
-    true
+    as_root useradd -m -s /bin/sh xymon 2>/dev/null || true
   fi
 }
 
 ensure_user_group() {
   ensure_group "$1"
-  ensure_group "${XYMONGROUP}"
   ensure_user
 }
 
@@ -349,7 +324,7 @@ configure_build_make() {
   export ENABLESSL=y
   export ENABLELDAP
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
-  export XYMONUSER
+  export XYMONUSER=xymon
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
@@ -451,7 +426,7 @@ install_staged_make() {
         DESTDIR="${LEGACY_STAGING}" \
         INSTALLROOT="${LEGACY_STAGING}" \
         MANROOT="${DEFAULT_TOP}/server/man" \
-        XYMONUSER="${XYMONUSER}" \
+        XYMONUSER="${XYMONUSER:-xymon}" \
         IDTOOL="${IDTOOL:-id}" \
         PKGBUILD="${PKGBUILD:-}"
     } 2>&1 | tee /tmp/install-make-legacy.log
@@ -462,21 +437,13 @@ install_staged_cmake() {
   local cmake_apply_ownership
   cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
 
-  run_install_target() {
-    local target="${1}"
-    if [ "${cmake_apply_ownership}" = "ON" ]; then
-      as_root env LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
-        "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target "${target}"
-    else
-      LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
-        "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target "${target}"
-    fi
-  }
-
-  {
-    run_install_target install-legacy-dirs
-    run_install_target CMakeFiles/install-legacy-files
-  } 2>&1 | tee /tmp/install-cmake-legacy.log
+  if [ "${cmake_apply_ownership}" = "ON" ]; then
+    as_root env LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+      "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
+  else
+    LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+      "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
+  fi
 }
 
 detect_topdir_root_make() {
