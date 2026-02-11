@@ -228,7 +228,8 @@ add_custom_target(web_cgi_links ALL
 foreach(_cgi ${_CGI_SCRIPT_NAMES})
     add_custom_command(
         TARGET web_cgi_links POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E create_hardlink
+        # Bullseye ships CMake 3.18, which lacks `cmake -E create_hardlink`.
+        COMMAND ln -f
                 $<TARGET_FILE:cgiwrap>
                 ${_CGI_DIR}/${_cgi}
     )
@@ -237,7 +238,7 @@ endforeach()
 foreach(_cgi ${_SEC_CGI_SCRIPT_NAMES})
     add_custom_command(
         TARGET web_cgi_links POST_BUILD
-        COMMAND ${CMAKE_COMMAND} -E create_hardlink
+        COMMAND ln -f
                 $<TARGET_FILE:cgiwrap>
                 ${_SEC_CGI_DIR}/${_cgi}
     )
