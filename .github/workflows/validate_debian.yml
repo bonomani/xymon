@@ -60,6 +60,7 @@ jobs:
 
     name: ${{ matrix.name }}
     env:
+      VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
