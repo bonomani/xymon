@@ -155,25 +155,36 @@ install(PROGRAMS
     DESTINATION ${XYMONCLIENTHOME}
 )
 
-set(_clientlaunch_src "${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg")
-if(NOT EXISTS "${_clientlaunch_src}")
-    set(_clientlaunch_src "${CMAKE_CURRENT_BINARY_DIR}/clientlaunch.cfg")
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg.DIST
-        ${_clientlaunch_src}
-        COPYONLY
-    )
+# Keep client cfg generation aligned with legacy Make:
+# - clientlaunch.cfg: substitute @CLIENTFLAGS@ (empty or --local)
+# - xymonclient.cfg: substitute @XYMONHOSTIP@ and append bb-commands.sh output
+set(_clientlaunch_src "${CMAKE_CURRENT_BINARY_DIR}/clientlaunch.cfg")
+set(_xymonclient_src "${CMAKE_CURRENT_BINARY_DIR}/xymonclient.cfg")
+
+set(_clientflags "")
+if(LOCALCLIENT)
+    set(_clientflags "--local")
 endif()
 
-set(_xymonclient_src "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg")
-if(NOT EXISTS "${_xymonclient_src}")
-    set(_xymonclient_src "${CMAKE_CURRENT_BINARY_DIR}/xymonclient.cfg")
-    configure_file(
-        ${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg.DIST
-        ${_xymonclient_src}
-        COPYONLY
-    )
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg.DIST" _clientlaunch_template)
+string(REPLACE "@CLIENTFLAGS@" "${_clientflags}" _clientlaunch_content "${_clientlaunch_template}")
+file(WRITE "${_clientlaunch_src}" "${_clientlaunch_content}")
+
+file(READ "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg.DIST" _xymonclient_template)
+string(REPLACE "@XYMONHOSTIP@" "${XYMONHOSTIP}" _xymonclient_content "${_xymonclient_template}")
+file(WRITE "${_xymonclient_src}" "${_xymonclient_content}")
+
+execute_process(
+    COMMAND sh "${CMAKE_SOURCE_DIR}/build/bb-commands.sh"
+    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}/client"
+    OUTPUT_VARIABLE _bb_commands_out
+    ERROR_VARIABLE _bb_commands_err
+    RESULT_VARIABLE _bb_commands_res
+)
+if(NOT _bb_commands_res EQUAL 0)
+    message(FATAL_ERROR "Failed to run build/bb-commands.sh: ${_bb_commands_err}")
 endif()
+file(APPEND "${_xymonclient_src}" "${_bb_commands_out}")
 
 install(FILES
     ${_clientlaunch_src}

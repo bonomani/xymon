@@ -82,10 +82,16 @@ emit_theme_summary() {
       if (line == "") return
 
       if (kind == "inventory") {
-        n = split(line, parts, "\t")
-        rec_key = parts[1]
-        rec_val = line
-        sub(/^[^\t]*\t/, "", rec_val)
+        if (index(line, "\t") > 0) {
+          n = split(line, parts, "\t")
+          rec_key = parts[1]
+          rec_val = line
+          sub(/^[^\t]*\t/, "", rec_val)
+        } else {
+          n = split(line, parts, /\|/)
+          rec_key = parts[1]
+          rec_val = parts[2]
+        }
         return
       }
 
@@ -182,21 +188,41 @@ show_diff_preview() {
 }
 
 derive_views_from_inventory() {
-  local inventory="$1" out_ref="$2" out_perms="$3" out_symlinks="$4" out_owners="$5"
+  local inventory="$1" out_ref="$2" out_perms="$3" out_symlinks="$4" out_owners="$5" out_inventory_shape="$6"
   : > "$out_ref"
   : > "$out_perms"
   : > "$out_symlinks"
   : > "$out_owners"
+  : > "$out_inventory_shape"
   if [ ! -s "$inventory" ]; then
     return 0
   fi
 
   awk -F $'\t' '{print $1}' "$inventory" > "$out_ref"
-  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s\n", $2, $4, $7 }' \
+  awk -F $'\t' '{ printf "%s|%s\n", $1, $3 }' "$inventory" > "$out_inventory_shape"
+  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s\n", $2, $4 }' \
     "$inventory" > "$out_perms"
   awk -F $'\t' '$3 == "l" { printf "%s|%s\n", $2, $8 }' "$inventory" > "$out_symlinks"
   awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s\n", $2, $5, $6 }' \
     "$inventory" > "$out_owners"
+}
+
+write_allowed_extras() {
+  cat > /tmp/allowed-extras.list <<'EOF'
+/var/lib/xymon/cgi-bin/.stamp
+/var/lib/xymon/cgi-secure/.stamp
+/var/lib/xymon/install-cmake-legacy.log
+/var/lib/xymon/server/bin/availability
+/var/lib/xymon/server/bin/contest
+/var/lib/xymon/server/bin/loadhosts
+/var/lib/xymon/server/bin/locator
+/var/lib/xymon/server/bin/md5
+/var/lib/xymon/server/bin/rmd160
+/var/lib/xymon/server/bin/sha1
+/var/lib/xymon/server/bin/stackio
+/var/lib/xymon/server/bin/tree
+/var/lib/xymon/server/bin/xymon-snmpcollect
+EOF
 }
 
 emit_sorted_diff() {
@@ -294,13 +320,20 @@ BASE_REF="/tmp/baseline.ref"
 BASE_SYMLINKS="/tmp/baseline.symlinks"
 BASE_PERMS="/tmp/baseline.perms"
 BASE_OWNERS="/tmp/baseline.owners"
-derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}" "${BASE_OWNERS}"
+BASE_INVENTORY_SHAPE="/tmp/baseline.inventory.shape"
+derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}" "${BASE_OWNERS}" "${BASE_INVENTORY_SHAPE}"
 
 CANDIDATE_REF="/tmp/cmake.list"
 CANDIDATE_SYMLINKS="/tmp/legacy.symlinks.list"
 CANDIDATE_PERMS="/tmp/legacy.perms.snapshot"
 CANDIDATE_OWNERS="/tmp/legacy.owners.snapshot"
-derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}" "${CANDIDATE_OWNERS}"
+CANDIDATE_INVENTORY_SHAPE="/tmp/legacy.inventory.shape"
+derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}" "${CANDIDATE_OWNERS}" "${CANDIDATE_INVENTORY_SHAPE}"
+write_allowed_extras
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.list "${CANDIDATE_INVENTORY_SHAPE}" > /tmp/legacy.inventory.filtered.shape
 
 : > /tmp/legacy.keyfiles.missing
 if [ -s /tmp/legacy.keyfiles.sha256 ]; then
@@ -343,17 +376,16 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
   fi
 fi
 
-emit_sorted_diff "$BASE_INVENTORY" /tmp/legacy.inventory.tsv /tmp/legacy.inventory.diff "Inventory" "inventory"
+emit_sorted_diff "$BASE_INVENTORY_SHAPE" /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory"
 emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles"
 emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink"
-emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode/size)" "perms"
+emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms"
 emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 
 : > /tmp/legacy.list
 : > /tmp/cmake.filtered.list
-: > /tmp/allowed-extras.list
 : > /tmp/legacy-cmake.diff
 echo "=== Compare: Tree reference ==="
 if [ -s "$BASE_REF" ]; then
@@ -372,21 +404,6 @@ if [ -s "$BASE_REF" ] && [ -s "$CANDIDATE_REF" ]; then
   sort "$CANDIDATE_REF" > /tmp/cmake.list.sorted
   mv /tmp/cmake.list.sorted "$CANDIDATE_REF"
 
-  cat > /tmp/allowed-extras.list <<'EOF'
-/var/lib/xymon/cgi-bin/.stamp
-/var/lib/xymon/cgi-secure/.stamp
-/var/lib/xymon/install-cmake-legacy.log
-/var/lib/xymon/server/bin/availability
-/var/lib/xymon/server/bin/contest
-/var/lib/xymon/server/bin/loadhosts
-/var/lib/xymon/server/bin/locator
-/var/lib/xymon/server/bin/md5
-/var/lib/xymon/server/bin/rmd160
-/var/lib/xymon/server/bin/sha1
-/var/lib/xymon/server/bin/stackio
-/var/lib/xymon/server/bin/tree
-/var/lib/xymon/server/bin/xymon-snmpcollect
-EOF
   grep -v -F -x -f /tmp/allowed-extras.list "$CANDIDATE_REF" > /tmp/cmake.filtered.list
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
