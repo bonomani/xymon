@@ -10,7 +10,8 @@ BUILD_TOOL=""
 REF_STAGE_ROOT=""
 CONFIG_H_PATH=""
 INVENTORY_NAME="inventory.tsv"
-OWNERS_IDMAP_NAME="owners.idmap.tsv"
+OWNERS_PASSWD_NAME="owners.passwd"
+OWNERS_GROUP_NAME="owners.group"
 
 usage() {
   cat <<'USAGE' >&2
@@ -192,27 +193,121 @@ generate_keyfiles_list() {
   [ -z "$missing" ]
 }
 
-generate_owner_idmap() {
-  : > "${TMPDIR}/${OWNERS_IDMAP_NAME}"
+default_web_group_name() {
+  case "${OS_NAME}" in
+    linux)
+      echo "www-data"
+      ;;
+    *)
+      echo "www"
+      ;;
+  esac
+}
+
+generate_owner_maps() {
+  : > "${TMPDIR}/${OWNERS_PASSWD_NAME}"
+  : > "${TMPDIR}/${OWNERS_GROUP_NAME}"
   if [ ! -s "${TMPDIR}/${INVENTORY_NAME}" ]; then
     return 0
   fi
 
-  local uid gid user_name group_name
-  while IFS=$'\t' read -r uid gid; do
-    user_name="$uid"
-    group_name="$gid"
-    if command -v getent >/dev/null 2>&1; then
-      user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
-      [ -n "$user_name" ] || user_name="$uid"
-      group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
-      [ -n "$group_name" ] || group_name="$gid"
-    fi
-    printf '%s\t%s\t%s\t%s\n' "$uid" "$user_name" "$gid" "$group_name" >> "${TMPDIR}/${OWNERS_IDMAP_NAME}"
-  done < <(
-    awk -F $'\t' '($3 == "f" || $3 == "d") { print $5 "\t" $6 }' "${TMPDIR}/${INVENTORY_NAME}" \
-      | LC_ALL=C sort -u -k1,1n -k2,2n
-  )
+  local web_group_name
+  web_group_name="$(default_web_group_name)"
+
+  awk -F $'\t' -v web_group_name="${web_group_name}" '
+    ($3 == "f" || $3 == "d") {
+      uid = $5 + 0
+      gid = $6 + 0
+      uid_total[uid]++
+      uid_gid_count[uid SUBSEP gid]++
+      gid_total[gid]++
+    }
+    END {
+      service_uid = -1
+      service_uid_count = -1
+      for (uid in uid_total) {
+        if (uid == 0) continue
+        if (uid_total[uid] > service_uid_count || (uid_total[uid] == service_uid_count && uid < service_uid)) {
+          service_uid = uid
+          service_uid_count = uid_total[uid]
+        }
+      }
+      if (service_uid < 0) service_uid = 0
+
+      service_gid = -1
+      service_gid_count = -1
+      for (k in uid_gid_count) {
+        split(k, parts, SUBSEP)
+        uid = parts[1] + 0
+        gid = parts[2] + 0
+        if (uid != service_uid) continue
+        cnt = uid_gid_count[k]
+        if (cnt > service_gid_count || (cnt == service_gid_count && gid < service_gid)) {
+          service_gid = gid
+          service_gid_count = cnt
+        }
+      }
+      if (service_gid < 0) service_gid = service_uid
+
+      web_gid = -1
+      web_gid_count = -1
+      for (gid in gid_total) {
+        if (gid == 0 || gid == service_gid) continue
+        cnt = gid_total[gid]
+        if (cnt > web_gid_count || (cnt == web_gid_count && gid < web_gid)) {
+          web_gid = gid
+          web_gid_count = cnt
+        }
+      }
+
+      for (uid in uid_total) {
+        uidn = uid + 0
+        uname = (uidn == 0 ? "root" : (uidn == service_uid ? "xymon" : "xymonu" uidn))
+        uid_name[uidn] = uname
+      }
+
+      for (gid in gid_total) {
+        gidn = gid + 0
+        if (gidn == 0) gname = "root"
+        else if (gidn == service_gid) gname = "xymon"
+        else if (gidn == web_gid) gname = web_group_name
+        else gname = "xymong" gidn
+        gid_name[gidn] = gname
+      }
+
+      for (uid in uid_total) {
+        uidn = uid + 0
+        primary_gid = -1
+        primary_gid_count = -1
+        for (k in uid_gid_count) {
+          split(k, parts, SUBSEP)
+          ku = parts[1] + 0
+          kg = parts[2] + 0
+          if (ku != uidn) continue
+          cnt = uid_gid_count[k]
+          if (cnt > primary_gid_count || (cnt == primary_gid_count && kg < primary_gid)) {
+            primary_gid = kg
+            primary_gid_count = cnt
+          }
+        }
+        if (primary_gid < 0) primary_gid = (uidn == 0 ? 0 : service_gid)
+        printf "U\t%d\t%s\t%d\n", uidn, uid_name[uidn], primary_gid
+      }
+
+      for (gid in gid_total) {
+        gidn = gid + 0
+        printf "G\t%d\t%s\n", gidn, gid_name[gidn]
+      }
+    }
+  ' "${TMPDIR}/${INVENTORY_NAME}" \
+    | LC_ALL=C sort -t $'\t' -k1,1 -k2,2n \
+    | while IFS=$'\t' read -r rec_type id name extra; do
+        if [ "${rec_type}" = "U" ]; then
+          printf '%s:x:%s:%s::/nonexistent:/usr/sbin/nologin\n' "${name}" "${id}" "${extra}" >> "${TMPDIR}/${OWNERS_PASSWD_NAME}"
+        elif [ "${rec_type}" = "G" ]; then
+          printf '%s:x:%s:\n' "${name}" "${id}" >> "${TMPDIR}/${OWNERS_GROUP_NAME}"
+        fi
+      done
 }
 
 stage_keyfiles() {
@@ -261,7 +356,8 @@ dump_embedded() {
 copy_artifacts() {
   for entry in \
     "${INVENTORY_NAME}:inventory.tsv" \
-    "${OWNERS_IDMAP_NAME}:owners.idmap.tsv" \
+    "${OWNERS_PASSWD_NAME}:owners.passwd" \
+    "${OWNERS_GROUP_NAME}:owners.group" \
     "${BINLINKS_NAME}:binlinks" \
     "${EMBED_NAME}:embedded.paths" \
     "${KEYFILES_NAME}:keyfiles.sha256" \
@@ -279,7 +375,8 @@ copy_artifacts() {
 cleanup_temp_files() {
   local temp_files=(
     "/tmp/${INVENTORY_NAME}"
-    "/tmp/${OWNERS_IDMAP_NAME}"
+    "/tmp/${OWNERS_PASSWD_NAME}"
+    "/tmp/${OWNERS_GROUP_NAME}"
     "/tmp/${KEYFILES_NAME}"
     "/tmp/${CONFIG_NAME}"
     "/tmp/${CONFIG_DEFINES_NAME}"
@@ -333,7 +430,7 @@ sha256_of() {
 key_files=()
 
 run_step "Build inventory" build_inventory
-run_step "Generate owners idmap" generate_owner_idmap
+run_step "Generate owner maps" generate_owner_maps
 run_step "Copy config" copy_config
 run_step "Discover key files" discover_key_files
 run_step "Generate keyfile list" generate_keyfiles_list

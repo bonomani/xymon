@@ -218,7 +218,7 @@ is_container_runtime() {
 }
 
 render_owner_names() {
-  local src="$1" dst="$2" idmap="$3"
+  local src="$1" dst="$2" passwd_map="$3" group_map="$4"
   : > "$dst"
   if [ ! -s "$src" ]; then
     return 0
@@ -226,14 +226,16 @@ render_owner_names() {
 
   declare -A map_uid=()
   declare -A map_gid=()
-  while IFS=$'\t' read -r map_u map_un map_g map_gn; do
-    [ -n "$map_u" ] || continue
-    [ -n "$map_g" ] || continue
-    [ -n "$map_un" ] || map_un="$map_u"
-    [ -n "$map_gn" ] || map_gn="$map_g"
-    map_uid[$map_u]="$map_un"
-    map_gid[$map_g]="$map_gn"
-  done < "$idmap"
+  while IFS=':' read -r name _ uid _ _; do
+    [ -n "$name" ] || continue
+    [ -n "$uid" ] || continue
+    map_uid[$uid]="$name"
+  done < "$passwd_map"
+  while IFS=':' read -r name _ gid _; do
+    [ -n "$name" ] || continue
+    [ -n "$gid" ] || continue
+    map_gid[$gid]="$name"
+  done < "$group_map"
 
   local has_getent=0
   if command -v getent >/dev/null 2>&1; then
@@ -350,7 +352,8 @@ copy_if_present "${CANDIDATE_DIR}/inventory.tsv" /tmp/legacy.inventory.tsv
 
 # Baseline files.
 BASE_INVENTORY="$(resolve_baseline_file inventory.tsv)"
-BASE_OWNER_IDMAP="$(resolve_baseline_file owners.idmap.tsv)"
+BASE_OWNER_PASSWD="$(resolve_baseline_file owners.passwd)"
+BASE_OWNER_GROUP="$(resolve_baseline_file owners.group)"
 BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
 BASE_BINLINKS="$(resolve_baseline_file binlinks)"
 BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
@@ -359,8 +362,12 @@ if [ ! -s "${BASE_INVENTORY}" ]; then
   echo "Missing or empty baseline inventory: ${BASE_INVENTORY}" >&2
   exit 1
 fi
-if [ ! -s "${BASE_OWNER_IDMAP}" ]; then
-  echo "Missing or empty baseline owner idmap: ${BASE_OWNER_IDMAP}" >&2
+if [ ! -s "${BASE_OWNER_PASSWD}" ]; then
+  echo "Missing or empty baseline owner passwd map: ${BASE_OWNER_PASSWD}" >&2
+  exit 1
+fi
+if [ ! -s "${BASE_OWNER_GROUP}" ]; then
+  echo "Missing or empty baseline owner group map: ${BASE_OWNER_GROUP}" >&2
   exit 1
 fi
 if [ ! -s /tmp/legacy.inventory.tsv ]; then
@@ -439,8 +446,8 @@ if [ -s /tmp/legacy.owners.diff ]; then
   fi
   BASE_OWNERS_DISPLAY="/tmp/baseline.owners.display"
   CANDIDATE_OWNERS_DISPLAY="/tmp/legacy.owners.display"
-  render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY" "$BASE_OWNER_IDMAP"
-  render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY" "$BASE_OWNER_IDMAP"
+  render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
+  render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
   emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
