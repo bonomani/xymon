@@ -408,6 +408,14 @@ add_custom_command(
             -type f -exec chmod 644 {} +
 )
 
+# Legacy make install keeps report/snapshot directories group-writable.
+# Apply this even in staging mode (LEGACY_APPLY_OWNERSHIP=OFF).
+add_custom_command(
+    TARGET install-legacy-files POST_BUILD
+    COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+    COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+)
+
 if(LEGACY_APPLY_OWNERSHIP)
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
