@@ -40,7 +40,7 @@ jobs:
             groupdel nobody || true
           fi
 
-      - name: Load legacy hostname (runs for all variants)
+      - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
         run: |
           set -euo pipefail

@@ -23,7 +23,7 @@ jobs:
         # Notes:
         # - Preset coverage (default/gnuinstall) lives in ci-validate; we avoid overlap here.
         # - Client coverage includes clang as an intentional expansion.
-        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        # Keep include-only entries so matrix variants expand reliably in GitHub UI.
         include:
           # Base
           - preset: packaging
@@ -98,7 +98,7 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
-        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        # Keep include-only entries so matrix variants expand reliably in GitHub UI.
         include:
           - preset: default
             os:
