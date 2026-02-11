@@ -243,7 +243,7 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 
 	for (pcount = 0; (updparams[pcount]); pcount++);
 	optind = opterr = 0; rrd_clear_error();
-	result = rrd_update(pcount, (const char **)updparams);
+	result = rrd_update(pcount, updparams);
 
 #if defined(LINUX) && defined(RRDTOOL12)
 	/*
@@ -385,7 +385,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 #ifdef RRDTOOL19
 		result = rrd_create(4+pcount, (const char **)rrdcreate_params);
 #else
-			result = rrd_create(4+pcount, (const char **)rrdcreate_params);
+		result = rrd_create(4+pcount, rrdcreate_params);
 #endif
 		xfree(rrdcreate_params);
 		if (rrakey) xfree(rrakey);
@@ -612,7 +612,7 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	if (stat(filedir, &st) == -1) return 0;
 
 	optind = opterr = 0; rrd_clear_error();
-		result = rrd_fetch(5, (const char **)fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
+	result = rrd_fetch(5, fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
 	if (result == -1) {
 		errprintf("Error while retrieving RRD dataset names from %s: %s\n",
 			  filedir, rrd_get_error());
@@ -787,3 +787,4 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 
 	MEMUNDEFINE(rrdvalues);
 }
+
