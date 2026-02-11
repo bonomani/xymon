@@ -15,136 +15,60 @@ jobs:
           - name: debian-bullseye (server)
             runs_on: ubuntu-22.04
             container: debian:bullseye
-            pkg_mgr: apt
             variant: server
-            ref_variant: server
             allow_failure: false
           - name: debian-bullseye (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bullseye
-            pkg_mgr: apt
             variant: localclient
-            ref_variant: client
             allow_failure: false
           - name: debian-bullseye (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bullseye
-            pkg_mgr: apt
             variant: client
-            ref_variant: client
             allow_failure: false
           - name: debian-bookworm (server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
-            pkg_mgr: apt
             variant: server
-            ref_variant: server
             allow_failure: false
           - name: debian-bookworm (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:bookworm
-            pkg_mgr: apt
             variant: localclient
-            ref_variant: client
             allow_failure: false
           - name: debian-bookworm (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
-            pkg_mgr: apt
             variant: client
-            ref_variant: client
             allow_failure: false
           - name: debian-trixie (server)
             runs_on: ubuntu-22.04
             container: debian:trixie
-            pkg_mgr: apt
             variant: server
-            ref_variant: server
             allow_failure: true
           - name: debian-trixie (client ct-client)
             runs_on: ubuntu-22.04
             container: debian:trixie
-            pkg_mgr: apt
             variant: localclient
-            ref_variant: client
             allow_failure: true
           - name: debian-trixie (client ct-server)
             runs_on: ubuntu-22.04
             container: debian:trixie
-            pkg_mgr: apt
             variant: client
-            ref_variant: client
             allow_failure: true
 
     name: ${{ matrix.name }}
     env:
-      CMAKE_BIN: ${{ matrix.cmake_bin }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
       - name: Checkout
-        if: ${{ !matrix.container }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
-      - name: Checkout (container fallback)
-        if: ${{ matrix.container }}
-        shell: sh
-        env:
-          GH_REPO: ${{ github.repository }}
-          GH_SHA: ${{ github.sha }}
-          GH_TOKEN: ${{ github.token }}
-          PKG_MGR: ${{ matrix.pkg_mgr }}
-        run: |
-          set -eu
-
-          case "${PKG_MGR:-}" in
-            apt)
-              apt-get update
-              apt-get install -y --no-install-recommends bash git ca-certificates
-              ;;
-            dnf)
-              dnf -y install bash git ca-certificates tar
-              ;;
-            yum)
-              printf '%s\n' \
-                '[centos7-vault-base]' \
-                'name=CentOS 7 Vault Base' \
-                'baseurl=http://vault.centos.org/7.9.2009/os/x86_64/' \
-                'enabled=1' \
-                'gpgcheck=0' \
-                > /etc/yum.repos.d/centos7-vault.repo
-              yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
-              ;;
-            zypper)
-              zypper --non-interactive refresh
-              zypper --non-interactive install bash git tar ca-certificates
-              ;;
-            apk)
-              apk add --no-cache bash git ca-certificates tar
-              ;;
-            pacman)
-              pacman -Sy --noconfirm archlinux-keyring || true
-              pacman -S --noconfirm bash git ca-certificates tar
-              ;;
-            *)
-              echo "Unsupported or missing PKG_MGR='${PKG_MGR:-}' for container checkout fallback" >&2
-              exit 2
-              ;;
-          esac
-
-          git --version
-          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
-          rm -rf "${GITHUB_WORKSPACE}"
-          mkdir -p "${GITHUB_WORKSPACE}"
-          cd "${GITHUB_WORKSPACE}"
-          git init .
-          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
-          git fetch --depth=1 origin "${GH_SHA}"
-          git checkout --detach FETCH_HEAD
 
       - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
@@ -177,6 +101,83 @@ jobs:
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
+      - name: Seed baseline UID/GID identities (container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_passwd="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.passwd"
+          legacy_group="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.group"
+          if [ ! -s "${legacy_passwd}" ]; then
+            echo "Identity seed failed: missing ${legacy_passwd}" >&2
+            exit 1
+          fi
+          if [ ! -s "${legacy_group}" ]; then
+            echo "Identity seed failed: missing ${legacy_group}" >&2
+            exit 1
+          fi
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "Identity seed skipped (not running as root)"
+            exit 0
+          fi
+          if ! command -v getent >/dev/null 2>&1; then
+            echo "Identity seed skipped (getent unavailable)"
+            exit 0
+          fi
+
+          ensure_group() {
+            local gid="$1" preferred="${2:-}"
+            local gname
+            [ -n "$gid" ] || return 0
+            if getent group "$gid" >/dev/null 2>&1; then
+              return 0
+            fi
+            gname="${preferred}"
+            [ -n "$gname" ] || gname="xymonrefg${gid}"
+            if getent group "$gname" >/dev/null 2>&1; then
+              gname="${gname}_legacy"
+            fi
+            if command -v groupadd >/dev/null 2>&1; then
+              groupadd -g "$gid" "$gname" >/dev/null 2>&1 || true
+            elif command -v addgroup >/dev/null 2>&1; then
+              addgroup --gid "$gid" --system "$gname" >/dev/null 2>&1 || addgroup -g "$gid" "$gname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          ensure_user() {
+            local uid="$1" gid="$2" preferred="${3:-}"
+            local uname
+            [ -n "$uid" ] || return 0
+            [ -n "$gid" ] || return 0
+            if getent passwd "$uid" >/dev/null 2>&1; then
+              return 0
+            fi
+            ensure_group "$gid"
+            uname="${preferred}"
+            [ -n "$uname" ] || uname="xymonrefu${uid}"
+            if getent passwd "$uname" >/dev/null 2>&1; then
+              uname="${uname}_legacy"
+            fi
+            if command -v useradd >/dev/null 2>&1; then
+              useradd --uid "$uid" --gid "$gid" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$uname" >/dev/null 2>&1 || true
+            elif command -v adduser >/dev/null 2>&1; then
+              adduser --uid "$uid" --gid "$gid" --home /nonexistent --no-create-home --disabled-password --gecos "" "$uname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          while IFS=':' read -r group_name _ gid _; do
+            [ -n "$group_name" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_group "$gid" "$group_name"
+          done < "${legacy_group}"
+
+          while IFS=':' read -r user_name _ uid gid _; do
+            [ -n "$user_name" ] || continue
+            [ -n "$uid" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_user "$uid" "$gid" "$user_name"
+          done < "${legacy_passwd}"
+          echo "Seeded identity entries from ${legacy_passwd} and ${legacy_group}"
+
       - name: Bootstrap install + metadata (CMake)
         shell: bash
         run: |
@@ -203,7 +204,7 @@ jobs:
 
       - name: Validate config.h parity
         run: |
-          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.ref_variant }}/meta/config.h"
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
           cmake_config="${XYMON_CONFIG_H:-}"
           if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
             cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
@@ -244,7 +245,7 @@ jobs:
           mkdir -p /tmp/xymon-refs
           bash ci/generate-refs.sh \
             --os linux \
-            --variant "${{ matrix.ref_variant }}" \
+            --variant "${{ matrix.variant }}" \
             --build cmake \
             --root "${LEGACY_ROOT}" \
             --topdir "${LEGACY_TOPDIR}" \
@@ -257,8 +258,8 @@ jobs:
         run: |
           set -euo pipefail
           bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.ref_variant }}" \
-            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.ref_variant }}" \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
@@ -288,6 +289,7 @@ jobs:
             /tmp/legacy.symlinks.diff
             /tmp/legacy.perms.diff
             /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
             /tmp/legacy.binlinks.diff
             /tmp/legacy.needed.norm.diff
             /tmp/legacy.embedded.diff
