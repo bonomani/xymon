@@ -191,6 +191,11 @@ add_compile_definitions(
     _FILE_OFFSET_BITS=64
 )
 
+# Legacy configure.server injects -DHAVE_OPENSSL when SSL support is enabled.
+if(ENABLE_SSL)
+    add_compile_definitions(HAVE_OPENSSL)
+endif()
+
 if(APPLE)
     add_compile_definitions(XYMON_APPLE)
 endif()
