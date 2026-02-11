@@ -97,23 +97,6 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies (Linux)
-        if: ${{ matrix.dep_family != 'bsd' }}
-        shell: bash
-        run: |
-          bash ci/deps/install-default-packages.sh \
-            --family "${{ matrix.dep_family }}" \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
-      - name: Install build dependencies (BSD)
-        if: ${{ matrix.dep_family == 'bsd' }}
-        shell: bash
-        run: |
-          bash ci/deps/install-bsd-packages.sh \
-            --os "${{ matrix.dep_os }}" \
-            --version "${{ matrix.dep_version }}"
-
       - name: Load legacy hostname (server only)
         shell: bash
         run: |
@@ -145,23 +128,29 @@ jobs:
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
-      - name: Configure (legacy)
+      - name: Bootstrap install + metadata (CMake)
         shell: bash
         run: |
-          set -x
-          set -o pipefail
-          extra_args=()
-          if [ -n "${XYMONHOSTNAME:-}" ]; then
-            extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
+          set -euo pipefail
+          bash ci/bootstrap-install.sh \
+            --os linux \
+            --variant all \
+            --build cmake
+
+      - name: Load staged tree metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/xymon-root-vars.sh ]; then
+            echo "Staged tree metadata missing" >&2
+            exit 1
           fi
-          ${CMAKE_BIN:-cmake} -S . -B build-cmake \
-            -G Ninja \
-            -DUSE_GNUINSTALLDIRS=OFF \
-            -DCMAKE_INSTALL_PREFIX=/ \
-            -DLEGACY_APPLY_OWNERSHIP=OFF \
-            -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=all \
-            "${extra_args[@]}" 2>&1 | tee /tmp/cmake.configure.log
+          source /tmp/xymon-root-vars.sh
+          : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
+          : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+          echo "LEGACY_TOPDIR=${LEGACY_TOPDIR}" >> "$GITHUB_ENV"
+          echo "LEGACY_ROOT=${LEGACY_ROOT}" >> "$GITHUB_ENV"
+          echo "XYMON_CONFIG_H=${XYMON_CONFIG_H:-}" >> "$GITHUB_ENV"
 
       - name: Trace CMake configure (debug)
         if: ${{ matrix.name == 'debian-bookworm' }}
@@ -183,10 +172,6 @@ jobs:
             --trace-expand \
             --trace-format=json-v1 \
             --trace-redirect=/tmp/cmake.trace.json 2>&1 | tee /tmp/cmake.trace.log
-
-      - name: Build
-        run: |
-          ${CMAKE_BIN:-cmake} --build build-cmake -j2
 
       - name: Capture CMake configure logs
         if: always()
@@ -215,8 +200,11 @@ jobs:
       - name: Validate config.h parity
         run: |
           legacy_config="docs/cmake-legacy-migration/refs/make_linux/server/meta/config.h"
-          cmake_config=$(find build-cmake -name config.h | head -n1)
-          if [ -z "$cmake_config" ]; then
+          cmake_config="${XYMON_CONFIG_H:-}"
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -name config.h | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
             echo "No CMake-generated config.h found under build-cmake"
             exit 1
           fi
@@ -237,14 +225,6 @@ jobs:
             exit 1
           fi
 
-      - name: Install legacy targets (staging)
-        shell: bash
-        run: |
-          set -o pipefail
-          ${CMAKE_BIN:-cmake} --build build-cmake --target web_cgi_links docs
-          LEGACY_DESTDIR=/tmp/cmake-ref-root \
-          ${CMAKE_BIN:-cmake} --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
-
       - name: Generate CMake refs snapshot
         shell: bash
         run: |
@@ -254,8 +234,9 @@ jobs:
             --os linux \
             --variant server \
             --build cmake \
-            --root /tmp/cmake-ref-root/var/lib/xymon \
-            --topdir /var/lib/xymon \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --config-h "${XYMON_CONFIG_H:-}" \
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (non-blocking)
@@ -265,7 +246,7 @@ jobs:
           bash ci/compare-refs.sh \
             --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/server" \
             --candidate-dir "/tmp/xymon-refs/cmake.linux.server" \
-            --candidate-root "/tmp/cmake-ref-root/var/lib/xymon"
+            --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
         if: always()

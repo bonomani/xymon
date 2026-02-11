@@ -71,6 +71,25 @@ LEGACY_DESTROOT_FALLBACK="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
+CMAKE_BIN="${CMAKE_BIN:-cmake}"
+CMAKE_BUILD_DIR="${CMAKE_BUILD_DIR:-build-cmake}"
+CMAKE_LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR:-/tmp/cmake-ref-root}"
+CMAKE_LEGACY_DESTROOT="${CMAKE_LEGACY_DESTDIR}${DEFAULT_TOP}"
+
+normalize_build_tool() {
+  BUILD_TOOL="$(printf '%s' "${BUILD_TOOL:-make}" | tr '[:upper:]' '[:lower:]')"
+  case "${BUILD_TOOL}" in
+    make|gmake)
+      BUILD_TOOL="make"
+      ;;
+    cmake)
+      ;;
+    *)
+      echo "Unsupported --build value: ${BUILD_TOOL}" >&2
+      exit 1
+      ;;
+  esac
+}
 
 as_root() {
   if command -v sudo >/dev/null 2>&1; then
@@ -82,7 +101,7 @@ as_root() {
 
 set_variant_flags() {
   VARIANT="${VARIANT:-server}"
-  if [ "${VARIANT}" = "server" ]; then
+  if [ "${VARIANT}" = "server" ] || [ "${VARIANT}" = "all" ]; then
     ENABLE_LDAP=ON
     ENABLE_SNMP=ON
   else
@@ -148,11 +167,15 @@ prepare_os() {
   local http_group="$1"
   shift
   HTTPDGID="$http_group"
-  MAKE_BIN="gmake"
+  if [ "${BUILD_TOOL}" = "make" ]; then
+    MAKE_BIN="gmake"
+  fi
   set_variant_flags
   install_default_packages
-  ensure_gmake
-  detect_cares_prefix "$@"
+  if [ "${BUILD_TOOL}" = "make" ]; then
+    ensure_gmake
+    detect_cares_prefix "$@"
+  fi
   ensure_user_group "$HTTPDGID"
 }
 
@@ -180,7 +203,7 @@ setup_os() {
   esac
 }
 
-configure_build() {
+configure_build_make() {
   export ENABLESSL=y
   export ENABLELDAP=y
   export XYMONUSER=xymon
@@ -238,7 +261,68 @@ configure_build() {
   fi
 }
 
-build_project() {
+cmake_onoff() {
+  case "${1:-}" in
+    ON|on|On|1|yes|YES|true|TRUE)
+      echo "ON"
+      ;;
+    OFF|off|Off|0|no|NO|false|FALSE)
+      echo "OFF"
+      ;;
+    *)
+      echo "${2:-OFF}"
+      ;;
+  esac
+}
+
+configure_build_cmake() {
+  local cmake_variant="${VARIANT:-server}"
+  local cmake_localclient="OFF"
+  local cmake_enable_ldap
+  local extra_args=()
+
+  case "${cmake_variant}" in
+    localclient)
+      cmake_variant="client"
+      cmake_localclient="ON"
+      ;;
+    client|server|all)
+      cmake_localclient="OFF"
+      ;;
+    *)
+      echo "Unsupported variant for CMake build: ${cmake_variant}" >&2
+      exit 1
+      ;;
+  esac
+
+  cmake_enable_ldap="$(cmake_onoff "${ENABLE_LDAP:-ON}" "ON")"
+  if [ -n "${XYMONHOSTNAME:-}" ]; then
+    extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
+  fi
+
+  echo "configure: ${CMAKE_BIN} -S . -B ${CMAKE_BUILD_DIR}"
+  "${CMAKE_BIN}" -S . -B "${CMAKE_BUILD_DIR}" \
+    -G Ninja \
+    -DUSE_GNUINSTALLDIRS=OFF \
+    -DCMAKE_INSTALL_PREFIX=/ \
+    -DLEGACY_APPLY_OWNERSHIP=OFF \
+    -DLEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+    -DXYMON_VARIANT="${cmake_variant}" \
+    -DLOCALCLIENT="${cmake_localclient}" \
+    -DENABLE_LDAP="${cmake_enable_ldap}" \
+    -DENABLE_SSL=ON \
+    "${extra_args[@]}" 2>&1 | tee /tmp/cmake.configure.log
+}
+
+configure_build() {
+  if [ "${BUILD_TOOL}" = "cmake" ]; then
+    configure_build_cmake
+  else
+    configure_build_make
+  fi
+}
+
+build_project_make() {
   local caresinc=""
   local careslib=""
   if [ -n "$CARES_PREFIX" ]; then
@@ -271,7 +355,19 @@ build_project() {
   fi
 }
 
-install_staged() {
+build_project_cmake() {
+  "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" -j2
+}
+
+build_project() {
+  if [ "${BUILD_TOOL}" = "cmake" ]; then
+    build_project_cmake
+  else
+    build_project_make
+  fi
+}
+
+install_staged_make() {
   if [ "${VARIANT:-server}" = "client" ] || [ "${VARIANT:-server}" = "localclient" ]; then
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="lib-client common-client" \
@@ -293,7 +389,35 @@ install_staged() {
 
 }
 
+install_staged_cmake() {
+  "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target web_cgi_links docs
+  LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+    "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
+}
+
+install_staged() {
+  if [ "${BUILD_TOOL}" = "cmake" ]; then
+    install_staged_cmake
+  else
+    install_staged_make
+  fi
+}
+
 detect_topdir() {
+  if [ "${BUILD_TOOL}" = "cmake" ]; then
+    local topdir="${DEFAULT_TOP}"
+    local root="${CMAKE_LEGACY_DESTROOT}"
+    if [ ! -d "$root" ]; then
+      root="${CMAKE_LEGACY_DESTDIR}${topdir}"
+    fi
+    if [ ! -d "$root" ]; then
+      echo "Missing ${root}" >&2
+      exit 1
+    fi
+    echo "${topdir}:${root}"
+    return
+  fi
+
   local topdir
   topdir=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
   if [ -z "$topdir" ]; then
@@ -316,6 +440,7 @@ detect_topdir() {
   echo "${topdir}:${root}"
 }
 
+normalize_build_tool
 echo "=== Setup ($OS_NAME) ==="
 setup_os
 echo "=== Configure ==="
@@ -329,7 +454,15 @@ detect="$(detect_topdir)"
 topdir="${detect%%:*}"
 root="${detect#*:}"
 config_h_path=""
-if [ -f include/config.h ]; then
+if [ "${BUILD_TOOL}" = "cmake" ]; then
+  config_h_path="$(find "${CMAKE_BUILD_DIR}" -path '*/include/config.h' | head -n1 || true)"
+  if [ -z "${config_h_path}" ]; then
+    config_h_path="$(find "${CMAKE_BUILD_DIR}" -name config.h | head -n1 || true)"
+  fi
+  if [ -n "${config_h_path}" ] && [ "${config_h_path#/}" = "${config_h_path}" ]; then
+    config_h_path="$(pwd)/${config_h_path}"
+  fi
+elif [ -f include/config.h ]; then
   config_h_path="$(pwd)/include/config.h"
 fi
 
