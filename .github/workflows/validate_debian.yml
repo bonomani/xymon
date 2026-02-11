@@ -79,8 +79,6 @@ jobs:
     name: ${{ matrix.name }}
     env:
       CMAKE_BIN: ${{ matrix.cmake_bin }}
-      VARIANT: ${{ matrix.variant }}
-      REFS_VARIANT: ${{ matrix.ref_variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
@@ -185,7 +183,7 @@ jobs:
           set -euo pipefail
           bash ci/bootstrap-install.sh \
             --os linux \
-            --variant "${VARIANT}" \
+            --variant "${{ matrix.variant }}" \
             --build cmake
 
       - name: Load staged tree metadata
@@ -205,7 +203,7 @@ jobs:
 
       - name: Validate config.h parity
         run: |
-          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${REFS_VARIANT}/meta/config.h"
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.ref_variant }}/meta/config.h"
           cmake_config="${XYMON_CONFIG_H:-}"
           if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
             cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
@@ -246,7 +244,7 @@ jobs:
           mkdir -p /tmp/xymon-refs
           bash ci/generate-refs.sh \
             --os linux \
-            --variant "${REFS_VARIANT}" \
+            --variant "${{ matrix.ref_variant }}" \
             --build cmake \
             --root "${LEGACY_ROOT}" \
             --topdir "${LEGACY_TOPDIR}" \
@@ -259,8 +257,8 @@ jobs:
         run: |
           set -euo pipefail
           bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${REFS_VARIANT}" \
-            --candidate-dir "/tmp/xymon-refs/cmake.linux.${REFS_VARIANT}" \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.ref_variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.ref_variant }}" \
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
