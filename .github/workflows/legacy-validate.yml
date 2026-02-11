@@ -71,10 +71,22 @@ jobs:
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
-      - name: Install build dependencies
+      - name: Install build dependencies (Linux)
+        if: ${{ matrix.dep_family != 'bsd' }}
         shell: bash
         run: |
-          bash ci/deps/install-default-packages.sh --family ${{ matrix.dep_family }} --os ${{ matrix.dep_os }} --version ${{ matrix.dep_version }}
+          bash ci/deps/install-default-packages.sh \
+            --family "${{ matrix.dep_family }}" \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
+
+      - name: Install build dependencies (BSD)
+        if: ${{ matrix.dep_family == 'bsd' }}
+        shell: bash
+        run: |
+          bash ci/deps/install-bsd-packages.sh \
+            --os "${{ matrix.dep_os }}" \
+            --version "${{ matrix.dep_version }}"
 
       - name: Configure (legacy)
         shell: bash
