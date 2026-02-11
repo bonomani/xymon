@@ -462,13 +462,21 @@ install_staged_cmake() {
   local cmake_apply_ownership
   cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
 
-  if [ "${cmake_apply_ownership}" = "ON" ]; then
-    as_root env LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
-      "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
-  else
-    LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
-      "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
-  fi
+  run_install_target() {
+    local target="${1}"
+    if [ "${cmake_apply_ownership}" = "ON" ]; then
+      as_root env LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+        "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target "${target}"
+    else
+      LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
+        "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target "${target}"
+    fi
+  }
+
+  {
+    run_install_target install-legacy-dirs
+    run_install_target CMakeFiles/install-legacy-files
+  } 2>&1 | tee /tmp/install-cmake-legacy.log
 }
 
 detect_topdir_root_make() {
