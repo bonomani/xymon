@@ -115,7 +115,10 @@ case "${family}" in
     esac
     ;;
   rpm)
-    # Keep version as-is (e.g. 9, 40, 7).
+    # Normalize to major version for distro keys (e.g. 9.7 -> 9).
+    if [[ "${version}" =~ ^[0-9]+([.].*)?$ ]]; then
+      version="${version%%.*}"
+    fi
     ;;
   suse)
     # Convert 15.6 -> 15_6
