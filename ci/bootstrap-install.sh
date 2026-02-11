@@ -434,25 +434,6 @@ install_staged_make() {
 }
 
 install_staged_cmake() {
-  have_ninja_target() {
-    local target="$1"
-    local ninja_file="${CMAKE_BUILD_DIR}/build.ninja"
-    [ -f "${ninja_file}" ] || return 1
-    grep -qE "^build ${target}:" "${ninja_file}"
-  }
-
-  if [ "${VARIANT}" = "server" ]; then
-    local helper_targets=()
-    if have_ninja_target web_cgi_links; then
-      helper_targets+=("web_cgi_links")
-    fi
-    if have_ninja_target docs; then
-      helper_targets+=("docs")
-    fi
-    if [ ${#helper_targets[@]} -gt 0 ]; then
-      "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target "${helper_targets[@]}"
-    fi
-  fi
   LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
     "${CMAKE_BIN}" --build "${CMAKE_BUILD_DIR}" --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
 }

@@ -301,6 +301,12 @@ add_custom_target(install-legacy-files
 if(TARGET setup-newfiles)
     add_dependencies(install-legacy-files setup-newfiles)
 endif()
+if(TARGET web_cgi_links)
+    add_dependencies(install-legacy-files web_cgi_links)
+endif()
+if(TARGET docs)
+    add_dependencies(install-legacy-files docs)
+endif()
 
 add_custom_command(
     TARGET install-legacy-files POST_BUILD
