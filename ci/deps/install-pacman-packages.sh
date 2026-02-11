@@ -55,6 +55,15 @@ fi
 ENABLE_LDAP="${ENABLE_LDAP:-ON}"
 ENABLE_SNMP="${ENABLE_SNMP:-ON}"
 VARIANT="${VARIANT:-server}"
+DEPS_VARIANT="${VARIANT}"
+case "${VARIANT}" in
+  server|client|localclient)
+    ;;
+  *)
+    echo "Unsupported VARIANT: ${VARIANT}" >&2
+    exit 2
+    ;;
+esac
 CI_COMPILER="${CI_COMPILER:-}"
 
 os_key="${os_name}"
@@ -63,15 +72,23 @@ if [[ -n "${version}" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-mapfile -t PKGS < <(
+packages_output="$(
   "${script_dir}/packages-from-yaml.sh" \
-    --variant "${VARIANT}" \
+    --variant "${DEPS_VARIANT}" \
     --family "${family}" \
     --os "${os_key}" \
     --pkgmgr pacman \
     --enable-ldap "${ENABLE_LDAP}" \
     --enable-snmp "${ENABLE_SNMP}"
-)
+)"
+PKGS=()
+while IFS= read -r pkg; do
+  [[ -n "${pkg}" ]] && PKGS+=("${pkg}")
+done <<< "${packages_output}"
+if [[ "${#PKGS[@]}" -eq 0 ]]; then
+  echo "No packages resolved for variant=${DEPS_VARIANT} family=${family} os=${os_key} pkgmgr=pacman" >&2
+  exit 1
+fi
 
 if [[ "${CI_COMPILER}" == "clang" ]]; then
   PKGS+=(clang)

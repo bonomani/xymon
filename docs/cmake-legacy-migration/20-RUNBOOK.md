@@ -100,7 +100,7 @@ cmake -S . -B build-cmake \
   -DUSE_GNUINSTALLDIRS=OFF \
   -DCMAKE_INSTALL_PREFIX=/ \
   -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-  -DXYMON_VARIANT=all
+  -DXYMON_VARIANT=server
 ```
 
 Legacy Install Targets and Modes
@@ -121,7 +121,7 @@ CMake validation must be done via a sandbox install:
 ```sh
 cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ \
   -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-  -DXYMON_VARIANT=all
+  -DXYMON_VARIANT=server
 LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
   --target install-legacy-dirs install-legacy-files
 ```

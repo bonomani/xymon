@@ -134,7 +134,7 @@ jobs:
           set -euo pipefail
           bash ci/bootstrap-install.sh \
             --os linux \
-            --variant all \
+            --variant server \
             --build cmake
 
       - name: Load staged tree metadata
@@ -167,7 +167,7 @@ jobs:
             -DCMAKE_INSTALL_PREFIX=/ \
             -DLEGACY_APPLY_OWNERSHIP=OFF \
             -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
-            -DXYMON_VARIANT=all \
+            -DXYMON_VARIANT=server \
             "${extra_args[@]}" \
             --trace-expand \
             --trace-format=json-v1 \

@@ -43,7 +43,7 @@ option(ENABLE_LDAP "Enable LDAP checks" ON)
 option(ENABLE_SSL "Enable SSL checks" ON)
 option(ENABLE_EXTRA_HELPERS "Build/install optional helpers (stackio, locator)" OFF)
 
-set(XYMON_VARIANT "all" CACHE STRING "")
+set(XYMON_VARIANT "server" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)
 
 # Match legacy Makefile defaults for runtime helpers.
@@ -198,16 +198,13 @@ string(TOLOWER "${XYMON_VARIANT}" XYMON_VARIANT)
 set(XYMON_BUILD_SERVER OFF)
 set(XYMON_BUILD_CLIENT OFF)
 
-if(XYMON_VARIANT STREQUAL "all")
-    set(XYMON_BUILD_SERVER ON)
-    set(XYMON_BUILD_CLIENT ON)
-elseif(XYMON_VARIANT STREQUAL "server")
+if(XYMON_VARIANT STREQUAL "server")
     set(XYMON_BUILD_SERVER ON)
     set(XYMON_BUILD_CLIENT ON)
 elseif(XYMON_VARIANT STREQUAL "client")
     set(XYMON_BUILD_CLIENT ON)
 else()
-    message(FATAL_ERROR "XYMON_VARIANT must be all, server or client")
+    message(FATAL_ERROR "XYMON_VARIANT must be server or client")
 endif()
 
 # ----------------------------------------------------------------------

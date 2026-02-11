@@ -114,7 +114,7 @@ normalize_build_tool() {
 normalize_variant() {
   VARIANT="${VARIANT:-server}"
   case "${VARIANT}" in
-    server|client|localclient|all)
+    server|client|localclient)
       ;;
     *)
       echo "Unsupported --variant value: ${VARIANT}" >&2
@@ -165,14 +165,14 @@ normalize_variant() {
       CMAKE_VARIANT="client"
       CMAKE_LOCALCLIENT="ON"
       ;;
-    client|server|all)
+    client|server)
       CMAKE_LOCALCLIENT="OFF"
       ;;
   esac
 }
 
 set_feature_flags() {
-  if [ "${VARIANT}" = "server" ] || [ "${VARIANT}" = "all" ]; then
+  if [ "${VARIANT}" = "server" ]; then
     ENABLE_LDAP=ON
     ENABLE_SNMP=ON
   else

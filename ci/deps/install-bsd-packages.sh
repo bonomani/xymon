@@ -46,6 +46,15 @@ if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" || -z "${ENABLE_SNMP}" ]]; then
   echo "VARIANT, ENABLE_LDAP, and ENABLE_SNMP must be set"
   exit 1
 fi
+case "${VARIANT}" in
+  server|client|localclient)
+    DEPS_VARIANT="${VARIANT}"
+    ;;
+  *)
+    echo "Unknown VARIANT: ${VARIANT}"
+    exit 1
+    ;;
+esac
 
 OS_NAME_RAW="${os_override:-$(uname -s)}"
 OS_NAME_LOWER="$(printf '%s' "${OS_NAME_RAW}" | tr '[:upper:]' '[:lower:]')"
@@ -217,30 +226,27 @@ pick_pkg_add_variant() {
   return 1
 }
 
-mapfile -t PKG_PKG < <(ci_bsd_packages pkg "${VARIANT}" "${ENABLE_SNMP}")
-mapfile -t PKG_PKGIN < <(ci_bsd_packages pkgin "${VARIANT}" "${ENABLE_SNMP}")
-mapfile -t PKG_PKG_ADD < <(ci_bsd_packages pkg_add "${VARIANT}" "${ENABLE_SNMP}")
-
-if [[ "${VARIANT}" == "server" ]]; then
-  :
-elif [[ "${VARIANT}" != "client" && "${VARIANT}" != "localclient" ]]; then
-  echo "Unknown VARIANT: ${VARIANT}"
+active_pkgs_output="$(ci_bsd_packages "${PKG_MGR}" "${DEPS_VARIANT}" "${ENABLE_SNMP}")"
+ACTIVE_PKGS=()
+while IFS= read -r pkg; do
+  [[ -n "${pkg}" ]] && ACTIVE_PKGS+=("${pkg}")
+done <<< "${active_pkgs_output}"
+if [[ "${#ACTIVE_PKGS[@]}" -eq 0 ]]; then
+  echo "No packages resolved for variant=${DEPS_VARIANT} family=bsd os=${OS_NAME_LOWER} pkgmgr=${PKG_MGR}" >&2
   exit 1
 fi
 
-if [[ "${ENABLE_LDAP}" == "ON" && "${VARIANT}" == "server" ]]; then
+if [[ "${ENABLE_LDAP}" == "ON" && "${DEPS_VARIANT}" == "server" ]]; then
   LDAP_PKG="$(pick_ldap_pkg "${PKG_MGR}")"
   if [[ -n "${LDAP_PKG}" ]]; then
-    PKG_PKG+=("${LDAP_PKG}")
-    PKG_PKGIN+=("${LDAP_PKG}")
-    PKG_PKG_ADD+=("${LDAP_PKG}")
+    ACTIVE_PKGS+=("${LDAP_PKG}")
   fi
 fi
 
 if [[ "${PKG_MGR}" == "pkg_add" ]]; then
   resolved=()
   declare -A pkg_add_cache
-  for pkg in "${PKG_PKG_ADD[@]}"; do
+  for pkg in "${ACTIVE_PKGS[@]}"; do
     if [[ -n "${pkg_add_cache[${pkg}]:-}" ]]; then
       picked="${pkg_add_cache[${pkg}]}"
     else
@@ -253,16 +259,12 @@ if [[ "${PKG_MGR}" == "pkg_add" ]]; then
       resolved+=("${pkg}")
     fi
   done
-  PKG_PKG_ADD=("${resolved[@]}")
+  ACTIVE_PKGS=("${resolved[@]}")
 fi
 
 case "${mode}" in
   print)
-    case "${PKG_MGR}" in
-      pkg) printf '%s\n' "${PKG_PKG[@]}" ;;
-      pkgin) printf '%s\n' "${PKG_PKGIN[@]}" ;;
-      pkg_add) printf '%s\n' "${PKG_PKG_ADD[@]}" ;;
-    esac
+    printf '%s\n' "${ACTIVE_PKGS[@]}"
     exit 0
     ;;
   check)
@@ -270,7 +272,7 @@ case "${mode}" in
       pkg)
         missing=0
         missing_pkgs=()
-        for pkg in "${PKG_PKG[@]}"; do
+        for pkg in "${ACTIVE_PKGS[@]}"; do
           if ! /usr/sbin/pkg info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
             missing_pkgs+=("${pkg}")
@@ -284,7 +286,7 @@ case "${mode}" in
       pkgin)
         missing=0
         missing_pkgs=()
-        for pkg in "${PKG_PKGIN[@]}"; do
+        for pkg in "${ACTIVE_PKGS[@]}"; do
           if ! /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
             missing_pkgs+=("${pkg}")
@@ -298,7 +300,7 @@ case "${mode}" in
       pkg_add)
         missing=0
         missing_pkgs=()
-        for pkg in "${PKG_PKG_ADD[@]}"; do
+        for pkg in "${ACTIVE_PKGS[@]}"; do
           if ! /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
             missing=1
             missing_pkgs+=("${pkg}")
@@ -313,19 +315,15 @@ case "${mode}" in
     ;;
   install)
     if [[ "${print_list}" == "1" ]]; then
-      case "${PKG_MGR}" in
-        pkg) printf '%s\n' "${PKG_PKG[@]}" ;;
-        pkgin) printf '%s\n' "${PKG_PKGIN[@]}" ;;
-        pkg_add) printf '%s\n' "${PKG_PKG_ADD[@]}" ;;
-      esac
+      printf '%s\n' "${ACTIVE_PKGS[@]}"
     fi
     case "${PKG_MGR}" in
       pkg)
-        sudo -E ASSUME_ALWAYS_YES=YES pkg install "${PKG_PKG[@]}"
+        sudo -E ASSUME_ALWAYS_YES=YES pkg install "${ACTIVE_PKGS[@]}"
         exit 0
         ;;
       pkgin)
-        sudo -E /usr/pkg/bin/pkgin -y install "${PKG_PKGIN[@]}"
+        sudo -E /usr/pkg/bin/pkgin -y install "${ACTIVE_PKGS[@]}"
         exit 0
         ;;
       pkg_add)
@@ -333,7 +331,7 @@ case "${mode}" in
           install_ok=0
           for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
             echo "NetBSD pkg_add install using PKG_PATH=${pkg_path_try}"
-            if sudo -E PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"; then
+            if sudo -E PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${ACTIVE_PKGS[@]}"; then
               export PKG_PATH="${pkg_path_try}"
               install_ok=1
               break
@@ -345,12 +343,12 @@ case "${mode}" in
             exit 1
           fi
         else
-          sudo -E /usr/sbin/pkg_add -I "${PKG_PKG_ADD[@]}"
+          sudo -E /usr/sbin/pkg_add -I "${ACTIVE_PKGS[@]}"
         fi
         if [[ "${OS_NAME}" == "OpenBSD" ]]; then
           need_gcc=0
           gcc_pkg=""
-          for pkg in "${PKG_PKG_ADD[@]}"; do
+          for pkg in "${ACTIVE_PKGS[@]}"; do
             if [[ "${pkg}" == gcc* ]]; then
               need_gcc=1
               gcc_pkg="${pkg}"
