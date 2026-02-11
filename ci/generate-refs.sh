@@ -10,6 +10,7 @@ KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
 REF_STAGE_ROOT=""
 CONFIG_H_PATH=""
+INVENTORY_NAME="inventory.tsv"
 
 usage() {
   cat <<'USAGE' >&2
@@ -84,6 +85,27 @@ CONFIG_DEFINES_NAME="config.defines"
 REF_STAGE_ROOT="${REF_STAGE_ROOT:-${TMPDIR}/xymon-refs}"
 REF_DIR_STAGE="${REF_STAGE_ROOT}/${TEMP_PREFIX}"
 CONFIG_H_PATH="${CONFIG_H_PATH:-${XYMON_CONFIG_H:-}}"
+HOST_UNAME="$(uname -s)"
+
+stat_fields() {
+  local p="$1"
+  case "${HOST_UNAME}" in
+    Darwin|FreeBSD|OpenBSD|NetBSD)
+      printf '%s\t%s\t%s\t%s\n' \
+        "$(stat -f '%Lp' "$p")" \
+        "$(stat -f '%u' "$p")" \
+        "$(stat -f '%g' "$p")" \
+        "$(stat -f '%z' "$p")"
+      ;;
+    *)
+      printf '%s\t%s\t%s\t%s\n' \
+        "$(stat -c '%a' "$p")" \
+        "$(stat -c '%u' "$p")" \
+        "$(stat -c '%g' "$p")" \
+        "$(stat -c '%s' "$p")"
+      ;;
+  esac
+}
 
 copy_to_refs() {
   local src="$1" dst="$2" dst_dir
@@ -114,12 +136,45 @@ collect_bin_roots() {
   [ "${#bin_roots[@]}" -gt 0 ]
 }
 
+build_inventory() {
+  local p rel abs type mode uid gid size target
+  : > "${TMPDIR}/${INVENTORY_NAME}"
+  while IFS= read -r p; do
+    rel="${p#$ROOT}"
+    abs="${p/#$ROOT/$TOPDIR}"
+    if [ "${abs}" = "${TOPDIR}/" ]; then
+      abs="${TOPDIR}"
+    fi
+
+    mode=""
+    uid=""
+    gid=""
+    size=""
+    target=""
+    if [ -L "$p" ]; then
+      type="l"
+      target="$(readlink "$p" 2>/dev/null || true)"
+    elif [ -d "$p" ]; then
+      type="d"
+      IFS=$'\t' read -r mode uid gid size < <(stat_fields "$p")
+    elif [ -f "$p" ]; then
+      type="f"
+      IFS=$'\t' read -r mode uid gid size < <(stat_fields "$p")
+    else
+      type="o"
+    fi
+
+    printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
+      "$abs" "$rel" "$type" "$mode" "$uid" "$gid" "$size" "$target" \
+      >> "${TMPDIR}/${INVENTORY_NAME}"
+  done < <(find "$ROOT" -print)
+
+  LC_ALL=C sort "${TMPDIR}/${INVENTORY_NAME}" -o "${TMPDIR}/${INVENTORY_NAME}"
+}
+
 collect_tree_list() {
-  echo "Building file list from $ROOT" >&2
-  find "$ROOT" -print \
-    | sed "s|^$ROOT|$TOPDIR|" \
-    | sed "s|$TOPDIR/$|$TOPDIR|" \
-    | sort > "$TMPDIR/${REF_NAME}"
+  echo "Building file list from ${TMPDIR}/${INVENTORY_NAME}" >&2
+  awk -F $'\t' '{print $1}' "${TMPDIR}/${INVENTORY_NAME}" > "$TMPDIR/${REF_NAME}"
 }
 
 copy_config() {
@@ -163,35 +218,15 @@ stage_keyfiles() {
 
 dump_symlinks() {
   : > "/tmp/${SYMLINKS_NAME}"
-  find "$ROOT" -type l \
-    | while IFS= read -r link; do
-        if target=$(readlink "$link" 2>/dev/null); then
-          printf '%s|%s\n' "${link#$ROOT}" "$target" >> "/tmp/${SYMLINKS_NAME}"
-        fi
-      done
+  awk -F $'\t' '$3 == "l" { printf "%s|%s\n", $2, $8 }' "${TMPDIR}/${INVENTORY_NAME}" \
+    >> "/tmp/${SYMLINKS_NAME}"
   LC_ALL=C sort "/tmp/${SYMLINKS_NAME}" -o "/tmp/${SYMLINKS_NAME}"
 }
 
 dump_perms() {
   : > "/tmp/${PERMS_NAME}"
-  case "$(uname -s)" in
-    Darwin|FreeBSD|OpenBSD|NetBSD)
-      find "$ROOT" -type f -o -type d \
-        | while IFS= read -r p; do
-            mode=$(stat -f '%Lp' "$p")
-            uid=$(stat -f '%u' "$p")
-            gid=$(stat -f '%g' "$p")
-            size=$(stat -f '%z' "$p")
-            printf '%s|%s|%s|%s|%s\n' "${p#$ROOT}" "$mode" "$uid" "$gid" "$size" >> "/tmp/${PERMS_NAME}"
-          done
-      ;;
-    *)
-      find "$ROOT" -type f -o -type d \
-        | while IFS= read -r p; do
-            stat -c '%n|%a|%u|%g|%s' "$p" | sed "s|$p|${p#$ROOT}|" >> "/tmp/${PERMS_NAME}"
-          done
-      ;;
-  esac
+  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s|%s|%s\n", $2, $4, $5, $6, $7 }' \
+    "${TMPDIR}/${INVENTORY_NAME}" >> "/tmp/${PERMS_NAME}"
   LC_ALL=C sort "/tmp/${PERMS_NAME}" -o "/tmp/${PERMS_NAME}"
 }
 
@@ -246,6 +281,7 @@ copy_artifacts() {
 
 cleanup_temp_files() {
   local temp_files=(
+    "/tmp/${INVENTORY_NAME}"
     "/tmp/${REF_NAME}"
     "/tmp/${KEYFILES_NAME}"
     "/tmp/${CONFIG_NAME}"
@@ -261,12 +297,12 @@ cleanup_temp_files() {
 }
 
 discover_key_files() {
-  local key_tmp p rel
+  local key_tmp rel type
   key_tmp="$(mktemp "${TMPDIR}/xymon-keyfiles.XXXXXX")"
   : > "$key_tmp"
 
-  while IFS= read -r p; do
-    rel="${p#$ROOT}"
+  while IFS=$'\t' read -r _ rel type _; do
+    [ "${type}" = "f" ] || continue
     if [[ "$rel" =~ ^/(etc|server/etc|client/etc)/[^/]+\.(cfg|csv)$ ]] \
       || [[ "$rel" =~ ^/(etc|server/etc|client/etc)/[^/]+\.d/ ]]; then
       case "$rel" in
@@ -276,7 +312,7 @@ discover_key_files() {
       esac
       printf '%s\n' "${TOPDIR}${rel}" >> "$key_tmp"
     fi
-  done < <(find "$ROOT" -type f)
+  done < "${TMPDIR}/${INVENTORY_NAME}"
 
   mapfile -t key_files < <(sort -u "$key_tmp")
   rm -f "$key_tmp"
@@ -301,6 +337,7 @@ sha256_of() {
 
 key_files=()
 
+run_step "Build inventory" build_inventory
 run_step "Collect tree list" collect_tree_list
 run_step "Copy config" copy_config
 run_step "Discover key files" discover_key_files
