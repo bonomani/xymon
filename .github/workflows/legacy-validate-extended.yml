@@ -99,7 +99,14 @@ jobs:
               dnf -y install bash git ca-certificates tar
               ;;
             yum)
-              yum -y install bash git ca-certificates tar
+              cat <<'EOF' >/etc/yum.repos.d/centos7-vault.repo
+[centos7-vault-base]
+name=CentOS 7 Vault Base
+baseurl=http://vault.centos.org/7.9.2009/os/x86_64/
+enabled=1
+gpgcheck=0
+EOF
+              yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
               ;;
             zypper)
               zypper --non-interactive refresh
@@ -250,9 +257,16 @@ jobs:
           set -euo pipefail
           curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
           yum install -y nodejs
+          if ! command -v node >/dev/null; then
+            echo "node not found after installation" >&2
+            exit 1
+          fi
+          node_dir=$(dirname "$(command -v node)")
+          echo "Installed Node.js from ${node_dir}"
+          echo "PATH=${node_dir}:${PATH}" >> "$GITHUB_ENV"
 
       - name: Upload artifacts
-        if: ${{ always() && !matrix.stop_after_configure }}
+        if: ${{ always() && !matrix.stop_after_configure && matrix.name != 'centos-7' }}
         uses: actions/upload-artifact@v4
         with:
           name: legacy-validate-extended-${{ matrix.name }}
@@ -285,3 +299,8 @@ jobs:
             /tmp/cmake.configure.log
             /tmp/cmake.trace.json
             /tmp/cmake.trace.log
+
+      - name: Skip artifacts on CentOS 7 (Node 20 runtime incompatible)
+        if: ${{ always() && !matrix.stop_after_configure && matrix.name == 'centos-7' }}
+        run: |
+          echo "Skipping actions/upload-artifact on CentOS 7 container due Node 20 runtime GLIBC incompatibility."

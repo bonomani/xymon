@@ -331,7 +331,7 @@ jobs:
 
   legacy-validate-bsd:
     if: ${{ false }}
-    name: legacy-validate-bsd / OS=${{ matrix.os.name }}
+    name: legacy-validate-bsd / OS=${{ matrix.os.name }} / variant=${{ matrix.variant }}
     runs-on: ubuntu-latest
     continue-on-error: false
     strategy:
@@ -342,17 +342,36 @@ jobs:
               name: freebsd
               architecture: x86-64
               version: "15.0"
+            variant: server
             legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/server/inventory.tsv
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: client
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/client/inventory.tsv
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: localclient
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/localclient/inventory.tsv
           - os:
               name: openbsd
               architecture: x86-64
               version: "7.8"
+            variant: server
             legacy_inventory: docs/cmake-legacy-migration/refs/make_openbsd/server/inventory.tsv
           - os:
               name: netbsd
               architecture: x86-64
               version: "10.1"
+            variant: server
             legacy_inventory: docs/cmake-legacy-migration/refs/make_netbsd/server/inventory.tsv
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
     steps:
       - uses: actions/checkout@v4
       - name: Legacy validate (BSD) ${{ matrix.os.name }}
