@@ -25,10 +25,12 @@ pkgmgr=""
 
 detect_linux() {
   if [[ -f /etc/os-release ]]; then
-    # shellcheck disable=SC1091
-    . /etc/os-release
-    os_name="${ID:-}"
-    version="${VERSION_ID:-}"
+    os_name="$(
+      awk -F= '/^ID=/{v=$2; gsub(/"/,"",v); print tolower(v); exit}' /etc/os-release
+    )"
+    version="$(
+      awk -F= '/^VERSION_ID=/{v=$2; gsub(/"/,"",v); print v; exit}' /etc/os-release
+    )"
   fi
 }
 
