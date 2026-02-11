@@ -15,6 +15,7 @@ Naming Scheme
 - 40-STATUS.md: current status snapshot
 - STATUS-HISTORY.md: detailed run history and notes
 - refs/make_<os>/<variant>/ref: versioned reference list used by CI
+- refs/make_<os>/<variant>/inventory.tsv: canonical inventory used to derive ref/perms/symlinks
 - refs/make_<os>/<variant>/keyfiles.sha256: corresponding keyfile checksums
 - refs/make_<os>/<variant>/meta/config.h: captured legacy config header
 - refs/make_<os>/<variant>/meta/config.defines: normalized config macro list

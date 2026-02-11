@@ -55,6 +55,21 @@ resolve_baseline_file() {
   fi
 }
 
+derive_views_from_inventory() {
+  local inventory="$1" out_ref="$2" out_perms="$3" out_symlinks="$4"
+  : > "$out_ref"
+  : > "$out_perms"
+  : > "$out_symlinks"
+  if [ ! -s "$inventory" ]; then
+    return 0
+  fi
+
+  awk -F $'\t' '{print $1}' "$inventory" > "$out_ref"
+  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s|%s|%s\n", $2, $4, $5, $6, $7 }' \
+    "$inventory" > "$out_perms"
+  awk -F $'\t' '$3 == "l" { printf "%s|%s\n", $2, $8 }' "$inventory" > "$out_symlinks"
+}
+
 emit_sorted_diff() {
   local left="$1" right="$2" out="$3" label="$4"
   local left_sorted right_sorted
@@ -130,6 +145,34 @@ copy_if_present "${CANDIDATE_DIR}/binlinks" /tmp/legacy.bin.links
 copy_if_present "${CANDIDATE_DIR}/embedded.paths" /tmp/legacy.embedded.paths
 copy_if_present "${CANDIDATE_DIR}/keyfiles.sha256" /tmp/legacy.keyfiles.sha256
 copy_if_present "${CANDIDATE_DIR}/ref" /tmp/cmake.list
+copy_if_present "${CANDIDATE_DIR}/inventory.tsv" /tmp/legacy.inventory.tsv
+
+# Baseline files.
+BASE_INVENTORY="$(resolve_baseline_file inventory.tsv)"
+BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
+BASE_BINLINKS="$(resolve_baseline_file binlinks)"
+BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
+BASE_REF_LEGACY="$(resolve_baseline_file ref)"
+BASE_SYMLINKS_LEGACY="$(resolve_baseline_file symlinks)"
+BASE_PERMS_LEGACY="$(resolve_baseline_file perms)"
+
+BASE_REF="/tmp/baseline.ref"
+BASE_SYMLINKS="/tmp/baseline.symlinks"
+BASE_PERMS="/tmp/baseline.perms"
+if [ -s "${BASE_INVENTORY}" ]; then
+  derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}"
+else
+  copy_if_present "${BASE_REF_LEGACY}" "${BASE_REF}"
+  copy_if_present "${BASE_SYMLINKS_LEGACY}" "${BASE_SYMLINKS}"
+  copy_if_present "${BASE_PERMS_LEGACY}" "${BASE_PERMS}"
+fi
+
+CANDIDATE_REF="/tmp/cmake.list"
+CANDIDATE_SYMLINKS="/tmp/legacy.symlinks.list"
+CANDIDATE_PERMS="/tmp/legacy.perms.snapshot"
+if [ -s /tmp/legacy.inventory.tsv ]; then
+  derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}"
+fi
 
 : > /tmp/legacy.keyfiles.missing
 if [ -s /tmp/legacy.keyfiles.sha256 ]; then
@@ -172,17 +215,10 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
   fi
 fi
 
-# Baseline files.
-BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
-BASE_SYMLINKS="$(resolve_baseline_file symlinks)"
-BASE_PERMS="$(resolve_baseline_file perms)"
-BASE_BINLINKS="$(resolve_baseline_file binlinks)"
-BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
-BASE_REF="$(resolve_baseline_file ref)"
-
+emit_sorted_diff "$BASE_INVENTORY" /tmp/legacy.inventory.tsv /tmp/legacy.inventory.diff "Inventory"
 emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content"
-emit_sorted_diff "$BASE_SYMLINKS" /tmp/legacy.symlinks.list /tmp/legacy.symlinks.diff "Symlink target"
-emit_sorted_diff "$BASE_PERMS" /tmp/legacy.perms.snapshot /tmp/legacy.perms.diff "Permissions"
+emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target"
+emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions"
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 
@@ -196,16 +232,16 @@ if [ -s "$BASE_REF" ]; then
 else
   echo "baseline: ${BASE_REF} (missing or empty)"
 fi
-if [ -s /tmp/cmake.list ]; then
-  echo "candidate: /tmp/cmake.list ($(wc -l < /tmp/cmake.list) lines)"
+if [ -s "$CANDIDATE_REF" ]; then
+  echo "candidate: ${CANDIDATE_REF} ($(wc -l < "$CANDIDATE_REF") lines)"
 else
-  echo "candidate: /tmp/cmake.list (missing or empty)"
+  echo "candidate: ${CANDIDATE_REF} (missing or empty)"
 fi
-if [ -s "$BASE_REF" ] && [ -s /tmp/cmake.list ]; then
+if [ -s "$BASE_REF" ] && [ -s "$CANDIDATE_REF" ]; then
   grep -v '^[[:space:]]*#' "$BASE_REF" | grep -v '^[[:space:]]*$' \
     | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
-  sort /tmp/cmake.list > /tmp/cmake.list.sorted
-  mv /tmp/cmake.list.sorted /tmp/cmake.list
+  sort "$CANDIDATE_REF" > /tmp/cmake.list.sorted
+  mv /tmp/cmake.list.sorted "$CANDIDATE_REF"
 
   cat > /tmp/allowed-extras.list <<'EOF'
 /var/lib/xymon/cgi-bin/.stamp
@@ -222,7 +258,7 @@ if [ -s "$BASE_REF" ] && [ -s /tmp/cmake.list ]; then
 /var/lib/xymon/server/bin/tree
 /var/lib/xymon/server/bin/xymon-snmpcollect
 EOF
-  grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
+  grep -v -F -x -f /tmp/allowed-extras.list "$CANDIDATE_REF" > /tmp/cmake.filtered.list
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
     echo "result: different (non-blocking)"

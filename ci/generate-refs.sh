@@ -262,6 +262,7 @@ dump_embedded() {
 
 copy_artifacts() {
   for entry in \
+    "${INVENTORY_NAME}:inventory.tsv" \
     "${SYMLINKS_NAME}:symlinks" \
     "${PERMS_NAME}:perms" \
     "${BINLINKS_NAME}:binlinks" \
