@@ -156,17 +156,24 @@ if(ENABLE_SNMP)
             xymoncomm
             ${NETSNMP_LIBS}
         )
-        install(TARGETS xymon-snmpcollect
-            RUNTIME DESTINATION ${INSTALLBINDIR}
-        )
+        if(INSTALL_EXTRA)
+            install(TARGETS xymon-snmpcollect
+                RUNTIME DESTINATION ${INSTALLBINDIR}
+            )
+        endif()
     else()
         message(STATUS "SNMP enabled but net-snmp-config not found; skipping xymon-snmpcollect")
     endif()
 endif()
 
-install(TARGETS xymonnet xymonping beastat contest
+install(TARGETS xymonnet xymonping beastat
     RUNTIME DESTINATION ${INSTALLBINDIR}
 )
+if(INSTALL_EXTRA)
+    install(TARGETS contest
+        RUNTIME DESTINATION ${INSTALLBINDIR}
+    )
+endif()
 
 install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg

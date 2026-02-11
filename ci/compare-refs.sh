@@ -212,16 +212,6 @@ write_allowed_extras() {
 /var/lib/xymon/cgi-bin/.stamp
 /var/lib/xymon/cgi-secure/.stamp
 /var/lib/xymon/install-cmake-legacy.log
-/var/lib/xymon/server/bin/availability
-/var/lib/xymon/server/bin/contest
-/var/lib/xymon/server/bin/loadhosts
-/var/lib/xymon/server/bin/locator
-/var/lib/xymon/server/bin/md5
-/var/lib/xymon/server/bin/rmd160
-/var/lib/xymon/server/bin/sha1
-/var/lib/xymon/server/bin/stackio
-/var/lib/xymon/server/bin/tree
-/var/lib/xymon/server/bin/xymon-snmpcollect
 EOF
 }
 
