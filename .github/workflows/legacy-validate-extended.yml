@@ -106,9 +106,29 @@ jobs:
 
     steps:
       - name: Checkout
+        if: ${{ !(matrix.dep_os == 'centos' && matrix.dep_version == '7') }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
+
+      - name: Checkout (CentOS 7 fallback)
+        if: ${{ matrix.dep_os == 'centos' && matrix.dep_version == '7' }}
+        shell: bash
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          yum -y install git ca-certificates
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          rm -rf "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          cd "${GITHUB_WORKSPACE}"
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          git fetch --depth=1 origin "${GH_SHA}"
+          git checkout --detach FETCH_HEAD
 
       - name: Remove "nobody" group (when requested)
         if: ${{ matrix.drop_nobody }}
