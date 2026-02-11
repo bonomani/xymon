@@ -1,5 +1,5 @@
-/var/lib/xymon		f	755	1001	100	336	
-/var/lib/xymon/bin	/bin	f	755	1001	100	1152	
+/var/lib/xymon		d	755	1001	100	336	
+/var/lib/xymon/bin	/bin	d	755	1001	100	1152	
 /var/lib/xymon/bin/clientupdate	/bin/clientupdate	f	755	1001	100	333776	
 /var/lib/xymon/bin/logfetch	/bin/logfetch	f	755	1001	100	443376	
 /var/lib/xymon/bin/msgcache	/bin/msgcache	f	755	1001	100	281952	
@@ -24,13 +24,13 @@
 /var/lib/xymon/bin/xymondigest	/bin/xymondigest	f	755	1001	100	359728	
 /var/lib/xymon/bin/xymongrep	/bin/xymongrep	f	755	1001	100	516576	
 /var/lib/xymon/bin/xymonlaunch	/bin/xymonlaunch	f	755	1001	100	314808	
-/var/lib/xymon/etc	/etc	f	755	1001	100	144	
+/var/lib/xymon/etc	/etc	d	755	1001	100	144	
 /var/lib/xymon/etc/clientlaunch.cfg	/etc/clientlaunch.cfg	f	644	1001	100	975	
 /var/lib/xymon/etc/localclient.cfg	/etc/localclient.cfg	f	644	1001	100	21716	
 /var/lib/xymon/etc/xymonclient.cfg	/etc/xymonclient.cfg	f	644	1001	100	2882	
-/var/lib/xymon/ext	/ext	f	755	1001	100	0	
-/var/lib/xymon/local	/local	f	755	1001	100	48	
+/var/lib/xymon/ext	/ext	d	755	1001	100	0	
+/var/lib/xymon/local	/local	d	755	1001	100	48	
 /var/lib/xymon/local/README	/local/README	f	644	1001	100	625	
-/var/lib/xymon/logs	/logs	f	755	1001	100	0	
+/var/lib/xymon/logs	/logs	d	755	1001	100	0	
 /var/lib/xymon/runclient.sh	/runclient.sh	f	755	1001	100	4400	
-/var/lib/xymon/tmp	/tmp	f	755	1001	100	0	
+/var/lib/xymon/tmp	/tmp	d	755	1001	100	0	
