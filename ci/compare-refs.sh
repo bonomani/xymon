@@ -276,7 +276,7 @@ EOF
 }
 
 emit_sorted_diff() {
-  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}"
+  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}" severity="${6:-non-blocking}"
   local left_sorted right_sorted
   : > "$out"
   echo "=== Compare: ${label} ==="
@@ -305,7 +305,11 @@ emit_sorted_diff() {
   diff -u "$left_sorted" "$right_sorted" > "$out" || true
   rm -f "$left_sorted" "$right_sorted"
   if [ -s "$out" ]; then
-    echo "result: different (non-blocking)"
+    echo "result: different (${severity})"
+    if [ "$severity" = "blocking" ]; then
+      BLOCKING_FAILURE=1
+      echo "blocking: ${label} mismatch"
+    fi
     emit_theme_summary "$left" "$right" "$theme_mode"
     show_diff_preview "$out"
   else
@@ -314,7 +318,7 @@ emit_sorted_diff() {
 }
 
 emit_diff() {
-  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}"
+  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}" severity="${6:-non-blocking}"
   : > "$out"
   echo "=== Compare: ${label} ==="
   if [ -s "$left" ]; then
@@ -337,7 +341,11 @@ emit_diff() {
   fi
   diff -u "$left" "$right" > "$out" || true
   if [ -s "$out" ]; then
-    echo "result: different (non-blocking)"
+    echo "result: different (${severity})"
+    if [ "$severity" = "blocking" ]; then
+      BLOCKING_FAILURE=1
+      echo "blocking: ${label} mismatch"
+    fi
     emit_theme_summary "$left" "$right" "$theme_mode"
     show_diff_preview "$out"
   else
@@ -438,10 +446,10 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
   fi
 fi
 
-emit_sorted_diff "$BASE_INVENTORY_SHAPE" /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory"
-emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles"
-emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink"
-emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms"
+emit_sorted_diff "$BASE_INVENTORY_SHAPE" /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory" "blocking"
+emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles" "blocking"
+emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink" "blocking"
+emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms" "blocking"
 emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
 if [ -s /tmp/legacy.owners.diff ]; then
   if is_container_runtime; then
@@ -454,12 +462,8 @@ if [ -s /tmp/legacy.owners.diff ]; then
   emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
-emit_sorted_diff "$BASE_NEEDED_NORM" /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed"
-if [ -s /tmp/legacy.needed.norm.diff ]; then
-  BLOCKING_FAILURE=1
-  echo "blocking: Direct dependencies (normalized SONAME) mismatch"
-fi
-emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
+emit_sorted_diff "$BASE_NEEDED_NORM" /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "blocking"
+emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path" "" "blocking"
 
 : > /tmp/legacy.list
 : > /tmp/cmake.filtered.list
@@ -484,7 +488,9 @@ if [ -s "$BASE_REF" ] && [ -s "$CANDIDATE_REF" ]; then
   grep -v -F -x -f /tmp/allowed-extras.list "$CANDIDATE_REF" > /tmp/cmake.filtered.list
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
-    echo "result: different (non-blocking)"
+    echo "result: different (blocking)"
+    BLOCKING_FAILURE=1
+    echo "blocking: Tree reference mismatch"
     emit_theme_summary /tmp/legacy.list /tmp/cmake.filtered.list "tree"
     show_diff_preview /tmp/legacy-cmake.diff
   else
