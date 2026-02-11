@@ -382,11 +382,11 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		 * we MUST reset this before every call.
 		 */
 		optind = opterr = 0; rrd_clear_error();
-		/*
-		 * librrd prototypes use either char ** or const char ** depending on
-		 * distro/librrd version; pass through void * to keep one build path.
-		 */
-		result = rrd_create(4+pcount, (void *)rrdcreate_params);
+#ifdef RRDTOOL19
+		result = rrd_create(4+pcount, (const char **)rrdcreate_params);
+#else
+		result = rrd_create(4+pcount, rrdcreate_params);
+#endif
 		xfree(rrdcreate_params);
 		if (rrakey) xfree(rrakey);
 
@@ -598,7 +598,11 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	struct stat st;
 
 	int result;
+#ifdef RRDTOOL19
+	const char *fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
+#else
 	char *fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
+#endif
 	time_t starttime, endtime;
 	unsigned long steptime, dscount;
 	rrd_value_t *rrddata;
@@ -608,11 +612,7 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	if (stat(filedir, &st) == -1) return 0;
 
 	optind = opterr = 0; rrd_clear_error();
-	/*
-	 * librrd prototypes use either char ** or const char ** depending on
-	 * distro/librrd version; pass through void * to keep one build path.
-	 */
-	result = rrd_fetch(5, (void *)fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
+	result = rrd_fetch(5, fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
 	if (result == -1) {
 		errprintf("Error while retrieving RRD dataset names from %s: %s\n",
 			  filedir, rrd_get_error());
@@ -787,3 +787,4 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 
 	MEMUNDEFINE(rrdvalues);
 }
+

@@ -1215,11 +1215,11 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	rrd_clear_error();
 
 #ifdef RRDTOOL12
-	/*
-	 * librrd prototypes use either char ** or const char ** depending on
-	 * distro/librrd version; pass through void * to keep one build path.
-	 */
-	result = rrd_graph(rrdargcount, (void *)rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
+    #ifdef RRDTOOL19
+	result = rrd_graph(rrdargcount, (const char **)rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
+    #else
+	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
+    #endif
 
 	/*
 	 * If we have neither the upper- nor lower-limits of the graph, AND we allow vertical 
@@ -1231,11 +1231,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		lowerlimit = ymin; havelowerlimit = 1;
 	}
 #else
-	/*
-	 * librrd prototypes use either char ** or const char ** depending on
-	 * distro/librrd version; pass through void * to keep one build path.
-	 */
-	result = rrd_graph(rrdargcount, (void *)rrdargs, &calcpr, &xsize, &ysize);
+	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize);
 #endif
 
 	/* Was it OK ? */
@@ -1367,3 +1363,4 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
+
