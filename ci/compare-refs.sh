@@ -380,6 +380,7 @@ normalize_needed_tsv() {
       sub(/\.so(\.[0-9]+)+$/, ".so", out)
       sub(/^liblber(_r)?-[0-9]+(\.[0-9]+)?\.so$/, "liblber.so", out)
       sub(/^libldap(_r)?-[0-9]+(\.[0-9]+)?\.so$/, "libldap.so", out)
+      sub(/^libc\.musl-[A-Za-z0-9_]+(\.so(\.[0-9]+)*)?$/, "libc.so", out)
       return out
     }
     NF >= 2 {

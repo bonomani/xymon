@@ -368,7 +368,8 @@ extract_direct_needed() {
 normalize_needed_names() {
   sed -E \
     -e 's/\.so(\.[0-9]+)+$/.so/' \
-    -e 's/^lib(lber|ldap)(_r)?-[0-9]+(\.[0-9]+)?\.so$/lib\1.so/'
+    -e 's/^lib(lber|ldap)(_r)?-[0-9]+(\.[0-9]+)?\.so$/lib\1.so/' \
+    -e 's/^libc\.musl-[A-Za-z0-9_]+(\.so(\.[0-9]+)*)?$/libc.so/'
 }
 
 dump_needed_norm() {
