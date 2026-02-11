@@ -67,9 +67,12 @@ case "${os_name}" in
     netbsd|freebsd|openbsd)
       exec "${script_dir}/install-bsd-packages.sh" --os "${os_name}" --version "${version:-}"
       ;;
-    rockylinux|almalinux|fedora)
+    rocky|rockylinux|almalinux|fedora)
       family="rpm"
       pkgmgr="dnf"
+      if [[ "${os_name}" == "rocky" ]]; then
+        os_name="rockylinux"
+      fi
       ;;
     centos)
       family="rpm"
