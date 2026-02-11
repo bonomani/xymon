@@ -176,10 +176,12 @@ jobs:
             /tmp/legacy.symlinks.broken
             /tmp/legacy.symlinks.list
             /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
             /tmp/legacy.bin.links
             /tmp/legacy.embedded.paths
             /tmp/legacy.symlinks.diff
             /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
             /tmp/legacy.binlinks.diff
             /tmp/legacy.embedded.diff
             /tmp/install-cmake-legacy.log

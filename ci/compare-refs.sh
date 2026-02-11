@@ -4,6 +4,7 @@ set -euo pipefail
 BASELINE_PREFIX=""
 CANDIDATE_DIR=""
 CANDIDATE_ROOT=""
+DIFF_PREVIEW_LINES="${DIFF_PREVIEW_LINES:-120}"
 
 usage() {
   cat <<'USAGE' >&2
@@ -55,23 +56,151 @@ resolve_baseline_file() {
   fi
 }
 
+emit_theme_summary() {
+  local left="$1" right="$2" mode="$3"
+  local summary
+  [ -n "$mode" ] || return 0
+  [ -s "$left" ] || return 0
+  [ -s "$right" ] || return 0
+
+  summary="$(mktemp /tmp/xymon-theme-summary.XXXXXX)"
+  awk -v mode="$mode" '
+    function theme_from_path(path,    clean, n, a) {
+      clean = path
+      sub(/^\/var\/lib\/xymon\/?/, "", clean)
+      sub(/^\/+/, "", clean)
+      if (clean == "") return "(root)"
+      n = split(clean, a, "/")
+      if ((a[1] == "server" || a[1] == "client") && n >= 2) return a[1] "/" a[2]
+      if (a[1] == "cgi-bin" || a[1] == "cgi-secure") return a[1]
+      return a[1]
+    }
+
+    function parse_record(line, kind,    parts, n, hash) {
+      rec_key = ""
+      rec_val = ""
+      if (line == "") return
+
+      if (kind == "inventory") {
+        n = split(line, parts, "\t")
+        rec_key = parts[1]
+        rec_val = line
+        sub(/^[^\t]*\t/, "", rec_val)
+        return
+      }
+
+      if (kind == "perms" || kind == "symlink" || kind == "owners") {
+        n = split(line, parts, /\|/)
+        rec_key = parts[1]
+        rec_val = line
+        sub(/^[^|]*\|/, "", rec_val)
+        return
+      }
+
+      if (kind == "keyfiles") {
+        if (line ~ /^MISSING[[:space:]]+/) {
+          rec_key = line
+          sub(/^MISSING[[:space:]]+/, "", rec_key)
+          rec_val = "MISSING"
+          return
+        }
+        rec_key = line
+        sub(/^[^[:space:]]+[[:space:]]+/, "", rec_key)
+        hash = line
+        sub(/[[:space:]].*$/, "", hash)
+        rec_val = hash
+        return
+      }
+
+      if (kind == "tree") {
+        rec_key = line
+        rec_val = "present"
+      }
+    }
+
+    FNR == NR {
+      parse_record($0, mode)
+      if (rec_key == "") next
+      base_val[rec_key] = rec_val
+      base_theme[rec_key] = theme_from_path(rec_key)
+      next
+    }
+
+    {
+      parse_record($0, mode)
+      if (rec_key == "") next
+      cand_val[rec_key] = rec_val
+      cand_theme[rec_key] = theme_from_path(rec_key)
+    }
+
+    END {
+      for (k in base_val) {
+        t = base_theme[k]
+        if (!(k in cand_val)) removed[t]++
+        else if (base_val[k] != cand_val[k]) changed[t]++
+      }
+      for (k in cand_val) {
+        t = cand_theme[k]
+        if (!(k in base_val)) added[t]++
+      }
+
+      for (t in added) {
+        if ((added[t] + removed[t] + changed[t]) > 0) printf "%s\t%d\t%d\t%d\n", t, added[t] + 0, removed[t] + 0, changed[t] + 0
+      }
+      for (t in removed) {
+        if (!(t in added) && (added[t] + removed[t] + changed[t]) > 0) printf "%s\t%d\t%d\t%d\n", t, added[t] + 0, removed[t] + 0, changed[t] + 0
+      }
+      for (t in changed) {
+        if (!(t in added) && !(t in removed) && (added[t] + removed[t] + changed[t]) > 0) printf "%s\t%d\t%d\t%d\n", t, added[t] + 0, removed[t] + 0, changed[t] + 0
+      }
+    }
+  ' "$left" "$right" | sort > "$summary"
+
+  if [ -s "$summary" ]; then
+    echo "theme summary (+ added, - removed, ~ changed):"
+    while IFS=$'\t' read -r theme added removed changed; do
+      printf '  %s: +%s -%s ~%s\n' "$theme" "$added" "$removed" "$changed"
+    done < "$summary"
+  fi
+  rm -f "$summary"
+}
+
+show_diff_preview() {
+  local diff_file="$1"
+  local total limit
+  [ -s "$diff_file" ] || return 0
+
+  total="$(wc -l < "$diff_file")"
+  limit="$DIFF_PREVIEW_LINES"
+  if [ "$total" -le "$limit" ]; then
+    cat "$diff_file"
+    return 0
+  fi
+
+  sed -n "1,${limit}p" "$diff_file"
+  echo "... diff truncated (${total} lines total; showing first ${limit}; full diff in ${diff_file})"
+}
+
 derive_views_from_inventory() {
-  local inventory="$1" out_ref="$2" out_perms="$3" out_symlinks="$4"
+  local inventory="$1" out_ref="$2" out_perms="$3" out_symlinks="$4" out_owners="$5"
   : > "$out_ref"
   : > "$out_perms"
   : > "$out_symlinks"
+  : > "$out_owners"
   if [ ! -s "$inventory" ]; then
     return 0
   fi
 
   awk -F $'\t' '{print $1}' "$inventory" > "$out_ref"
-  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s|%s|%s\n", $2, $4, $5, $6, $7 }' \
+  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s\n", $2, $4, $7 }' \
     "$inventory" > "$out_perms"
   awk -F $'\t' '$3 == "l" { printf "%s|%s\n", $2, $8 }' "$inventory" > "$out_symlinks"
+  awk -F $'\t' '($3 == "f" || $3 == "d") { printf "%s|%s|%s\n", $2, $5, $6 }' \
+    "$inventory" > "$out_owners"
 }
 
 emit_sorted_diff() {
-  local left="$1" right="$2" out="$3" label="$4"
+  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}"
   local left_sorted right_sorted
   : > "$out"
   echo "=== Compare: ${label} ==="
@@ -101,14 +230,15 @@ emit_sorted_diff() {
   rm -f "$left_sorted" "$right_sorted"
   if [ -s "$out" ]; then
     echo "result: different (non-blocking)"
-    cat "$out"
+    emit_theme_summary "$left" "$right" "$theme_mode"
+    show_diff_preview "$out"
   else
     echo "result: identical"
   fi
 }
 
 emit_diff() {
-  local left="$1" right="$2" out="$3" label="$4"
+  local left="$1" right="$2" out="$3" label="$4" theme_mode="${5:-}"
   : > "$out"
   echo "=== Compare: ${label} ==="
   if [ -s "$left" ]; then
@@ -132,7 +262,8 @@ emit_diff() {
   diff -u "$left" "$right" > "$out" || true
   if [ -s "$out" ]; then
     echo "result: different (non-blocking)"
-    cat "$out"
+    emit_theme_summary "$left" "$right" "$theme_mode"
+    show_diff_preview "$out"
   else
     echo "result: identical"
   fi
@@ -162,12 +293,14 @@ fi
 BASE_REF="/tmp/baseline.ref"
 BASE_SYMLINKS="/tmp/baseline.symlinks"
 BASE_PERMS="/tmp/baseline.perms"
-derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}"
+BASE_OWNERS="/tmp/baseline.owners"
+derive_views_from_inventory "${BASE_INVENTORY}" "${BASE_REF}" "${BASE_PERMS}" "${BASE_SYMLINKS}" "${BASE_OWNERS}"
 
 CANDIDATE_REF="/tmp/cmake.list"
 CANDIDATE_SYMLINKS="/tmp/legacy.symlinks.list"
 CANDIDATE_PERMS="/tmp/legacy.perms.snapshot"
-derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}"
+CANDIDATE_OWNERS="/tmp/legacy.owners.snapshot"
+derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}" "${CANDIDATE_OWNERS}"
 
 : > /tmp/legacy.keyfiles.missing
 if [ -s /tmp/legacy.keyfiles.sha256 ]; then
@@ -210,10 +343,11 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
   fi
 fi
 
-emit_sorted_diff "$BASE_INVENTORY" /tmp/legacy.inventory.tsv /tmp/legacy.inventory.diff "Inventory"
-emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content"
-emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target"
-emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions"
+emit_sorted_diff "$BASE_INVENTORY" /tmp/legacy.inventory.tsv /tmp/legacy.inventory.diff "Inventory" "inventory"
+emit_sorted_diff "$BASE_KEYFILES" /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles"
+emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink"
+emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode/size)" "perms"
+emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
 
@@ -257,7 +391,8 @@ EOF
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
     echo "result: different (non-blocking)"
-    cat /tmp/legacy-cmake.diff
+    emit_theme_summary /tmp/legacy.list /tmp/cmake.filtered.list "tree"
+    show_diff_preview /tmp/legacy-cmake.diff
   else
     echo "result: identical"
   fi
