@@ -14,17 +14,20 @@ jobs:
         include:
           - name: debian-bullseye
             container: debian:bullseye
+            variant: server
             allow_failure: false
           - name: debian-bookworm
             container: debian:bookworm
+            variant: server
             allow_failure: false
           - name: debian-trixie
             container: debian:trixie
+            variant: server
             allow_failure: true
 
     name: ${{ matrix.name }}
     env:
-      VARIANT: server
+      VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ON
       ENABLE_SNMP: ON
       LEGACY_APPLY_OWNERSHIP: ON
