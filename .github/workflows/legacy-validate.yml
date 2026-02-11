@@ -77,6 +77,7 @@ jobs:
         run: |
           set -euo pipefail
           legacy_inventory="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/inventory.tsv"
+          legacy_idmap="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.idmap.tsv"
           if [ ! -s "${legacy_inventory}" ]; then
             echo "Identity seed skipped (missing ${legacy_inventory})"
             exit 0
@@ -91,13 +92,14 @@ jobs:
           fi
 
           ensure_group() {
-            local gid="$1"
+            local gid="$1" preferred="${2:-}"
             local gname
             [ -n "$gid" ] || return 0
             if getent group "$gid" >/dev/null 2>&1; then
               return 0
             fi
-            gname="xymonrefg${gid}"
+            gname="${preferred}"
+            [ -n "$gname" ] || gname="xymonrefg${gid}"
             if getent group "$gname" >/dev/null 2>&1; then
               gname="${gname}_legacy"
             fi
@@ -109,7 +111,7 @@ jobs:
           }
 
           ensure_user() {
-            local uid="$1" gid="$2"
+            local uid="$1" gid="$2" preferred="${3:-}"
             local uname
             [ -n "$uid" ] || return 0
             [ -n "$gid" ] || return 0
@@ -117,7 +119,8 @@ jobs:
               return 0
             fi
             ensure_group "$gid"
-            uname="xymonrefu${uid}"
+            uname="${preferred}"
+            [ -n "$uname" ] || uname="xymonrefu${uid}"
             if getent passwd "$uname" >/dev/null 2>&1; then
               uname="${uname}_legacy"
             fi
@@ -128,18 +131,27 @@ jobs:
             fi
           }
 
-          awk -F '\t' '($3=="f" || $3=="d") {print $6}' "${legacy_inventory}" | sort -u > /tmp/legacy.ref.gids
-          awk -F '\t' '($3=="f" || $3=="d") && !seen[$5]++ {print $5 "|" $6}' "${legacy_inventory}" | sort -t '|' -k1,1n > /tmp/legacy.ref.uid_gid
+          if [ -s "${legacy_idmap}" ]; then
+            while IFS=$'\t' read -r uid user_name gid group_name; do
+              [ -n "$uid" ] || continue
+              [ -n "$gid" ] || continue
+              ensure_group "$gid" "$group_name"
+              ensure_user "$uid" "$gid" "$user_name"
+            done < "${legacy_idmap}"
+            echo "Seeded identity entries from ${legacy_idmap}"
+          else
+            awk -F '\t' '($3=="f" || $3=="d") {print $6}' "${legacy_inventory}" | sort -u > /tmp/legacy.ref.gids
+            awk -F '\t' '($3=="f" || $3=="d") && !seen[$5]++ {print $5 "|" $6}' "${legacy_inventory}" | sort -t '|' -k1,1n > /tmp/legacy.ref.uid_gid
 
-          while IFS= read -r gid; do
-            ensure_group "$gid"
-          done < /tmp/legacy.ref.gids
+            while IFS= read -r gid; do
+              ensure_group "$gid"
+            done < /tmp/legacy.ref.gids
 
-          while IFS='|' read -r uid gid; do
-            ensure_user "$uid" "$gid"
-          done < /tmp/legacy.ref.uid_gid
-
-          echo "Seeded identity entries from ${legacy_inventory}"
+            while IFS='|' read -r uid gid; do
+              ensure_user "$uid" "$gid"
+            done < /tmp/legacy.ref.uid_gid
+            echo "Seeded identity entries from ${legacy_inventory}"
+          fi
 
       - name: Bootstrap install + metadata (CMake)
         shell: bash

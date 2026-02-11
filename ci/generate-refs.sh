@@ -10,6 +10,7 @@ BUILD_TOOL=""
 REF_STAGE_ROOT=""
 CONFIG_H_PATH=""
 INVENTORY_NAME="inventory.tsv"
+OWNERS_IDMAP_NAME="owners.idmap.tsv"
 
 usage() {
   cat <<'USAGE' >&2
@@ -191,6 +192,29 @@ generate_keyfiles_list() {
   [ -z "$missing" ]
 }
 
+generate_owner_idmap() {
+  : > "${TMPDIR}/${OWNERS_IDMAP_NAME}"
+  if [ ! -s "${TMPDIR}/${INVENTORY_NAME}" ]; then
+    return 0
+  fi
+
+  local uid gid user_name group_name
+  while IFS=$'\t' read -r uid gid; do
+    user_name="$uid"
+    group_name="$gid"
+    if command -v getent >/dev/null 2>&1; then
+      user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
+      [ -n "$user_name" ] || user_name="$uid"
+      group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
+      [ -n "$group_name" ] || group_name="$gid"
+    fi
+    printf '%s\t%s\t%s\t%s\n' "$uid" "$user_name" "$gid" "$group_name" >> "${TMPDIR}/${OWNERS_IDMAP_NAME}"
+  done < <(
+    awk -F $'\t' '($3 == "f" || $3 == "d") { print $5 "\t" $6 }' "${TMPDIR}/${INVENTORY_NAME}" \
+      | LC_ALL=C sort -u -k1,1n -k2,2n
+  )
+}
+
 stage_keyfiles() {
   for f in "${key_files[@]}"; do
     local local_p="${ROOT}${f#${TOPDIR}}"
@@ -237,6 +261,7 @@ dump_embedded() {
 copy_artifacts() {
   for entry in \
     "${INVENTORY_NAME}:inventory.tsv" \
+    "${OWNERS_IDMAP_NAME}:owners.idmap.tsv" \
     "${BINLINKS_NAME}:binlinks" \
     "${EMBED_NAME}:embedded.paths" \
     "${KEYFILES_NAME}:keyfiles.sha256" \
@@ -254,6 +279,7 @@ copy_artifacts() {
 cleanup_temp_files() {
   local temp_files=(
     "/tmp/${INVENTORY_NAME}"
+    "/tmp/${OWNERS_IDMAP_NAME}"
     "/tmp/${KEYFILES_NAME}"
     "/tmp/${CONFIG_NAME}"
     "/tmp/${CONFIG_DEFINES_NAME}"
@@ -307,6 +333,7 @@ sha256_of() {
 key_files=()
 
 run_step "Build inventory" build_inventory
+run_step "Generate owners idmap" generate_owner_idmap
 run_step "Copy config" copy_config
 run_step "Discover key files" discover_key_files
 run_step "Generate keyfile list" generate_keyfiles_list

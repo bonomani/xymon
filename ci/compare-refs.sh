@@ -218,28 +218,46 @@ is_container_runtime() {
 }
 
 render_owner_names() {
-  local src="$1" dst="$2"
+  local src="$1" dst="$2" idmap="${3:-}"
   : > "$dst"
   if [ ! -s "$src" ]; then
     return 0
   fi
 
-  if ! command -v getent >/dev/null 2>&1; then
-    cp -p "$src" "$dst"
-    return 0
+  declare -A map_uid=()
+  declare -A map_gid=()
+  if [ -n "$idmap" ] && [ -s "$idmap" ]; then
+    while IFS=$'\t' read -r map_u map_un map_g map_gn; do
+      [ -n "$map_u" ] || continue
+      [ -n "$map_g" ] || continue
+      [ -n "$map_un" ] || map_un="$map_u"
+      [ -n "$map_gn" ] || map_gn="$map_g"
+      map_uid[$map_u]="$map_un"
+      map_gid[$map_g]="$map_gn"
+    done < "$idmap"
   fi
 
+  local has_getent=0
+  if command -v getent >/dev/null 2>&1; then
+    has_getent=1
+  fi
   declare -A uid_cache=()
   declare -A gid_cache=()
   local path uid gid user_name group_name
   while IFS='|' read -r path uid gid; do
     if [ -z "${uid_cache[$uid]+x}" ]; then
-      user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
+      user_name="${map_uid[$uid]:-}"
+      if [ -z "$user_name" ] && [ "$has_getent" -eq 1 ]; then
+        user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
+      fi
       [ -n "$user_name" ] || user_name="$uid"
       uid_cache[$uid]="$user_name"
     fi
     if [ -z "${gid_cache[$gid]+x}" ]; then
-      group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
+      group_name="${map_gid[$gid]:-}"
+      if [ -z "$group_name" ] && [ "$has_getent" -eq 1 ]; then
+        group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
+      fi
       [ -n "$group_name" ] || group_name="$gid"
       gid_cache[$gid]="$group_name"
     fi
@@ -334,6 +352,7 @@ copy_if_present "${CANDIDATE_DIR}/inventory.tsv" /tmp/legacy.inventory.tsv
 
 # Baseline files.
 BASE_INVENTORY="$(resolve_baseline_file inventory.tsv)"
+BASE_OWNER_IDMAP="$(resolve_baseline_file owners.idmap.tsv)"
 BASE_KEYFILES="$(resolve_baseline_file keyfiles.sha256)"
 BASE_BINLINKS="$(resolve_baseline_file binlinks)"
 BASE_EMBEDDED="$(resolve_baseline_file embedded.paths)"
@@ -416,15 +435,11 @@ if [ -s /tmp/legacy.owners.diff ]; then
   if is_container_runtime; then
     echo "note: container runtime detected; ownership uid/gid may differ from host refs unless ownership is applied."
   fi
-  if command -v getent >/dev/null 2>&1; then
-    BASE_OWNERS_DISPLAY="/tmp/baseline.owners.display"
-    CANDIDATE_OWNERS_DISPLAY="/tmp/legacy.owners.display"
-    render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY"
-    render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY"
-    emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
-  else
-    echo "note: getent not available; skipping ownership user/group fallback."
-  fi
+  BASE_OWNERS_DISPLAY="/tmp/baseline.owners.display"
+  CANDIDATE_OWNERS_DISPLAY="/tmp/legacy.owners.display"
+  render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY" "$BASE_OWNER_IDMAP"
+  render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY" "$BASE_OWNER_IDMAP"
+  emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff "Embedded path"
