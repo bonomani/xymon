@@ -12,6 +12,7 @@ CONFIG_H_PATH=""
 INVENTORY_NAME="inventory.tsv"
 OWNERS_PASSWD_NAME="owners.passwd"
 OWNERS_GROUP_NAME="owners.group"
+KEYFILES_LIST_NAME="keyfiles.list"
 
 usage() {
   cat <<'USAGE' >&2
@@ -181,7 +182,12 @@ copy_config() {
 generate_keyfiles_list() {
   : > "${TMPDIR}/${KEYFILES_NAME}"
   local missing=""
-  for f in "${key_files[@]}"; do
+  if [ ! -f "${TMPDIR}/${KEYFILES_LIST_NAME}" ]; then
+    echo "Missing ${TMPDIR}/${KEYFILES_LIST_NAME}" >&2
+    return 1
+  fi
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
     local local_p="${ROOT}${f#${TOPDIR}}"
     if [ ! -f "$local_p" ]; then
       echo "MISSING $f" >> "${TMPDIR}/${KEYFILES_NAME}"
@@ -189,7 +195,7 @@ generate_keyfiles_list() {
       continue
     fi
     printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
-  done
+  done < "${TMPDIR}/${KEYFILES_LIST_NAME}"
   LC_ALL=C sort "${TMPDIR}/${KEYFILES_NAME}" -o "${TMPDIR}/${KEYFILES_NAME}"
   [ -z "$missing" ]
 }
@@ -312,7 +318,9 @@ generate_owner_maps() {
 }
 
 stage_keyfiles() {
-  for f in "${key_files[@]}"; do
+  [ -f "${TMPDIR}/${KEYFILES_LIST_NAME}" ] || return 0
+  while IFS= read -r f; do
+    [ -n "$f" ] || continue
     local local_p="${ROOT}${f#${TOPDIR}}"
     if [ -f "$local_p" ]; then
       local rel="${f#/}" rel_dir
@@ -321,7 +329,7 @@ stage_keyfiles() {
       echo "Staging $rel" >&2
       cp -p "$local_p" "$REF_DIR_STAGE/${rel}"
     fi
-  done
+  done < "${TMPDIR}/${KEYFILES_LIST_NAME}"
 }
 
 dump_binlinks() {
@@ -420,6 +428,7 @@ cleanup_temp_files() {
     "/tmp/${INVENTORY_NAME}"
     "/tmp/${OWNERS_PASSWD_NAME}"
     "/tmp/${OWNERS_GROUP_NAME}"
+    "/tmp/${KEYFILES_LIST_NAME}"
     "/tmp/${KEYFILES_NAME}"
     "/tmp/${CONFIG_NAME}"
     "/tmp/${CONFIG_DEFINES_NAME}"
@@ -433,7 +442,7 @@ cleanup_temp_files() {
 }
 
 discover_key_files() {
-  local key_tmp rel type
+  local key_tmp rel type key_count
   key_tmp="$(mktemp "${TMPDIR}/xymon-keyfiles.XXXXXX")"
   : > "$key_tmp"
 
@@ -450,11 +459,12 @@ discover_key_files() {
     fi
   done < "${TMPDIR}/${INVENTORY_NAME}"
 
-  mapfile -t key_files < <(sort -u "$key_tmp")
+  LC_ALL=C sort -u "$key_tmp" > "${TMPDIR}/${KEYFILES_LIST_NAME}"
   rm -f "$key_tmp"
 
-  echo "Discovered ${#key_files[@]} key files" >&2
-  [ "${#key_files[@]}" -gt 0 ]
+  key_count="$(wc -l < "${TMPDIR}/${KEYFILES_LIST_NAME}" | awk '{print $1}')"
+  echo "Discovered ${key_count} key files" >&2
+  [ "${key_count}" -gt 0 ]
 }
 
 sha256_of() {
@@ -470,8 +480,6 @@ sha256_of() {
     exit 1
   fi
 }
-
-key_files=()
 
 run_step "Build inventory" build_inventory
 run_step "Generate owner maps" generate_owner_maps

@@ -224,47 +224,25 @@ render_owner_names() {
   if [ ! -s "$src" ]; then
     return 0
   fi
-
-  declare -A map_uid=()
-  declare -A map_gid=()
-  while IFS=':' read -r name _ uid _ _; do
-    [ -n "$name" ] || continue
-    [ -n "$uid" ] || continue
-    map_uid[$uid]="$name"
-  done < "$passwd_map"
-  while IFS=':' read -r name _ gid _; do
-    [ -n "$name" ] || continue
-    [ -n "$gid" ] || continue
-    map_gid[$gid]="$name"
-  done < "$group_map"
-
-  local has_getent=0
-  if command -v getent >/dev/null 2>&1; then
-    has_getent=1
-  fi
-  declare -A uid_cache=()
-  declare -A gid_cache=()
-  local path uid gid user_name group_name
-  while IFS='|' read -r path uid gid; do
-    if [ -z "${uid_cache[$uid]+x}" ]; then
-      user_name="${map_uid[$uid]:-}"
-      if [ -z "$user_name" ] && [ "$has_getent" -eq 1 ]; then
-        user_name="$(getent passwd "$uid" | awk -F: 'NR==1 {print $1}')"
-      fi
-      [ -n "$user_name" ] || user_name="$uid"
-      uid_cache[$uid]="$user_name"
-    fi
-    if [ -z "${gid_cache[$gid]+x}" ]; then
-      group_name="${map_gid[$gid]:-}"
-      if [ -z "$group_name" ] && [ "$has_getent" -eq 1 ]; then
-        group_name="$(getent group "$gid" | awk -F: 'NR==1 {print $1}')"
-      fi
-      [ -n "$group_name" ] || group_name="$gid"
-      gid_cache[$gid]="$group_name"
-    fi
-
-    printf '%s|%s|%s\n' "$path" "${uid_cache[$uid]}" "${gid_cache[$gid]}" >> "$dst"
-  done < "$src"
+  awk -F'[|:]' -v passwd_file="$passwd_map" -v group_file="$group_map" '
+    FILENAME == passwd_file {
+      if ($1 != "" && $3 != "") uid_name[$3] = $1
+      next
+    }
+    FILENAME == group_file {
+      if ($1 != "" && $3 != "") gid_name[$3] = $1
+      next
+    }
+    {
+      path = $1
+      uid = $2
+      gid = $3
+      if (path == "" || uid == "" || gid == "") next
+      user_name = (uid in uid_name ? uid_name[uid] : uid)
+      group_name = (gid in gid_name ? gid_name[gid] : gid)
+      printf "%s|%s|%s\n", path, user_name, group_name
+    }
+  ' "$passwd_map" "$group_map" "$src" > "$dst"
 }
 
 write_allowed_extras() {
