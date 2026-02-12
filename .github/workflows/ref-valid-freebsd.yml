@@ -5,17 +5,38 @@ on:
 
 jobs:
   validate-freebsd:
-    name: validate_freebsd (${{ matrix.name }})
+    name: ref-valid-freebsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: server
+          - name: "15.0 / server"
+            freebsd_version: "15.0"
             variant: server
-          - name: client ct-client
+          - name: "15.0 / client ct-client"
+            freebsd_version: "15.0"
             variant: localclient
-          - name: client ct-server
+          - name: "15.0 / client ct-server"
+            freebsd_version: "15.0"
+            variant: client
+          - name: "14.3 / server"
+            freebsd_version: "14.3"
+            variant: server
+          - name: "14.3 / client ct-client"
+            freebsd_version: "14.3"
+            variant: localclient
+          - name: "14.3 / client ct-server"
+            freebsd_version: "14.3"
+            variant: client
+          - name: "13.5 / server"
+            freebsd_version: "13.5"
+            variant: server
+          - name: "13.5 / client ct-client"
+            freebsd_version: "13.5"
+            variant: localclient
+          - name: "13.5 / client ct-server"
+            freebsd_version: "13.5"
             variant: client
     env:
       VARIANT: ${{ matrix.variant }}
@@ -64,7 +85,7 @@ jobs:
         with:
           operating_system: freebsd
           architecture: x86-64
-          version: "15.0"
+          version: "${{ matrix.freebsd_version }}"
           shell: bash
           memory: 2048M
           cpu_count: 2
@@ -72,14 +93,15 @@ jobs:
           run: |
             set -euo pipefail
             variant="${{ matrix.variant }}"
+            os_version="${{ matrix.freebsd_version }}"
             ref_prefix="docs/cmake-legacy-migration/refs/make_freebsd/${{ matrix.variant }}"
             legacy_config="${ref_prefix}/meta/config.h"
             candidate_dir="/tmp/xymon-refs/cmake.freebsd.${{ matrix.variant }}"
 
-            echo "Running bootstrap-install (FreeBSD ${variant})"
+            echo "Running bootstrap-install (FreeBSD ${os_version} / ${variant})"
             bash ci/bootstrap-install.sh \
               --os freebsd \
-              --version "15.0" \
+              --version "${os_version}" \
               --variant "${variant}" \
               --build cmake
 
