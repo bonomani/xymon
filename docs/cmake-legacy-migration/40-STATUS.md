@@ -3,15 +3,18 @@ Reference Migration Status Summary
 
 Current State
 -------------
-Reference mode validation is complete and parity is accepted, with a documented
-exception list. OFF mode is deterministic without chown/chgrp, and ON mode
-under sudo restores `xymonping` to `4755 root`.
+Reference mode validation remains stable on Linux/BSD flows, and workflow
+coverage now includes OpenBSD, NetBSD, and macOS (`ref-valid-*`). Recent
+portability fixes addressed macOS runner constraints (Bash 3.2 and tool path
+differences) in dependency/refs scripts and CMake install hooks.
 
 What Changed Last
 -----------------
-- Added `LEGACY_APPLY_OWNERSHIP` to control chown/chgrp behavior.
-- `install-reference-files` now uses `cmake --install` for non-web components.
-- Post-install hook restores `xymonping` permissions and ownership.
+- Added `ref-valid-openbsd.yml`, `ref-valid-netbsd.yml`, and `ref-valid-macos.yml`.
+- Made CI shell scripts Bash 3 compatible (removed `mapfile`, `${var^^}`, and associative arrays in macOS execution paths).
+- Replaced hardcoded install command paths (`/bin/*`, `/usr/bin/find`) with portable command resolution via `PATH`.
+- Added macOS bootstrap support and explicit `XYMONUSER` propagation in CMake configure.
+- Corrected `HAVE_RPCENT_H` config generation to avoid false-positive `#ifdef` branches.
 
 Known Exceptions
 ----------------
@@ -20,9 +23,10 @@ Known Exceptions
 
 Open Risks
 ----------
+- macOS `ref-valid-macos.yml` still needs a full matrix rerun to confirm end-to-end parity outputs.
 - `HTTPDGID` mapping for `rep` and `snap` must remain conditional to avoid "invalid group" errors.
 
 Last Validated
 --------------
-- Date: 2026-02-04
-- Environment: see `STATUS-HISTORY.md` for detailed run notes.
+- Date: 2026-02-12
+- Environment: local smoke validation and CMake configure checks for macOS compatibility fixes; see `STATUS-HISTORY.md` for detailed run notes.

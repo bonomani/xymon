@@ -21,6 +21,41 @@ Environment:
 Details:
 - Link to logs or diffs if stored elsewhere
 
+Entry: 2026-02-12
+-----------------
+
+Summary:
+- Added BSD-style reference validation workflows for OpenBSD, NetBSD, and macOS (`ref-valid-*` naming).
+- Added macOS reference validation matrix (server/localclient/client), using FreeBSD references as the closest baseline.
+- Fixed multiple macOS runner compatibility issues found during workflow execution.
+
+Environment:
+- GitHub Actions macOS runner (`bash` 3.2 default shell behavior).
+- Build path: CMake bootstrap/install/reference generation and compare scripts.
+- Notable variables: `LEGACY_APPLY_OWNERSHIP=ON`, `XYMONUSER=_www`, `XYMONGROUP=_www`.
+
+Details:
+- Root causes observed on macOS:
+  - `bad substitution` from `${val^^}` (Bash 4 syntax unsupported by Bash 3.2).
+  - `mapfile: command not found` (Bash 4 builtin unavailable).
+  - `declare -A` usage in shell scripts (associative arrays unsupported in Bash 3.2).
+  - `/bin/chown` not found due to hardcoded absolute paths in CMake install hooks.
+  - `HAVE_RPCENT_H` generated as `#define HAVE_RPCENT_H 0` with `#ifdef` checks, causing wrong include behavior on BSD/macOS-like platforms.
+- Fixes applied:
+  - `cmake/config.h.in`: switched `HAVE_RPCENT_H` from `#cmakedefine01` to `#cmakedefine`.
+  - `ci/bootstrap-install.sh`: added `--os macos` support and propagated `-DXYMONUSER=...` to CMake configure.
+  - `ci/deps/packages-from-yaml.sh`: removed Bash 4-only constructs (`${val^^}`, `mapfile`, associative arrays).
+  - `ci/generate-refs.sh`: removed `mapfile` and array dependency for keyfiles; now uses sorted list file.
+  - `ci/compare-refs.sh`: replaced associative-array owner rendering with `awk`-based mapping.
+  - `CMakeLists.txt` and `xymond/CMakeLists.txt`: replaced hardcoded `/bin/*` and `/usr/bin/find` commands with portable command names resolved via `PATH`.
+- Validation performed:
+  - `bash -n` checks on updated scripts.
+  - Local smoke run of `ci/generate-refs.sh` with synthetic tree (success).
+  - Local smoke run of `ci/compare-refs.sh` with synthetic baseline/candidate (success).
+  - Local CMake configure check for client variant with ownership mode enabled (success).
+- Remaining validation:
+  - Full GitHub Actions macOS `ref-valid-macos.yml` matrix rerun to confirm end-to-end parity behavior.
+
 Entry: 2026-02-04
 -----------------
 
