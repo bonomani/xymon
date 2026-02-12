@@ -342,7 +342,7 @@ if(NOT DEFINED SRC_DIR OR NOT DEFINED DEST_DIR OR NOT DEFINED MD5_FILE OR NOT DE
   message(FATAL_ERROR "run-setup-newfiles: missing required variables")
 endif()
 execute_process(
-  COMMAND /usr/bin/find .
+  COMMAND find .
   WORKING_DIRECTORY "${SRC_DIR}"
   OUTPUT_VARIABLE _raw
   RESULT_VARIABLE _find_res
@@ -430,14 +430,14 @@ if(XYMON_BUILD_SERVER)
 
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /usr/bin/find
+        COMMAND find
                 "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
                 -type d -exec chmod 755 {} +
     )
 
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /usr/bin/find
+        COMMAND find
                 "${LEGACY_DESTDIR}${INSTALLWWWDIR}"
                 -type f -exec chmod 644 {} +
     )
@@ -446,8 +446,8 @@ if(XYMON_BUILD_SERVER)
     # Apply this even in staging mode (LEGACY_APPLY_OWNERSHIP=OFF).
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-        COMMAND /bin/chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+        COMMAND chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND chmod 775 "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
     )
 endif()
 
@@ -455,14 +455,14 @@ if(LEGACY_APPLY_OWNERSHIP)
     if(XYMON_BUILD_CLIENT)
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
+            COMMAND chown -R "${XYMONUSER}:${XYMONUSER}"
                     "${LEGACY_DESTDIR}${XYMONCLIENTHOME}"
         )
     endif()
     if(XYMON_BUILD_SERVER)
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chown -R "${XYMONUSER}:${XYMONUSER}"
+            COMMAND chown -R "${XYMONUSER}:${XYMONUSER}"
                     "${LEGACY_DESTDIR}${XYMONHOME}"
                     "${LEGACY_DESTDIR}${XYMONVAR}"
                     "${LEGACY_DESTDIR}${CGIDIR}"
@@ -472,9 +472,9 @@ if(LEGACY_APPLY_OWNERSHIP)
         # Legacy make keeps these top-level directories owned by root.
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
-            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
-            COMMAND /bin/chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
+            COMMAND chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
+            COMMAND chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
+            COMMAND chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
         )
     endif()
 endif()
@@ -486,12 +486,12 @@ if(LEGACY_APPLY_OWNERSHIP AND HTTPDGID_CHGRP AND HTTPDGID AND XYMON_BUILD_SERVER
     # Legacy make applies the HTTP group only to report/snapshot outputs and critical cfg.
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-        COMMAND /bin/chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
-        COMMAND /bin/chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg"
-        COMMAND /bin/chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg.bak"
-        COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
-        COMMAND /bin/chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+        COMMAND chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND chgrp -R "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
+        COMMAND chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg"
+        COMMAND chgrp "${HTTPDGID}" "${LEGACY_DESTDIR}${INSTALLETCDIR}/critical.cfg.bak"
+        COMMAND chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
+        COMMAND chmod -R g+w "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
         COMMENT "Application du groupe web ${HTTPDGID} sur les dossiers de rapports"
     )
 endif()
@@ -502,7 +502,7 @@ endif()
 if(LEGACY_APPLY_OWNERSHIP AND XYMON_BUILD_SERVER)
     add_custom_command(
         TARGET install-legacy-files POST_BUILD
-        COMMAND /bin/chown root:"${XYMONUSER}" "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
-        COMMAND /bin/chmod 4755 "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
+        COMMAND chown root:"${XYMONUSER}" "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
+        COMMAND chmod 4755 "${LEGACY_DESTDIR}${INSTALLBINDIR}/xymonping"
     )
 endif()
