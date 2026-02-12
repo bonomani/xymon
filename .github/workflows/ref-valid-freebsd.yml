@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate-freebsd:
+  ref-valid-freebsd:
     name: ref-valid-freebsd (${{ matrix.name }})
     runs-on: ubuntu-22.04
     strategy:
@@ -49,7 +49,7 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Load legacy hostname (FreeBSD refs)
+      - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
         run: |
           set -euo pipefail
@@ -80,7 +80,7 @@ jobs:
           echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
           echo "Using legacy hostname: ${legacy_host}"
 
-      - name: Validate FreeBSD refs
+      - name: Bootstrap install + metadata (CMake)
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: freebsd
@@ -96,7 +96,26 @@ jobs:
             os_version="${{ matrix.freebsd_version }}"
             ref_prefix="docs/cmake-legacy-migration/refs/make_freebsd/${{ matrix.variant }}"
             legacy_config="${ref_prefix}/meta/config.h"
-            candidate_dir="/tmp/xymon-refs/cmake.freebsd.${{ matrix.variant }}"
+            refs_root=".ci-artifacts/ref-valid-freebsd/refs"
+            artifact_root=".ci-artifacts/ref-valid-freebsd/${os_version}-${variant}"
+
+            mkdir -p "${refs_root}" "${artifact_root}"
+            stage_if_present() {
+              local src="$1"
+              if [ -f "${src}" ]; then
+                cp -fp "${src}" "${artifact_root}/$(basename "${src}")"
+              fi
+            }
+            trap '
+              stage_if_present /tmp/legacy.config.extract
+              stage_if_present /tmp/cmake.config.extract
+              stage_if_present /tmp/config.diff
+              stage_if_present /tmp/install-cmake-legacy.log
+              stage_if_present /tmp/cmake.configure.log
+              stage_if_present /tmp/cmake.trace.json
+              stage_if_present /tmp/cmake.trace.log
+              stage_if_present /tmp/xymon-root-vars.sh
+            ' EXIT
 
             echo "Running bootstrap-install (FreeBSD ${os_version} / ${variant})"
             bash ci/bootstrap-install.sh \
@@ -153,9 +172,47 @@ jobs:
               --root "${LEGACY_ROOT}" \
               --topdir "${LEGACY_TOPDIR}" \
               --config-h "${XYMON_CONFIG_H:-}" \
-              --refs-root /tmp/xymon-refs
+              --refs-root "${refs_root}"
 
-            bash ci/compare-refs.sh \
-              --baseline-prefix "${ref_prefix}" \
-              --candidate-dir "${candidate_dir}" \
-              --candidate-root "${LEGACY_ROOT}"
+      - name: Compare refs snapshot (blocking policy checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_freebsd/${{ matrix.variant }}" \
+            --candidate-dir ".ci-artifacts/ref-valid-freebsd/refs/cmake.freebsd.${{ matrix.variant }}"
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-valid-${{ matrix.name }}
+          if-no-files-found: warn
+          path: |
+            .ci-artifacts/ref-valid-freebsd/${{ matrix.freebsd_version }}-${{ matrix.variant }}/**
+            .ci-artifacts/ref-valid-freebsd/refs/cmake.freebsd.${{ matrix.variant }}/**
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff

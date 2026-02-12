@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
 
 jobs:
-  validate_debian:
+  ref-valid-debian:
     runs-on: ${{ matrix.runs_on }}
     container: ${{ matrix.container }}
     continue-on-error: ${{ matrix.allow_failure }}
@@ -58,7 +58,7 @@ jobs:
             variant: client
             allow_failure: true
 
-    name: ${{ matrix.name }}
+    name: ref-valid-debian (${{ matrix.name }})
     env:
       VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
@@ -267,7 +267,7 @@ jobs:
         if: ${{ always() && !matrix.stop_after_configure }}
         uses: actions/upload-artifact@v4
         with:
-          name: legacy-validate-${{ matrix.name }}
+          name: ref-valid-${{ matrix.name }}
           path: |
             /tmp/legacy.config.extract
             /tmp/cmake.config.extract
