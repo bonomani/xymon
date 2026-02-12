@@ -296,6 +296,9 @@ setup_os() {
     linux)
       prepare_os "www-data" "/usr/local" "/usr" "/usr/pkg"
       ;;
+    macos)
+      prepare_os "_www" "/opt/homebrew" "/usr/local" "/usr"
+      ;;
     freebsd)
       prepare_os "www" "/usr/local" "/usr/pkg"
       ;;
@@ -387,6 +390,7 @@ configure_build_cmake() {
     -DUSE_GNUINSTALLDIRS=OFF \
     -DCMAKE_INSTALL_PREFIX=/ \
     -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}" \
+    -DXYMONUSER="${XYMONUSER}" \
     -DHTTPDGID="${HTTPDGID}" \
     -DLEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
     -DXYMON_VARIANT="${CMAKE_VARIANT}" \
