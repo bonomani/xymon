@@ -1,0 +1,139 @@
+name: validate_freebsd
+
+on:
+  workflow_dispatch:
+
+jobs:
+  validate-freebsd:
+    name: validate_freebsd (${{ matrix.name }})
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            variant: server
+          - name: client ct-client
+            variant: localclient
+          - name: client ct-server
+            variant: client
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Load legacy hostname (FreeBSD refs)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_cfg="docs/cmake-legacy-migration/refs/make_freebsd/server/var/lib/xymon/server/etc/xymonserver.cfg"
+          echo "Legacy hostname: checking ${legacy_cfg}"
+          if [ ! -f "${legacy_cfg}" ]; then
+            echo "Legacy hostname: skipped (missing ${legacy_cfg})"
+            exit 0
+          fi
+          legacy_host="$(
+            tr -d '\r' < "${legacy_cfg}" \
+              | awk -F'"' '/^XYMONSERVERHOSTNAME=/{if(!found){print $2; found=1}} END{if(!found) exit 1}'
+          )"
+          if [ -z "${legacy_host}" ]; then
+            legacy_host="$(
+              tr -d '\r' < "${legacy_cfg}" \
+                | awk '/^XYMONSERVERHOSTNAME=/{sub(/^.*=/,""); sub(/[[:space:]]*#.*/,""); gsub(/^[[:space:]]+|[[:space:]]+$/,""); gsub(/^\"|\"$/,""); if(!found){print; found=1}} END{if(!found) exit 1}'
+            )"
+          fi
+          if [ -z "${legacy_host}" ]; then
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${legacy_cfg})"
+            echo "Legacy hostname: first 5 non-comment lines for debug:"
+            tr -d '\r' < "${legacy_cfg}" \
+              | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+              | head -n5
+            exit 0
+          fi
+          echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+          echo "Using legacy hostname: ${legacy_host}"
+
+      - name: Validate FreeBSD refs
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: freebsd
+          architecture: x86-64
+          version: "15.0"
+          shell: bash
+          memory: 2048M
+          cpu_count: 2
+          sync_files: true
+          run: |
+            set -euo pipefail
+            variant="${{ matrix.variant }}"
+            ref_prefix="docs/cmake-legacy-migration/refs/make_freebsd/${{ matrix.variant }}"
+            legacy_config="${ref_prefix}/meta/config.h"
+            candidate_dir="/tmp/xymon-refs/cmake.freebsd.${{ matrix.variant }}"
+
+            echo "Running bootstrap-install (FreeBSD ${variant})"
+            bash ci/bootstrap-install.sh \
+              --os freebsd \
+              --version "15.0" \
+              --variant "${variant}" \
+              --build cmake
+
+            if [ ! -f /tmp/xymon-root-vars.sh ]; then
+              echo "Staged tree metadata missing" >&2
+              exit 1
+            fi
+            source /tmp/xymon-root-vars.sh
+            : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+            : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
+
+            cmake_config="${XYMON_CONFIG_H:-}"
+            if [ -z "${cmake_config}" ] || [ ! -f "${cmake_config}" ]; then
+              cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+            fi
+            if [ -z "${cmake_config}" ] || [ ! -f "${cmake_config}" ]; then
+              cmake_config=$(find build-cmake -name config.h | head -n1)
+            fi
+            if [ -z "${cmake_config}" ] || [ ! -f "${cmake_config}" ]; then
+              echo "No CMake-generated config.h found under build-cmake"
+              exit 1
+            fi
+            if [ ! -f "${legacy_config}" ]; then
+              echo "Baseline config.h not found at ${legacy_config}"
+              exit 1
+            fi
+
+            grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "${legacy_config}" \
+              | grep -v '^#.*HAVE_RPCENT_H' \
+              | sort > /tmp/legacy.config.extract
+            grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "${cmake_config}" \
+              | grep -v '^#define XYMON' \
+              | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+              | grep -v '^#.*HAVE_RPCENT_H' \
+              | sort > /tmp/cmake.config.extract
+
+            diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
+            if ! diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract > /tmp/config.diff; then
+              echo "config.h parity diff detected:"
+              cat /tmp/config.diff
+              exit 1
+            fi
+
+            mkdir -p /tmp/xymon-refs
+            bash ci/generate-refs.sh \
+              --os freebsd \
+              --variant "${variant}" \
+              --build cmake \
+              --root "${LEGACY_ROOT}" \
+              --topdir "${LEGACY_TOPDIR}" \
+              --config-h "${XYMON_CONFIG_H:-}" \
+              --refs-root /tmp/xymon-refs
+
+            bash ci/compare-refs.sh \
+              --baseline-prefix "${ref_prefix}" \
+              --candidate-dir "${candidate_dir}" \
+              --candidate-root "${LEGACY_ROOT}"
