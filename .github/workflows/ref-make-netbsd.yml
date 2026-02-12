@@ -1,4 +1,4 @@
-name: ref_make_netbsd
+name: Reference Generation - NetBSD (make)
 
 on:
   workflow_dispatch:

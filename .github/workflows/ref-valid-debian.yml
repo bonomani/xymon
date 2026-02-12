@@ -1,4 +1,4 @@
-name: validate_debian
+name: Reference Validation - Debian
 
 on:
   workflow_dispatch:

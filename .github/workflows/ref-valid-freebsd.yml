@@ -1,4 +1,4 @@
-name: validate_freebsd
+name: Reference Validation - FreeBSD
 
 on:
   workflow_dispatch:

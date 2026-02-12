@@ -1,4 +1,4 @@
-name: ref_make_freebsd
+name: Reference Generation - FreeBSD (make)
 
 on:
   workflow_dispatch:
