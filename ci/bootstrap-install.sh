@@ -211,8 +211,12 @@ ensure_group() {
 
   if [ "${OS_NAME}" = "freebsd" ]; then
     as_root pw groupadd "${group_name}" 2>/dev/null || true
+  elif [ "${OS_NAME}" = "netbsd" ] && [ -x /usr/sbin/groupadd ]; then
+    as_root /usr/sbin/groupadd "${group_name}" 2>/dev/null || true
   elif command -v groupadd >/dev/null 2>&1; then
     as_root groupadd "${group_name}" 2>/dev/null || true
+  elif [ -x /usr/sbin/groupadd ]; then
+    as_root /usr/sbin/groupadd "${group_name}" 2>/dev/null || true
   elif command -v addgroup >/dev/null 2>&1; then
     as_root addgroup -S "${group_name}" 2>/dev/null || as_root addgroup "${group_name}" 2>/dev/null || true
   else
@@ -227,12 +231,20 @@ ensure_user() {
 
   if [ "${OS_NAME}" = "freebsd" ]; then
     as_root pw useradd -n "${XYMONUSER}" -m -g "${XYMONGROUP}" -s /bin/sh 2>/dev/null || true
+  elif [ "${OS_NAME}" = "netbsd" ] && [ -x /usr/sbin/useradd ]; then
+    as_root /usr/sbin/useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
   elif command -v useradd >/dev/null 2>&1; then
     as_root useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
+  elif [ -x /usr/sbin/useradd ]; then
+    as_root /usr/sbin/useradd -m -g "${XYMONGROUP}" -s /bin/sh "${XYMONUSER}" 2>/dev/null || true
   elif command -v adduser >/dev/null 2>&1; then
     as_root adduser -S -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
       || as_root adduser -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
       || as_root adduser -D -s /bin/sh "${XYMONUSER}" 2>/dev/null \
+      || true
+  elif [ -x /usr/sbin/adduser ]; then
+    as_root /usr/sbin/adduser -D -s /bin/sh -G "${XYMONGROUP}" "${XYMONUSER}" 2>/dev/null \
+      || as_root /usr/sbin/adduser -D -s /bin/sh "${XYMONUSER}" 2>/dev/null \
       || true
   else
     true
