@@ -164,7 +164,6 @@ jobs:
               exit 1
             fi
 
-            mkdir -p /tmp/xymon-refs
             bash ci/generate-refs.sh \
               --os freebsd \
               --variant "${variant}" \
