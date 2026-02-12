@@ -360,7 +360,7 @@ filter_keyfiles_dynamic() {
     [ -n "$line" ] || continue
     path="${line##*  }"
     case "$path" in
-      /var/lib/xymon/server/etc/xymonserver.cfg|/var/lib/xymon/client/etc/xymonclient.cfg)
+      /var/lib/xymon/server/etc/xymonserver.cfg|/var/lib/xymon/client/etc/xymonclient.cfg|/var/lib/xymon/etc/xymonclient.cfg)
         continue
         ;;
     esac
