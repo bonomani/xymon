@@ -367,11 +367,19 @@ extract_direct_needed() {
       | awk '$1 == "NEEDED" { print $2 }'
     return 0
   fi
+  if command -v otool >/dev/null 2>&1; then
+    otool -L "$bin" 2>/dev/null \
+      | awk 'NR > 1 { print $1 }'
+    return 0
+  fi
   return 1
 }
 
 normalize_needed_names() {
   sed -E \
+    -e 's@.*/@@' \
+    -e 's/^libSystem\.B\.dylib$/libc.so/' \
+    -e 's/^lib([A-Za-z0-9_+-]+)(\.[0-9A-Za-z_+-]+)*\.dylib$/lib\1.so/' \
     -e 's/\.so(\.[0-9]+)+$/.so/' \
     -e 's/^lib(lber|ldap)(_r)?-[0-9]+(\.[0-9]+)?\.so$/lib\1.so/' \
     -e 's/^libc\.musl-[A-Za-z0-9_]+(\.so(\.[0-9]+)*)?$/libc.so/'
