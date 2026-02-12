@@ -58,7 +58,7 @@ jobs:
             variant: client
             allow_failure: true
 
-    name: Debian Reference Validation - ${{ matrix.name }}
+    name: ${{ matrix.name }}
     env:
       VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
