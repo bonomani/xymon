@@ -333,11 +333,11 @@ stage_keyfiles() {
 }
 
 dump_binlinks() {
-  : > "/tmp/${BINLINKS_NAME}"
+  : > "${TMPDIR}/${BINLINKS_NAME}"
   collect_bin_roots || return 0
   find "${bin_roots[@]}" -type f -perm -111 \
     | while IFS= read -r bin; do
-        echo "=== ${bin#$ROOT} ===" >> "/tmp/${BINLINKS_NAME}"
+        echo "=== ${bin#$ROOT} ===" >> "${TMPDIR}/${BINLINKS_NAME}"
         if ! command -v ldd >/dev/null 2>&1; then
           continue
         fi
@@ -348,7 +348,7 @@ dump_binlinks() {
               $1 == "linux-vdso.so.1" {print $1; next} \
               $1 == "not" && $2 == "a" {print; next} \
               $NF ~ /^\// {print $NF} \
-            ' >> "/tmp/${BINLINKS_NAME}" || true
+            ' >> "${TMPDIR}/${BINLINKS_NAME}" || true
       done
 }
 
@@ -381,26 +381,26 @@ normalize_needed_names() {
 }
 
 dump_needed_norm() {
-  : > "/tmp/${NEEDED_NORM_NAME}"
+  : > "${TMPDIR}/${NEEDED_NORM_NAME}"
   collect_bin_roots || return 0
   find "${bin_roots[@]}" -type f -perm -111 \
     | while IFS= read -r bin; do
         extract_direct_needed "$bin" \
           | normalize_needed_names \
           | awk -v exe="${bin#$ROOT}" 'NF { printf "%s\t%s\n", exe, $0 }' \
-          >> "/tmp/${NEEDED_NORM_NAME}" || true
+          >> "${TMPDIR}/${NEEDED_NORM_NAME}" || true
       done
-  sort -u "/tmp/${NEEDED_NORM_NAME}" -o "/tmp/${NEEDED_NORM_NAME}"
+  sort -u "${TMPDIR}/${NEEDED_NORM_NAME}" -o "${TMPDIR}/${NEEDED_NORM_NAME}"
 }
 
 dump_embedded() {
-  : > "/tmp/${EMBED_NAME}"
+  : > "${TMPDIR}/${EMBED_NAME}"
   collect_bin_roots || return 0
   find "${bin_roots[@]}" -type f -perm -111 \
     | while IFS= read -r bin; do
-        strings "$bin" | grep -E '/var/lib/xymon' >> "/tmp/${EMBED_NAME}" || true
+        strings "$bin" | grep -E '/var/lib/xymon' >> "${TMPDIR}/${EMBED_NAME}" || true
       done
-  sort -u "/tmp/${EMBED_NAME}" -o "/tmp/${EMBED_NAME}"
+  sort -u "${TMPDIR}/${EMBED_NAME}" -o "${TMPDIR}/${EMBED_NAME}"
 }
 
 copy_artifacts() {
@@ -414,7 +414,7 @@ copy_artifacts() {
     "${KEYFILES_NAME}:keyfiles.sha256" \
     "${CONFIG_NAME}:meta/config.h" \
     "${CONFIG_DEFINES_NAME}:meta/config.defines"; do
-    src="/tmp/${entry%%:*}"
+    src="${TMPDIR}/${entry%%:*}"
     dst="${entry#*:}"
     if [ ! -e "$src" ]; then
       echo "Skipping missing $src" >&2
@@ -425,16 +425,16 @@ copy_artifacts() {
 
 cleanup_temp_files() {
   local temp_files=(
-    "/tmp/${INVENTORY_NAME}"
-    "/tmp/${OWNERS_PASSWD_NAME}"
-    "/tmp/${OWNERS_GROUP_NAME}"
-    "/tmp/${KEYFILES_LIST_NAME}"
-    "/tmp/${KEYFILES_NAME}"
-    "/tmp/${CONFIG_NAME}"
-    "/tmp/${CONFIG_DEFINES_NAME}"
-    "/tmp/${BINLINKS_NAME}"
-    "/tmp/${NEEDED_NORM_NAME}"
-    "/tmp/${EMBED_NAME}"
+    "${TMPDIR}/${INVENTORY_NAME}"
+    "${TMPDIR}/${OWNERS_PASSWD_NAME}"
+    "${TMPDIR}/${OWNERS_GROUP_NAME}"
+    "${TMPDIR}/${KEYFILES_LIST_NAME}"
+    "${TMPDIR}/${KEYFILES_NAME}"
+    "${TMPDIR}/${CONFIG_NAME}"
+    "${TMPDIR}/${CONFIG_DEFINES_NAME}"
+    "${TMPDIR}/${BINLINKS_NAME}"
+    "${TMPDIR}/${NEEDED_NORM_NAME}"
+    "${TMPDIR}/${EMBED_NAME}"
   )
   for file in "${temp_files[@]}"; do
     rm -f "$file"

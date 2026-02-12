@@ -472,9 +472,9 @@ if(LEGACY_APPLY_OWNERSHIP)
         # Legacy make keeps these top-level directories owned by root.
         add_custom_command(
             TARGET install-legacy-files POST_BUILD
-            COMMAND chown root:root "${LEGACY_DESTDIR}${CGIDIR}"
-            COMMAND chown root:root "${LEGACY_DESTDIR}${SECURECGIDIR}"
-            COMMAND chown root:root "${LEGACY_DESTDIR}${XYMONHOME}/man"
+            COMMAND chown root:0 "${LEGACY_DESTDIR}${CGIDIR}"
+            COMMAND chown root:0 "${LEGACY_DESTDIR}${SECURECGIDIR}"
+            COMMAND chown root:0 "${LEGACY_DESTDIR}${XYMONHOME}/man"
         )
     endif()
 endif()
