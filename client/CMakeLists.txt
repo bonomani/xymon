@@ -127,6 +127,33 @@ target_link_libraries(msgcache
     crypto
 )
 
+set(_CLIENT_EXTRA_MEMINFO_TARGETS)
+if(CMAKE_SYSTEM_NAME STREQUAL "FreeBSD")
+    add_executable(freebsd-meminfo
+        freebsd-meminfo.c
+    )
+    set_target_properties(freebsd-meminfo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CLIENT_OUTPUT_DIR}
+    )
+    list(APPEND _CLIENT_EXTRA_MEMINFO_TARGETS freebsd-meminfo)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+    add_executable(netbsd-meminfo
+        netbsd-meminfo.c
+    )
+    set_target_properties(netbsd-meminfo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CLIENT_OUTPUT_DIR}
+    )
+    list(APPEND _CLIENT_EXTRA_MEMINFO_TARGETS netbsd-meminfo)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
+    add_executable(openbsd-meminfo
+        openbsd-meminfo.c
+    )
+    set_target_properties(openbsd-meminfo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY ${CLIENT_OUTPUT_DIR}
+    )
+    list(APPEND _CLIENT_EXTRA_MEMINFO_TARGETS openbsd-meminfo)
+endif()
+
 install(TARGETS
     client_xymon
     client_xymonlaunch
@@ -138,6 +165,7 @@ install(TARGETS
     clientupdate
     orcaxymon
     msgcache
+    ${_CLIENT_EXTRA_MEMINFO_TARGETS}
     RUNTIME DESTINATION ${XYMONCLIENTHOME}/bin
 )
 

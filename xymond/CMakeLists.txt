@@ -201,6 +201,12 @@ if(ENABLE_RRD)
     find_path(RRD_INCLUDE_DIR rrd.h)
     find_library(RRD_LIBRARY rrd)
     if(RRD_INCLUDE_DIR AND RRD_LIBRARY)
+        set(_XYMOND_RRD_EXTRA_LIBS)
+        find_library(PNG_LIBRARY NAMES png16 png)
+        if(PNG_LIBRARY)
+            list(APPEND _XYMOND_RRD_EXTRA_LIBS "${PNG_LIBRARY}")
+        endif()
+
         add_executable(xymond_rrd
             xymond_rrd.c
             xymond_worker.c
@@ -209,10 +215,11 @@ if(ENABLE_RRD)
         )
         target_compile_definitions(xymond_rrd PRIVATE RRDTOOL12)
         target_include_directories(xymond_rrd PRIVATE ${RRD_INCLUDE_DIR})
-target_link_libraries(xymond_rrd
+        target_link_libraries(xymond_rrd
             xymontime
             xymoncomm
             ${RRD_LIBRARY}
+            ${_XYMOND_RRD_EXTRA_LIBS}
             pcre
             ssl
             crypto
