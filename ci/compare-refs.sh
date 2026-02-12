@@ -251,6 +251,13 @@ write_allowed_extras() {
 /var/lib/xymon/cgi-secure/.stamp
 /var/lib/xymon/install-cmake-legacy.log
 EOF
+  if [ "$(uname -s)" = "Darwin" ]; then
+    cat >> /tmp/allowed-extras.list <<'EOF'
+/var/lib/xymon/bin/freebsd-meminfo
+/var/lib/xymon/bin/netbsd-meminfo
+/var/lib/xymon/bin/openbsd-meminfo
+EOF
+  fi
 }
 
 emit_sorted_diff() {
@@ -415,10 +422,46 @@ CANDIDATE_OWNERS="/tmp/legacy.owners.snapshot"
 CANDIDATE_INVENTORY_SHAPE="/tmp/legacy.inventory.shape"
 derive_views_from_inventory /tmp/legacy.inventory.tsv "${CANDIDATE_REF}" "${CANDIDATE_PERMS}" "${CANDIDATE_SYMLINKS}" "${CANDIDATE_OWNERS}" "${CANDIDATE_INVENTORY_SHAPE}"
 write_allowed_extras
+sed -e 's#^/var/lib/xymon##' -e '/^$/d' /tmp/allowed-extras.list | LC_ALL=C sort -u > /tmp/allowed-extras.rel.list
+
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.list "${BASE_INVENTORY_SHAPE}" > /tmp/baseline.inventory.filtered.shape
 awk -F '|' '
   NR == FNR { skip[$1] = 1; next }
   !($1 in skip)
 ' /tmp/allowed-extras.list "${CANDIDATE_INVENTORY_SHAPE}" > /tmp/legacy.inventory.filtered.shape
+
+grep -v -F -x -f /tmp/allowed-extras.list "$BASE_REF" > /tmp/baseline.ref.filtered
+grep -v -F -x -f /tmp/allowed-extras.list "$CANDIDATE_REF" > /tmp/cmake.filtered.ref
+
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$BASE_SYMLINKS" > /tmp/baseline.symlinks.filtered
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$CANDIDATE_SYMLINKS" > /tmp/legacy.symlinks.filtered
+
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$BASE_PERMS" > /tmp/baseline.perms.filtered
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$CANDIDATE_PERMS" > /tmp/legacy.perms.filtered
+
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$BASE_OWNERS" > /tmp/baseline.owners.filtered
+awk -F '|' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list "$CANDIDATE_OWNERS" > /tmp/legacy.owners.filtered
 
 : > /tmp/legacy.keyfiles.missing
 if [ -s /tmp/legacy.keyfiles.sha256 ]; then
@@ -461,29 +504,37 @@ if [ -n "$CANDIDATE_ROOT" ] && [ -d "$CANDIDATE_ROOT" ]; then
   fi
 fi
 
-emit_sorted_diff "$BASE_INVENTORY_SHAPE" /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory" "blocking"
+emit_sorted_diff /tmp/baseline.inventory.filtered.shape /tmp/legacy.inventory.filtered.shape /tmp/legacy.inventory.diff "Inventory (path/type)" "inventory" "blocking"
 filter_keyfiles_dynamic "$BASE_KEYFILES" /tmp/baseline.keyfiles.filtered
 filter_keyfiles_dynamic /tmp/legacy.keyfiles.sha256 /tmp/legacy.keyfiles.filtered
 emit_sorted_diff /tmp/baseline.keyfiles.filtered /tmp/legacy.keyfiles.filtered /tmp/legacy.keyfiles.sha256.diff "Key file content" "keyfiles" "blocking"
-emit_sorted_diff "$BASE_SYMLINKS" "$CANDIDATE_SYMLINKS" /tmp/legacy.symlinks.diff "Symlink target" "symlink" "blocking"
-emit_sorted_diff "$BASE_PERMS" "$CANDIDATE_PERMS" /tmp/legacy.perms.diff "Permissions (mode only)" "perms" "blocking"
-emit_sorted_diff "$BASE_OWNERS" "$CANDIDATE_OWNERS" /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
+emit_sorted_diff /tmp/baseline.symlinks.filtered /tmp/legacy.symlinks.filtered /tmp/legacy.symlinks.diff "Symlink target" "symlink" "blocking"
+emit_sorted_diff /tmp/baseline.perms.filtered /tmp/legacy.perms.filtered /tmp/legacy.perms.diff "Permissions (mode only)" "perms" "blocking"
+emit_sorted_diff /tmp/baseline.owners.filtered /tmp/legacy.owners.filtered /tmp/legacy.owners.diff "Ownership (uid/gid, informational)" "owners"
 if [ -s /tmp/legacy.owners.diff ]; then
   if is_container_runtime; then
     echo "note: container runtime detected; ownership uid/gid may differ from host refs unless ownership is applied."
   fi
   BASE_OWNERS_DISPLAY="/tmp/baseline.owners.display"
   CANDIDATE_OWNERS_DISPLAY="/tmp/legacy.owners.display"
-  render_owner_names "$BASE_OWNERS" "$BASE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
-  render_owner_names "$CANDIDATE_OWNERS" "$CANDIDATE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
+  render_owner_names /tmp/baseline.owners.filtered "$BASE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
+  render_owner_names /tmp/legacy.owners.filtered "$CANDIDATE_OWNERS_DISPLAY" "$BASE_OWNER_PASSWD" "$BASE_OWNER_GROUP"
   emit_sorted_diff "$BASE_OWNERS_DISPLAY" "$CANDIDATE_OWNERS_DISPLAY" /tmp/legacy.owners.names.diff "Ownership (user/group fallback, informational)" "owners"
 fi
 emit_diff "$BASE_BINLINKS" /tmp/legacy.bin.links /tmp/legacy.binlinks.diff "Binary linkage"
 normalize_needed_tsv "$BASE_NEEDED_NORM" /tmp/baseline.needed.norm.canon
 normalize_needed_tsv /tmp/legacy.needed.norm.tsv /tmp/legacy.needed.norm.canon
-emit_sorted_diff /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "non-blocking"
-comm -23 /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon > /tmp/legacy.needed.norm.missing
-comm -13 /tmp/baseline.needed.norm.canon /tmp/legacy.needed.norm.canon > /tmp/legacy.needed.norm.extra
+awk -F $'\t' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list /tmp/baseline.needed.norm.canon > /tmp/baseline.needed.norm.filtered.canon
+awk -F $'\t' '
+  NR == FNR { skip[$1] = 1; next }
+  !($1 in skip)
+' /tmp/allowed-extras.rel.list /tmp/legacy.needed.norm.canon > /tmp/legacy.needed.norm.filtered.canon
+emit_sorted_diff /tmp/baseline.needed.norm.filtered.canon /tmp/legacy.needed.norm.filtered.canon /tmp/legacy.needed.norm.diff "Direct dependencies (normalized SONAME)" "needed" "non-blocking"
+comm -23 /tmp/baseline.needed.norm.filtered.canon /tmp/legacy.needed.norm.filtered.canon > /tmp/legacy.needed.norm.missing
+comm -13 /tmp/baseline.needed.norm.filtered.canon /tmp/legacy.needed.norm.filtered.canon > /tmp/legacy.needed.norm.extra
 if [ -s /tmp/legacy.needed.norm.missing ]; then
   echo "blocking: candidate missing baseline direct dependencies"
   cat /tmp/legacy.needed.norm.missing
@@ -499,23 +550,21 @@ emit_diff "$BASE_EMBEDDED" /tmp/legacy.embedded.paths /tmp/legacy.embedded.diff 
 : > /tmp/cmake.filtered.list
 : > /tmp/legacy-cmake.diff
 echo "=== Compare: Tree reference ==="
-if [ -s "$BASE_REF" ]; then
-  echo "baseline: ${BASE_REF} ($(wc -l < "$BASE_REF") lines)"
+if [ -s /tmp/baseline.ref.filtered ]; then
+  echo "baseline: /tmp/baseline.ref.filtered ($(wc -l < /tmp/baseline.ref.filtered) lines)"
 else
-  echo "baseline: ${BASE_REF} (missing or empty)"
+  echo "baseline: /tmp/baseline.ref.filtered (missing or empty)"
 fi
-if [ -s "$CANDIDATE_REF" ]; then
-  echo "candidate: ${CANDIDATE_REF} ($(wc -l < "$CANDIDATE_REF") lines)"
+if [ -s /tmp/cmake.filtered.ref ]; then
+  echo "candidate: /tmp/cmake.filtered.ref ($(wc -l < /tmp/cmake.filtered.ref) lines)"
 else
-  echo "candidate: ${CANDIDATE_REF} (missing or empty)"
+  echo "candidate: /tmp/cmake.filtered.ref (missing or empty)"
 fi
-if [ -s "$BASE_REF" ] && [ -s "$CANDIDATE_REF" ]; then
-  grep -v '^[[:space:]]*#' "$BASE_REF" | grep -v '^[[:space:]]*$' \
+if [ -s /tmp/baseline.ref.filtered ] && [ -s /tmp/cmake.filtered.ref ]; then
+  grep -v '^[[:space:]]*#' /tmp/baseline.ref.filtered | grep -v '^[[:space:]]*$' \
     | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
-  sort "$CANDIDATE_REF" > /tmp/cmake.list.sorted
-  mv /tmp/cmake.list.sorted "$CANDIDATE_REF"
-
-  grep -v -F -x -f /tmp/allowed-extras.list "$CANDIDATE_REF" > /tmp/cmake.filtered.list
+  sort /tmp/cmake.filtered.ref > /tmp/cmake.list.sorted
+  mv /tmp/cmake.list.sorted /tmp/cmake.filtered.list
   diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
   if [ -s /tmp/legacy-cmake.diff ]; then
     echo "result: different (blocking)"

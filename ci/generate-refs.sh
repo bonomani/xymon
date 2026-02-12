@@ -88,18 +88,10 @@ stat_fields() {
   local p="$1"
   case "${HOST_UNAME}" in
     Darwin|FreeBSD|OpenBSD|NetBSD)
-      printf '%s\t%s\t%s\t%s\n' \
-        "$(stat -f '%Lp' "$p")" \
-        "$(stat -f '%u' "$p")" \
-        "$(stat -f '%g' "$p")" \
-        "$(stat -f '%z' "$p")"
+      stat -f '%Lp\t%u\t%g\t%z' "$p"
       ;;
     *)
-      printf '%s\t%s\t%s\t%s\n' \
-        "$(stat -c '%a' "$p")" \
-        "$(stat -c '%u' "$p")" \
-        "$(stat -c '%g' "$p")" \
-        "$(stat -c '%s' "$p")"
+      stat -c '%a\t%u\t%g\t%s' "$p"
       ;;
   esac
 }
@@ -134,9 +126,9 @@ collect_bin_roots() {
 }
 
 build_inventory() {
-  local p rel abs type mode uid gid size target
+  local p rel abs type mode uid gid size target stats
   : > "${TMPDIR}/${INVENTORY_NAME}"
-  while IFS= read -r p; do
+  find "$ROOT" -print | while IFS= read -r p; do
     rel="${p#$ROOT}"
     abs="${p/#$ROOT/$TOPDIR}"
     if [ "${abs}" = "${TOPDIR}/" ]; then
@@ -151,12 +143,17 @@ build_inventory() {
     if [ -L "$p" ]; then
       type="l"
       target="$(readlink "$p" 2>/dev/null || true)"
-    elif [ -d "$p" ]; then
-      type="d"
-      IFS=$'\t' read -r mode uid gid size < <(stat_fields "$p")
-    elif [ -f "$p" ]; then
-      type="f"
-      IFS=$'\t' read -r mode uid gid size < <(stat_fields "$p")
+    elif [ -d "$p" ] || [ -f "$p" ]; then
+      if [ -d "$p" ]; then
+        type="d"
+      else
+        type="f"
+      fi
+      if stats="$(stat_fields "$p" 2>/dev/null)"; then
+        IFS=$'\t' read -r mode uid gid size <<EOF
+$stats
+EOF
+      fi
     else
       type="o"
     fi
@@ -164,7 +161,7 @@ build_inventory() {
     printf '%s\t%s\t%s\t%s\t%s\t%s\t%s\t%s\n' \
       "$abs" "$rel" "$type" "$mode" "$uid" "$gid" "$size" "$target" \
       >> "${TMPDIR}/${INVENTORY_NAME}"
-  done < <(find "$ROOT" -print)
+  done
 
   LC_ALL=C sort "${TMPDIR}/${INVENTORY_NAME}" -o "${TMPDIR}/${INVENTORY_NAME}"
 }
