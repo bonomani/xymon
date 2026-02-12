@@ -88,10 +88,10 @@ stat_fields() {
   local p="$1"
   case "${HOST_UNAME}" in
     Darwin|FreeBSD|OpenBSD|NetBSD)
-      stat -f '%Lp\t%u\t%g\t%z' "$p"
+      stat -f '%Lp|%u|%g|%z' "$p"
       ;;
     *)
-      stat -c '%a\t%u\t%g\t%s' "$p"
+      stat -c '%a|%u|%g|%s' "$p"
       ;;
   esac
 }
@@ -150,7 +150,7 @@ build_inventory() {
         type="f"
       fi
       if stats="$(stat_fields "$p" 2>/dev/null)"; then
-        IFS=$'\t' read -r mode uid gid size <<EOF
+        IFS='|' read -r mode uid gid size <<EOF
 $stats
 EOF
       fi
