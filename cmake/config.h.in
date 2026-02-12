@@ -8,7 +8,7 @@
 #cmakedefine01 HAVE_SOCKLEN_T
 #cmakedefine01 HAVE_SNPRINTF
 #cmakedefine01 HAVE_VSNPRINTF
-#cmakedefine01 HAVE_RPCENT_H
+#cmakedefine HAVE_RPCENT_H
 #cmakedefine01 HAVE_SYS_SELECT_H
 #cmakedefine01 HAVE_UINT32_TYPEDEF
 #cmakedefine01 HAVE_UNAME
