@@ -1,11 +1,11 @@
-name: Reference Generation - NetBSD (make)
+name: Reference Generation - NetBSD
 
 on:
   workflow_dispatch:
 
 jobs:
   ref-make-netbsd:
-    name: ref_make_netbsd (${{ matrix.name }})
+    name: ${{ matrix.name }}
     env:
       BUILD_TOOL: make
       REF_OS: netbsd

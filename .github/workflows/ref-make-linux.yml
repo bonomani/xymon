@@ -1,11 +1,11 @@
-name: Reference Generation - Linux (make)
+name: Reference Generation - Linux
 
 on:
   workflow_dispatch:
 
 jobs:
   ref-make-linux:
-    name: ref_make_linux (${{ matrix.name }})
+    name: ${{ matrix.name }}
     env:
       BUILD_TOOL: make
       REF_OS: linux

@@ -1,11 +1,11 @@
-name: Reference Generation - OpenBSD (make)
+name: Reference Generation - OpenBSD
 
 on:
   workflow_dispatch:
 
 jobs:
   ref-make-openbsd:
-    name: ref_make_openbsd (${{ matrix.name }})
+    name: ${{ matrix.name }}
     env:
       BUILD_TOOL: make
       REF_OS: openbsd
