@@ -12,53 +12,53 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: debian-bullseye (server)
+          - name: Bullseye - Server
             runs_on: ubuntu-22.04
             container: debian:bullseye
             variant: server
             allow_failure: false
-          - name: debian-bullseye (client ct-client)
+          - name: Bullseye - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:bullseye
             variant: localclient
             allow_failure: false
-          - name: debian-bullseye (client ct-server)
+          - name: Bullseye - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:bullseye
             variant: client
             allow_failure: false
-          - name: debian-bookworm (server)
+          - name: Bookworm - Server
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: server
             allow_failure: false
-          - name: debian-bookworm (client ct-client)
+          - name: Bookworm - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: localclient
             allow_failure: false
-          - name: debian-bookworm (client ct-server)
+          - name: Bookworm - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:bookworm
             variant: client
             allow_failure: false
-          - name: debian-trixie (server)
+          - name: Trixie - Server
             runs_on: ubuntu-22.04
             container: debian:trixie
             variant: server
             allow_failure: true
-          - name: debian-trixie (client ct-client)
+          - name: Trixie - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:trixie
             variant: localclient
             allow_failure: true
-          - name: debian-trixie (client ct-server)
+          - name: Trixie - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:trixie
             variant: client
             allow_failure: true
 
-    name: ref-valid-debian (${{ matrix.name }})
+    name: Debian Reference Validation - ${{ matrix.name }}
     env:
       VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}

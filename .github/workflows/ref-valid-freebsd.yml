@@ -5,37 +5,37 @@ on:
 
 jobs:
   ref-valid-freebsd:
-    name: ref-valid-freebsd (${{ matrix.name }})
+    name: FreeBSD Reference Validation - ${{ matrix.name }}
     runs-on: ubuntu-22.04
     strategy:
       fail-fast: false
       matrix:
         include:
-          - name: "15.0 / server"
+          - name: FreeBSD 15.0 - Server
             freebsd_version: "15.0"
             variant: server
-          - name: "15.0 / client ct-client"
+          - name: FreeBSD 15.0 - Client (ct-client)
             freebsd_version: "15.0"
             variant: localclient
-          - name: "15.0 / client ct-server"
+          - name: FreeBSD 15.0 - Client (ct-server)
             freebsd_version: "15.0"
             variant: client
-          - name: "14.3 / server"
+          - name: FreeBSD 14.3 - Server
             freebsd_version: "14.3"
             variant: server
-          - name: "14.3 / client ct-client"
+          - name: FreeBSD 14.3 - Client (ct-client)
             freebsd_version: "14.3"
             variant: localclient
-          - name: "14.3 / client ct-server"
+          - name: FreeBSD 14.3 - Client (ct-server)
             freebsd_version: "14.3"
             variant: client
-          - name: "13.5 / server"
+          - name: FreeBSD 13.5 - Server
             freebsd_version: "13.5"
             variant: server
-          - name: "13.5 / client ct-client"
+          - name: FreeBSD 13.5 - Client (ct-client)
             freebsd_version: "13.5"
             variant: localclient
-          - name: "13.5 / client ct-server"
+          - name: FreeBSD 13.5 - Client (ct-server)
             freebsd_version: "13.5"
             variant: client
     env:
