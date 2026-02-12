@@ -16,7 +16,7 @@ normalize_onoff() {
     printf '%s' "$default_val"
     return
   fi
-  val="${val^^}"
+  val="$(printf '%s' "${val}" | tr '[:lower:]' '[:upper:]')"
   case "$val" in
     ON|YES|Y|TRUE|1)
       printf 'ON'
@@ -192,7 +192,10 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
   exit 1
 fi
 
-mapfile -t items < "${items_file}"
+items=()
+while IFS= read -r item; do
+  items+=("${item}")
+done < "${items_file}"
 
 filtered=()
 for item in "${items[@]}"; do
@@ -208,7 +211,8 @@ for item in "${items[@]}"; do
   filtered+=("${item}")
 done
 
-declare -A map_entries
+map_keys=()
+map_values=()
 if [[ -f "${dep_map_file}" ]]; then
   map_file="$(make_temp)"
   tmp_files+=("${map_file}")
@@ -272,14 +276,23 @@ if [[ -f "${dep_map_file}" ]]; then
 
   while IFS='|' read -r map_key map_family map_os map_pkgmgr pkg_list; do
     [[ -n "${pkg_list}" ]] || continue
-    map_entries["${map_key}|${map_family}|${map_os}|${map_pkgmgr}"]="${pkg_list}"
+    map_keys+=("${map_key}|${map_family}|${map_os}|${map_pkgmgr}")
+    map_values+=("${pkg_list}")
   done < "${map_file}"
 fi
 
 resolved=()
 for item in "${filtered[@]}"; do
   key="${item}|${family}|${os_name}|${pkgmgr}"
-  mapped_pkg_line="${map_entries["${key}"]:-}"
+  mapped_pkg_line=""
+  if [[ "${#map_keys[@]}" -gt 0 ]]; then
+    for idx in "${!map_keys[@]}"; do
+      if [[ "${map_keys[$idx]}" == "${key}" ]]; then
+        mapped_pkg_line="${map_values[$idx]}"
+        break
+      fi
+    done
+  fi
   if [[ -n "${mapped_pkg_line}" ]]; then
     read -ra replacements <<< "${mapped_pkg_line}"
     for rep in "${replacements[@]}"; do
