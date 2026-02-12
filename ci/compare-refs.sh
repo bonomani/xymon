@@ -384,7 +384,7 @@ normalize_embedded_paths() {
   if [ ! -s "$src" ]; then
     return 0
   fi
-  sed -e 's/[[:space:]]\+#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$src" \
+  sed -e 's/[[:space:]][[:space:]]*#.*$//' -e 's/^[[:space:]]*//' -e 's/[[:space:]]*$//' "$src" \
     | LC_ALL=C sort -u > "$dst"
 }
 
