@@ -1,1 +1,1 @@
-xymon:x:1001:100::/nonexistent:/usr/sbin/nologin
+xymon:x:1001:1001::/nonexistent:/usr/sbin/nologin
