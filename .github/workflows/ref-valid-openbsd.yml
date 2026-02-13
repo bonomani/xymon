@@ -20,6 +20,24 @@ jobs:
           - name: OpenBSD 7.8 - Client (ct-server)
             openbsd_version: "7.8"
             variant: client
+          - name: OpenBSD 7.7 - Server
+            openbsd_version: "7.7"
+            variant: server
+          - name: OpenBSD 7.7 - Client (ct-client)
+            openbsd_version: "7.7"
+            variant: localclient
+          - name: OpenBSD 7.7 - Client (ct-server)
+            openbsd_version: "7.7"
+            variant: client
+          - name: OpenBSD 7.6 - Server
+            openbsd_version: "7.6"
+            variant: server
+          - name: OpenBSD 7.6 - Client (ct-client)
+            openbsd_version: "7.6"
+            variant: localclient
+          - name: OpenBSD 7.6 - Client (ct-server)
+            openbsd_version: "7.6"
+            variant: client
     env:
       VARIANT: ${{ matrix.variant }}
       ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
