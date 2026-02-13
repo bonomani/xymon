@@ -37,11 +37,21 @@
 /usr/pkg/lib/libcares.so.2
 /usr/lib/libpthread.so.1
 /usr/lib/libc.so.12
-/usr/pkg/lib/libldap.so.2
-/usr/pkg/lib/liblber.so.2
-/usr/lib/libssl.so.15
-/usr/lib/libcrypto.so.15
+/usr/lib/libldap.so.6
+/usr/lib/liblber.so.5
+/usr/lib/libgssapi.so.12
+/usr/lib/libkrb5.so.28
+/usr/lib/libhx509.so.7
+/usr/lib/libasn1.so.10
+/usr/lib/libcom_err.so.8
+/usr/lib/libroken.so.20
+/usr/lib/libutil.so.7
 /lib/libcrypt.so.1
+/usr/lib/libcrypto.so.15
+/usr/lib/libwind.so.1
+/usr/lib/libheimbase.so.2
+/usr/lib/libheimntlm.so.6
+/usr/lib/libssl.so.15
 /usr/pkg/lib/libpcre.so.1
 === /server/bin/xymonping ===
 /tmp/xymon-stage/var/lib/xymon/server/bin/xymonping:
