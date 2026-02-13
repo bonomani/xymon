@@ -37,5 +37,5 @@ ci_deps_mode_check_or_exit pacman_pkg_installed
 ci_deps_mode_install_print
 
 echo "=== Install (Linux packages) ==="
-pacman -Sy --noconfirm archlinux-keyring
-pacman -Syu --noconfirm "${PKGS[@]}"
+ci_deps_as_root pacman -Sy --noconfirm archlinux-keyring
+ci_deps_as_root pacman -Syu --noconfirm "${PKGS[@]}"

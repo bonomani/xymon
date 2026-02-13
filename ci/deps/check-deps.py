@@ -261,23 +261,12 @@ def parse_linux_families() -> set[str]:
 
 
 def parse_bsd_pkgmgrs() -> dict[str, str]:
-    script = (ROOT / "ci" / "deps" / "install-bsd-packages.sh").read_text()
-    mapping: dict[str, str] = {}
-    in_case = False
-    for line in script.splitlines():
-        stripped = line.strip()
-        if stripped.startswith("case \"${OS_NAME}\""):
-            in_case = True
-            continue
-        if in_case and stripped.startswith("esac"):
-            break
-        if in_case and stripped.endswith(") PKG_MGR=\"pkg\" ;;"):
-            os_name = stripped.split(")")[0].strip()
-            mapping[os_name] = "pkg"
-        if in_case and stripped.endswith(") PKG_MGR=\"pkg_add\" ;;"):
-            os_name = stripped.split(")")[0].strip()
-            mapping[os_name] = "pkg_add"
-    return mapping
+    # Dispatcher defaults in ci/deps/install-bsd-packages.sh.
+    return {
+        "FreeBSD": "pkg",
+        "NetBSD": "pkg_add",
+        "OpenBSD": "pkg_add",
+    }
 
 
 def parse_bsd_pkgmgr_keys() -> set[str]:
@@ -292,10 +281,16 @@ def normalize_bsd_os_key(os_name: str) -> str:
 
 
 def parse_ldap_pkg_name() -> str | None:
-    script = (ROOT / "ci" / "deps" / "install-bsd-packages.sh").read_text()
-    match = re.search(r"openldap-client", script)
-    if match:
-        return "openldap-client"
+    paths = [
+        ROOT / "ci" / "deps" / "install-bsd-packages.sh",
+        ROOT / "ci" / "deps" / "lib" / "install-bsd-common.sh",
+    ]
+    for path in paths:
+        if not path.exists():
+            continue
+        script = path.read_text()
+        if re.search(r"openldap-client", script):
+            return "openldap-client"
     return None
 
 
@@ -309,11 +304,15 @@ def check_shell_scripts() -> bool:
         ROOT / "ci" / "deps" / "install-apk-packages.sh",
         ROOT / "ci" / "deps" / "install-bsd-packages.sh",
         ROOT / "ci" / "deps" / "install-brew-packages.sh",
+        ROOT / "ci" / "deps" / "install-pkg-packages.sh",
+        ROOT / "ci" / "deps" / "install-pkg-add-packages.sh",
+        ROOT / "ci" / "deps" / "install-pkgin-packages.sh",
         ROOT / "ci" / "deps" / "install-dnf-packages.sh",
         ROOT / "ci" / "deps" / "install-pacman-packages.sh",
         ROOT / "ci" / "deps" / "install-yum-packages.sh",
         ROOT / "ci" / "deps" / "install-zypper-packages.sh",
         ROOT / "ci" / "deps" / "lib" / "install-common.sh",
+        ROOT / "ci" / "deps" / "lib" / "install-bsd-common.sh",
     ]
     existing = [str(path) for path in scripts if path.exists()]
     if not existing:

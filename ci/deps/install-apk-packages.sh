@@ -37,4 +37,4 @@ ci_deps_mode_check_or_exit apk_pkg_installed
 ci_deps_mode_install_print
 
 echo "=== Install (Linux packages) ==="
-apk add --no-cache "${PKGS[@]}"
+ci_deps_as_root apk add --no-cache "${PKGS[@]}"
