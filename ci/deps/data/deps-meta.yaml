@@ -89,30 +89,6 @@ scripts:
       pkgmgr: [pkg, pkg_add, pkgin]
     outputs: [packages]
 
-  ci/deps/packages-gh-debian.sh:
-    accepts:
-      family: [gh-debian]
-      os: [ubuntu]
-      version: [latest]
-      pkgmgr: [apt]
-    outputs: [packages]
-
-  ci/deps/packages-debian.sh:
-    accepts:
-      family: [debian]
-      os: [ubuntu, debian]
-      version: [local, bookworm, bullseye]
-      pkgmgr: [apt]
-    outputs: [packages]
-
-  ci/deps/packages-bsd.sh:
-    accepts:
-      family: [bsd]
-      os: [freebsd, netbsd, openbsd]
-      version: []
-      pkgmgr: [pkg, pkg_add, pkgin]
-    outputs: [packages]
-
 workflows:
   enforce:
     when_script_used:

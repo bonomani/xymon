@@ -35,20 +35,20 @@ while [[ $# -gt 0 ]]; do
     --os) os_override="$2"; shift 2 ;;
     --version) version_override="$2"; shift 2 ;;
     -h|--help) usage; exit 0 ;;
-    *) shift ;;
+    *)
+      echo "Unknown argument: $1" >&2
+      usage
+      exit 1
+      ;;
   esac
 done
 
-VARIANT="${VARIANT:-}"
-ENABLE_LDAP="${ENABLE_LDAP:-}"
-ENABLE_SNMP="${ENABLE_SNMP:-}"
-if [[ -z "${VARIANT}" || -z "${ENABLE_LDAP}" || -z "${ENABLE_SNMP}" ]]; then
-  echo "VARIANT, ENABLE_LDAP, and ENABLE_SNMP must be set"
-  exit 1
-fi
+ENABLE_LDAP="${ENABLE_LDAP:-ON}"
+ENABLE_SNMP="${ENABLE_SNMP:-ON}"
+VARIANT="${VARIANT:-server}"
+DEPS_VARIANT="${VARIANT}"
 case "${VARIANT}" in
   server|client|localclient)
-    DEPS_VARIANT="${VARIANT}"
     ;;
   *)
     echo "Unknown VARIANT: ${VARIANT}"
@@ -71,8 +71,6 @@ echo "$(uname -a)"
 echo "=== Install (BSD packages) ==="
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=packages-bsd.sh
-source "${script_dir}/packages-bsd.sh"
 
 PKG_MGR=""
 NETBSD_PKG_PATHS=()
@@ -226,7 +224,14 @@ pick_pkg_add_variant() {
   return 1
 }
 
-active_pkgs_output="$(ci_bsd_packages "${PKG_MGR}" "${DEPS_VARIANT}" "${ENABLE_SNMP}")"
+active_pkgs_output="$(
+  "${script_dir}/packages-from-yaml.sh" \
+    --variant "${DEPS_VARIANT}" \
+    --family bsd \
+    --os "${OS_NAME_LOWER}" \
+    --pkgmgr "${PKG_MGR}" \
+    --enable-snmp "${ENABLE_SNMP}"
+)"
 ACTIVE_PKGS=()
 while IFS= read -r pkg; do
   [[ -n "${pkg}" ]] && ACTIVE_PKGS+=("${pkg}")

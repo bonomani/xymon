@@ -84,6 +84,36 @@ def bash_list(cmd: str) -> list[str]:
     return [line.strip() for line in out.splitlines() if line.strip()]
 
 
+def packages_from_yaml_list(
+    variant: str,
+    family: str,
+    os_name: str,
+    pkgmgr: str,
+    enable_ldap: str,
+    enable_snmp: str,
+) -> list[str]:
+    script = ROOT / "ci" / "deps" / "packages-from-yaml.sh"
+    out = subprocess.check_output(
+        [
+            str(script),
+            "--variant",
+            variant,
+            "--family",
+            family,
+            "--os",
+            os_name,
+            "--pkgmgr",
+            pkgmgr,
+            "--enable-ldap",
+            enable_ldap,
+            "--enable-snmp",
+            enable_snmp,
+        ],
+        text=True,
+    )
+    return [line.strip() for line in out.splitlines() if line.strip()]
+
+
 def diff(label: str, expected: list[str], actual: list[str]) -> bool:
     exp_set = set(expected)
     act_set = set(actual)
@@ -254,6 +284,13 @@ def parse_bsd_pkgmgr_keys() -> set[str]:
     return {"pkg", "pkgin", "pkg_add"}
 
 
+def normalize_bsd_os_key(os_name: str) -> str:
+    lowered = os_name.lower()
+    if lowered in {"freebsd", "netbsd", "openbsd"}:
+        return lowered
+    return os_name
+
+
 def parse_ldap_pkg_name() -> str | None:
     script = (ROOT / "ci" / "deps" / "install-bsd-packages.sh").read_text()
     match = re.search(r"openldap-client", script)
@@ -276,9 +313,6 @@ def check_shell_scripts() -> bool:
         ROOT / "ci" / "deps" / "install-pacman-packages.sh",
         ROOT / "ci" / "deps" / "install-yum-packages.sh",
         ROOT / "ci" / "deps" / "install-zypper-packages.sh",
-        ROOT / "ci" / "deps" / "packages-bsd.sh",
-        ROOT / "ci" / "deps" / "packages-debian.sh",
-        ROOT / "ci" / "deps" / "packages-gh-debian.sh",
     ]
     existing = [str(path) for path in scripts if path.exists()]
     if not existing:
@@ -443,21 +477,24 @@ def main() -> int:
                 actual_server = resolve_packages(actual_server_raw, dep_map, family, os_name, pkg_name)
 
                 if family in linux_families:
-                    pkg_script = "packages-debian.sh" if family == "debian" else "packages-gh-debian.sh"
-                    distro = os_name.split("_", 1)[0]
-                    version = os_name.split("_", 1)[1] if "_" in os_name else ""
                     expected_sets = []
                     for enable_ldap in ("ON", "OFF"):
                         for enable_snmp in ("ON", "OFF"):
-                            exp_client = bash_list(
-                                f"cd '{ROOT}'; source ci/deps/{pkg_script}; "
-                                f"ci_linux_packages {family} {distro} {version} client "
-                                f"{enable_ldap} '' {enable_snmp}"
+                            exp_client = packages_from_yaml_list(
+                                "client",
+                                family,
+                                os_name,
+                                pkg_name,
+                                enable_ldap,
+                                enable_snmp,
                             )
-                            exp_server = bash_list(
-                                f"cd '{ROOT}'; source ci/deps/{pkg_script}; "
-                                f"ci_linux_packages {family} {distro} {version} server "
-                                f"{enable_ldap} '' {enable_snmp}"
+                            exp_server = packages_from_yaml_list(
+                                "server",
+                                family,
+                                os_name,
+                                pkg_name,
+                                enable_ldap,
+                                enable_snmp,
                             )
                             expected_sets.append((enable_ldap, enable_snmp, exp_client, exp_server))
                     matched_client = next(
@@ -484,14 +521,23 @@ def main() -> int:
                         ok &= diff(f"{label} server (linux)", expected_sets[0][3], actual_server)
                 elif pkg_name in bsd_pkgmgr_keys:
                     expected_sets = []
+                    bsd_os_key = normalize_bsd_os_key(os_name)
                     for enable_snmp in ("ON", "OFF"):
-                        exp_client = bash_list(
-                        f"cd '{ROOT}'; source ci/deps/packages-bsd.sh; "
-                            f"ci_bsd_packages {pkg_name} client {enable_snmp} {os_name}"
+                        exp_client = packages_from_yaml_list(
+                            "client",
+                            "bsd",
+                            bsd_os_key,
+                            pkg_name,
+                            "OFF",
+                            enable_snmp,
                         )
-                        exp_server = bash_list(
-                        f"cd '{ROOT}'; source ci/deps/packages-bsd.sh; "
-                            f"ci_bsd_packages {pkg_name} server {enable_snmp} {os_name}"
+                        exp_server = packages_from_yaml_list(
+                            "server",
+                            "bsd",
+                            bsd_os_key,
+                            pkg_name,
+                            "ON",
+                            enable_snmp,
                         )
                         if ldap_pkg_name and ldap_pkg_name in actual_server:
                             if ldap_pkg_name not in exp_server:
@@ -654,9 +700,9 @@ def main() -> int:
     unknown_bsd = sorted(bsd_packagers - bsd_pkgmgr_keys)
     if unknown_bsd:
         ok = False
-        print(f"   ERROR: BSD packagers not supported by packages-bsd.sh: {', '.join(unknown_bsd)}")
+        print(f"   ERROR: BSD packagers not supported by install-bsd-packages.sh: {', '.join(unknown_bsd)}")
     else:
-        print("   OK: BSD packager keys align with packages-bsd.sh")
+        print("   OK: BSD packager keys align with install-bsd-packages.sh")
 
     print("-- packages-from-yaml: validation")
     yaml_ok = check_packages_from_yaml_mapping(client, "client")
