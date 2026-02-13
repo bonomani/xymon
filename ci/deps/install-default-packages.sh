@@ -51,13 +51,13 @@ case "${RUNNER_OS:-}" in
 esac
 
 if [[ -z "${family}" ]]; then
-if [[ -z "${os_name}" ]]; then
-  os_name="$(uname -s 2>/dev/null || true)"
-  os_name="$(printf '%s' "${os_name}" | awk '{print tolower($0)}')"
-  version="$(uname -r 2>/dev/null || true)"
-fi
+  if [[ -z "${os_name}" ]]; then
+    os_name="$(uname -s 2>/dev/null || true)"
+    os_name="$(printf '%s' "${os_name}" | awk '{print tolower($0)}')"
+    version="$(uname -r 2>/dev/null || true)"
+  fi
 
-case "${os_name}" in
+  case "${os_name}" in
     debian)
       family="debian"
       pkgmgr="apt"

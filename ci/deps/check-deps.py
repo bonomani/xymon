@@ -313,6 +313,7 @@ def check_shell_scripts() -> bool:
         ROOT / "ci" / "deps" / "install-pacman-packages.sh",
         ROOT / "ci" / "deps" / "install-yum-packages.sh",
         ROOT / "ci" / "deps" / "install-zypper-packages.sh",
+        ROOT / "ci" / "deps" / "lib" / "install-common.sh",
     ]
     existing = [str(path) for path in scripts if path.exists()]
     if not existing:

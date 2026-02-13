@@ -1,7 +1,11 @@
 #!/usr/bin/env bash
 set -euo pipefail
 IFS=$' \t\n'
-[[ -n "${CI:-}" || -n "${DEBUG:-}" ]] && set -x
+
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=lib/install-common.sh
+source "${script_dir}/lib/install-common.sh"
+ci_deps_enable_trace
 
 usage() {
   cat <<'USAGE'
@@ -43,18 +47,7 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-ENABLE_LDAP="${ENABLE_LDAP:-ON}"
-ENABLE_SNMP="${ENABLE_SNMP:-ON}"
-VARIANT="${VARIANT:-server}"
-DEPS_VARIANT="${VARIANT}"
-case "${VARIANT}" in
-  server|client|localclient)
-    ;;
-  *)
-    echo "Unknown VARIANT: ${VARIANT}"
-    exit 1
-    ;;
-esac
+ci_deps_setup_variant_defaults
 
 OS_NAME_RAW="${os_override:-$(uname -s)}"
 OS_NAME_LOWER="$(printf '%s' "${OS_NAME_RAW}" | tr '[:upper:]' '[:lower:]')"
@@ -69,8 +62,6 @@ OS_VERSION="${version_override:-$(uname -r)}"
 export OS_VERSION
 echo "$(uname -a)"
 echo "=== Install (BSD packages) ==="
-
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 
 PKG_MGR=""
 NETBSD_PKG_PATHS=()
@@ -107,9 +98,7 @@ if [[ "${OS_NAME}" == "NetBSD" ]]; then
   printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
   export PKG_INSTALL_CONF
   export PKG_PATH="${NETBSD_PKG_PATHS[0]}"
-  if [ -x /usr/bin/sudo ]; then
-    sudo sh -c "printf '%s\n' '${NETBSD_PKG_PATHS[0]}' > /usr/pkg/etc/pkgin/repositories.conf"
-  fi
+  ci_deps_as_root sh -c "printf '%s\n' '${NETBSD_PKG_PATHS[0]}' > /usr/pkg/etc/pkgin/repositories.conf" || true
 fi
 
 pick_ldap_pkg() {
@@ -267,122 +256,85 @@ if [[ "${PKG_MGR}" == "pkg_add" ]]; then
   ACTIVE_PKGS=("${resolved[@]}")
 fi
 
-case "${mode}" in
-  print)
-    printf '%s\n' "${ACTIVE_PKGS[@]}"
+PKGS=("${ACTIVE_PKGS[@]}")
+
+bsd_pkg_installed() {
+  local pkg="$1"
+  case "${PKG_MGR}" in
+    pkg)
+      /usr/sbin/pkg info -e "${pkg}" >/dev/null 2>&1
+      ;;
+    pkgin)
+      /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1
+      ;;
+    pkg_add)
+      /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
+ci_deps_mode_print_or_exit
+ci_deps_mode_check_or_exit bsd_pkg_installed
+ci_deps_mode_install_print
+
+case "${PKG_MGR}" in
+  pkg)
+    ci_deps_as_root env ASSUME_ALWAYS_YES=YES pkg install "${PKGS[@]}"
     exit 0
     ;;
-  check)
-    case "${PKG_MGR}" in
-      pkg)
-        missing=0
-        missing_pkgs=()
-        for pkg in "${ACTIVE_PKGS[@]}"; do
-          if ! /usr/sbin/pkg info -e "${pkg}" >/dev/null 2>&1; then
-            missing=1
-            missing_pkgs+=("${pkg}")
-          fi
-        done
-        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
-          printf '%s\n' "${missing_pkgs[@]}"
-        fi
-        exit "${missing}"
-        ;;
-      pkgin)
-        missing=0
-        missing_pkgs=()
-        for pkg in "${ACTIVE_PKGS[@]}"; do
-          if ! /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
-            missing=1
-            missing_pkgs+=("${pkg}")
-          fi
-        done
-        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
-          printf '%s\n' "${missing_pkgs[@]}"
-        fi
-        exit "${missing}"
-        ;;
-      pkg_add)
-        missing=0
-        missing_pkgs=()
-        for pkg in "${ACTIVE_PKGS[@]}"; do
-          if ! /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1; then
-            missing=1
-            missing_pkgs+=("${pkg}")
-          fi
-        done
-        if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
-          printf '%s\n' "${missing_pkgs[@]}"
-        fi
-        exit "${missing}"
-        ;;
-    esac
+  pkgin)
+    ci_deps_as_root /usr/pkg/bin/pkgin -y install "${PKGS[@]}"
+    exit 0
     ;;
-  install)
-    if [[ "${print_list}" == "1" ]]; then
-      printf '%s\n' "${ACTIVE_PKGS[@]}"
+  pkg_add)
+    if [[ "${OS_NAME}" == "NetBSD" && "${#NETBSD_PKG_PATHS[@]}" -gt 0 ]]; then
+      install_ok=0
+      for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
+        echo "NetBSD pkg_add install using PKG_PATH=${pkg_path_try}"
+        if ci_deps_as_root env PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${PKGS[@]}"; then
+          export PKG_PATH="${pkg_path_try}"
+          install_ok=1
+          break
+        fi
+        echo "pkg_add failed for PKG_PATH=${pkg_path_try}, trying next mirror if available"
+      done
+      if [[ "${install_ok}" != "1" ]]; then
+        echo "pkg_add failed on all configured NetBSD package mirrors" >&2
+        exit 1
+      fi
+    else
+      ci_deps_as_root /usr/sbin/pkg_add -I "${PKGS[@]}"
     fi
-    case "${PKG_MGR}" in
-      pkg)
-        sudo -E ASSUME_ALWAYS_YES=YES pkg install "${ACTIVE_PKGS[@]}"
-        exit 0
-        ;;
-      pkgin)
-        sudo -E /usr/pkg/bin/pkgin -y install "${ACTIVE_PKGS[@]}"
-        exit 0
-        ;;
-      pkg_add)
-        if [[ "${OS_NAME}" == "NetBSD" && "${#NETBSD_PKG_PATHS[@]}" -gt 0 ]]; then
-          install_ok=0
-          for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
-            echo "NetBSD pkg_add install using PKG_PATH=${pkg_path_try}"
-            if sudo -E PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${ACTIVE_PKGS[@]}"; then
-              export PKG_PATH="${pkg_path_try}"
-              install_ok=1
-              break
-            fi
-            echo "pkg_add failed for PKG_PATH=${pkg_path_try}, trying next mirror if available"
-          done
-          if [[ "${install_ok}" != "1" ]]; then
-            echo "pkg_add failed on all configured NetBSD package mirrors" >&2
-            exit 1
-          fi
-        else
-          sudo -E /usr/sbin/pkg_add -I "${ACTIVE_PKGS[@]}"
+    if [[ "${OS_NAME}" == "OpenBSD" ]]; then
+      need_gcc=0
+      gcc_pkg=""
+      for pkg in "${PKGS[@]}"; do
+        if [[ "${pkg}" == gcc* ]]; then
+          need_gcc=1
+          gcc_pkg="${pkg}"
+          break
         fi
-        if [[ "${OS_NAME}" == "OpenBSD" ]]; then
-          need_gcc=0
-          gcc_pkg=""
-          for pkg in "${ACTIVE_PKGS[@]}"; do
-            if [[ "${pkg}" == gcc* ]]; then
-              need_gcc=1
-              gcc_pkg="${pkg}"
-              break
-            fi
-          done
-          if [[ "${need_gcc}" == "1" && ! -e /usr/local/bin/gcc ]]; then
-            gcc_bin=""
-            if [[ -n "${gcc_pkg}" ]]; then
-              gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/(egcc|gcc)$' | head -n 1 || true)"
-              if [[ -z "${gcc_bin}" ]]; then
-                gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/gcc-[0-9]+' | sort -V | tail -n 1 || true)"
-              fi
-            fi
-            if [[ -z "${gcc_bin}" ]]; then
-              gcc_bin="$(ls /usr/local/bin/gcc-[0-9]* /usr/local/bin/egcc* 2>/dev/null | sort -V | tail -n 1 || true)"
-            fi
-            if [[ -n "${gcc_bin}" ]]; then
-              sudo -E ln -s "${gcc_bin}" /usr/local/bin/gcc
-            fi
+      done
+      if [[ "${need_gcc}" == "1" && ! -e /usr/local/bin/gcc ]]; then
+        gcc_bin=""
+        if [[ -n "${gcc_pkg}" ]]; then
+          gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/(egcc|gcc)$' | head -n 1 || true)"
+          if [[ -z "${gcc_bin}" ]]; then
+            gcc_bin="$(/usr/sbin/pkg_info -L "${gcc_pkg}" 2>/dev/null | grep -E '/gcc-[0-9]+' | sort -V | tail -n 1 || true)"
           fi
         fi
-        exit 0
-        ;;
-    esac
-    ;;
-  *)
-    usage
-    exit 1
+        if [[ -z "${gcc_bin}" ]]; then
+          gcc_bin="$(ls /usr/local/bin/gcc-[0-9]* /usr/local/bin/egcc* 2>/dev/null | sort -V | tail -n 1 || true)"
+        fi
+        if [[ -n "${gcc_bin}" ]]; then
+          ci_deps_as_root ln -s "${gcc_bin}" /usr/local/bin/gcc
+        fi
+      fi
+    fi
+    exit 0
     ;;
 esac
 

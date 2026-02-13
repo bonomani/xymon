@@ -2,7 +2,7 @@
 scripts:
   ci/deps/install-default-packages.sh:
     requires_flags: []
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_env: []
     accepts:
       family: [gh-debian, debian, rpm, suse, alpine, arch, macos]
       os: [ubuntu, debian, rockylinux, almalinux, fedora, centos, opensuse_leap, alpine, archlinux, macos]
@@ -10,8 +10,8 @@ scripts:
       pkgmgr: [apt, dnf, yum, zypper, apk, pacman, brew]
     outputs: [packages]
   ci/deps/install-apt-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [gh-debian, debian]
       os: [ubuntu, debian]
@@ -20,8 +20,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-dnf-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [rpm]
       os: [rockylinux, almalinux, fedora]
@@ -30,8 +30,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-yum-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [rpm]
       os: [centos]
@@ -40,8 +40,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-zypper-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [suse]
       os: [opensuse_leap]
@@ -50,8 +50,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-apk-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [alpine]
       os: [alpine]
@@ -60,8 +60,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-pacman-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [arch]
       os: [archlinux]
@@ -70,8 +70,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-brew-packages.sh:
-    requires_flags: [--family, --os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: [--family, --os]
+    requires_env: []
     accepts:
       family: [macos]
       os: [macos]
@@ -80,8 +80,8 @@ scripts:
     outputs: [packages]
 
   ci/deps/install-bsd-packages.sh:
-    requires_flags: [--os, --version]
-    requires_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
+    requires_flags: []
+    requires_env: []
     accepts:
       family: [bsd]
       os: [freebsd, netbsd, openbsd]
@@ -93,26 +93,26 @@ workflows:
   enforce:
     when_script_used:
       ci/deps/install-apt-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-dnf-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-yum-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-zypper-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-apk-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-pacman-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-brew-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--family, --os, --version]
+        must_set_env: []
+        must_pass_flags: [--family, --os]
       ci/deps/install-bsd-packages.sh:
-        must_set_env: [VARIANT, ENABLE_LDAP, ENABLE_SNMP]
-        must_pass_flags: [--os, --version]
+        must_set_env: []
+        must_pass_flags: []
