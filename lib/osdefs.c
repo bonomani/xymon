@@ -15,7 +15,7 @@
 
 #include "osdefs.h"
 
-#ifndef HAVE_SNPRINTF
+#if !defined(HAVE_SNPRINTF) && !defined(XYMON_APPLE)
 int snprintf(char *str, size_t size, const char *format, ...)
 {
 	va_list args;
@@ -25,10 +25,9 @@ int snprintf(char *str, size_t size, const char *format, ...)
 }
 #endif
 
-#ifndef HAVE_VSNPRINTF
+#if !defined(HAVE_VSNPRINTF) && !defined(XYMON_APPLE)
 int vsnprintf(char *str, size_t size, const char *format, va_list args)
 {
 	return vsprintf(str, format, args);
 }
 #endif
-

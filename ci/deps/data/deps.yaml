@@ -1,0 +1,13 @@
+# Dependency index
+#
+# This directory is split by variant:
+# - deps-server.yaml: server dependency list (includes base)
+# - deps-client.yaml: client dependency list (includes base)
+# - deps-localclient.yaml: localclient dependency list (includes base)
+
+# Installer helpers default to VARIANT=server if not provided; valid variants are 'server', 'client', and 'localclient'.
+#
+# Families:
+# - gh-debian: GitHub Actions Ubuntu runners (version: latest)
+# - debian: local Debian/Ubuntu installs (version: local)
+# - bsd: FreeBSD/NetBSD/OpenBSD (version: auto)

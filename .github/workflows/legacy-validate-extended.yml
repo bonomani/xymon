@@ -1,0 +1,306 @@
+name: legacy-validate-extended
+
+on:
+  workflow_dispatch:
+
+jobs:
+  legacy-validate-extended:
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: ubuntu-22.04
+            runs_on: ubuntu-22.04
+            variant: server
+          - name: ubuntu-24.04
+            runs_on: ubuntu-24.04
+            variant: server
+          - name: debian-bookworm
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            pkg_mgr: apt
+            variant: server
+          - name: debian-bullseye
+            runs_on: ubuntu-22.04
+            container: debian:bullseye
+            pkg_mgr: apt
+            variant: server
+          - name: rockylinux-9
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: server
+          - name: almalinux-9
+            runs_on: ubuntu-22.04
+            container: almalinux:9
+            pkg_mgr: dnf
+            variant: server
+          - name: centos-7
+            runs_on: ubuntu-22.04
+            container: centos:7
+            pkg_mgr: yum
+            cmake_bin: cmake3
+            variant: server
+          - name: fedora-40
+            runs_on: ubuntu-22.04
+            container: fedora:40
+            pkg_mgr: dnf
+            variant: server
+          - name: opensuse-leap-15.6
+            runs_on: ubuntu-22.04
+            container: opensuse/leap:15.6
+            pkg_mgr: zypper
+            variant: server
+          - name: alpine-3
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: server
+          - name: archlinux
+            runs_on: ubuntu-22.04
+            container: archlinux:latest
+            pkg_mgr: pacman
+            variant: server
+
+    name: ${{ matrix.name }}
+    env:
+      CMAKE_BIN: ${{ matrix.cmake_bin }}
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+
+    steps:
+      - name: Checkout
+        if: ${{ !matrix.container }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout (container fallback)
+        if: ${{ matrix.container }}
+        shell: sh
+        env:
+          GH_REPO: ${{ github.repository }}
+          GH_SHA: ${{ github.sha }}
+          GH_TOKEN: ${{ github.token }}
+          PKG_MGR: ${{ matrix.pkg_mgr }}
+        run: |
+          set -eu
+
+          case "${PKG_MGR:-}" in
+            apt)
+              apt-get update
+              apt-get install -y --no-install-recommends bash git ca-certificates
+              ;;
+            dnf)
+              dnf -y install bash git ca-certificates tar
+              ;;
+            yum)
+              printf '%s\n' \
+                '[centos7-vault-base]' \
+                'name=CentOS 7 Vault Base' \
+                'baseurl=http://vault.centos.org/7.9.2009/os/x86_64/' \
+                'enabled=1' \
+                'gpgcheck=0' \
+                > /etc/yum.repos.d/centos7-vault.repo
+              yum --disablerepo='*' --enablerepo=centos7-vault-base -y install bash git ca-certificates tar
+              ;;
+            zypper)
+              zypper --non-interactive refresh
+              zypper --non-interactive install bash git tar ca-certificates
+              ;;
+            apk)
+              apk add --no-cache bash git ca-certificates tar
+              ;;
+            pacman)
+              pacman -Sy --noconfirm archlinux-keyring || true
+              pacman -S --noconfirm bash git ca-certificates tar
+              ;;
+            *)
+              echo "Unsupported or missing PKG_MGR='${PKG_MGR:-}' for container checkout fallback" >&2
+              exit 2
+              ;;
+          esac
+
+          git --version
+          git config --global --add safe.directory "${GITHUB_WORKSPACE}"
+          rm -rf "${GITHUB_WORKSPACE}"
+          mkdir -p "${GITHUB_WORKSPACE}"
+          cd "${GITHUB_WORKSPACE}"
+          git init .
+          git remote add origin "https://x-access-token:${GH_TOKEN}@github.com/${GH_REPO}.git"
+          git fetch --depth=1 origin "${GH_SHA}"
+          git checkout --detach FETCH_HEAD
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_cfg="docs/cmake-legacy-migration/refs/make_linux/server/var/lib/xymon/server/etc/xymonserver.cfg"
+          echo "Legacy hostname: checking ${legacy_cfg}"
+          if [ ! -f "${legacy_cfg}" ]; then
+            echo "Legacy hostname: skipped (missing ${legacy_cfg})"
+            exit 0
+          fi
+          legacy_host="$(
+            tr -d '\r' < "${legacy_cfg}" \
+              | awk -F'"' '/^XYMONSERVERHOSTNAME=/{if(!found){print $2; found=1}} END{if(!found) exit 1}'
+          )"
+          if [ -z "${legacy_host}" ]; then
+            legacy_host="$(
+              tr -d '\r' < "${legacy_cfg}" \
+                | awk '/^XYMONSERVERHOSTNAME=/{sub(/^.*=/,""); sub(/[[:space:]]*#.*/,""); gsub(/^[[:space:]]+|[[:space:]]+$/,""); gsub(/^\"|\"$/,""); if(!found){print; found=1}} END{if(!found) exit 1}'
+            )"
+          fi
+          if [ -z "${legacy_host}" ]; then
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${legacy_cfg})"
+            echo "Legacy hostname: first 5 non-comment lines for debug:"
+            tr -d '\r' < "${legacy_cfg}" \
+              | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+              | head -n5
+            exit 0
+          fi
+          echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+          echo "Using legacy hostname: ${legacy_host}"
+
+      - name: Bootstrap install + metadata (CMake)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/bootstrap-install.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake
+
+      - name: Load staged tree metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/xymon-root-vars.sh ]; then
+            echo "Staged tree metadata missing" >&2
+            exit 1
+          fi
+          source /tmp/xymon-root-vars.sh
+          : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
+          : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+          echo "LEGACY_TOPDIR=${LEGACY_TOPDIR}" >> "$GITHUB_ENV"
+          echo "LEGACY_ROOT=${LEGACY_ROOT}" >> "$GITHUB_ENV"
+          echo "XYMON_CONFIG_H=${XYMON_CONFIG_H:-}" >> "$GITHUB_ENV"
+
+      - name: Validate config.h parity
+        run: |
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
+          cmake_config="${XYMON_CONFIG_H:-}"
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -name config.h | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            echo "No CMake-generated config.h found under build-cmake"
+            exit 1
+          fi
+          if [ ! -f "$legacy_config" ]; then
+            echo "Baseline config.h not found at $legacy_config"
+            exit 1
+          fi
+
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/legacy.config.extract
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | grep -v '^#define XYMON' \
+            | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/cmake.config.extract
+
+          diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
+          if ! diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract > /tmp/config.diff; then
+            echo "config.h parity diff detected:"
+            cat /tmp/config.diff
+            exit 1
+          fi
+
+      - name: Generate CMake refs snapshot
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/xymon-refs
+          bash ci/generate-refs.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --config-h "${XYMON_CONFIG_H:-}" \
+            --refs-root /tmp/xymon-refs
+
+      - name: Compare refs snapshot (blocking policy checks)
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
+            --candidate-root "${LEGACY_ROOT}"
+
+      - name: Install Node.js 16 (CentOS 7 only)
+        if: ${{ matrix.name == 'centos-7' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          curl -fsSL https://rpm.nodesource.com/setup_16.x | bash -
+          yum install -y nodejs
+          if ! command -v node >/dev/null; then
+            echo "node not found after installation" >&2
+            exit 1
+          fi
+          node_dir=$(dirname "$(command -v node)")
+          echo "Installed Node.js from ${node_dir}"
+          echo "PATH=${node_dir}:${PATH}" >> "$GITHUB_ENV"
+
+      - name: Upload artifacts
+        if: ${{ always() && !matrix.stop_after_configure && matrix.name != 'centos-7' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-validate-extended-${{ matrix.name }}
+          path: |
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
+            /tmp/install-cmake-legacy.log
+            /tmp/cmake.configure.log
+            /tmp/cmake.trace.json
+            /tmp/cmake.trace.log
+
+      - name: Skip artifacts on CentOS 7 (Node 20 runtime incompatible)
+        if: ${{ always() && !matrix.stop_after_configure && matrix.name == 'centos-7' }}
+        run: |
+          echo "Skipping actions/upload-artifact on CentOS 7 container due Node 20 runtime GLIBC incompatibility."

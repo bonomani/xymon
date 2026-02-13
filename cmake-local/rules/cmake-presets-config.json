@@ -1,0 +1,59 @@
+{
+  "preset": {
+    "name": "default",
+    "generator": "Unix Makefiles",
+    "binaryDir": "${sourceDir}/build-cmake"
+  },
+
+  "variant": {
+    "type": "server",
+    "localclient": "local"
+  },
+
+  "layout": {
+    "use_gnuinstalldirs": "OFF",
+    "install_prefix": "/usr/local"
+  },
+
+  "features": {
+    "rrd": "ON",
+    "snmp": "ON",
+    "ssl": "ON",
+    "ldap": "OFF"
+  },
+
+  "paths": {
+    "xymontopdir": "/var/lib/xymon",
+    "xymonhome": "/var/lib/xymon/server",
+    "xymonclienthome": "/var/lib/xymon/client",
+    "xymonvar": "/var/lib/xymon/data",
+    "xymonlogdir": "/var/log/xymon",
+    "cgidir": "/var/lib/xymon/cgi-bin",
+    "securecgidir": "/var/lib/xymon/cgi-secure",
+    "manroot": "/usr/local/man"
+  },
+
+  "libraries": {
+    "rrd": {
+      "inc": "",
+      "lib": ""
+    },
+    "pcre": {
+      "inc": "",
+      "lib": ""
+    },
+    "ssl": {
+      "inc": "",
+      "lib": ""
+    },
+    "ldap": {
+      "inc": "",
+      "lib": ""
+    },
+    "cares": {
+      "inc": "",
+      "lib": ""
+    }
+  }
+}
+

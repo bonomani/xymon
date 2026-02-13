@@ -1,0 +1,330 @@
+# Generic dependency map for translating package names across OSes/packagers.
+map:
+  BUILD_TOOLS:
+    gh-debian:
+      ubuntu_latest:
+        apt: [build-essential, cmake, ninja-build, git, findutils]
+    debian:
+      ubuntu_local:
+        apt: [build-essential, cmake, ninja-build, git, findutils]
+      debian_bookworm:
+        apt: [build-essential, cmake, ninja-build, git, findutils]
+      debian_bullseye:
+        apt: [build-essential, cmake, ninja-build, git, findutils]
+    rpm:
+      rockylinux_9:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      almalinux_9:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      centos_7:
+        yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
+      fedora_40:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
+    alpine:
+      alpine_3:
+        apk: [bash, build-base, cmake, ninja, git, findutils, diffutils]
+    arch:
+      archlinux_latest:
+        pacman: [base-devel, cmake, ninja, git, findutils, diffutils]
+    macos:
+      macos_latest:
+        brew: [cmake, ninja]
+    bsd:
+      freebsd:
+        pkg: [gmake, cmake, ninja]
+      netbsd:
+        pkg_add: [gmake, cmake, ninja-build]
+      openbsd:
+        pkg_add: [gmake, cmake, ninja, gcc]
+
+  PCRE:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libpcre3-dev]
+    debian:
+      ubuntu_local:
+        apt: [libpcre3-dev]
+      debian_bookworm:
+        apt: [libpcre3-dev]
+      debian_bullseye:
+        apt: [libpcre3-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [pcre-devel, pcre2-devel]
+      almalinux_9:
+        dnf: [pcre-devel, pcre2-devel]
+      centos_7:
+        yum: [pcre-devel]
+      fedora_40:
+        dnf: [pcre-devel, pcre2-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [pcre-devel]
+    alpine:
+      alpine_3:
+        apk: [pcre-dev]
+    arch:
+      archlinux_latest:
+        pacman: [pcre]
+    macos:
+      macos_latest:
+        brew: [pcre]
+    bsd:
+      freebsd:
+        pkg: [pcre]
+      netbsd:
+        pkg_add: [pcre]
+      openbsd:
+        pkg_add: [pcre]
+
+  RRD:
+    gh-debian:
+      ubuntu_latest:
+        apt: [librrd-dev]
+    debian:
+      ubuntu_local:
+        apt: [librrd-dev]
+      debian_bookworm:
+        apt: [librrd-dev]
+      debian_bullseye:
+        apt: [librrd-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [rrdtool-devel]
+      almalinux_9:
+        dnf: [rrdtool-devel]
+      centos_7:
+        yum: [rrdtool-devel]
+      fedora_40:
+        dnf: [rrdtool-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [rrdtool-devel]
+    alpine:
+      alpine_3:
+        apk: [rrdtool-dev]
+    arch:
+      archlinux_latest:
+        pacman: [rrdtool]
+    macos:
+      macos_latest:
+        brew: [rrdtool]
+    bsd:
+      freebsd:
+        pkg: [rrdtool]
+      netbsd:
+        pkg_add: [rrdtool]
+      openbsd:
+        pkg_add: [rrdtool]
+
+  OpenSSL:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libssl-dev]
+    debian:
+      ubuntu_local:
+        apt: [libssl-dev]
+      debian_bookworm:
+        apt: [libssl-dev]
+      debian_bullseye:
+        apt: [libssl-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [openssl-devel]
+      almalinux_9:
+        dnf: [openssl-devel]
+      centos_7:
+        yum: [openssl-devel]
+      fedora_40:
+        dnf: [openssl-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [libopenssl-devel]
+    alpine:
+      alpine_3:
+        apk: [openssl-dev]
+    arch:
+      archlinux_latest:
+        pacman: [openssl]
+    macos:
+      macos_latest:
+        brew: [openssl@3]
+    bsd:
+      freebsd:
+        pkg: [openssl]
+      netbsd:
+        pkg_add: [openssl]
+      openbsd:
+        pkg_add: [openssl]
+
+  LDAP:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libldap-dev]
+    debian:
+      ubuntu_local:
+        apt: [libldap-dev]
+      debian_bookworm:
+        apt: [libldap-dev]
+      debian_bullseye:
+        apt: [libldap-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [openldap-devel]
+      almalinux_9:
+        dnf: [openldap-devel]
+      centos_7:
+        yum: [openldap-devel]
+      fedora_40:
+        dnf: [openldap-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [openldap2-devel]
+    alpine:
+      alpine_3:
+        apk: [openldap-dev]
+    arch:
+      archlinux_latest:
+        pacman: [openldap]
+    macos:
+      macos_latest:
+        brew: [openldap]
+    bsd:
+      freebsd:
+        pkg: [openldap-client]
+      netbsd:
+        pkg_add: [openldap-client]
+      openbsd:
+        pkg_add: [openldap-client]
+
+  NETSNMP:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libsnmp-dev]
+    debian:
+      ubuntu_local:
+        apt: [libsnmp-dev]
+      debian_bookworm:
+        apt: [libsnmp-dev]
+      debian_bullseye:
+        apt: [libsnmp-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [net-snmp-devel]
+      almalinux_9:
+        dnf: [net-snmp-devel]
+      centos_7:
+        yum: [net-snmp-devel]
+      fedora_40:
+        dnf: [net-snmp-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [net-snmp-devel]
+    alpine:
+      alpine_3:
+        apk: [net-snmp-dev]
+    arch:
+      archlinux_latest:
+        pacman: [net-snmp]
+    macos:
+      macos_latest:
+        brew: [net-snmp]
+    bsd:
+      freebsd:
+        pkg: [net-snmp]
+      netbsd:
+        pkg_add: [net-snmp]
+      openbsd:
+        pkg_add: [net-snmp]
+
+  CARES:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libc-ares-dev]
+    debian:
+      ubuntu_local:
+        apt: [libc-ares-dev]
+      debian_bookworm:
+        apt: [libc-ares-dev]
+      debian_bullseye:
+        apt: [libc-ares-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [c-ares-devel]
+      almalinux_9:
+        dnf: [c-ares-devel]
+      centos_7:
+        yum: [c-ares-devel]
+      fedora_40:
+        dnf: [c-ares-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [c-ares-devel]
+    alpine:
+      alpine_3:
+        apk: [c-ares-dev]
+    arch:
+      archlinux_latest:
+        pacman: [c-ares]
+    macos:
+      macos_latest:
+        brew: [c-ares]
+    bsd:
+      freebsd:
+        pkg: [c-ares]
+      netbsd:
+        pkg_add: [libcares]
+      openbsd:
+        pkg_add: [libcares]
+
+  TIRPC:
+    gh-debian:
+      ubuntu_latest:
+        apt: [libtirpc-dev]
+    debian:
+      ubuntu_local:
+        apt: [libtirpc-dev]
+      debian_bookworm:
+        apt: [libtirpc-dev]
+      debian_bullseye:
+        apt: [libtirpc-dev]
+    rpm:
+      rockylinux_9:
+        dnf: [libtirpc-devel]
+      almalinux_9:
+        dnf: [libtirpc-devel]
+      centos_7:
+        yum: [libtirpc-devel]
+      fedora_40:
+        dnf: [libtirpc-devel]
+    suse:
+      opensuse_leap_15_6:
+        zypper: [libtirpc-devel]
+    alpine:
+      alpine_3:
+        apk: [libtirpc-dev]
+    arch:
+      archlinux_latest:
+        pacman: [libtirpc]
+    macos:
+      macos_latest:
+        brew: [libtirpc]
+    bsd:
+      freebsd:
+        pkg: [libtirpc]
+      netbsd:
+        pkg_add: [libtirpc]
+      openbsd:
+        pkg_add: [libtirpc]
+
+  PYTHON:
+    bsd:
+      freebsd:
+        pkg: [python3]
+      netbsd:
+        pkg_add: [python3]
+      openbsd:
+        pkg_add: [python3]

@@ -1,0 +1,278 @@
+build:
+  gh-debian:
+    ubuntu_latest:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  debian:
+    ubuntu_local:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+    debian_bookworm:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+    debian_bullseye:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  rpm:
+    rockylinux_9:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+    almalinux_9:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+    centos_7:
+      packagers:
+        yum:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+    fedora_40:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  suse:
+    opensuse_leap_15_6:
+      packagers:
+        zypper:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  alpine:
+    alpine_3:
+      packagers:
+        apk:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  arch:
+    archlinux_latest:
+      packagers:
+        pacman:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  macos:
+    macos_latest:
+      packagers:
+        brew:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
+  bsd:
+    freebsd:
+      packagers:
+        pkg:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            base_system:
+            - OpenSSL
+            - TIRPC
+            - PYTHON
+          tools:
+            optional:
+            - clang
+    netbsd:
+      packagers:
+        pkg_add:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            base_system:
+            - OpenSSL
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    openbsd:
+      packagers:
+        pkg_add:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            base_system:
+            - OpenSSL
+            - TIRPC
+          tools:
+            optional:
+            - clang
+runtime:
+  libs:
+    optional:
+    - OpenSSL
+    - OpenLDAP client
+    - net-snmp
+    - c-ares
+  tools:
+    mandatory:
+    - sendmail (or equivalent)
+    - fping
+    - mtr
+    - perl
+    - python
+version_notes:
+  linux:
+    ubuntu_latest:
+    - Package names are for Ubuntu-latest; adjust for other distros/versions.
+  bsd:
+    freebsd:
+    - Verify package names for your FreeBSD release (ports/pkg naming can change).
+    netbsd:
+    - Verify package names for your NetBSD release (pkg_add naming can change).
+    openbsd:
+    - Verify package names for your OpenBSD release (pkg_add naming can change).

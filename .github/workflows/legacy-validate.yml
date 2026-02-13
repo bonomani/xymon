@@ -1,0 +1,485 @@
+name: legacy-validate
+
+on:
+  workflow_dispatch:
+
+jobs:
+  legacy-validate:
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-bookworm (server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: server
+          - name: debian-bookworm (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: localclient
+          - name: debian-bookworm (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: client
+
+    name: ${{ matrix.name }}
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_cfg="docs/cmake-legacy-migration/refs/make_linux/server/var/lib/xymon/server/etc/xymonserver.cfg"
+          echo "Legacy hostname: checking ${legacy_cfg}"
+          if [ ! -f "${legacy_cfg}" ]; then
+            echo "Legacy hostname: skipped (missing ${legacy_cfg})"
+            exit 0
+          fi
+          legacy_host="$(
+            tr -d '\r' < "${legacy_cfg}" \
+              | awk -F'"' '/^XYMONSERVERHOSTNAME=/{if(!found){print $2; found=1}} END{if(!found) exit 1}'
+          )"
+          if [ -z "${legacy_host}" ]; then
+            legacy_host="$(
+              tr -d '\r' < "${legacy_cfg}" \
+                | awk '/^XYMONSERVERHOSTNAME=/{sub(/^.*=/,""); sub(/[[:space:]]*#.*/,""); gsub(/^[[:space:]]+|[[:space:]]+$/,""); gsub(/^\"|\"$/,""); if(!found){print; found=1}} END{if(!found) exit 1}'
+            )"
+          fi
+          if [ -z "${legacy_host}" ]; then
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${legacy_cfg})"
+            echo "Legacy hostname: first 5 non-comment lines for debug:"
+            tr -d '\r' < "${legacy_cfg}" \
+              | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+              | head -n5
+            exit 0
+          fi
+          echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+          echo "Using legacy hostname: ${legacy_host}"
+
+      - name: Seed baseline UID/GID identities (container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_passwd="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.passwd"
+          legacy_group="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.group"
+          if [ ! -s "${legacy_passwd}" ]; then
+            echo "Identity seed failed: missing ${legacy_passwd}" >&2
+            exit 1
+          fi
+          if [ ! -s "${legacy_group}" ]; then
+            echo "Identity seed failed: missing ${legacy_group}" >&2
+            exit 1
+          fi
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "Identity seed skipped (not running as root)"
+            exit 0
+          fi
+          if ! command -v getent >/dev/null 2>&1; then
+            echo "Identity seed skipped (getent unavailable)"
+            exit 0
+          fi
+
+          ensure_group() {
+            local gid="$1" preferred="${2:-}"
+            local gname
+            [ -n "$gid" ] || return 0
+            if getent group "$gid" >/dev/null 2>&1; then
+              return 0
+            fi
+            gname="${preferred}"
+            [ -n "$gname" ] || gname="xymonrefg${gid}"
+            if getent group "$gname" >/dev/null 2>&1; then
+              gname="${gname}_legacy"
+            fi
+            if command -v groupadd >/dev/null 2>&1; then
+              groupadd -g "$gid" "$gname" >/dev/null 2>&1 || true
+            elif command -v addgroup >/dev/null 2>&1; then
+              addgroup --gid "$gid" --system "$gname" >/dev/null 2>&1 || addgroup -g "$gid" "$gname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          ensure_user() {
+            local uid="$1" gid="$2" preferred="${3:-}"
+            local uname
+            [ -n "$uid" ] || return 0
+            [ -n "$gid" ] || return 0
+            if getent passwd "$uid" >/dev/null 2>&1; then
+              return 0
+            fi
+            ensure_group "$gid"
+            uname="${preferred}"
+            [ -n "$uname" ] || uname="xymonrefu${uid}"
+            if getent passwd "$uname" >/dev/null 2>&1; then
+              uname="${uname}_legacy"
+            fi
+            if command -v useradd >/dev/null 2>&1; then
+              useradd --uid "$uid" --gid "$gid" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$uname" >/dev/null 2>&1 || true
+            elif command -v adduser >/dev/null 2>&1; then
+              adduser --uid "$uid" --gid "$gid" --home /nonexistent --no-create-home --disabled-password --gecos "" "$uname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          while IFS=':' read -r group_name _ gid _; do
+            [ -n "$group_name" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_group "$gid" "$group_name"
+          done < "${legacy_group}"
+
+          while IFS=':' read -r user_name _ uid gid _; do
+            [ -n "$user_name" ] || continue
+            [ -n "$uid" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_user "$uid" "$gid" "$user_name"
+          done < "${legacy_passwd}"
+          echo "Seeded identity entries from ${legacy_passwd} and ${legacy_group}"
+
+      - name: Bootstrap install + metadata (CMake)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/bootstrap-install.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake
+
+      - name: Load staged tree metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/xymon-root-vars.sh ]; then
+            echo "Staged tree metadata missing" >&2
+            exit 1
+          fi
+          source /tmp/xymon-root-vars.sh
+          : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
+          : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+          echo "LEGACY_TOPDIR=${LEGACY_TOPDIR}" >> "$GITHUB_ENV"
+          echo "LEGACY_ROOT=${LEGACY_ROOT}" >> "$GITHUB_ENV"
+          echo "XYMON_CONFIG_H=${XYMON_CONFIG_H:-}" >> "$GITHUB_ENV"
+
+      - name: Validate config.h parity
+        run: |
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
+          cmake_config="${XYMON_CONFIG_H:-}"
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -name config.h | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            echo "No CMake-generated config.h found under build-cmake"
+            exit 1
+          fi
+          if [ ! -f "$legacy_config" ]; then
+            echo "Baseline config.h not found at $legacy_config"
+            exit 1
+          fi
+
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/legacy.config.extract
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | grep -v '^#define XYMON' \
+            | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/cmake.config.extract
+
+          diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
+          if ! diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract > /tmp/config.diff; then
+            echo "config.h parity diff detected:"
+            cat /tmp/config.diff
+            exit 1
+          fi
+
+      - name: Generate CMake refs snapshot
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/xymon-refs
+          bash ci/generate-refs.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --config-h "${XYMON_CONFIG_H:-}" \
+            --refs-root /tmp/xymon-refs
+
+      - name: Compare refs snapshot (blocking policy checks)
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
+            --candidate-root "${LEGACY_ROOT}"
+
+      - name: Upload artifacts
+        if: ${{ always() && !matrix.stop_after_configure }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-validate-${{ matrix.name }}
+          path: |
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
+            /tmp/install-cmake-legacy.log
+            /tmp/cmake.configure.log
+            /tmp/cmake.trace.json
+            /tmp/cmake.trace.log
+
+  legacy-validate-disabled:
+    if: ${{ false }}
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: debian-bookworm (client ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: localclient
+          - name: debian-bookworm (client ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:bookworm
+            variant: client
+          - name: ubuntu-22.04 (server)
+            runs_on: ubuntu-22.04
+            variant: server
+          - name: ubuntu-22.04 (client ct-client)
+            runs_on: ubuntu-22.04
+            variant: localclient
+          - name: ubuntu-22.04 (client ct-server)
+            runs_on: ubuntu-22.04
+            variant: client
+          - name: rockylinux-9
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: server
+          - name: rockylinux-9 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: localclient
+          - name: rockylinux-9 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: rockylinux:9
+            pkg_mgr: dnf
+            variant: client
+          - name: alpine-3 (server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: server
+          - name: alpine-3 (client ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: localclient
+          - name: alpine-3 (client ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            pkg_mgr: apk
+            variant: client
+          - name: macos-14 (server)
+            runs_on: macos-14
+            os: macos
+            variant: server
+    name: disabled / ${{ matrix.name }}
+    steps:
+      - name: Disabled
+        run: echo "legacy-validate matrix entry disabled"
+
+  legacy-validate-bsd:
+    if: ${{ false }}
+    name: legacy-validate-bsd / OS=${{ matrix.os.name }} / variant=${{ matrix.variant }}
+    runs-on: ubuntu-latest
+    continue-on-error: false
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: server
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/server/inventory.tsv
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: client
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/client/inventory.tsv
+          - os:
+              name: freebsd
+              architecture: x86-64
+              version: "15.0"
+            variant: localclient
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_freebsd/localclient/inventory.tsv
+          - os:
+              name: openbsd
+              architecture: x86-64
+              version: "7.8"
+            variant: server
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_openbsd/server/inventory.tsv
+          - os:
+              name: netbsd
+              architecture: x86-64
+              version: "10.1"
+            variant: server
+            legacy_inventory: docs/cmake-legacy-migration/refs/make_netbsd/server/inventory.tsv
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+    steps:
+      - uses: actions/checkout@v4
+      - name: Legacy validate (BSD) ${{ matrix.os.name }}
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ matrix.os.name }}
+          architecture: ${{ matrix.os.architecture }}
+          version: ${{ matrix.os.version }}
+          shell: bash
+          memory: 1024M
+          cpu_count: 2
+          run: |
+            set -euo pipefail
+            echo "=== Setup (BSD legacy validate) ==="
+            export VARIANT=server
+            export ENABLE_LDAP=ON
+            export ENABLE_SNMP=ON
+            if ! bash ci/deps/install-bsd-packages.sh --os "${{ matrix.os.name }}" --version "${{ matrix.os.version }}"; then
+              if [ -f /var/db/pkgin/pkg_install-err.log ]; then
+                echo "=== pkgin error log ==="
+                cat /var/db/pkgin/pkg_install-err.log
+              fi
+              exit 1
+            fi
+
+            NINJA_BIN=""
+            if [ "${{ matrix.os.name }}" = "netbsd" ]; then
+              if [ -x /usr/pkg/bin/ninja ]; then
+                export PATH="/usr/pkg/bin:${PATH}"
+                NINJA_BIN="/usr/pkg/bin/ninja"
+              elif [ -x /usr/pkg/bin/ninja-build ]; then
+                export PATH="/usr/pkg/bin:${PATH}"
+                NINJA_BIN="/usr/pkg/bin/ninja-build"
+              fi
+            fi
+
+            echo "=== Configure (CMake legacy) ==="
+            cmake -S . -B build-cmake \
+              -G Ninja \
+              ${NINJA_BIN:+-DCMAKE_MAKE_PROGRAM="${NINJA_BIN}"} \
+              -DUSE_GNUINSTALLDIRS=OFF \
+              -DCMAKE_INSTALL_PREFIX=/ \
+              -DLEGACY_APPLY_OWNERSHIP=OFF \
+              -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
+              -DXYMON_VARIANT=server
+
+            echo "=== Build ==="
+            cmake --build build-cmake -j2
+
+            echo "=== Install legacy targets (staging) ==="
+            cmake --build build-cmake --target web_cgi_links docs
+            LEGACY_DESTDIR=/tmp/cmake-ref-root \
+              cmake --build build-cmake --target install-legacy-dirs install-legacy-files 2>&1 | tee /tmp/install-cmake-legacy.log
+
+            if [ "${{ matrix.os.name }}" = "freebsd" ] || [ "${{ matrix.os.name }}" = "netbsd" ] || [ "${{ matrix.os.name }}" = "openbsd" ]; then
+              echo "=== Diff against legacy reference (skipped on ${{ matrix.os.name }}) ==="
+            else
+              echo "=== Diff against legacy reference ==="
+              legacy_inventory="${{ matrix.legacy_inventory }}"
+              if [ ! -s "${legacy_inventory}" ]; then
+                echo "Missing or empty ${legacy_inventory}. Generate it on ${{ matrix.os.name }} and commit it."
+                exit 1
+              fi
+
+              awk -F '\t' '{print $1}' "${legacy_inventory}" \
+                | grep -v '^[[:space:]]*#' | grep -v '^[[:space:]]*$' \
+                | sed 's|/var/lib/xymon/$|/var/lib/xymon|' | sort > /tmp/legacy.list
+              if [ ! -s /tmp/legacy.list ]; then
+                echo "Legacy reference contains no paths."
+                exit 1
+              fi
+
+              find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' \
+                | sed 's|/var/lib/xymon/$|/var/lib/xymon|' \
+                | sort > /tmp/cmake.list
+
+              printf '%s\n' \
+                /var/lib/xymon/cgi-bin/.stamp \
+                /var/lib/xymon/cgi-secure/.stamp \
+                /var/lib/xymon/server/bin/availability \
+                /var/lib/xymon/server/bin/contest \
+                /var/lib/xymon/server/bin/loadhosts \
+                /var/lib/xymon/server/bin/locator \
+                /var/lib/xymon/server/bin/md5 \
+                /var/lib/xymon/server/bin/rmd160 \
+                /var/lib/xymon/server/bin/sha1 \
+                /var/lib/xymon/server/bin/stackio \
+                /var/lib/xymon/server/bin/tree \
+                /var/lib/xymon/server/bin/xymon-snmpcollect \
+                > /tmp/allowed-extras.list
+
+              grep -v -F -x -f /tmp/allowed-extras.list /tmp/cmake.list > /tmp/cmake.filtered.list
+              diff -u /tmp/legacy.list /tmp/cmake.filtered.list > /tmp/legacy-cmake.diff || true
+              if [ -s /tmp/legacy-cmake.diff ]; then
+                echo "Unexpected diff detected (informational in BSD legacy lane):"
+                cat /tmp/legacy-cmake.diff
+              fi
+            fi
+
+      - name: Upload artifacts (BSD)
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: legacy-validate-bsd-${{ matrix.os.name }}
+          path: |
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/install-cmake-legacy.log
