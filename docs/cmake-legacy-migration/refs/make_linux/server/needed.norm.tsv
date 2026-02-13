@@ -93,8 +93,8 @@
 /server/bin/xymonnet	libc.so
 /server/bin/xymonnet	libcares.so
 /server/bin/xymonnet	libcrypto.so
-/server/bin/xymonnet	liblber-2.5.so
-/server/bin/xymonnet	libldap-2.5.so
+/server/bin/xymonnet	liblber.so
+/server/bin/xymonnet	libldap.so
 /server/bin/xymonnet	libpcre.so
 /server/bin/xymonnet	libssl.so
 /server/bin/xymonpage	libc.so

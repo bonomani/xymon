@@ -1,14 +1,13 @@
 0ad36a6dbbc1da9017688c887ea600e9200282fd01246a479adad81f1877b926  /var/lib/xymon/server/etc/alerts.cfg
 1d21ce4872aa77740cab3c1134e3b498980f10dfac1b6fe8fc61f669c169d255  /var/lib/xymon/server/etc/holidays.cfg
-2d806fb6d674a0ced475240077748ed7dc18badce41e907d4eef89cc12ee0cfc  /var/lib/xymon/server/etc/hosts.cfg
 2f2ebfb59c879da2ac61643a2a6b8137685b99476bc7ec247abe42953c80d5fd  /var/lib/xymon/server/etc/analysis.cfg
 43a8eaa565a57abbeb0c994f9b496f08901bc3ca07b9bba6d30c1bd039025320  /var/lib/xymon/server/etc/rrddefinitions.cfg
 5b09f603b9dbeb24d59f615e0bc5ff795b11554b64cbbc9060203a6e9245fdc7  /var/lib/xymon/server/etc/columndoc.csv
 6634eb4c97f0c44802f1b0788d3f95d3eba4c2451bf03be6b3e905fe5a5a51f0  /var/lib/xymon/client/etc/clientlaunch.cfg
 6a6c82ba9784b119085c0584824ac4cf9a7fde913c48dd0f4309e44bab9a2d39  /var/lib/xymon/server/etc/snmpmibs.cfg
+70abfade2feae2ad01e6dc02f4bbe2164577a8643117f5fb745d0ce149be0878  /var/lib/xymon/server/etc/hosts.cfg
 804b59340f7b03280746e6c35c14a2bdd416c1d04ce029a3e20ac0e7f2844477  /var/lib/xymon/server/etc/client-local.cfg
 90bee4d9b3e272253832046b04d21ca4f935784cc3f85ac78e936b29261c8f58  /var/lib/xymon/server/etc/tasks.cfg
-9438b83ae6376e3bd5f5964a18d63d7951bbd7c788bf0dee601c65b4c530fab8  /var/lib/xymon/server/etc/xymonserver.cfg
 97980ae140f2d49a31ee6eb6e37bb3f78c9367addf95914a84d6fe00d1f90c95  /var/lib/xymon/client/etc/xymonclient.cfg
 b25933f2fd31ed0130ec36c4d01ad986b6c2775542fd81e4a9084d91f7337c94  /var/lib/xymon/server/etc/protocols.cfg
 bd503a0502add356cd07fe1d74c91e2e8897da19585045c0bce6e311df72c1a2  /var/lib/xymon/server/etc/xymonmenu.cfg
@@ -16,4 +15,5 @@ c30b8c934b13ee3b7be90106921f0fbaa2adb295fa764dc275271eb4c2853224  /var/lib/xymon
 c376516eecccb99a0fc9814a91a1e3c37007910c4c54fc5f1d1b9c6ad9427baf  /var/lib/xymon/server/etc/cgioptions.cfg
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /var/lib/xymon/server/etc/critical.cfg
 e5c134d058c24e25326c704a7187b20da1dc9ff2d4d1b55ce7125a0fc84389fd  /var/lib/xymon/server/etc/graphs.cfg
+ed0b460c454de1f31ab13a6a9fdf42600d0f7536de1ba44ff5425762caea61d8  /var/lib/xymon/server/etc/xymonserver.cfg
 f77f9d168d42c37ea88eacb693dfdc86ad20366dadc9d060ff5537451dfc1977  /var/lib/xymon/client/etc/localclient.cfg
