@@ -142,7 +142,7 @@
 /var/lib/xymon/server/bin/xymongen	/server/bin/xymongen	f	755	1001	1001	1202600	
 /var/lib/xymon/server/bin/xymongrep	/server/bin/xymongrep	f	755	1001	1001	518264	
 /var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	1001	1001	314776	
-/var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	1001	1001	978072	
+/var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	1001	1001	977696	
 /var/lib/xymon/server/bin/xymonpage	/server/bin/xymonpage	f	755	1001	1001	598272	
 /var/lib/xymon/server/bin/xymonping	/server/bin/xymonping	f	755	0	1001	281288	
 /var/lib/xymon/server/bin/xymonproxy	/server/bin/xymonproxy	f	755	1001	1001	313536	
@@ -214,7 +214,7 @@
 /var/lib/xymon/server/man/man5/combo.cfg.5	/server/man/man5/combo.cfg.5	f	644	1001	1001	3191	
 /var/lib/xymon/server/man/man5/critical.cfg.5	/server/man/man5/critical.cfg.5	f	644	1001	1001	973	
 /var/lib/xymon/server/man/man5/graphs.cfg.5	/server/man/man5/graphs.cfg.5	f	644	1001	1001	4091	
-/var/lib/xymon/server/man/man5/hosts.cfg.5	/server/man/man5/hosts.cfg.5	f	644	1001	1001	59370	
+/var/lib/xymon/server/man/man5/hosts.cfg.5	/server/man/man5/hosts.cfg.5	f	644	1001	1001	59432	
 /var/lib/xymon/server/man/man5/protocols.cfg.5	/server/man/man5/protocols.cfg.5	f	644	1001	1001	2611	
 /var/lib/xymon/server/man/man5/tasks.cfg.5	/server/man/man5/tasks.cfg.5	f	644	1001	1001	5350	
 /var/lib/xymon/server/man/man5/xymon-xmh.5	/server/man/man5/xymon-xmh.5	f	644	1001	1001	4738	
