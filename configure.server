@@ -454,7 +454,7 @@ then
     fi
     if test "$CARESLIB" != ""; then
 	echo "CARESLIBS = -L$CARESLIB -lcares" >>Makefile
-	echo "RPATHVAL += ${CARESLIB}"         >>Makefile
+	echo "RPATHVAL += ${CARESLIB}"        >>Makefile
     else
 	echo "CARESLIBS = -lcares"       >>Makefile
     fi
