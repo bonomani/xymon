@@ -12,7 +12,7 @@
  *
  * Usage:
  * - Declare argv vectors as xymon_rrd_argv_item_t[].
- * - Call xymon_rrd_update/create/fetch/graph wrappers only.
+ * - Call the xymon_rrd_update/create/fetch/graph wrappers only.
  *
  * RRD_CONST_ARGS is detected by build/rrd.sh and propagated via RRDDEF.
  */

@@ -34,7 +34,7 @@ int main(void)
 	(void)xymon_rrd_update(3, updateargs);
 	(void)xymon_rrd_create(3, createargs);
 	(void)xymon_rrd_fetch(3, fetchargs, &start, &end, &step, &dscount, &dsnames, &data);
-	/* Keep one graph invocation to validate graph ABI shape as well. */
+	/* Keep one graph invocation to validate the graph ABI shape as well. */
 	result = xymon_rrd_graph(pcount, graphargs, &calcpr, &xsize, &ysize, &ymin, &ymax);
 
 	return 0;

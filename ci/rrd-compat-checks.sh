@@ -3,7 +3,7 @@ set -euo pipefail
 
 # Why this exists:
 # - RRDtool headers vary by version:
-#   old APIs use `char **` argv, newer APIs use `const char **`.
+#   older APIs use `char **` argv, newer APIs use `const char **`.
 # - build/test-rrd.c must compile through include/rrd_compat.h for both forms.
 # - We also enforce wrapper-only usage in selected runtime call sites.
 

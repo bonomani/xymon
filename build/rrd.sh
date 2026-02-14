@@ -93,7 +93,7 @@
 		return 1
 	}
 
-	# Probe whether rrd_update() expects const char ** (new) or char ** (legacy).
+	# Probe whether rrd_update() expects const char ** (newer) or char ** (legacy).
 	detect_rrd_const_args() {
 		CONSTTESTSRC=`mktemp_xymon "xymon-rrd-const"` || return 2
 		CONSTTESTOBJ=`mktemp_xymon "xymon-rrd-const-obj"` || { rm -f "$CONSTTESTSRC"; return 2; }
@@ -144,11 +144,11 @@ EOF
 			return 0
 		fi
 
-		echo "Initial RRD compile failed; first diagnostics:"
+		echo "RRD: initial compile probe failed; first diagnostics:"
 		head -n 20 "$FIRSTCOMPILELOG"
-		echo "Initial RRD full diagnostics saved at: $FIRSTCOMPILELOG"
+		echo "RRD: full diagnostics saved at: $FIRSTCOMPILELOG"
 		# Initial compile failed; retry with the legacy RRD graph ABI macro.
-		echo "Initial RRD compile failed; retrying with RRDTOOL12 compatibility"
+		echo "RRD: retrying compile probe with RRDTOOL12 compatibility"
 		RRDDEF="$RRDDEF -DRRDTOOL12"
 		OS=$OS $MAKE -f Makefile.test-rrd clean
 		try_rrd_compile
@@ -203,7 +203,7 @@ EOF
 	if try_rrd_link_with_fallbacks; then
 		echo "RRD: link probe -> ok"
 		if test "$PNGLIB" != ""; then
-			echo "Linking RRD needs extra library: $PNGLIB"
+			echo "RRD: link probe required extra libraries: $PNGLIB"
 		fi
 	else
 		echo "RRD: link probe -> failed"
@@ -213,14 +213,14 @@ EOF
 	cd ..
 
 	if test "$RRDOK" = "NO"; then
-		echo "RRDtool include- or library-files not found."
-		echo "These are REQUIRED for trend-graph support in Xymon, but Xymon can"
-		echo "be built without them (e.g. for a network-probe only installation."
+		echo "RRDtool include files or libraries were not found."
+		echo "These are required for trend graph support in Xymon, but Xymon can"
+		echo "be built without them (for example, for a network-probe-only installation)."
 		echo ""
 		echo "RRDtool can be found at http://oss.oetiker.ch/rrdtool/"
 		echo "If you have RRDtool installed, use the \"--rrdinclude DIR\" and \"--rrdlib DIR\""
 		echo "options to configure to specify where they are."
 		echo ""
-		echo "Continuing with all trend-graph support DISABLED"
+		echo "Continuing with trend graph support disabled."
 		sleep 3
 	fi
