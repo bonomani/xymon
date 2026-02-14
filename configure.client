@@ -18,6 +18,7 @@ do
      --pcreinclude DIRECTORY  : Specify location of PCRE include files
      --pcrelib DIRECTORY      : Specify location of PCRE libraries
      --make /path/to/gnumake  : Specify location of the GNU make program
+     PCRE_MAJOR=1|2           : Select PCRE probe mode (default: 1)
 
   The script will search a number of standard directories for
   all of these files, so you normally do not have to specify any options.
@@ -257,4 +258,3 @@ echo ""
 echo "Configuration complete - now run $MAKE (GNU make) to build the tools"
 
 exit 0
-
