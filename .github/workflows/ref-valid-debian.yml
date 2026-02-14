@@ -12,51 +12,41 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Bullseye - Server
+          - name: Debian stable (amd64) - Server
             runs_on: ubuntu-22.04
-            container: debian:bullseye
+            container: debian:stable
             variant: server
             allow_failure: false
-          - name: Bullseye - Client (ct-client)
+          - name: Debian stable-slim (amd64) - Server
             runs_on: ubuntu-22.04
-            container: debian:bullseye
-            variant: localclient
-            allow_failure: false
-          - name: Bullseye - Client (ct-server)
-            runs_on: ubuntu-22.04
-            container: debian:bullseye
-            variant: client
-            allow_failure: false
-          - name: Bookworm - Server
-            runs_on: ubuntu-22.04
-            container: debian:bookworm
+            container: debian:stable-slim
             variant: server
             allow_failure: false
-          - name: Bookworm - Client (ct-client)
+          - name: Debian oldstable (amd64) - Server
             runs_on: ubuntu-22.04
-            container: debian:bookworm
-            variant: localclient
-            allow_failure: false
-          - name: Bookworm - Client (ct-server)
-            runs_on: ubuntu-22.04
-            container: debian:bookworm
-            variant: client
-            allow_failure: false
-          - name: Trixie - Server
-            runs_on: ubuntu-22.04
-            container: debian:trixie
+            container: debian:oldstable
             variant: server
-            allow_failure: true
-          - name: Trixie - Client (ct-client)
+            allow_failure: false
+          - name: Debian oldstable-slim (amd64) - Server
             runs_on: ubuntu-22.04
-            container: debian:trixie
-            variant: localclient
-            allow_failure: true
-          - name: Trixie - Client (ct-server)
+            container: debian:oldstable-slim
+            variant: server
+            allow_failure: false
+          - name: Debian oldoldstable (amd64) - Server
             runs_on: ubuntu-22.04
-            container: debian:trixie
-            variant: client
-            allow_failure: true
+            container: debian:oldoldstable
+            variant: server
+            allow_failure: false
+          - name: Debian stable-slim (arm64) - Server
+            runs_on: ubuntu-24.04-arm
+            container: debian:stable-slim
+            variant: server
+            allow_failure: false
+          - name: Debian oldstable-slim (arm64) - Server
+            runs_on: ubuntu-24.04-arm
+            container: debian:oldstable-slim
+            variant: server
+            allow_failure: false
 
     name: ${{ matrix.name }}
     env:
