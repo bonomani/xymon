@@ -57,6 +57,9 @@ jobs:
       LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
+      - name: Prepare checkout tools in container
+        uses: ./.github/actions/prepare-checkout-tools
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
