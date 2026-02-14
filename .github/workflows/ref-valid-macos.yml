@@ -12,10 +12,10 @@ jobs:
       matrix:
         include:
           # Server lanes first, then client ct-client, then client ct-server.
-          # Keep concrete versions before the moving "latest" label.
-          - name: macOS 14 arm64 - Server
-            runner: macos-14
-            macos_version: "14"
+          # Newest first: latest, then 15, then 14.
+          - name: macOS latest arm64 - Server
+            runner: macos-latest
+            macos_version: "latest"
             variant: server
           - name: macOS 15 arm64 - Server
             runner: macos-15
@@ -25,13 +25,13 @@ jobs:
             runner: macos-15-intel
             macos_version: "15"
             variant: server
-          - name: macOS latest arm64 - Server
-            runner: macos-latest
-            macos_version: "latest"
-            variant: server
-          - name: macOS 14 arm64 - Client (ct-client)
+          - name: macOS 14 arm64 - Server
             runner: macos-14
             macos_version: "14"
+            variant: server
+          - name: macOS latest arm64 - Client (ct-client)
+            runner: macos-latest
+            macos_version: "latest"
             variant: localclient
           - name: macOS 15 arm64 - Client (ct-client)
             runner: macos-15
@@ -41,13 +41,13 @@ jobs:
             runner: macos-15-intel
             macos_version: "15"
             variant: localclient
-          - name: macOS latest arm64 - Client (ct-client)
-            runner: macos-latest
-            macos_version: "latest"
-            variant: localclient
-          - name: macOS 14 arm64 - Client (ct-server)
+          - name: macOS 14 arm64 - Client (ct-client)
             runner: macos-14
             macos_version: "14"
+            variant: localclient
+          - name: macOS latest arm64 - Client (ct-server)
+            runner: macos-latest
+            macos_version: "latest"
             variant: client
           - name: macOS 15 arm64 - Client (ct-server)
             runner: macos-15
@@ -57,9 +57,9 @@ jobs:
             runner: macos-15-intel
             macos_version: "15"
             variant: client
-          - name: macOS latest arm64 - Client (ct-server)
-            runner: macos-latest
-            macos_version: "latest"
+          - name: macOS 14 arm64 - Client (ct-server)
+            runner: macos-14
+            macos_version: "14"
             variant: client
     env:
       VARIANT: ${{ matrix.variant }}
