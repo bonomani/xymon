@@ -263,9 +263,15 @@ bsd_pkg_installed() {
 bsd_prepare_netbsd_pkg_environment() {
   local netbsd_arch=""
   local netbsd_pkg_ver=""
-  local primary=""
-  local fallback1=""
-  local fallback2=""
+  local arch_try=""
+  local url=""
+  local -a arch_candidates=()
+  local -a mirror_bases=(
+    "https://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD"
+    "https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD"
+    "http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD"
+  )
+  declare -A seen_paths=()
 
   NETBSD_PKG_PATHS=()
   netbsd_arch="$(uname -m)"
@@ -276,10 +282,28 @@ bsd_prepare_netbsd_pkg_environment() {
     netbsd_pkg_ver="$(uname -r | sed -E 's/^([0-9]+\.[0-9]+).*/\1/')"
   fi
 
-  primary="https://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
-  fallback1="https://ftp.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
-  fallback2="http://cdn.netbsd.org/pub/pkgsrc/packages/NetBSD/${netbsd_arch}/${netbsd_pkg_ver}/All/"
-  NETBSD_PKG_PATHS=("${primary}" "${fallback1}" "${fallback2}")
+  case "${netbsd_arch}" in
+    amd64|x86_64)
+      arch_candidates=(amd64 x86_64)
+      ;;
+    evbarm|evbarm64|aarch64|arm64)
+      # arm64 VMs may report evbarm while pkgsrc binary sets live under aarch64.
+      arch_candidates=(aarch64 evbarm arm64 earmv7hf earmv6hf)
+      ;;
+    *)
+      arch_candidates=("${netbsd_arch}")
+      ;;
+  esac
+
+  for arch_try in "${arch_candidates[@]}"; do
+    for url in "${mirror_bases[@]}"; do
+      url="${url}/${arch_try}/${netbsd_pkg_ver}/All/"
+      if [[ -z "${seen_paths[${url}]:-}" ]]; then
+        NETBSD_PKG_PATHS+=("${url}")
+        seen_paths["${url}"]=1
+      fi
+    done
+  done
 
   export CHECK_OSABI=no
   PKG_INSTALL_CONF="/tmp/pkg_install.conf"
