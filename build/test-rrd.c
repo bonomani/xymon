@@ -3,6 +3,7 @@
 
 int main(void)
 {
+	/* Compile-time ABI surface checks for all wrapped RRDtool entry points. */
 	xymon_rrd_argv_item_t graphargs[] = {
 		"rrdgraph",
 		"xymongen.png",
@@ -29,9 +30,11 @@ int main(void)
 
 	for (pcount = 0; (graphargs[pcount]); pcount++);
 	rrd_clear_error();
+	/* We only need these calls to type-check against the active RRDtool headers. */
 	(void)xymon_rrd_update(3, updateargs);
 	(void)xymon_rrd_create(3, createargs);
 	(void)xymon_rrd_fetch(3, fetchargs, &start, &end, &step, &dscount, &dsnames, &data);
+	/* Keep one graph invocation to validate graph ABI shape as well. */
 	result = xymon_rrd_graph(pcount, graphargs, &calcpr, &xsize, &ysize, &ymin, &ymax);
 
 	return 0;

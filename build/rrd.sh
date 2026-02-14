@@ -71,11 +71,13 @@
 		RRDLIB="$USERRRDLIB"
 	fi
 
-	# See if it builds
+	# Probe + compile/link validation
 	RRDOK="YES"
 	OS=`uname -s | sed -e's@/@_@g'`
 	if test "$RRDINC" != ""; then INCOPT="-I$RRDINC"; fi
 	if test "$RRDLIB" != ""; then LIBOPT="-L$RRDLIB"; fi
+
+	# --- Helpers ---
 	mktemp_xymon() {
 		prefix="$1"
 		f=
@@ -90,6 +92,8 @@
 		done
 		return 1
 	}
+
+	# Probe whether rrd_update() expects const char ** (new) or char ** (legacy).
 	detect_rrd_const_args() {
 		CONSTTESTSRC=`mktemp_xymon "xymon-rrd-const"` || return 2
 		CONSTTESTOBJ=`mktemp_xymon "xymon-rrd-const-obj"` || { rm -f "$CONSTTESTSRC"; return 2; }
@@ -114,12 +118,12 @@ int main(void)
 EOF
 		if ${CC:-cc} ${INCOPT} ${STRICT_CFLAGS} -x c -c "$CONSTTESTSRC" -o "$CONSTTESTOBJ" >/dev/null 2>&1; then
 			rm -f "$CONSTTESTSRC" "$CONSTTESTOBJ"
-			echo "1"
+			echo "const"
 			return 0
 		fi
 
 		rm -f "$CONSTTESTSRC" "$CONSTTESTOBJ"
-		echo "0"
+		echo "mutable"
 		return 0
 	}
 
@@ -167,40 +171,42 @@ EOF
 		try_rrd_link
 	}
 
+	# --- Phase 1: ABI detection ---
 	# Detect whether RRDtool APIs use const argv pointers.
 	# Newer headers expect const char **, older expect char **.
 	RRD_CONST_ARGS_DETECTED=`detect_rrd_const_args`
 	RRD_CONST_PROBE_STATUS=$?
 	if test "$RRD_CONST_PROBE_STATUS" -ne 0; then
-		echo "ERROR: RRDtool const-argv probe infrastructure failed (status=$RRD_CONST_PROBE_STATUS)"
+		echo "RRD: detect ABI -> error (status=$RRD_CONST_PROBE_STATUS)"
 		RRDOK="NO"
-		RRD_CONST_ARGS_DETECTED=0
+		RRD_CONST_ARGS_DETECTED=mutable
 	fi
-	if test "$RRD_CONST_ARGS_DETECTED" = "1"; then
-		echo "RRDtool API detected: const argv pointers"
+	if test "$RRD_CONST_ARGS_DETECTED" = "const"; then
+		echo "RRD: detect ABI -> const argv pointers"
 		RRDDEF="$RRDDEF -DRRD_CONST_ARGS=1"
 	else
-		echo "RRDtool API detected: mutable argv pointers"
+		echo "RRD: detect ABI -> mutable argv pointers"
 		RRDDEF="$RRDDEF -DRRD_CONST_ARGS=0"
 	fi
 
+	# --- Phase 2: compile/link probes ---
 	cd build
 	OS=$OS $MAKE -f Makefile.test-rrd clean
 	if try_rrd_compile_with_legacy_fallback; then
-		echo "Compiling with RRDtool works OK"
+		echo "RRD: compile probe -> ok"
 	else
-		echo "ERROR: Cannot compile with RRDtool."
+		echo "RRD: compile probe -> failed"
 		RRDOK="NO"
 	fi
-	echo "RRDtool compatibility flags selected: $RRDDEF"
+	echo "RRD: selected compatibility flags -> $RRDDEF"
 
 	if try_rrd_link_with_fallbacks; then
-		echo "Linking with RRDtool works OK"
+		echo "RRD: link probe -> ok"
 		if test "$PNGLIB" != ""; then
 			echo "Linking RRD needs extra library: $PNGLIB"
 		fi
 	else
-		echo "ERROR: Linking with RRDtool fails"
+		echo "RRD: link probe -> failed"
 		RRDOK="NO"
 	fi
 	OS=$OS $MAKE -f Makefile.test-rrd clean
