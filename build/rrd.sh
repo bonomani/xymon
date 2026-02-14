@@ -112,7 +112,7 @@ int main(void)
 	return rrd_update(2, args);
 }
 EOF
-		if ${CC:-cc} ${INCOPT} ${STRICT_CFLAGS} -c "$CONSTTESTSRC" -o "$CONSTTESTOBJ" >/dev/null 2>&1; then
+		if ${CC:-cc} ${INCOPT} ${STRICT_CFLAGS} -x c -c "$CONSTTESTSRC" -o "$CONSTTESTOBJ" >/dev/null 2>&1; then
 			rm -f "$CONSTTESTSRC" "$CONSTTESTOBJ"
 			echo "1"
 			return 0
