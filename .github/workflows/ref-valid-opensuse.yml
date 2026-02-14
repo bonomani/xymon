@@ -12,40 +12,79 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Leap 15.6 - Server
+          - name: openSUSE Tumbleweed - Server
+            runs_on: ubuntu-22.04
+            container: opensuse/tumbleweed:latest
+            opensuse_version: "tumbleweed"
+            variant: server
+            allow_failure: true
+          - name: openSUSE Tumbleweed - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: opensuse/tumbleweed:latest
+            opensuse_version: "tumbleweed"
+            variant: localclient
+            allow_failure: true
+          - name: openSUSE Tumbleweed - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: opensuse/tumbleweed:latest
+            opensuse_version: "tumbleweed"
+            variant: client
+            allow_failure: true
+
+          - name: openSUSE Leap 16.0 - Server
+            runs_on: ubuntu-22.04
+            container: opensuse/leap:16.0
+            opensuse_version: "16.0"
+            variant: server
+            allow_failure: true
+          - name: openSUSE Leap 16.0 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: opensuse/leap:16.0
+            opensuse_version: "16.0"
+            variant: localclient
+            allow_failure: true
+          - name: openSUSE Leap 16.0 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: opensuse/leap:16.0
+            opensuse_version: "16.0"
+            variant: client
+            allow_failure: true
+
+          - name: openSUSE Leap 15.6 - Server
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
             opensuse_version: "15.6"
             variant: server
             allow_failure: false
-          - name: Leap 15.6 - Client (ct-client)
+          - name: openSUSE Leap 15.6 - Client (ct-client)
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
             opensuse_version: "15.6"
             variant: localclient
             allow_failure: false
-          - name: Leap 15.6 - Client (ct-server)
+          - name: openSUSE Leap 15.6 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: opensuse/leap:15.6
             opensuse_version: "15.6"
             variant: client
             allow_failure: false
-          - name: Tumbleweed - Server
+
+          - name: openSUSE Leap 15.5 - Server
             runs_on: ubuntu-22.04
-            container: opensuse/tumbleweed:latest
-            opensuse_version: "tumbleweed"
+            container: opensuse/leap:15.5
+            opensuse_version: "15.5"
             variant: server
             allow_failure: true
-          - name: Tumbleweed - Client (ct-client)
+          - name: openSUSE Leap 15.5 - Client (ct-client)
             runs_on: ubuntu-22.04
-            container: opensuse/tumbleweed:latest
-            opensuse_version: "tumbleweed"
+            container: opensuse/leap:15.5
+            opensuse_version: "15.5"
             variant: localclient
             allow_failure: true
-          - name: Tumbleweed - Client (ct-server)
+          - name: openSUSE Leap 15.5 - Client (ct-server)
             runs_on: ubuntu-22.04
-            container: opensuse/tumbleweed:latest
-            opensuse_version: "tumbleweed"
+            container: opensuse/leap:15.5
+            opensuse_version: "15.5"
             variant: client
             allow_failure: true
 
