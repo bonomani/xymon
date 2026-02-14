@@ -8,7 +8,7 @@ jobs:
     runs-on: ${{ matrix.runs_on }}
     container:
       image: ${{ matrix.container }}
-      options: ${{ matrix.container_options }}
+      options: ${{ matrix.container_options || '--platform linux/amd64' }}
     continue-on-error: ${{ matrix.allow_failure }}
     strategy:
       fail-fast: false
@@ -17,19 +17,19 @@ jobs:
           - name: Debian 13.3-slim x86-64 - Server
             runs_on: ubuntu-22.04
             container: debian:13.3-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: server
             allow_failure: false
           - name: Debian 13.3-slim x86-64 - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:13.3-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: localclient
             allow_failure: false
           - name: Debian 13.3-slim x86-64 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:13.3-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: client
             allow_failure: false
           - name: Debian 13.3-slim arm64 - Server
@@ -71,19 +71,19 @@ jobs:
           - name: Debian 12.13-slim x86-64 - Server
             runs_on: ubuntu-22.04
             container: debian:12.13-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: server
             allow_failure: false
           - name: Debian 12.13-slim x86-64 - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:12.13-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: localclient
             allow_failure: false
           - name: Debian 12.13-slim x86-64 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:12.13-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: client
             allow_failure: false
           - name: Debian 12.13-slim arm64 - Server
@@ -125,19 +125,19 @@ jobs:
           - name: Debian 11.11-slim x86-64 - Server
             runs_on: ubuntu-22.04
             container: debian:11.11-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: server
             allow_failure: false
           - name: Debian 11.11-slim x86-64 - Client (ct-client)
             runs_on: ubuntu-22.04
             container: debian:11.11-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: localclient
             allow_failure: false
           - name: Debian 11.11-slim x86-64 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: debian:11.11-slim
-            container_options: ""
+            container_options: --platform linux/amd64
             variant: client
             allow_failure: false
           - name: Debian 11.11-slim arm64 - Server
