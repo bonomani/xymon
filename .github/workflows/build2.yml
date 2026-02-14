@@ -43,6 +43,7 @@ jobs:
         env:
           CONFTYPE: ${{ matrix.conftype }}
         run: |
+          PCRE_MAJOR=2 \
           USEXYMONPING=y \
           ENABLESSL=y \
           ENABLELDAP=y \
