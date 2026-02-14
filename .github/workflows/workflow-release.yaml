@@ -3,9 +3,7 @@ concurrency:
   group: workflow-tarball
   cancel-in-progress: false
 on:
-  push:
-    tags:
-      - 'rel-*'   # or 'v*' 
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -52,5 +50,4 @@ jobs:
           generate_release_notes: "true"
           files: |
             ${{ steps.vars.outputs.asset }}
-
 
