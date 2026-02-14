@@ -27,21 +27,6 @@ jobs:
             container: debian:13.3-slim
             variant: client
             allow_failure: false
-          - name: Debian 12.13-slim x86-64 - Server
-            runs_on: ubuntu-22.04
-            container: debian:12.13-slim
-            variant: server
-            allow_failure: false
-          - name: Debian 12.13-slim x86-64 - Client (ct-client)
-            runs_on: ubuntu-22.04
-            container: debian:12.13-slim
-            variant: localclient
-            allow_failure: false
-          - name: Debian 12.13-slim x86-64 - Client (ct-server)
-            runs_on: ubuntu-22.04
-            container: debian:12.13-slim
-            variant: client
-            allow_failure: false
           - name: Debian 13.3-slim arm64 - Server
             runs_on: ubuntu-24.04-arm
             container: debian:13.3-slim
@@ -55,6 +40,21 @@ jobs:
           - name: Debian 13.3-slim arm64 - Client (ct-server)
             runs_on: ubuntu-24.04-arm
             container: debian:13.3-slim
+            variant: client
+            allow_failure: false
+          - name: Debian 12.13-slim x86-64 - Server
+            runs_on: ubuntu-22.04
+            container: debian:12.13-slim
+            variant: server
+            allow_failure: false
+          - name: Debian 12.13-slim x86-64 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: debian:12.13-slim
+            variant: localclient
+            allow_failure: false
+          - name: Debian 12.13-slim x86-64 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: debian:12.13-slim
             variant: client
             allow_failure: false
           - name: Debian 12.13-slim arm64 - Server
