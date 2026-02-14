@@ -5,6 +5,31 @@ on:
   pull_request:
 
 jobs:
+  rrd-compat:
+    name: rrd compatibility checks
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Validate RRDtool ABI compatibility wrappers
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/rrd-compat-checks.sh abi
+
+      - name: Validate strict RRD_CONST_ARGS policy
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/rrd-compat-checks.sh strict
+
+      - name: Guard migrated files against direct rrd_* calls
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/rrd-compat-checks.sh guard
+
   build:
     name: build (${{ matrix.name }})
     runs-on: ubuntu-latest
