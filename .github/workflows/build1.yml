@@ -1,7 +1,8 @@
 name: build1 (pcre1)
 
 on:
-  workflow_dispatch:
+  push:
+  pull_request:
 
 jobs:
   build-pcre1:
