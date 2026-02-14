@@ -474,12 +474,26 @@ discover_key_files() {
 
 sha256_of() {
   local file="$1"
+  local out=""
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$file" | awk '{print $1}'
   elif command -v sha256 >/dev/null 2>&1; then
     sha256 -q "$file"
   elif command -v digest >/dev/null 2>&1; then
     digest -a sha256 "$file"
+  elif command -v cksum >/dev/null 2>&1; then
+    out="$(cksum -a sha256 "$file" 2>/dev/null || true)"
+    if [ -n "$out" ]; then
+      # Handle both "HASH file" and "SHA256 (file) = HASH" formats.
+      if printf '%s\n' "$out" | grep -q '='; then
+        printf '%s\n' "$out" | awk -F'= *' '{print $2}' | awk '{print $1}'
+      else
+        printf '%s\n' "$out" | awk '{print $1}'
+      fi
+      return 0
+    fi
+  elif command -v openssl >/dev/null 2>&1; then
+    openssl dgst -sha256 -r "$file" | awk '{print $1}'
   else
     echo "No sha256 tool found" >&2
     exit 1
