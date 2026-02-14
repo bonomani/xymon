@@ -11,22 +11,6 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: ubuntu-22.04
-            runs_on: ubuntu-22.04
-            variant: server
-          - name: ubuntu-24.04
-            runs_on: ubuntu-24.04
-            variant: server
-          - name: debian-bookworm
-            runs_on: ubuntu-22.04
-            container: debian:bookworm
-            pkg_mgr: apt
-            variant: server
-          - name: debian-bullseye
-            runs_on: ubuntu-22.04
-            container: debian:bullseye
-            pkg_mgr: apt
-            variant: server
           - name: rockylinux-9
             runs_on: ubuntu-22.04
             container: rockylinux:9
@@ -47,16 +31,6 @@ jobs:
             runs_on: ubuntu-22.04
             container: fedora:40
             pkg_mgr: dnf
-            variant: server
-          - name: opensuse-leap-15.6
-            runs_on: ubuntu-22.04
-            container: opensuse/leap:15.6
-            pkg_mgr: zypper
-            variant: server
-          - name: alpine-3
-            runs_on: ubuntu-22.04
-            container: alpine:3.19
-            pkg_mgr: apk
             variant: server
           - name: archlinux
             runs_on: ubuntu-22.04
