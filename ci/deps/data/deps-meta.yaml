@@ -6,7 +6,7 @@ scripts:
     accepts:
       family: [gh-debian, debian, rpm, suse, alpine, arch, macos]
       os: [ubuntu, debian, rockylinux, almalinux, fedora, centos, opensuse_leap, alpine, archlinux, macos, freebsd, netbsd, openbsd]
-      version: [latest, local, bookworm, bullseye, 9, 40, 7, 15_6, 3]
+      version: [latest, local, bookworm, bullseye, 9, 40, 7, 15_5, 15_6, 16_0, 3]
       pkgmgr: [apt, dnf, yum, zypper, apk, pacman, brew, pkg, pkg_add, pkgin]
     outputs: [packages]
   ci/deps/install-apt-packages.sh:
@@ -45,7 +45,7 @@ scripts:
     accepts:
       family: [suse]
       os: [opensuse_leap]
-      version: [15_6]
+      version: [15_5, 15_6, 16_0]
       pkgmgr: [zypper]
     outputs: [packages]
 

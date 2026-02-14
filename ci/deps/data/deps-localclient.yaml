@@ -99,7 +99,31 @@ build:
             optional:
             - clang
   suse:
+    opensuse_leap_16_0:
+      packagers:
+        zypper:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
     opensuse_leap_15_6:
+      packagers:
+        zypper:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    opensuse_leap_15_5:
       packagers:
         zypper:
           libs:
