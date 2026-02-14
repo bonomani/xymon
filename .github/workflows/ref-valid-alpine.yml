@@ -1,0 +1,333 @@
+name: Reference Validation - Alpine
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ref-valid-alpine:
+    runs-on: ${{ matrix.runs_on }}
+    container: ${{ matrix.container }}
+    continue-on-error: ${{ matrix.allow_failure }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Alpine 3.19 - Server
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: server
+            allow_failure: false
+          - name: Alpine 3.19 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: localclient
+            allow_failure: false
+          - name: Alpine 3.19 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: client
+            allow_failure: false
+          - name: Alpine 3.20 - Server
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: server
+            allow_failure: true
+          - name: Alpine 3.20 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: localclient
+            allow_failure: true
+          - name: Alpine 3.20 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: client
+            allow_failure: true
+
+    name: ${{ matrix.name }}
+    env:
+      VARIANT: ${{ matrix.variant }}
+      ENABLE_LDAP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ matrix.variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+
+    steps:
+      - name: Prepare checkout tools in container
+        shell: sh
+        run: |
+          set -eu
+          need_install=0
+          command -v tar >/dev/null 2>&1 || need_install=1
+          command -v git >/dev/null 2>&1 || need_install=1
+          command -v awk >/dev/null 2>&1 || need_install=1
+          command -v update-ca-certificates >/dev/null 2>&1 || need_install=1
+          [ "${need_install}" -eq 1 ] || exit 0
+
+          if command -v apt-get >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y --no-install-recommends tar git gawk ca-certificates
+          elif command -v zypper >/dev/null 2>&1; then
+            zypper --non-interactive refresh
+            zypper --non-interactive install tar git gawk ca-certificates
+          elif command -v apk >/dev/null 2>&1; then
+            apk add --no-cache tar git gawk ca-certificates
+          elif command -v dnf >/dev/null 2>&1; then
+            dnf -y install tar git gawk ca-certificates
+          elif command -v yum >/dev/null 2>&1; then
+            yum -y install tar git gawk ca-certificates
+          elif command -v pacman >/dev/null 2>&1; then
+            pacman -Sy --noconfirm archlinux-keyring || true
+            pacman -S --noconfirm tar git gawk ca-certificates
+          else
+            echo "Unsupported package manager for installing checkout tools" >&2
+            exit 2
+          fi
+
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Ensure bash in container
+        shell: sh
+        run: |
+          set -eu
+          if command -v bash >/dev/null 2>&1; then
+            exit 0
+          fi
+          if command -v apk >/dev/null 2>&1; then
+            apk add --no-cache bash
+          fi
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_cfg="docs/cmake-legacy-migration/refs/make_linux/server/var/lib/xymon/server/etc/xymonserver.cfg"
+          echo "Legacy hostname: checking ${legacy_cfg}"
+          if [ ! -f "${legacy_cfg}" ]; then
+            echo "Legacy hostname: skipped (missing ${legacy_cfg})"
+            exit 0
+          fi
+          legacy_host="$(
+            tr -d '\r' < "${legacy_cfg}" \
+              | awk -F'"' '/^XYMONSERVERHOSTNAME=/{if(!found){print $2; found=1}} END{if(!found) exit 1}'
+          )"
+          if [ -z "${legacy_host}" ]; then
+            legacy_host="$(
+              tr -d '\r' < "${legacy_cfg}" \
+                | awk '/^XYMONSERVERHOSTNAME=/{sub(/^.*=/,""); sub(/[[:space:]]*#.*/,""); gsub(/^[[:space:]]+|[[:space:]]+$/,""); gsub(/^\"|\"$/,""); if(!found){print; found=1}} END{if(!found) exit 1}'
+            )"
+          fi
+          if [ -z "${legacy_host}" ]; then
+            echo "Legacy hostname: skipped (no XYMONSERVERHOSTNAME in ${legacy_cfg})"
+            echo "Legacy hostname: first 5 non-comment lines for debug:"
+            tr -d '\r' < "${legacy_cfg}" \
+              | sed -e '/^[[:space:]]*#/d' -e '/^[[:space:]]*$/d' \
+              | head -n5
+            exit 0
+          fi
+          echo "XYMONHOSTNAME=${legacy_host}" >> "$GITHUB_ENV"
+          echo "Using legacy hostname: ${legacy_host}"
+
+      - name: Seed baseline UID/GID identities (container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          legacy_passwd="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.passwd"
+          legacy_group="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/owners.group"
+          if [ ! -s "${legacy_passwd}" ]; then
+            echo "Identity seed failed: missing ${legacy_passwd}" >&2
+            exit 1
+          fi
+          if [ ! -s "${legacy_group}" ]; then
+            echo "Identity seed failed: missing ${legacy_group}" >&2
+            exit 1
+          fi
+          if [ "$(id -u)" -ne 0 ]; then
+            echo "Identity seed skipped (not running as root)"
+            exit 0
+          fi
+          if ! command -v getent >/dev/null 2>&1; then
+            echo "Identity seed skipped (getent unavailable)"
+            exit 0
+          fi
+
+          ensure_group() {
+            local gid="$1" preferred="${2:-}"
+            local gname
+            [ -n "$gid" ] || return 0
+            if getent group "$gid" >/dev/null 2>&1; then
+              return 0
+            fi
+            gname="${preferred}"
+            [ -n "$gname" ] || gname="xymonrefg${gid}"
+            if getent group "$gname" >/dev/null 2>&1; then
+              gname="${gname}_legacy"
+            fi
+            if command -v groupadd >/dev/null 2>&1; then
+              groupadd -g "$gid" "$gname" >/dev/null 2>&1 || true
+            elif command -v addgroup >/dev/null 2>&1; then
+              addgroup --gid "$gid" --system "$gname" >/dev/null 2>&1 || addgroup -g "$gid" "$gname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          ensure_user() {
+            local uid="$1" gid="$2" preferred="${3:-}"
+            local uname
+            [ -n "$uid" ] || return 0
+            [ -n "$gid" ] || return 0
+            if getent passwd "$uid" >/dev/null 2>&1; then
+              return 0
+            fi
+            ensure_group "$gid"
+            uname="${preferred}"
+            [ -n "$uname" ] || uname="xymonrefu${uid}"
+            if getent passwd "$uname" >/dev/null 2>&1; then
+              uname="${uname}_legacy"
+            fi
+            if command -v useradd >/dev/null 2>&1; then
+              useradd --uid "$uid" --gid "$gid" --home-dir /nonexistent --no-create-home --shell /usr/sbin/nologin "$uname" >/dev/null 2>&1 || true
+            elif command -v adduser >/dev/null 2>&1; then
+              adduser --uid "$uid" --gid "$gid" --home /nonexistent --no-create-home --disabled-password --gecos "" "$uname" >/dev/null 2>&1 || true
+            fi
+          }
+
+          while IFS=':' read -r group_name _ gid _; do
+            [ -n "$group_name" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_group "$gid" "$group_name"
+          done < "${legacy_group}"
+
+          while IFS=':' read -r user_name _ uid gid _; do
+            [ -n "$user_name" ] || continue
+            [ -n "$uid" ] || continue
+            [ -n "$gid" ] || continue
+            ensure_user "$uid" "$gid" "$user_name"
+          done < "${legacy_passwd}"
+          echo "Seeded identity entries from ${legacy_passwd} and ${legacy_group}"
+
+      - name: Bootstrap install + metadata (CMake)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/bootstrap-install.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake
+
+      - name: Load staged tree metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          if [ ! -f /tmp/xymon-root-vars.sh ]; then
+            echo "Staged tree metadata missing" >&2
+            exit 1
+          fi
+          source /tmp/xymon-root-vars.sh
+          : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
+          : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+          echo "LEGACY_TOPDIR=${LEGACY_TOPDIR}" >> "$GITHUB_ENV"
+          echo "LEGACY_ROOT=${LEGACY_ROOT}" >> "$GITHUB_ENV"
+          echo "XYMON_CONFIG_H=${XYMON_CONFIG_H:-}" >> "$GITHUB_ENV"
+
+      - name: Validate config.h parity
+        run: |
+          legacy_config="docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}/meta/config.h"
+          cmake_config="${XYMON_CONFIG_H:-}"
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -path '*/include/config.h' | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            cmake_config=$(find build-cmake -name config.h | head -n1)
+          fi
+          if [ -z "$cmake_config" ] || [ ! -f "$cmake_config" ]; then
+            echo "No CMake-generated config.h found under build-cmake"
+            exit 1
+          fi
+          if [ ! -f "$legacy_config" ]; then
+            echo "Baseline config.h not found at $legacy_config"
+            exit 1
+          fi
+
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$legacy_config" \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/legacy.config.extract
+          grep -E '^(#define|#undef) (WORDS_|HAVE_|PATH_MAX|XYMON[A-Z_]*DIR)' "$cmake_config" \
+            | grep -v '^#define XYMON' \
+            | sed -E 's/^#define HAVE_BINARY_TREE 0$/#undef HAVE_BINARY_TREE/' \
+            | grep -v '^#.*HAVE_RPCENT_H' \
+            | sort > /tmp/cmake.config.extract
+
+          diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract || true
+          if ! diff -u /tmp/legacy.config.extract /tmp/cmake.config.extract > /tmp/config.diff; then
+            echo "config.h parity diff detected:"
+            cat /tmp/config.diff
+            exit 1
+          fi
+
+      - name: Generate CMake refs snapshot
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/xymon-refs
+          bash ci/generate-refs.sh \
+            --os linux \
+            --variant "${{ matrix.variant }}" \
+            --build cmake \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --config-h "${XYMON_CONFIG_H:-}" \
+            --refs-root /tmp/xymon-refs
+
+      - name: Compare refs snapshot (blocking policy checks)
+        if: ${{ !matrix.stop_after_configure }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/make_linux/${{ matrix.variant }}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${{ matrix.variant }}" \
+            --candidate-root "${LEGACY_ROOT}"
+
+      - name: Upload artifacts
+        if: ${{ always() && !matrix.stop_after_configure }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-valid-${{ matrix.name }}
+          path: |
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
+            /tmp/install-cmake-legacy.log
+            /tmp/cmake.configure.log
+            /tmp/cmake.trace.json
+            /tmp/cmake.trace.log

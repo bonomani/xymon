@@ -18,6 +18,9 @@ static char rcsid[] = "$Id$";
 #include <netinet/in.h>
 #include <arpa/inet.h>
 #include <arpa/nameser.h>
+#ifdef __APPLE__
+#include <arpa/nameser_compat.h>
+#endif
 #include <netdb.h>
 #include <sys/time.h>
 
@@ -366,4 +369,3 @@ int dns_test_server(char *serverip, char *hostname, strbuffer_t *banner)
 
 	return (status != ARES_SUCCESS);
 }
-

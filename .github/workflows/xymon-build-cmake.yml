@@ -1,0 +1,79 @@
+name: Xymon build (CMake)
+
+on:
+  workflow_dispatch:
+  workflow_call:
+permissions:
+  contents: read
+
+jobs:
+  linux_cmake:
+    name: linux_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=gcc
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep include-only entries so matrix variants expand reliably in GitHub UI.
+        include:
+          - preset: default
+            variant: server
+            name: server
+          - preset: gnuinstall
+            variant: server
+            name: server
+          - preset: default
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: gnuinstall
+            variant: client
+            localclient: ON
+            name: client CT=client
+          - preset: default
+            variant: client
+            localclient: OFF
+            name: client CT=server
+          - preset: gnuinstall
+            variant: client
+            localclient: OFF
+            name: client CT=server
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Architecture guards (B6.7)
+        run: |
+          if [ -f ci/guards/architecture.sh ]; then
+            chmod +x ci/guards/architecture.sh
+            ci/guards/architecture.sh
+          fi
+          # ci/guards/architecture.sh (keep this commented)
+          # Keep reference even if missing to document optional guard hook.
+
+      - name: Setup (Linux)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          VARIANT: ${{ matrix.variant }}
+        run: |
+          bash ci/deps/install-apt-packages.sh --family gh-debian --os ubuntu --version latest
+
+      - name: Setup (Compiler)
+        run: |
+          bash ci/run/setup-compiler.sh gcc
+
+      - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          VARIANT: ${{ matrix.variant }}
+          LOCALCLIENT: ${{ matrix.localclient }}
+        run: |
+          bash ci/run/cmake-configure.sh
+
+      - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: |
+          bash ci/run/cmake-build.sh

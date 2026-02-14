@@ -1,0 +1,173 @@
+name: ref-sync
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_branch:
+        description: Branch to pull legacy reference artifacts from
+        required: false
+        default: cmake/bootstrap
+      target_branch:
+        description: Merge-friendly branch to commit updated references into
+        required: false
+        default: ci/references-update
+      archive_branch:
+        description: Refs-only archival branch
+        required: false
+        default: ci/references-update-archive
+
+permissions:
+  contents: write
+
+jobs:
+  sync-legacy-references:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Download legacy reference artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          artifacts_dir="/tmp/legacy-reference-artifacts"
+          rm -rf "${artifacts_dir}"
+          mkdir -p "${artifacts_dir}"
+
+          workflows=(
+            ref-make-linux.yml
+            ref-make-freebsd.yml
+            ref-make-openbsd.yml
+            ref-make-netbsd.yml
+          )
+
+          for wf in "${workflows[@]}"; do
+            echo "Fetching latest successful run for ${wf} on ${{ inputs.source_branch }}"
+            run_id="$(
+              gh run list \
+                --repo "${GITHUB_REPOSITORY}" \
+                --workflow "${wf}" \
+                --branch "${{ inputs.source_branch }}" \
+                --status success \
+                --limit 1 \
+                --json databaseId \
+                -q '.[0].databaseId'
+            )"
+
+            if [ -z "${run_id}" ]; then
+              echo "No successful run found for ${wf} on branch ${{ inputs.source_branch }}" >&2
+              exit 1
+            fi
+
+            # Download into a single root. gh creates one subdir per artifact name.
+            # This avoids an extra workflow-name directory layer.
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
+          done
+
+      - name: Sync archive branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_dir="docs/cmake-legacy-migration/refs"
+          artifacts_dir="/tmp/legacy-reference-artifacts"
+          archive_branch="${{ inputs.archive_branch }}"
+
+          if git fetch origin "${archive_branch}"; then
+            git checkout -B "${archive_branch}" "origin/${archive_branch}"
+          else
+            git checkout --orphan "${archive_branch}"
+            git rm -rf . >/dev/null 2>&1 || true
+          fi
+
+          git clean -fd
+          mkdir -p "${ref_dir}"
+          find "${ref_dir}" -type f -delete
+
+          find "${artifacts_dir}" -type f -print0 \
+            | while IFS= read -r -d '' f; do
+                rel="${f#${artifacts_dir}/}"
+                artifact="${rel%%/*}"
+                rest="${rel#*/}"
+                dst_rel="${rel}"
+                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
+                  tool="${BASH_REMATCH[1]}"
+                  os="${BASH_REMATCH[2]}"
+                  variant="${BASH_REMATCH[3]}"
+                  dst_rel="${tool}_${os}/${variant}/${rest}"
+                fi
+                dst="${ref_dir}/${dst_rel}"
+                mkdir -p "$(dirname "${dst}")"
+                install -m 0644 "$f" "${dst}"
+              done
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No legacy reference changes to commit on archive branch."
+          else
+            git config user.name "github-actions[bot]"
+            git config user.email "github-actions[bot]@users.noreply.github.com"
+            git add "${ref_dir}"
+            git commit -m "Update legacy reference artifacts"
+            git push -u origin "${archive_branch}"
+          fi
+
+      - name: Sync merge-friendly branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_dir="docs/cmake-legacy-migration/refs"
+          artifacts_dir="/tmp/legacy-reference-artifacts"
+          source_branch="${{ inputs.source_branch }}"
+          target_branch="${{ inputs.target_branch }}"
+
+          git clean -fd "${ref_dir}"
+          git checkout -- "${ref_dir}" || true
+
+          git fetch origin "${source_branch}"
+          if git fetch origin "${target_branch}"; then
+            if ! git merge-base --is-ancestor "origin/${source_branch}" "origin/${target_branch}"; then
+              echo "Target branch is not based on ${source_branch}; recreating ${target_branch}."
+              git push origin --delete "${target_branch}" || true
+              git checkout -B "${target_branch}" "origin/${source_branch}"
+            else
+              git checkout -B "${target_branch}" "origin/${target_branch}"
+            fi
+          else
+            git checkout -B "${target_branch}" "origin/${source_branch}"
+          fi
+
+          git clean -fd "${ref_dir}"
+          git checkout -- "${ref_dir}" >/dev/null 2>&1 || true
+          mkdir -p "${ref_dir}"
+          find "${ref_dir}" -type f -delete
+
+          find "${artifacts_dir}" -type f -print0 \
+            | while IFS= read -r -d '' f; do
+                rel="${f#${artifacts_dir}/}"
+                artifact="${rel%%/*}"
+                rest="${rel#*/}"
+                dst_rel="${rel}"
+                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
+                  tool="${BASH_REMATCH[1]}"
+                  os="${BASH_REMATCH[2]}"
+                  variant="${BASH_REMATCH[3]}"
+                  dst_rel="${tool}_${os}/${variant}/${rest}"
+                fi
+                dst="${ref_dir}/${dst_rel}"
+                mkdir -p "$(dirname "${dst}")"
+                install -m 0644 "$f" "${dst}"
+              done
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No legacy reference changes to commit on merge-friendly branch."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${ref_dir}"
+          git commit -m "Update legacy reference artifacts"
+          git push -u origin "${target_branch}"
