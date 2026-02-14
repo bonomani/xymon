@@ -29,14 +29,14 @@ jobs:
           - name: NetBSD 9.4 - Client (ct-server)
             netbsd_version: "9.4"
             variant: client
-          - name: NetBSD 8.2 - Server
-            netbsd_version: "8.2"
+          - name: NetBSD 10.0 - Server
+            netbsd_version: "10.0"
             variant: server
-          - name: NetBSD 8.2 - Client (ct-client)
-            netbsd_version: "8.2"
+          - name: NetBSD 10.0 - Client (ct-client)
+            netbsd_version: "10.0"
             variant: localclient
-          - name: NetBSD 8.2 - Client (ct-server)
-            netbsd_version: "8.2"
+          - name: NetBSD 10.0 - Client (ct-server)
+            netbsd_version: "10.0"
             variant: client
     env:
       VARIANT: ${{ matrix.variant }}
