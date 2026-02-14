@@ -179,6 +179,7 @@ copy_config() {
 generate_keyfiles_list() {
   : > "${TMPDIR}/${KEYFILES_NAME}"
   local missing=""
+  local hash_value=""
   if [ ! -f "${TMPDIR}/${KEYFILES_LIST_NAME}" ]; then
     echo "Missing ${TMPDIR}/${KEYFILES_LIST_NAME}" >&2
     return 1
@@ -191,7 +192,15 @@ generate_keyfiles_list() {
       missing=yes
       continue
     fi
-    printf '%s  %s\n' "$(sha256_of "$local_p")" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
+    if ! hash_value="$(sha256_of "$local_p")"; then
+      echo "Failed to compute sha256 for $local_p" >&2
+      return 1
+    fi
+    if [ -z "${hash_value}" ]; then
+      echo "Empty sha256 output for $local_p" >&2
+      return 1
+    fi
+    printf '%s  %s\n' "${hash_value}" "$f" >> "${TMPDIR}/${KEYFILES_NAME}"
   done < "${TMPDIR}/${KEYFILES_LIST_NAME}"
   LC_ALL=C sort "${TMPDIR}/${KEYFILES_NAME}" -o "${TMPDIR}/${KEYFILES_NAME}"
   [ -z "$missing" ]
@@ -477,6 +486,8 @@ sha256_of() {
   local out=""
   if command -v sha256sum >/dev/null 2>&1; then
     sha256sum "$file" | awk '{print $1}'
+  elif command -v shasum >/dev/null 2>&1; then
+    shasum -a 256 "$file" | awk '{print $1}'
   elif command -v sha256 >/dev/null 2>&1; then
     sha256 -q "$file"
   elif command -v digest >/dev/null 2>&1; then
