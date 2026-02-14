@@ -44,7 +44,7 @@ map:
       netbsd:
         pkg_add: [gmake, cmake, ninja-build]
       openbsd:
-        pkg_add: [gmake, cmake, ninja, gcc]
+        pkg_add: [gmake, cmake, ninja]
 
   PCRE:
     gh-debian:
