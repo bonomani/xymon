@@ -57,6 +57,15 @@ jobs:
       LEGACY_APPLY_OWNERSHIP: ON
 
     steps:
+      - name: Prepare checkout tools in container
+        shell: sh
+        run: |
+          set -eu
+          if command -v zypper >/dev/null 2>&1; then
+            zypper --non-interactive refresh
+            zypper --non-interactive install tar git ca-certificates
+          fi
+
       - name: Checkout
         uses: actions/checkout@v4
         with:
