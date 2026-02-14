@@ -11,32 +11,89 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: NetBSD 10.1 - Server
+          - name: NetBSD 10.1 x86-64 - Server
             netbsd_version: "10.1"
+            architecture: x86-64
             variant: server
-          - name: NetBSD 10.1 - Client (ct-client)
+          - name: NetBSD 10.1 x86-64 - Client (ct-client)
             netbsd_version: "10.1"
+            architecture: x86-64
             variant: localclient
-          - name: NetBSD 10.1 - Client (ct-server)
+          - name: NetBSD 10.1 x86-64 - Client (ct-server)
             netbsd_version: "10.1"
+            architecture: x86-64
             variant: client
-          - name: NetBSD 9.4 - Server
-            netbsd_version: "9.4"
+          - name: NetBSD 10.1 arm64 - Server
+            netbsd_version: "10.1"
+            architecture: arm64
             variant: server
-          - name: NetBSD 9.4 - Client (ct-client)
-            netbsd_version: "9.4"
+          - name: NetBSD 10.1 arm64 - Client (ct-client)
+            netbsd_version: "10.1"
+            architecture: arm64
             variant: localclient
-          - name: NetBSD 9.4 - Client (ct-server)
-            netbsd_version: "9.4"
+          - name: NetBSD 10.1 arm64 - Client (ct-server)
+            netbsd_version: "10.1"
+            architecture: arm64
             variant: client
-          - name: NetBSD 10.0 - Server
+          - name: NetBSD 10.0 x86-64 - Server
             netbsd_version: "10.0"
+            architecture: x86-64
             variant: server
-          - name: NetBSD 10.0 - Client (ct-client)
+          - name: NetBSD 10.0 x86-64 - Client (ct-client)
             netbsd_version: "10.0"
+            architecture: x86-64
             variant: localclient
-          - name: NetBSD 10.0 - Client (ct-server)
+          - name: NetBSD 10.0 x86-64 - Client (ct-server)
             netbsd_version: "10.0"
+            architecture: x86-64
+            variant: client
+          - name: NetBSD 10.0 arm64 - Server
+            netbsd_version: "10.0"
+            architecture: arm64
+            variant: server
+          - name: NetBSD 10.0 arm64 - Client (ct-client)
+            netbsd_version: "10.0"
+            architecture: arm64
+            variant: localclient
+          - name: NetBSD 10.0 arm64 - Client (ct-server)
+            netbsd_version: "10.0"
+            architecture: arm64
+            variant: client
+          - name: NetBSD 9.4 x86-64 - Server
+            netbsd_version: "9.4"
+            architecture: x86-64
+            variant: server
+          - name: NetBSD 9.4 x86-64 - Client (ct-client)
+            netbsd_version: "9.4"
+            architecture: x86-64
+            variant: localclient
+          - name: NetBSD 9.4 x86-64 - Client (ct-server)
+            netbsd_version: "9.4"
+            architecture: x86-64
+            variant: client
+          - name: NetBSD 9.3 x86-64 - Server
+            netbsd_version: "9.3"
+            architecture: x86-64
+            variant: server
+          - name: NetBSD 9.3 x86-64 - Client (ct-client)
+            netbsd_version: "9.3"
+            architecture: x86-64
+            variant: localclient
+          - name: NetBSD 9.3 x86-64 - Client (ct-server)
+            netbsd_version: "9.3"
+            architecture: x86-64
+            variant: client
+          - name: NetBSD 9.2 x86-64 - Server
+            netbsd_version: "9.2"
+            architecture: x86-64
+            variant: server
+          - name: NetBSD 9.2 x86-64 - Client (ct-client)
+            netbsd_version: "9.2"
+            architecture: x86-64
+            variant: localclient
+          - name: NetBSD 9.2 x86-64 - Client (ct-server)
+            netbsd_version: "9.2"
+            architecture: x86-64
             variant: client
     env:
       VARIANT: ${{ matrix.variant }}
@@ -84,7 +141,7 @@ jobs:
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: netbsd
-          architecture: x86-64
+          architecture: "${{ matrix.architecture }}"
           version: "${{ matrix.netbsd_version }}"
           shell: bash
           memory: 2048M
