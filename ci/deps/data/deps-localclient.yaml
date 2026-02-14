@@ -99,6 +99,18 @@ build:
             optional:
             - clang
   suse:
+    opensuse_tumbleweed_latest:
+      packagers:
+        zypper:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
     opensuse_leap_16_0:
       packagers:
         zypper:

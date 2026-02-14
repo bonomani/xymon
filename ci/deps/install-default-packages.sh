@@ -148,9 +148,12 @@ case "${pkgmgr}" in
     exec "${script_dir}/install-yum-packages.sh" --family "${family}" --os "${os_name}" --version "${version}"
     ;;
   zypper)
-    # normalize opensuse id to match YAML keys
+    # normalize opensuse ids/version to match YAML keys
     if [[ "${os_name}" == "opensuse-leap" ]]; then
       os_name="opensuse_leap"
+    elif [[ "${os_name}" == "opensuse-tumbleweed" ]]; then
+      os_name="opensuse_tumbleweed"
+      version="latest"
     fi
     exec "${script_dir}/install-zypper-packages.sh" --family "${family}" --os "${os_name}" --version "${version}"
     ;;

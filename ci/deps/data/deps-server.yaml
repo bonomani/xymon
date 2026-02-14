@@ -131,6 +131,22 @@ build:
             optional:
             - clang
   suse:
+    opensuse_tumbleweed_latest:
+      packagers:
+        zypper:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
     opensuse_leap_16_0:
       packagers:
         zypper:

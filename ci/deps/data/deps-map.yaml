@@ -21,6 +21,8 @@ map:
       fedora_40:
         dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
       opensuse_leap_16_0:
         zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
       opensuse_leap_15_6:
@@ -65,6 +67,8 @@ map:
       fedora_40:
         dnf: [pcre-devel, pcre2-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [pcre-devel]
       opensuse_leap_16_0:
         zypper: [pcre-devel]
       opensuse_leap_15_6:
@@ -109,6 +113,8 @@ map:
       fedora_40:
         dnf: [rrdtool-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [rrdtool-devel]
       opensuse_leap_16_0:
         zypper: [rrdtool-devel]
       opensuse_leap_15_6:
@@ -153,6 +159,8 @@ map:
       fedora_40:
         dnf: [openssl-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [libopenssl-devel]
       opensuse_leap_16_0:
         zypper: [libopenssl-devel]
       opensuse_leap_15_6:
@@ -197,6 +205,8 @@ map:
       fedora_40:
         dnf: [openldap-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [openldap2-devel]
       opensuse_leap_16_0:
         zypper: [openldap2-devel]
       opensuse_leap_15_6:
@@ -241,6 +251,8 @@ map:
       fedora_40:
         dnf: [net-snmp-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [net-snmp-devel]
       opensuse_leap_16_0:
         zypper: [net-snmp-devel]
       opensuse_leap_15_6:
@@ -285,6 +297,8 @@ map:
       fedora_40:
         dnf: [c-ares-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [c-ares-devel]
       opensuse_leap_16_0:
         zypper: [c-ares-devel]
       opensuse_leap_15_6:
@@ -329,6 +343,8 @@ map:
       fedora_40:
         dnf: [libtirpc-devel]
     suse:
+      opensuse_tumbleweed_latest:
+        zypper: [libtirpc-devel]
       opensuse_leap_16_0:
         zypper: [libtirpc-devel]
       opensuse_leap_15_6:
