@@ -131,16 +131,19 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Ensure bash in container
+      - name: Ensure bash/awk in container
         shell: sh
         run: |
           set -eu
-          if command -v bash >/dev/null 2>&1; then
+          need_install=0
+          command -v bash >/dev/null 2>&1 || need_install=1
+          command -v awk >/dev/null 2>&1 || need_install=1
+          if [ "${need_install}" -eq 0 ]; then
             exit 0
           fi
           if command -v zypper >/dev/null 2>&1; then
             zypper --non-interactive refresh
-            zypper --non-interactive install bash
+            zypper --non-interactive install bash gawk
           fi
 
       - name: Load legacy hostname (runs for each matrix variant)
