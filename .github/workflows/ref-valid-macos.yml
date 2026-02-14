@@ -13,51 +13,51 @@ jobs:
         include:
           # Server lanes first, then client ct-client, then client ct-server.
           # Newest first: latest, then 15, then 14.
-          - name: "01 macOS latest arm64 - Server"
+          - name: macOS latest arm64 - Server
             runner: macos-latest
             macos_version: "latest"
             variant: server
-          - name: "02 macOS 15 arm64 - Server"
+          - name: macOS 15 arm64 - Server
             runner: macos-15
             macos_version: "15"
             variant: server
-          - name: "03 macOS 15 intel - Server"
+          - name: macOS 15 intel - Server
             runner: macos-15-intel
             macos_version: "15"
             variant: server
-          - name: "04 macOS 14 arm64 - Server"
+          - name: macOS 14 arm64 - Server
             runner: macos-14
             macos_version: "14"
             variant: server
-          - name: "05 macOS latest arm64 - Client (ct-client)"
+          - name: macOS latest arm64 - Client (ct-client)
             runner: macos-latest
             macos_version: "latest"
             variant: localclient
-          - name: "06 macOS 15 arm64 - Client (ct-client)"
+          - name: macOS 15 arm64 - Client (ct-client)
             runner: macos-15
             macos_version: "15"
             variant: localclient
-          - name: "07 macOS 15 intel - Client (ct-client)"
+          - name: macOS 15 intel - Client (ct-client)
             runner: macos-15-intel
             macos_version: "15"
             variant: localclient
-          - name: "08 macOS 14 arm64 - Client (ct-client)"
+          - name: macOS 14 arm64 - Client (ct-client)
             runner: macos-14
             macos_version: "14"
             variant: localclient
-          - name: "09 macOS latest arm64 - Client (ct-server)"
+          - name: macOS latest arm64 - Client (ct-server)
             runner: macos-latest
             macos_version: "latest"
             variant: client
-          - name: "10 macOS 15 arm64 - Client (ct-server)"
+          - name: macOS 15 arm64 - Client (ct-server)
             runner: macos-15
             macos_version: "15"
             variant: client
-          - name: "11 macOS 15 intel - Client (ct-server)"
+          - name: macOS 15 intel - Client (ct-server)
             runner: macos-15-intel
             macos_version: "15"
             variant: client
-          - name: "12 macOS 14 arm64 - Client (ct-server)"
+          - name: macOS 14 arm64 - Client (ct-server)
             runner: macos-14
             macos_version: "14"
             variant: client
