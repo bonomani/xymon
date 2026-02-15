@@ -12,7 +12,7 @@
 #define __REPORTLOG_H__
 
 #include <stdio.h>
-#include "availability.h"
+#include "xymon_availability.h"
 
 #define STYLE_CRIT 0
 #define STYLE_NONGR 1
@@ -26,4 +26,3 @@ extern void generate_replog(FILE *htmlrep, FILE *textrep, char *textrepurl,
 		     time_t st, time_t end, double reportwarnlevel, double reportgreenlevel, int reportwarnstops,
 		     reportinfo_t *repinfo);
 #endif
-

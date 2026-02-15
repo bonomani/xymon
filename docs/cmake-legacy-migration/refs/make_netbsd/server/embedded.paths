@@ -1,0 +1,10 @@
+	 /var/lib/xymon/server/bin/xymonlaunch --config=/var/lib/xymon/server/etc/tasks.cfg --env=/var/lib/xymon/server/etc/xymonserver.cfg --log=/var/log/xymon/xymonlaunch.log --pidfile=/var/log/xymon/xymonlaunch.pid
+#     10 0 * * * /var/lib/xymon/server/bin/xymoncmd --env=/var/lib/xymon/server/etc/xymonserver.cfg xymonreports.sh daily
+#     10 1 * * 1 /var/lib/xymon/server/bin/xymoncmd --env=/var/lib/xymon/server/etc/xymonserver.cfg xymonreports.sh weekly
+#     10 2 1 * * /var/lib/xymon/server/bin/xymoncmd --env=/var/lib/xymon/server/etc/xymonserver.cfg xymonreports.sh monthly
+/bin:/usr/bin:/sbin:/usr/sbin:/usr/local/bin:/usr/local/sbin:/var/lib/xymon/server/bin
+/var/lib/xymon
+/var/lib/xymon/server
+/var/lib/xymon/server/etc/cgioptions.cfg
+DSTDIR=/var/lib/xymon/data/rrd		# Where the files should end up.
+XYMONHOME=/var/lib/xymon/server

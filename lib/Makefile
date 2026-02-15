@@ -10,6 +10,12 @@ CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o
 ifeq ($(LOCALCLIENT),yes)
 	CLIENTLIBOBJS += matching.o pcre_compat.o
 endif
+
+# CLIENTONLY builds don't have (or need) PCRE-based config parsing.
+ifneq ($(NEED_PCRE),yes)
+	CLIENTLIBOBJS := $(filter-out clientlocal.o matching.o,$(CLIENTLIBOBJS))
+	XYMONLIBOBJS := $(filter-out $(PCRE_OBJS),$(XYMONLIBOBJS))
+endif
 XYMONCLIENTCOMMLIBOBJS = locator.o loadhosts.o sendmsg.o xymond_ipc.o xymond_buffer.o
 
 XYMONCLIENTLIB = libxymonclient.a
@@ -27,9 +33,10 @@ XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
 CFLAGS += -I../include $(PCREINCDIR) $(PCREDEF)
 
-all: test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree
+client: $(CONFIG_H) test-endianness $(XYMONCLIENTLIB) $(XYMONCLIENTCOMMLIB) $(XYMONTIMELIB)
 
-client: test-endianness $(XYMONCLIENTLIB) $(XYMONCLIENTCOMMLIB) $(XYMONTIMELIB)
+$(CONFIG_H):
+	MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" ../build/genconfig.sh
 
 test-endianness: test-endianness.c
 	$(CC) $(CFLAGS) -o $@ $<
@@ -111,7 +118,7 @@ sha1: sha1.c
 rmd160: rmd160c.c
 	$(CC) $(CFLAGS) -DSTANDALONE `./test-endianness` -o $@ rmd160c.c
 
-locator: locator.c
+locator: locator.c $(XYMONCOMMLIB) $(XYMONLIB)
 	$(CC) $(CFLAGS) -DSTANDALONE -o $@ locator.c $(XYMONCOMMLIBS) $(XYMONLIBS)
 
 tree: tree.c

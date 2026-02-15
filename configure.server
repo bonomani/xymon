@@ -597,4 +597,3 @@ echo ""
 echo "Configuration complete - now run $MAKE (GNU make) to build the tools"
 
 exit 0
-
