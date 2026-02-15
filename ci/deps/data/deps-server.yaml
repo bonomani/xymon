@@ -65,6 +65,22 @@ build:
           tools:
             optional:
             - clang
+    debian_13:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - CARES
+            - PCRE
+            - RRD
+            - TIRPC
+            - LDAP
+            - NETSNMP
+          tools:
+            optional:
+            - clang
   rpm:
     rockylinux_9:
       packagers:

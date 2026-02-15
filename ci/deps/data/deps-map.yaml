@@ -11,6 +11,9 @@ map:
         apt: [build-essential, cmake, ninja-build, git, findutils]
       debian_bullseye:
         apt: [build-essential, cmake, ninja-build, git, findutils]
+      debian_13:
+        apt: [build-essential, cmake, ninja-build, git, findutils]
+      
     rpm:
       rockylinux_9:
         dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
