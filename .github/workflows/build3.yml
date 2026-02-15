@@ -1,4 +1,4 @@
-name: build1 (pcre1)
+name: build3 (pcre2-strict-no-shims)
 
 on:
   push:
@@ -6,8 +6,8 @@ on:
   workflow_dispatch:
 
 jobs:
-  build-pcre1:
-    name: build-pcre1 (${{ matrix.name }})
+  build-pcre2-strict:
+    name: build-pcre2-strict (${{ matrix.name }})
     runs-on: ubuntu-latest
     strategy:
       fail-fast: false
@@ -28,16 +28,16 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Install build dependencies (PCRE1 only, strict)
+      - name: Install build dependencies (PCRE2 strict, no PCRE1)
         run: |
           sudo apt-get update
-          sudo apt-get remove -y libpcre2-dev || true
+          sudo apt-get remove -y libpcre3-dev libpcre3 || true
           sudo apt-get autoremove -y || true
           sudo apt-get install -y --no-install-recommends \
             build-essential \
             libc-ares-dev \
             libldap-dev \
-            libpcre3-dev \
+            libpcre2-dev \
             librrd-dev \
             libssl-dev \
             libtirpc-dev
@@ -46,6 +46,7 @@ jobs:
         env:
           CONFTYPE: ${{ matrix.conftype }}
         run: |
+          PCRE_MAJOR=2 \
           USEXYMONPING=y \
           ENABLESSL=y \
           ENABLELDAP=y \
@@ -69,12 +70,13 @@ jobs:
           INSTALLEXTDIR=/usr/lib/xymon/server/ext \
           INSTALLTMPDIR=/var/lib/xymon/tmp \
           INSTALLWWWDIR=/var/lib/xymon/www \
+          CFLAGS="-DXYMON_ENABLE_PCRE_LEGACY_SHIMS=0" \
           ./configure --${{ matrix.variant }}
 
-      - name: Build (PCRE1 strict)
+      - name: Build (PCRE2 strict, no legacy shims)
         run: |
           make \
-            PCREDEF= \
+            PCREDEF=-DPCRE2 \
             PCREINCDIR=-I/usr/include \
-            PCRELIBS=-lpcre \
+            PCRELIBS=-lpcre2-8 \
             -j1

@@ -27,10 +27,11 @@ static char rcsid[] = "$Id$";
 #include <sys/un.h>
 #include <fcntl.h>
 
-#include <pcre.h>
+#include "pcre_compat.h"
 #include <rrd.h>
 
 #include "libxymon.h"
+#include "rrd_compat.h"
 
 #define HOUR_GRAPH  "e-48h"
 #define DAY_GRAPH   "e-12d"
@@ -950,7 +951,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	}
 	else {
 		struct dirent *d;
-		pcre *pat, *expat = NULL;
+		pcre_pattern_t *include_pattern, *exclude_pattern = NULL;
 		const char *errmsg;
 		int errofs, result;
 		int ovector[30];
@@ -961,8 +962,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		dir = opendir("."); if (dir == NULL) errormsg("Unexpected error while accessing RRD directory");
 
 		/* Setup the pattern to match filenames against */
-		pat = pcre_compile(gdef->fnpat, PCRE_CASELESS, &errmsg, &errofs, NULL);
-		if (!pat) {
+		include_pattern = pcre_compile_optional(gdef->fnpat, PCRE_CASELESS, &errmsg, &errofs);
+		if (!include_pattern) {
 			char msg[8192];
 
 			snprintf(msg, sizeof(msg), "graphs.cfg error, PCRE pattern %s invalid: %s, offset %d\n",
@@ -970,8 +971,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			errormsg(msg);
 		}
 		if (gdef->exfnpat) {
-			expat = pcre_compile(gdef->exfnpat, PCRE_CASELESS, &errmsg, &errofs, NULL);
-			if (!expat) {
+			exclude_pattern = pcre_compile_optional(gdef->exfnpat, PCRE_CASELESS, &errmsg, &errofs);
+			if (!exclude_pattern) {
 				char msg[8192];
 
 				snprintf(msg, sizeof(msg), 
@@ -995,15 +996,13 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			if ((ext <= d->d_name) || (strcmp(ext, ".rrd") != 0)) continue;
 
 			/* First check the exclude pattern. */
-			if (expat) {
-				result = pcre_exec(expat, NULL, d->d_name, strlen(d->d_name), 0, 0, 
-						   ovector, (sizeof(ovector)/sizeof(int)));
+			if (exclude_pattern) {
+				result = pcre_exec_capture(exclude_pattern, d->d_name, ovector, (sizeof(ovector)/sizeof(ovector[0])));
 				if (result >= 0) continue;
 			}
 
 			/* Then see if the include pattern matches. */
-			result = pcre_exec(pat, NULL, d->d_name, strlen(d->d_name), 0, 0, 
-					   ovector, (sizeof(ovector)/sizeof(int)));
+			result = pcre_exec_capture(include_pattern, d->d_name, ovector, (sizeof(ovector)/sizeof(ovector[0])));
 			if (result < 0) continue;
 
 			if (wantsingle) {
@@ -1021,7 +1020,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 
 			/* We have a matching file! */
 			rrddbs[rrddbcount].rrdfn = strdup(d->d_name);
-			if (pcre_copy_substring(d->d_name, ovector, result, 1, param, sizeof(param)) > 0) {
+			if (pcre_copy_substring_ovector(d->d_name, ovector, result, 1, param, sizeof(param)) > 0) {
 				/*
 				 * This is ugly, but I cannot find a pretty way of un-mangling
 				 * the disk- and http-data that has been molested by the back-end.
@@ -1059,8 +1058,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				rrddbs = (rrddb_t *)realloc(rrddbs, (rrddbsize+1) * sizeof(rrddb_t));
 			}
 		}
-		pcre_free(pat);
-		if (expat) pcre_free(expat);
+		pcre_free_pattern(&include_pattern);
+		pcre_free_pattern(&exclude_pattern);
 		closedir(dir);
 	}
 	rrddbs[rrddbcount].key = rrddbs[rrddbcount].rrdfn = rrddbs[rrddbcount].rrdparam = NULL;
@@ -1214,24 +1213,18 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	/* All set - generate the graph */
 	rrd_clear_error();
 
-#ifdef RRDTOOL12
-    #ifdef RRDTOOL19
-	result = rrd_graph(rrdargcount, (const char **)rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
-    #else
-	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
-    #endif
+	result = xymon_rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize, &ymin, &ymax);
 
 	/*
 	 * If we have neither the upper- nor lower-limits of the graph, AND we allow vertical 
 	 * zooming of this graph, then save the upper/lower limit values and flag that we have 
 	 * them. The values are then used for the zoom URL we construct later on.
 	 */
+#ifdef RRDTOOL12
 	if (!haveupperlimit && !havelowerlimit) {
 		upperlimit = ymax; haveupperlimit = 1;
 		lowerlimit = ymin; havelowerlimit = 1;
 	}
-#else
-	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize);
 #endif
 
 	/* Was it OK ? */
@@ -1363,4 +1356,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-

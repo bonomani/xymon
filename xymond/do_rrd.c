@@ -23,9 +23,10 @@ static char rcsid[] = "$Id$";
 #include <utime.h>
 
 #include <rrd.h>
-#include <pcre.h>
+#include "pcre_compat.h"
 
 #include "libxymon.h"
+#include "rrd_compat.h"
 
 #include "xymond_rrd.h"
 #include "do_rrd.h"
@@ -216,7 +217,7 @@ static void setupinterval(int intvl)
 static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 {
 	/* Flush any updates we've cached */
-	const char *updparams[5+CACHESZ+1] = { "rrdupdate", filedir, "-t", NULL, NULL, NULL, };
+	xymon_rrd_argv_item_t updparams[5+CACHESZ+1] = { "rrdupdate", filedir, "-t", NULL, NULL, NULL, };
 	int i, pcount, result;
 
 	dbgprintf("Flushing '%s' with %d updates pending, template '%s'\n", 
@@ -239,7 +240,7 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 
 	for (pcount = 0; (updparams[pcount]); pcount++);
 	optind = opterr = 0; rrd_clear_error();
-	result = rrd_update(pcount, updparams);
+	result = xymon_rrd_update(pcount, updparams);
 
 #if defined(LINUX) && defined(RRDTOOL12)
 	/*
@@ -330,7 +331,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 	/* If the RRD file doesn't exist, create it immediately */
 	if (stat(filedir, &st) == -1) {
-		const char **rrdcreate_params;
+		xymon_rrd_argv_item_t *rrdcreate_params;
 		char **rrddefinitions;
 		int rrddefcount, i;
 		char *rrakey = NULL;
@@ -350,7 +351,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		sprintf(stepsetting, "%d", pollinterval);
 
 		rrddefinitions = get_rrd_definition((rrakey ? rrakey : testname), &rrddefcount);
-		rrdcreate_params = (const char **)calloc(4 + pcount + rrddefcount + 1, sizeof(const char *));
+		rrdcreate_params = (xymon_rrd_argv_item_t *)calloc(4 + pcount + rrddefcount + 1, sizeof(xymon_rrd_argv_item_t));
 		rrdcreate_params[0] = "rrdcreate";
 		rrdcreate_params[1] = filedir;
 
@@ -379,7 +380,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		 * we MUST reset this before every call.
 		 */
 		optind = opterr = 0; rrd_clear_error();
-		result = rrd_create(4+pcount, rrdcreate_params);
+		result = xymon_rrd_create(4+pcount, rrdcreate_params);
 		xfree(rrdcreate_params);
 		if (rrakey) xfree(rrakey);
 
@@ -591,7 +592,7 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	struct stat st;
 
 	int result;
-	const char *fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
+	xymon_rrd_argv_item_t fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
 	time_t starttime, endtime;
 	unsigned long steptime, dscount;
 	rrd_value_t *rrddata;
@@ -601,7 +602,7 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	if (stat(filedir, &st) == -1) return 0;
 
 	optind = opterr = 0; rrd_clear_error();
-	result = rrd_fetch(5, fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
+	result = xymon_rrd_fetch(5, fetch_params, &starttime, &endtime, &steptime, &dscount, dsnames, &rrddata);
 	if (result == -1) {
 		errprintf("Error while retrieving RRD dataset names from %s: %s\n",
 			  filedir, rrd_get_error());

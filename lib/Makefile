@@ -1,34 +1,14 @@
 # Xymon library Makefile
 #
 
-XYMONLIBOBJS = osdefs.o acklog.o availability.o calc.o cgi.o cgiurls.o clientlocal.o color.o crondate.o digest.o encoding.o environ.o errormsg.o eventlog.o files.o headfoot.o xymonrrd.o holidays.o htmllog.o ipaccess.o loadalerts.o loadcriticalconf.o links.o matching.o md5.o memory.o misc.o msort.o netservices.o notifylog.o acknowledgementslog.o readmib.o reportlog.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc.o tree.o url.o webaccess.o
+XYMONLIBOBJS = osdefs.o acklog.o availability.o calc.o cgi.o cgiurls.o clientlocal.o color.o crondate.o digest.o encoding.o environ.o errormsg.o eventlog.o files.o headfoot.o xymonrrd.o holidays.o htmllog.o ipaccess.o loadalerts.o loadcriticalconf.o links.o matching.o md5.o memory.o misc.o msort.o netservices.o notifylog.o acknowledgementslog.o pcre_compat.o readmib.o reportlog.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc.o tree.o url.o webaccess.o
 
 XYMONCOMMLIBOBJS = $(XYMONLIBOBJS) loadhosts.o locator.o sendmsg.o xymond_ipc.o xymond_buffer.o
 XYMONTIMELIBOBJS = run.o timing.o
 
-CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o environ-client.o errormsg.o holidays.o ipaccess.o md5.o memory.o misc.o msort.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc-client.o tree.o clientlocal.o
-
-PCRE_OBJS = matching.o clientlocal.o loadalerts.o
-CLIENTONLY := $(findstring -DCLIENTONLY,$(CFLAGS))
-LOCALCLIENT_YES := $(filter yes,$(LOCALCLIENT))
-NEED_PCRE := yes
-ifneq ($(CLIENTONLY),)
-ifneq ($(LOCALCLIENT_YES),yes)
-	NEED_PCRE := no
-endif
-endif
-
-# Provide a fallback for PCRE include dir on BSD if configure did not set it.
-ifeq ($(strip $(PCREINCDIR)),)
-ifneq (,$(wildcard /usr/local/include/pcre.h))
-	PCREINCDIR := -I/usr/local/include
-else ifneq (,$(wildcard /usr/pkg/include/pcre.h))
-	PCREINCDIR := -I/usr/pkg/include
-endif
-endif
-
-ifeq ($(LOCALCLIENT_YES),yes)
-	CLIENTLIBOBJS += matching.o
+CLIENTLIBOBJS = osdefs.o cgiurls.o color-client.o crondate.o digest.o encoding.o environ-client.o errormsg.o holidays.o ipaccess.o md5.o memory.o misc.o msort.o rmd160c.o sha1.o sha2.o sig.o stackio.o strfunc.o suid.o timefunc-client.o tree.o
+ifeq ($(LOCALCLIENT),yes)
+	CLIENTLIBOBJS += matching.o pcre_compat.o
 endif
 
 # CLIENTONLY builds don't have (or need) PCRE-based config parsing.
@@ -51,15 +31,7 @@ XYMONTIMELIB = libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
 
-CONFIG_H = ../include/config.h
-
-override CFLAGS += -I../include $(PCREINCDIR)
-
-ifeq ($(LOCALCLIENT_YES),yes)
-	override CFLAGS += -DLOCALCLIENT=1
-endif
-
-all: $(CONFIG_H) test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree
+CFLAGS += -I../include $(PCREINCDIR) $(PCREDEF)
 
 client: $(CONFIG_H) test-endianness $(XYMONCLIENTLIB) $(XYMONCLIENTCOMMLIB) $(XYMONTIMELIB)
 
