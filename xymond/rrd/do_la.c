@@ -79,6 +79,7 @@ int do_la_rrd(char *hostname, char *testname, char *classname, char *pagepaths, 
 		}
 
 		ovector = pcre2_match_data_create(30, NULL);
+		if (!ovector) goto done_parsing;
 		res = pcre2_match(zVM_exp, msg, strlen(msg), 0, 0, ovector, NULL);
 		if (res >= 0) {
 			/* We have a match - pick up the data. */
@@ -156,6 +157,7 @@ int do_la_rrd(char *hostname, char *testname, char *classname, char *pagepaths, 
 		}
 
 		ovector = pcre2_match_data_create(30, NULL);
+		if (!ovector) goto done_parsing;
 		res = pcre2_match(as400_exp, msg, strlen(msg), 0, 0, ovector, NULL);
 		if (res >= 0) {
 			/* We have a match - pick up the AS/400 data. */
@@ -275,4 +277,3 @@ done_parsing:
 
 	return 0;
 }
-
