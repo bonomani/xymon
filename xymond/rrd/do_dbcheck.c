@@ -225,7 +225,7 @@ int do_dbcheck_tablespace_rrd(char *hostname, char *testname, char *classname, c
        static int ptnsetup = 0;
        static pcre2_code *inclpattern = NULL;
        static pcre2_code *exclpattern = NULL;
-       pcre2_match_data *ovector;
+       pcre2_match_data *ovector = NULL;
 
        if (tablespace_tpl == NULL) tablespace_tpl = setup_template(tablespace_params);
 
@@ -269,7 +269,12 @@ int do_dbcheck_tablespace_rrd(char *hostname, char *testname, char *classname, c
                eoln = strchr(curline, '\n');
                curline = (eoln ? (eoln+1) : NULL);
        }
-       ovector = pcre2_match_data_create(30, NULL);
+       if (inclpattern || exclpattern) {
+               ovector = pcre2_match_data_create(30, NULL);
+               if (!ovector) {
+                       errprintf("PCRE2 match data allocation failed, continuing without dbcheck include/exclude filters\n");
+               }
+       }
 
        while (curline)  {
                char *fsline, *p;
@@ -315,21 +320,23 @@ int do_dbcheck_tablespace_rrd(char *hostname, char *testname, char *classname, c
 
                /* Check include/exclude patterns */
                wanteddisk = 1;
-               if (exclpattern) {
-                       int result;
+               if (ovector) {
+                       if (exclpattern) {
+                               int result;
 
-                       result = pcre2_match(exclpattern, diskname, strlen(diskname),
-                                            0, 0, ovector, NULL);
+                               result = pcre2_match(exclpattern, diskname, strlen(diskname),
+                                                    0, 0, ovector, NULL);
 
-                       wanteddisk = (result < 0);
-               }
-               if (wanteddisk && inclpattern) {
-                       int result;
+                               wanteddisk = (result < 0);
+                       }
+                       if (wanteddisk && inclpattern) {
+                               int result;
 
-                       result = pcre2_match(inclpattern, diskname, strlen(diskname),
-                                            0, 0, ovector, NULL);
+                               result = pcre2_match(inclpattern, diskname, strlen(diskname),
+                                                    0, 0, ovector, NULL);
 
-                       wanteddisk = (result >= 0);
+                               wanteddisk = (result >= 0);
+                       }
                }
 
                if (wanteddisk && diskname && (pused != -1)) {
@@ -357,9 +364,8 @@ int do_dbcheck_tablespace_rrd(char *hostname, char *testname, char *classname, c
 nextline:
                curline = (eoln ? (eoln+1) : NULL);
        }
-       pcre2_match_data_free(ovector);
+       if (ovector) pcre2_match_data_free(ovector);
 
        return 0;
 }
-
 

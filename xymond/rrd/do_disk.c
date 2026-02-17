@@ -20,7 +20,7 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 	static int ptnsetup = 0;
 	static pcre2_code *inclpattern = NULL;
 	static pcre2_code *exclpattern = NULL;
-	pcre2_match_data *ovector;
+	pcre2_match_data *ovector = NULL;
 
 	if (strstr(msg, "netapp.pl")) return do_netapp_disk_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	if (strstr(msg, "dbcheck.pl")) return do_dbcheck_tablespace_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
@@ -79,7 +79,12 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 	 * line - we never have any disk reports there anyway.
 	 */
 	curline = strchr(msg, '\n'); if (curline) curline++;
-	ovector = pcre2_match_data_create(30, NULL);
+	if (inclpattern || exclpattern) {
+		ovector = pcre2_match_data_create(30, NULL);
+		if (!ovector) {
+			errprintf("PCRE2 match data allocation failed, continuing without disk include/exclude filters\n");
+		}
+	}
 	while (curline)  {
 		char *fsline, *p;
 		char *columns[20];
@@ -172,21 +177,23 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 
 		/* Check include/exclude patterns */
 		wanteddisk = 1;
-		if (exclpattern) {
-			int result;
+		if (ovector) {
+			if (exclpattern) {
+				int result;
 
-			result = pcre2_match(exclpattern, diskname, strlen(diskname),
-					     0, 0, ovector, NULL);
+				result = pcre2_match(exclpattern, diskname, strlen(diskname),
+						     0, 0, ovector, NULL);
 
-			wanteddisk = (result < 0);
-		}
-		if (wanteddisk && inclpattern) {
-			int result;
+				wanteddisk = (result < 0);
+			}
+			if (wanteddisk && inclpattern) {
+				int result;
 
-			result = pcre2_match(inclpattern, diskname, strlen(diskname),
-					     0, 0, ovector, NULL);
+				result = pcre2_match(inclpattern, diskname, strlen(diskname),
+						     0, 0, ovector, NULL);
 
-			wanteddisk = (result >= 0);
+				wanteddisk = (result >= 0);
+			}
 		}
 
 		if (wanteddisk && diskname && (pused != -1)) {
@@ -214,8 +221,7 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 nextline:
 		curline = (eoln ? (eoln+1) : NULL);
 	}
-	pcre2_match_data_free(ovector);
+	if (ovector) pcre2_match_data_free(ovector);
 
 	return 0;
 }
-

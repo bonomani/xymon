@@ -494,7 +494,7 @@ int do_netapp_disk_rrd(char *hostname, char *testname, char *classname, char *pa
        static int ptnsetup = 0;
        static pcre2_code *inclpattern = NULL;
        static pcre2_code *exclpattern = NULL;
-       pcre2_match_data *ovector;
+       pcre2_match_data *ovector = NULL;
        int newdfreport;
 
 	newdfreport = (strstr(msg,"netappnewdf") != NULL);
@@ -535,7 +535,12 @@ int do_netapp_disk_rrd(char *hostname, char *testname, char *classname, char *pa
         * line - we never have any disk reports there anyway.
         */
        curline = strchr(msg, '\n'); if (curline) curline++;
-       ovector = pcre2_match_data_create(30, NULL);
+       if (inclpattern || exclpattern) {
+               ovector = pcre2_match_data_create(30, NULL);
+               if (!ovector) {
+                       errprintf("PCRE2 match data allocation failed, continuing without netapp include/exclude filters\n");
+               }
+       }
 
        while (curline)  {
                char *fsline, *p;
@@ -600,21 +605,23 @@ int do_netapp_disk_rrd(char *hostname, char *testname, char *classname, char *pa
 
                /* Check include/exclude patterns */
                wanteddisk = 1;
-               if (exclpattern) {
-                       int result;
+               if (ovector) {
+                       if (exclpattern) {
+                               int result;
 
-                       result = pcre2_match(exclpattern, diskname, strlen(diskname),
-                                            0, 0, ovector, NULL);
+                               result = pcre2_match(exclpattern, diskname, strlen(diskname),
+                                                    0, 0, ovector, NULL);
 
-                       wanteddisk = (result < 0);
-               }
-               if (wanteddisk && inclpattern) {
-                       int result;
+                               wanteddisk = (result < 0);
+                       }
+                       if (wanteddisk && inclpattern) {
+                               int result;
 
-                       result = pcre2_match(inclpattern, diskname, strlen(diskname),
-                                            0, 0, ovector, NULL);
+                               result = pcre2_match(inclpattern, diskname, strlen(diskname),
+                                                    0, 0, ovector, NULL);
 
-                       wanteddisk = (result >= 0);
+                               wanteddisk = (result >= 0);
+                       }
                }
 
                if (wanteddisk && diskname && (pused != -1)) {
@@ -642,9 +649,8 @@ int do_netapp_disk_rrd(char *hostname, char *testname, char *classname, char *pa
 nextline:
                curline = (eoln ? (eoln+1) : NULL);
        }
-       pcre2_match_data_free(ovector);
+       if (ovector) pcre2_match_data_free(ovector);
 
        return 0;
 }
-
 
