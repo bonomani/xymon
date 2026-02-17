@@ -39,7 +39,7 @@ int main(int argc, char *argv[])
 	pcre2_code *testexp = NULL;
 	pcre2_code *extestexp = NULL;
 	pcre2_code *colorexp = NULL;
-	pcre2_match_data *ovector;
+	pcre2_match_data *ovector = NULL;
 	int err;
 	PCRE2_SIZE errofs;
 	FILE *logfd = stdout;
@@ -128,7 +128,12 @@ int main(int argc, char *argv[])
 
 	signal(SIGCHLD, SIG_IGN);
 
-	ovector = pcre2_match_data_create(30, NULL);
+	if (hostexp || exhostexp || testexp || extestexp || colorexp) {
+		ovector = pcre2_match_data_create(30, NULL);
+		if (!ovector) {
+			errprintf("PCRE2 match data allocation failed, continuing without capture filters\n");
+		}
+	}
 	running = 1;
 	while (running) {
 		char *eoln, *restofmsg, *p;
@@ -298,23 +303,23 @@ int main(int argc, char *argv[])
 			}
 
 
-			if (hostexp) {
+			if (ovector && hostexp) {
 				match = (pcre2_match(hostexp, hostname, strlen(hostname), 0, 0, ovector, NULL) >= 0);
 				if (!match) continue;
 			}
-			if (exhostexp) {
+			if (ovector && exhostexp) {
 				match = (pcre2_match(exhostexp, hostname, strlen(hostname), 0, 0, ovector, NULL) >= 0);
 				if (match) continue;
 			}
-			if (testexp) {
+			if (ovector && testexp) {
 				match = (pcre2_match(testexp, testname, strlen(testname), 0, 0, ovector, NULL) >= 0);
 				if (!match) continue;
 			}
-			if (extestexp) {
+			if (ovector && extestexp) {
 				match = (pcre2_match(extestexp, testname, strlen(testname), 0, 0, ovector, NULL) >= 0);
 				if (match) continue;
 			}
-			if (colorexp) {
+			if (ovector && colorexp) {
 				match = (pcre2_match(colorexp, color, strlen(color), 0, 0, ovector, NULL) >= 0);
 				if (!match) continue;
 			}
@@ -339,8 +344,7 @@ int main(int argc, char *argv[])
 			}
 		}
 	}
-	pcre2_match_data_free(ovector);
+	if (ovector) pcre2_match_data_free(ovector);
 
 	return 0;
 }
-
