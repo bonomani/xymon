@@ -12,7 +12,7 @@ static char dbcheck_rcsid[] = "$Id$";
 
 int do_dbcheck_memreq_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
 {
-static char *dbcheck_memreq_params[] = { 
+static char *dbcheck_memreq_params[] = {
                                      "DS:ResFree:GAUGE:600:0:U",
                                      "DS:ResAvgFree:GAUGE:600:0:U",
                                      "DS:ResUsed:GAUGE:600:0:U",
@@ -22,7 +22,7 @@ static char *dbcheck_memreq_params[] = {
                                      NULL };
 static void *dbcheck_memreq_tpl      = NULL;
 
-	unsigned long free=0,used=0,reqf=0,fsz=0;	
+	unsigned long free=0,used=0,reqf=0,fsz=0;
 	double avfr=0,avus=0;
 	char *start,*end;
 	dbgprintf("dbcheck: host %s test %s\n",hostname, testname);
@@ -69,7 +69,7 @@ static void *dbcheck_hitcache_tpl      = NULL;
 
 	double pinsql=0, pintbl=0, pinbody=0, pintrig=0, hitsql=0, hittbl=0, hitbody=0, hittrig=0, blbuff=0, rowchache=0;
 	dbgprintf("dbcheck: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "dbcheck.pl")) {
 		setupfn("%s.rrd",testname);
 		if (dbcheck_hitcache_tpl == NULL) dbcheck_hitcache_tpl = setup_template(dbcheck_hitcache_params);
@@ -113,7 +113,7 @@ static void *dbcheck_session_tpl      = NULL;
         unsigned long maxsess=0, currsess=0, maxproc=0, currproc=0 ;
 	double pctsess=0, pctproc=0;
 	dbgprintf("dbcheck: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "dbcheck.pl")) {
 		setupfn("%s.rrd",testname);
 		if (dbcheck_session_tpl == NULL) dbcheck_session_tpl = setup_template(dbcheck_session_params);
@@ -208,7 +208,7 @@ static void *dbcheck_invobj_tpl    = NULL;
                         curline = (eoln ? (eoln+1) : NULL);
                 }
                 setupfn("%s.rrd",testname);
-                dbgprintf("dbcheck: host %s test %s  red %ld yellow %ld green %ld\n", 
+                dbgprintf("dbcheck: host %s test %s  red %ld yellow %ld green %ld\n",
 			hostname, testname, red,yellow,green);
                 snprintf(rrdvalues, sizeof(rrdvalues), "%d:%ld:%ld:%ld", (int) tstamp, red,yellow,green);
                         create_and_update_rrd(hostname, testname, classname, pagepaths, dbcheck_invobj_params, dbcheck_invobj_tpl);

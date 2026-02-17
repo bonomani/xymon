@@ -25,7 +25,7 @@ static void *netapp_stats_tpl      = NULL;
 
 	unsigned long netread=0, netwrite=0, diskread=0, diskwrite=0, taperead=0, tapewrite=0, fcpin=0, fcpout=0;
 	dbgprintf("netapp: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "netapp.pl")) {
 		setupfn("%s.rrd", testname);
 		if (netapp_stats_tpl == NULL) netapp_stats_tpl = setup_template(netapp_stats_params);
@@ -46,7 +46,7 @@ static void *netapp_stats_tpl      = NULL;
 		dbgprintf("netapp: host %s test %s fcpin %ld fcpout %ld\n",
 			hostname, testname, fcpin,fcpout);
 		snprintf(rrdvalues, sizeof(rrdvalues), "%d:%ld:%ld:%ld:%ld:%ld:%ld:%ld:%ld",
-			(int) tstamp, netread, netwrite, diskread, diskwrite, 
+			(int) tstamp, netread, netwrite, diskread, diskwrite,
 			taperead, tapewrite, fcpin, fcpout);
 		create_and_update_rrd(hostname, testname, classname, pagepaths, netapp_stats_params, netapp_stats_tpl);
 	}
@@ -69,7 +69,7 @@ static void *netapp_cifs_tpl      = NULL;
 
 	unsigned long sess=0, share=0, file=0, lock=0, cred=0, dir=0, change=0, secsess=0;
 	dbgprintf("netapp: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "netapp.pl")) {
 		setupfn("%s.rrd", testname);
 		if (netapp_cifs_tpl == NULL) netapp_cifs_tpl = setup_template(netapp_cifs_params);
@@ -110,7 +110,7 @@ static void *netapp_ops_tpl      = NULL;
 
 	unsigned long nfsops=0, cifsops=0, httpops=0, iscsiops=0, fcpops=0, totalops=0;
 	dbgprintf("netapp: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "netapp.pl")) {
 		setupfn("%s.rrd",testname);
 		if (netapp_ops_tpl == NULL) netapp_ops_tpl = setup_template(netapp_ops_params);
@@ -140,7 +140,7 @@ static void *netapp_snapmirror_tpl      = NULL;
 
         char *eoln, *curline, *start, *end;
 	dbgprintf("netapp: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "netapp.pl")) {
 		if (netapp_snapmirror_tpl == NULL) netapp_snapmirror_tpl = setup_template(netapp_snapmirror_params);
                 if ((start=strstr(msg, "<!--"))==NULL) return 0;
@@ -152,9 +152,9 @@ static void *netapp_snapmirror_tpl      = NULL;
                 	char *equalsign;
 			long long size;
                 	eoln = strchr(curline, '\n'); if (eoln) *eoln = '\0';
-			equalsign=strchr(curline,'='); 
+			equalsign=strchr(curline,'=');
 			if (equalsign) {
-				*(equalsign++)= '\0'; 
+				*(equalsign++)= '\0';
 				size=str2ll(equalsign,NULL);
                 		dbgprintf("netapp: host %s test %s SNAPMIRROR %s size %lld\n",
                        			hostname, testname, curline, size);
@@ -180,7 +180,7 @@ static void *netapp_snaplist_tpl      = NULL;
 
         char *eoln, *curline, *start, *end;
 	dbgprintf("netapp: host %s test %s\n",hostname, testname);
-	
+
 	if (strstr(msg, "netapp.pl")) {
 		if (netapp_snaplist_tpl == NULL) netapp_snaplist_tpl = setup_template(netapp_snaplist_params);
                 if ((start=strstr(msg, "<!--"))==NULL) return 0;
@@ -196,7 +196,7 @@ static void *netapp_snaplist_tpl      = NULL;
 			long long young,old;
 
                 	eoln = strchr(curline, '\n'); if (eoln) *eoln = '\0';
-		
+
 			for (columncount=0; (columncount<5); columncount++) columns[columncount] = "";
 			fsline = xstrdup(curline); columncount = 0; p = strtok(fsline, "=");
 			while (p && (columncount < 5)) { columns[columncount++] = p; p = strtok(NULL, ":"); }
@@ -224,7 +224,7 @@ int do_netapp_extratest_rrd(char *hostname, char *testname, char *classname, cha
 {
 static rrdtpldata_t *netapp_tpl = NULL;
 
-	char *outp;	
+	char *outp;
 	char *eoln,*curline;
 	char *rrdp;
 	/* Setup the update string */
@@ -245,20 +245,20 @@ static rrdtpldata_t *netapp_tpl = NULL;
 		char *volname = NULL;
 		int i,flag,l,first,totnum;
 		char *val;
-		outp=rrdp;	
+		outp=rrdp;
 		eoln = strchr(curline, '\n'); if (eoln) *eoln = '\0';
 		if ((eoln == curline) || (strstr(curline,"netapp.pl"))) {
 			dbgprintf("SKIP LINE=\n",curline);
 			goto nextline;
 		}
-		fsline = xstrdup(curline); 
+		fsline = xstrdup(curline);
 		dbgprintf("LINE=%s\n",fsline);
-		
+
 		for (columncount=0; (columncount<30); columncount++) columns[columncount] = NULL;
 		for (totnum=0; varlist[totnum]; totnum++) ;
-		columncount = 0; 
+		columncount = 0;
 		p = strtok(fsline, ";");
-		
+
 
 		first=0;
 		while (p) {
@@ -272,7 +272,7 @@ static rrdtpldata_t *netapp_tpl = NULL;
 					sep++;
 					dbgprintf("Checking %s len=%d\n",p,l);
 					flag=0;
-			        	i = 0; 
+			        	i = 0;
 					while ((flag==0) && (varlist[i])) {
 						dbgprintf("with %s\n",varlist[i]);
 						if (strncmp(varlist[i], p, l) == 0) {
@@ -283,7 +283,7 @@ static rrdtpldata_t *netapp_tpl = NULL;
 					}
 				}
 			}
-			p = strtok(NULL, ";"); 
+			p = strtok(NULL, ";");
 		}
 		volname = xstrdup(fname);
 		p = volname; while ((p = strchr(p, '/')) != NULL) { *p = ','; }
@@ -467,7 +467,7 @@ static rrdtpldata_t *system_tpl = NULL;
         volumestr = getdata("volume");
         lunstr = getdata("lun");
         diskstr = getdata("disk");
-	
+
 	if (ifnet_tpl == NULL) ifnet_tpl = setup_template(netapp_ifnet_params);
 	if (qtree_tpl == NULL) qtree_tpl = setup_template(netapp_qtree_params);
 	if (aggregate_tpl == NULL) aggregate_tpl = setup_template(netapp_aggregate_params);

@@ -65,7 +65,7 @@ static time_t convert_time(char *timestamp)
 		timeinfo.tm_min   = min;
 		timeinfo.tm_sec   = sec;
 		timeinfo.tm_isdst = -1;
-		event = mktime(&timeinfo);		
+		event = mktime(&timeinfo);
 	}
 
 	return event;
@@ -87,8 +87,8 @@ static htnames_t *getname(char *name, int createit)
 	return walk;
 }
 
-void do_acknowledgementslog(FILE *output, 
-		  int maxcount, int maxminutes, char *fromtime, char *totime, 
+void do_acknowledgementslog(FILE *output,
+		  int maxcount, int maxminutes, char *fromtime, char *totime,
 		  char *pageregex, char *expageregex,
 		  char *hostregex, char *exhostregex,
 		  char *testregex, char *extestregex,
@@ -171,7 +171,7 @@ void do_acknowledgementslog(FILE *output,
 			/* Go back maxcount*80 bytes - one entry is ~80 bytes */
 			if (ftello(acknowledgementslog) > maxcount*80) {
 				unsigned int uicurtime;
-				fseeko(acknowledgementslog, -maxcount*80, SEEK_CUR); 
+				fseeko(acknowledgementslog, -maxcount*80, SEEK_CUR);
 				if (fgets(l, sizeof(l), acknowledgementslog) && /* Skip to start of line */
 				    fgets(l, sizeof(l), acknowledgementslog)) {
                                         /* 2015-03-07 18:17:03 myserver disk andy 1 1425724570 1425752223 1425838623 testing message */
@@ -183,7 +183,7 @@ void do_acknowledgementslog(FILE *output,
 					curtime = uicurtime;
 					done = (curtime < firstevent);
 				}
-				else { 
+				else {
 					fprintf(output, "Error reading logfile %s: %s\n", acknowledgementslogfilename, strerror(errno));
 					return;
 				}
@@ -194,7 +194,7 @@ void do_acknowledgementslog(FILE *output,
 			}
 		} while (!done);
 	}
-	
+
 	head = NULL;
 	ovector = pcre2_match_data_create(30, NULL);
 
@@ -340,15 +340,15 @@ void do_acknowledgementslog(FILE *output,
 		struct acknowledgements_t *lasttoshow = head;
 
 		count=0;
-		walk=head; 
+		walk=head;
 		do {
 			count++;
 			lasttoshow = walk;
 			walk = walk->next;
 		} while (walk && (count<maxcount));
 
-		if (maxminutes)  { 
-			snprintf(title, sizeof(title), "%d acknowledgements in the past %u minutes", 
+		if (maxminutes)  {
+			snprintf(title, sizeof(title), "%d acknowledgements in the past %u minutes",
 				count, (unsigned int)((getcurrenttime(NULL) - lasttoshow->eventtime) / 60));
 		}
 		else {
