@@ -49,6 +49,18 @@ build:
           tools:
             optional:
             - clang
+    debian_13:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
   rpm:
     rockylinux_9:
       packagers:
