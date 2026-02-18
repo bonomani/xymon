@@ -15,7 +15,7 @@
 #include <stdio.h>
 
 /* The clients probably don't have the pcre headers */
-#if defined(LOCALCLIENT) || !defined(CLIENTONLY)
+#if (defined(LOCALCLIENT) && (LOCALCLIENT)) || !defined(CLIENTONLY)
 #include <pcre.h>
 
 typedef enum { A_PAGING, A_NORECIP, A_ACKED, A_RECOVERED, A_DISABLED, A_NOTIFY, A_DEAD } astate_t;
@@ -106,4 +106,3 @@ extern void print_alert_recipients(activealerts_t *alert, strbuffer_t *buf);
 #endif
 
 #endif
-
