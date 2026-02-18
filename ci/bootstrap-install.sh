@@ -456,6 +456,7 @@ install_staged_make() {
     local install_clienttargets="lib-client common-client"
     if [ "${VARIANT}" = "localclient" ]; then
       install_clienttargets="lib-client common-client build-build"
+      as_root "${MAKE_BIN}" -j2 -C build merge-lines merge-sects
     fi
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="${install_clienttargets}" \
