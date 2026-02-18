@@ -437,7 +437,7 @@ build_project_make() {
         client
     else
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
-        CLIENTTARGETS="lib-client common-client" \
+        CLIENTTARGETS="lib-client common-client build-build" \
         CFLAGS="${base_cflags} -DCLIENTONLY=1" \
         LOCALCLIENT=yes \
         client
@@ -453,8 +453,12 @@ build_project_cmake() {
 
 install_staged_make() {
   if [ "${VARIANT}" = "client" ] || [ "${VARIANT}" = "localclient" ]; then
+    local install_clienttargets="lib-client common-client"
+    if [ "${VARIANT}" = "localclient" ]; then
+      install_clienttargets="lib-client common-client build-build"
+    fi
     as_root "${MAKE_BIN}" install-client install-clientmsg \
-      CLIENTTARGETS="lib-client common-client" \
+      CLIENTTARGETS="${install_clienttargets}" \
       DESTDIR="${LEGACY_STAGING}" \
       INSTALLROOT="${LEGACY_STAGING}" 2>&1 | tee /tmp/install-make-legacy.log
   else
