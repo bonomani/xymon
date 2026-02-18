@@ -22,7 +22,7 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <string.h>
 #include <fcntl.h>
-#include <pcre.h>
+#include "xymon_pcre.h"
 
 #include "libxymon.h"
 #include "version.h"

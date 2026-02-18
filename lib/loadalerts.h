@@ -16,7 +16,7 @@
 
 /* The clients probably don't have the pcre headers */
 #if (defined(LOCALCLIENT) && (LOCALCLIENT)) || !defined(CLIENTONLY)
-#include <pcre.h>
+#include "xymon_pcre.h"
 
 typedef enum { A_PAGING, A_NORECIP, A_ACKED, A_RECOVERED, A_DISABLED, A_NOTIFY, A_DEAD } astate_t;
 

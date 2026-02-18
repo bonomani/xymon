@@ -13,7 +13,7 @@
 
 /* The clients probably don't have the pcre headers */
 #if (defined(LOCALCLIENT) && (LOCALCLIENT)) || !defined(CLIENTONLY)
-#include <pcre.h>
+#include "xymon_pcre.h"
 #include <stdarg.h>
 
 extern pcre *compileregex(const char *pattern);

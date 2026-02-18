@@ -118,7 +118,34 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
+set(XYMON_PCRE_INCLUDE_DIR "")
+set(XYMON_PCRE_LIBRARY "")
+set(XYMON_USE_PCRE2 OFF)
+
 if(XYMON_REQUIRE_PCRE)
+    find_path(PCRE2_INCLUDE_DIR pcre2.h
+        PATHS
+            /usr/pkg/include
+            /usr/local/include
+            /usr/local/opt/pcre2/include
+            /opt/homebrew/include
+            /opt/homebrew/opt/pcre2/include
+            /opt/local/include
+        PATH_SUFFIXES
+            pcre2
+    )
+
+    find_library(PCRE2_LIBRARY
+        NAMES pcre2-8 pcre2
+        PATHS
+            /usr/pkg/lib
+            /usr/local/lib
+            /usr/local/opt/pcre2/lib
+            /opt/homebrew/lib
+            /opt/homebrew/opt/pcre2/lib
+            /opt/local/lib
+    )
+
     find_path(PCRE_INCLUDE_DIR pcre.h
         PATHS
             /usr/pkg/include
@@ -130,11 +157,8 @@ if(XYMON_REQUIRE_PCRE)
         PATH_SUFFIXES
             pcre
     )
-    if(PCRE_INCLUDE_DIR)
-        include_directories("${PCRE_INCLUDE_DIR}")
-    endif()
-
-    find_library(PCRE_LIBRARY pcre
+    find_library(PCRE_LIBRARY
+        NAMES pcre
         PATHS
             /usr/pkg/lib
             /usr/local/lib
@@ -143,14 +167,33 @@ if(XYMON_REQUIRE_PCRE)
             /opt/homebrew/opt/pcre/lib
             /opt/local/lib
     )
-    if(PCRE_LIBRARY)
-        get_filename_component(PCRE_LIBRARY_DIR "${PCRE_LIBRARY}" DIRECTORY)
-        link_directories("${PCRE_LIBRARY_DIR}")
-    endif()
 
-    if(NOT PCRE_INCLUDE_DIR OR NOT PCRE_LIBRARY)
+    if(PCRE2_INCLUDE_DIR AND PCRE2_LIBRARY)
+        set(XYMON_PCRE_INCLUDE_DIR "${PCRE2_INCLUDE_DIR}")
+        set(XYMON_PCRE_LIBRARY "${PCRE2_LIBRARY}")
+        set(XYMON_USE_PCRE2 ON)
+        message(STATUS "PCRE backend: PCRE2 (${XYMON_PCRE_LIBRARY})")
+    elseif(PCRE_INCLUDE_DIR AND PCRE_LIBRARY)
+        set(XYMON_PCRE_INCLUDE_DIR "${PCRE_INCLUDE_DIR}")
+        set(XYMON_PCRE_LIBRARY "${PCRE_LIBRARY}")
+        message(STATUS "PCRE backend: PCRE (${XYMON_PCRE_LIBRARY})")
+    else()
         message(FATAL_ERROR "PCRE headers and library are required for this build variant")
     endif()
+
+    include_directories("${XYMON_PCRE_INCLUDE_DIR}")
+    get_filename_component(XYMON_PCRE_LIBRARY_DIR "${XYMON_PCRE_LIBRARY}" DIRECTORY)
+    link_directories("${XYMON_PCRE_LIBRARY_DIR}")
+
+    if(XYMON_USE_PCRE2)
+        add_compile_definitions(XYMON_USE_PCRE2=1)
+    endif()
+
+    if(NOT TARGET pcre)
+        add_library(pcre INTERFACE IMPORTED)
+    endif()
+    set_property(TARGET pcre PROPERTY INTERFACE_LINK_LIBRARIES "${XYMON_PCRE_LIBRARY}")
+    set_property(TARGET pcre PROPERTY INTERFACE_INCLUDE_DIRECTORIES "${XYMON_PCRE_INCLUDE_DIR}")
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
