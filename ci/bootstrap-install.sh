@@ -430,12 +430,14 @@ build_project_make() {
     fi
     if [ "${LEGACY_CONFTYPE}" = "server" ]; then
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+        CLIENTTARGETS="lib-client common-client" \
         CFLAGS="${base_cflags} -DLOCALCLIENT=0" \
         LOCALCLIENT=no \
         PCRELIBS= \
         client
     else
       "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+        CLIENTTARGETS="lib-client common-client" \
         CFLAGS="${base_cflags} -DCLIENTONLY=1" \
         LOCALCLIENT=yes \
         client
