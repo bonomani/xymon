@@ -135,13 +135,13 @@
 /var/lib/xymon/server/bin/xymond_history	/server/bin/xymond_history	f	755	1001	1001	393176	
 /var/lib/xymon/server/bin/xymond_hostdata	/server/bin/xymond_hostdata	f	755	1001	1001	358488	
 /var/lib/xymon/server/bin/xymond_locator	/server/bin/xymond_locator	f	755	1001	1001	316144	
-/var/lib/xymon/server/bin/xymond_rrd	/server/bin/xymond_rrd	f	755	1001	1001	1303488	
+/var/lib/xymon/server/bin/xymond_rrd	/server/bin/xymond_rrd	f	755	1001	1001	1303512	
 /var/lib/xymon/server/bin/xymond_sample	/server/bin/xymond_sample	f	755	1001	1001	345184	
 /var/lib/xymon/server/bin/xymondigest	/server/bin/xymondigest	f	755	1001	1001	359760	
 /var/lib/xymon/server/bin/xymonfetch	/server/bin/xymonfetch	f	755	1001	1001	547432	
 /var/lib/xymon/server/bin/xymongen	/server/bin/xymongen	f	755	1001	1001	1202600	
 /var/lib/xymon/server/bin/xymongrep	/server/bin/xymongrep	f	755	1001	1001	518264	
-/var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	1001	1001	314776	
+/var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	1001	1001	314808	
 /var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	1001	1001	977696	
 /var/lib/xymon/server/bin/xymonpage	/server/bin/xymonpage	f	755	1001	1001	598272	
 /var/lib/xymon/server/bin/xymonping	/server/bin/xymonping	f	755	0	1001	281288	
