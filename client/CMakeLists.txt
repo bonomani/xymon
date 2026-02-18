@@ -154,7 +154,7 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "OpenBSD")
     list(APPEND _CLIENT_EXTRA_MEMINFO_TARGETS openbsd-meminfo)
 endif()
 
-install(TARGETS
+set(_CLIENT_PROGRAM_TARGETS
     client_xymon
     client_xymonlaunch
     client_xymoncmd
@@ -165,7 +165,15 @@ install(TARGETS
     clientupdate
     orcaxymon
     msgcache
-    ${_CLIENT_EXTRA_MEMINFO_TARGETS}
+)
+list(APPEND _CLIENT_PROGRAM_TARGETS ${_CLIENT_EXTRA_MEMINFO_TARGETS})
+
+foreach(_client_target IN LISTS _CLIENT_PROGRAM_TARGETS)
+    target_compile_definitions(${_client_target} PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+endforeach()
+
+install(TARGETS
+    ${_CLIENT_PROGRAM_TARGETS}
     RUNTIME DESTINATION ${XYMONCLIENTHOME}/bin
 )
 
