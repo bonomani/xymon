@@ -143,6 +143,10 @@ set_target_properties(xymontime PROPERTIES
     OUTPUT_NAME xymontime
 )
 
+if(XYMON_BUILD_CLIENT AND NOT XYMON_BUILD_SERVER)
+    target_compile_definitions(xymontime PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+endif()
+
 # ----------------------------------------------------------------------
 # libxymonclient.a
 # ----------------------------------------------------------------------
