@@ -216,7 +216,11 @@ static void setupinterval(int intvl)
 static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 {
 	/* Flush any updates we've cached */
+#ifdef RRDTOOL19
 	const char *updparams[5+CACHESZ+1] = { "rrdupdate", filedir, "-t", NULL, NULL, NULL, };
+#else
+	char *updparams[5+CACHESZ+1] = { "rrdupdate", filedir, "-t", NULL, NULL, NULL, };
+#endif
 	int i, pcount, result;
 
 	dbgprintf("Flushing '%s' with %d updates pending, template '%s'\n", 
@@ -277,7 +281,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	pollinterval = rrdinterval;
 	rrdinterval = DEFAULT_RRD_INTERVAL;
 
-	if (strlen(rrdfn) == 0) {
+	if ((rrdfn == NULL) || (strlen(rrdfn) == 0)) {
 		errprintf("RRD update for no file\n");
 		return -1;
 	}
@@ -330,8 +334,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 	/* If the RRD file doesn't exist, create it immediately */
 	if (stat(filedir, &st) == -1) {
-		const char **rrdcreate_params;
-		char **rrddefinitions;
+		char **rrdcreate_params, **rrddefinitions;
 		int rrddefcount, i;
 		char *rrakey = NULL;
 		char stepsetting[10];
@@ -350,7 +353,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		sprintf(stepsetting, "%d", pollinterval);
 
 		rrddefinitions = get_rrd_definition((rrakey ? rrakey : testname), &rrddefcount);
-		rrdcreate_params = (const char **)calloc(4 + pcount + rrddefcount + 1, sizeof(const char *));
+		rrdcreate_params = (char **)calloc(4 + pcount + rrddefcount + 1, sizeof(char *));
 		rrdcreate_params[0] = "rrdcreate";
 		rrdcreate_params[1] = filedir;
 
@@ -379,7 +382,11 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		 * we MUST reset this before every call.
 		 */
 		optind = opterr = 0; rrd_clear_error();
+#ifdef RRDTOOL19
+		result = rrd_create(4+pcount, (const char **)rrdcreate_params);
+#else
 		result = rrd_create(4+pcount, rrdcreate_params);
+#endif
 		xfree(rrdcreate_params);
 		if (rrakey) xfree(rrakey);
 
@@ -591,7 +598,11 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	struct stat st;
 
 	int result;
+#ifdef RRDTOOL19
 	const char *fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
+#else
+	char *fetch_params[] = { "rrdfetch", filedir, "AVERAGE", "-s", "-30m", NULL };
+#endif
 	time_t starttime, endtime;
 	unsigned long steptime, dscount;
 	rrd_value_t *rrddata;
@@ -776,3 +787,4 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 
 	MEMUNDEFINE(rrdvalues);
 }
+
