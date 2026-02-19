@@ -141,7 +141,7 @@
 /var/lib/xymon/server/bin/xymonfetch	/server/bin/xymonfetch	f	755	1001	1001	547432	
 /var/lib/xymon/server/bin/xymongen	/server/bin/xymongen	f	755	1001	1001	1202600	
 /var/lib/xymon/server/bin/xymongrep	/server/bin/xymongrep	f	755	1001	1001	518264	
-/var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	1001	1001	314808	
+/var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	1001	1001	314776	
 /var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	1001	1001	977696	
 /var/lib/xymon/server/bin/xymonpage	/server/bin/xymonpage	f	755	1001	1001	598272	
 /var/lib/xymon/server/bin/xymonping	/server/bin/xymonping	f	755	0	1001	281288	
