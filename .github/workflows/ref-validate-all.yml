@@ -21,12 +21,15 @@ jobs:
       matrix:
         workflow:
           - ref-valid-alpine.yml
+          - ref-valid-archlinux.yml
+          - ref-valid-centos7.yml
           - ref-valid-debian.yml
           - ref-valid-freebsd.yml
           - ref-valid-macos.yml
           - ref-valid-netbsd.yml
           - ref-valid-openbsd.yml
           - ref-valid-opensuse.yml
+          - ref-valid-rpm.yml
           - ref-valid-ubuntu.yml
     steps:
       - name: Dispatch ${{ matrix.workflow }}
