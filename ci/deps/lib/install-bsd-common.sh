@@ -265,10 +265,10 @@ bsd_pkg_available() {
   local pkg="${2:-}"
   case "${pkgmgr}" in
     pkg)
-      /usr/sbin/pkg search -q "^${pkg}$" >/dev/null 2>&1
+      /usr/sbin/pkg search -q "^${pkg}(-|$)" >/dev/null 2>&1
       ;;
     pkgin)
-      /usr/pkg/bin/pkgin search "^${pkg}$" 2>/dev/null | grep -q .
+      /usr/pkg/bin/pkgin search "^${pkg}(-|$)" 2>/dev/null | grep -q .
       ;;
     pkg_add)
       /usr/sbin/pkg_add -n "${pkg}" >/dev/null 2>&1
