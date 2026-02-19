@@ -139,6 +139,21 @@ ci_deps_trim() {
   printf '%s' "${val}"
 }
 
+ci_deps_parse_alternative_candidates() {
+  local spec="${1:-}"
+  local cand=""
+  local -a raw=()
+
+  IFS='|' read -r -a raw <<< "${spec}"
+  for cand in "${raw[@]}"; do
+    cand="$(ci_deps_trim "${cand}")"
+    [[ -n "${cand}" ]] && printf '%s\n' "${cand}"
+  done
+}
+
+# Resolve alternative expressions (e.g. "pcre|pcre2") to a single package
+# for list/check flows. This does not perform retries and is intentionally
+# deterministic for print/check output.
 ci_deps_resolve_package_alternatives() {
   local installed_fn="${1:-}"
   local available_fn="${2:-}"
@@ -160,13 +175,15 @@ ci_deps_resolve_package_alternatives() {
       continue
     fi
 
-    IFS='|' read -r -a candidates <<< "${spec}"
+    candidates=()
+    while IFS= read -r cand; do
+      candidates+=("${cand}")
+    done < <(ci_deps_parse_alternative_candidates "${spec}")
+
     first=""
     chosen=""
 
     for cand in "${candidates[@]}"; do
-      cand="$(ci_deps_trim "${cand}")"
-      [[ -z "${cand}" ]] && continue
       if [[ -z "${first}" ]]; then
         first="${cand}"
       fi
@@ -178,8 +195,6 @@ ci_deps_resolve_package_alternatives() {
 
     if [[ -z "${chosen}" && -n "${available_fn}" ]]; then
       for cand in "${candidates[@]}"; do
-        cand="$(ci_deps_trim "${cand}")"
-        [[ -z "${cand}" ]] && continue
         if "${available_fn}" "${cand}"; then
           chosen="${cand}"
           break
@@ -204,6 +219,9 @@ ci_deps_resolve_package_alternatives() {
   PKGS=("${resolved[@]}")
 }
 
+# Install packages with real fallback retries for alternative expressions.
+# For "pkg1|pkg2", installation attempts pkg1 first, then pkg2, while
+# honoring installed/available callbacks when provided.
 ci_deps_install_packages_with_alternatives() {
   local installed_fn="${1:-}"
   local available_fn="${2:-}"
@@ -236,13 +254,14 @@ ci_deps_install_packages_with_alternatives() {
       return 1
     fi
 
-    IFS='|' read -r -a candidates <<< "${spec}"
+    candidates=()
+    while IFS= read -r pkg; do
+      candidates+=("${pkg}")
+    done < <(ci_deps_parse_alternative_candidates "${spec}")
+
     success=0
 
     for pkg in "${candidates[@]}"; do
-      pkg="$(ci_deps_trim "${pkg}")"
-      [[ -z "${pkg}" ]] && continue
-
       if "${installed_fn}" "${pkg}"; then
         success=1
         break

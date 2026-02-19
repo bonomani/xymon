@@ -40,9 +40,13 @@ brew_install_one() {
   brew install "$1"
 }
 
-if [[ "${mode}" == "install" ]]; then
+brew_pre_install() {
   echo "=== Install (Homebrew packages) ==="
   brew update
+}
+
+if [[ "${mode}" == "install" ]]; then
+  brew_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")

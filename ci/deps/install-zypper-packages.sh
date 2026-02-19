@@ -40,9 +40,13 @@ zypper_install_one() {
   ci_deps_as_root zypper --non-interactive install "$1"
 }
 
-if [[ "${mode}" == "install" ]]; then
+zypper_pre_install() {
   echo "=== Install (Linux packages) ==="
   ci_deps_as_root zypper --non-interactive refresh
+}
+
+if [[ "${mode}" == "install" ]]; then
+  zypper_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")

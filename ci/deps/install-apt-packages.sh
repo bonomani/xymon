@@ -42,9 +42,13 @@ apt_install_one() {
   ci_deps_as_root apt-get install -y --no-install-recommends "$1"
 }
 
-if [[ "${mode}" == "install" ]]; then
+apt_pre_install() {
   echo "=== Install (Linux packages) ==="
   ci_deps_as_root apt-get update
+}
+
+if [[ "${mode}" == "install" ]]; then
+  apt_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")

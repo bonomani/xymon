@@ -40,6 +40,15 @@ yum_install_one() {
   ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "$1"
 }
 
+yum_pre_install() {
+  echo "=== Install (Linux packages) ==="
+  if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
+    if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
+      YUM_OPTS+=(--enablerepo=epel)
+    fi
+  fi
+}
+
 YUM_OPTS=()
 if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
   vault_repo_tmp="$(mktemp)"
@@ -73,12 +82,7 @@ EOF
 fi
 
 if [[ "${mode}" == "install" ]]; then
-  echo "=== Install (Linux packages) ==="
-  if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
-    if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
-      YUM_OPTS+=(--enablerepo=epel)
-    fi
-  fi
+  yum_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")

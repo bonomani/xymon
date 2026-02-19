@@ -40,7 +40,7 @@ dnf_install_one() {
   ci_deps_as_root dnf -y install "$1"
 }
 
-if [[ "${mode}" == "install" ]]; then
+dnf_pre_install() {
   echo "=== Install (Linux packages) ==="
 
   ci_deps_as_root dnf -y install dnf-plugins-core
@@ -54,6 +54,10 @@ if [[ "${mode}" == "install" ]]; then
   ci_deps_as_root dnf -y install epel-release || true
   ci_deps_as_root dnf clean all
   ci_deps_as_root dnf -y makecache
+}
+
+if [[ "${mode}" == "install" ]]; then
+  dnf_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")

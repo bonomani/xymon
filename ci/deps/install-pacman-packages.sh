@@ -40,10 +40,14 @@ pacman_install_one() {
   ci_deps_as_root pacman -S --noconfirm --needed "$1"
 }
 
-if [[ "${mode}" == "install" ]]; then
+pacman_pre_install() {
   echo "=== Install (Linux packages) ==="
   ci_deps_as_root pacman -Sy --noconfirm archlinux-keyring
   ci_deps_as_root pacman -Syu --noconfirm
+}
+
+if [[ "${mode}" == "install" ]]; then
+  pacman_pre_install
 fi
 
 PKG_SPECS=("${PKGS[@]}")
