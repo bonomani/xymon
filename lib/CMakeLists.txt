@@ -143,6 +143,12 @@ set_target_properties(xymontime PROPERTIES
     OUTPUT_NAME xymontime
 )
 
+# In client-only builds, xymontime must compile with the same client macros
+# as libxymonclient to avoid server-only header paths (e.g. PCRE includes).
+if(NOT XYMON_BUILD_SERVER)
+    target_compile_definitions(xymontime PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+endif()
+
 # ----------------------------------------------------------------------
 # libxymonclient.a
 # ----------------------------------------------------------------------
