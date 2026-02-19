@@ -52,14 +52,16 @@ map:
   PCRE:
     gh-debian:
       ubuntu_latest:
-        apt: [libpcre3-dev]
+        apt: [libpcre2-dev]
     debian:
       ubuntu_local:
-        apt: [libpcre3-dev]
+        apt: [libpcre2-dev]
       debian_bookworm:
-        apt: [libpcre3-dev]
+        apt: [libpcre2-dev]
       debian_bullseye:
-        apt: [libpcre3-dev]
+        apt: [libpcre2-dev]
+      debian_13:
+        apt: [libpcre2-dev]
     rpm:
       rockylinux_9:
         dnf: [pcre-devel, pcre2-devel]
@@ -71,13 +73,13 @@ map:
         dnf: [pcre-devel, pcre2-devel]
     suse:
       opensuse_tumbleweed_latest:
-        zypper: [pcre-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_16_0:
-        zypper: [pcre-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_15_6:
-        zypper: [pcre-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_15_5:
-        zypper: [pcre-devel]
+        zypper: [pcre2-devel]
     alpine:
       alpine_3:
         apk: [pcre-dev]
@@ -105,6 +107,8 @@ map:
       debian_bookworm:
         apt: [librrd-dev]
       debian_bullseye:
+        apt: [librrd-dev]
+      debian_13:
         apt: [librrd-dev]
     rpm:
       rockylinux_9:
@@ -152,6 +156,8 @@ map:
         apt: [libssl-dev]
       debian_bullseye:
         apt: [libssl-dev]
+      debian_13:
+        apt: [libssl-dev]
     rpm:
       rockylinux_9:
         dnf: [openssl-devel]
@@ -197,6 +203,8 @@ map:
       debian_bookworm:
         apt: [libldap-dev]
       debian_bullseye:
+        apt: [libldap-dev]
+      debian_13:
         apt: [libldap-dev]
     rpm:
       rockylinux_9:
@@ -244,6 +252,8 @@ map:
         apt: [libsnmp-dev]
       debian_bullseye:
         apt: [libsnmp-dev]
+      debian_13:
+        apt: [libsnmp-dev]
     rpm:
       rockylinux_9:
         dnf: [net-snmp-devel]
@@ -290,6 +300,8 @@ map:
         apt: [libc-ares-dev]
       debian_bullseye:
         apt: [libc-ares-dev]
+      debian_13:
+        apt: [libc-ares-dev]
     rpm:
       rockylinux_9:
         dnf: [c-ares-devel]
@@ -335,6 +347,8 @@ map:
       debian_bookworm:
         apt: [libtirpc-dev]
       debian_bullseye:
+        apt: [libtirpc-dev]
+      debian_13:
         apt: [libtirpc-dev]
     rpm:
       rockylinux_9:

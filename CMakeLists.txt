@@ -52,6 +52,15 @@ option(INSTALL_EXTRA "Install extra/debug/helper binaries (non-reference set)" O
 set(XYMON_VARIANT "server" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)
 
+# PCRE is required for server builds and localclient builds. Plain client
+# builds intentionally avoid PCRE dependencies.
+set(_XYMON_VARIANT_PRE "${XYMON_VARIANT}")
+string(TOLOWER "${_XYMON_VARIANT_PRE}" _XYMON_VARIANT_PRE)
+set(XYMON_REQUIRE_PCRE OFF)
+if(_XYMON_VARIANT_PRE STREQUAL "server" OR LOCALCLIENT)
+    set(XYMON_REQUIRE_PCRE ON)
+endif()
+
 # Match legacy Makefile defaults for runtime helpers.
 if(CMAKE_SYSTEM_NAME STREQUAL "HP-UX" OR CMAKE_SYSTEM_NAME STREQUAL "SunOS" OR CMAKE_SYSTEM_NAME STREQUAL "SCO_SV")
     set(_DEFAULT_MAILPROGRAM "mailx")
@@ -109,33 +118,39 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
-find_path(PCRE_INCLUDE_DIR pcre.h
-    PATHS
-        /usr/pkg/include
-        /usr/local/include
-        /usr/local/opt/pcre/include
-        /opt/homebrew/include
-        /opt/homebrew/opt/pcre/include
-        /opt/local/include
-    PATH_SUFFIXES
-        pcre
-)
-if(PCRE_INCLUDE_DIR)
-    include_directories("${PCRE_INCLUDE_DIR}")
-endif()
+if(XYMON_REQUIRE_PCRE)
+    find_path(PCRE_INCLUDE_DIR pcre.h
+        PATHS
+            /usr/pkg/include
+            /usr/local/include
+            /usr/local/opt/pcre/include
+            /opt/homebrew/include
+            /opt/homebrew/opt/pcre/include
+            /opt/local/include
+        PATH_SUFFIXES
+            pcre
+    )
+    if(PCRE_INCLUDE_DIR)
+        include_directories("${PCRE_INCLUDE_DIR}")
+    endif()
 
-find_library(PCRE_LIBRARY pcre
-    PATHS
-        /usr/pkg/lib
-        /usr/local/lib
-        /usr/local/opt/pcre/lib
-        /opt/homebrew/lib
-        /opt/homebrew/opt/pcre/lib
-        /opt/local/lib
-)
-if(PCRE_LIBRARY)
-    get_filename_component(PCRE_LIBRARY_DIR "${PCRE_LIBRARY}" DIRECTORY)
-    link_directories("${PCRE_LIBRARY_DIR}")
+    find_library(PCRE_LIBRARY pcre
+        PATHS
+            /usr/pkg/lib
+            /usr/local/lib
+            /usr/local/opt/pcre/lib
+            /opt/homebrew/lib
+            /opt/homebrew/opt/pcre/lib
+            /opt/local/lib
+    )
+    if(PCRE_LIBRARY)
+        get_filename_component(PCRE_LIBRARY_DIR "${PCRE_LIBRARY}" DIRECTORY)
+        link_directories("${PCRE_LIBRARY_DIR}")
+    endif()
+
+    if(NOT PCRE_INCLUDE_DIR OR NOT PCRE_LIBRARY)
+        message(FATAL_ERROR "PCRE headers and library are required for this build variant")
+    endif()
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
@@ -211,6 +226,15 @@ elseif(XYMON_VARIANT STREQUAL "client")
 else()
     message(FATAL_ERROR "XYMON_VARIANT must be server or client")
 endif()
+
+set(XYMON_CLIENT_LOCALCLIENT 0)
+if(LOCALCLIENT)
+    set(XYMON_CLIENT_LOCALCLIENT 1)
+endif()
+set(XYMON_CLIENT_COMPILE_DEFINITIONS
+    CLIENTONLY=1
+    LOCALCLIENT=${XYMON_CLIENT_LOCALCLIENT}
+)
 
 # Legacy Makefile client-only layout installs directly under XYMONTOPDIR
 # (bin/, etc/, ...), while server builds use the split server/client tree.

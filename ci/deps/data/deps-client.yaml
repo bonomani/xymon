@@ -7,7 +7,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -20,7 +19,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -32,7 +30,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -44,7 +41,17 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    debian_13:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
             - TIRPC
           tools:
             optional:
@@ -57,7 +64,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -69,7 +75,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -81,7 +86,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -93,7 +97,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -106,7 +109,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -118,7 +120,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -130,7 +131,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -142,7 +142,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -155,7 +154,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -168,7 +166,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -181,7 +178,6 @@ build:
             mandatory:
             - BUILD_TOOLS
             - OpenSSL
-            - PCRE
             - TIRPC
           tools:
             optional:
@@ -193,7 +189,6 @@ build:
           libs:
             mandatory:
             - BUILD_TOOLS
-            - PCRE
             base_system:
             - OpenSSL
             - TIRPC
@@ -207,7 +202,6 @@ build:
           libs:
             mandatory:
             - BUILD_TOOLS
-            - PCRE
             base_system:
             - OpenSSL
             - TIRPC
@@ -220,7 +214,6 @@ build:
           libs:
             mandatory:
             - BUILD_TOOLS
-            - PCRE
             base_system:
             - OpenSSL
             - TIRPC

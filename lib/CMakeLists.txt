@@ -148,15 +148,11 @@ set_target_properties(xymontime PROPERTIES
 # ----------------------------------------------------------------------
 
 add_library(xymonclient_color OBJECT color.c)
-target_compile_definitions(xymonclient_color PRIVATE CLIENTONLY)
 
 add_library(xymonclient_timefunc OBJECT timefunc.c)
-target_compile_definitions(xymonclient_timefunc PRIVATE CLIENTONLY)
 
 add_library(xymonclient_environ OBJECT environ.c)
-target_compile_definitions(xymonclient_environ PRIVATE XYMONHOME=\"${XYMONCLIENTHOME}\")
-
-add_library(xymonclient STATIC
+set(_XYMONCLIENT_SOURCES
     osdefs.c
     cgiurls.c
     crondate.c
@@ -177,6 +173,17 @@ add_library(xymonclient STATIC
     strfunc.c
     suid.c
     tree.c
+)
+
+if(LOCALCLIENT)
+    list(APPEND _XYMONCLIENT_SOURCES
+        clientlocal.c
+        matching.c
+    )
+endif()
+
+add_library(xymonclient STATIC
+    ${_XYMONCLIENT_SOURCES}
     $<TARGET_OBJECTS:xymonclient_color>
     $<TARGET_OBJECTS:xymonclient_timefunc>
     $<TARGET_OBJECTS:xymonclient_environ>
@@ -190,6 +197,17 @@ if(WORDS_BIGENDIAN)
     target_compile_definitions(xymonclient PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
 else()
     target_compile_definitions(xymonclient PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+endif()
+target_compile_definitions(xymonclient PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+target_compile_definitions(xymonclient_color PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+target_compile_definitions(xymonclient_timefunc PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+target_compile_definitions(xymonclient_environ PRIVATE
+    ${XYMON_CLIENT_COMPILE_DEFINITIONS}
+    XYMONHOME=\"${XYMONCLIENTHOME}\"
+)
+
+if(LOCALCLIENT)
+    target_link_libraries(xymonclient PUBLIC pcre)
 endif()
 
 # ----------------------------------------------------------------------
@@ -207,6 +225,7 @@ add_library(xymonclientcomm STATIC
 set_target_properties(xymonclientcomm PROPERTIES
     OUTPUT_NAME xymonclientcomm
 )
+target_compile_definitions(xymonclientcomm PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
 
 if(XYMON_BUILD_SERVER)
     # ----------------------------------------------------------------------

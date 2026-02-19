@@ -135,7 +135,7 @@
 /var/lib/xymon/server/bin/xymond_history	/server/bin/xymond_history	f	755	1001	1001	393176	
 /var/lib/xymon/server/bin/xymond_hostdata	/server/bin/xymond_hostdata	f	755	1001	1001	358488	
 /var/lib/xymon/server/bin/xymond_locator	/server/bin/xymond_locator	f	755	1001	1001	316144	
-/var/lib/xymon/server/bin/xymond_rrd	/server/bin/xymond_rrd	f	755	1001	1001	1303488	
+/var/lib/xymon/server/bin/xymond_rrd	/server/bin/xymond_rrd	f	755	1001	1001	1303512	
 /var/lib/xymon/server/bin/xymond_sample	/server/bin/xymond_sample	f	755	1001	1001	345184	
 /var/lib/xymon/server/bin/xymondigest	/server/bin/xymondigest	f	755	1001	1001	359760	
 /var/lib/xymon/server/bin/xymonfetch	/server/bin/xymonfetch	f	755	1001	1001	547432	

@@ -12,7 +12,7 @@
 #define __MATCHING_H__
 
 /* The clients probably don't have the pcre headers */
-#if defined(LOCALCLIENT) || !defined(CLIENTONLY)
+#if (defined(LOCALCLIENT) && (LOCALCLIENT)) || !defined(CLIENTONLY)
 #include <pcre.h>
 #include <stdarg.h>
 
