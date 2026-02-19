@@ -260,6 +260,25 @@ bsd_pkg_installed() {
   esac
 }
 
+bsd_pkg_available() {
+  local pkgmgr="${1:-}"
+  local pkg="${2:-}"
+  case "${pkgmgr}" in
+    pkg)
+      /usr/sbin/pkg search -q "^${pkg}$" >/dev/null 2>&1
+      ;;
+    pkgin)
+      /usr/pkg/bin/pkgin search "^${pkg}$" 2>/dev/null | grep -q .
+      ;;
+    pkg_add)
+      /usr/sbin/pkg_add -n "${pkg}" >/dev/null 2>&1
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 bsd_prepare_netbsd_pkg_environment() {
   local netbsd_arch=""
   local netbsd_pkg_ver=""

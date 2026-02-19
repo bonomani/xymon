@@ -34,6 +34,12 @@ pkg_pkg_installed() {
   bsd_pkg_installed pkg "$1"
 }
 
+pkg_pkg_available() {
+  bsd_pkg_available pkg "$1"
+}
+
+ci_deps_resolve_package_alternatives pkg_pkg_installed pkg_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit pkg_pkg_installed
 ci_deps_mode_install_print

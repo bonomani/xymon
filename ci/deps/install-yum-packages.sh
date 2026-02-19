@@ -32,9 +32,9 @@ yum_pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1
 }
 
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit yum_pkg_installed
-ci_deps_mode_install_print
+yum_pkg_available() {
+  yum -q "${YUM_OPTS[@]}" list available "$1" >/dev/null 2>&1
+}
 
 YUM_OPTS=()
 if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
@@ -68,10 +68,21 @@ EOF
   )
 fi
 
-echo "=== Install (Linux packages) ==="
-if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
-  if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
-    YUM_OPTS+=(--enablerepo=epel)
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+  if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
+    if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
+      YUM_OPTS+=(--enablerepo=epel)
+    fi
   fi
 fi
-ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "${PKGS[@]}"
+
+ci_deps_resolve_package_alternatives yum_pkg_installed yum_pkg_available
+
+ci_deps_mode_print_or_exit
+ci_deps_mode_check_or_exit yum_pkg_installed
+ci_deps_mode_install_print
+
+if [[ "${mode}" == "install" ]]; then
+  ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "${PKGS[@]}"
+fi

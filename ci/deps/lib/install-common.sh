@@ -132,6 +132,78 @@ ci_deps_resolve_packages() {
   fi
 }
 
+ci_deps_trim() {
+  local val="${1:-}"
+  val="${val#"${val%%[![:space:]]*}"}"
+  val="${val%"${val##*[![:space:]]}"}"
+  printf '%s' "${val}"
+}
+
+ci_deps_resolve_package_alternatives() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local spec=""
+  local cand=""
+  local first=""
+  local chosen=""
+  local -a resolved=()
+  local -a candidates=()
+
+  if [[ -z "${installed_fn}" ]]; then
+    echo "Missing installed-check callback for alternative package resolution" >&2
+    exit 2
+  fi
+
+  for spec in "${PKGS[@]}"; do
+    if [[ "${spec}" != *"|"* ]]; then
+      resolved+=("${spec}")
+      continue
+    fi
+
+    IFS='|' read -r -a candidates <<< "${spec}"
+    first=""
+    chosen=""
+
+    for cand in "${candidates[@]}"; do
+      cand="$(ci_deps_trim "${cand}")"
+      [[ -z "${cand}" ]] && continue
+      if [[ -z "${first}" ]]; then
+        first="${cand}"
+      fi
+      if "${installed_fn}" "${cand}"; then
+        chosen="${cand}"
+        break
+      fi
+    done
+
+    if [[ -z "${chosen}" && -n "${available_fn}" ]]; then
+      for cand in "${candidates[@]}"; do
+        cand="$(ci_deps_trim "${cand}")"
+        [[ -z "${cand}" ]] && continue
+        if "${available_fn}" "${cand}"; then
+          chosen="${cand}"
+          break
+        fi
+      done
+    fi
+
+    if [[ -z "${chosen}" ]]; then
+      chosen="${first}"
+    fi
+    if [[ -z "${chosen}" ]]; then
+      echo "Invalid alternative package expression: '${spec}'" >&2
+      exit 2
+    fi
+
+    if [[ "${chosen}" != "${spec}" ]]; then
+      echo "Resolved package alternative '${spec}' -> '${chosen}'"
+    fi
+    resolved+=("${chosen}")
+  done
+
+  PKGS=("${resolved[@]}")
+}
+
 ci_deps_mode_print_or_exit() {
   if [[ "${mode}" == "print" ]]; then
     printf '%s\n' "${PKGS[@]}"

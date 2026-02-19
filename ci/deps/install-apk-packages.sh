@@ -32,6 +32,12 @@ apk_pkg_installed() {
   apk info -e "$1" >/dev/null 2>&1
 }
 
+apk_pkg_available() {
+  apk search -x "$1" >/dev/null 2>&1
+}
+
+ci_deps_resolve_package_alternatives apk_pkg_installed apk_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit apk_pkg_installed
 ci_deps_mode_install_print

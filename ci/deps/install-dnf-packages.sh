@@ -32,21 +32,32 @@ dnf_pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1
 }
 
+dnf_pkg_available() {
+  dnf -q list --available "$1" >/dev/null 2>&1
+}
+
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+
+  ci_deps_as_root dnf -y install dnf-plugins-core
+  if [[ "${os_name}" == "rockylinux" || "${os_name}" == "almalinux" ]]; then
+    if [[ "${version}" == "8" ]]; then
+      ci_deps_as_root dnf config-manager --set-enabled powertools || true
+    elif [[ "${version}" == "9" ]]; then
+      ci_deps_as_root dnf config-manager --set-enabled crb || true
+    fi
+  fi
+  ci_deps_as_root dnf -y install epel-release || true
+  ci_deps_as_root dnf clean all
+  ci_deps_as_root dnf -y makecache
+fi
+
+ci_deps_resolve_package_alternatives dnf_pkg_installed dnf_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit dnf_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (Linux packages) ==="
-
-ci_deps_as_root dnf -y install dnf-plugins-core
-if [[ "${os_name}" == "rockylinux" || "${os_name}" == "almalinux" ]]; then
-  if [[ "${version}" == "8" ]]; then
-    ci_deps_as_root dnf config-manager --set-enabled powertools || true
-  elif [[ "${version}" == "9" ]]; then
-    ci_deps_as_root dnf config-manager --set-enabled crb || true
-  fi
+if [[ "${mode}" == "install" ]]; then
+  ci_deps_as_root dnf -y install "${PKGS[@]}"
 fi
-ci_deps_as_root dnf -y install epel-release || true
-ci_deps_as_root dnf clean all
-ci_deps_as_root dnf -y makecache
-ci_deps_as_root dnf -y install "${PKGS[@]}"

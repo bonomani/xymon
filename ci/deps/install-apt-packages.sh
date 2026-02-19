@@ -32,11 +32,24 @@ apt_pkg_installed() {
   dpkg -s "$1" >/dev/null 2>&1
 }
 
+apt_pkg_available() {
+  local candidate=""
+  candidate="$(apt-cache policy "$1" 2>/dev/null | awk '/Candidate:/ { print $2; exit }')"
+  [[ -n "${candidate}" && "${candidate}" != "(none)" ]]
+}
+
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+  ci_deps_as_root apt-get update
+fi
+
+ci_deps_resolve_package_alternatives apt_pkg_installed apt_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit apt_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (Linux packages) ==="
-ci_deps_as_root apt-get update
-ci_deps_as_root apt-get install -y --no-install-recommends \
-  "${PKGS[@]}"
+if [[ "${mode}" == "install" ]]; then
+  ci_deps_as_root apt-get install -y --no-install-recommends \
+    "${PKGS[@]}"
+fi

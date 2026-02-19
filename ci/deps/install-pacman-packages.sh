@@ -32,10 +32,21 @@ pacman_pkg_installed() {
   pacman -Q "$1" >/dev/null 2>&1
 }
 
+pacman_pkg_available() {
+  pacman -Si "$1" >/dev/null 2>&1
+}
+
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+  ci_deps_as_root pacman -Sy --noconfirm archlinux-keyring
+fi
+
+ci_deps_resolve_package_alternatives pacman_pkg_installed pacman_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit pacman_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (Linux packages) ==="
-ci_deps_as_root pacman -Sy --noconfirm archlinux-keyring
-ci_deps_as_root pacman -Syu --noconfirm "${PKGS[@]}"
+if [[ "${mode}" == "install" ]]; then
+  ci_deps_as_root pacman -Syu --noconfirm "${PKGS[@]}"
+fi

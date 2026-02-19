@@ -32,10 +32,21 @@ zypper_pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1
 }
 
+zypper_pkg_available() {
+  zypper --non-interactive info "$1" >/dev/null 2>&1
+}
+
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+  ci_deps_as_root zypper --non-interactive refresh
+fi
+
+ci_deps_resolve_package_alternatives zypper_pkg_installed zypper_pkg_available
+
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit zypper_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (Linux packages) ==="
-ci_deps_as_root zypper --non-interactive refresh
-ci_deps_as_root zypper --non-interactive install "${PKGS[@]}"
+if [[ "${mode}" == "install" ]]; then
+  ci_deps_as_root zypper --non-interactive install "${PKGS[@]}"
+fi

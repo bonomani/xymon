@@ -52,16 +52,16 @@ map:
   PCRE:
     gh-debian:
       ubuntu_latest:
-        apt: [libpcre3-dev, libpcre2-dev]
+        apt: [libpcre3-dev|libpcre2-dev]
     debian:
       ubuntu_local:
-        apt: [libpcre3-dev, libpcre2-dev]
+        apt: [libpcre3-dev|libpcre2-dev]
       debian_bookworm:
-        apt: [libpcre3-dev, libpcre2-dev]
+        apt: [libpcre3-dev|libpcre2-dev]
       debian_bullseye:
-        apt: [libpcre3-dev, libpcre2-dev]
+        apt: [libpcre3-dev|libpcre2-dev]
       debian_13:
-        apt: [libpcre3-dev, libpcre2-dev]
+        apt: [libpcre3-dev|libpcre2-dev]
     rpm:
       rockylinux_9:
         dnf: [pcre-devel, pcre2-devel]
