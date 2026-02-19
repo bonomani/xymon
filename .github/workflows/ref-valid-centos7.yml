@@ -44,6 +44,30 @@ jobs:
       CMAKE_BIN: ${{ matrix.cmake_bin }}
 
     steps:
+      - name: Configure CentOS 7 vault repositories
+        shell: sh
+        run: |
+          set -eu
+          cat >/etc/yum.repos.d/centos7-vault.repo <<'EOF'
+          [centos7-vault-base]
+          name=CentOS 7 Vault Base
+          baseurl=http://vault.centos.org/7.9.2009/os/$basearch/
+          enabled=1
+          gpgcheck=0
+
+          [centos7-vault-updates]
+          name=CentOS 7 Vault Updates
+          baseurl=http://vault.centos.org/7.9.2009/updates/$basearch/
+          enabled=1
+          gpgcheck=0
+
+          [centos7-vault-extras]
+          name=CentOS 7 Vault Extras
+          baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
+          enabled=1
+          gpgcheck=0
+          EOF
+
       - name: Prepare checkout tools in container
         shell: sh
         run: |
@@ -66,7 +90,12 @@ jobs:
           elif command -v dnf >/dev/null 2>&1; then
             dnf -y install tar git gawk ca-certificates
           elif command -v yum >/dev/null 2>&1; then
-            yum -y install tar git gawk ca-certificates
+            yum -y \
+              --disablerepo='*' \
+              --enablerepo=centos7-vault-base \
+              --enablerepo=centos7-vault-updates \
+              --enablerepo=centos7-vault-extras \
+              install tar git gawk ca-certificates
           elif command -v pacman >/dev/null 2>&1; then
             pacman -Sy --noconfirm archlinux-keyring || true
             pacman -S --noconfirm tar git gawk ca-certificates
