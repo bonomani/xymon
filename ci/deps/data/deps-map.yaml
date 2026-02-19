@@ -64,38 +64,38 @@ map:
         apt: [libpcre3-dev|libpcre2-dev]
     rpm:
       rockylinux_9:
-        dnf: [pcre-devel, pcre2-devel]
+        dnf: [pcre-devel|pcre2-devel]
       almalinux_9:
-        dnf: [pcre-devel, pcre2-devel]
+        dnf: [pcre-devel|pcre2-devel]
       centos_7:
-        yum: [pcre-devel]
+        yum: [pcre-devel|pcre2-devel]
       fedora_40:
-        dnf: [pcre-devel, pcre2-devel]
+        dnf: [pcre-devel|pcre2-devel]
     suse:
       opensuse_tumbleweed_latest:
-        zypper: [pcre2-devel]
+        zypper: [pcre-devel|pcre2-devel]
       opensuse_leap_16_0:
-        zypper: [pcre2-devel]
+        zypper: [pcre-devel|pcre2-devel]
       opensuse_leap_15_6:
-        zypper: [pcre2-devel]
+        zypper: [pcre-devel|pcre2-devel]
       opensuse_leap_15_5:
-        zypper: [pcre2-devel]
+        zypper: [pcre-devel|pcre2-devel]
     alpine:
       alpine_3:
-        apk: [pcre-dev]
+        apk: [pcre-dev|pcre2-dev]
     arch:
       archlinux_latest:
-        pacman: [pcre]
+        pacman: [pcre|pcre2]
     macos:
       macos_latest:
-        brew: [pcre]
+        brew: [pcre|pcre2]
     bsd:
       freebsd:
-        pkg: [pcre]
+        pkg: [pcre|pcre2]
       netbsd:
-        pkg_add: [pcre]
+        pkg_add: [pcre|pcre2]
       openbsd:
-        pkg_add: [pcre]
+        pkg_add: [pcre|pcre2]
 
   RRD:
     gh-debian:
