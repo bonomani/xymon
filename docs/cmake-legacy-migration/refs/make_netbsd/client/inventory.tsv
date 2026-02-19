@@ -2,7 +2,7 @@
 /var/lib/xymon/bin	/bin	d	755	1001	1001	1152	
 /var/lib/xymon/bin/clientupdate	/bin/clientupdate	f	755	1001	1001	333776	
 /var/lib/xymon/bin/logfetch	/bin/logfetch	f	755	1001	1001	443376	
-/var/lib/xymon/bin/msgcache	/bin/msgcache	f	755	1001	1001	281928	
+/var/lib/xymon/bin/msgcache	/bin/msgcache	f	755	1001	1001	281952	
 /var/lib/xymon/bin/netbsd-meminfo	/bin/netbsd-meminfo	f	755	1001	1001	17928	
 /var/lib/xymon/bin/orcaxymon	/bin/orcaxymon	f	755	1001	1001	319720	
 /var/lib/xymon/bin/xymon	/bin/xymon	f	755	1001	1001	327384	
