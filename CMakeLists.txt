@@ -227,14 +227,12 @@ else()
     message(FATAL_ERROR "XYMON_VARIANT must be server or client")
 endif()
 
-set(XYMON_CLIENT_LOCALCLIENT 0)
-if(LOCALCLIENT)
-    set(XYMON_CLIENT_LOCALCLIENT 1)
-endif()
 set(XYMON_CLIENT_COMPILE_DEFINITIONS
     CLIENTONLY=1
-    LOCALCLIENT=${XYMON_CLIENT_LOCALCLIENT}
 )
+if(LOCALCLIENT)
+    list(APPEND XYMON_CLIENT_COMPILE_DEFINITIONS LOCALCLIENT=1)
+endif()
 
 # Legacy Makefile client-only layout installs directly under XYMONTOPDIR
 # (bin/, etc/, ...), while server builds use the split server/client tree.
