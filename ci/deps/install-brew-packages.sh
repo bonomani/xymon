@@ -36,11 +36,16 @@ brew_pkg_available() {
   brew info --formula "$1" >/dev/null 2>&1
 }
 
+brew_install_one() {
+  brew install "$1"
+}
+
 if [[ "${mode}" == "install" ]]; then
   echo "=== Install (Homebrew packages) ==="
   brew update
 fi
 
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives brew_pkg_installed brew_pkg_available
 
 ci_deps_mode_print_or_exit
@@ -48,5 +53,7 @@ ci_deps_mode_check_or_exit brew_pkg_installed
 ci_deps_mode_install_print
 
 if [[ "${mode}" == "install" ]]; then
-  brew install "${PKGS[@]}"
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    brew_pkg_installed brew_pkg_available brew_install_one
 fi

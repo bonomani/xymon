@@ -36,11 +36,16 @@ zypper_pkg_available() {
   zypper --non-interactive info "$1" >/dev/null 2>&1
 }
 
+zypper_install_one() {
+  ci_deps_as_root zypper --non-interactive install "$1"
+}
+
 if [[ "${mode}" == "install" ]]; then
   echo "=== Install (Linux packages) ==="
   ci_deps_as_root zypper --non-interactive refresh
 fi
 
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives zypper_pkg_installed zypper_pkg_available
 
 ci_deps_mode_print_or_exit
@@ -48,5 +53,7 @@ ci_deps_mode_check_or_exit zypper_pkg_installed
 ci_deps_mode_install_print
 
 if [[ "${mode}" == "install" ]]; then
-  ci_deps_as_root zypper --non-interactive install "${PKGS[@]}"
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    zypper_pkg_installed zypper_pkg_available zypper_install_one
 fi

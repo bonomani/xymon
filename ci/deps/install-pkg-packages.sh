@@ -38,11 +38,20 @@ pkg_pkg_available() {
   bsd_pkg_available pkg "$1"
 }
 
+pkg_install_one() {
+  ci_deps_as_root env ASSUME_ALWAYS_YES=YES pkg install "$1"
+}
+
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives pkg_pkg_installed pkg_pkg_available
 
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit pkg_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (BSD pkg packages) ==="
-ci_deps_as_root env ASSUME_ALWAYS_YES=YES pkg install "${PKGS[@]}"
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (BSD pkg packages) ==="
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    pkg_pkg_installed pkg_pkg_available pkg_install_one
+fi

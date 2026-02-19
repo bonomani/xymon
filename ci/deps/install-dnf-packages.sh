@@ -36,6 +36,10 @@ dnf_pkg_available() {
   dnf -q list --available "$1" >/dev/null 2>&1
 }
 
+dnf_install_one() {
+  ci_deps_as_root dnf -y install "$1"
+}
+
 if [[ "${mode}" == "install" ]]; then
   echo "=== Install (Linux packages) ==="
 
@@ -52,6 +56,7 @@ if [[ "${mode}" == "install" ]]; then
   ci_deps_as_root dnf -y makecache
 fi
 
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives dnf_pkg_installed dnf_pkg_available
 
 ci_deps_mode_print_or_exit
@@ -59,5 +64,7 @@ ci_deps_mode_check_or_exit dnf_pkg_installed
 ci_deps_mode_install_print
 
 if [[ "${mode}" == "install" ]]; then
-  ci_deps_as_root dnf -y install "${PKGS[@]}"
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    dnf_pkg_installed dnf_pkg_available dnf_install_one
 fi

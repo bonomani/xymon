@@ -38,11 +38,16 @@ apt_pkg_available() {
   [[ -n "${candidate}" && "${candidate}" != "(none)" ]]
 }
 
+apt_install_one() {
+  ci_deps_as_root apt-get install -y --no-install-recommends "$1"
+}
+
 if [[ "${mode}" == "install" ]]; then
   echo "=== Install (Linux packages) ==="
   ci_deps_as_root apt-get update
 fi
 
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives apt_pkg_installed apt_pkg_available
 
 ci_deps_mode_print_or_exit
@@ -50,6 +55,7 @@ ci_deps_mode_check_or_exit apt_pkg_installed
 ci_deps_mode_install_print
 
 if [[ "${mode}" == "install" ]]; then
-  ci_deps_as_root apt-get install -y --no-install-recommends \
-    "${PKGS[@]}"
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    apt_pkg_installed apt_pkg_available apt_install_one
 fi

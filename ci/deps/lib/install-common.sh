@@ -204,6 +204,71 @@ ci_deps_resolve_package_alternatives() {
   PKGS=("${resolved[@]}")
 }
 
+ci_deps_install_packages_with_alternatives() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local install_fn="${3:-}"
+  local spec=""
+  local pkg=""
+  local success=0
+  local -a candidates=()
+
+  if [[ -z "${installed_fn}" ]]; then
+    echo "Missing installed-check callback for alternative package install" >&2
+    exit 2
+  fi
+  if [[ -z "${install_fn}" ]]; then
+    echo "Missing install callback for alternative package install" >&2
+    exit 2
+  fi
+
+  for spec in "${PKGS[@]}"; do
+    if [[ "${spec}" != *"|"* ]]; then
+      pkg="$(ci_deps_trim "${spec}")"
+      [[ -z "${pkg}" ]] && continue
+      if "${installed_fn}" "${pkg}"; then
+        continue
+      fi
+      if "${install_fn}" "${pkg}"; then
+        continue
+      fi
+      echo "Failed to install package '${pkg}'" >&2
+      return 1
+    fi
+
+    IFS='|' read -r -a candidates <<< "${spec}"
+    success=0
+
+    for pkg in "${candidates[@]}"; do
+      pkg="$(ci_deps_trim "${pkg}")"
+      [[ -z "${pkg}" ]] && continue
+
+      if "${installed_fn}" "${pkg}"; then
+        success=1
+        break
+      fi
+
+      if [[ -n "${available_fn}" ]] && ! "${available_fn}" "${pkg}"; then
+        echo "Alternative '${pkg}' is not available, trying next for '${spec}'"
+        continue
+      fi
+
+      echo "Trying package alternative '${pkg}' for '${spec}'"
+      if "${install_fn}" "${pkg}"; then
+        success=1
+        break
+      fi
+
+      echo "Install failed for alternative '${pkg}', trying next for '${spec}'"
+    done
+
+    if [[ "${success}" != "1" ]]; then
+      echo "Failed to install any package alternative for '${spec}'" >&2
+      return 1
+    fi
+  done
+}
+
 ci_deps_mode_print_or_exit() {
   if [[ "${mode}" == "print" ]]; then
     printf '%s\n' "${PKGS[@]}"

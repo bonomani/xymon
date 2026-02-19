@@ -36,6 +36,10 @@ yum_pkg_available() {
   yum -q "${YUM_OPTS[@]}" list available "$1" >/dev/null 2>&1
 }
 
+yum_install_one() {
+  ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "$1"
+}
+
 YUM_OPTS=()
 if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
   vault_repo_tmp="$(mktemp)"
@@ -77,6 +81,7 @@ if [[ "${mode}" == "install" ]]; then
   fi
 fi
 
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives yum_pkg_installed yum_pkg_available
 
 ci_deps_mode_print_or_exit
@@ -84,5 +89,7 @@ ci_deps_mode_check_or_exit yum_pkg_installed
 ci_deps_mode_install_print
 
 if [[ "${mode}" == "install" ]]; then
-  ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "${PKGS[@]}"
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    yum_pkg_installed yum_pkg_available yum_install_one
 fi

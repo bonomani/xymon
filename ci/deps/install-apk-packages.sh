@@ -36,11 +36,20 @@ apk_pkg_available() {
   apk search -x "$1" >/dev/null 2>&1
 }
 
+apk_install_one() {
+  ci_deps_as_root apk add --no-cache "$1"
+}
+
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives apk_pkg_installed apk_pkg_available
 
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit apk_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (Linux packages) ==="
-ci_deps_as_root apk add --no-cache "${PKGS[@]}"
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (Linux packages) ==="
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    apk_pkg_installed apk_pkg_available apk_install_one
+fi

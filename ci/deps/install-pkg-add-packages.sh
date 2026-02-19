@@ -38,11 +38,30 @@ pkg_add_pkg_available() {
   bsd_pkg_available pkg_add "$1"
 }
 
+pkg_add_install_one() {
+  local pkg="${1:-}"
+  local rc=0
+  local -a saved_pkgs=("${PKGS[@]}")
+
+  PKGS=("${pkg}")
+  if ! bsd_install_pkg_add; then
+    rc=$?
+  fi
+
+  PKGS=("${saved_pkgs[@]}")
+  return "${rc}"
+}
+
+PKG_SPECS=("${PKGS[@]}")
 ci_deps_resolve_package_alternatives pkg_add_pkg_installed pkg_add_pkg_available
 
 ci_deps_mode_print_or_exit
 ci_deps_mode_check_or_exit pkg_add_pkg_installed
 ci_deps_mode_install_print
 
-echo "=== Install (BSD pkg_add packages) ==="
-bsd_install_pkg_add
+if [[ "${mode}" == "install" ]]; then
+  echo "=== Install (BSD pkg_add packages) ==="
+  PKGS=("${PKG_SPECS[@]}")
+  ci_deps_install_packages_with_alternatives \
+    pkg_add_pkg_installed pkg_add_pkg_available pkg_add_install_one
+fi
