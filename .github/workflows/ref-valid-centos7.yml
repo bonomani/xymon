@@ -104,10 +104,29 @@ jobs:
             exit 2
           fi
 
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
+      - name: Checkout (git, no Node action)
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          set -eu
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          workdir="${GITHUB_WORKSPACE}"
+          if [ -z "${workdir}" ]; then
+            echo "GITHUB_WORKSPACE is not set" >&2
+            exit 1
+          fi
+
+          mkdir -p "${workdir}"
+          cd "${workdir}"
+          rm -rf .git
+          git init .
+          git remote add origin "${repo_url}"
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
+            git config http."${GITHUB_SERVER_URL}/".extraheader "AUTHORIZATION: bearer ${GITHUB_TOKEN}"
+          fi
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
 
       - name: Load legacy hostname (runs for each matrix variant)
         shell: bash
