@@ -120,7 +120,7 @@ unset(XYMON_PCRE_LIBRARY CACHE)
 unset(XYMON_PCRE_LIBRARY)
 if(XYMON_REQUIRE_PCRE)
     find_library(XYMON_PCRE_LIBRARY
-        NAMES pcre pcre2-8 pcre2
+        NAMES pcre2-8 pcre2
         PATHS
             /usr/pkg/lib
             /usr/local/lib
@@ -134,7 +134,7 @@ if(XYMON_REQUIRE_PCRE)
             add_compile_definitions(PCRE2)
         endif()
     else()
-        message(FATAL_ERROR "PCRE library not found (tried pcre, pcre2-8, pcre2)")
+        message(FATAL_ERROR "PCRE2 library not found (tried pcre2-8, pcre2)")
     endif()
 endif()
 
