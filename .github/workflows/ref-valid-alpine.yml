@@ -36,21 +36,21 @@ jobs:
             variant: client
             allow_failure: false
           - name: Alpine 3.23 - Server (arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
             variant: server
             allow_failure: false
           - name: Alpine 3.23 - Client (ct-client, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
             variant: localclient
             allow_failure: false
           - name: Alpine 3.23 - Client (ct-server, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
@@ -78,21 +78,21 @@ jobs:
             variant: client
             allow_failure: false
           - name: Alpine 3.22 - Server (arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: server
             allow_failure: false
           - name: Alpine 3.22 - Client (ct-client, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: localclient
             allow_failure: false
           - name: Alpine 3.22 - Client (ct-server, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
@@ -120,21 +120,21 @@ jobs:
             variant: client
             allow_failure: true
           - name: Alpine 3.21 - Server (arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
             variant: server
             allow_failure: true
           - name: Alpine 3.21 - Client (ct-client, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
             variant: localclient
             allow_failure: true
           - name: Alpine 3.21 - Client (ct-server, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
@@ -204,21 +204,21 @@ jobs:
             variant: client
             allow_failure: true
           - name: Alpine edge - Server (arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/arm64/v8
             alpine_version: "edge"
             variant: server
             allow_failure: true
           - name: Alpine edge - Client (ct-client, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/arm64/v8
             alpine_version: "edge"
             variant: localclient
             allow_failure: true
           - name: Alpine edge - Client (ct-server, arm64)
-            runs_on: ubuntu-24.04-arm
+            runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/arm64/v8
             alpine_version: "edge"
