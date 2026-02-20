@@ -1,0 +1,338 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+CI_DEPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+
+ci_deps_enable_trace() {
+  if [[ -n "${CI:-}" || -n "${DEBUG:-}" ]]; then
+    set -x
+  fi
+}
+
+ci_deps_init_cli() {
+  mode="install"
+  print_list="0"
+  family=""
+  os_name=""
+  version=""
+}
+
+ci_deps_parse_cli() {
+  local require_family="${1:-1}"
+  local require_os="${2:-1}"
+  shift 2 || true
+
+  while [[ $# -gt 0 ]]; do
+    case "$1" in
+      --print)
+        print_list="1"
+        if [[ "${mode}" == "install" ]]; then
+          mode="print"
+        fi
+        shift
+        ;;
+      --check-only)
+        mode="check"
+        shift
+        ;;
+      --install)
+        mode="install"
+        shift
+        ;;
+      --family)
+        family="$2"
+        shift 2
+        ;;
+      --os)
+        os_name="$2"
+        shift 2
+        ;;
+      --version)
+        version="$2"
+        shift 2
+        ;;
+      -h|--help)
+        usage
+        exit 0
+        ;;
+      *)
+        echo "Unknown argument: $1" >&2
+        usage
+        exit 1
+        ;;
+    esac
+  done
+
+  if [[ "${require_family}" == "1" && -z "${family}" ]]; then
+    echo "Missing required --family flag." >&2
+    usage
+    exit 2
+  fi
+
+  if [[ "${require_os}" == "1" && -z "${os_name}" ]]; then
+    echo "Missing required --os flag." >&2
+    usage
+    exit 2
+  fi
+}
+
+ci_deps_setup_variant_defaults() {
+  ENABLE_LDAP="${ENABLE_LDAP:-ON}"
+  ENABLE_SNMP="${ENABLE_SNMP:-ON}"
+  VARIANT="${VARIANT:-server}"
+  DEPS_VARIANT="${VARIANT}"
+  case "${VARIANT}" in
+    server|client|localclient)
+      ;;
+    *)
+      echo "Unsupported VARIANT: ${VARIANT}" >&2
+      exit 2
+      ;;
+  esac
+
+  CI_COMPILER="${CI_COMPILER:-}"
+}
+
+ci_deps_build_os_key() {
+  os_key="${os_name}"
+  if [[ -n "${version}" ]]; then
+    os_key="${os_name}_${version}"
+  fi
+}
+
+ci_deps_resolve_packages() {
+  local pkgmgr="$1"
+  local family_key="$2"
+  local os_key="$3"
+  local apply_ci_compiler="${4:-1}"
+  local packages_output=""
+
+  packages_output="$(
+    "${CI_DEPS_DIR}/packages-from-yaml.sh" \
+      --variant "${DEPS_VARIANT}" \
+      --family "${family_key}" \
+      --os "${os_key}" \
+      --pkgmgr "${pkgmgr}" \
+      --enable-ldap "${ENABLE_LDAP}" \
+      --enable-snmp "${ENABLE_SNMP}"
+  )"
+
+  PKGS=()
+  while IFS= read -r pkg; do
+    [[ -n "${pkg}" ]] && PKGS+=("${pkg}")
+  done <<< "${packages_output}"
+
+  if [[ "${#PKGS[@]}" -eq 0 ]]; then
+    echo "No packages resolved for variant=${DEPS_VARIANT} family=${family_key} os=${os_key} pkgmgr=${pkgmgr}" >&2
+    exit 1
+  fi
+
+  if [[ "${apply_ci_compiler}" == "1" && "${CI_COMPILER}" == "clang" ]]; then
+    PKGS+=(clang)
+  fi
+}
+
+ci_deps_trim() {
+  local val="${1:-}"
+  val="${val#"${val%%[![:space:]]*}"}"
+  val="${val%"${val##*[![:space:]]}"}"
+  printf '%s' "${val}"
+}
+
+ci_deps_parse_alternative_candidates() {
+  local spec="${1:-}"
+  local cand=""
+  local -a raw=()
+
+  IFS='|' read -r -a raw <<< "${spec}"
+  for cand in "${raw[@]}"; do
+    cand="$(ci_deps_trim "${cand}")"
+    [[ -n "${cand}" ]] && printf '%s\n' "${cand}"
+  done
+}
+
+# Resolve alternative expressions (e.g. "pcre|pcre2") to a single package
+# for list/check flows. This does not perform retries and is intentionally
+# deterministic for print/check output.
+ci_deps_resolve_package_alternatives() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local spec=""
+  local cand=""
+  local first=""
+  local chosen=""
+  local -a resolved=()
+  local -a candidates=()
+
+  if [[ -z "${installed_fn}" ]]; then
+    echo "Missing installed-check callback for alternative package resolution" >&2
+    exit 2
+  fi
+
+  for spec in "${PKGS[@]}"; do
+    if [[ "${spec}" != *"|"* ]]; then
+      resolved+=("${spec}")
+      continue
+    fi
+
+    candidates=()
+    while IFS= read -r cand; do
+      candidates+=("${cand}")
+    done < <(ci_deps_parse_alternative_candidates "${spec}")
+
+    first=""
+    chosen=""
+
+    for cand in "${candidates[@]}"; do
+      if [[ -z "${first}" ]]; then
+        first="${cand}"
+      fi
+      if "${installed_fn}" "${cand}"; then
+        chosen="${cand}"
+        break
+      fi
+    done
+
+    if [[ -z "${chosen}" && -n "${available_fn}" ]]; then
+      for cand in "${candidates[@]}"; do
+        if "${available_fn}" "${cand}"; then
+          chosen="${cand}"
+          break
+        fi
+      done
+    fi
+
+    if [[ -z "${chosen}" ]]; then
+      chosen="${first}"
+    fi
+    if [[ -z "${chosen}" ]]; then
+      echo "Invalid alternative package expression: '${spec}'" >&2
+      exit 2
+    fi
+
+    if [[ "${chosen}" != "${spec}" ]]; then
+      echo "Resolved package alternative '${spec}' -> '${chosen}'"
+    fi
+    resolved+=("${chosen}")
+  done
+
+  PKGS=("${resolved[@]}")
+}
+
+# Install packages with real fallback retries for alternative expressions.
+# For "pkg1|pkg2", installation attempts pkg1 first, then pkg2, while
+# honoring installed/available callbacks when provided.
+ci_deps_install_packages_with_alternatives() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local install_fn="${3:-}"
+  local spec=""
+  local pkg=""
+  local success=0
+  local -a candidates=()
+
+  if [[ -z "${installed_fn}" ]]; then
+    echo "Missing installed-check callback for alternative package install" >&2
+    exit 2
+  fi
+  if [[ -z "${install_fn}" ]]; then
+    echo "Missing install callback for alternative package install" >&2
+    exit 2
+  fi
+
+  for spec in "${PKGS[@]}"; do
+    if [[ "${spec}" != *"|"* ]]; then
+      pkg="$(ci_deps_trim "${spec}")"
+      [[ -z "${pkg}" ]] && continue
+      if "${installed_fn}" "${pkg}"; then
+        continue
+      fi
+      if "${install_fn}" "${pkg}"; then
+        continue
+      fi
+      echo "Failed to install package '${pkg}'" >&2
+      return 1
+    fi
+
+    candidates=()
+    while IFS= read -r pkg; do
+      candidates+=("${pkg}")
+    done < <(ci_deps_parse_alternative_candidates "${spec}")
+
+    success=0
+
+    for pkg in "${candidates[@]}"; do
+      if "${installed_fn}" "${pkg}"; then
+        success=1
+        break
+      fi
+
+      if [[ -n "${available_fn}" ]] && ! "${available_fn}" "${pkg}"; then
+        echo "Alternative '${pkg}' is not available, trying next for '${spec}'"
+        continue
+      fi
+
+      echo "Trying package alternative '${pkg}' for '${spec}'"
+      if "${install_fn}" "${pkg}"; then
+        success=1
+        break
+      fi
+
+      echo "Install failed for alternative '${pkg}', trying next for '${spec}'"
+    done
+
+    if [[ "${success}" != "1" ]]; then
+      echo "Failed to install any package alternative for '${spec}'" >&2
+      return 1
+    fi
+  done
+}
+
+ci_deps_mode_print_or_exit() {
+  if [[ "${mode}" == "print" ]]; then
+    printf '%s\n' "${PKGS[@]}"
+    exit 0
+  fi
+}
+
+ci_deps_mode_check_or_exit() {
+  local check_fn="${1:-}"
+  local missing=0
+  local missing_pkgs=()
+  local pkg=""
+
+  if [[ "${mode}" != "check" ]]; then
+    return 0
+  fi
+
+  if [[ -z "${check_fn}" ]]; then
+    echo "Missing package check callback function" >&2
+    exit 2
+  fi
+
+  for pkg in "${PKGS[@]}"; do
+    if ! "${check_fn}" "${pkg}"; then
+      missing=1
+      missing_pkgs+=("${pkg}")
+    fi
+  done
+
+  if [[ "${print_list}" == "1" && "${missing}" == "1" ]]; then
+    printf '%s\n' "${missing_pkgs[@]}"
+  fi
+  exit "${missing}"
+}
+
+ci_deps_mode_install_print() {
+  if [[ "${mode}" == "install" && "${print_list}" == "1" ]]; then
+    printf '%s\n' "${PKGS[@]}"
+  fi
+}
+
+ci_deps_as_root() {
+  if command -v sudo >/dev/null 2>&1; then
+    sudo "$@"
+  else
+    "$@"
+  fi
+}

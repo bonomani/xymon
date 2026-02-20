@@ -1,0 +1,45 @@
+name: Reference Validation - Trigger All
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_ref:
+        description: Branch or tag to run the validation workflows on
+        required: true
+        default: cmake/bootstrap
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  trigger-ref-validation:
+    name: trigger / ${{ matrix.workflow }}
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        workflow:
+          - ref-valid-alpine.yml
+          - ref-valid-archlinux.yml
+          - ref-valid-centos7.yml
+          - ref-valid-debian.yml
+          - ref-valid-freebsd.yml
+          - ref-valid-macos.yml
+          - ref-valid-netbsd.yml
+          - ref-valid-openbsd.yml
+          - ref-valid-opensuse.yml
+          - ref-valid-rpm.yml
+          - ref-valid-ubuntu.yml
+    steps:
+      - name: Dispatch ${{ matrix.workflow }}
+        uses: actions/github-script@v7
+        with:
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: '${{ matrix.workflow }}',
+              ref: '${{ inputs.source_ref }}'
+            });
+            core.info('Dispatched ${{ matrix.workflow }} on ref ${{ inputs.source_ref }}');
