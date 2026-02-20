@@ -117,10 +117,11 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
-set(XYMON_PCRE_LIBRARY "")
+unset(XYMON_PCRE_LIBRARY CACHE)
+unset(XYMON_PCRE_LIBRARY)
 if(XYMON_REQUIRE_PCRE)
     find_library(XYMON_PCRE_LIBRARY
-        NAMES pcre pcre2-8 pcre2
+        NAMES pcre2-8 pcre2
         PATHS
             /usr/pkg/lib
             /usr/local/lib
@@ -130,9 +131,9 @@ if(XYMON_REQUIRE_PCRE)
     if(XYMON_PCRE_LIBRARY)
         get_filename_component(XYMON_PCRE_LIBRARY_DIR "${XYMON_PCRE_LIBRARY}" DIRECTORY)
         link_directories("${XYMON_PCRE_LIBRARY_DIR}")
-        if(XYMON_PCRE_LIBRARY MATCHES "pcre2")
-            add_compile_definitions(PCRE2)
-        endif()
+        add_compile_definitions(PCRE2)
+    else()
+        message(FATAL_ERROR "PCRE2 library not found (tried pcre2-8, pcre2)")
     endif()
 endif()
 

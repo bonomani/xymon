@@ -38,7 +38,7 @@ target_link_libraries(xymonnet
     xymontime
     xymoncomm
     xymon
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -72,7 +72,7 @@ target_link_libraries(beastat
     xymoncomm
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )

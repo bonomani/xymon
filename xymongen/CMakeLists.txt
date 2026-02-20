@@ -24,7 +24,7 @@ target_link_libraries(xymongen
     xymon
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
