@@ -48,6 +48,78 @@ jobs:
             alpine_version: "3.22"
             variant: client
             allow_failure: false
+          - name: Alpine 3.21 - Server
+            runs_on: ubuntu-22.04
+            container: alpine:3.21
+            alpine_version: "3.21"
+            variant: server
+            allow_failure: true
+          - name: Alpine 3.21 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.21
+            alpine_version: "3.21"
+            variant: localclient
+            allow_failure: true
+          - name: Alpine 3.21 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.21
+            alpine_version: "3.21"
+            variant: client
+            allow_failure: true
+          - name: Alpine 3.20 - Server
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: server
+            allow_failure: true
+          - name: Alpine 3.20 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: localclient
+            allow_failure: true
+          - name: Alpine 3.20 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.20
+            alpine_version: "3.20"
+            variant: client
+            allow_failure: true
+          - name: Alpine 3.19 - Server
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: server
+            allow_failure: true
+          - name: Alpine 3.19 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: localclient
+            allow_failure: true
+          - name: Alpine 3.19 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:3.19
+            alpine_version: "3.19"
+            variant: client
+            allow_failure: true
+          - name: Alpine edge - Server
+            runs_on: ubuntu-22.04
+            container: alpine:edge
+            alpine_version: "edge"
+            variant: server
+            allow_failure: true
+          - name: Alpine edge - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: alpine:edge
+            alpine_version: "edge"
+            variant: localclient
+            allow_failure: true
+          - name: Alpine edge - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: alpine:edge
+            alpine_version: "edge"
+            variant: client
+            allow_failure: true
 
     name: ${{ matrix.name }}
     env:
