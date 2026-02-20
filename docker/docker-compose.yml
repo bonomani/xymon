@@ -1,0 +1,28 @@
+version: "3.9"
+
+services:
+  debian-bullseye:
+    build:
+      context: ..
+      dockerfile: docker/debian-bullseye/Dockerfile
+
+  debian-bookworm:
+    build:
+      context: ..
+      dockerfile: docker/debian-bookworm/Dockerfile
+
+  debian-trixie:
+    build:
+      context: ..
+      dockerfile: docker/debian-trixie/Dockerfile
+
+  ubuntu-22.04:
+    build:
+      context: ..
+      dockerfile: docker/ubuntu-22.04/Dockerfile
+
+  ubuntu-24.04:
+    build:
+      context: ..
+      dockerfile: docker/ubuntu-24.04/Dockerfile
+

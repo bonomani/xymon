@@ -1,0 +1,58 @@
+name: Reference Generation - Linux
+
+on:
+  workflow_dispatch:
+
+jobs:
+  ref-make-linux:
+    name: ${{ matrix.name }}
+    env:
+      BUILD_TOOL: make
+      REF_OS: linux
+      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
+    runs-on: ubuntu-22.04
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: server
+            variant: server
+          - name: client ct-client
+            variant: localclient
+          - name: client ct-server
+            variant: client
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap install + refs on Linux
+        run: |
+          uname -a || true
+          gcc --version || true
+          ld --version || true
+          mkdir -p "${REF_STAGE_ROOT}"
+          build_tool="${BUILD_TOOL}"
+          bash ci/bootstrap-install.sh \
+            --os "${REF_OS}" \
+            --variant "${{ matrix.variant }}" \
+            --build "$build_tool"
+          if [ ! -f /tmp/xymon-root-vars.sh ]; then
+            echo "Staged tree metadata missing" >&2
+            exit 1
+          fi
+          source /tmp/xymon-root-vars.sh
+          bash ci/generate-refs.sh \
+            --os "${REF_OS}" \
+            --variant "${{ matrix.variant }}" \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --build "${BUILD_TOOL}" \
+            --refs-root "${REF_STAGE_ROOT}"
+      - name: Upload legacy references
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ matrix.variant }}
+          path: |
+            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ matrix.variant }}/**
+          if-no-files-found: error
