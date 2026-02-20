@@ -14,210 +14,210 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Alpine 3.23 - Server
+          - name: Alpine 3.23 - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/amd64
             alpine_version: "3.23"
             variant: server
             allow_failure: false
-          - name: Alpine 3.23 - Client (ct-client)
+          - name: Alpine 3.23 - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/amd64
             alpine_version: "3.23"
             variant: localclient
             allow_failure: false
-          - name: Alpine 3.23 - Client (ct-server)
+          - name: Alpine 3.23 - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.23
             container_options: --platform linux/amd64
             alpine_version: "3.23"
             variant: client
             allow_failure: false
-          - name: Alpine 3.23 arm64 - Server
+          - name: Alpine 3.23 - Server (arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
             variant: server
             allow_failure: false
-          - name: Alpine 3.23 arm64 - Client (ct-client)
+          - name: Alpine 3.23 - Client (ct-client, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
             variant: localclient
             allow_failure: false
-          - name: Alpine 3.23 arm64 - Client (ct-server)
+          - name: Alpine 3.23 - Client (ct-server, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.23
             container_options: --platform linux/arm64/v8
             alpine_version: "3.23"
             variant: client
             allow_failure: false
-          - name: Alpine 3.22 - Server
+          - name: Alpine 3.22 - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/amd64
             alpine_version: "3.22"
             variant: server
             allow_failure: false
-          - name: Alpine 3.22 - Client (ct-client)
+          - name: Alpine 3.22 - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/amd64
             alpine_version: "3.22"
             variant: localclient
             allow_failure: false
-          - name: Alpine 3.22 - Client (ct-server)
+          - name: Alpine 3.22 - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/amd64
             alpine_version: "3.22"
             variant: client
             allow_failure: false
-          - name: Alpine 3.22 arm64 - Server
+          - name: Alpine 3.22 - Server (arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: server
             allow_failure: false
-          - name: Alpine 3.22 arm64 - Client (ct-client)
+          - name: Alpine 3.22 - Client (ct-client, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: localclient
             allow_failure: false
-          - name: Alpine 3.22 arm64 - Client (ct-server)
+          - name: Alpine 3.22 - Client (ct-server, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.22
             container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: client
             allow_failure: false
-          - name: Alpine 3.21 - Server
+          - name: Alpine 3.21 - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/amd64
             alpine_version: "3.21"
             variant: server
             allow_failure: true
-          - name: Alpine 3.21 - Client (ct-client)
+          - name: Alpine 3.21 - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/amd64
             alpine_version: "3.21"
             variant: localclient
             allow_failure: true
-          - name: Alpine 3.21 - Client (ct-server)
+          - name: Alpine 3.21 - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.21
             container_options: --platform linux/amd64
             alpine_version: "3.21"
             variant: client
             allow_failure: true
-          - name: Alpine 3.21 arm64 - Server
+          - name: Alpine 3.21 - Server (arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
             variant: server
             allow_failure: true
-          - name: Alpine 3.21 arm64 - Client (ct-client)
+          - name: Alpine 3.21 - Client (ct-client, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
             variant: localclient
             allow_failure: true
-          - name: Alpine 3.21 arm64 - Client (ct-server)
+          - name: Alpine 3.21 - Client (ct-server, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:3.21
             container_options: --platform linux/arm64/v8
             alpine_version: "3.21"
             variant: client
             allow_failure: true
-          - name: Alpine 3.20 - Server
+          - name: Alpine 3.20 - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.20
             container_options: --platform linux/amd64
             alpine_version: "3.20"
             variant: server
             allow_failure: true
-          - name: Alpine 3.20 - Client (ct-client)
+          - name: Alpine 3.20 - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.20
             container_options: --platform linux/amd64
             alpine_version: "3.20"
             variant: localclient
             allow_failure: true
-          - name: Alpine 3.20 - Client (ct-server)
+          - name: Alpine 3.20 - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.20
             container_options: --platform linux/amd64
             alpine_version: "3.20"
             variant: client
             allow_failure: true
-          - name: Alpine 3.19 - Server
+          - name: Alpine 3.19 - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             container_options: --platform linux/amd64
             alpine_version: "3.19"
             variant: server
             allow_failure: true
-          - name: Alpine 3.19 - Client (ct-client)
+          - name: Alpine 3.19 - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             container_options: --platform linux/amd64
             alpine_version: "3.19"
             variant: localclient
             allow_failure: true
-          - name: Alpine 3.19 - Client (ct-server)
+          - name: Alpine 3.19 - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:3.19
             container_options: --platform linux/amd64
             alpine_version: "3.19"
             variant: client
             allow_failure: true
-          - name: Alpine edge - Server
+          - name: Alpine edge - Server (amd64)
             runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/amd64
             alpine_version: "edge"
             variant: server
             allow_failure: true
-          - name: Alpine edge - Client (ct-client)
+          - name: Alpine edge - Client (ct-client, amd64)
             runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/amd64
             alpine_version: "edge"
             variant: localclient
             allow_failure: true
-          - name: Alpine edge - Client (ct-server)
+          - name: Alpine edge - Client (ct-server, amd64)
             runs_on: ubuntu-22.04
             container: alpine:edge
             container_options: --platform linux/amd64
             alpine_version: "edge"
             variant: client
             allow_failure: true
-          - name: Alpine edge arm64 - Server
+          - name: Alpine edge - Server (arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:edge
             container_options: --platform linux/arm64/v8
             alpine_version: "edge"
             variant: server
             allow_failure: true
-          - name: Alpine edge arm64 - Client (ct-client)
+          - name: Alpine edge - Client (ct-client, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:edge
             container_options: --platform linux/arm64/v8
             alpine_version: "edge"
             variant: localclient
             allow_failure: true
-          - name: Alpine edge arm64 - Client (ct-server)
+          - name: Alpine edge - Client (ct-server, arm64)
             runs_on: ubuntu-24.04-arm
             container: alpine:edge
             container_options: --platform linux/arm64/v8
