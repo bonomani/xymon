@@ -415,12 +415,15 @@ configure_build_cmake() {
 build_project_make() {
   local caresinc=""
   local careslib=""
+  local make_jobs=2
   if [ -n "${CARES_PREFIX}" ]; then
     caresinc="-I${CARES_PREFIX}/include"
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
   local base_cflags=""
   if [ "${VARIANT}" = "client" ] || [ "${VARIANT}" = "localclient" ]; then
+    # Legacy makefiles have an ordering race for setup-newfiles in client lanes.
+    make_jobs=1
     base_cflags="$(
       set +o pipefail
       "${MAKE_BIN}" -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
@@ -429,21 +432,21 @@ build_project_make() {
       base_cflags="$(awk -F '=' '/^CFLAGS[[:space:]]*=/ {sub(/^[[:space:]]*/,"",$2); print $2; exit}' Makefile 2>/dev/null || true)"
     fi
     if [ "${LEGACY_CONFTYPE}" = "server" ]; then
-      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+      "${MAKE_BIN}" -j"${make_jobs}" CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
         CLIENTTARGETS="lib-client common-client" \
         CFLAGS="${base_cflags} -ULOCALCLIENT" \
         LOCALCLIENT=no \
         PCRELIBS= \
         client
     else
-      "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
+      "${MAKE_BIN}" -j"${make_jobs}" CARESINCDIR="${caresinc}" CARESLIBS="${careslib}" \
         CLIENTTARGETS="lib-client common-client build-build" \
         CFLAGS="${base_cflags} -DCLIENTONLY=1" \
         LOCALCLIENT=yes \
         client
     fi
   else
-    "${MAKE_BIN}" -j2 CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
+    "${MAKE_BIN}" -j"${make_jobs}" CARESINCDIR="${caresinc}" CARESLIBS="${careslib}"
   fi
 }
 
