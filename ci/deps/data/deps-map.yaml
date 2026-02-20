@@ -15,13 +15,23 @@ map:
         apt: [build-essential, cmake, ninja-build, git, findutils]
       
     rpm:
+      rockylinux_8:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
       rockylinux_9:
         dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      almalinux_8:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
       almalinux_9:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      almalinux_10:
         dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
       centos_7:
         yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
       fedora_40:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      fedora_41:
+        dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+      fedora_42:
         dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
     suse:
       opensuse_tumbleweed_latest:
@@ -63,13 +73,23 @@ map:
       debian_13:
         apt: [libpcre3-dev|libpcre2-dev]
     rpm:
+      rockylinux_8:
+        dnf: [pcre-devel|pcre2-devel]
       rockylinux_9:
         dnf: [pcre-devel|pcre2-devel]
+      almalinux_8:
+        dnf: [pcre-devel|pcre2-devel]
       almalinux_9:
+        dnf: [pcre-devel|pcre2-devel]
+      almalinux_10:
         dnf: [pcre-devel|pcre2-devel]
       centos_7:
         yum: [pcre-devel|pcre2-devel]
       fedora_40:
+        dnf: [pcre-devel|pcre2-devel]
+      fedora_41:
+        dnf: [pcre-devel|pcre2-devel]
+      fedora_42:
         dnf: [pcre-devel|pcre2-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -111,13 +131,23 @@ map:
       debian_13:
         apt: [librrd-dev]
     rpm:
+      rockylinux_8:
+        dnf: [rrdtool-devel]
       rockylinux_9:
         dnf: [rrdtool-devel]
+      almalinux_8:
+        dnf: [rrdtool-devel]
       almalinux_9:
+        dnf: [rrdtool-devel]
+      almalinux_10:
         dnf: [rrdtool-devel]
       centos_7:
         yum: [rrdtool-devel]
       fedora_40:
+        dnf: [rrdtool-devel]
+      fedora_41:
+        dnf: [rrdtool-devel]
+      fedora_42:
         dnf: [rrdtool-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -159,13 +189,23 @@ map:
       debian_13:
         apt: [libssl-dev]
     rpm:
+      rockylinux_8:
+        dnf: [openssl-devel]
       rockylinux_9:
         dnf: [openssl-devel]
+      almalinux_8:
+        dnf: [openssl-devel]
       almalinux_9:
+        dnf: [openssl-devel]
+      almalinux_10:
         dnf: [openssl-devel]
       centos_7:
         yum: [openssl-devel]
       fedora_40:
+        dnf: [openssl-devel]
+      fedora_41:
+        dnf: [openssl-devel]
+      fedora_42:
         dnf: [openssl-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -207,13 +247,23 @@ map:
       debian_13:
         apt: [libldap-dev]
     rpm:
+      rockylinux_8:
+        dnf: [openldap-devel]
       rockylinux_9:
         dnf: [openldap-devel]
+      almalinux_8:
+        dnf: [openldap-devel]
       almalinux_9:
+        dnf: [openldap-devel]
+      almalinux_10:
         dnf: [openldap-devel]
       centos_7:
         yum: [openldap-devel]
       fedora_40:
+        dnf: [openldap-devel]
+      fedora_41:
+        dnf: [openldap-devel]
+      fedora_42:
         dnf: [openldap-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -255,13 +305,23 @@ map:
       debian_13:
         apt: [libsnmp-dev]
     rpm:
+      rockylinux_8:
+        dnf: [net-snmp-devel]
       rockylinux_9:
         dnf: [net-snmp-devel]
+      almalinux_8:
+        dnf: [net-snmp-devel]
       almalinux_9:
+        dnf: [net-snmp-devel]
+      almalinux_10:
         dnf: [net-snmp-devel]
       centos_7:
         yum: [net-snmp-devel]
       fedora_40:
+        dnf: [net-snmp-devel]
+      fedora_41:
+        dnf: [net-snmp-devel]
+      fedora_42:
         dnf: [net-snmp-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -303,13 +363,23 @@ map:
       debian_13:
         apt: [libc-ares-dev]
     rpm:
+      rockylinux_8:
+        dnf: [c-ares-devel]
       rockylinux_9:
         dnf: [c-ares-devel]
+      almalinux_8:
+        dnf: [c-ares-devel]
       almalinux_9:
+        dnf: [c-ares-devel]
+      almalinux_10:
         dnf: [c-ares-devel]
       centos_7:
         yum: [c-ares-devel]
       fedora_40:
+        dnf: [c-ares-devel]
+      fedora_41:
+        dnf: [c-ares-devel]
+      fedora_42:
         dnf: [c-ares-devel]
     suse:
       opensuse_tumbleweed_latest:
@@ -351,13 +421,23 @@ map:
       debian_13:
         apt: [libtirpc-dev]
     rpm:
+      rockylinux_8:
+        dnf: [libtirpc-devel]
       rockylinux_9:
         dnf: [libtirpc-devel]
+      almalinux_8:
+        dnf: [libtirpc-devel]
       almalinux_9:
+        dnf: [libtirpc-devel]
+      almalinux_10:
         dnf: [libtirpc-devel]
       centos_7:
         yum: [libtirpc-devel]
       fedora_40:
+        dnf: [libtirpc-devel]
+      fedora_41:
+        dnf: [libtirpc-devel]
+      fedora_42:
         dnf: [libtirpc-devel]
     suse:
       opensuse_tumbleweed_latest:

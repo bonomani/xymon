@@ -62,7 +62,31 @@ build:
             optional:
             - clang
   rpm:
+    rockylinux_8:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
     rockylinux_9:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    almalinux_8:
       packagers:
         dnf:
           libs:
@@ -86,9 +110,45 @@ build:
           tools:
             optional:
             - clang
+    almalinux_10:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
     centos_7:
       packagers:
         yum:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    fedora_41:
+      packagers:
+        dnf:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    fedora_42:
+      packagers:
+        dnf:
           libs:
             mandatory:
             - BUILD_TOOLS

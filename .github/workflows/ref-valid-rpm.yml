@@ -14,6 +14,24 @@ jobs:
       fail-fast: false
       matrix:
         include:
+          - name: Rocky Linux 8 - Server
+            runs_on: ubuntu-22.04
+            container: rockylinux:8
+            container_options: --platform linux/amd64
+            variant: server
+            allow_failure: false
+          - name: Rocky Linux 8 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: rockylinux:8
+            container_options: --platform linux/amd64
+            variant: localclient
+            allow_failure: false
+          - name: Rocky Linux 8 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: rockylinux:8
+            container_options: --platform linux/amd64
+            variant: client
+            allow_failure: false
           - name: Rocky Linux 9 - Server
             runs_on: ubuntu-22.04
             container: rockylinux:9
@@ -29,6 +47,24 @@ jobs:
           - name: Rocky Linux 9 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: rockylinux:9
+            container_options: --platform linux/amd64
+            variant: client
+            allow_failure: false
+          - name: AlmaLinux 8 - Server
+            runs_on: ubuntu-22.04
+            container: almalinux:8
+            container_options: --platform linux/amd64
+            variant: server
+            allow_failure: false
+          - name: AlmaLinux 8 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: almalinux:8
+            container_options: --platform linux/amd64
+            variant: localclient
+            allow_failure: false
+          - name: AlmaLinux 8 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: almalinux:8
             container_options: --platform linux/amd64
             variant: client
             allow_failure: false
@@ -50,6 +86,24 @@ jobs:
             container_options: --platform linux/amd64
             variant: client
             allow_failure: false
+          - name: AlmaLinux 10 - Server
+            runs_on: ubuntu-22.04
+            container: almalinux:10
+            container_options: --platform linux/amd64
+            variant: server
+            allow_failure: false
+          - name: AlmaLinux 10 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: almalinux:10
+            container_options: --platform linux/amd64
+            variant: localclient
+            allow_failure: false
+          - name: AlmaLinux 10 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: almalinux:10
+            container_options: --platform linux/amd64
+            variant: client
+            allow_failure: false
           - name: Fedora 40 - Server
             runs_on: ubuntu-22.04
             container: fedora:40
@@ -65,6 +119,42 @@ jobs:
           - name: Fedora 40 - Client (ct-server)
             runs_on: ubuntu-22.04
             container: fedora:40
+            container_options: --platform linux/amd64
+            variant: client
+            allow_failure: false
+          - name: Fedora 41 - Server
+            runs_on: ubuntu-22.04
+            container: fedora:41
+            container_options: --platform linux/amd64
+            variant: server
+            allow_failure: false
+          - name: Fedora 41 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: fedora:41
+            container_options: --platform linux/amd64
+            variant: localclient
+            allow_failure: false
+          - name: Fedora 41 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: fedora:41
+            container_options: --platform linux/amd64
+            variant: client
+            allow_failure: false
+          - name: Fedora 42 - Server
+            runs_on: ubuntu-22.04
+            container: fedora:42
+            container_options: --platform linux/amd64
+            variant: server
+            allow_failure: false
+          - name: Fedora 42 - Client (ct-client)
+            runs_on: ubuntu-22.04
+            container: fedora:42
+            container_options: --platform linux/amd64
+            variant: localclient
+            allow_failure: false
+          - name: Fedora 42 - Client (ct-server)
+            runs_on: ubuntu-22.04
+            container: fedora:42
             container_options: --platform linux/amd64
             variant: client
             allow_failure: false
