@@ -125,7 +125,7 @@ with a few modifications:</p>
 <p>Assuming you have the .so lib in /usr/local/lib, 
 You can add -R to the Makefile</p>
 <p><tt>
-&nbsp;&nbsp;&nbsp;&nbsp;PCRELIBS = -L/usr/local/lib -R/usr/local/lib -lpcre
+&nbsp;&nbsp;&nbsp;&nbsp;PCRELIBS = -L/usr/local/lib -R/usr/local/lib -lpcre2-8
 </tt></p>
 <p>The -R "hard code" the path to the library into the executable so env
 variable (LD_LIBRARY_PATH, ed.) will not be needed. The -L told it 
@@ -155,4 +155,3 @@ The GNU linker uses the "-rpath" option which is defined differently: Add</p>
 
 </body>
 </html>
-

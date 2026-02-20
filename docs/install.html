@@ -237,7 +237,7 @@ the <a href="xymon-config.html">Xymon configuration guide</a>.</p>
 	<li><a href="#commonrhel4">Red Hat Enterprise Linux 4 / CentOS 4</a></li>
 	<li><a href="#commonrhel3">Red Hat Enterprise Linux 3 / CentOS 3</a></li>
 	<li><a href="#commonfedora17">Fedora Linux 17</a></li>
-	<li><a href="#commondebian6">Debian 6 (Squeeze)</a></li>
+	<li><a href="#commondebian6">Debian 6 (Squeeze, EOL)</a></li>
 	<li><a href="#commonubuntu1204">Ubuntu 12.04 LTS (Precise Pangolin)</a></li>
 	<li><a href="#commonfreebsd">FreeBSD 7, 8 and 9</a></li>
 	<li><a href="#commonopenbsd">OpenBSD 4, 5</a></li>
@@ -370,10 +370,11 @@ chkconfig xymon on
 <h4><a name="commonfedora17">Fedora 17</a></h4>
 <p>Follow instructions for <a href="#commonrhel6">RHEL6</a>.</p>
 
-<h4><a name="commondebian6">Debian 6 (Squeeze)</a></h4>
+<h4><a name="commondebian6">Debian 6 (Squeeze, EOL)</a></h4>
 <p>NOTE: Pre-compiled Debian packages are provided on Sourceforge, along with the source distribution file.</p>
-<p>Debian 6 has all of the necessary tools included in the core distribution.</p>
-<pre><tt>apt-get install apache2 rrdtool librrd-dev libpcre3-dev libssl-dev ldap-utils libldap2-dev fping
+<p>Debian 6 is end-of-life and does not provide the PCRE2 development package required by this branch.</p>
+<p>Use a newer Debian release for PCRE2 builds. Example prerequisite install:</p>
+<pre><tt>apt-get install apache2 rrdtool librrd-dev libpcre2-dev libssl-dev ldap-utils libldap2-dev fping
 
 # Enable mod_rewrite in Apache
 cd /etc/apache2/mods-enabled/
@@ -391,7 +392,7 @@ dpkg -i xymon*deb
 
 
 <h4><a name="commonubuntu1204">Ubuntu 12.04 LTS (Precise Pangolin)</a></h4>
-<p>Follow instructions for <a href="#commondebian6">Debian 6</a>.</p>
+<p>Follow instructions for the <a href="#commondebian6">Debian section above</a>.</p>
 
 <h4><a name="commonfreebsd">FreeBSD 7,8 and 9</a></h4>
 <p>Perform a standard install, make sure to install the "ports" collection. FreeBSD - in a minimal configuration - does not install any of the Xymon prerequisites, so starting from a minimal configuration you must run these commands to install the various tools and libraries needed. For those packages that have some configuration items, the defaults work fine:</p>
@@ -582,4 +583,3 @@ make install
 
 </body>
 </html>
-
