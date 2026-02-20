@@ -52,8 +52,7 @@ option(INSTALL_EXTRA "Install extra/debug/helper binaries (non-reference set)" O
 set(XYMON_VARIANT "server" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)
 
-# PCRE is required for server builds and localclient builds. Plain client
-# builds intentionally avoid PCRE dependencies.
+# PCRE is used by server/localclient builds. Plain client builds avoid it.
 set(_XYMON_VARIANT_PRE "${XYMON_VARIANT}")
 string(TOLOWER "${_XYMON_VARIANT_PRE}" _XYMON_VARIANT_PRE)
 set(XYMON_REQUIRE_PCRE OFF)
@@ -118,38 +117,15 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
+set(XYMON_PCRE_LIBRARY "")
 if(XYMON_REQUIRE_PCRE)
-    find_path(PCRE_INCLUDE_DIR pcre.h
-        PATHS
-            /usr/pkg/include
-            /usr/local/include
-            /usr/local/opt/pcre/include
-            /opt/homebrew/include
-            /opt/homebrew/opt/pcre/include
-            /opt/local/include
-        PATH_SUFFIXES
-            pcre
-    )
-    if(PCRE_INCLUDE_DIR)
-        include_directories("${PCRE_INCLUDE_DIR}")
-    endif()
-
-    find_library(PCRE_LIBRARY pcre
-        PATHS
-            /usr/pkg/lib
-            /usr/local/lib
-            /usr/local/opt/pcre/lib
-            /opt/homebrew/lib
-            /opt/homebrew/opt/pcre/lib
-            /opt/local/lib
-    )
-    if(PCRE_LIBRARY)
-        get_filename_component(PCRE_LIBRARY_DIR "${PCRE_LIBRARY}" DIRECTORY)
-        link_directories("${PCRE_LIBRARY_DIR}")
-    endif()
-
-    if(NOT PCRE_INCLUDE_DIR OR NOT PCRE_LIBRARY)
-        message(FATAL_ERROR "PCRE headers and library are required for this build variant")
+    find_library(XYMON_PCRE_LIBRARY NAMES pcre pcre2-8 pcre2)
+    if(XYMON_PCRE_LIBRARY)
+        get_filename_component(XYMON_PCRE_LIBRARY_DIR "${XYMON_PCRE_LIBRARY}" DIRECTORY)
+        link_directories("${XYMON_PCRE_LIBRARY_DIR}")
+        if(XYMON_PCRE_LIBRARY MATCHES "pcre2")
+            add_compile_definitions(PCRE2)
+        endif()
     endif()
 endif()
 

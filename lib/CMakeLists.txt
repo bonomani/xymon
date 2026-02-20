@@ -112,20 +112,17 @@ if(XYMON_BUILD_SERVER)
         target_link_options(xymoncomm PUBLIC -L/usr/pkg/lib)
     endif()
 
-    if(PCRE_LIBRARY)
+    if(XYMON_PCRE_LIBRARY)
         target_link_libraries(xymoncomm
-            pcre
-            ssl
-            crypto
-        )
-    elseif(PCRE2_LIBRARY)
-        target_link_libraries(xymoncomm
-            pcre2
+            "${XYMON_PCRE_LIBRARY}"
             ssl
             crypto
         )
     else()
-        message(FATAL_ERROR "Neither PCRE nor PCRE2 library found")
+        target_link_libraries(xymoncomm
+            ssl
+            crypto
+        )
     endif()
 endif()
 
@@ -213,7 +210,9 @@ target_compile_definitions(xymonclient_environ PRIVATE
 )
 
 if(LOCALCLIENT)
-    target_link_libraries(xymonclient PUBLIC pcre)
+    if(XYMON_PCRE_LIBRARY)
+        target_link_libraries(xymonclient PUBLIC "${XYMON_PCRE_LIBRARY}")
+    endif()
 endif()
 
 # ----------------------------------------------------------------------
