@@ -195,7 +195,7 @@ endif()
 if(APPLE)
     # Match legacy Darwin Makefile flags so resolver constants like T_A/C_IN
     # are available from system DNS headers.
-    add_compile_definitions(XYMON_APPLE BIND_8_COMPAT=1)
+    add_compile_definitions(BIND_8_COMPAT=1)
 endif()
 
 # ----------------------------------------------------------------------
