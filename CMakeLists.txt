@@ -113,7 +113,6 @@ set(HAVE_BINARY_TREE 0 CACHE INTERNAL "" FORCE)
 
 include_directories(
     "${CMAKE_SOURCE_DIR}/include"
-    "${CMAKE_SOURCE_DIR}/lib"
     "${CMAKE_BINARY_DIR}"
 )
 
