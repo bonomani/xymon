@@ -415,15 +415,15 @@ configure_build_cmake() {
 build_project_make() {
   local caresinc=""
   local careslib=""
-  local make_jobs=2
+  # Legacy makefiles have ordering races in multiple lanes; keep make builds
+  # single-threaded in CI for deterministic behavior.
+  local make_jobs=1
   if [ -n "${CARES_PREFIX}" ]; then
     caresinc="-I${CARES_PREFIX}/include"
     careslib="-L${CARES_PREFIX}/lib -lcares"
   fi
   local base_cflags=""
   if [ "${VARIANT}" = "client" ] || [ "${VARIANT}" = "localclient" ]; then
-    # Legacy makefiles have an ordering race for setup-newfiles in client lanes.
-    make_jobs=1
     base_cflags="$(
       set +o pipefail
       "${MAKE_BIN}" -s -p -n 2>/dev/null | awk -F ' = ' '/^CFLAGS = /{print $2; exit}' || true
