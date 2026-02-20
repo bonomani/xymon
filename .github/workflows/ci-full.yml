@@ -15,27 +15,16 @@ jobs:
       fail-fast: false
       matrix:
         # Keep include-only entries so matrix variants expand reliably in GitHub UI.
+        # linux_legacy gcc lanes are covered in ci-validate; keep only clang here.
         include:
           - name: server
             variant: server
-            compiler: gcc
-            localclient: OFF
-          - name: server
-            variant: server
             compiler: clang
             localclient: OFF
           - name: client CT=client
             variant: client
-            compiler: gcc
-            localclient: ON
-          - name: client CT=client
-            variant: client
             compiler: clang
             localclient: ON
-          - name: client CT=server
-            variant: client
-            compiler: gcc
-            localclient: OFF
           - name: client CT=server
             variant: client
             compiler: clang
@@ -73,15 +62,9 @@ jobs:
     strategy:
       fail-fast: false
       matrix:
+        # ci-validate owns gcc server/default+gnuinstall baseline coverage.
+        # Keep extended lanes here (packaging, client variants, clang matrix).
         include:
-          - preset: default
-            variant: server
-            name: server
-            compiler: gcc
-          - preset: gnuinstall
-            variant: server
-            name: server
-            compiler: gcc
           - preset: packaging
             variant: server
             name: server

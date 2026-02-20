@@ -16,8 +16,5 @@ jobs:
   ci-validate:
     uses: ./.github/workflows/ci-validate.yml
 
-  xymon-build:
-    uses: ./.github/workflows/xymon-build.yml
-
   xymon-build-cmake:
     uses: ./.github/workflows/xymon-build-cmake.yml
