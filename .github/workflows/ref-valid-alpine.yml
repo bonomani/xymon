@@ -35,6 +35,27 @@ jobs:
             alpine_version: "3.23"
             variant: client
             allow_failure: false
+          - name: Alpine 3.23 arm64 - Server
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.23
+            container_options: --platform linux/arm64/v8
+            alpine_version: "3.23"
+            variant: server
+            allow_failure: false
+          - name: Alpine 3.23 arm64 - Client (ct-client)
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.23
+            container_options: --platform linux/arm64/v8
+            alpine_version: "3.23"
+            variant: localclient
+            allow_failure: false
+          - name: Alpine 3.23 arm64 - Client (ct-server)
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.23
+            container_options: --platform linux/arm64/v8
+            alpine_version: "3.23"
+            variant: client
+            allow_failure: false
           - name: Alpine 3.22 - Server
             runs_on: ubuntu-22.04
             container: alpine:3.22
@@ -53,6 +74,27 @@ jobs:
             runs_on: ubuntu-22.04
             container: alpine:3.22
             container_options: --platform linux/amd64
+            alpine_version: "3.22"
+            variant: client
+            allow_failure: false
+          - name: Alpine 3.22 arm64 - Server
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.22
+            container_options: --platform linux/arm64/v8
+            alpine_version: "3.22"
+            variant: server
+            allow_failure: false
+          - name: Alpine 3.22 arm64 - Client (ct-client)
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.22
+            container_options: --platform linux/arm64/v8
+            alpine_version: "3.22"
+            variant: localclient
+            allow_failure: false
+          - name: Alpine 3.22 arm64 - Client (ct-server)
+            runs_on: ubuntu-24.04-arm
+            container: alpine:3.22
+            container_options: --platform linux/arm64/v8
             alpine_version: "3.22"
             variant: client
             allow_failure: false
