@@ -62,60 +62,60 @@ map:
   PCRE:
     gh-debian:
       ubuntu_latest:
-        apt: [libpcre3-dev|libpcre2-dev]
+        apt: [libpcre2-dev]
     debian:
       ubuntu_local:
-        apt: [libpcre3-dev|libpcre2-dev]
+        apt: [libpcre2-dev]
       debian_bookworm:
-        apt: [libpcre3-dev|libpcre2-dev]
+        apt: [libpcre2-dev]
       debian_bullseye:
-        apt: [libpcre3-dev|libpcre2-dev]
+        apt: [libpcre2-dev]
       debian_13:
-        apt: [libpcre3-dev|libpcre2-dev]
+        apt: [libpcre2-dev]
     rpm:
       rockylinux_8:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       rockylinux_9:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       almalinux_8:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       almalinux_9:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       almalinux_10:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       centos_7:
-        yum: [pcre-devel|pcre2-devel]
+        yum: [pcre2-devel]
       fedora_40:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       fedora_41:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
       fedora_42:
-        dnf: [pcre-devel|pcre2-devel]
+        dnf: [pcre2-devel]
     suse:
       opensuse_tumbleweed_latest:
-        zypper: [pcre-devel|pcre2-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_16_0:
-        zypper: [pcre-devel|pcre2-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_15_6:
-        zypper: [pcre-devel|pcre2-devel]
+        zypper: [pcre2-devel]
       opensuse_leap_15_5:
-        zypper: [pcre-devel|pcre2-devel]
+        zypper: [pcre2-devel]
     alpine:
       alpine_3:
-        apk: [pcre-dev|pcre2-dev]
+        apk: [pcre2-dev]
     arch:
       archlinux_latest:
-        pacman: [pcre|pcre2]
+        pacman: [pcre2]
     macos:
       macos_latest:
-        brew: [pcre|pcre2]
+        brew: [pcre2]
     bsd:
       freebsd:
-        pkg: [pcre|pcre2]
+        pkg: [pcre2]
       netbsd:
-        pkg_add: [pcre|pcre2]
+        pkg_add: [pcre2]
       openbsd:
-        pkg_add: [pcre|pcre2]
+        pkg_add: [pcre2]
 
   RRD:
     gh-debian:
