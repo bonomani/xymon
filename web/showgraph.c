@@ -32,20 +32,19 @@ static char rcsid[] = "$Id$";
 #include <rrd.h>
 
 #include "libxymon.h"
+#include "rrd_compat.h"
 
 #define HOUR_GRAPH  "e-48h"
 #define DAY_GRAPH   "e-12d"
 #define WEEK_GRAPH  "e-48d"
 #define MONTH_GRAPH "e-576d"
 
-/* RRDtool 1.0.x handles graphs with no DS definitions just fine. 1.2.x does not. */
-#ifdef RRDTOOL12
+/* Keep a blank-image fallback when no graph data is available. */
 #ifndef HIDE_EMPTYGRAPH
 #define HIDE_EMPTYGRAPH 1
 #endif
-#endif
 
-#ifdef HIDE_EMPTYGRAPH
+#if HIDE_EMPTYGRAPH
 unsigned char blankimg[] = "\x89\x50\x4e\x47\x0d\x0a\x1a\x0a\x00\x00\x00\x0d\x49\x48\x44\x52\x00\x00\x00\x01\x00\x00\x00\x01\x08\x06\x00\x00\x00\x1f\x15\xc4\x89\x00\x00\x00\x04\x67\x41\x4d\x41\x00\x00\xb1\x8f\x0b\xfc\x61\x05\x00\x00\x00\x06\x62\x4b\x47\x44\x00\xff\x00\xff\x00\xff\xa0\xbd\xa7\x93\x00\x00\x00\x09\x70\x48\x59\x73\x00\x00\x0b\x12\x00\x00\x0b\x12\x01\xd2\xdd\x7e\xfc\x00\x00\x00\x07\x74\x49\x4d\x45\x07\xd1\x01\x14\x12\x21\x14\x7e\x4a\x3a\xd2\x00\x00\x00\x0d\x49\x44\x41\x54\x78\xda\x63\x60\x60\x60\x60\x00\x00\x00\x05\x00\x01\x7a\xa8\x57\x50\x00\x00\x00\x00\x49\x45\x4e\x44\xae\x42\x60\x82";
 #endif
 
@@ -600,34 +599,15 @@ char *expand_tokens(char *tpl)
 		else if (strncmp(inp, "@STACKIT@", 9) == 0) {
 			/* Contributed by Gildas Le Nadan <gn1@sanger.ac.uk> */
 
-			/* the STACK behavior changed between rrdtool 1.0.x
-			 * and 1.2.x, hence the ifdef:
-			 * - in 1.0.x, you replace the graph type (AREA|LINE)
-			 *  for the graph you want to stack with the  STACK
-			 *  keyword
-			 * - in 1.2.x, you add the STACK keyword at the end
-			 *  of the definition
-			 *
-			 * Please note that in both cases the first entry
-			 * mustn't contain the keyword STACK at all, so
-			 * we need a different treatment for the first rrdidx
-			 *
-			 * examples of graphs.cfg entries:
-			 *
-			 * - rrdtool 1.0.x
-			 * @STACKIT@:la@RRDIDX@#@COLOR@:@RRDPARAM@
-			 *
-			 * - rrdtool 1.2.x
-			 * AREA::la@RRDIDX@#@COLOR@:@RRDPARAM@:@STACKIT@
+			/*
+			 * Keep the first series unstacked; add "STACK" for subsequent
+			 * series. Graph templates should place @STACKIT@ where RRDtool
+			 * expects the stacking keyword.
 			 */
 			char numstr[10];
 
 			if (rrdidx == 0) {
-#ifdef RRDTOOL12
-				strncpy(numstr, "", sizeof(numstr));
-#else
-				snprintf(numstr, sizeof(numstr), "AREA");
-#endif
+				numstr[0] = '\0';
 			}
 			else {
 				snprintf(numstr, sizeof(numstr), "STACK");
@@ -655,8 +635,8 @@ char *expand_tokens(char *tpl)
 
 int rrd_name_compare(const void *v1, const void *v2)
 {
-	rrddb_t *r1 = (rrddb_t *)v1;
-	rrddb_t *r2 = (rrddb_t *)v2;
+	const rrddb_t *r1 = v1;
+	const rrddb_t *r2 = v2;
 	char *endptr;
 	long numkey1, numkey2;
 	int key1isnumber, key2isnumber;
@@ -802,7 +782,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 
 	/* Options for rrd_graph() */
 	int  rrdargcount;
-	char **rrdargs = NULL;	/* The full argv[] table of string pointers to arguments */
+	xymon_rrd_argv_item_t *rrdargs = NULL;	/* The full argv[] table of string pointers to arguments */
 	char heightopt[30];	/* -h HEIGHT */
 	char widthopt[30];	/* -w WIDTH */
 	char upperopt[30];	/* -u MAX */
@@ -1138,7 +1118,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 * there are multiple RRD-files to handle).
 	 */
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
-	rrdargs = (char **) calloc(16 + pcount*rrddbcount + useroptcount + 1, sizeof(char *));
+	rrdargs = calloc(16 + pcount*rrddbcount + useroptcount + 1, sizeof(*rrdargs));
 
 
 	argi = 0;
@@ -1185,11 +1165,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		}
 	}
 
-#ifdef RRDTOOL12
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));
-#else
-	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated: %d-%b-%Y %H:%M:%S", localtime(&now));
-#endif
 	rrdargs[argi++] = strdup(timestamp);
 
 
@@ -1208,25 +1184,20 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		printf("%s\n", expirehdr);
 		printf("\n");
 
-#ifdef HIDE_EMPTYGRAPH
-		/* It works, but we still get the "zoom" magnifying glass which looks odd */
-		if (rrddbcount == 0) {
-			/* No graph */
-			fwrite(blankimg, 1, sizeof(blankimg), stdout);
-			return;
-		}
+#if HIDE_EMPTYGRAPH
+			/* It works, but we still get the "zoom" magnifying glass which looks odd */
+			if (rrddbcount == 0) {
+				/* No graph */
+				fwrite(blankimg, 1, sizeof(blankimg), stdout);
+				return;
+			}
 #endif
 	}
 
 	/* All set - generate the graph */
 	rrd_clear_error();
 
-#ifdef RRDTOOL12
-    #ifdef RRDTOOL19
-	result = rrd_graph(rrdargcount, (const char **)rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
-    #else
-	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize, NULL, &ymin, &ymax);
-    #endif
+	result = xymon_rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize, &ymin, &ymax);
 
 	/*
 	 * If we have neither the upper- nor lower-limits of the graph, AND we allow vertical 
@@ -1237,9 +1208,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		upperlimit = ymax; haveupperlimit = 1;
 		lowerlimit = ymin; havelowerlimit = 1;
 	}
-#else
-	result = rrd_graph(rrdargcount, rrdargs, &calcpr, &xsize, &ysize);
-#endif
 
 	/* Was it OK ? */
 	if (rrd_test_error() || (result != 0)) {
@@ -1288,13 +1256,11 @@ void generate_zoompage(char *selfURI)
 				n = fread(buf, 1, st.st_size, fd);
 				fclose(fd);
 
-#ifdef RRDTOOL12
 				zoomrightoffsetp = strstr(buf, zoomrightoffsetmarker);
 				if (zoomrightoffsetp) {
 					zoomrightoffsetp += strlen(zoomrightoffsetmarker);
 					memcpy(zoomrightoffsetp, "30", 2);
 				}
-#endif
 
 				fwrite(buf, 1, n, stdout);
 			}
@@ -1370,4 +1336,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
