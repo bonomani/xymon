@@ -278,6 +278,8 @@ jobs:
           SHA: ${{ github.sha }}
         run: |
           set -eu
+          git config --global --add safe.directory "${GITHUB_WORKSPACE:-$(pwd)}"
+          git config --global --add safe.directory "$(pwd)"
           git init .
           git remote add origin "https://github.com/${REPO}.git"
           git fetch --depth 1 origin "${SHA}"
