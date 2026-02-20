@@ -12,42 +12,42 @@ jobs:
       fail-fast: false
       matrix:
         include:
-          - name: Alpine 3.19 - Server
+          - name: Alpine 3.23 - Server
             runs_on: ubuntu-22.04
-            container: alpine:3.19
-            alpine_version: "3.19"
+            container: alpine:3.23
+            alpine_version: "3.23"
             variant: server
             allow_failure: false
-          - name: Alpine 3.19 - Client (ct-client)
+          - name: Alpine 3.23 - Client (ct-client)
             runs_on: ubuntu-22.04
-            container: alpine:3.19
-            alpine_version: "3.19"
+            container: alpine:3.23
+            alpine_version: "3.23"
             variant: localclient
             allow_failure: false
-          - name: Alpine 3.19 - Client (ct-server)
+          - name: Alpine 3.23 - Client (ct-server)
             runs_on: ubuntu-22.04
-            container: alpine:3.19
-            alpine_version: "3.19"
+            container: alpine:3.23
+            alpine_version: "3.23"
             variant: client
             allow_failure: false
-          - name: Alpine 3.20 - Server
+          - name: Alpine 3.22 - Server
             runs_on: ubuntu-22.04
-            container: alpine:3.20
-            alpine_version: "3.20"
+            container: alpine:3.22
+            alpine_version: "3.22"
             variant: server
-            allow_failure: true
-          - name: Alpine 3.20 - Client (ct-client)
+            allow_failure: false
+          - name: Alpine 3.22 - Client (ct-client)
             runs_on: ubuntu-22.04
-            container: alpine:3.20
-            alpine_version: "3.20"
+            container: alpine:3.22
+            alpine_version: "3.22"
             variant: localclient
-            allow_failure: true
-          - name: Alpine 3.20 - Client (ct-server)
+            allow_failure: false
+          - name: Alpine 3.22 - Client (ct-server)
             runs_on: ubuntu-22.04
-            container: alpine:3.20
-            alpine_version: "3.20"
+            container: alpine:3.22
+            alpine_version: "3.22"
             variant: client
-            allow_failure: true
+            allow_failure: false
 
     name: ${{ matrix.name }}
     env:
