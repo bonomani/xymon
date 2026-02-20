@@ -119,7 +119,14 @@ include_directories(
 
 set(XYMON_PCRE_LIBRARY "")
 if(XYMON_REQUIRE_PCRE)
-    find_library(XYMON_PCRE_LIBRARY NAMES pcre pcre2-8 pcre2)
+    find_library(XYMON_PCRE_LIBRARY
+        NAMES pcre pcre2-8 pcre2
+        PATHS
+            /usr/pkg/lib
+            /usr/local/lib
+            /opt/homebrew/lib
+            /opt/local/lib
+    )
     if(XYMON_PCRE_LIBRARY)
         get_filename_component(XYMON_PCRE_LIBRARY_DIR "${XYMON_PCRE_LIBRARY}" DIRECTORY)
         link_directories("${XYMON_PCRE_LIBRARY_DIR}")
@@ -130,9 +137,11 @@ if(XYMON_REQUIRE_PCRE)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
+    include_directories(/usr/local/include /usr/X11R6/include)
     link_directories(/usr/local/lib /usr/X11R6/lib)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/local/lib -L/usr/X11R6/lib")
 elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
+    include_directories(/usr/pkg/include)
     link_directories(/usr/pkg/lib)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/pkg/lib")
 elseif(APPLE)
