@@ -24,7 +24,6 @@ static char rcsid[] = "$Id$";
 #include <pcre.h>
 
 #include "libxymon.h"
-#include "rrd_compat.h"
 
 enum { O_NONE, O_XML, O_CSV } outform = O_NONE;
 char csvdelim = ',';
@@ -101,7 +100,7 @@ int oneset(char *hostname, char *rrdname, char *starttime, char *endtime, char *
 	int dataindex, rowcount, havemin, havemax, missingdata;
 	double sum, min = 0.0, max = 0.0, val;
 
-	xymon_rrd_argv_item_t rrdargs[10];
+	char *rrdargs[10];
 	int result;
 
 	rrdargs[0] = "rrdfetch";
@@ -112,7 +111,13 @@ int oneset(char *hostname, char *rrdname, char *starttime, char *endtime, char *
 	rrdargs[9] = NULL;
 
 	optind = opterr = 0; rrd_clear_error();
-	result = xymon_rrd_fetch(9, rrdargs, &start, &end, &step, &dscount, &dsnames, &data);
+#ifdef RRDTOOL19
+	result = rrd_fetch(9, (const char **)rrdargs,
+			   &start, &end, &step, &dscount, &dsnames, &data);
+#else
+	result = rrd_fetch(9, rrdargs,
+			   &start, &end, &step, &dscount, &dsnames, &data);
+#endif
 
 	if (result != 0) {
 		errprintf("RRD error: %s\n", rrd_get_error());
@@ -425,3 +430,4 @@ int main(int argc, char **argv)
 
 	return 0;
 }
+
