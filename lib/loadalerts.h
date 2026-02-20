@@ -107,4 +107,3 @@ extern void print_alert_recipients(activealerts_t *alert, strbuffer_t *buf);
 #endif
 
 #endif
-

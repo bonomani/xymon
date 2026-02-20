@@ -1,0 +1,157 @@
+# Metadata for CI dependency scripts and workflow validation.
+scripts:
+  ci/deps/install-default-packages.sh:
+    requires_flags: []
+    requires_env: []
+    accepts:
+      family: [gh-debian, debian, rpm, suse, alpine, arch, macos]
+      os: [ubuntu, debian, rockylinux, almalinux, fedora, centos, opensuse_leap, opensuse_tumbleweed, alpine, archlinux, macos, freebsd, netbsd, openbsd]
+      version: [latest, local, bookworm, bullseye, 9, 40, 7, 15_5, 15_6, 16_0, 3]
+      pkgmgr: [apt, dnf, yum, zypper, apk, pacman, brew, pkg, pkg_add, pkgin]
+    outputs: [packages]
+  ci/deps/install-apt-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [gh-debian, debian]
+      os: [ubuntu, debian]
+      version: [latest, local, bookworm, bullseye]
+      pkgmgr: [apt]
+    outputs: [packages]
+
+  ci/deps/install-dnf-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [rpm]
+      os: [rockylinux, almalinux, fedora]
+      version: [9, 40]
+      pkgmgr: [dnf]
+    outputs: [packages]
+
+  ci/deps/install-yum-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [rpm]
+      os: [centos]
+      version: [7]
+      pkgmgr: [yum]
+    outputs: [packages]
+
+  ci/deps/install-zypper-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [suse]
+      os: [opensuse_leap, opensuse_tumbleweed]
+      version: [latest, 15_5, 15_6, 16_0]
+      pkgmgr: [zypper]
+    outputs: [packages]
+
+  ci/deps/install-apk-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [alpine]
+      os: [alpine]
+      version: [3]
+      pkgmgr: [apk]
+    outputs: [packages]
+
+  ci/deps/install-pacman-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [arch]
+      os: [archlinux]
+      version: [latest]
+      pkgmgr: [pacman]
+    outputs: [packages]
+
+  ci/deps/install-brew-packages.sh:
+    requires_flags: [--family, --os]
+    requires_env: []
+    accepts:
+      family: [macos]
+      os: [macos]
+      version: [latest]
+      pkgmgr: [brew]
+    outputs: [packages]
+
+  ci/deps/install-bsd-packages.sh:
+    requires_flags: []
+    requires_env: []
+    accepts:
+      family: [bsd]
+      os: [freebsd, netbsd, openbsd]
+      version: [auto]
+      pkgmgr: [pkg, pkg_add, pkgin]
+    outputs: [packages]
+
+  ci/deps/install-pkg-packages.sh:
+    requires_flags: [--os]
+    requires_env: []
+    accepts:
+      family: [bsd]
+      os: [freebsd]
+      version: [auto]
+      pkgmgr: [pkg]
+    outputs: [packages]
+
+  ci/deps/install-pkg-add-packages.sh:
+    requires_flags: [--os]
+    requires_env: []
+    accepts:
+      family: [bsd]
+      os: [netbsd, openbsd]
+      version: [auto]
+      pkgmgr: [pkg_add]
+    outputs: [packages]
+
+  ci/deps/install-pkgin-packages.sh:
+    requires_flags: [--os]
+    requires_env: []
+    accepts:
+      family: [bsd]
+      os: [netbsd]
+      version: [auto]
+      pkgmgr: [pkgin]
+    outputs: [packages]
+
+workflows:
+  enforce:
+    when_script_used:
+      ci/deps/install-apt-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-dnf-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-yum-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-zypper-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-apk-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-pacman-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-brew-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--family, --os]
+      ci/deps/install-bsd-packages.sh:
+        must_set_env: []
+        must_pass_flags: []
+      ci/deps/install-pkg-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--os]
+      ci/deps/install-pkg-add-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--os]
+      ci/deps/install-pkgin-packages.sh:
+        must_set_env: []
+        must_pass_flags: [--os]
