@@ -6,7 +6,7 @@ add_executable(xymond
 target_link_libraries(xymond
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -17,7 +17,7 @@ add_executable(xymond_channel
 target_link_libraries(xymond_channel
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -40,7 +40,7 @@ add_executable(xymond_filestore
 target_link_libraries(xymond_filestore
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -64,7 +64,7 @@ add_executable(xymond_alert
 target_link_libraries(xymond_alert
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -88,7 +88,7 @@ add_executable(xymond_client
 target_link_libraries(xymond_client
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -111,7 +111,7 @@ add_executable(xymond_capture
 target_link_libraries(xymond_capture
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -123,7 +123,7 @@ add_executable(xymond_distribute
 target_link_libraries(xymond_distribute
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -134,7 +134,7 @@ add_executable(combostatus
 target_link_libraries(combostatus
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -159,7 +159,7 @@ target_link_libraries(xymon_mailack
     xymoncomm
     xymontime
     xymoncomm
-    pcre
+    ${XYMON_PCRE_LIBRARY}
     ssl
     crypto
 )
@@ -220,7 +220,7 @@ if(ENABLE_RRD)
             xymoncomm
             ${RRD_LIBRARY}
             ${_XYMOND_RRD_EXTRA_LIBS}
-            pcre
+            ${XYMON_PCRE_LIBRARY}
             ssl
             crypto
         )
