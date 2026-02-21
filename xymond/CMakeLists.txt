@@ -213,7 +213,7 @@ if(ENABLE_RRD)
             do_rrd.c
             client_config.c
         )
-        target_compile_definitions(xymond_rrd PRIVATE RRDTOOL12)
+        target_compile_definitions(xymond_rrd PRIVATE RRDTOOL19)
         target_include_directories(xymond_rrd PRIVATE ${RRD_INCLUDE_DIR})
         target_link_libraries(xymond_rrd
             xymontime
