@@ -314,7 +314,7 @@ void format_rrdtime(char *t, char **tday, char **thm)
 
 int main(int argc, char **argv)
 {
-	pcre *hostptn, *exhostptn, *pageptn, *expageptn;
+	pcre2_code *hostptn, *exhostptn, *pageptn, *expageptn;
 	void *hwalk;
 	char *hostname, *pagename;
 
@@ -422,6 +422,11 @@ int main(int argc, char **argv)
 	  default:
 		break;
 	}
+
+	freeregex(hostptn);
+	freeregex(exhostptn);
+	freeregex(pageptn);
+	freeregex(expageptn);
 
 	return 0;
 }
