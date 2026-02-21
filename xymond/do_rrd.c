@@ -22,9 +22,7 @@ static char rcsid[] = "$Id$";
 #include <errno.h>
 #include <utime.h>
 
-#include <rrd.h>
-#define PCRE2_CODE_UNIT_WIDTH 8
-#include <pcre2.h>
+#include <pcre.h>
 
 #include "libxymon.h"
 #include "rrd_compat.h"
@@ -278,7 +276,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	pollinterval = rrdinterval;
 	rrdinterval = DEFAULT_RRD_INTERVAL;
 
-	if (strlen(rrdfn) == 0) {
+	if (rrdfn[0] == '\0') {
 		errprintf("RRD update for no file\n");
 		return -1;
 	}

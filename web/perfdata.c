@@ -20,9 +20,7 @@ static char rcsid[] = "$Id$";
 #include <math.h>
 #include <dirent.h>
 
-#include <rrd.h>
-#define PCRE2_CODE_UNIT_WIDTH 8
-#include <pcre2.h>
+#include <pcre.h>
 
 #include "libxymon.h"
 #include "rrd_compat.h"
@@ -315,7 +313,7 @@ void format_rrdtime(char *t, char **tday, char **thm)
 
 int main(int argc, char **argv)
 {
-	pcre2_code *hostptn, *exhostptn, *pageptn, *expageptn;
+	pcre *hostptn, *exhostptn, *pageptn, *expageptn;
 	void *hwalk;
 	char *hostname, *pagename;
 
