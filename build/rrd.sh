@@ -81,22 +81,22 @@
         detect_rrd_const_args() {
                 ${CC:-cc} ${INCOPT} -Werror=incompatible-pointer-types \
                         -x c -c -o /dev/null - >/dev/null 2>&1 <<EOF
-        #include <rrd.h>
-        int main(void) {
-                const char *args[] = { "rrdupdate", "dummy.rrd", NULL };
-                return rrd_update(2, args);
-        }
-        EOF
+#include <rrd.h>
+int main(void) {
+        const char *args[] = { "rrdupdate", "dummy.rrd", NULL };
+        return rrd_update(2, args);
+}
+EOF
                 test $? -eq 0 && return 1
 
                 ${CC:-cc} ${INCOPT} -Werror=incompatible-pointer-types \
                         -x c -c -o /dev/null - >/dev/null 2>&1 <<EOF
-        #include <rrd.h>
-        int main(void) {
-                char *args[] = { "rrdupdate", "dummy.rrd", NULL };
-                return rrd_update(2, args);
-        }
-        EOF
+#include <rrd.h>
+int main(void) {
+        char *args[] = { "rrdupdate", "dummy.rrd", NULL };
+        return rrd_update(2, args);
+}
+EOF
                 test $? -eq 0 && return 0
 
         return 2
