@@ -453,7 +453,7 @@ jobs:
           fi
 
       - name: Generate CMake refs snapshot
-        if: ${{ !matrix.stop_after_configure }}
+        if: ${{ !contains(toJSON(matrix), '"stop_after_configure":true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -468,7 +468,7 @@ jobs:
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (blocking policy checks)
-        if: ${{ !matrix.stop_after_configure }}
+        if: ${{ !contains(toJSON(matrix), '"stop_after_configure":true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -478,7 +478,7 @@ jobs:
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Upload artifacts
-        if: ${{ always() && !matrix.stop_after_configure && !contains(matrix.name, ' arm64 -') }}
+        if: ${{ always() && !contains(toJSON(matrix), '"stop_after_configure":true') && !contains(matrix.name, ' arm64 -') }}
         uses: actions/upload-artifact@v4
         with:
           name: ref-valid-${{ matrix.name }}
