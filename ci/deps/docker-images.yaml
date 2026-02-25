@@ -1,0 +1,26 @@
+images:
+  debian-11:
+    image: debian:11.11-slim
+    family: debian
+    os: debian
+    version: bullseye
+  debian-12:
+    image: debian:12.13-slim
+    family: debian
+    os: debian
+    version: bookworm
+  debian-13:
+    image: debian:13.3-slim
+    family: debian
+    os: debian
+    version: 13
+  ubuntu-22:
+    image: ubuntu:22.04
+    family: ubuntu
+    os: ubuntu
+    version: local
+  ubuntu-24:
+    image: ubuntu:24.04
+    family: ubuntu
+    os: ubuntu
+    version: latest

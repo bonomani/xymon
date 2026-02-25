@@ -1,28 +1,43 @@
 version: "3.9"
 
 services:
-  debian-bullseye:
+  debian-11-server-cmake:
     build:
       context: ..
-      dockerfile: docker/debian-bullseye/Dockerfile
+      dockerfile: docker/debian-11-server-cmake/Dockerfile
 
-  debian-bookworm:
+  debian-11-server-make:
     build:
       context: ..
-      dockerfile: docker/debian-bookworm/Dockerfile
+      dockerfile: docker/debian-11-server-make/Dockerfile
 
-  debian-trixie:
+  debian-12-server-cmake:
     build:
       context: ..
-      dockerfile: docker/debian-trixie/Dockerfile
+      dockerfile: docker/debian-12-server-cmake/Dockerfile
 
-  ubuntu-22.04:
+  debian-12-server-make:
     build:
       context: ..
-      dockerfile: docker/ubuntu-22.04/Dockerfile
+      dockerfile: docker/debian-12-server-make/Dockerfile
 
-  ubuntu-24.04:
+  ubuntu-22-server-cmake:
     build:
       context: ..
-      dockerfile: docker/ubuntu-24.04/Dockerfile
+      dockerfile: docker/ubuntu-22-server-cmake/Dockerfile
+
+  ubuntu-22-server-make:
+    build:
+      context: ..
+      dockerfile: docker/ubuntu-22-server-make/Dockerfile
+
+  ubuntu-24-server-cmake:
+    build:
+      context: ..
+      dockerfile: docker/ubuntu-24-server-cmake/Dockerfile
+
+  ubuntu-24-server-make:
+    build:
+      context: ..
+      dockerfile: docker/ubuntu-24-server-make/Dockerfile
 

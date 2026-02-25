@@ -7,7 +7,20 @@ if [[ -z "${PRESET:-}" ]]; then
   exit 1
 fi
 
-build_dir="build-cmake/${PRESET}"
+case "${PRESET}" in
+  default)
+    build_dir="build-cmake"
+    ;;
+  gnuinstall)
+    build_dir="build-cmake-gnu"
+    ;;
+  packaging)
+    build_dir="build-cmake-packaging"
+    ;;
+  *)
+    build_dir="build-cmake/${PRESET}"
+    ;;
+esac
 
 if [[ ! -d "${build_dir}" ]]; then
   echo "Build directory not found: ${build_dir}"
@@ -24,4 +37,3 @@ echo "PARALLEL=${parallel_level}"
 echo "==================="
 
 cmake --build "${build_dir}" --parallel "${parallel_level}"
-
