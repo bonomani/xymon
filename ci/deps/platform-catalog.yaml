@@ -1,0 +1,140 @@
+platforms:
+  debian-11:
+    runtime: docker
+    image: debian:11.11-slim
+  debian-12:
+    runtime: docker
+    image: debian:12.13-slim
+  debian-13:
+    runtime: docker
+    image: debian:13.3-slim
+
+  ubuntu-20:
+    runtime: docker
+    image: ubuntu:20.04
+  ubuntu-22:
+    runtime: docker
+    image: ubuntu:22.04
+  ubuntu-24:
+    runtime: docker
+    image: ubuntu:24.04
+
+  rockylinux-8:
+    runtime: docker
+    image: rockylinux:8
+  rockylinux-9:
+    runtime: docker
+    image: rockylinux:9
+  almalinux-8:
+    runtime: docker
+    image: almalinux:8
+  almalinux-9:
+    runtime: docker
+    image: almalinux:9
+  almalinux-10:
+    runtime: docker
+    image: almalinux:10
+  centos-7:
+    runtime: docker
+    image: centos:7
+  fedora-40:
+    runtime: docker
+    image: fedora:40
+  fedora-41:
+    runtime: docker
+    image: fedora:41
+  fedora-42:
+    runtime: docker
+    image: fedora:42
+
+  opensuse-tumbleweed:
+    runtime: docker
+    image: opensuse/tumbleweed:latest
+  opensuse-leap-16_0:
+    runtime: docker
+    image: opensuse/leap:16.0
+  opensuse-leap-15_6:
+    runtime: docker
+    image: opensuse/leap:15.6
+  opensuse-leap-15_5:
+    runtime: docker
+    image: opensuse/leap:15.5
+
+  alpine-3_23:
+    runtime: docker
+    image: alpine:3.23
+  alpine-3_22:
+    runtime: docker
+    image: alpine:3.22
+  alpine-3_21:
+    runtime: docker
+    image: alpine:3.21
+  alpine-3_20:
+    runtime: docker
+    image: alpine:3.20
+  alpine-3_19:
+    runtime: docker
+    image: alpine:3.19
+  alpine-edge:
+    runtime: docker
+    image: alpine:edge
+
+  archlinux-latest:
+    runtime: docker
+    image: archlinux:latest
+  archlinux-base:
+    runtime: docker
+    image: archlinux:base
+
+  freebsd-15_0:
+    runtime: vm
+    provider: cross-platform-actions
+  freebsd-14_3:
+    runtime: vm
+    provider: cross-platform-actions
+  freebsd-13_5:
+    runtime: vm
+    provider: cross-platform-actions
+
+  netbsd-10_1:
+    runtime: vm
+    provider: cross-platform-actions
+  netbsd-10_0:
+    runtime: vm
+    provider: cross-platform-actions
+  netbsd-9_4:
+    runtime: vm
+    provider: cross-platform-actions
+  netbsd-9_3:
+    runtime: vm
+    provider: cross-platform-actions
+  netbsd-9_2:
+    runtime: vm
+    provider: cross-platform-actions
+
+  openbsd-7_8:
+    runtime: vm
+    provider: cross-platform-actions
+  openbsd-7_7:
+    runtime: vm
+    provider: cross-platform-actions
+  openbsd-7_6:
+    runtime: vm
+    provider: cross-platform-actions
+
+  macos-latest:
+    runtime: host
+    provider: github-actions
+    runner: macos-latest
+  macos-26:
+    runtime: host
+    provider: github-actions
+    runner: macos-26
+  macos-15:
+    runtime: host
+    provider: github-actions
+    runner: macos-15
+  macos-14:
+    runtime: host
+    provider: github-actions
+    runner: macos-14

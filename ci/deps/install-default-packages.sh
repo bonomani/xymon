@@ -17,6 +17,8 @@ if [[ "${1:-}" == "-h" || "${1:-}" == "--help" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+normalization_file="${script_dir}/platform-normalization.yaml"
+normalization_resolver="${script_dir}/lib/resolve-platform-normalization.awk"
 
 family=""
 os_name=""
@@ -36,10 +38,8 @@ detect_linux() {
 
 case "${RUNNER_OS:-}" in
   macOS)
-    family="macos"
     os_name="macos"
     version="latest"
-    pkgmgr="brew"
     ;;
   Linux|"")
     detect_linux
@@ -58,44 +58,35 @@ if [[ -z "${family}" ]]; then
   fi
 
   case "${os_name}" in
-    debian)
-      family="debian"
-      pkgmgr="apt"
-      ;;
-    ubuntu)
-      family="gh-debian"
-      pkgmgr="apt"
-      ;;
     netbsd|freebsd|openbsd)
       exec "${script_dir}/install-bsd-packages.sh" --os "${os_name}" --version "${version:-}"
       ;;
-    rocky|rockylinux|almalinux|fedora)
-      family="rpm"
-      pkgmgr="dnf"
-      if [[ "${os_name}" == "rocky" ]]; then
-        os_name="rockylinux"
-      fi
-      ;;
-    centos)
-      family="rpm"
-      pkgmgr="yum"
-      ;;
-    opensuse*|sles)
-      family="suse"
-      pkgmgr="zypper"
-      ;;
-    alpine)
-      family="alpine"
-      pkgmgr="apk"
-      ;;
-    arch|archlinux)
-      family="arch"
-      pkgmgr="pacman"
-      os_name="archlinux"
-      ;;
     *)
-      echo "Unsupported or unknown OS ID: ${os_name}" >&2
-      exit 2
+      if [[ ! -f "${normalization_file}" ]]; then
+        echo "Missing platform normalization file: ${normalization_file}" >&2
+        exit 2
+      fi
+      if [[ ! -f "${normalization_resolver}" ]]; then
+        echo "Missing platform normalization resolver: ${normalization_resolver}" >&2
+        exit 2
+      fi
+
+      normalized="$(
+        awk \
+          -v RULES_FILE="${normalization_file}" \
+          -v OS_ID="${os_name}" \
+          -v VERSION="${version}" \
+          -f "${normalization_resolver}"
+      )" || {
+        echo "Unsupported or unknown OS ID: ${os_name}" >&2
+        exit 2
+      }
+
+      IFS='|' read -r family os_name pkgmgr version <<< "${normalized}"
+      if [[ -z "${family}" || -z "${os_name}" || -z "${pkgmgr}" ]]; then
+        echo "Invalid platform normalization for OS ID: ${os_name}" >&2
+        exit 2
+      fi
       ;;
   esac
 fi
@@ -103,39 +94,6 @@ fi
 if [[ -z "${version}" ]]; then
   version="latest"
 fi
-
-# Normalize version tokens used by deps YAML keys.
-case "${family}" in
-  gh-debian)
-    version="latest"
-    ;;
-  debian)
-    case "${version}" in
-      12) version="bookworm" ;;
-      11) version="bullseye" ;;
-      *) : ;;
-    esac
-    ;;
-  rpm)
-    # Normalize to major version for distro keys (e.g. 9.7 -> 9).
-    if [[ "${version}" =~ ^[0-9]+([.].*)?$ ]]; then
-      version="${version%%.*}"
-    fi
-    ;;
-  suse)
-    # Convert 15.6 -> 15_6
-    version="${version//./_}"
-    ;;
-  alpine)
-    # Normalize 3.19 -> 3
-    if [[ "${version}" =~ ^3 ]]; then
-      version="3"
-    fi
-    ;;
-  arch|macos)
-    version="latest"
-    ;;
-esac
 
 case "${pkgmgr}" in
   apt)
@@ -148,13 +106,6 @@ case "${pkgmgr}" in
     exec "${script_dir}/install-yum-packages.sh" --family "${family}" --os "${os_name}" --version "${version}"
     ;;
   zypper)
-    # normalize opensuse ids/version to match YAML keys
-    if [[ "${os_name}" == "opensuse-leap" ]]; then
-      os_name="opensuse_leap"
-    elif [[ "${os_name}" == "opensuse-tumbleweed" ]]; then
-      os_name="opensuse_tumbleweed"
-      version="latest"
-    fi
     exec "${script_dir}/install-zypper-packages.sh" --family "${family}" --os "${os_name}" --version "${version}"
     ;;
   apk)

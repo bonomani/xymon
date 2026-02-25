@@ -1,0 +1,11 @@
+version_notes:
+  linux:
+    ubuntu_latest:
+    - Package names are for Ubuntu-latest; adjust for other distros/versions.
+  bsd:
+    freebsd:
+    - Verify package names for your FreeBSD release (ports/pkg naming can change).
+    netbsd:
+    - Verify package names for your NetBSD release (pkg_add naming can change).
+    openbsd:
+    - Verify package names for your OpenBSD release (pkg_add naming can change).

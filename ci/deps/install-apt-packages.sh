@@ -16,9 +16,9 @@ Options:
   --print       Print package list and exit
   --check-only  Exit 0 if all packages are installed, 1 otherwise
   --install     Install packages (default)
-  --family NAME   Dependency family (e.g. gh-debian, debian)
+  --family NAME   Dependency family (e.g. gh-debian, debian, ubuntu)
   --os NAME       OS key (e.g. ubuntu, debian)
-  --version NAME  Optional version key (e.g. latest, local, bookworm)
+  --version NAME  Optional version key (e.g. latest, local, 20, bookworm)
 USAGE
 }
 
