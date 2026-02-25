@@ -1,0 +1,91 @@
+normalization:
+  os_ids:
+    debian:
+      family: debian
+      os: debian
+      pkgmgr: apt
+      version_mode: exact_map
+      version_fallback: passthrough
+      versions:
+        "11": bullseye
+        "12": bookworm
+    ubuntu:
+      family: ubuntu
+      os: ubuntu
+      pkgmgr: apt
+      version_mode: prefix_map
+      version_default: latest
+      versions:
+        "20": "20"
+        "22": local
+        "24": latest
+
+    rocky:
+      family: rpm
+      os: rockylinux
+      pkgmgr: dnf
+      version_mode: major
+    rockylinux:
+      family: rpm
+      os: rockylinux
+      pkgmgr: dnf
+      version_mode: major
+    almalinux:
+      family: rpm
+      os: almalinux
+      pkgmgr: dnf
+      version_mode: major
+    fedora:
+      family: rpm
+      os: fedora
+      pkgmgr: dnf
+      version_mode: major
+    centos:
+      family: rpm
+      os: centos
+      pkgmgr: yum
+      version_mode: major
+
+    opensuse-leap:
+      family: suse
+      os: opensuse_leap
+      pkgmgr: zypper
+      version_mode: dot_to_underscore
+    opensuse-tumbleweed:
+      family: suse
+      os: opensuse_tumbleweed
+      pkgmgr: zypper
+      version_mode: fixed
+      version_fixed: latest
+    sles:
+      family: suse
+      os: opensuse_leap
+      pkgmgr: zypper
+      version_mode: dot_to_underscore
+
+    alpine:
+      family: alpine
+      os: alpine
+      pkgmgr: apk
+      version_mode: fixed
+      version_fixed: "3"
+
+    arch:
+      family: arch
+      os: archlinux
+      pkgmgr: pacman
+      version_mode: fixed
+      version_fixed: latest
+    archlinux:
+      family: arch
+      os: archlinux
+      pkgmgr: pacman
+      version_mode: fixed
+      version_fixed: latest
+
+    macos:
+      family: macos
+      os: macos
+      pkgmgr: brew
+      version_mode: fixed
+      version_fixed: latest

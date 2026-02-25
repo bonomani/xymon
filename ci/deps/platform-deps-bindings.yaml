@@ -1,0 +1,160 @@
+binding_profiles:
+  debian:
+    family: debian
+    os: debian
+  ubuntu:
+    family: ubuntu
+    os: ubuntu
+  rockylinux:
+    family: rpm
+    os: rockylinux
+  almalinux:
+    family: rpm
+    os: almalinux
+  centos7:
+    family: rpm
+    os: centos
+    version: 7
+  fedora:
+    family: rpm
+    os: fedora
+  opensuse_tumbleweed:
+    family: suse
+    os: opensuse_tumbleweed
+    version: latest
+  opensuse_leap:
+    family: suse
+    os: opensuse_leap
+  alpine:
+    family: alpine
+    os: alpine
+    version: 3
+  archlinux:
+    family: arch
+    os: archlinux
+    version: latest
+  freebsd:
+    family: bsd
+    os: freebsd
+  netbsd:
+    family: bsd
+    os: netbsd
+  openbsd:
+    family: bsd
+    os: openbsd
+  macos:
+    family: macos
+    os: macos
+    version: latest
+
+bindings:
+  debian-11:
+    profile: debian
+    version: bullseye
+  debian-12:
+    profile: debian
+    version: bookworm
+  debian-13:
+    profile: debian
+    version: 13
+
+  ubuntu-20:
+    profile: ubuntu
+    version: 20
+  ubuntu-22:
+    profile: ubuntu
+    version: local
+  ubuntu-24:
+    profile: ubuntu
+    version: latest
+
+  rockylinux-8:
+    profile: rockylinux
+    version: 8
+  rockylinux-9:
+    profile: rockylinux
+    version: 9
+  almalinux-8:
+    profile: almalinux
+    version: 8
+  almalinux-9:
+    profile: almalinux
+    version: 9
+  almalinux-10:
+    profile: almalinux
+    version: 10
+  centos-7:
+    profile: centos7
+  fedora-40:
+    profile: fedora
+    version: 40
+  fedora-41:
+    profile: fedora
+    version: 41
+  fedora-42:
+    profile: fedora
+    version: 42
+
+  opensuse-tumbleweed:
+    profile: opensuse_tumbleweed
+  opensuse-leap-16_0:
+    profile: opensuse_leap
+    version: "16_0"
+  opensuse-leap-15_6:
+    profile: opensuse_leap
+    version: "15_6"
+  opensuse-leap-15_5:
+    profile: opensuse_leap
+    version: "15_5"
+
+  alpine-3_23:
+    profile: alpine
+  alpine-3_22:
+    profile: alpine
+  alpine-3_21:
+    profile: alpine
+  alpine-3_20:
+    profile: alpine
+  alpine-3_19:
+    profile: alpine
+  alpine-edge:
+    profile: alpine
+
+  archlinux-latest:
+    profile: archlinux
+  archlinux-base:
+    profile: archlinux
+
+  freebsd-15_0:
+    profile: freebsd
+  freebsd-14_3:
+    profile: freebsd
+  freebsd-13_5:
+    profile: freebsd
+
+  netbsd-10_1:
+    profile: netbsd
+  netbsd-10_0:
+    profile: netbsd
+  netbsd-9_4:
+    profile: netbsd
+  netbsd-9_3:
+    profile: netbsd
+  netbsd-9_2:
+    profile: netbsd
+
+  openbsd-7_8:
+    profile: openbsd
+  openbsd-7_7:
+    profile: openbsd
+  openbsd-7_6:
+    profile: openbsd
+
+  macos-latest:
+    profile: macos
+  macos-26:
+    profile: macos
+  macos-15:
+    profile: macos
+  macos-14:
+    profile: macos

@@ -1,0 +1,64 @@
+bindings:
+  gh-debian:
+    ubuntu_latest:
+      profile: linux_default
+  ubuntu:
+    ubuntu_latest:
+      profile: linux_default
+    ubuntu_local:
+      profile: linux_default
+    ubuntu_20:
+      profile: linux_default
+  debian:
+    ubuntu_local:
+      profile: linux_default
+    debian_bookworm:
+      profile: linux_default
+    debian_bullseye:
+      profile: linux_default
+    debian_13:
+      profile: linux_default
+  rpm:
+    rockylinux_8:
+      profile: linux_default
+    rockylinux_9:
+      profile: linux_default
+    almalinux_8:
+      profile: linux_default
+    almalinux_9:
+      profile: linux_default
+    almalinux_10:
+      profile: linux_default
+    centos_7:
+      profile: linux_default
+    fedora_41:
+      profile: linux_default
+    fedora_42:
+      profile: linux_default
+    fedora_40:
+      profile: linux_default
+  suse:
+    opensuse_tumbleweed_latest:
+      profile: linux_default
+    opensuse_leap_16_0:
+      profile: linux_default
+    opensuse_leap_15_6:
+      profile: linux_default
+    opensuse_leap_15_5:
+      profile: linux_default
+  alpine:
+    alpine_3:
+      profile: linux_default
+  arch:
+    archlinux_latest:
+      profile: linux_default
+  macos:
+    macos_latest:
+      profile: linux_default
+  bsd:
+    freebsd:
+      profile: bsd_freebsd
+    netbsd:
+      profile: bsd_net_open
+    openbsd:
+      profile: bsd_net_open

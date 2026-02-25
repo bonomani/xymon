@@ -1,0 +1,91 @@
+build:
+  gh-debian:
+    ubuntu_latest:
+      packagers:
+        apt: {}
+  ubuntu:
+    ubuntu_latest:
+      packagers:
+        apt: {}
+    ubuntu_local:
+      packagers:
+        apt: {}
+    ubuntu_20:
+      packagers:
+        apt: {}
+  debian:
+    ubuntu_local:
+      packagers:
+        apt: {}
+    debian_bookworm:
+      packagers:
+        apt: {}
+    debian_bullseye:
+      packagers:
+        apt: {}
+    debian_13:
+      packagers:
+        apt: {}
+  rpm:
+    rockylinux_8:
+      packagers:
+        dnf: {}
+    rockylinux_9:
+      packagers:
+        dnf: {}
+    almalinux_8:
+      packagers:
+        dnf: {}
+    almalinux_9:
+      packagers:
+        dnf: {}
+    almalinux_10:
+      packagers:
+        dnf: {}
+    centos_7:
+      packagers:
+        yum: {}
+    fedora_41:
+      packagers:
+        dnf: {}
+    fedora_42:
+      packagers:
+        dnf: {}
+    fedora_40:
+      packagers:
+        dnf: {}
+  suse:
+    opensuse_tumbleweed_latest:
+      packagers:
+        zypper: {}
+    opensuse_leap_16_0:
+      packagers:
+        zypper: {}
+    opensuse_leap_15_6:
+      packagers:
+        zypper: {}
+    opensuse_leap_15_5:
+      packagers:
+        zypper: {}
+  alpine:
+    alpine_3:
+      packagers:
+        apk: {}
+  arch:
+    archlinux_latest:
+      packagers:
+        pacman: {}
+  macos:
+    macos_latest:
+      packagers:
+        brew: {}
+  bsd:
+    freebsd:
+      packagers:
+        pkg: {}
+    netbsd:
+      packagers:
+        pkg_add: {}
+    openbsd:
+      packagers:
+        pkg_add: {}

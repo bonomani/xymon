@@ -116,10 +116,89 @@ enable_snmp="$(normalize_onoff "${enable_snmp}" "OFF")"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 data_dir="${script_dir}/data"
 deps_file="${data_dir}/deps-${variant}.yaml"
+topology_file="${data_dir}/deps-topology.yaml"
+bindings_file="${deps_file}"
 dep_map_file="${data_dir}/deps-map.yaml"
 
 if [[ ! -f "${deps_file}" ]]; then
   echo "Dependency file missing: ${deps_file}" >&2
+  exit 1
+fi
+
+topology_ref="$(
+  awk '
+    function trim(val) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+      return val
+    }
+    function dequote(val) {
+      if ((val ~ /^".*"$/) || (val ~ /^\047.*\047$/)) {
+        return substr(val, 2, length(val) - 2)
+      }
+      return val
+    }
+    {
+      if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
+      indent = match($0, /[^ ]/) - 1
+      if (indent < 0) indent = 0
+      if (indent != 0) next
+      line = substr($0, indent + 1)
+      sep_pos = index(line, ":")
+      if (sep_pos <= 0) next
+      key = trim(substr(line, 1, sep_pos - 1))
+      value = trim(substr(line, sep_pos + 1))
+      value = dequote(value)
+      if (key == "topology" && value != "") {
+        print value
+        exit
+      }
+    }
+  ' "${deps_file}"
+)"
+if [[ -n "${topology_ref}" ]]; then
+  topology_file="${data_dir}/${topology_ref}"
+fi
+
+bindings_ref="$(
+  awk '
+    function trim(val) {
+      gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+      return val
+    }
+    function dequote(val) {
+      if ((val ~ /^".*"$/) || (val ~ /^\047.*\047$/)) {
+        return substr(val, 2, length(val) - 2)
+      }
+      return val
+    }
+    {
+      if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
+      indent = match($0, /[^ ]/) - 1
+      if (indent < 0) indent = 0
+      if (indent != 0) next
+      line = substr($0, indent + 1)
+      sep_pos = index(line, ":")
+      if (sep_pos <= 0) next
+      key = trim(substr(line, 1, sep_pos - 1))
+      value = trim(substr(line, sep_pos + 1))
+      value = dequote(value)
+      if (key == "bindings_file" && value != "") {
+        print value
+        exit
+      }
+    }
+  ' "${deps_file}"
+)"
+if [[ -n "${bindings_ref}" ]]; then
+  bindings_file="${data_dir}/${bindings_ref}"
+fi
+
+if [[ ! -f "${topology_file}" ]]; then
+  echo "Dependency topology missing: ${topology_file}" >&2
+  exit 1
+fi
+if [[ ! -f "${bindings_file}" ]]; then
+  echo "Dependency bindings missing: ${bindings_file}" >&2
   exit 1
 fi
 
@@ -135,15 +214,69 @@ make_temp() {
   mktemp -t packages-from-yaml.XXXXXX
 }
 
-items_file="$(make_temp)"
-tmp_files+=("${items_file}")
+items_meta_file="$(make_temp)"
+tmp_files+=("${items_meta_file}")
 
 if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
-  BEGIN {
-    found = 0
-    list_context = ""
-    list_indent = -1
+  function trim(val) {
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+    return val
   }
+  function dequote(val) {
+    if ((val ~ /^".*"$/) || (val ~ /^\047.*\047$/)) {
+      return substr(val, 2, length(val) - 2)
+    }
+    return val
+  }
+  function set_key(key, depth) {
+    keys[depth] = key
+    for (i = depth + 1; i < 64; ++i) delete keys[i]
+  }
+  {
+    if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
+
+    indent = match($0, /[^ ]/) - 1
+    if (indent < 0) indent = 0
+    depth = int(indent / 2)
+    line = substr($0, indent + 1)
+
+    if (list_context != "" && line !~ /^-/ && indent <= list_indent) {
+      list_context = ""
+    }
+
+    if (line ~ /^-/) {
+      item = trim(substr(line, 2))
+      if (item != "") {
+        if (list_context == "target") {
+          print "TARGET_ITEM\t" item
+        }
+      }
+      next
+    }
+
+    sep_pos = index(line, ":")
+    if (sep_pos <= 0) next
+
+    key = trim(substr(line, 1, sep_pos - 1))
+    value = trim(substr(line, sep_pos + 1))
+    value = dequote(value)
+    set_key(key, depth)
+
+    if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && key == "profile") {
+      if (value != "") print "TARGET_PROFILE\t" value
+    }
+
+    if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs" && key == "mandatory") {
+      list_context = "target"
+      list_indent = indent
+      next
+    }
+  }
+' "${bindings_file}" > "${items_meta_file}"; then
+  exit 1
+fi
+
+if ! awk '
   function trim(val) {
     gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
     return val
@@ -152,8 +285,54 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     keys[depth] = key
     for (i = depth + 1; i < 64; ++i) delete keys[i]
   }
-  function path_matches() {
-    return keys[0] == "build" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs"
+  {
+    if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
+
+    indent = match($0, /[^ ]/) - 1
+    if (indent < 0) indent = 0
+    depth = int(indent / 2)
+    line = substr($0, indent + 1)
+
+    if (list_context != "" && line !~ /^-/ && indent <= list_indent) {
+      list_context = ""
+    }
+
+    if (line ~ /^-/) {
+      item = trim(substr(line, 2))
+      if (item != "" && index(list_context, "profile:") == 1) {
+        profile_name = substr(list_context, 9)
+        print "PROFILE_ITEM\t" profile_name "\t" item
+      }
+      next
+    }
+
+    sep_pos = index(line, ":")
+    if (sep_pos <= 0) next
+
+    key = trim(substr(line, 1, sep_pos - 1))
+    set_key(key, depth)
+
+    if (keys[0] == "profiles" && keys[2] == "libs" && key == "mandatory") {
+      profile_name = keys[1]
+      if (profile_name != "") {
+        list_context = "profile:" profile_name
+        list_indent = indent
+      }
+      next
+    }
+  }
+' "${deps_file}" >> "${items_meta_file}"; then
+  exit 1
+fi
+
+if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
+  function trim(val) {
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+    return val
+  }
+  function set_key(key, depth) {
+    keys[depth] = key
+    for (i = depth + 1; i < 64; ++i) delete keys[i]
   }
   {
     if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
@@ -161,41 +340,63 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     if (indent < 0) indent = 0
     depth = int(indent / 2)
     line = substr($0, indent + 1)
-    if (line ~ /^-/) {
-      if (list_context == "mandatory" && path_matches()) {
-        item = trim(substr(line, 2))
-        if (item != "") print item
-      }
-      next
-    }
-    if (list_context == "mandatory" && indent <= list_indent) {
-      list_context = ""
-    }
     sep_pos = index(line, ":")
-    if (sep_pos > 0) {
-      key = trim(substr(line, 1, sep_pos - 1))
-      set_key(key, depth)
-      if (key == "mandatory" && path_matches()) {
-        found = 1
-        list_context = "mandatory"
-        list_indent = indent
-      }
+    if (sep_pos <= 0) next
+    key = trim(substr(line, 1, sep_pos - 1))
+    set_key(key, depth)
+    if (keys[0] == "build" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && key == PKGMGR) {
+      found = 1
     }
   }
   END {
-    if (found == 0) {
-      print "Failed to locate package list for family=" FAMILY " os=" OS " pkgmgr=" PKGMGR > "/dev/stderr"
+    if (found != 1) {
+      print "Failed to locate topology for family=" FAMILY " os=" OS " pkgmgr=" PKGMGR > "/dev/stderr"
       exit 1
     }
   }
-' "${deps_file}" > "${items_file}"; then
+' "${topology_file}"; then
   exit 1
 fi
 
+declare -A profile_items
 items=()
-while IFS= read -r item; do
-  items+=("${item}")
-done < "${items_file}"
+target_profile=""
+while IFS=$'\t' read -r rec a b; do
+  case "${rec}" in
+    TARGET_ITEM)
+      [[ -n "${a}" ]] && items+=("${a}")
+      ;;
+    TARGET_PROFILE)
+      target_profile="${a}"
+      ;;
+    PROFILE_ITEM)
+      if [[ -n "${a}" && -n "${b}" ]]; then
+        if [[ -z "${profile_items[${a}]:-}" ]]; then
+          profile_items["${a}"]="${b}"
+        else
+          profile_items["${a}"]+=$'\n'"${b}"
+        fi
+      fi
+      ;;
+  esac
+done < "${items_meta_file}"
+
+if [[ "${#items[@]}" -eq 0 ]]; then
+  if [[ -z "${target_profile}" ]]; then
+    echo "Failed to locate package list for family=${family} os=${os_name} pkgmgr=${pkgmgr}" >&2
+    exit 1
+  fi
+
+  profile_payload="${profile_items[${target_profile}]:-}"
+  if [[ -z "${profile_payload}" ]]; then
+    echo "Profile '${target_profile}' has no libs.mandatory list in ${deps_file}" >&2
+    exit 1
+  fi
+
+  while IFS= read -r item; do
+    [[ -n "${item}" ]] && items+=("${item}")
+  done <<< "${profile_payload}"
+fi
 
 filtered=()
 for item in "${items[@]}"; do
@@ -211,97 +412,35 @@ for item in "${items[@]}"; do
   filtered+=("${item}")
 done
 
-map_keys=()
-map_values=()
-if [[ -f "${dep_map_file}" ]]; then
-  map_file="$(make_temp)"
-  tmp_files+=("${map_file}")
-  if ! awk '
-    BEGIN {
-      in_map = 0
-    }
-    function trim(val) {
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-      return val
-    }
-    function set_key(key, depth) {
-      keys[depth] = key
-      for (i = depth + 1; i < 64; ++i) delete keys[i]
-    }
-    {
-      if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
-      indent = match($0, /[^ ]/) - 1
-      if (indent < 0) indent = 0
-      depth = int(indent / 2)
-      line = substr($0, indent + 1)
-      if (line ~ /^map:/) {
-        in_map = 1
-        next
-      }
-      if (line ~ /^aliases:/) {
-        in_map = 0
-        next
-      }
-      if (!in_map) next
-      sep_pos = index(line, ":")
-      if (sep_pos > 0) {
-        key = trim(substr(line, 1, sep_pos - 1))
-        value = trim(substr(line, sep_pos + 1))
-        set_key(key, depth)
-        if (value ~ /^\[/) {
-          data = value
-          sub(/^\[/, "", data)
-          sub(/\][[:space:]]*$/, "", data)
-          gsub(/^[[:space:]]+|[[:space:]]+$/, "", data)
-          if (data == "") next
-          map_key = keys[1]
-          family_key = keys[2]
-          os_key = keys[3]
-          pkgmgr_key = key
-          if (map_key == "" || family_key == "" || os_key == "" || pkgmgr_key == "") next
-          n = split(data, items, /,[[:space:]]*/)
-          pkgline = ""
-          for (i = 1; i <= n; ++i) {
-            item = trim(items[i])
-            if (item == "") continue
-            pkgline = pkgline (pkgline == "" ? "" : " ") item
-          }
-          if (pkgline != "") print map_key "|" family_key "|" os_key "|" pkgmgr_key "|" pkgline
-        }
-      }
-    }
-  ' "${dep_map_file}" > "${map_file}"; then
+resolved=()
+if [[ -f "${dep_map_file}" && "${#filtered[@]}" -gt 0 ]]; then
+  map_resolver="${script_dir}/lib/resolve-map.awk"
+  if [[ ! -f "${map_resolver}" ]]; then
+    echo "Map resolver missing: ${map_resolver}" >&2
     exit 1
   fi
 
-  while IFS='|' read -r map_key map_family map_os map_pkgmgr pkg_list; do
-    [[ -n "${pkg_list}" ]] || continue
-    map_keys+=("${map_key}|${map_family}|${map_os}|${map_pkgmgr}")
-    map_values+=("${pkg_list}")
-  done < "${map_file}"
-fi
+  filtered_file="$(make_temp)"
+  resolved_file="$(make_temp)"
+  tmp_files+=("${filtered_file}" "${resolved_file}")
 
-resolved=()
-for item in "${filtered[@]}"; do
-  key="${item}|${family}|${os_name}|${pkgmgr}"
-  mapped_pkg_line=""
-  if [[ "${#map_keys[@]}" -gt 0 ]]; then
-    for idx in "${!map_keys[@]}"; do
-      if [[ "${map_keys[$idx]}" == "${key}" ]]; then
-        mapped_pkg_line="${map_values[$idx]}"
-        break
-      fi
-    done
+  printf '%s\n' "${filtered[@]}" > "${filtered_file}"
+  if ! awk \
+    -v MAP_FILE="${dep_map_file}" \
+    -v FAMILY="${family}" \
+    -v OS="${os_name}" \
+    -v PKGMGR="${pkgmgr}" \
+    -f "${map_resolver}" \
+    "${filtered_file}" > "${resolved_file}"; then
+    exit 1
   fi
-  if [[ -n "${mapped_pkg_line}" ]]; then
-    read -ra replacements <<< "${mapped_pkg_line}"
-    for rep in "${replacements[@]}"; do
-      resolved+=("${rep}")
-    done
-  else
-    resolved+=("${item}")
-  fi
-done
+
+  while IFS= read -r pkg; do
+    [[ -n "${pkg}" ]] && resolved+=("${pkg}")
+  done < "${resolved_file}"
+else
+  resolved=("${filtered[@]}")
+fi
 
 for pkg in "${resolved[@]}"; do
   printf '%s\n' "${pkg}"

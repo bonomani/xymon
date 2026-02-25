@@ -526,12 +526,14 @@ endif()
 # ----------------------------------------------------------------------
 set(XYMON_DOCKER_COMPOSE_FILE "${CMAKE_SOURCE_DIR}/docker/docker-compose.yml")
 set(XYMON_DOCKER_MATRIX_FILE "${CMAKE_SOURCE_DIR}/ci/deps/docker-matrix.yaml")
-set(XYMON_DOCKER_IMAGES_FILE "${CMAKE_SOURCE_DIR}/ci/deps/docker-images.yaml")
+set(XYMON_PLATFORM_CATALOG_FILE "${CMAKE_SOURCE_DIR}/ci/deps/platform-catalog.yaml")
+set(XYMON_PLATFORM_BINDINGS_FILE "${CMAKE_SOURCE_DIR}/ci/deps/platform-deps-bindings.yaml")
 set(XYMON_DOCKER_GENERATOR_SCRIPT "${CMAKE_SOURCE_DIR}/create-docker-debian-family.sh")
 
 if(EXISTS "${XYMON_DOCKER_GENERATOR_SCRIPT}"
         AND EXISTS "${XYMON_DOCKER_MATRIX_FILE}"
-        AND EXISTS "${XYMON_DOCKER_IMAGES_FILE}")
+        AND EXISTS "${XYMON_PLATFORM_CATALOG_FILE}"
+        AND EXISTS "${XYMON_PLATFORM_BINDINGS_FILE}")
     file(READ "${XYMON_DOCKER_MATRIX_FILE}" _xy_mon_matrix_text)
     string(REGEX MATCHALL "-[ \t]*name:[ \t]*([^ \t\n\r]+)" _xy_mon_matches "${_xy_mon_matrix_text}")
 
@@ -548,7 +550,7 @@ if(EXISTS "${XYMON_DOCKER_GENERATOR_SCRIPT}"
 
         add_custom_target(docker-generate
             COMMAND "${XYMON_DOCKER_GENERATOR_SCRIPT}"
-            DEPENDS "${XYMON_DOCKER_MATRIX_FILE}" "${XYMON_DOCKER_IMAGES_FILE}"
+            DEPENDS "${XYMON_DOCKER_MATRIX_FILE}" "${XYMON_PLATFORM_CATALOG_FILE}" "${XYMON_PLATFORM_BINDINGS_FILE}"
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
             COMMENT "Regenerate Docker definitions from the CI registry"
         )
