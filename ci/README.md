@@ -7,6 +7,19 @@ The repository splits CI-related helpers into two clear subtrees:
 
 Use `ci/run` when you want to reuse the CI configure/build/install steps, and `ci/deps` when you need dependency lists, package installers, or validation. The legacy `scripts/ci/` folder now holds only the “wrapper” entry points (e.g., `check-deps.sh`) for compatibility; the real implementations live under `ci/`.
 
+## Linting
+
+Run local CI lint checks with:
+
+```
+bash ci/run/lint.sh
+```
+
+The script runs `actionlint` for GitHub workflows/actions and `shellcheck` for shell scripts.
+Use `bash ci/run/lint.sh --changed [BASE_REF]` to lint only changed shell scripts.
+Set `LINT_ACTIONLINT_WITH_SHELLCHECK=1` to also lint workflow `run:` blocks via actionlint's shellcheck integration.
+By default it runs shellcheck at severity `error`; set `LINT_SHELLCHECK_SEVERITY=warning` for stricter local cleanup.
+
 ## Legacy Makefile variants
 
 Legacy builds use three variants that map to Makefile variables as follows:
