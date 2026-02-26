@@ -28,7 +28,7 @@ DEFAULT_VERSION_NOTES_FILE = DATA_DIR / "deps-version-notes.yaml"
 MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
-REF_VALID_WORKFLOW_GLOB = "ref-valid-*.yml"
+REF_VALIDATE_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-validate-families.yml"
 
 
 def load_yaml(path: Path) -> dict:
@@ -525,32 +525,57 @@ def find_package_steps(workflow: dict) -> list[str]:
     return hits
 
 
-def iter_ref_validation_lanes() -> list[tuple[Path, str, dict]]:
-    lanes: list[tuple[Path, str, dict]] = []
-    workflow_dir = ROOT / ".github" / "workflows"
-    for wf in sorted(workflow_dir.glob(REF_VALID_WORKFLOW_GLOB)):
-        data = parse_workflow_yaml(wf)
-        jobs = data.get("jobs", {})
-        if not isinstance(jobs, dict):
+def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
+    lanes: list[tuple[str, Path, str, dict]] = []
+
+    if not REF_VALIDATE_FAMILIES_MANIFEST.exists():
+        print(f"   ERROR: missing ref-validation families manifest: {REF_VALIDATE_FAMILIES_MANIFEST}")
+        return lanes
+
+    manifest = load_yaml(REF_VALIDATE_FAMILIES_MANIFEST)
+    family_entries = manifest.get("families", [])
+    if not isinstance(family_entries, list):
+        print(f"   ERROR: {REF_VALIDATE_FAMILIES_MANIFEST} families must be a list")
+        return lanes
+
+    for entry in family_entries:
+        if not isinstance(entry, dict):
             continue
-        for job in jobs.values():
-            if not isinstance(job, dict):
+
+        family = entry.get("family")
+        lane_file = entry.get("lane_file")
+        if not isinstance(family, str) or not family.strip():
+            continue
+        if not isinstance(lane_file, str) or not lane_file.strip():
+            print(f"   ERROR: family '{family}' missing lane_file in {REF_VALIDATE_FAMILIES_MANIFEST}")
+            continue
+
+        lane_path = ROOT / lane_file
+        if not lane_path.exists():
+            print(f"   ERROR: lane file for family '{family}' does not exist: {lane_path}")
+            continue
+
+        lane_doc = yaml.safe_load(lane_path.read_text()) or {}
+        include = []
+        if isinstance(lane_doc, list):
+            include = lane_doc
+        elif isinstance(lane_doc, dict):
+            include = lane_doc.get("include", lane_doc.get("lanes", []))
+        else:
+            print(f"   ERROR: lane file must be a list/mapping: {lane_path}")
+            continue
+
+        if not isinstance(include, list):
+            print(f"   ERROR: lane file include is not a list: {lane_path}")
+            continue
+
+        for lane in include:
+            if not isinstance(lane, dict):
                 continue
-            strategy = job.get("strategy", {})
-            if not isinstance(strategy, dict):
-                continue
-            matrix = strategy.get("matrix", {})
-            if not isinstance(matrix, dict):
-                continue
-            include = matrix.get("include", [])
-            if not isinstance(include, list):
-                continue
-            for lane in include:
-                if not isinstance(lane, dict):
-                    continue
-                variant = lane.get("variant")
-                if isinstance(variant, str) and variant in {"server", "client", "localclient"}:
-                    lanes.append((wf, variant, lane))
+            variant = lane.get("variant")
+            if isinstance(variant, str) and variant in {"server", "client", "localclient"}:
+                lanes.append((family, lane_path, variant, lane))
+
     return lanes
 
 
@@ -579,19 +604,20 @@ def check_ref_workflow_deps_coverage(
             )
 
     if not lanes:
-        print("   NOTE: no ref-valid workflow matrix lanes found")
+        print("   NOTE: no ref-validation lane entries found")
         return True
 
-    for wf, variant, lane in lanes:
+    for family, lane_path, variant, lane in lanes:
         lane_name = lane.get("name", "<unnamed>")
-        req_type, req_value = map_ref_lane_to_platform_requirement(wf, lane)
+        lane_ref = f"{family}:{lane_name}"
+        req_type, req_value = map_ref_lane_to_platform_requirement(family, lane)
         platform_id = ""
         if req_type == "docker_image":
             platform_id = image_to_platform.get(req_value, "")
             if not platform_id:
                 ok = False
                 print(
-                    f"   ERROR: {wf.name} lane '{lane_name}' requires docker image '{req_value}' "
+                    f"   ERROR: {lane_ref} requires docker image '{req_value}' "
                     "missing from platform catalog"
                 )
                 continue
@@ -599,33 +625,41 @@ def check_ref_workflow_deps_coverage(
             platform_id = req_value
             if not platform_id:
                 ok = False
-                print(f"   ERROR: {wf.name} lane '{lane_name}' could not derive a platform id")
+                print(f"   ERROR: {lane_ref} could not derive a platform id")
                 continue
             if platform_id not in platform_catalog:
                 ok = False
                 print(
-                    f"   ERROR: {wf.name} lane '{lane_name}' requires platform '{platform_id}' "
+                    f"   ERROR: {lane_ref} requires platform '{platform_id}' "
                     "missing from platform catalog"
                 )
                 continue
         else:
             ok = False
-            print(f"   ERROR: {wf.name} lane '{lane_name}' has unknown platform mapping: {(req_type, req_value)}")
+            print(
+                f"   ERROR: {lane_ref} has unknown platform mapping: {(req_type, req_value)} "
+                f"(source: {lane_path})"
+            )
             continue
 
         binding = platform_bindings.get(platform_id)
         if not isinstance(binding, dict):
             ok = False
             print(
-                f"   ERROR: {wf.name} lane '{lane_name}' maps to platform '{platform_id}' "
+                f"   ERROR: {lane_ref} maps to platform '{platform_id}' "
                 "without a deps binding"
             )
             continue
 
-        family = binding.get("family")
+        binding_family = binding.get("family")
         os_name = binding.get("os")
         version = binding.get("version")
-        if not isinstance(family, str) or not family.strip() or not isinstance(os_name, str) or not os_name.strip():
+        if (
+            not isinstance(binding_family, str)
+            or not binding_family.strip()
+            or not isinstance(os_name, str)
+            or not os_name.strip()
+        ):
             ok = False
             print(
                 f"   ERROR: platform '{platform_id}' has invalid deps binding "
@@ -635,22 +669,22 @@ def check_ref_workflow_deps_coverage(
 
         os_key = compose_os_key(os_name, version)
         families = variant_index.get(variant, {})
-        if family not in families:
+        if binding_family not in families:
             ok = False
             print(
-                f"   ERROR: {wf.name} lane '{lane_name}' uses variant={variant} family={family} "
-                f"but deps-{variant}.yaml has no family '{family}'"
+                f"   ERROR: {lane_ref} uses variant={variant} family={binding_family} "
+                f"but deps-{variant}.yaml has no family '{binding_family}'"
             )
             continue
-        if os_key not in families[family]:
+        if os_key not in families[binding_family]:
             ok = False
             print(
-                f"   ERROR: {wf.name} lane '{lane_name}' expects deps key {family}.{os_key} "
+                f"   ERROR: {lane_ref} expects deps key {binding_family}.{os_key} "
                 f"for variant={variant}, but it is missing in deps-{variant}.yaml"
             )
 
     if ok:
-        print("   OK: ref-valid workflow lanes are covered by deps keys")
+        print("   OK: ref-validation lanes are covered by deps keys")
     return ok
 
 
@@ -838,23 +872,23 @@ def check_docker_platforms_map_to_deps(
 
 
 def map_ref_lane_to_platform_requirement(
-    workflow_path: Path,
+    family: str,
     lane: dict,
 ) -> tuple[str, str]:
     container = lane.get("container")
     if isinstance(container, str) and container:
         return "docker_image", normalize_container_ref(container)
 
-    if "freebsd_version" in lane or "freebsd" in workflow_path.name:
+    if family == "freebsd" or "freebsd_version" in lane:
         version = str(lane.get("freebsd_version", "")).strip()
         return "platform_id", f"freebsd-{version.replace('.', '_')}" if version else ""
-    if "netbsd_version" in lane or "netbsd" in workflow_path.name:
+    if family == "netbsd" or "netbsd_version" in lane:
         version = str(lane.get("netbsd_version", "")).strip()
         return "platform_id", f"netbsd-{version.replace('.', '_')}" if version else ""
-    if "openbsd_version" in lane or "openbsd" in workflow_path.name:
+    if family == "openbsd" or "openbsd_version" in lane:
         version = str(lane.get("openbsd_version", "")).strip()
         return "platform_id", f"openbsd-{version.replace('.', '_')}" if version else ""
-    if "macos_version" in lane or "macos" in workflow_path.name:
+    if family == "macos" or "macos_version" in lane:
         version = str(lane.get("macos_version", "")).strip()
         if version:
             return "platform_id", f"macos-{version}"
@@ -863,7 +897,7 @@ def map_ref_lane_to_platform_requirement(
             return "platform_id", runner.strip()
         return "platform_id", ""
 
-    return "unknown", workflow_path.name
+    return "unknown", family
 
 
 def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dict]) -> bool:
@@ -885,22 +919,23 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
 
     lanes = iter_ref_validation_lanes()
     if not lanes:
-        print("   NOTE: no ref-valid workflow matrix lanes found")
+        print("   NOTE: no ref-validation lane entries found")
         return True
 
-    for wf, _, lane in lanes:
+    for family, lane_path, _, lane in lanes:
         lane_name = lane.get("name", "<unnamed>")
-        req_type, req_value = map_ref_lane_to_platform_requirement(wf, lane)
+        lane_ref = f"{family}:{lane_name}"
+        req_type, req_value = map_ref_lane_to_platform_requirement(family, lane)
         if not req_type:
             ok = False
-            print(f"   ERROR: {wf.name} lane '{lane_name}' could not be mapped to platform requirement")
+            print(f"   ERROR: {lane_ref} could not be mapped to platform requirement")
             continue
 
         if req_type == "docker_image":
             if req_value not in image_to_platform:
                 ok = False
                 print(
-                    f"   ERROR: {wf.name} lane '{lane_name}' requires docker image '{req_value}' "
+                    f"   ERROR: {lane_ref} requires docker image '{req_value}' "
                     "missing from platform catalog"
                 )
             continue
@@ -909,12 +944,12 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
             platform_id = req_value
             if not platform_id:
                 ok = False
-                print(f"   ERROR: {wf.name} lane '{lane_name}' could not derive a platform id")
+                print(f"   ERROR: {lane_ref} could not derive a platform id")
                 continue
             if platform_id not in platform_ids:
                 ok = False
                 print(
-                    f"   ERROR: {wf.name} lane '{lane_name}' requires platform '{platform_id}' "
+                    f"   ERROR: {lane_ref} requires platform '{platform_id}' "
                     "missing from platform catalog"
                 )
                 continue
@@ -923,14 +958,14 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
             if platform_id.startswith(("freebsd-", "netbsd-", "openbsd-")) and runtime != "vm":
                 ok = False
                 print(
-                    f"   ERROR: {wf.name} lane '{lane_name}' expects platform '{platform_id}' "
+                    f"   ERROR: {lane_ref} expects platform '{platform_id}' "
                     f"to use runtime=vm (found runtime={runtime})"
                 )
             if platform_id.startswith("macos-"):
                 if runtime != "host":
                     ok = False
                     print(
-                        f"   ERROR: {wf.name} lane '{lane_name}' expects platform '{platform_id}' "
+                        f"   ERROR: {lane_ref} expects platform '{platform_id}' "
                         f"to use runtime=host (found runtime={runtime})"
                     )
                 lane_runner = lane.get("runner")
@@ -944,16 +979,19 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
                 ):
                     ok = False
                     print(
-                        f"   ERROR: {wf.name} lane '{lane_name}' runner='{lane_runner}' "
+                        f"   ERROR: {lane_ref} runner='{lane_runner}' "
                         f"does not match catalog runner='{catalog_runner}' for platform '{platform_id}'"
                     )
             continue
 
         ok = False
-        print(f"   ERROR: {wf.name} lane '{lane_name}' has unknown platform mapping: {(req_type, req_value)}")
+        print(
+            f"   ERROR: {lane_ref} has unknown platform mapping: {(req_type, req_value)} "
+            f"(source: {lane_path})"
+        )
 
     if ok:
-        print("   OK: ref-valid workflow lanes are declared in platform catalog")
+        print("   OK: ref-validation lanes are declared in platform catalog")
     return ok
 
 
@@ -1694,11 +1732,11 @@ def main() -> int:
     if not check_platform_catalog_bindings_consistency(platform_catalog, platform_bindings):
         ok = False
 
-    print("-- workflows: ref-valid deps coverage")
+    print("-- workflows: ref-validation deps coverage")
     if not check_ref_workflow_deps_coverage(variant_index, platform_catalog, platform_bindings):
         ok = False
 
-    print("-- platforms: catalog coverage for ref-valid lanes")
+    print("-- platforms: catalog coverage for ref-validation lanes")
     if not check_ref_workflow_platform_catalog_coverage(platform_catalog):
         ok = False
 

@@ -21,6 +21,12 @@ on:
           - opensuse
           - rpm
           - ubuntu
+  workflow_call:
+    inputs:
+      family:
+        description: Reference-validation family key (or all)
+        required: true
+        type: string
 
 permissions:
   contents: read
@@ -53,7 +59,6 @@ jobs:
           python3 ci/run/ref/build-ref-validate-matrix.py \
             --selected-family "${SELECTED_FAMILY}" \
             --manifest "ci/run/ref/ref-validate-families.yml" \
-            --workflows-dir ".github/workflows" \
             --selector-workflow ".github/workflows/ref-validate-select.yml" \
             --github-output "${GITHUB_OUTPUT}"
 
