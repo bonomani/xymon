@@ -296,7 +296,6 @@ jobs:
           fi
 
       - name: Generate CMake refs snapshot
-        if: ${{ !contains(toJSON(matrix), '"stop_after_configure":true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -311,7 +310,6 @@ jobs:
             --refs-root /tmp/xymon-refs
 
       - name: Compare refs snapshot (blocking policy checks)
-        if: ${{ !contains(toJSON(matrix), '"stop_after_configure":true') }}
         shell: bash
         run: |
           set -euo pipefail
@@ -321,6 +319,6 @@ jobs:
             --candidate-root "${LEGACY_ROOT}"
 
       - name: Skip artifacts on CentOS 7 (Node 20 runtime incompatible)
-        if: ${{ always() && !contains(toJSON(matrix), '"stop_after_configure":true') }}
+        if: ${{ always() }}
         run: |
           echo "Skipping actions/upload-artifact on CentOS 7 container due Node 20 runtime GLIBC incompatibility."
