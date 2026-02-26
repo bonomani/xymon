@@ -228,7 +228,8 @@ jobs:
           git init .
           git remote add origin "${repo_url}"
           if [ -n "${GITHUB_TOKEN:-}" ]; then
-            git config http."${GITHUB_SERVER_URL}/".extraheader "AUTHORIZATION: bearer ${GITHUB_TOKEN}"
+            auth_header="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\r\n')"
+            git config http."${GITHUB_SERVER_URL}/".extraheader "AUTHORIZATION: basic ${auth_header}"
           fi
           git fetch --depth=1 origin "${GITHUB_SHA}"
           git checkout --force FETCH_HEAD
