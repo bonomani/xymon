@@ -342,11 +342,11 @@ jobs:
             /tmp/cmake.trace.json
             /tmp/cmake.trace.log
 
-      - name: Skip artifacts on CentOS 7 (Node 20 runtime incompatible)
+      - name: Skip artifacts when Node-based actions are unsupported
         if: ${{ always() && env.UPLOAD_ARTIFACTS != '1' }}
         shell: bash
         run: |
-          echo "Skipping actions/upload-artifact for this lane."
+          echo "Skipping actions/upload-artifact for this lane (Node-based actions unsupported in this environment)."
 
   bsd-vm:
     if: ${{ inputs.runtime == 'bsd_vm' }}

@@ -118,10 +118,19 @@ jobs:
                       lane_obj["checkout_mode"] = "action"
                       lane_obj["needs_bash_awk"] = False
                       lane_obj["upload_artifacts"] = True
+                      container_image = str(lane_obj.get("container", "")).lower()
+                      container_options = str(lane_obj.get("container_options", "")).lower()
+                      is_alpine_arm_lane = (
+                          container_image.startswith("alpine:")
+                          and "linux/arm64" in container_options
+                      )
                       if family == "rpm":
                           lane_obj["prepare_profile"] = "rpm"
                       if family == "centos7":
                           lane_obj["prepare_profile"] = "centos7"
+                          lane_obj["checkout_mode"] = "git"
+                          lane_obj["upload_artifacts"] = False
+                      if is_alpine_arm_lane:
                           lane_obj["checkout_mode"] = "git"
                           lane_obj["upload_artifacts"] = False
                       if family == "opensuse":
