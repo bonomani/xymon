@@ -358,7 +358,6 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
   exit 1
 fi
 
-declare -A profile_items
 items=()
 target_profile=""
 while IFS=$'\t' read -r rec a b; do
@@ -369,15 +368,6 @@ while IFS=$'\t' read -r rec a b; do
     TARGET_PROFILE)
       target_profile="${a}"
       ;;
-    PROFILE_ITEM)
-      if [[ -n "${a}" && -n "${b}" ]]; then
-        if [[ -z "${profile_items[${a}]:-}" ]]; then
-          profile_items["${a}"]="${b}"
-        else
-          profile_items["${a}"]+=$'\n'"${b}"
-        fi
-      fi
-      ;;
   esac
 done < "${items_meta_file}"
 
@@ -387,15 +377,16 @@ if [[ "${#items[@]}" -eq 0 ]]; then
     exit 1
   fi
 
-  profile_payload="${profile_items[${target_profile}]:-}"
-  if [[ -z "${profile_payload}" ]]; then
+  while IFS=$'\t' read -r rec profile_name profile_item; do
+    if [[ "${rec}" == "PROFILE_ITEM" && "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
+      items+=("${profile_item}")
+    fi
+  done < "${items_meta_file}"
+
+  if [[ "${#items[@]}" -eq 0 ]]; then
     echo "Profile '${target_profile}' has no libs.mandatory list in ${deps_file}" >&2
     exit 1
   fi
-
-  while IFS= read -r item; do
-    [[ -n "${item}" ]] && items+=("${item}")
-  done <<< "${profile_payload}"
 fi
 
 filtered=()
