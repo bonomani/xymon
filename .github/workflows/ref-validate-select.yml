@@ -199,4 +199,5 @@ jobs:
     with:
       family: ${{ matrix.family }}
       runtime: ${{ matrix.runtime }}
+      lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
