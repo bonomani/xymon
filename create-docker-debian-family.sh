@@ -7,7 +7,6 @@ ROOT_DIR="$SCRIPT_DIR"
 BASE_DIR="${ROOT_DIR}/docker"
 MATRIX_FILE="${ROOT_DIR}/ci/deps/docker-matrix.yaml"
 PLATFORM_CATALOG_FILE="${ROOT_DIR}/ci/deps/platform-catalog.yaml"
-PLATFORM_BINDINGS_FILE="${ROOT_DIR}/ci/deps/platform-deps-bindings.yaml"
 
 if [[ ! -f "$MATRIX_FILE" ]]; then
   echo "Missing matrix definition: $MATRIX_FILE" >&2
@@ -16,11 +15,6 @@ fi
 
 if [[ ! -f "$PLATFORM_CATALOG_FILE" ]]; then
   echo "Missing platform catalog: $PLATFORM_CATALOG_FILE" >&2
-  exit 1
-fi
-
-if [[ ! -f "$PLATFORM_BINDINGS_FILE" ]]; then
-  echo "Missing platform deps bindings: $PLATFORM_BINDINGS_FILE" >&2
   exit 1
 fi
 
@@ -40,74 +34,98 @@ unquote() {
 }
 
 parse_platform_catalog() {
-  local current=""
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    local line="${raw_line%$'\r'}"
-    local trimmed="$(trim "$line")"
-    [[ -z "$trimmed" || ${trimmed:0:1} == "#" ]] && continue
-
-    if [[ "$trimmed" == "platforms:" ]]; then
-      continue
-    fi
-
-    if [[ "$trimmed" =~ ^([a-zA-Z0-9_-]+):$ ]]; then
-      current="${BASH_REMATCH[1]}"
-      continue
-    fi
-
-    if [[ -n "$current" && "$trimmed" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
-      local key="${BASH_REMATCH[1]}"
-      local value="${BASH_REMATCH[2]}"
-      platform_catalog["${current}:${key}"]="$(trim "$value")"
-    fi
-  done < "$PLATFORM_CATALOG_FILE"
-}
-
-parse_platform_bindings() {
   local section=""
-  local current=""
-  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
-    local line="${raw_line%$'\r'}"
-    local trimmed="$(trim "$line")"
-    [[ -z "$trimmed" || ${trimmed:0:1} == "#" ]] && continue
-
-    if [[ "$trimmed" == "binding_profiles:" ]]; then
-      section="binding_profiles"
-      current=""
-      continue
-    fi
-
-    if [[ "$trimmed" == "bindings:" ]]; then
-      section="bindings"
-      current=""
-      continue
-    fi
-
-    if [[ "$trimmed" =~ ^([a-zA-Z0-9_-]+):$ ]]; then
-      current="${BASH_REMATCH[1]}"
-      if [[ "${section}" == "bindings" ]]; then
-        binding_ids+=("${current}")
-      fi
-      continue
-    fi
-
-    if [[ -n "$current" && "$trimmed" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
-      local key="${BASH_REMATCH[1]}"
-      local value="$(trim "${BASH_REMATCH[2]}")"
-      value="$(unquote "${value}")"
-      if [[ "${section}" == "binding_profiles" ]]; then
-        binding_profiles["${current}:${key}"]="${value}"
-      elif [[ "${section}" == "bindings" ]]; then
-        platform_bindings["${current}:${key}"]="${value}"
-      fi
-    fi
-  done < "$PLATFORM_BINDINGS_FILE"
-
-  local platform_id=""
+  local current_platform=""
+  local current_profile=""
+  local in_deps=0
+  local line=""
+  local trimmed=""
+  local key=""
+  local value=""
   local profile=""
   local field=""
-  for platform_id in "${binding_ids[@]}"; do
-    profile="${platform_bindings["${platform_id}:profile"]:-}"
+  local platform_id=""
+  local leading=""
+  local indent=0
+  declare -A seen_platforms=()
+
+  while IFS= read -r raw_line || [[ -n "$raw_line" ]]; do
+    line="${raw_line%$'\r'}"
+    leading="${line%%[^ ]*}"
+    indent="${#leading}"
+    trimmed="$(trim "$line")"
+    [[ -z "$trimmed" || ${trimmed:0:1} == "#" ]] && continue
+
+    if [[ "$indent" -eq 0 && "$trimmed" == "binding_profiles:" ]]; then
+      section="binding_profiles"
+      current_profile=""
+      current_platform=""
+      in_deps=0
+      continue
+    fi
+
+    if [[ "$indent" -eq 0 && "$trimmed" == "platforms:" ]]; then
+      section="platforms"
+      current_platform=""
+      current_profile=""
+      in_deps=0
+      continue
+    fi
+
+    if [[ "${section}" == "binding_profiles" ]]; then
+      if [[ "$indent" -eq 2 && "$trimmed" =~ ^([a-zA-Z0-9_-]+):$ ]]; then
+        current_profile="${BASH_REMATCH[1]}"
+        continue
+      fi
+
+      if [[ -n "$current_profile" && "$indent" -ge 4 && "$trimmed" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+        key="${BASH_REMATCH[1]}"
+        value="$(trim "${BASH_REMATCH[2]}")"
+        value="$(unquote "${value}")"
+        binding_profiles["${current_profile}:${key}"]="${value}"
+      fi
+      continue
+    fi
+
+    if [[ "${section}" != "platforms" ]]; then
+      continue
+    fi
+
+    if [[ "$indent" -eq 2 && "$trimmed" =~ ^([a-zA-Z0-9_-]+):$ ]]; then
+      current_platform="${BASH_REMATCH[1]}"
+      seen_platforms["${current_platform}"]=1
+      in_deps=0
+      continue
+    fi
+
+    if [[ -z "$current_platform" ]]; then
+      continue
+    fi
+
+    if [[ "$indent" -eq 4 && "$trimmed" == "deps:" ]]; then
+      in_deps=1
+      continue
+    fi
+
+    if [[ "$indent" -eq 4 && "$trimmed" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="$(trim "${BASH_REMATCH[2]}")"
+      value="$(unquote "${value}")"
+      platform_catalog["${current_platform}:${key}"]="${value}"
+      in_deps=0
+      continue
+    fi
+
+    if [[ "$in_deps" -eq 1 && "$indent" -ge 6 && "$trimmed" =~ ^([^:]+):[[:space:]]*(.*)$ ]]; then
+      key="${BASH_REMATCH[1]}"
+      value="$(trim "${BASH_REMATCH[2]}")"
+      value="$(unquote "${value}")"
+      platform_deps["${current_platform}:${key}"]="${value}"
+    fi
+  done < "$PLATFORM_CATALOG_FILE"
+
+  for platform_id in "${!seen_platforms[@]}"; do
+    profile="${platform_deps["${platform_id}:profile"]:-}"
     [[ -n "${profile}" ]] || continue
 
     if [[ -z "${binding_profiles["${profile}:family"]:-}" || -z "${binding_profiles["${profile}:os"]:-}" ]]; then
@@ -116,8 +134,8 @@ parse_platform_bindings() {
     fi
 
     for field in family os version; do
-      if [[ -z "${platform_bindings["${platform_id}:${field}"]:-}" && -n "${binding_profiles["${profile}:${field}"]:-}" ]]; then
-        platform_bindings["${platform_id}:${field}"]="${binding_profiles["${profile}:${field}"]}"
+      if [[ -z "${platform_deps["${platform_id}:${field}"]:-}" && -n "${binding_profiles["${profile}:${field}"]:-}" ]]; then
+        platform_deps["${platform_id}:${field}"]="${binding_profiles["${profile}:${field}"]}"
       fi
     done
   done
@@ -209,14 +227,12 @@ EOF
 }
 
 declare -A platform_catalog
-declare -A platform_bindings
+declare -A platform_deps
 declare -A binding_profiles
 declare -A service_registry
-declare -a binding_ids
 declare -a service_order
 
 parse_platform_catalog
-parse_platform_bindings
 parse_matrix
 
 if [[ ${#service_order[@]} -eq 0 ]]; then
@@ -249,9 +265,9 @@ for service_name in "${service_order[@]}"; do
     echo "Image id $image_id for service $service_name is runtime=$runtime (expected docker)" >&2
     exit 1
   fi
-  family="${platform_bindings["${image_id}:family"]:-}"
-  os_name="${platform_bindings["${image_id}:os"]:-}"
-  version="${platform_bindings["${image_id}:version"]:-}"
+  family="${platform_deps["${image_id}:family"]:-}"
+  os_name="${platform_deps["${image_id}:os"]:-}"
+  version="${platform_deps["${image_id}:version"]:-}"
   if [[ -z "$family" || -z "$os_name" ]]; then
     echo "Image id $image_id missing deps binding (family/os)" >&2
     exit 1

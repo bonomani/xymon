@@ -1,140 +1,280 @@
+binding_profiles:
+  debian:
+    family: debian
+    os: debian
+  ubuntu:
+    family: ubuntu
+    os: ubuntu
+  rockylinux:
+    family: rpm
+    os: rockylinux
+  almalinux:
+    family: rpm
+    os: almalinux
+  centos7:
+    family: rpm
+    os: centos
+    version: 7
+  fedora:
+    family: rpm
+    os: fedora
+  opensuse_tumbleweed:
+    family: suse
+    os: opensuse_tumbleweed
+    version: latest
+  opensuse_leap:
+    family: suse
+    os: opensuse_leap
+  alpine:
+    family: alpine
+    os: alpine
+    version: 3
+  archlinux:
+    family: arch
+    os: archlinux
+    version: latest
+  freebsd:
+    family: bsd
+    os: freebsd
+  netbsd:
+    family: bsd
+    os: netbsd
+  openbsd:
+    family: bsd
+    os: openbsd
+  macos:
+    family: macos
+    os: macos
+    version: latest
 platforms:
   debian-11:
     runtime: docker
     image: debian:11.11-slim
+    deps:
+      profile: debian
+      version: bullseye
   debian-12:
     runtime: docker
     image: debian:12.13-slim
+    deps:
+      profile: debian
+      version: bookworm
   debian-13:
     runtime: docker
     image: debian:13.3-slim
-
+    deps:
+      profile: debian
+      version: 13
   ubuntu-20:
     runtime: docker
     image: ubuntu:20.04
+    deps:
+      profile: ubuntu
+      version: 20
   ubuntu-22:
     runtime: docker
     image: ubuntu:22.04
+    deps:
+      profile: ubuntu
+      version: local
   ubuntu-24:
     runtime: docker
     image: ubuntu:24.04
-
+    deps:
+      profile: ubuntu
+      version: latest
   rockylinux-8:
     runtime: docker
     image: rockylinux:8
+    deps:
+      profile: rockylinux
+      version: 8
   rockylinux-9:
     runtime: docker
     image: rockylinux:9
+    deps:
+      profile: rockylinux
+      version: 9
   almalinux-8:
     runtime: docker
     image: almalinux:8
+    deps:
+      profile: almalinux
+      version: 8
   almalinux-9:
     runtime: docker
     image: almalinux:9
+    deps:
+      profile: almalinux
+      version: 9
   almalinux-10:
     runtime: docker
     image: almalinux:10
+    deps:
+      profile: almalinux
+      version: 10
   centos-7:
     runtime: docker
     image: centos:7
+    deps:
+      profile: centos7
   fedora-40:
     runtime: docker
     image: fedora:40
+    deps:
+      profile: fedora
+      version: 40
   fedora-41:
     runtime: docker
     image: fedora:41
+    deps:
+      profile: fedora
+      version: 41
   fedora-42:
     runtime: docker
     image: fedora:42
-
+    deps:
+      profile: fedora
+      version: 42
   opensuse-tumbleweed:
     runtime: docker
     image: opensuse/tumbleweed:latest
+    deps:
+      profile: opensuse_tumbleweed
   opensuse-leap-16_0:
     runtime: docker
     image: opensuse/leap:16.0
+    deps:
+      profile: opensuse_leap
+      version: '16_0'
   opensuse-leap-15_6:
     runtime: docker
     image: opensuse/leap:15.6
+    deps:
+      profile: opensuse_leap
+      version: '15_6'
   opensuse-leap-15_5:
     runtime: docker
     image: opensuse/leap:15.5
-
+    deps:
+      profile: opensuse_leap
+      version: '15_5'
   alpine-3_23:
     runtime: docker
     image: alpine:3.23
+    deps:
+      profile: alpine
   alpine-3_22:
     runtime: docker
     image: alpine:3.22
+    deps:
+      profile: alpine
   alpine-3_21:
     runtime: docker
     image: alpine:3.21
+    deps:
+      profile: alpine
   alpine-3_20:
     runtime: docker
     image: alpine:3.20
+    deps:
+      profile: alpine
   alpine-3_19:
     runtime: docker
     image: alpine:3.19
+    deps:
+      profile: alpine
   alpine-edge:
     runtime: docker
     image: alpine:edge
-
+    deps:
+      profile: alpine
   archlinux-latest:
     runtime: docker
     image: archlinux:latest
+    deps:
+      profile: archlinux
   archlinux-base:
     runtime: docker
     image: archlinux:base
-
+    deps:
+      profile: archlinux
   freebsd-15_0:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: freebsd
   freebsd-14_3:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: freebsd
   freebsd-13_5:
     runtime: vm
     provider: cross-platform-actions
-
+    deps:
+      profile: freebsd
   netbsd-10_1:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: netbsd
   netbsd-10_0:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: netbsd
   netbsd-9_4:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: netbsd
   netbsd-9_3:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: netbsd
   netbsd-9_2:
     runtime: vm
     provider: cross-platform-actions
-
+    deps:
+      profile: netbsd
   openbsd-7_8:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: openbsd
   openbsd-7_7:
     runtime: vm
     provider: cross-platform-actions
+    deps:
+      profile: openbsd
   openbsd-7_6:
     runtime: vm
     provider: cross-platform-actions
-
+    deps:
+      profile: openbsd
   macos-latest:
     runtime: host
     provider: github-actions
     runner: macos-latest
+    deps:
+      profile: macos
   macos-26:
     runtime: host
     provider: github-actions
     runner: macos-26
+    deps:
+      profile: macos
   macos-15:
     runtime: host
     provider: github-actions
     runner: macos-15
+    deps:
+      profile: macos
   macos-14:
     runtime: host
     provider: github-actions
     runner: macos-14
+    deps:
+      profile: macos
