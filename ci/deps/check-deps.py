@@ -376,11 +376,6 @@ def check_file(
         require(isinstance(data["version_notes"], dict), f"{path} version_notes must be a mapping")
 
 
-def bash_list(cmd: str) -> list[str]:
-    out = subprocess.check_output(["bash", "-lc", cmd], text=True)
-    return [line.strip() for line in out.splitlines() if line.strip()]
-
-
 def packages_from_yaml_list(
     variant: str,
     family: str,
@@ -511,26 +506,6 @@ def parse_workflow_yaml(path: Path) -> dict:
     if not isinstance(data, dict):
         return {}
     return data
-
-
-def find_install_steps(workflow: dict) -> list[str]:
-    hits: list[str] = []
-    jobs = workflow.get("jobs", {})
-    if not isinstance(jobs, dict):
-        return hits
-    for job in jobs.values():
-        steps = job.get("steps", [])
-        if not isinstance(steps, list):
-            continue
-        for step in steps:
-            if not isinstance(step, dict):
-                continue
-            run = step.get("run", "")
-            if isinstance(run, str) and "install-apt-packages.sh" in run:
-                hits.append(run)
-            if isinstance(run, str) and "install-default-packages.sh" in run:
-                hits.append(run)
-    return hits
 
 
 def find_package_steps(workflow: dict) -> list[str]:
