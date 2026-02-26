@@ -22,11 +22,7 @@ Options:
 USAGE
 }
 
-ci_deps_init_cli
-ci_deps_parse_cli 1 1 "$@"
-ci_deps_setup_variant_defaults
-ci_deps_build_os_key
-ci_deps_resolve_packages apt "${family}" "${os_key}"
+ci_deps_init_linux_installer apt "$@"
 
 apt_pkg_installed() {
   dpkg -s "$1" >/dev/null 2>&1
@@ -48,19 +44,5 @@ apt_pre_install() {
   ci_deps_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update
 }
 
-if [[ "${mode}" == "install" ]]; then
-  apt_pre_install
-fi
-
-PKG_SPECS=("${PKGS[@]}")
-ci_deps_resolve_package_alternatives apt_pkg_installed apt_pkg_available
-
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit apt_pkg_installed
-ci_deps_mode_install_print
-
-if [[ "${mode}" == "install" ]]; then
-  PKGS=("${PKG_SPECS[@]}")
-  ci_deps_install_packages_with_alternatives \
-    apt_pkg_installed apt_pkg_available apt_install_one
-fi
+ci_deps_run_installer_modes \
+  apt_pkg_installed apt_pkg_available apt_install_one apt_pre_install

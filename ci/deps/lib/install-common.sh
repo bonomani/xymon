@@ -100,6 +100,22 @@ ci_deps_build_os_key() {
   fi
 }
 
+ci_deps_init_linux_installer() {
+  local pkgmgr="${1:-}"
+  shift || true
+
+  if [[ -z "${pkgmgr}" ]]; then
+    echo "Missing package manager for Linux installer initialization" >&2
+    exit 2
+  fi
+
+  ci_deps_init_cli
+  ci_deps_parse_cli 1 1 "$@"
+  ci_deps_setup_variant_defaults
+  ci_deps_build_os_key
+  ci_deps_resolve_packages "${pkgmgr}" "${family}" "${os_key}"
+}
+
 ci_deps_resolve_packages() {
   local pkgmgr="$1"
   local family_key="$2"
@@ -129,6 +145,44 @@ ci_deps_resolve_packages() {
 
   if [[ "${apply_ci_compiler}" == "1" && "${CI_COMPILER}" == "clang" ]]; then
     PKGS+=(clang)
+  fi
+}
+
+ci_deps_run_installer_modes() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local install_fn="${3:-}"
+  local pre_install_fn="${4:-}"
+  local install_banner="${5:-}"
+  local -a pkg_specs=()
+
+  if [[ -z "${installed_fn}" ]]; then
+    echo "Missing package check callback function" >&2
+    exit 2
+  fi
+  if [[ -z "${install_fn}" ]]; then
+    echo "Missing package install callback function" >&2
+    exit 2
+  fi
+
+  if [[ "${mode}" == "install" && -n "${pre_install_fn}" ]]; then
+    "${pre_install_fn}"
+  fi
+
+  pkg_specs=("${PKGS[@]}")
+  ci_deps_resolve_package_alternatives "${installed_fn}" "${available_fn}"
+
+  ci_deps_mode_print_or_exit
+  ci_deps_mode_check_or_exit "${installed_fn}"
+  ci_deps_mode_install_print
+
+  if [[ "${mode}" == "install" ]]; then
+    if [[ -n "${install_banner}" ]]; then
+      echo "${install_banner}"
+    fi
+    PKGS=("${pkg_specs[@]}")
+    ci_deps_install_packages_with_alternatives \
+      "${installed_fn}" "${available_fn}" "${install_fn}"
   fi
 }
 

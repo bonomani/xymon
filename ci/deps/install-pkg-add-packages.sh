@@ -52,16 +52,5 @@ pkg_add_install_one() {
   return "${rc}"
 }
 
-PKG_SPECS=("${PKGS[@]}")
-ci_deps_resolve_package_alternatives pkg_add_pkg_installed pkg_add_pkg_available
-
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit pkg_add_pkg_installed
-ci_deps_mode_install_print
-
-if [[ "${mode}" == "install" ]]; then
-  echo "=== Install (BSD pkg_add packages) ==="
-  PKGS=("${PKG_SPECS[@]}")
-  ci_deps_install_packages_with_alternatives \
-    pkg_add_pkg_installed pkg_add_pkg_available pkg_add_install_one
-fi
+ci_deps_run_installer_modes \
+  pkg_add_pkg_installed pkg_add_pkg_available pkg_add_install_one "" "=== Install (BSD pkg_add packages) ==="
