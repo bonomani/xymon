@@ -59,36 +59,70 @@ jobs:
 
           selected_family = os.environ["SELECTED_FAMILY"]
           workflows_dir = Path(".github/workflows")
+          manifest_path = Path("ci/run/ref/ref-validate-families.yml")
+          if not manifest_path.exists():
+              raise SystemExit(f"Missing families manifest: {manifest_path}")
 
-          workflow_map = [
-              ("alpine", "linux_container", "ref-valid-alpine.yml"),
-              ("archlinux", "linux_container", "ref-valid-archlinux.yml"),
-              ("centos7", "linux_container", "ref-valid-centos7.yml"),
-              ("debian", "linux_container", "ref-valid-debian.yml"),
-              ("freebsd", "bsd_vm", "ref-valid-freebsd.yml"),
-              ("macos", "macos_host", "ref-valid-macos.yml"),
-              ("netbsd", "bsd_vm", "ref-valid-netbsd.yml"),
-              ("openbsd", "bsd_vm", "ref-valid-openbsd.yml"),
-              ("opensuse", "linux_container", "ref-valid-opensuse.yml"),
-              ("rpm", "linux_container", "ref-valid-rpm.yml"),
-              ("ubuntu", "linux_container", "ref-valid-ubuntu.yml"),
-          ]
-          lookup = {family: (runtime, filename) for family, runtime, filename in workflow_map}
+          manifest_data = yaml.safe_load(manifest_path.read_text()) or {}
+          manifest_entries = manifest_data.get("families")
+          if not isinstance(manifest_entries, list) or not manifest_entries:
+              raise SystemExit(f"Manifest has no families list: {manifest_path}")
+
+          valid_runtimes = {"linux_container", "bsd_vm", "macos_host"}
+          workflow_map = []
+          seen_families = set()
+          for entry in manifest_entries:
+              if not isinstance(entry, dict):
+                  raise SystemExit(f"Invalid manifest entry (expected mapping): {entry!r}")
+              family = entry.get("family")
+              runtime = entry.get("runtime")
+              filename = entry.get("workflow_file")
+              job_id = entry.get("job_id")
+              if not all(isinstance(v, str) and v for v in (family, runtime, filename, job_id)):
+                  raise SystemExit(f"Manifest entry missing required keys: {entry!r}")
+              if runtime not in valid_runtimes:
+                  raise SystemExit(f"Manifest entry has invalid runtime '{runtime}': {entry!r}")
+              if family in seen_families:
+                  raise SystemExit(f"Duplicate family in manifest: {family}")
+              seen_families.add(family)
+              workflow_map.append((family, runtime, filename, job_id))
+
+          lookup = {
+              family: (runtime, filename, job_id)
+              for family, runtime, filename, job_id in workflow_map
+          }
+          expected_family_options = ["all"] + [family for family, _, _, _ in workflow_map]
+
+          self_workflow_path = workflows_dir / "ref-validate-select.yml"
+          self_workflow_data = yaml.safe_load(self_workflow_path.read_text()) or {}
+          on_config = self_workflow_data.get("on", self_workflow_data.get(True, {}))
+          declared_family_options = (
+              on_config.get("workflow_dispatch", {})
+              .get("inputs", {})
+              .get("family", {})
+              .get("options", [])
+          )
+          if declared_family_options != expected_family_options:
+              raise SystemExit(
+                  "workflow_dispatch family options drift from manifest\\n"
+                  f"expected: {expected_family_options}\\n"
+                  f"actual:   {declared_family_options}"
+              )
 
           if selected_family == "all":
               selected = list(workflow_map)
           else:
               if selected_family not in lookup:
                   raise SystemExit(f"Unsupported family input: {selected_family}")
-              runtime, filename = lookup[selected_family]
-              selected = [(selected_family, runtime, filename)]
+              runtime, filename, job_id = lookup[selected_family]
+              selected = [(selected_family, runtime, filename, job_id)]
 
           linux_include = []
           bsd_include = []
           macos_include = []
           selected_families = []
 
-          for family, runtime, filename in selected:
+          for family, runtime, filename, job_id in selected:
               wf_path = workflows_dir / filename
               if not wf_path.exists():
                   raise SystemExit(f"Missing workflow file: {wf_path}")
@@ -98,15 +132,16 @@ jobs:
               if not isinstance(jobs, dict) or not jobs:
                   raise SystemExit(f"Workflow has no jobs mapping: {wf_path}")
 
-              lane_job = None
-              for job in jobs.values():
-                  if isinstance(job, dict) and isinstance(job.get("strategy"), dict):
-                      lane_job = job
-                      break
-              if lane_job is None:
-                  raise SystemExit(f"Workflow has no matrix strategy job: {wf_path}")
-
-              lanes = lane_job.get("strategy", {}).get("matrix", {}).get("include", [])
+              lane_job = jobs.get(job_id)
+              if not isinstance(lane_job, dict):
+                  raise SystemExit(f"Workflow missing configured job_id '{job_id}': {wf_path}")
+              strategy = lane_job.get("strategy", {})
+              if not isinstance(strategy, dict):
+                  raise SystemExit(f"Configured job_id '{job_id}' has no strategy mapping: {wf_path}")
+              matrix = strategy.get("matrix", {})
+              if not isinstance(matrix, dict):
+                  raise SystemExit(f"Configured job_id '{job_id}' has no matrix mapping: {wf_path}")
+              lanes = matrix.get("include", [])
               if not isinstance(lanes, list):
                   raise SystemExit(f"Workflow matrix.include is not a list: {wf_path}")
 

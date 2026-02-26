@@ -1,0 +1,45 @@
+families:
+  - family: alpine
+    runtime: linux_container
+    workflow_file: ref-valid-alpine.yml
+    job_id: ref-valid-alpine
+  - family: archlinux
+    runtime: linux_container
+    workflow_file: ref-valid-archlinux.yml
+    job_id: ref-valid-archlinux
+  - family: centos7
+    runtime: linux_container
+    workflow_file: ref-valid-centos7.yml
+    job_id: ref-valid-centos7
+  - family: debian
+    runtime: linux_container
+    workflow_file: ref-valid-debian.yml
+    job_id: ref-valid-debian
+  - family: freebsd
+    runtime: bsd_vm
+    workflow_file: ref-valid-freebsd.yml
+    job_id: ref-valid-freebsd
+  - family: macos
+    runtime: macos_host
+    workflow_file: ref-valid-macos.yml
+    job_id: ref-valid-macos
+  - family: netbsd
+    runtime: bsd_vm
+    workflow_file: ref-valid-netbsd.yml
+    job_id: ref-valid-netbsd
+  - family: openbsd
+    runtime: bsd_vm
+    workflow_file: ref-valid-openbsd.yml
+    job_id: ref-valid-openbsd
+  - family: opensuse
+    runtime: linux_container
+    workflow_file: ref-valid-opensuse.yml
+    job_id: ref-valid-opensuse
+  - family: rpm
+    runtime: linux_container
+    workflow_file: ref-valid-rpm.yml
+    job_id: ref-valid-rpm
+  - family: ubuntu
+    runtime: linux_container
+    workflow_file: ref-valid-ubuntu.yml
+    job_id: ref-valid-ubuntu
