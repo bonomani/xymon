@@ -45,10 +45,9 @@ def load_manifest(path: Path):
         entry = require_mapping(raw, f"Manifest entry #{index}")
         family = require_non_empty_string(entry.get("family"), f"Manifest entry #{index}.family")
         runtime = require_non_empty_string(entry.get("runtime"), f"Manifest entry #{index}.runtime")
-        workflow_file = require_non_empty_string(
-            entry.get("workflow_file"), f"Manifest entry #{index}.workflow_file"
+        lane_file = require_non_empty_string(
+            entry.get("lane_file"), f"Manifest entry #{index}.lane_file"
         )
-        job_id = require_non_empty_string(entry.get("job_id"), f"Manifest entry #{index}.job_id")
 
         if runtime not in RUNTIME_TO_MATRIX_KEY:
             die(f"Manifest entry has invalid runtime '{runtime}': {entry!r}")
@@ -98,8 +97,7 @@ def load_manifest(path: Path):
             {
                 "family": family,
                 "runtime": runtime,
-                "workflow_file": workflow_file,
-                "job_id": job_id,
+                "lane_file": lane_file,
                 "lane_overrides": lane_overrides,
                 "container_arm64_overrides": container_arm64_overrides,
                 "os_version_key": os_version_key,
@@ -135,29 +133,25 @@ def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
         )
 
 
-def load_legacy_lanes(workflows_dir: Path, workflow_file: str, job_id: str):
-    workflow_path = workflows_dir / workflow_file
-    if not workflow_path.exists():
-        die(f"Missing workflow file: {workflow_path}")
+def load_lanes_from_file(lane_file: Path):
+    if not lane_file.exists():
+        die(f"Missing lane file: {lane_file}")
 
-    data = yaml.safe_load(workflow_path.read_text()) or {}
-    jobs = data.get("jobs", {})
-    if not isinstance(jobs, dict) or not jobs:
-        die(f"Workflow has no jobs mapping: {workflow_path}")
+    data = yaml.safe_load(lane_file.read_text()) or {}
+    if isinstance(data, list):
+        lanes = data
+    elif isinstance(data, dict):
+        if "include" in data:
+            lanes = data.get("include")
+        elif "lanes" in data:
+            lanes = data.get("lanes")
+        else:
+            die(f"Lane file must define an 'include' list: {lane_file}")
+    else:
+        die(f"Lane file must be a list or mapping: {lane_file}")
 
-    lane_job = jobs.get(job_id)
-    if not isinstance(lane_job, dict):
-        die(f"Workflow missing configured job_id '{job_id}': {workflow_path}")
-
-    strategy = lane_job.get("strategy", {})
-    if not isinstance(strategy, dict):
-        die(f"Configured job_id '{job_id}' has no strategy mapping: {workflow_path}")
-    matrix = strategy.get("matrix", {})
-    if not isinstance(matrix, dict):
-        die(f"Configured job_id '{job_id}' has no matrix mapping: {workflow_path}")
-    lanes = matrix.get("include", [])
     if not isinstance(lanes, list):
-        die(f"Workflow matrix.include is not a list: {workflow_path}")
+        die(f"Lane file include value is not a list: {lane_file}")
 
     return lanes
 
@@ -202,7 +196,6 @@ def parse_args():
         "--manifest",
         default="ci/run/ref/ref-validate-families.yml",
     )
-    parser.add_argument("--workflows-dir", default=".github/workflows")
     parser.add_argument(
         "--selector-workflow",
         default=".github/workflows/ref-validate-select.yml",
@@ -233,14 +226,9 @@ def main():
     matrices = {runtime: [] for runtime in RUNTIME_TO_MATRIX_KEY}
     selected_families = []
 
-    workflows_dir = Path(args.workflows_dir)
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
-        lanes = load_legacy_lanes(
-            workflows_dir,
-            family_entry["workflow_file"],
-            family_entry["job_id"],
-        )
+        lanes = load_lanes_from_file(Path(family_entry["lane_file"]))
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue

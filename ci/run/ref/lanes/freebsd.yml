@@ -1,0 +1,28 @@
+include:
+- name: FreeBSD 15.0 - Server
+  freebsd_version: '15.0'
+  variant: server
+- name: FreeBSD 15.0 - Client (ct-client)
+  freebsd_version: '15.0'
+  variant: localclient
+- name: FreeBSD 15.0 - Client (ct-server)
+  freebsd_version: '15.0'
+  variant: client
+- name: FreeBSD 14.3 - Server
+  freebsd_version: '14.3'
+  variant: server
+- name: FreeBSD 14.3 - Client (ct-client)
+  freebsd_version: '14.3'
+  variant: localclient
+- name: FreeBSD 14.3 - Client (ct-server)
+  freebsd_version: '14.3'
+  variant: client
+- name: FreeBSD 13.5 - Server
+  freebsd_version: '13.5'
+  variant: server
+- name: FreeBSD 13.5 - Client (ct-client)
+  freebsd_version: '13.5'
+  variant: localclient
+- name: FreeBSD 13.5 - Client (ct-server)
+  freebsd_version: '13.5'
+  variant: client
