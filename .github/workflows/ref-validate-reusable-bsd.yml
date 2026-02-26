@@ -59,12 +59,12 @@ jobs:
           run: |
             set -euo pipefail
             bash ci/run/ref/bootstrap-cmake-refs.sh \
-              --os "${REF_OS}" \
-              --version "${OS_VERSION}" \
-              --variant "${VARIANT}" \
-              --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-              --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
-              --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
+              --os "${{ env.REF_OS }}" \
+              --version "${{ env.OS_VERSION }}" \
+              --variant "${{ env.VARIANT }}" \
+              --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
+              --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
+              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
 
       - name: Compare refs snapshot (blocking policy checks)
         shell: bash
@@ -108,4 +108,3 @@ jobs:
             /tmp/legacy.binlinks.diff
             /tmp/legacy.needed.norm.diff
             /tmp/legacy.embedded.diff
-
