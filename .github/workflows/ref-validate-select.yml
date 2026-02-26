@@ -1,0 +1,193 @@
+name: Reference Validation - Select Family (Pass 1)
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Select which reference-validation family to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - alpine
+          - archlinux
+          - centos7
+          - debian
+          - freebsd
+          - macos
+          - netbsd
+          - openbsd
+          - opensuse
+          - rpm
+          - ubuntu
+
+permissions:
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+      lane_count: ${{ steps.generate.outputs.lane_count }}
+      selected_families: ${{ steps.generate.outputs.selected_families }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Build selected lanes matrix
+        id: generate
+        shell: bash
+        env:
+          SELECTED_FAMILY: ${{ inputs.family }}
+        run: |
+          set -euo pipefail
+          python3 <<'PY'
+          import json
+          import os
+          from pathlib import Path
+
+          import yaml
+
+          selected_family = os.environ["SELECTED_FAMILY"]
+          workflows_dir = Path(".github/workflows")
+
+          workflow_map = [
+              ("alpine", "linux_container", "ref-valid-alpine.yml"),
+              ("archlinux", "linux_container", "ref-valid-archlinux.yml"),
+              ("centos7", "linux_container", "ref-valid-centos7.yml"),
+              ("debian", "linux_container", "ref-valid-debian.yml"),
+              ("freebsd", "bsd_vm", "ref-valid-freebsd.yml"),
+              ("macos", "macos_host", "ref-valid-macos.yml"),
+              ("netbsd", "bsd_vm", "ref-valid-netbsd.yml"),
+              ("openbsd", "bsd_vm", "ref-valid-openbsd.yml"),
+              ("opensuse", "linux_container", "ref-valid-opensuse.yml"),
+              ("rpm", "linux_container", "ref-valid-rpm.yml"),
+              ("ubuntu", "linux_container", "ref-valid-ubuntu.yml"),
+          ]
+          lookup = {family: (runtime, filename) for family, runtime, filename in workflow_map}
+
+          if selected_family == "all":
+              selected = list(workflow_map)
+          else:
+              if selected_family not in lookup:
+                  raise SystemExit(f"Unsupported family input: {selected_family}")
+              runtime, filename = lookup[selected_family]
+              selected = [(selected_family, runtime, filename)]
+
+          include = []
+          selected_families = []
+
+          for family, runtime, filename in selected:
+              wf_path = workflows_dir / filename
+              if not wf_path.exists():
+                  raise SystemExit(f"Missing workflow file: {wf_path}")
+
+              data = yaml.safe_load(wf_path.read_text()) or {}
+              jobs = data.get("jobs", {})
+              if not isinstance(jobs, dict) or not jobs:
+                  raise SystemExit(f"Workflow has no jobs mapping: {wf_path}")
+
+              lane_job = None
+              for job in jobs.values():
+                  if isinstance(job, dict) and isinstance(job.get("strategy"), dict):
+                      lane_job = job
+                      break
+              if lane_job is None:
+                  raise SystemExit(f"Workflow has no matrix strategy job: {wf_path}")
+
+              lanes = lane_job.get("strategy", {}).get("matrix", {}).get("include", [])
+              if not isinstance(lanes, list):
+                  raise SystemExit(f"Workflow matrix.include is not a list: {wf_path}")
+
+              selected_families.append(family)
+              for lane in lanes:
+                  if not isinstance(lane, dict):
+                      continue
+                  lane_obj = dict(lane)
+                  lane_obj.setdefault("allow_failure", False)
+
+                  if runtime == "linux_container":
+                      lane_obj["ref_os"] = "linux"
+                      lane_obj["baseline_root"] = "make_linux"
+                      lane_obj["artifact_family"] = "linux"
+                      lane_obj["prepare_profile"] = "default"
+                      lane_obj["checkout_mode"] = "action"
+                      lane_obj["needs_bash_awk"] = False
+                      lane_obj["upload_artifacts"] = True
+                      if family == "rpm":
+                          lane_obj["prepare_profile"] = "rpm"
+                      if family == "centos7":
+                          lane_obj["prepare_profile"] = "centos7"
+                          lane_obj["checkout_mode"] = "git"
+                          lane_obj["upload_artifacts"] = False
+                      if family == "opensuse":
+                          lane_obj["needs_bash_awk"] = True
+
+                  elif runtime == "bsd_vm":
+                      lane_obj["ref_os"] = family
+                      lane_obj["artifact_family"] = family
+                      lane_obj["baseline_root"] = f"make_{family}"
+                      lane_obj["upload_artifacts"] = True
+                      if family == "freebsd":
+                          lane_obj["os_version"] = lane_obj.get("freebsd_version")
+                          lane_obj.setdefault("architecture", "x86-64")
+                      elif family == "netbsd":
+                          lane_obj["os_version"] = lane_obj.get("netbsd_version")
+                          lane_obj.setdefault("architecture", "x86-64")
+                      elif family == "openbsd":
+                          lane_obj["os_version"] = lane_obj.get("openbsd_version")
+                          lane_obj.setdefault("architecture", "x86-64")
+                      else:
+                          raise SystemExit(f"Unexpected BSD family: {family}")
+
+                  elif runtime == "macos_host":
+                      lane_obj["ref_os"] = "macos"
+                      lane_obj["artifact_family"] = "macos"
+                      lane_obj["baseline_root"] = "make_freebsd"
+                      lane_obj["os_version"] = lane_obj.get("macos_version")
+                      lane_obj.setdefault("runner", "macos-latest")
+                      lane_obj["upload_artifacts"] = True
+
+                  else:
+                      raise SystemExit(f"Unknown runtime adapter: {runtime}")
+
+                  include.append(
+                      {
+                          "family": family,
+                          "runtime": runtime,
+                          "lane": lane_obj,
+                      }
+                  )
+
+          matrix = {"include": include}
+          out = Path(os.environ["GITHUB_OUTPUT"])
+          with out.open("a", encoding="utf-8") as fh:
+              fh.write(f"matrix={json.dumps(matrix)}\n")
+              fh.write(f"lane_count={len(include)}\n")
+              fh.write(f"selected_families={','.join(selected_families)}\n")
+          PY
+
+      - name: Matrix summary
+        shell: bash
+        run: |
+          echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
+          echo "Lane count: ${{ steps.generate.outputs.lane_count }}"
+
+  ref-validate:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count != '0' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 12
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable.yml
+    secrets: inherit
+    with:
+      family: ${{ matrix.family }}
+      runtime: ${{ matrix.runtime }}
+      lane_json: ${{ toJSON(matrix.lane) }}

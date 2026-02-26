@@ -1,0 +1,521 @@
+name: Reference Validation - Reusable Lane
+
+on:
+  workflow_call:
+    inputs:
+      family:
+        description: Reference validation family key (e.g. ubuntu, rpm, freebsd)
+        required: true
+        type: string
+      runtime:
+        description: Lane runtime adapter (linux_container|bsd_vm|macos_host)
+        required: true
+        type: string
+      lane_json:
+        description: JSON-encoded lane object
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  linux-container:
+    if: ${{ inputs.runtime == 'linux_container' }}
+    name: ${{ fromJSON(inputs.lane_json).name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
+    container:
+      image: ${{ fromJSON(inputs.lane_json).container }}
+      options: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
+    env:
+      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+      CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin || '' }}
+      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root || 'make_linux' }}
+      PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
+      CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}
+      NEEDS_BASH_AWK: ${{ fromJSON(inputs.lane_json).needs_bash_awk == true && '1' || '0' }}
+      UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0' }}
+    steps:
+      - name: Configure CentOS 7 vault repositories
+        if: ${{ env.PREPARE_PROFILE == 'centos7' }}
+        shell: sh
+        run: |
+          set -eu
+          cat >/etc/yum.repos.d/centos7-vault.repo <<'EOF'
+          [centos7-vault-base]
+          name=CentOS 7 Vault Base
+          baseurl=http://vault.centos.org/7.9.2009/os/$basearch/
+          enabled=1
+          gpgcheck=0
+
+          [centos7-vault-updates]
+          name=CentOS 7 Vault Updates
+          baseurl=http://vault.centos.org/7.9.2009/updates/$basearch/
+          enabled=1
+          gpgcheck=0
+
+          [centos7-vault-extras]
+          name=CentOS 7 Vault Extras
+          baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
+          enabled=1
+          gpgcheck=0
+          EOF
+
+      - name: Prepare checkout tools in container
+        shell: sh
+        run: |
+          set -eu
+          need_install=0
+          command -v tar >/dev/null 2>&1 || need_install=1
+          command -v git >/dev/null 2>&1 || need_install=1
+          command -v awk >/dev/null 2>&1 || need_install=1
+          command -v update-ca-certificates >/dev/null 2>&1 || need_install=1
+          [ "${need_install}" -eq 1 ] || exit 0
+
+          if [ -r /etc/os-release ]; then
+            # shellcheck disable=SC1091
+            . /etc/os-release
+          fi
+
+          configure_rocky_fallback_repos() {
+            [ "${ID:-}" = "rocky" ] || return 0
+            rocky_major="${VERSION_ID%%.*}"
+            [ -n "${rocky_major}" ] || rocky_major="8"
+            rocky_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-${rocky_major}"
+            if [ ! -r "${rocky_gpgkey}" ]; then
+              rocky_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-rockyofficial"
+            fi
+            if [ ! -r "${rocky_gpgkey}" ]; then
+              rocky_gpgkey="$(ls /etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-* 2>/dev/null | head -n 1 || true)"
+            fi
+            if [ -z "${rocky_gpgkey}" ] || [ ! -r "${rocky_gpgkey}" ]; then
+              echo "Unable to locate Rocky Linux RPM GPG key in /etc/pki/rpm-gpg" >&2
+              return 1
+            fi
+
+            {
+              printf '%s\n' '[ci-rocky-baseos]'
+              printf '%s\n' 'name=CI Rocky BaseOS fallback mirrors'
+              printf '%s\n' 'baseurl=https://mirror.rackspace.com/rocky/@ROCKY_MAJOR@/BaseOS/$basearch/os/'
+              printf '%s\n' '        https://mirror.math.princeton.edu/pub/rocky/@ROCKY_MAJOR@/BaseOS/$basearch/os/'
+              printf '%s\n' '        https://mirrors.sonic.net/rocky/@ROCKY_MAJOR@/BaseOS/$basearch/os/'
+              printf '%s\n' '        https://ftp.iij.ad.jp/pub/linux/rocky/@ROCKY_MAJOR@/BaseOS/$basearch/os/'
+              printf '%s\n' 'enabled=1'
+              printf '%s\n' 'gpgcheck=1'
+              printf '%s\n' 'gpgkey=file://@ROCKY_GPGKEY@'
+              printf '%s\n' 'skip_if_unavailable=1'
+              printf '\n'
+
+              printf '%s\n' '[ci-rocky-appstream]'
+              printf '%s\n' 'name=CI Rocky AppStream fallback mirrors'
+              printf '%s\n' 'baseurl=https://mirror.rackspace.com/rocky/@ROCKY_MAJOR@/AppStream/$basearch/os/'
+              printf '%s\n' '        https://mirror.math.princeton.edu/pub/rocky/@ROCKY_MAJOR@/AppStream/$basearch/os/'
+              printf '%s\n' '        https://mirrors.sonic.net/rocky/@ROCKY_MAJOR@/AppStream/$basearch/os/'
+              printf '%s\n' '        https://ftp.iij.ad.jp/pub/linux/rocky/@ROCKY_MAJOR@/AppStream/$basearch/os/'
+              printf '%s\n' 'enabled=1'
+              printf '%s\n' 'gpgcheck=1'
+              printf '%s\n' 'gpgkey=file://@ROCKY_GPGKEY@'
+              printf '%s\n' 'skip_if_unavailable=1'
+              printf '\n'
+
+              printf '%s\n' '[ci-rocky-extras]'
+              printf '%s\n' 'name=CI Rocky Extras fallback mirrors'
+              printf '%s\n' 'baseurl=https://mirror.rackspace.com/rocky/@ROCKY_MAJOR@/extras/$basearch/os/'
+              printf '%s\n' '        https://mirror.math.princeton.edu/pub/rocky/@ROCKY_MAJOR@/extras/$basearch/os/'
+              printf '%s\n' '        https://mirrors.sonic.net/rocky/@ROCKY_MAJOR@/extras/$basearch/os/'
+              printf '%s\n' '        https://ftp.iij.ad.jp/pub/linux/rocky/@ROCKY_MAJOR@/extras/$basearch/os/'
+              printf '%s\n' 'enabled=1'
+              printf '%s\n' 'gpgcheck=1'
+              printf '%s\n' 'gpgkey=file://@ROCKY_GPGKEY@'
+              printf '%s\n' 'skip_if_unavailable=1'
+            } > /etc/yum.repos.d/ci-rocky-fallback.repo
+
+            sed -i \
+              -e "s|@ROCKY_MAJOR@|${rocky_major}|g" \
+              -e "s|@ROCKY_GPGKEY@|${rocky_gpgkey}|g" \
+              /etc/yum.repos.d/ci-rocky-fallback.repo
+          }
+
+          if command -v apt-get >/dev/null 2>&1; then
+            apt-get update
+            apt-get install -y --no-install-recommends tar git gawk ca-certificates
+          elif command -v zypper >/dev/null 2>&1; then
+            zypper --non-interactive refresh
+            zypper --non-interactive install tar git gawk ca-certificates
+          elif command -v apk >/dev/null 2>&1; then
+            apk add --no-cache tar git gawk ca-certificates
+          elif command -v dnf >/dev/null 2>&1; then
+            if [ "${PREPARE_PROFILE}" = "rpm" ]; then
+              configure_rocky_fallback_repos || true
+              if [ "${ID:-}" = "rocky" ] && [ -f /etc/yum.repos.d/ci-rocky-fallback.repo ]; then
+                dnf -y \
+                  --disablerepo=baseos \
+                  --disablerepo=appstream \
+                  --disablerepo=extras \
+                  --enablerepo=ci-rocky-baseos \
+                  --enablerepo=ci-rocky-appstream \
+                  --enablerepo=ci-rocky-extras \
+                  install tar git gawk ca-certificates
+              else
+                dnf -y install tar git gawk ca-certificates
+              fi
+            else
+              dnf -y install tar git gawk ca-certificates
+            fi
+          elif command -v yum >/dev/null 2>&1; then
+            if [ "${PREPARE_PROFILE}" = "centos7" ]; then
+              yum -y \
+                --disablerepo='*' \
+                --enablerepo=centos7-vault-base \
+                --enablerepo=centos7-vault-updates \
+                --enablerepo=centos7-vault-extras \
+                install tar git gawk ca-certificates
+            elif [ "${PREPARE_PROFILE}" = "rpm" ]; then
+              configure_rocky_fallback_repos || true
+              if [ "${ID:-}" = "rocky" ] && [ -f /etc/yum.repos.d/ci-rocky-fallback.repo ]; then
+                yum -y \
+                  --disablerepo=baseos \
+                  --disablerepo=appstream \
+                  --disablerepo=extras \
+                  --enablerepo=ci-rocky-baseos \
+                  --enablerepo=ci-rocky-appstream \
+                  --enablerepo=ci-rocky-extras \
+                  install tar git gawk ca-certificates
+              else
+                yum -y install tar git gawk ca-certificates
+              fi
+            else
+              yum -y install tar git gawk ca-certificates
+            fi
+          elif command -v pacman >/dev/null 2>&1; then
+            pacman -Sy --noconfirm archlinux-keyring || true
+            pacman -S --noconfirm tar git gawk ca-certificates
+          else
+            echo "Unsupported package manager for installing checkout tools" >&2
+            exit 2
+          fi
+
+      - name: Checkout
+        if: ${{ env.CHECKOUT_MODE == 'action' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Checkout (git, no Node action)
+        if: ${{ env.CHECKOUT_MODE == 'git' }}
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
+          workdir="${GITHUB_WORKSPACE:-}"
+          if [ -z "${workdir}" ]; then
+            echo "GITHUB_WORKSPACE is not set" >&2
+            exit 1
+          fi
+
+          mkdir -p "${workdir}"
+          cd "${workdir}"
+          rm -rf .git
+          git init .
+          git remote add origin "${repo_url}"
+          if [ -n "${GITHUB_TOKEN:-}" ]; then
+            git config http."${GITHUB_SERVER_URL}/".extraheader "AUTHORIZATION: bearer ${GITHUB_TOKEN}"
+          fi
+          git fetch --depth=1 origin "${GITHUB_SHA}"
+          git checkout --force FETCH_HEAD
+
+      - name: Ensure bash/awk in container
+        if: ${{ env.NEEDS_BASH_AWK == '1' }}
+        shell: sh
+        run: |
+          set -eu
+          need_install=0
+          command -v bash >/dev/null 2>&1 || need_install=1
+          command -v awk >/dev/null 2>&1 || need_install=1
+          if [ "${need_install}" -eq 0 ]; then
+            exit 0
+          fi
+          if command -v zypper >/dev/null 2>&1; then
+            zypper --non-interactive refresh
+            zypper --non-interactive install bash gawk
+          fi
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/load-legacy-hostname.sh \
+            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+
+      - name: Seed baseline UID/GID identities (container)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/seed-legacy-identities.sh \
+            --passwd "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}/owners.passwd" \
+            --group "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}/owners.group"
+
+      - name: Bootstrap install + metadata (CMake)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/bootstrap-cmake.sh \
+            --os linux \
+            --variant "${VARIANT}"
+
+      - name: Load staged tree metadata
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/load-staged-metadata.sh
+
+      - name: Validate config.h parity
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/validate-config-parity.sh \
+            --legacy-config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}/meta/config.h"
+
+      - name: Generate CMake refs snapshot
+        shell: bash
+        run: |
+          set -euo pipefail
+          mkdir -p /tmp/xymon-refs
+          bash ci/generate-refs.sh \
+            --os linux \
+            --variant "${VARIANT}" \
+            --build cmake \
+            --root "${LEGACY_ROOT}" \
+            --topdir "${LEGACY_TOPDIR}" \
+            --config-h "${XYMON_CONFIG_H:-}" \
+            --refs-root /tmp/xymon-refs
+
+      - name: Compare refs snapshot (blocking policy checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
+            --candidate-dir "/tmp/xymon-refs/cmake.linux.${VARIANT}" \
+            --candidate-root "${LEGACY_ROOT}"
+
+      - name: Upload artifacts
+        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-valid-${{ fromJSON(inputs.lane_json).name }}
+          path: |
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
+            /tmp/install-cmake-legacy.log
+            /tmp/cmake.configure.log
+            /tmp/cmake.trace.json
+            /tmp/cmake.trace.log
+
+      - name: Skip artifacts on CentOS 7 (Node 20 runtime incompatible)
+        if: ${{ always() && env.UPLOAD_ARTIFACTS != '1' }}
+        shell: bash
+        run: |
+          echo "Skipping actions/upload-artifact for this lane."
+
+  bsd-vm:
+    if: ${{ inputs.runtime == 'bsd_vm' }}
+    name: ${{ fromJSON(inputs.lane_json).name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    env:
+      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
+      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
+      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/load-legacy-hostname.sh \
+            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+
+      - name: Bootstrap install + metadata (CMake)
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: 2048M
+          cpu_count: 2
+          sync_files: true
+          run: |
+            set -euo pipefail
+            bash ci/run/ref/bootstrap-cmake-refs.sh \
+              --os "${REF_OS}" \
+              --version "${OS_VERSION}" \
+              --variant "${VARIANT}" \
+              --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
+              --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
+              --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
+
+      - name: Compare refs snapshot (blocking policy checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
+            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/cmake.${REF_OS}.${VARIANT}"
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-valid-${{ fromJSON(inputs.lane_json).name }}
+          if-no-files-found: warn
+          path: |
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
+
+  macos-host:
+    if: ${{ inputs.runtime == 'macos_host' }}
+    name: ${{ fromJSON(inputs.lane_json).name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runner || 'macos-latest' }}
+    env:
+      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
+      LEGACY_APPLY_OWNERSHIP: ON
+      XYMONUSER: _www
+      XYMONGROUP: _www
+      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
+      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Load legacy hostname (runs for each matrix variant)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/load-legacy-hostname.sh \
+            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+
+      - name: Bootstrap install + metadata (CMake)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/bootstrap-cmake-refs.sh \
+            --os "${REF_OS}" \
+            --version "${OS_VERSION}" \
+            --variant "${VARIANT}" \
+            --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
+            --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
+            --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
+
+      - name: Compare refs snapshot (blocking policy checks)
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
+            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/cmake.${REF_OS}.${VARIANT}"
+
+      - name: Upload artifacts
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref-valid-${{ fromJSON(inputs.lane_json).name }}
+          if-no-files-found: warn
+          path: |
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+            /tmp/legacy.config.extract
+            /tmp/cmake.config.extract
+            /tmp/config.diff
+            /tmp/legacy.list
+            /tmp/cmake.list
+            /tmp/cmake.filtered.list
+            /tmp/allowed-extras.list
+            /tmp/legacy-cmake.diff
+            /tmp/legacy.keyfiles.missing
+            /tmp/legacy.keyfiles.sha256
+            /tmp/legacy.keyfiles.perms
+            /tmp/legacy.keyfiles.sha256.diff
+            /tmp/legacy.symlinks.broken
+            /tmp/legacy.symlinks.list
+            /tmp/legacy.perms.snapshot
+            /tmp/legacy.owners.snapshot
+            /tmp/legacy.bin.links
+            /tmp/legacy.embedded.paths
+            /tmp/legacy.symlinks.diff
+            /tmp/legacy.perms.diff
+            /tmp/legacy.owners.diff
+            /tmp/legacy.owners.names.diff
+            /tmp/legacy.binlinks.diff
+            /tmp/legacy.needed.norm.diff
+            /tmp/legacy.embedded.diff
