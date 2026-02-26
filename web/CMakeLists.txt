@@ -96,13 +96,9 @@ if(ENABLE_RRD)
             list(APPEND _WEB_RRD_EXTRA_LIBS "${PNG_LIBRARY}")
         endif()
 
-        xymon_check_rrdtool12(${RRD_INCLUDE_DIR} ${RRD_LIBRARY} XYMON_RRDTOOL12_AVAILABLE)
-
         add_executable(showgraph.cgi showgraph.c)
-        target_compile_definitions(showgraph.cgi PRIVATE RRDTOOL19)
-        if(XYMON_RRDTOOL12_AVAILABLE)
-            target_compile_definitions(showgraph.cgi PRIVATE RRDTOOL12)
-        endif()
+        # RRDtool >= 1.9 also uses the RRDTOOL12-era rrd_graph signature.
+        target_compile_definitions(showgraph.cgi PRIVATE RRDTOOL19 RRDTOOL12)
         target_include_directories(showgraph.cgi PRIVATE ${RRD_INCLUDE_DIR})
         target_link_libraries(showgraph.cgi xymoncomm xymontime xymoncomm ${XYMON_PCRE_LIBRARY} ssl crypto ${RRD_LIBRARY} ${_WEB_RRD_EXTRA_LIBS})
 

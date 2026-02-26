@@ -207,18 +207,14 @@ if(ENABLE_RRD)
             list(APPEND _XYMOND_RRD_EXTRA_LIBS "${PNG_LIBRARY}")
         endif()
 
-        xymon_check_rrdtool12(${RRD_INCLUDE_DIR} ${RRD_LIBRARY} XYMON_RRDTOOL12_AVAILABLE)
-
         add_executable(xymond_rrd
             xymond_rrd.c
             xymond_worker.c
             do_rrd.c
             client_config.c
         )
-        target_compile_definitions(xymond_rrd PRIVATE RRDTOOL19)
-        if(XYMON_RRDTOOL12_AVAILABLE)
-            target_compile_definitions(xymond_rrd PRIVATE RRDTOOL12)
-        endif()
+        # RRDtool >= 1.9 also uses the RRDTOOL12-era rrd_graph signature.
+        target_compile_definitions(xymond_rrd PRIVATE RRDTOOL19 RRDTOOL12)
         target_include_directories(xymond_rrd PRIVATE ${RRD_INCLUDE_DIR})
         target_link_libraries(xymond_rrd
             xymontime

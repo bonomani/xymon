@@ -3,7 +3,6 @@ cmake_minimum_required(VERSION 3.16)
 project(xymon C)
 
 list(APPEND CMAKE_MODULE_PATH "${CMAKE_SOURCE_DIR}/cmake")
-include(CheckRrdTool12)
 
 message(STATUS "System: ${CMAKE_SYSTEM_NAME}")
 message(STATUS "Compiler: ${CMAKE_C_COMPILER}")
