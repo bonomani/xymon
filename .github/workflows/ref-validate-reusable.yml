@@ -26,7 +26,7 @@ permissions:
 jobs:
   linux-container:
     if: ${{ inputs.runtime == 'linux_container' }}
-    name: ${{ inputs.lane_name }}
+    name: Linux container adapter
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     container:
@@ -357,7 +357,7 @@ jobs:
 
   bsd-vm:
     if: ${{ inputs.runtime == 'bsd_vm' }}
-    name: ${{ inputs.lane_name }}
+    name: BSD VM adapter
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     env:
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
@@ -447,7 +447,7 @@ jobs:
 
   macos-host:
     if: ${{ inputs.runtime == 'macos_host' }}
-    name: ${{ inputs.lane_name }}
+    name: macOS host adapter
     runs-on: ${{ fromJSON(inputs.lane_json).runner || 'macos-latest' }}
     env:
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
