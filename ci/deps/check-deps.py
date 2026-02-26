@@ -28,7 +28,6 @@ DEFAULT_VERSION_NOTES_FILE = DATA_DIR / "deps-version-notes.yaml"
 MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
-PLATFORM_BINDINGS_FILE = ROOT / "ci" / "deps" / "platform-deps-bindings.yaml"
 REF_VALID_WORKFLOW_GLOB = "ref-valid-*.yml"
 
 
@@ -564,7 +563,7 @@ def check_ref_workflow_deps_coverage(
         print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
         return False
     if not platform_bindings:
-        print(f"   ERROR: platform deps bindings missing or invalid: {PLATFORM_BINDINGS_FILE}")
+        print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
         return False
 
     ok = True
@@ -669,40 +668,41 @@ def load_platform_catalog() -> dict[str, dict]:
     return normalized
 
 
-def load_platform_deps_bindings() -> dict[str, dict]:
-    if not PLATFORM_BINDINGS_FILE.exists():
+def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, dict]:
+    if not platform_catalog:
         return {}
-    data = load_yaml(PLATFORM_BINDINGS_FILE)
+    data = load_yaml(PLATFORM_CATALOG_FILE)
     profiles = data.get("binding_profiles", {})
     if profiles is None:
         profiles = {}
     if not isinstance(profiles, dict):
         return {}
 
-    bindings = data.get("bindings", {})
-    if not isinstance(bindings, dict):
-        return {}
     normalized: dict[str, dict] = {}
     normalized_profiles: dict[str, dict] = {}
     for profile_name, profile_entry in profiles.items():
         if isinstance(profile_name, str) and isinstance(profile_entry, dict):
             normalized_profiles[profile_name] = profile_entry
 
-    for platform_id, entry in bindings.items():
+    for platform_id, entry in platform_catalog.items():
         if not isinstance(platform_id, str) or not isinstance(entry, dict):
             continue
 
+        deps = entry.get("deps")
+        if not isinstance(deps, dict):
+            continue
+
         merged: dict = {}
-        profile_name = entry.get("profile")
+        profile_name = deps.get("profile")
         if profile_name is not None:
             if isinstance(profile_name, str) and profile_name in normalized_profiles:
                 merged.update(copy.deepcopy(normalized_profiles[profile_name]))
             else:
                 print(
-                    f"   ERROR: {PLATFORM_BINDINGS_FILE} binding '{platform_id}' "
+                    f"   ERROR: {PLATFORM_CATALOG_FILE} platform '{platform_id}' deps "
                     f"references unknown profile '{profile_name}'"
                 )
-        for key, value in entry.items():
+        for key, value in deps.items():
             if key == "profile":
                 continue
             merged[key] = value
@@ -742,7 +742,7 @@ def check_platform_catalog_bindings_consistency(
         print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
         return False
     if not platform_bindings:
-        print(f"   ERROR: platform deps bindings missing or invalid: {PLATFORM_BINDINGS_FILE}")
+        print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
         return False
 
     ok = True
@@ -754,10 +754,10 @@ def check_platform_catalog_bindings_consistency(
 
     for platform_id in missing_bindings:
         ok = False
-        print(f"   ERROR: platform '{platform_id}' is in catalog but missing from deps bindings")
+        print(f"   ERROR: platform '{platform_id}' is in catalog but missing deps mapping under 'deps'")
     for platform_id in extra_bindings:
         ok = False
-        print(f"   ERROR: platform '{platform_id}' is in deps bindings but missing from catalog")
+        print(f"   ERROR: platform '{platform_id}' has deps mapping but is missing from catalog")
 
     for platform_id, binding in platform_bindings.items():
         family = binding.get("family")
@@ -770,7 +770,7 @@ def check_platform_catalog_bindings_consistency(
             )
 
     if ok:
-        print("   OK: platform catalog and deps bindings are aligned")
+        print("   OK: platform catalog deps mappings are aligned")
     return ok
 
 
@@ -783,7 +783,7 @@ def check_docker_platforms_map_to_deps(
         print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
         return False
     if not platform_bindings:
-        print(f"   ERROR: platform deps bindings missing or invalid: {PLATFORM_BINDINGS_FILE}")
+        print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
         return False
 
     ok = True
@@ -1408,7 +1408,7 @@ def main() -> int:
         "server": build_family_os_index(server),
     }
     platform_catalog = load_platform_catalog()
-    platform_bindings = load_platform_deps_bindings()
+    platform_bindings = load_platform_deps_bindings(platform_catalog)
 
     # --- normalization -> topology coverage ---
     ok = True
@@ -1687,10 +1687,10 @@ def main() -> int:
                         ok = False
                         print(
                             f"   ERROR: {wf} runs {script_path.name} with unknown --os '{os_name}' "
-                            "for current platform bindings"
+                            "for current platform catalog deps mappings"
                         )
 
-    print("-- platforms: catalog/bindings consistency")
+    print("-- platforms: catalog deps consistency")
     if not check_platform_catalog_bindings_consistency(platform_catalog, platform_bindings):
         ok = False
 
