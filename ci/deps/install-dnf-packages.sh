@@ -22,11 +22,7 @@ Options:
 USAGE
 }
 
-ci_deps_init_cli
-ci_deps_parse_cli 1 1 "$@"
-ci_deps_setup_variant_defaults
-ci_deps_build_os_key
-ci_deps_resolve_packages dnf "${family}" "${os_key}"
+ci_deps_init_linux_installer dnf "$@"
 
 DNF_REPO_ARGS=()
 
@@ -140,19 +136,5 @@ dnf_pre_install() {
   dnf_run -y makecache
 }
 
-if [[ "${mode}" == "install" ]]; then
-  dnf_pre_install
-fi
-
-PKG_SPECS=("${PKGS[@]}")
-ci_deps_resolve_package_alternatives dnf_pkg_installed dnf_pkg_available
-
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit dnf_pkg_installed
-ci_deps_mode_install_print
-
-if [[ "${mode}" == "install" ]]; then
-  PKGS=("${PKG_SPECS[@]}")
-  ci_deps_install_packages_with_alternatives \
-    dnf_pkg_installed dnf_pkg_available dnf_install_one
-fi
+ci_deps_run_installer_modes \
+  dnf_pkg_installed dnf_pkg_available dnf_install_one dnf_pre_install

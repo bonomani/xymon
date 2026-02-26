@@ -22,11 +22,7 @@ Options:
 USAGE
 }
 
-ci_deps_init_cli
-ci_deps_parse_cli 1 1 "$@"
-ci_deps_setup_variant_defaults
-ci_deps_build_os_key
-ci_deps_resolve_packages brew "${family}" "${os_key}"
+ci_deps_init_linux_installer brew "$@"
 
 brew_pkg_installed() {
   brew list --versions "$1" >/dev/null 2>&1
@@ -45,19 +41,5 @@ brew_pre_install() {
   brew update
 }
 
-if [[ "${mode}" == "install" ]]; then
-  brew_pre_install
-fi
-
-PKG_SPECS=("${PKGS[@]}")
-ci_deps_resolve_package_alternatives brew_pkg_installed brew_pkg_available
-
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit brew_pkg_installed
-ci_deps_mode_install_print
-
-if [[ "${mode}" == "install" ]]; then
-  PKGS=("${PKG_SPECS[@]}")
-  ci_deps_install_packages_with_alternatives \
-    brew_pkg_installed brew_pkg_available brew_install_one
-fi
+ci_deps_run_installer_modes \
+  brew_pkg_installed brew_pkg_available brew_install_one brew_pre_install

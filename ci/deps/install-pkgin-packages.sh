@@ -44,16 +44,5 @@ pkgin_install_one() {
   ci_deps_as_root /usr/pkg/bin/pkgin -y install "$1"
 }
 
-PKG_SPECS=("${PKGS[@]}")
-ci_deps_resolve_package_alternatives pkgin_pkg_installed pkgin_pkg_available
-
-ci_deps_mode_print_or_exit
-ci_deps_mode_check_or_exit pkgin_pkg_installed
-ci_deps_mode_install_print
-
-if [[ "${mode}" == "install" ]]; then
-  echo "=== Install (BSD pkgin packages) ==="
-  PKGS=("${PKG_SPECS[@]}")
-  ci_deps_install_packages_with_alternatives \
-    pkgin_pkg_installed pkgin_pkg_available pkgin_install_one
-fi
+ci_deps_run_installer_modes \
+  pkgin_pkg_installed pkgin_pkg_available pkgin_install_one "" "=== Install (BSD pkgin packages) ==="
