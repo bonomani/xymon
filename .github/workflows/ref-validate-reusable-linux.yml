@@ -1,14 +1,10 @@
-name: Reference Validation - Reusable Lane
+name: Reference Validation - Reusable Linux Lane
 
 on:
   workflow_call:
     inputs:
       family:
-        description: Reference validation family key (e.g. ubuntu, rpm, freebsd)
-        required: true
-        type: string
-      runtime:
-        description: Lane runtime adapter (linux_container|bsd_vm|macos_host)
+        description: Reference validation family key (e.g. ubuntu, rpm)
         required: true
         type: string
       lane_name:
@@ -25,8 +21,7 @@ permissions:
 
 jobs:
   linux-container:
-    if: ${{ inputs.runtime == 'linux_container' }}
-    name: Linux container adapter
+    name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     container:
@@ -354,176 +349,3 @@ jobs:
         shell: bash
         run: |
           echo "Skipping actions/upload-artifact for this lane (Node-based actions unsupported in this environment)."
-
-  bsd-vm:
-    if: ${{ inputs.runtime == 'bsd_vm' }}
-    name: BSD VM adapter
-    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
-    env:
-      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      LEGACY_APPLY_OWNERSHIP: ON
-      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
-      ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
-      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Load legacy hostname (runs for each matrix variant)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/load-legacy-hostname.sh \
-            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
-
-      - name: Bootstrap install + metadata (CMake)
-        uses: cross-platform-actions/action@v0.32.0
-        with:
-          operating_system: ${{ env.REF_OS }}
-          architecture: ${{ env.ARCHITECTURE }}
-          version: ${{ env.OS_VERSION }}
-          shell: bash
-          memory: 2048M
-          cpu_count: 2
-          sync_files: true
-          run: |
-            set -euo pipefail
-            bash ci/run/ref/bootstrap-cmake-refs.sh \
-              --os "${REF_OS}" \
-              --version "${OS_VERSION}" \
-              --variant "${VARIANT}" \
-              --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-              --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
-              --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
-
-      - name: Compare refs snapshot (blocking policy checks)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/cmake.${REF_OS}.${VARIANT}"
-
-      - name: Upload artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ref-valid-${{ inputs.lane_name }}
-          if-no-files-found: warn
-          path: |
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-            /tmp/legacy.config.extract
-            /tmp/cmake.config.extract
-            /tmp/config.diff
-            /tmp/legacy.list
-            /tmp/cmake.list
-            /tmp/cmake.filtered.list
-            /tmp/allowed-extras.list
-            /tmp/legacy-cmake.diff
-            /tmp/legacy.keyfiles.missing
-            /tmp/legacy.keyfiles.sha256
-            /tmp/legacy.keyfiles.perms
-            /tmp/legacy.keyfiles.sha256.diff
-            /tmp/legacy.symlinks.broken
-            /tmp/legacy.symlinks.list
-            /tmp/legacy.perms.snapshot
-            /tmp/legacy.owners.snapshot
-            /tmp/legacy.bin.links
-            /tmp/legacy.embedded.paths
-            /tmp/legacy.symlinks.diff
-            /tmp/legacy.perms.diff
-            /tmp/legacy.owners.diff
-            /tmp/legacy.owners.names.diff
-            /tmp/legacy.binlinks.diff
-            /tmp/legacy.needed.norm.diff
-            /tmp/legacy.embedded.diff
-
-  macos-host:
-    if: ${{ inputs.runtime == 'macos_host' }}
-    name: macOS host adapter
-    runs-on: ${{ fromJSON(inputs.lane_json).runner || 'macos-latest' }}
-    env:
-      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      LEGACY_APPLY_OWNERSHIP: ON
-      XYMONUSER: _www
-      XYMONGROUP: _www
-      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
-      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Load legacy hostname (runs for each matrix variant)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/load-legacy-hostname.sh \
-            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
-
-      - name: Bootstrap install + metadata (CMake)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/bootstrap-cmake-refs.sh \
-            --os "${REF_OS}" \
-            --version "${OS_VERSION}" \
-            --variant "${VARIANT}" \
-            --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
-            --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
-
-      - name: Compare refs snapshot (blocking policy checks)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/cmake.${REF_OS}.${VARIANT}"
-
-      - name: Upload artifacts
-        if: ${{ always() }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ref-valid-${{ inputs.lane_name }}
-          if-no-files-found: warn
-          path: |
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-            /tmp/legacy.config.extract
-            /tmp/cmake.config.extract
-            /tmp/config.diff
-            /tmp/legacy.list
-            /tmp/cmake.list
-            /tmp/cmake.filtered.list
-            /tmp/allowed-extras.list
-            /tmp/legacy-cmake.diff
-            /tmp/legacy.keyfiles.missing
-            /tmp/legacy.keyfiles.sha256
-            /tmp/legacy.keyfiles.perms
-            /tmp/legacy.keyfiles.sha256.diff
-            /tmp/legacy.symlinks.broken
-            /tmp/legacy.symlinks.list
-            /tmp/legacy.perms.snapshot
-            /tmp/legacy.owners.snapshot
-            /tmp/legacy.bin.links
-            /tmp/legacy.embedded.paths
-            /tmp/legacy.symlinks.diff
-            /tmp/legacy.perms.diff
-            /tmp/legacy.owners.diff
-            /tmp/legacy.owners.names.diff
-            /tmp/legacy.binlinks.diff
-            /tmp/legacy.needed.norm.diff
-            /tmp/legacy.embedded.diff

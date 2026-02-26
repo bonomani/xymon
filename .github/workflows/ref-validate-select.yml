@@ -29,8 +29,13 @@ jobs:
   build-matrix:
     runs-on: ubuntu-22.04
     outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-      lane_count: ${{ steps.generate.outputs.lane_count }}
+      matrix_linux: ${{ steps.generate.outputs.matrix_linux }}
+      matrix_bsd: ${{ steps.generate.outputs.matrix_bsd }}
+      matrix_macos: ${{ steps.generate.outputs.matrix_macos }}
+      lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
+      lane_count_linux: ${{ steps.generate.outputs.lane_count_linux }}
+      lane_count_bsd: ${{ steps.generate.outputs.lane_count_bsd }}
+      lane_count_macos: ${{ steps.generate.outputs.lane_count_macos }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
     steps:
       - name: Checkout
@@ -78,7 +83,9 @@ jobs:
               runtime, filename = lookup[selected_family]
               selected = [(selected_family, runtime, filename)]
 
-          include = []
+          linux_include = []
+          bsd_include = []
+          macos_include = []
           selected_families = []
 
           for family, runtime, filename in selected:
@@ -164,19 +171,35 @@ jobs:
                   else:
                       raise SystemExit(f"Unknown runtime adapter: {runtime}")
 
-                  include.append(
-                      {
-                          "family": family,
-                          "runtime": runtime,
-                          "lane": lane_obj,
-                      }
-                  )
+                  item = {
+                      "family": family,
+                      "lane": lane_obj,
+                  }
+                  if runtime == "linux_container":
+                      linux_include.append(item)
+                  elif runtime == "bsd_vm":
+                      bsd_include.append(item)
+                  elif runtime == "macos_host":
+                      macos_include.append(item)
+                  else:
+                      raise SystemExit(f"Unknown runtime adapter: {runtime}")
 
-          matrix = {"include": include}
+          matrix_linux = {"include": linux_include}
+          matrix_bsd = {"include": bsd_include}
+          matrix_macos = {"include": macos_include}
+          lane_count_linux = len(linux_include)
+          lane_count_bsd = len(bsd_include)
+          lane_count_macos = len(macos_include)
+          lane_count_total = lane_count_linux + lane_count_bsd + lane_count_macos
           out = Path(os.environ["GITHUB_OUTPUT"])
           with out.open("a", encoding="utf-8") as fh:
-              fh.write(f"matrix={json.dumps(matrix)}\n")
-              fh.write(f"lane_count={len(include)}\n")
+              fh.write(f"matrix_linux={json.dumps(matrix_linux)}\n")
+              fh.write(f"matrix_bsd={json.dumps(matrix_bsd)}\n")
+              fh.write(f"matrix_macos={json.dumps(matrix_macos)}\n")
+              fh.write(f"lane_count_total={lane_count_total}\n")
+              fh.write(f"lane_count_linux={lane_count_linux}\n")
+              fh.write(f"lane_count_bsd={lane_count_bsd}\n")
+              fh.write(f"lane_count_macos={lane_count_macos}\n")
               fh.write(f"selected_families={','.join(selected_families)}\n")
           PY
 
@@ -184,20 +207,52 @@ jobs:
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
-          echo "Lane count: ${{ steps.generate.outputs.lane_count }}"
+          echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
+          echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
+          echo "Lane count (bsd): ${{ steps.generate.outputs.lane_count_bsd }}"
+          echo "Lane count (macos): ${{ steps.generate.outputs.lane_count_macos }}"
 
-  ref-validate:
+  ref-validate-linux:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux != '0' }}
     strategy:
       fail-fast: false
-      max-parallel: 12
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux) }}
     name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable.yml
+    uses: ./.github/workflows/ref-validate-reusable-linux.yml
     secrets: inherit
     with:
       family: ${{ matrix.family }}
-      runtime: ${{ matrix.runtime }}
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+
+  ref-validate-bsd:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_bsd != '0' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-bsd.yml
+    secrets: inherit
+    with:
+      family: ${{ matrix.family }}
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+
+  ref-validate-macos:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_macos != '0' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-macos.yml
+    secrets: inherit
+    with:
+      family: ${{ matrix.family }}
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
