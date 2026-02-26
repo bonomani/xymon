@@ -222,6 +222,8 @@ jobs:
 
           mkdir -p "${workdir}"
           cd "${workdir}"
+          git config --global --add safe.directory "${workdir}"
+          git config --global --add safe.directory "$(pwd)"
           rm -rf .git
           git init .
           git remote add origin "${repo_url}"
