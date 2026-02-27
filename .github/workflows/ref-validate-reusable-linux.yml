@@ -42,9 +42,8 @@ jobs:
           set -eu
           bootstrap_script="ci/run/ref/prepare-checkout-tools-bootstrap.sh"
           if [ ! -f "${bootstrap_script}" ]; then
-            bootstrap_root="/tmp/ci-ref-bootstrap"
-            bootstrap_script="${bootstrap_root}/prepare-checkout-tools-bootstrap.sh"
             url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ci/run/ref/prepare-checkout-tools-bootstrap.sh?ref=${GITHUB_SHA}"
+            bootstrap_script="/tmp/prepare-checkout-tools-bootstrap.sh"
 
             run_as_root() {
               if command -v sudo >/dev/null 2>&1; then
@@ -82,12 +81,9 @@ jobs:
             }
 
             ensure_fetch_client || {
-              echo "Need curl or wget to bootstrap checkout-tools bootstrap script" >&2
+              echo "Need curl or wget to bootstrap prepare-checkout-tools-bootstrap.sh" >&2
               exit 1
             }
-
-            rm -rf "${bootstrap_root}"
-            mkdir -p "${bootstrap_root}"
 
             if command -v curl >/dev/null 2>&1; then
               if [ -n "${GITHUB_TOKEN:-}" ]; then

@@ -1,0 +1,94 @@
+name: Run BSD VM Command With Retry
+description: Runs cross-platform-actions/action with retries for transient VM startup/download failures.
+
+inputs:
+  operating_system:
+    description: Target operating system (freebsd/openbsd/netbsd).
+    required: true
+  architecture:
+    description: Target architecture.
+    required: false
+    default: x86-64
+  version:
+    description: Target OS version.
+    required: true
+  shell:
+    description: Shell used inside the VM.
+    required: false
+    default: bash
+  memory:
+    description: VM memory size.
+    required: false
+    default: 1024M
+  cpu_count:
+    description: VM CPU count.
+    required: false
+    default: "2"
+  sync_files:
+    description: Sync workspace files to and from the VM.
+    required: false
+    default: "true"
+  shutdown_vm:
+    description: Shut down VM at the end of the action.
+    required: false
+    default: "true"
+  run_script:
+    description: Multi-line script to run in the VM.
+    required: true
+
+runs:
+  using: composite
+  steps:
+    - name: Run VM script [attempt 1]
+      id: vm_try1
+      continue-on-error: true
+      uses: cross-platform-actions/action@v0.32.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: ${{ inputs.sync_files }}
+        shutdown_vm: ${{ inputs.shutdown_vm }}
+        run: ${{ inputs.run_script }}
+
+    - name: Run VM script [attempt 2]
+      if: ${{ steps.vm_try1.outcome == 'failure' }}
+      id: vm_try2
+      continue-on-error: true
+      uses: cross-platform-actions/action@v0.32.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: ${{ inputs.sync_files }}
+        shutdown_vm: ${{ inputs.shutdown_vm }}
+        run: ${{ inputs.run_script }}
+
+    - name: Run VM script [attempt 3]
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' }}
+      id: vm_try3
+      continue-on-error: true
+      uses: cross-platform-actions/action@v0.32.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: ${{ inputs.sync_files }}
+        shutdown_vm: ${{ inputs.shutdown_vm }}
+        run: ${{ inputs.run_script }}
+
+    - name: Fail when VM retries are exhausted
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' && steps.vm_try3.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "BSD VM execution failed after 3 attempts." >&2
+        exit 1
