@@ -1,0 +1,66 @@
+name: Upload Reference Validation Artifacts
+description: Uploads common ref-validation artifacts plus optional extra paths.
+
+inputs:
+  lane_name:
+    description: Display name of the lane.
+    required: true
+  extra_paths:
+    description: Optional newline-delimited extra paths to include.
+    required: false
+    default: ""
+  if_no_files_found:
+    description: Behavior when no files match.
+    required: false
+    default: warn
+  compression_level:
+    description: Artifact compression level.
+    required: false
+    default: "6"
+  overwrite:
+    description: Whether to overwrite an existing artifact.
+    required: false
+    default: "false"
+  include_hidden_files:
+    description: Whether to include hidden files.
+    required: false
+    default: "false"
+
+runs:
+  using: composite
+  steps:
+    - name: Upload artifact bundle
+      uses: actions/upload-artifact@v4
+      with:
+        name: ref-valid-${{ inputs.lane_name }}
+        if-no-files-found: ${{ inputs.if_no_files_found }}
+        compression-level: ${{ inputs.compression_level }}
+        overwrite: ${{ inputs.overwrite }}
+        include-hidden-files: ${{ inputs.include_hidden_files }}
+        path: |
+          ${{ inputs.extra_paths }}
+          /tmp/legacy.config.extract
+          /tmp/cmake.config.extract
+          /tmp/config.diff
+          /tmp/legacy.list
+          /tmp/cmake.list
+          /tmp/cmake.filtered.list
+          /tmp/allowed-extras.list
+          /tmp/legacy-cmake.diff
+          /tmp/legacy.keyfiles.missing
+          /tmp/legacy.keyfiles.sha256
+          /tmp/legacy.keyfiles.perms
+          /tmp/legacy.keyfiles.sha256.diff
+          /tmp/legacy.symlinks.broken
+          /tmp/legacy.symlinks.list
+          /tmp/legacy.perms.snapshot
+          /tmp/legacy.owners.snapshot
+          /tmp/legacy.bin.links
+          /tmp/legacy.embedded.paths
+          /tmp/legacy.symlinks.diff
+          /tmp/legacy.perms.diff
+          /tmp/legacy.owners.diff
+          /tmp/legacy.owners.names.diff
+          /tmp/legacy.binlinks.diff
+          /tmp/legacy.needed.norm.diff
+          /tmp/legacy.embedded.diff

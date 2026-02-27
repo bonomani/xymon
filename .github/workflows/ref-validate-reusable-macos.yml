@@ -69,35 +69,10 @@ jobs:
 
       - name: Upload artifacts
         if: ${{ always() }}
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-ref-valid-artifacts
         with:
-          name: ref-valid-${{ inputs.lane_name }}
-          if-no-files-found: warn
-          path: |
+          lane_name: ${{ inputs.lane_name }}
+          if_no_files_found: warn
+          extra_paths: |
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-            /tmp/legacy.config.extract
-            /tmp/cmake.config.extract
-            /tmp/config.diff
-            /tmp/legacy.list
-            /tmp/cmake.list
-            /tmp/cmake.filtered.list
-            /tmp/allowed-extras.list
-            /tmp/legacy-cmake.diff
-            /tmp/legacy.keyfiles.missing
-            /tmp/legacy.keyfiles.sha256
-            /tmp/legacy.keyfiles.perms
-            /tmp/legacy.keyfiles.sha256.diff
-            /tmp/legacy.symlinks.broken
-            /tmp/legacy.symlinks.list
-            /tmp/legacy.perms.snapshot
-            /tmp/legacy.owners.snapshot
-            /tmp/legacy.bin.links
-            /tmp/legacy.embedded.paths
-            /tmp/legacy.symlinks.diff
-            /tmp/legacy.perms.diff
-            /tmp/legacy.owners.diff
-            /tmp/legacy.owners.names.diff
-            /tmp/legacy.binlinks.diff
-            /tmp/legacy.needed.norm.diff
-            /tmp/legacy.embedded.diff
