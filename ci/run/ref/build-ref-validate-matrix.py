@@ -41,6 +41,24 @@ def load_manifest(path: Path):
         die(f"Missing families manifest: {path}")
 
     data = yaml.safe_load(path.read_text()) or {}
+    runtime_defaults_raw = data.get("runtime_defaults", {})
+    if runtime_defaults_raw is None:
+        runtime_defaults_raw = {}
+    runtime_defaults_raw = require_mapping(
+        runtime_defaults_raw, f"Manifest runtime_defaults in {path}"
+    )
+
+    runtime_defaults = {}
+    for runtime_key, defaults in runtime_defaults_raw.items():
+        runtime_key = require_non_empty_string(
+            runtime_key, f"Manifest runtime_defaults key in {path}"
+        )
+        if runtime_key not in RUNTIME_TO_MATRIX_KEY:
+            die(f"Manifest has invalid runtime_defaults key '{runtime_key}'")
+        runtime_defaults[runtime_key] = require_mapping(
+            defaults, f"Manifest runtime_defaults.{runtime_key}"
+        )
+
     entries = data.get("families")
     if not isinstance(entries, list) or not entries:
         die(f"Manifest has no families list: {path}")
@@ -104,6 +122,7 @@ def load_manifest(path: Path):
                 "family": family,
                 "runtime": runtime,
                 "lane_file": lane_file,
+                "runtime_overrides": dict(runtime_defaults.get(runtime, {})),
                 "lane_overrides": lane_overrides,
                 "container_arm64_overrides": container_arm64_overrides,
                 "os_version_key": os_version_key,
@@ -248,6 +267,7 @@ def infer_platform_version(platform_id: str) -> str:
 def normalize_lane(family_entry, lane, platform_catalog):
     lane_obj = dict(lane)
     lane_obj.setdefault("allow_failure", False)
+    lane_obj.update(family_entry["runtime_overrides"])
     lane_obj.update(family_entry["lane_overrides"])
 
     platform_id = lane_obj.get("platform_id")
