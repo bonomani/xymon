@@ -1,4 +1,4 @@
-name: Reference Generation - Reusable Lane
+name: Reference Generation - Reusable Host/VM Lane
 
 on:
   workflow_call:
@@ -16,35 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  make-linux:
-    if: ${{ fromJSON(inputs.lane_json).runtime == 'linux_host' }}
-    name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
-    env:
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-
-      - name: Bootstrap install + refs on Linux
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/bootstrap-make-refs.sh
-
-      - name: Upload legacy references
-        uses: actions/upload-artifact@v4
-        with:
-          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
-          path: |
-            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-          if-no-files-found: error
-
-  make-bsd:
-    if: ${{ fromJSON(inputs.lane_json).runtime == 'bsd_vm' }}
+  make-host-vm:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     env:
