@@ -38,8 +38,9 @@ command -v awk >/dev/null 2>&1 || need_install=1
 command -v update-ca-certificates >/dev/null 2>&1 || need_install=1
 [ "${need_install}" -eq 1 ] || exit 0
 
-# install-common.sh is Bash-only; bootstrap bash first when needed.
-if [ -z "${BASH_VERSION:-}" ]; then
+# install-common.sh is Bash-only. Re-exec once under Bash after bootstrapping
+# it, even when /bin/sh is actually Bash running in POSIX mode.
+if [ "${CI_DEPS_REEXECED_WITH_BASH:-0}" != "1" ]; then
   if ! command -v bash >/dev/null 2>&1; then
     if command -v apt-get >/dev/null 2>&1; then
       apt-get update
@@ -61,7 +62,7 @@ if [ -z "${BASH_VERSION:-}" ]; then
       exit 2
     fi
   fi
-  exec bash "$0" --prepare-profile "${prepare_profile}"
+  exec env CI_DEPS_REEXECED_WITH_BASH=1 bash "$0" --prepare-profile "${prepare_profile}"
 fi
 
 set -euo pipefail
