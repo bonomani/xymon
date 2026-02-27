@@ -45,8 +45,10 @@ jobs:
           bash ci/run/ref/load-legacy-hostname.sh \
             --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
 
-      - name: Bootstrap install + metadata (CMake, BSD VM adapter)
+      - name: Bootstrap install + metadata (CMake, BSD VM adapter) [attempt 1]
         if: ${{ env.REF_OS != 'macos' }}
+        id: bootstrap_bsd_try1
+        continue-on-error: true
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ env.REF_OS }}
@@ -65,6 +67,59 @@ jobs:
               --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
               --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
               --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
+
+      - name: Bootstrap install + metadata (CMake, BSD VM adapter) [attempt 2]
+        if: ${{ env.REF_OS != 'macos' && steps.bootstrap_bsd_try1.outcome == 'failure' }}
+        id: bootstrap_bsd_try2
+        continue-on-error: true
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: 2048M
+          cpu_count: 2
+          sync_files: true
+          run: |
+            set -euo pipefail
+            bash ci/run/ref/bootstrap-cmake-refs.sh \
+              --os "${{ env.REF_OS }}" \
+              --version "${{ env.OS_VERSION }}" \
+              --variant "${{ env.VARIANT }}" \
+              --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
+              --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
+              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
+
+      - name: Bootstrap install + metadata (CMake, BSD VM adapter) [attempt 3]
+        if: ${{ env.REF_OS != 'macos' && steps.bootstrap_bsd_try1.outcome == 'failure' && steps.bootstrap_bsd_try2.outcome == 'failure' }}
+        id: bootstrap_bsd_try3
+        continue-on-error: true
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: 2048M
+          cpu_count: 2
+          sync_files: true
+          run: |
+            set -euo pipefail
+            bash ci/run/ref/bootstrap-cmake-refs.sh \
+              --os "${{ env.REF_OS }}" \
+              --version "${{ env.OS_VERSION }}" \
+              --variant "${{ env.VARIANT }}" \
+              --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
+              --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
+              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
+
+      - name: Fail if BSD VM bootstrap retries are exhausted
+        if: ${{ env.REF_OS != 'macos' && steps.bootstrap_bsd_try1.outcome == 'failure' && steps.bootstrap_bsd_try2.outcome == 'failure' && steps.bootstrap_bsd_try3.outcome == 'failure' }}
+        shell: bash
+        run: |
+          echo "BSD VM bootstrap failed after 3 attempts." >&2
+          exit 1
 
       - name: Bootstrap install + metadata (CMake, macOS host adapter)
         if: ${{ env.REF_OS == 'macos' }}

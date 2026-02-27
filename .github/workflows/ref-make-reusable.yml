@@ -60,7 +60,9 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
 
-      - name: Bootstrap install + refs on BSD VM
+      - name: Bootstrap install + refs on BSD VM [attempt 1]
+        id: bootstrap_bsd_try1
+        continue-on-error: true
         uses: cross-platform-actions/action@v0.32.0
         with:
           operating_system: ${{ env.REF_OS }}
@@ -79,6 +81,59 @@ jobs:
             bash ci/run/ref/bootstrap-make-refs.sh
           sync_files: true
           shutdown_vm: true
+
+      - name: Bootstrap install + refs on BSD VM [attempt 2]
+        if: ${{ steps.bootstrap_bsd_try1.outcome == 'failure' }}
+        id: bootstrap_bsd_try2
+        continue-on-error: true
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: ${{ env.VM_MEMORY }}
+          cpu_count: ${{ env.VM_CPU_COUNT }}
+          run: |
+            set -euo pipefail
+            export BUILD_TOOL="${{ env.BUILD_TOOL }}"
+            export REF_OS="${{ env.REF_OS }}"
+            export OS_VERSION="${{ env.OS_VERSION }}"
+            export VARIANT="${{ env.VARIANT }}"
+            export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
+            bash ci/run/ref/bootstrap-make-refs.sh
+          sync_files: true
+          shutdown_vm: true
+
+      - name: Bootstrap install + refs on BSD VM [attempt 3]
+        if: ${{ steps.bootstrap_bsd_try1.outcome == 'failure' && steps.bootstrap_bsd_try2.outcome == 'failure' }}
+        id: bootstrap_bsd_try3
+        continue-on-error: true
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: ${{ env.VM_MEMORY }}
+          cpu_count: ${{ env.VM_CPU_COUNT }}
+          run: |
+            set -euo pipefail
+            export BUILD_TOOL="${{ env.BUILD_TOOL }}"
+            export REF_OS="${{ env.REF_OS }}"
+            export OS_VERSION="${{ env.OS_VERSION }}"
+            export VARIANT="${{ env.VARIANT }}"
+            export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
+            bash ci/run/ref/bootstrap-make-refs.sh
+          sync_files: true
+          shutdown_vm: true
+
+      - name: Fail if BSD VM bootstrap retries are exhausted
+        if: ${{ steps.bootstrap_bsd_try1.outcome == 'failure' && steps.bootstrap_bsd_try2.outcome == 'failure' && steps.bootstrap_bsd_try3.outcome == 'failure' }}
+        shell: bash
+        run: |
+          echo "BSD VM bootstrap failed after 3 attempts." >&2
+          exit 1
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
