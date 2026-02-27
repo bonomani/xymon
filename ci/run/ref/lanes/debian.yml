@@ -6,66 +6,24 @@ defaults:
     runs_on: ubuntu-24.04-arm
     container_options: --platform linux/arm64/v8
 include:
-- name: Debian 13.3-slim amd64 - Server
+- name_prefix: Debian 13.3-slim amd64
   platform_id: debian-13
-  variant: server
-- name: Debian 13.3-slim amd64 - Client (ct-client)
-  platform_id: debian-13
-  variant: localclient
-- name: Debian 13.3-slim amd64 - Client (ct-server)
-  platform_id: debian-13
-  variant: client
-- name: Debian 13.3-slim arm64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Debian 13.3-slim arm64
   platform_id: debian-13
   defaults: arm64
-  variant: server
-- name: Debian 13.3-slim arm64 - Client (ct-client)
-  platform_id: debian-13
-  defaults: arm64
-  variant: localclient
-- name: Debian 13.3-slim arm64 - Client (ct-server)
-  platform_id: debian-13
-  defaults: arm64
-  variant: client
-- name: Debian 12.13-slim amd64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Debian 12.13-slim amd64
   platform_id: debian-12
-  variant: server
-- name: Debian 12.13-slim amd64 - Client (ct-client)
-  platform_id: debian-12
-  variant: localclient
-- name: Debian 12.13-slim amd64 - Client (ct-server)
-  platform_id: debian-12
-  variant: client
-- name: Debian 12.13-slim arm64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Debian 12.13-slim arm64
   platform_id: debian-12
   defaults: arm64
-  variant: server
-- name: Debian 12.13-slim arm64 - Client (ct-client)
-  platform_id: debian-12
-  defaults: arm64
-  variant: localclient
-- name: Debian 12.13-slim arm64 - Client (ct-server)
-  platform_id: debian-12
-  defaults: arm64
-  variant: client
-- name: Debian 11.11-slim amd64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Debian 11.11-slim amd64
   platform_id: debian-11
-  variant: server
-- name: Debian 11.11-slim amd64 - Client (ct-client)
-  platform_id: debian-11
-  variant: localclient
-- name: Debian 11.11-slim amd64 - Client (ct-server)
-  platform_id: debian-11
-  variant: client
-- name: Debian 11.11-slim arm64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Debian 11.11-slim arm64
   platform_id: debian-11
   defaults: arm64
-  variant: server
-- name: Debian 11.11-slim arm64 - Client (ct-client)
-  platform_id: debian-11
-  defaults: arm64
-  variant: localclient
-- name: Debian 11.11-slim arm64 - Client (ct-server)
-  platform_id: debian-11
-  defaults: arm64
-  variant: client
+  variants: [server, localclient, client]

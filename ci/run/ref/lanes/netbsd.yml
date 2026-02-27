@@ -1,85 +1,29 @@
 include:
-- name: NetBSD 10.1 x86-64 - Server
+- name_prefix: NetBSD 10.1 x86-64
   platform_id: netbsd-10_1
   architecture: x86-64
-  variant: server
-- name: NetBSD 10.1 x86-64 - Client (ct-client)
-  platform_id: netbsd-10_1
-  architecture: x86-64
-  variant: localclient
-- name: NetBSD 10.1 x86-64 - Client (ct-server)
-  platform_id: netbsd-10_1
-  architecture: x86-64
-  variant: client
-- name: NetBSD 10.1 arm64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 10.1 arm64
   platform_id: netbsd-10_1
   architecture: arm64
-  variant: server
-- name: NetBSD 10.1 arm64 - Client (ct-client)
-  platform_id: netbsd-10_1
-  architecture: arm64
-  variant: localclient
-- name: NetBSD 10.1 arm64 - Client (ct-server)
-  platform_id: netbsd-10_1
-  architecture: arm64
-  variant: client
-- name: NetBSD 10.0 x86-64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 10.0 x86-64
   platform_id: netbsd-10_0
   architecture: x86-64
-  variant: server
-- name: NetBSD 10.0 x86-64 - Client (ct-client)
-  platform_id: netbsd-10_0
-  architecture: x86-64
-  variant: localclient
-- name: NetBSD 10.0 x86-64 - Client (ct-server)
-  platform_id: netbsd-10_0
-  architecture: x86-64
-  variant: client
-- name: NetBSD 10.0 arm64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 10.0 arm64
   platform_id: netbsd-10_0
   architecture: arm64
-  variant: server
-- name: NetBSD 10.0 arm64 - Client (ct-client)
-  platform_id: netbsd-10_0
-  architecture: arm64
-  variant: localclient
-- name: NetBSD 10.0 arm64 - Client (ct-server)
-  platform_id: netbsd-10_0
-  architecture: arm64
-  variant: client
-- name: NetBSD 9.4 x86-64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 9.4 x86-64
   platform_id: netbsd-9_4
   architecture: x86-64
-  variant: server
-- name: NetBSD 9.4 x86-64 - Client (ct-client)
-  platform_id: netbsd-9_4
-  architecture: x86-64
-  variant: localclient
-- name: NetBSD 9.4 x86-64 - Client (ct-server)
-  platform_id: netbsd-9_4
-  architecture: x86-64
-  variant: client
-- name: NetBSD 9.3 x86-64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 9.3 x86-64
   platform_id: netbsd-9_3
   architecture: x86-64
-  variant: server
-- name: NetBSD 9.3 x86-64 - Client (ct-client)
-  platform_id: netbsd-9_3
-  architecture: x86-64
-  variant: localclient
-- name: NetBSD 9.3 x86-64 - Client (ct-server)
-  platform_id: netbsd-9_3
-  architecture: x86-64
-  variant: client
-- name: NetBSD 9.2 x86-64 - Server
+  variants: [server, localclient, client]
+- name_prefix: NetBSD 9.2 x86-64
   platform_id: netbsd-9_2
   architecture: x86-64
-  variant: server
-- name: NetBSD 9.2 x86-64 - Client (ct-client)
-  platform_id: netbsd-9_2
-  architecture: x86-64
-  variant: localclient
-- name: NetBSD 9.2 x86-64 - Client (ct-server)
-  platform_id: netbsd-9_2
-  architecture: x86-64
-  variant: client
+  variants: [server, localclient, client]

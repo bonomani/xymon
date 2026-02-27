@@ -1,37 +1,13 @@
 include:
-- name: macOS latest - Server
+- name_prefix: macOS latest
   platform_id: macos-latest
-  variant: server
-- name: macOS latest - Client (ct-client)
-  platform_id: macos-latest
-  variant: localclient
-- name: macOS latest - Client (ct-server)
-  platform_id: macos-latest
-  variant: client
-- name: macOS 26 - Server
+  variants: [server, localclient, client]
+- name_prefix: macOS 26
   platform_id: macos-26
-  variant: server
-- name: macOS 26 - Client (ct-client)
-  platform_id: macos-26
-  variant: localclient
-- name: macOS 26 - Client (ct-server)
-  platform_id: macos-26
-  variant: client
-- name: macOS 15 - Server
+  variants: [server, localclient, client]
+- name_prefix: macOS 15
   platform_id: macos-15
-  variant: server
-- name: macOS 15 - Client (ct-client)
-  platform_id: macos-15
-  variant: localclient
-- name: macOS 15 - Client (ct-server)
-  platform_id: macos-15
-  variant: client
-- name: macOS 14 - Server
+  variants: [server, localclient, client]
+- name_prefix: macOS 14
   platform_id: macos-14
-  variant: server
-- name: macOS 14 - Client (ct-client)
-  platform_id: macos-14
-  variant: localclient
-- name: macOS 14 - Client (ct-server)
-  platform_id: macos-14
-  variant: client
+  variants: [server, localclient, client]
