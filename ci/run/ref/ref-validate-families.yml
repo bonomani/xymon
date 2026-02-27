@@ -7,7 +7,6 @@ families:
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
-    needs_bash_awk: false
     upload_artifacts: true
   container_arm64_overrides:
     checkout_mode: git
@@ -21,7 +20,6 @@ families:
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
-    needs_bash_awk: false
     upload_artifacts: true
   lane_file: ci/run/ref/lanes/archlinux.yml
 - family: centos7
@@ -32,7 +30,6 @@ families:
     artifact_family: linux
     prepare_profile: centos7
     checkout_mode: git
-    needs_bash_awk: false
     upload_artifacts: false
   lane_file: ci/run/ref/lanes/centos7.yml
 - family: debian
@@ -43,7 +40,6 @@ families:
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
-    needs_bash_awk: false
     upload_artifacts: true
   lane_file: ci/run/ref/lanes/debian.yml
 - family: freebsd
@@ -95,7 +91,6 @@ families:
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
-    needs_bash_awk: true
     upload_artifacts: true
   lane_file: ci/run/ref/lanes/opensuse.yml
 - family: rpm
@@ -106,7 +101,6 @@ families:
     artifact_family: linux
     prepare_profile: rpm
     checkout_mode: action
-    needs_bash_awk: false
     upload_artifacts: true
   lane_file: ci/run/ref/lanes/rpm.yml
 - family: ubuntu
@@ -117,6 +111,5 @@ families:
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
-    needs_bash_awk: false
     upload_artifacts: true
   lane_file: ci/run/ref/lanes/ubuntu.yml
