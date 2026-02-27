@@ -1,10 +1,10 @@
-name: Reference Validation - Reusable macOS Lane
+name: Reference Validation - Reusable Host/VM Lane
 
 on:
   workflow_call:
     inputs:
       family:
-        description: Reference validation family key (macos)
+        description: Reference validation family key (e.g. freebsd, netbsd, openbsd, macos)
         required: true
         type: string
       lane_name:
@@ -20,19 +20,21 @@ permissions:
   contents: read
 
 jobs:
-  macos-host:
+  host-vm:
     name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runner || 'macos-latest' }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runner || fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
-      XYMONUSER: _www
-      XYMONGROUP: _www
+      XYMONUSER: ${{ fromJSON(inputs.lane_json).ref_os == 'macos' && '_www' || '' }}
+      XYMONGROUP: ${{ fromJSON(inputs.lane_json).ref_os == 'macos' && '_www' || '' }}
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
     steps:
       - name: Checkout
@@ -47,7 +49,29 @@ jobs:
           bash ci/run/ref/load-legacy-hostname.sh \
             --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
 
-      - name: Bootstrap install + metadata (CMake)
+      - name: Bootstrap install + metadata (CMake, BSD VM adapter)
+        if: ${{ env.REF_OS != 'macos' }}
+        uses: cross-platform-actions/action@v0.32.0
+        with:
+          operating_system: ${{ env.REF_OS }}
+          architecture: ${{ env.ARCHITECTURE }}
+          version: ${{ env.OS_VERSION }}
+          shell: bash
+          memory: 2048M
+          cpu_count: 2
+          sync_files: true
+          run: |
+            set -euo pipefail
+            bash ci/run/ref/bootstrap-cmake-refs.sh \
+              --os "${{ env.REF_OS }}" \
+              --version "${{ env.OS_VERSION }}" \
+              --variant "${{ env.VARIANT }}" \
+              --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
+              --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
+              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
+
+      - name: Bootstrap install + metadata (CMake, macOS host adapter)
+        if: ${{ env.REF_OS == 'macos' }}
         shell: bash
         run: |
           set -euo pipefail

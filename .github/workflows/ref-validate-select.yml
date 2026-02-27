@@ -94,7 +94,7 @@ jobs:
       max-parallel: 2
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd) }}
     name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-bsd.yml
+    uses: ./.github/workflows/ref-validate-reusable-host-vm.yml
     secrets: inherit
     with:
       family: ${{ matrix.family }}
@@ -109,7 +109,7 @@ jobs:
       max-parallel: 2
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos) }}
     name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-macos.yml
+    uses: ./.github/workflows/ref-validate-reusable-host-vm.yml
     secrets: inherit
     with:
       family: ${{ matrix.family }}
