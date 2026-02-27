@@ -1,22 +1,16 @@
 include:
 - name_prefix: Ubuntu 24.04 amd64
   platform_id: ubuntu-24
-  variants: [server, localclient, client]
 - name_prefix: Ubuntu 24.04 arm64
   platform_id: ubuntu-24
   defaults: arm64
-  variants: [server, localclient, client]
 - name_prefix: Ubuntu 22.04 amd64
   platform_id: ubuntu-22
-  variants: [server, localclient, client]
 - name_prefix: Ubuntu 22.04 arm64
   platform_id: ubuntu-22
   defaults: arm64
-  variants: [server, localclient, client]
 - name_prefix: Ubuntu 20.04 amd64
   platform_id: ubuntu-20
-  variants: [server, localclient, client]
 - name_prefix: Ubuntu 20.04 arm64
   platform_id: ubuntu-20
   defaults: arm64
-  variants: [server, localclient, client]

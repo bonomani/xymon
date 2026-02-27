@@ -1,10 +1,7 @@
 include:
 - name_prefix: FreeBSD 15.0
   platform_id: freebsd-15_0
-  variants: [server, localclient, client]
 - name_prefix: FreeBSD 14.3
   platform_id: freebsd-14_3
-  variants: [server, localclient, client]
 - name_prefix: FreeBSD 13.5
   platform_id: freebsd-13_5
-  variants: [server, localclient, client]

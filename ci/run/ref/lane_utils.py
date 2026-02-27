@@ -13,6 +13,7 @@ VARIANT_NAME_SUFFIX = {
 }
 
 SUPPORTED_LANE_VARIANTS = frozenset(VARIANT_NAME_SUFFIX.keys())
+DEFAULT_LANE_VARIANTS = ["server", "localclient", "client"]
 
 
 class LaneSpecError(ValueError):
@@ -47,10 +48,16 @@ def _require_non_empty_string(value, context: str) -> str:
 
 
 def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
-    """Expand a lane containing 'variants' into concrete lane mappings."""
+    """Expand a lane mapping into concrete per-variant lane mappings."""
     variants = lane_obj.get("variants")
     if variants is None:
-        return [dict(lane_obj)]
+        # When a lane uses name_prefix-based naming and omits explicit variants,
+        # expand the conventional server/localclient/client set by default.
+        if "variant" in lane_obj:
+            return [dict(lane_obj)]
+        if "name_prefix" not in lane_obj:
+            return [dict(lane_obj)]
+        variants = list(DEFAULT_LANE_VARIANTS)
 
     if "variant" in lane_obj:
         raise LaneSpecError(
