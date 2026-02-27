@@ -5,45 +5,6 @@ on:
 
 jobs:
   ref-make-freebsd:
-    name: ${{ matrix.lane.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - lane:
-              name: server
-              runtime: bsd_vm
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: freebsd
-              os_version: "15.0"
-              architecture: x86-64
-              vm_memory: 1024M
-              vm_cpu_count: 2
-              variant: server
-          - lane:
-              name: client ct-client
-              runtime: bsd_vm
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: freebsd
-              os_version: "15.0"
-              architecture: x86-64
-              vm_memory: 1024M
-              vm_cpu_count: 2
-              variant: localclient
-          - lane:
-              name: client ct-server
-              runtime: bsd_vm
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: freebsd
-              os_version: "15.0"
-              architecture: x86-64
-              vm_memory: 1024M
-              vm_cpu_count: 2
-              variant: client
-    uses: ./.github/workflows/ref-make-reusable.yml
+    uses: ./.github/workflows/ref-make-select.yml
     with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
+      family: freebsd
