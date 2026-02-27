@@ -17,7 +17,7 @@ permissions:
 
 jobs:
   make-linux:
-    if: ${{ fromJSON(inputs.lane_json).runtime == 'linux_container' }}
+    if: ${{ fromJSON(inputs.lane_json).runtime == 'linux_host' }}
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     env:

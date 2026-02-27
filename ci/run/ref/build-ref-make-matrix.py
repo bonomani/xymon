@@ -13,7 +13,7 @@ from matrix_common import (
     validate_dropdown_parity,
 )
 
-SUPPORTED_RUNTIMES = {"linux_container", "bsd_vm"}
+SUPPORTED_RUNTIMES = {"linux_host", "bsd_vm"}
 
 def load_manifest(path: Path):
     manifest_data = load_manifest_common(path, supported_runtimes=SUPPORTED_RUNTIMES)
@@ -92,7 +92,7 @@ def main():
             die(f"Unsupported family input: {selected_family}")
         selected_entries = [lookup[selected_family]]
 
-    matrix_entries = []
+    matrices = {runtime: [] for runtime in SUPPORTED_RUNTIMES}
     selected_families = []
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
@@ -101,18 +101,32 @@ def main():
         )
         for lane in lanes:
             normalized = normalize_lane(family_entry, lane)
-            matrix_entries.append(
+            runtime = normalized.get("runtime")
+            if runtime not in SUPPORTED_RUNTIMES:
+                die(
+                    f"Lane '{normalized.get('name', '<unnamed>')}' for family "
+                    f"'{family_entry['family']}' has unsupported runtime '{runtime}'"
+                )
+            matrices[runtime].append(
                 {
                     "family": family_entry["family"],
                     "lane": normalized,
                 }
             )
 
-    matrix = {"include": matrix_entries}
+    matrix_linux = {"include": matrices["linux_host"]}
+    matrix_host_vm = {"include": matrices["bsd_vm"]}
+    lane_count_linux = len(matrix_linux["include"])
+    lane_count_host_vm = len(matrix_host_vm["include"])
+    lane_count_total = lane_count_linux + lane_count_host_vm
+
     output_path = Path(github_output)
     with output_path.open("a", encoding="utf-8") as fh:
-        fh.write(f"matrix={json.dumps(matrix)}\n")
-        fh.write(f"lane_count={len(matrix_entries)}\n")
+        fh.write(f"matrix_linux={json.dumps(matrix_linux)}\n")
+        fh.write(f"matrix_host_vm={json.dumps(matrix_host_vm)}\n")
+        fh.write(f"lane_count_total={lane_count_total}\n")
+        fh.write(f"lane_count_linux={lane_count_linux}\n")
+        fh.write(f"lane_count_host_vm={lane_count_host_vm}\n")
         fh.write(f"selected_families={','.join(selected_families)}\n")
 
 
