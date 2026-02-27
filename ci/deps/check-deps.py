@@ -1185,6 +1185,7 @@ def check_shell_scripts() -> bool:
         ROOT / "cmake-local-build.sh",
         ROOT / "cmake-local-install.sh",
         ROOT / "ci" / "deps" / "install-default-packages.sh",
+        ROOT / "ci" / "deps" / "install-checkout-tools.sh",
         ROOT / "ci" / "deps" / "install-apt-packages.sh",
         ROOT / "ci" / "deps" / "install-apk-packages.sh",
         ROOT / "ci" / "deps" / "install-bsd-packages.sh",
