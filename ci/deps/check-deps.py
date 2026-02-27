@@ -875,6 +875,10 @@ def map_ref_lane_to_platform_requirement(
     family: str,
     lane: dict,
 ) -> tuple[str, str]:
+    platform_id = lane.get("platform_id")
+    if isinstance(platform_id, str) and platform_id.strip():
+        return "platform_id", platform_id.strip()
+
     container = lane.get("container")
     if isinstance(container, str) and container:
         return "docker_image", normalize_container_ref(container)
