@@ -45,11 +45,11 @@ jobs:
           GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          script_path="ci/deps/install-checkout-tools.sh"
-          if [ ! -f "${script_path}" ]; then
-            bootstrap_root="/tmp/ci-deps-bootstrap"
-            rm -rf "${bootstrap_root}"
-            mkdir -p "${bootstrap_root}/lib"
+          bootstrap_script="ci/run/ref/prepare-checkout-tools-bootstrap.sh"
+          if [ ! -f "${bootstrap_script}" ]; then
+            bootstrap_root="/tmp/ci-ref-bootstrap"
+            bootstrap_script="${bootstrap_root}/prepare-checkout-tools-bootstrap.sh"
+            url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ci/run/ref/prepare-checkout-tools-bootstrap.sh?ref=${GITHUB_SHA}"
 
             run_as_root() {
               if command -v sudo >/dev/null 2>&1; then
@@ -87,50 +87,42 @@ jobs:
             }
 
             ensure_fetch_client || {
-              echo "Need curl or wget to bootstrap checkout-tools installer" >&2
+              echo "Need curl or wget to bootstrap checkout-tools bootstrap script" >&2
               exit 1
             }
 
-            fetch_repo_file() {
-              rel_path="$1"
-              dest_path="$2"
-              url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${rel_path}?ref=${GITHUB_SHA}"
+            rm -rf "${bootstrap_root}"
+            mkdir -p "${bootstrap_root}"
 
-              if command -v curl >/dev/null 2>&1; then
-                if [ -n "${GITHUB_TOKEN:-}" ]; then
-                  curl -fsSL \
-                    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                    -H "Accept: application/vnd.github.raw" \
-                    "${url}" \
-                    -o "${dest_path}"
-                else
-                  curl -fsSL \
-                    -H "Accept: application/vnd.github.raw" \
-                    "${url}" \
-                    -o "${dest_path}"
-                fi
-              elif command -v wget >/dev/null 2>&1; then
-                if [ -n "${GITHUB_TOKEN:-}" ]; then
-                  wget -qO "${dest_path}" \
-                    --header="Authorization: Bearer ${GITHUB_TOKEN}" \
-                    --header="Accept: application/vnd.github.raw" \
-                    "${url}"
-                else
-                  wget -qO "${dest_path}" \
-                    --header="Accept: application/vnd.github.raw" \
-                    "${url}"
-                fi
+            if command -v curl >/dev/null 2>&1; then
+              if [ -n "${GITHUB_TOKEN:-}" ]; then
+                curl -fsSL \
+                  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                  -H "Accept: application/vnd.github.raw" \
+                  "${url}" \
+                  -o "${bootstrap_script}"
+              else
+                curl -fsSL \
+                  -H "Accept: application/vnd.github.raw" \
+                  "${url}" \
+                  -o "${bootstrap_script}"
               fi
-            }
-
-            fetch_repo_file "ci/deps/install-checkout-tools.sh" "${bootstrap_root}/install-checkout-tools.sh"
-            fetch_repo_file "ci/deps/lib/install-common.sh" "${bootstrap_root}/lib/install-common.sh"
-
-            chmod +x "${bootstrap_root}/install-checkout-tools.sh"
-            script_path="${bootstrap_root}/install-checkout-tools.sh"
+            else
+              if [ -n "${GITHUB_TOKEN:-}" ]; then
+                wget -qO "${bootstrap_script}" \
+                  --header="Authorization: Bearer ${GITHUB_TOKEN}" \
+                  --header="Accept: application/vnd.github.raw" \
+                  "${url}"
+              else
+                wget -qO "${bootstrap_script}" \
+                  --header="Accept: application/vnd.github.raw" \
+                  "${url}"
+              fi
+            fi
+            chmod +x "${bootstrap_script}"
           fi
 
-          sh "${script_path}" --prepare-profile "${PREPARE_PROFILE}"
+          sh "${bootstrap_script}" --prepare-profile "${PREPARE_PROFILE}"
 
       - name: Checkout
         if: ${{ env.CHECKOUT_MODE == 'action' }}
