@@ -409,18 +409,22 @@ def main():
     matrix_linux = {"include": matrices["linux_container"]}
     matrix_bsd = {"include": matrices["bsd_vm"]}
     matrix_macos = {"include": matrices["macos_host"]}
+    matrix_host_vm = {"include": matrices["bsd_vm"] + matrices["macos_host"]}
     lane_count_linux = len(matrix_linux["include"])
     lane_count_bsd = len(matrix_bsd["include"])
     lane_count_macos = len(matrix_macos["include"])
-    lane_count_total = lane_count_linux + lane_count_bsd + lane_count_macos
+    lane_count_host_vm = len(matrix_host_vm["include"])
+    lane_count_total = lane_count_linux + lane_count_host_vm
 
     output_path = Path(github_output)
     with output_path.open("a", encoding="utf-8") as fh:
         fh.write(f"matrix_linux={json.dumps(matrix_linux)}\n")
+        fh.write(f"matrix_host_vm={json.dumps(matrix_host_vm)}\n")
         fh.write(f"matrix_bsd={json.dumps(matrix_bsd)}\n")
         fh.write(f"matrix_macos={json.dumps(matrix_macos)}\n")
         fh.write(f"lane_count_total={lane_count_total}\n")
         fh.write(f"lane_count_linux={lane_count_linux}\n")
+        fh.write(f"lane_count_host_vm={lane_count_host_vm}\n")
         fh.write(f"lane_count_bsd={lane_count_bsd}\n")
         fh.write(f"lane_count_macos={lane_count_macos}\n")
         fh.write(f"selected_families={','.join(selected_families)}\n")
