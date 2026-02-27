@@ -1,46 +1,35 @@
-families:
-- family: alpine
-  runtime: linux_container
-  lane_overrides:
+runtime_defaults:
+  linux_container:
     ref_os: linux
     baseline_root: make_linux
     artifact_family: linux
     prepare_profile: default
     checkout_mode: action
     upload_artifacts: true
+  bsd_vm:
+    upload_artifacts: true
+  macos_host:
+    upload_artifacts: true
+
+families:
+- family: alpine
+  runtime: linux_container
   container_arm64_overrides:
     checkout_mode: git
     upload_artifacts: false
   lane_file: ci/run/ref/lanes/alpine.yml
 - family: archlinux
   runtime: linux_container
-  lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
-    prepare_profile: default
-    checkout_mode: action
-    upload_artifacts: true
   lane_file: ci/run/ref/lanes/archlinux.yml
 - family: centos7
   runtime: linux_container
   lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
     prepare_profile: centos7
     checkout_mode: git
     upload_artifacts: false
   lane_file: ci/run/ref/lanes/centos7.yml
 - family: debian
   runtime: linux_container
-  lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
-    prepare_profile: default
-    checkout_mode: action
-    upload_artifacts: true
   lane_file: ci/run/ref/lanes/debian.yml
 - family: freebsd
   runtime: bsd_vm
@@ -48,7 +37,6 @@ families:
     ref_os: freebsd
     artifact_family: freebsd
     baseline_root: make_freebsd
-    upload_artifacts: true
   os_version_key: freebsd_version
   default_architecture: x86-64
   lane_file: ci/run/ref/lanes/freebsd.yml
@@ -58,7 +46,6 @@ families:
     ref_os: macos
     artifact_family: macos
     baseline_root: make_freebsd
-    upload_artifacts: true
   os_version_key: macos_version
   runner_key: runner
   default_runner: macos-latest
@@ -69,7 +56,6 @@ families:
     ref_os: netbsd
     artifact_family: netbsd
     baseline_root: make_netbsd
-    upload_artifacts: true
   os_version_key: netbsd_version
   default_architecture: x86-64
   lane_file: ci/run/ref/lanes/netbsd.yml
@@ -79,37 +65,17 @@ families:
     ref_os: openbsd
     artifact_family: openbsd
     baseline_root: make_openbsd
-    upload_artifacts: true
   os_version_key: openbsd_version
   default_architecture: x86-64
   lane_file: ci/run/ref/lanes/openbsd.yml
 - family: opensuse
   runtime: linux_container
-  lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
-    prepare_profile: default
-    checkout_mode: action
-    upload_artifacts: true
   lane_file: ci/run/ref/lanes/opensuse.yml
 - family: rpm
   runtime: linux_container
   lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
     prepare_profile: rpm
-    checkout_mode: action
-    upload_artifacts: true
   lane_file: ci/run/ref/lanes/rpm.yml
 - family: ubuntu
   runtime: linux_container
-  lane_overrides:
-    ref_os: linux
-    baseline_root: make_linux
-    artifact_family: linux
-    prepare_profile: default
-    checkout_mode: action
-    upload_artifacts: true
   lane_file: ci/run/ref/lanes/ubuntu.yml
