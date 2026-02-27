@@ -33,41 +33,6 @@ while [ $# -gt 0 ]; do
   esac
 done
 
-run_as_root() {
-  if command -v sudo >/dev/null 2>&1; then
-    sudo "$@"
-  else
-    "$@"
-  fi
-}
-
-ensure_fetch_client() {
-  command -v curl >/dev/null 2>&1 && return 0
-  command -v wget >/dev/null 2>&1 && return 0
-
-  if command -v apt-get >/dev/null 2>&1; then
-    run_as_root apt-get update
-    run_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
-      apt-get install -y --no-install-recommends ca-certificates curl wget
-  elif command -v zypper >/dev/null 2>&1; then
-    run_as_root zypper --non-interactive refresh
-    run_as_root zypper --non-interactive install ca-certificates curl wget
-  elif command -v apk >/dev/null 2>&1; then
-    run_as_root apk add --no-cache ca-certificates curl wget
-  elif command -v dnf >/dev/null 2>&1; then
-    run_as_root dnf -y install ca-certificates curl wget
-  elif command -v yum >/dev/null 2>&1; then
-    run_as_root yum -y install ca-certificates curl wget
-  elif command -v pacman >/dev/null 2>&1; then
-    run_as_root pacman -Sy --noconfirm archlinux-keyring || true
-    run_as_root pacman -S --noconfirm ca-certificates curl wget
-  else
-    return 1
-  fi
-
-  command -v curl >/dev/null 2>&1 || command -v wget >/dev/null 2>&1
-}
-
 fetch_repo_file() {
   rel_path="$1"
   dest_path="$2"
@@ -112,10 +77,10 @@ if [ ! -f "${install_script_path}" ]; then
     exit 1
   fi
 
-  ensure_fetch_client || {
+  if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
     echo "Need curl or wget to bootstrap checkout-tools installer" >&2
     exit 1
-  }
+  fi
 
   rm -rf "${bootstrap_root}"
   mkdir -p "${bootstrap_root}/lib"

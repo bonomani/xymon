@@ -33,27 +33,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          uname -a || true
-          gcc --version || true
-          ld --version || true
-          mkdir -p "${REF_STAGE_ROOT}"
-          build_tool="${BUILD_TOOL}"
-          bash ci/bootstrap-install.sh \
-            --os "${REF_OS}" \
-            --variant "${VARIANT}" \
-            --build "$build_tool"
-          if [ ! -f /tmp/xymon-root-vars.sh ]; then
-            echo "Staged tree metadata missing" >&2
-            exit 1
-          fi
-          source /tmp/xymon-root-vars.sh
-          bash ci/generate-refs.sh \
-            --os "${REF_OS}" \
-            --variant "${VARIANT}" \
-            --root "${LEGACY_ROOT}" \
-            --topdir "${LEGACY_TOPDIR}" \
-            --build "${BUILD_TOOL}" \
-            --refs-root "${REF_STAGE_ROOT}"
+          bash ci/run/ref/bootstrap-make-refs.sh
 
       - name: Upload legacy references
         uses: actions/upload-artifact@v4
@@ -91,28 +71,12 @@ jobs:
           cpu_count: ${{ env.VM_CPU_COUNT }}
           run: |
             set -euo pipefail
-            uname -a || true
-            gcc --version || true
-            ld --version || true
-            mkdir -p "${{ env.REF_STAGE_ROOT }}"
-            build_tool="${{ env.BUILD_TOOL }}"
-            bash ci/bootstrap-install.sh \
-              --os "${{ env.REF_OS }}" \
-              --version "${{ env.OS_VERSION }}" \
-              --variant "${{ env.VARIANT }}" \
-              --build "$build_tool"
-            if [ ! -f /tmp/xymon-root-vars.sh ]; then
-              echo "Staged tree metadata missing" >&2
-              exit 1
-            fi
-            source /tmp/xymon-root-vars.sh
-            bash ci/generate-refs.sh \
-              --os "${{ env.REF_OS }}" \
-              --variant "${{ env.VARIANT }}" \
-              --root "${LEGACY_ROOT}" \
-              --topdir "${LEGACY_TOPDIR}" \
-              --build "${{ env.BUILD_TOOL }}" \
-              --refs-root "${{ env.REF_STAGE_ROOT }}"
+            export BUILD_TOOL="${{ env.BUILD_TOOL }}"
+            export REF_OS="${{ env.REF_OS }}"
+            export OS_VERSION="${{ env.OS_VERSION }}"
+            export VARIANT="${{ env.VARIANT }}"
+            export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
+            bash ci/run/ref/bootstrap-make-refs.sh
           sync_files: true
           shutdown_vm: true
 
