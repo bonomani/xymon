@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import yaml
+from lane_utils import LaneSpecError, expand_lane_variants, extract_lane_include
 
 RUNTIME_TO_MATRIX_KEY = {
     "linux_container": "linux",
@@ -17,12 +18,6 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
     "linux_container": "docker",
     "bsd_vm": "vm",
     "macos_host": "host",
-}
-
-VARIANT_NAME_SUFFIX = {
-    "server": "Server",
-    "localclient": "Client (ct-client)",
-    "client": "Client (ct-server)",
 }
 
 
@@ -210,75 +205,6 @@ def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
         )
 
 
-def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
-    variants = lane_obj.get("variants")
-    if variants is None:
-        return [lane_obj]
-
-    if "variant" in lane_obj:
-        die(
-            f"Lane file {lane_file} lane #{lane_index} cannot set both "
-            "'variant' and 'variants'"
-        )
-
-    if not isinstance(variants, list) or not variants:
-        die(f"Lane file {lane_file} lane #{lane_index} has invalid 'variants' list")
-
-    name_prefix = require_non_empty_string(
-        lane_obj.get("name_prefix"),
-        f"Lane file {lane_file} lane #{lane_index}.name_prefix",
-    )
-
-    base_lane = dict(lane_obj)
-    base_lane.pop("variants", None)
-    base_lane.pop("name_prefix", None)
-
-    expanded = []
-    for variant_index, raw_variant in enumerate(variants):
-        context = (
-            f"Lane file {lane_file} lane #{lane_index} variants entry #{variant_index}"
-        )
-        variant_overrides = {}
-        if isinstance(raw_variant, str):
-            variant = require_non_empty_string(raw_variant, context)
-        elif isinstance(raw_variant, dict):
-            variant_overrides = dict(raw_variant)
-            variant = require_non_empty_string(
-                variant_overrides.pop("variant", None), f"{context}.variant"
-            )
-        else:
-            die(f"{context} must be a string or mapping")
-
-        default_suffix = VARIANT_NAME_SUFFIX.get(variant)
-        if not default_suffix:
-            die(f"{context} has unsupported variant '{variant}'")
-
-        custom_name = variant_overrides.pop("name", None)
-        if custom_name is not None:
-            custom_name = require_non_empty_string(custom_name, f"{context}.name")
-
-        custom_suffix = variant_overrides.pop("name_suffix", None)
-        if custom_suffix is not None:
-            custom_suffix = require_non_empty_string(
-                custom_suffix, f"{context}.name_suffix"
-            )
-
-        if custom_name and custom_suffix:
-            die(f"{context} cannot set both 'name' and 'name_suffix'")
-
-        lane_variant = dict(base_lane)
-        lane_variant["variant"] = variant
-        if custom_name:
-            lane_variant["name"] = custom_name
-        else:
-            suffix = custom_suffix or default_suffix
-            lane_variant["name"] = f"{name_prefix} - {suffix}"
-        lane_variant.update(variant_overrides)
-        expanded.append(lane_variant)
-
-    return expanded
-
-
 def load_lanes_from_file(lane_file: Path, shared_defaults=None):
     if not lane_file.exists():
         die(f"Missing lane file: {lane_file}")
@@ -291,24 +217,17 @@ def load_lanes_from_file(lane_file: Path, shared_defaults=None):
 
     data = yaml.safe_load(lane_file.read_text()) or {}
     lane_defaults = {}
-    if isinstance(data, list):
-        lanes = data
-    elif isinstance(data, dict):
+    if isinstance(data, dict):
         lane_defaults = data.get("defaults", {})
         if lane_defaults is None:
             lane_defaults = {}
         lane_defaults = require_mapping(lane_defaults, f"Lane file defaults: {lane_file}")
-        if "include" in data:
-            lanes = data.get("include")
-        elif "lanes" in data:
-            lanes = data.get("lanes")
-        else:
-            die(f"Lane file must define an 'include' list: {lane_file}")
-    else:
-        die(f"Lane file must be a list or mapping: {lane_file}")
-
-    if not isinstance(lanes, list):
-        die(f"Lane file include value is not a list: {lane_file}")
+    try:
+        lanes = extract_lane_include(
+            data, lane_file, require_include_key=isinstance(data, dict)
+        )
+    except LaneSpecError as exc:
+        die(str(exc))
 
     normalized_defaults = {}
     for default_name, default_value in shared_defaults.items():
@@ -334,7 +253,10 @@ def load_lanes_from_file(lane_file: Path, shared_defaults=None):
             continue
 
         lane_obj = dict(lane)
-        expanded_lanes.extend(expand_lane_variants(lane_obj, lane_file, index))
+        try:
+            expanded_lanes.extend(expand_lane_variants(lane_obj, lane_file, index))
+        except LaneSpecError as exc:
+            die(str(exc))
 
     resolved_lanes = []
     for index, lane in enumerate(expanded_lanes):
