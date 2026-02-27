@@ -4,13 +4,14 @@ Reference Migration Status Summary
 Current State
 -------------
 Reference mode validation remains stable on Linux/BSD flows, and workflow
-coverage now includes OpenBSD, NetBSD, and macOS (`ref-valid-*`). Recent
+coverage now includes OpenBSD, NetBSD, and macOS via
+`ref-validate-select.yml` family selection. Recent
 portability fixes addressed macOS runner constraints (Bash 3.2 and tool path
 differences) in dependency/refs scripts and CMake install hooks.
 
 What Changed Last
 -----------------
-- Added `ref-valid-openbsd.yml`, `ref-valid-netbsd.yml`, and `ref-valid-macos.yml`.
+- Added OpenBSD, NetBSD, and macOS family coverage in reference validation.
 - Made CI shell scripts Bash 3 compatible (removed `mapfile`, `${var^^}`, and associative arrays in macOS execution paths).
 - Replaced hardcoded install command paths (`/bin/*`, `/usr/bin/find`) with portable command resolution via `PATH`.
 - Added macOS bootstrap support and explicit `XYMONUSER` propagation in CMake configure.
@@ -23,7 +24,7 @@ Known Exceptions
 
 Open Risks
 ----------
-- macOS `ref-valid-macos.yml` still needs a full matrix rerun to confirm end-to-end parity outputs.
+- macOS family in `ref-validate-select.yml` still needs a full matrix rerun to confirm end-to-end parity outputs.
 - `HTTPDGID` mapping for `rep` and `snap` must remain conditional to avoid "invalid group" errors.
 
 Last Validated
