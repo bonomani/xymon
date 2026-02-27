@@ -37,35 +37,27 @@ jobs:
           artifacts_dir="/tmp/legacy-reference-artifacts"
           rm -rf "${artifacts_dir}"
           mkdir -p "${artifacts_dir}"
+          workflow="ref-make-select.yml"
+          echo "Fetching latest successful run for ${workflow} (family=all) on ${{ inputs.source_branch }}"
+          run_id="$(
+            gh run list \
+              --repo "${GITHUB_REPOSITORY}" \
+              --workflow "${workflow}" \
+              --branch "${{ inputs.source_branch }}" \
+              --status success \
+              --limit 1 \
+              --json databaseId \
+              -q '.[0].databaseId'
+          )"
 
-          mapfile -t workflows < <(bash ci/run/ref/list-ref-make-workflows.sh)
-          if [ "${#workflows[@]}" -eq 0 ]; then
-            echo "No ref-make workflows configured" >&2
+          if [ -z "${run_id}" ]; then
+            echo "No successful run found for ${workflow} on branch ${{ inputs.source_branch }}" >&2
             exit 1
           fi
 
-          for wf in "${workflows[@]}"; do
-            echo "Fetching latest successful run for ${wf} on ${{ inputs.source_branch }}"
-            run_id="$(
-              gh run list \
-                --repo "${GITHUB_REPOSITORY}" \
-                --workflow "${wf}" \
-                --branch "${{ inputs.source_branch }}" \
-                --status success \
-                --limit 1 \
-                --json databaseId \
-                -q '.[0].databaseId'
-            )"
-
-            if [ -z "${run_id}" ]; then
-              echo "No successful run found for ${wf} on branch ${{ inputs.source_branch }}" >&2
-              exit 1
-            fi
-
-            # Download into a single root. gh creates one subdir per artifact name.
-            # This avoids an extra workflow-name directory layer.
-            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
-          done
+          # Download into a single root. gh creates one subdir per artifact name.
+          # This avoids an extra workflow-name directory layer.
+          gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
 
           stager_script="/tmp/stage-legacy-reference-artifacts.sh"
           install -m 0755 ci/run/ref/stage-legacy-reference-artifacts.sh "${stager_script}"

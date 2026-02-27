@@ -48,7 +48,6 @@ jobs:
             --selected-family "${SELECTED_FAMILY}" \
             --manifest "ci/run/ref/ref-make-families.yml" \
             --selector-workflow ".github/workflows/ref-make-select.yml" \
-            --workflow-list-script "ci/run/ref/list-ref-make-workflows.sh" \
             --github-output "${GITHUB_OUTPUT}"
 
       - name: Matrix summary

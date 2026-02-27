@@ -9,6 +9,7 @@ import yaml
 from matrix_common import (
     die,
     load_lanes_from_file,
+    load_manifest_common,
     require_mapping,
     require_non_empty_string,
     validate_dropdown_parity,
@@ -27,81 +28,23 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
 }
 
 def load_manifest(path: Path):
-    if not path.exists():
-        die(f"Missing families manifest: {path}")
-
-    data = yaml.safe_load(path.read_text()) or {}
-    runtime_defaults_raw = data.get("runtime_defaults", {})
-    if runtime_defaults_raw is None:
-        runtime_defaults_raw = {}
-    runtime_defaults_raw = require_mapping(
-        runtime_defaults_raw, f"Manifest runtime_defaults in {path}"
+    manifest_data = load_manifest_common(
+        path,
+        supported_runtimes=RUNTIME_TO_MATRIX_KEY,
+        include_lane_defaults=True,
     )
-
-    runtime_defaults = {}
-    for runtime_key, defaults in runtime_defaults_raw.items():
-        runtime_key = require_non_empty_string(
-            runtime_key, f"Manifest runtime_defaults key in {path}"
-        )
-        if runtime_key not in RUNTIME_TO_MATRIX_KEY:
-            die(f"Manifest has invalid runtime_defaults key '{runtime_key}'")
-        runtime_defaults[runtime_key] = require_mapping(
-            defaults, f"Manifest runtime_defaults.{runtime_key}"
-        )
-
-    lane_defaults_raw = data.get("lane_defaults", {})
-    if lane_defaults_raw is None:
-        lane_defaults_raw = {}
-    lane_defaults_raw = require_mapping(
-        lane_defaults_raw, f"Manifest lane_defaults in {path}"
-    )
-
-    lane_defaults = {}
-    for runtime_key, defaults in lane_defaults_raw.items():
-        runtime_key = require_non_empty_string(
-            runtime_key, f"Manifest lane_defaults key in {path}"
-        )
-        if runtime_key not in RUNTIME_TO_MATRIX_KEY:
-            die(f"Manifest has invalid lane_defaults key '{runtime_key}'")
-        defaults = require_mapping(defaults, f"Manifest lane_defaults.{runtime_key}")
-        lane_defaults[runtime_key] = {}
-        for default_name, default_value in defaults.items():
-            default_name = require_non_empty_string(
-                default_name,
-                f"Manifest lane_defaults.{runtime_key} default name in {path}",
-            )
-            lane_defaults[runtime_key][default_name] = require_mapping(
-                default_value,
-                f"Manifest lane_defaults.{runtime_key}.{default_name}",
-            )
-
-    entries = data.get("families")
-    if not isinstance(entries, list) or not entries:
-        die(f"Manifest has no families list: {path}")
+    runtime_defaults = manifest_data["runtime_defaults"]
+    lane_defaults = manifest_data["lane_defaults"]
 
     families = []
-    seen_families = set()
-    for index, raw in enumerate(entries):
-        entry = require_mapping(raw, f"Manifest entry #{index}")
-        family = require_non_empty_string(entry.get("family"), f"Manifest entry #{index}.family")
-        runtime = require_non_empty_string(entry.get("runtime"), f"Manifest entry #{index}.runtime")
-        lane_file = require_non_empty_string(
-            entry.get("lane_file"), f"Manifest entry #{index}.lane_file"
-        )
-
-        if runtime not in RUNTIME_TO_MATRIX_KEY:
-            die(f"Manifest entry has invalid runtime '{runtime}': {entry!r}")
-        if family in seen_families:
-            die(f"Duplicate family in manifest: {family}")
-        seen_families.add(family)
-
-        lane_overrides = entry.get("lane_overrides", {})
-        if lane_overrides is None:
-            lane_overrides = {}
+    for base_entry in manifest_data["entries"]:
+        entry = base_entry["raw"]
+        family = base_entry["family"]
+        runtime = base_entry["runtime"]
+        lane_file = base_entry["lane_file"]
         lane_overrides = require_mapping(
-            lane_overrides, f"Manifest entry {family}.lane_overrides"
+            base_entry["lane_overrides"], f"Manifest entry {family}.lane_overrides"
         )
-
         container_arm64_overrides = entry.get("container_arm64_overrides")
         if container_arm64_overrides is not None:
             container_arm64_overrides = require_mapping(
