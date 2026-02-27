@@ -47,28 +47,7 @@ yum_pre_install() {
 
 YUM_OPTS=()
 if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
-  vault_repo_tmp="$(mktemp)"
-  cat > "${vault_repo_tmp}" <<'EOF'
-[centos7-vault-base]
-name=CentOS 7 Vault Base
-baseurl=http://vault.centos.org/7.9.2009/os/$basearch/
-enabled=1
-gpgcheck=0
-
-[centos7-vault-updates]
-name=CentOS 7 Vault Updates
-baseurl=http://vault.centos.org/7.9.2009/updates/$basearch/
-enabled=1
-gpgcheck=0
-
-[centos7-vault-extras]
-name=CentOS 7 Vault Extras
-baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
-enabled=1
-gpgcheck=0
-EOF
-  ci_deps_as_root install -m 0644 "${vault_repo_tmp}" /etc/yum.repos.d/centos7-vault.repo
-  rm -f "${vault_repo_tmp}"
+  ci_deps_install_centos7_vault_repo
   YUM_OPTS=(
     --disablerepo=*
     --enablerepo=centos7-vault-base

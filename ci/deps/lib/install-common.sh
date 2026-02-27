@@ -390,3 +390,173 @@ ci_deps_as_root() {
     "$@"
   fi
 }
+
+ci_deps_parse_os_release() {
+  local os_release="/etc/os-release"
+  local key=""
+  local value=""
+
+  CI_DEPS_OS_ID=""
+  CI_DEPS_OS_VERSION_ID=""
+
+  [[ -r "${os_release}" ]] || return 1
+
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      ID)
+        value="${value%\"}"
+        value="${value#\"}"
+        CI_DEPS_OS_ID="$(printf '%s' "${value}" | tr '[:upper:]' '[:lower:]')"
+        ;;
+      VERSION_ID)
+        value="${value%\"}"
+        value="${value#\"}"
+        CI_DEPS_OS_VERSION_ID="${value}"
+        ;;
+    esac
+  done < "${os_release}"
+
+  return 0
+}
+
+ci_deps_find_rocky_gpgkey() {
+  local rocky_major="${1:-}"
+  local rocky_gpgkey=""
+  local first_match=""
+
+  rocky_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-Rocky-${rocky_major}"
+  if [[ ! -r "${rocky_gpgkey}" ]]; then
+    rocky_gpgkey="/etc/pki/rpm-gpg/RPM-GPG-KEY-rockyofficial"
+  fi
+  if [[ ! -r "${rocky_gpgkey}" ]]; then
+    first_match="$(
+      find /etc/pki/rpm-gpg -maxdepth 1 -type f -name 'RPM-GPG-KEY-Rocky-*' 2>/dev/null \
+        | head -n 1 || true
+    )"
+    rocky_gpgkey="${first_match}"
+  fi
+  if [[ -z "${rocky_gpgkey}" || ! -r "${rocky_gpgkey}" ]]; then
+    return 1
+  fi
+
+  printf '%s\n' "${rocky_gpgkey}"
+}
+
+ci_deps_install_rocky_fallback_repo() {
+  local rocky_major="${1:-}"
+  local rocky_gpgkey="${2:-}"
+  local repo_dest="${3:-/etc/yum.repos.d/ci-rocky-fallback.repo}"
+  local repo_file=""
+
+  if [[ -z "${rocky_major}" || -z "${rocky_gpgkey}" ]]; then
+    echo "Missing Rocky repo parameters (major/gpgkey)" >&2
+    return 1
+  fi
+
+  repo_file="$(mktemp)"
+  {
+    printf '%s\n' '[ci-rocky-baseos]'
+    printf '%s\n' 'name=CI Rocky BaseOS fallback mirrors'
+    printf '%s\n' "baseurl=https://mirror.rackspace.com/rocky/${rocky_major}/BaseOS/\$basearch/os/"
+    printf '%s\n' "        https://mirror.math.princeton.edu/pub/rocky/${rocky_major}/BaseOS/\$basearch/os/"
+    printf '%s\n' "        https://mirrors.sonic.net/rocky/${rocky_major}/BaseOS/\$basearch/os/"
+    printf '%s\n' "        https://ftp.iij.ad.jp/pub/linux/rocky/${rocky_major}/BaseOS/\$basearch/os/"
+    printf '%s\n' 'enabled=1'
+    printf '%s\n' 'gpgcheck=1'
+    printf '%s\n' "gpgkey=file://${rocky_gpgkey}"
+    printf '%s\n' 'skip_if_unavailable=1'
+    printf '\n'
+
+    printf '%s\n' '[ci-rocky-appstream]'
+    printf '%s\n' 'name=CI Rocky AppStream fallback mirrors'
+    printf '%s\n' "baseurl=https://mirror.rackspace.com/rocky/${rocky_major}/AppStream/\$basearch/os/"
+    printf '%s\n' "        https://mirror.math.princeton.edu/pub/rocky/${rocky_major}/AppStream/\$basearch/os/"
+    printf '%s\n' "        https://mirrors.sonic.net/rocky/${rocky_major}/AppStream/\$basearch/os/"
+    printf '%s\n' "        https://ftp.iij.ad.jp/pub/linux/rocky/${rocky_major}/AppStream/\$basearch/os/"
+    printf '%s\n' 'enabled=1'
+    printf '%s\n' 'gpgcheck=1'
+    printf '%s\n' "gpgkey=file://${rocky_gpgkey}"
+    printf '%s\n' 'skip_if_unavailable=1'
+    printf '\n'
+
+    printf '%s\n' '[ci-rocky-extras]'
+    printf '%s\n' 'name=CI Rocky Extras fallback mirrors'
+    printf '%s\n' "baseurl=https://mirror.rackspace.com/rocky/${rocky_major}/extras/\$basearch/os/"
+    printf '%s\n' "        https://mirror.math.princeton.edu/pub/rocky/${rocky_major}/extras/\$basearch/os/"
+    printf '%s\n' "        https://mirrors.sonic.net/rocky/${rocky_major}/extras/\$basearch/os/"
+    printf '%s\n' "        https://ftp.iij.ad.jp/pub/linux/rocky/${rocky_major}/extras/\$basearch/os/"
+    printf '%s\n' 'enabled=1'
+    printf '%s\n' 'gpgcheck=1'
+    printf '%s\n' "gpgkey=file://${rocky_gpgkey}"
+    printf '%s\n' 'skip_if_unavailable=1'
+  } > "${repo_file}"
+
+  ci_deps_as_root install -m 0644 "${repo_file}" "${repo_dest}"
+  rm -f "${repo_file}"
+}
+
+ci_deps_configure_rocky_fallback_repos() {
+  local os_hint="${1:-}"
+  local version_hint="${2:-}"
+  local repo_dest="${3:-/etc/yum.repos.d/ci-rocky-fallback.repo}"
+  local os_id="${os_hint}"
+  local rocky_major="${version_hint}"
+  local rocky_gpgkey=""
+
+  os_id="$(printf '%s' "${os_id}" | tr '[:upper:]' '[:lower:]')"
+  if [[ -z "${os_id}" ]]; then
+    ci_deps_parse_os_release || true
+    os_id="${CI_DEPS_OS_ID:-}"
+  fi
+  case "${os_id}" in
+    rocky|rockylinux)
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+
+  if [[ -z "${rocky_major}" || "${rocky_major}" == "latest" ]]; then
+    if [[ -z "${CI_DEPS_OS_VERSION_ID:-}" ]]; then
+      ci_deps_parse_os_release || true
+    fi
+    rocky_major="${CI_DEPS_OS_VERSION_ID%%.*}"
+  fi
+  [[ -n "${rocky_major}" ]] || rocky_major="8"
+
+  rocky_gpgkey="$(ci_deps_find_rocky_gpgkey "${rocky_major}")" || {
+    echo "Unable to locate Rocky Linux RPM GPG key in /etc/pki/rpm-gpg" >&2
+    return 1
+  }
+
+  ci_deps_install_rocky_fallback_repo "${rocky_major}" "${rocky_gpgkey}" "${repo_dest}"
+}
+
+ci_deps_install_centos7_vault_repo() {
+  local repo_dest="${1:-/etc/yum.repos.d/centos7-vault.repo}"
+  local repo_file=""
+
+  repo_file="$(mktemp)"
+  cat > "${repo_file}" <<'EOF'
+[centos7-vault-base]
+name=CentOS 7 Vault Base
+baseurl=http://vault.centos.org/7.9.2009/os/$basearch/
+enabled=1
+gpgcheck=0
+
+[centos7-vault-updates]
+name=CentOS 7 Vault Updates
+baseurl=http://vault.centos.org/7.9.2009/updates/$basearch/
+enabled=1
+gpgcheck=0
+
+[centos7-vault-extras]
+name=CentOS 7 Vault Extras
+baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
+enabled=1
+gpgcheck=0
+EOF
+
+  ci_deps_as_root install -m 0644 "${repo_file}" "${repo_dest}"
+  rm -f "${repo_file}"
+}
