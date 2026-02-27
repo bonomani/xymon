@@ -38,12 +38,11 @@ jobs:
           rm -rf "${artifacts_dir}"
           mkdir -p "${artifacts_dir}"
 
-          workflows=(
-            ref-make-linux.yml
-            ref-make-freebsd.yml
-            ref-make-openbsd.yml
-            ref-make-netbsd.yml
-          )
+          mapfile -t workflows < <(bash ci/run/ref/list-ref-make-workflows.sh)
+          if [ "${#workflows[@]}" -eq 0 ]; then
+            echo "No ref-make workflows configured" >&2
+            exit 1
+          fi
 
           for wf in "${workflows[@]}"; do
             echo "Fetching latest successful run for ${wf} on ${{ inputs.source_branch }}"

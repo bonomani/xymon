@@ -5,33 +5,6 @@ on:
 
 jobs:
   ref-make-linux:
-    name: ${{ matrix.lane.name }}
-    strategy:
-      fail-fast: false
-      matrix:
-        include:
-          - lane:
-              name: server
-              runtime: linux_container
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: linux
-              variant: server
-          - lane:
-              name: client ct-client
-              runtime: linux_container
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: linux
-              variant: localclient
-          - lane:
-              name: client ct-server
-              runtime: linux_container
-              runs_on: ubuntu-22.04
-              build_tool: make
-              ref_os: linux
-              variant: client
-    uses: ./.github/workflows/ref-make-reusable.yml
+    uses: ./.github/workflows/ref-make-select.yml
     with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
+      family: linux
