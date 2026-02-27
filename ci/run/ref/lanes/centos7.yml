@@ -7,14 +7,11 @@ include:
   platform_id: centos-7
   variant: server
   cmake_bin: cmake3
-  allow_failure: false
 - name: CentOS 7 - Client (ct-client)
   platform_id: centos-7
   variant: localclient
   cmake_bin: cmake3
-  allow_failure: false
 - name: CentOS 7 - Client (ct-server)
   platform_id: centos-7
   variant: client
   cmake_bin: cmake3
-  allow_failure: false
