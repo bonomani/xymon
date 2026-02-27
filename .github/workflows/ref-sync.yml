@@ -67,6 +67,10 @@ jobs:
             gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
           done
 
+          stager_script="/tmp/stage-legacy-reference-artifacts.sh"
+          install -m 0755 ci/run/ref/stage-legacy-reference-artifacts.sh "${stager_script}"
+          printf 'REF_STAGE_SCRIPT=%s\n' "${stager_script}" >> "${GITHUB_ENV}"
+
       - name: Sync archive branch
         shell: bash
         run: |
@@ -86,22 +90,9 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f -delete
 
-          find "${artifacts_dir}" -type f -print0 \
-            | while IFS= read -r -d '' f; do
-                rel="${f#${artifacts_dir}/}"
-                artifact="${rel%%/*}"
-                rest="${rel#*/}"
-                dst_rel="${rel}"
-                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
-                  tool="${BASH_REMATCH[1]}"
-                  os="${BASH_REMATCH[2]}"
-                  variant="${BASH_REMATCH[3]}"
-                  dst_rel="${tool}_${os}/${variant}/${rest}"
-                fi
-                dst="${ref_dir}/${dst_rel}"
-                mkdir -p "$(dirname "${dst}")"
-                install -m 0644 "$f" "${dst}"
-              done
+          bash "${REF_STAGE_SCRIPT}" \
+            --artifacts-dir "${artifacts_dir}" \
+            --ref-dir "${ref_dir}"
 
           if [ -z "$(git status --porcelain)" ]; then
             echo "No legacy reference changes to commit on archive branch."
@@ -143,22 +134,9 @@ jobs:
           mkdir -p "${ref_dir}"
           find "${ref_dir}" -type f -delete
 
-          find "${artifacts_dir}" -type f -print0 \
-            | while IFS= read -r -d '' f; do
-                rel="${f#${artifacts_dir}/}"
-                artifact="${rel%%/*}"
-                rest="${rel#*/}"
-                dst_rel="${rel}"
-                if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
-                  tool="${BASH_REMATCH[1]}"
-                  os="${BASH_REMATCH[2]}"
-                  variant="${BASH_REMATCH[3]}"
-                  dst_rel="${tool}_${os}/${variant}/${rest}"
-                fi
-                dst="${ref_dir}/${dst_rel}"
-                mkdir -p "$(dirname "${dst}")"
-                install -m 0644 "$f" "${dst}"
-              done
+          bash "${REF_STAGE_SCRIPT}" \
+            --artifacts-dir "${artifacts_dir}" \
+            --ref-dir "${ref_dir}"
 
           if [ -z "$(git status --porcelain)" ]; then
             echo "No legacy reference changes to commit on merge-friendly branch."
