@@ -25,7 +25,7 @@ Entry: 2026-02-12
 -----------------
 
 Summary:
-- Added BSD-style reference validation workflows for OpenBSD, NetBSD, and macOS (`ref-valid-*` naming).
+- Added BSD-style reference validation coverage for OpenBSD, NetBSD, and macOS in the selector workflow.
 - Added macOS reference validation matrix (server/localclient/client), using FreeBSD references as the closest baseline.
 - Fixed multiple macOS runner compatibility issues found during workflow execution.
 
@@ -54,7 +54,7 @@ Details:
   - Local smoke run of `ci/compare-refs.sh` with synthetic baseline/candidate (success).
   - Local CMake configure check for client variant with ownership mode enabled (success).
 - Remaining validation:
-  - Full GitHub Actions macOS `ref-valid-macos.yml` matrix rerun to confirm end-to-end parity behavior.
+  - Full GitHub Actions macOS family rerun via `ref-validate-select.yml` to confirm end-to-end parity behavior.
 
 Entry: 2026-02-04
 -----------------
