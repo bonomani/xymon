@@ -1,7 +1,5 @@
 include:
 - name_prefix: Arch Linux amd64
   platform_id: archlinux-latest
-  variants: [server, localclient, client]
 - name_prefix: Arch Linux base amd64
   platform_id: archlinux-base
-  variants: [server, localclient, client]

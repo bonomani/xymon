@@ -1,13 +1,9 @@
 include:
 - name_prefix: macOS latest
   platform_id: macos-latest
-  variants: [server, localclient, client]
 - name_prefix: macOS 26
   platform_id: macos-26
-  variants: [server, localclient, client]
 - name_prefix: macOS 15
   platform_id: macos-15
-  variants: [server, localclient, client]
 - name_prefix: macOS 14
   platform_id: macos-14
-  variants: [server, localclient, client]

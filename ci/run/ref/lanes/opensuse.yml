@@ -2,15 +2,11 @@ include:
 - name_prefix: openSUSE Tumbleweed
   platform_id: opensuse-tumbleweed
   allow_failure: true
-  variants: [server, localclient, client]
 - name_prefix: openSUSE Leap 16.0
   platform_id: opensuse-leap-16_0
   allow_failure: true
-  variants: [server, localclient, client]
 - name_prefix: openSUSE Leap 15.6
   platform_id: opensuse-leap-15_6
-  variants: [server, localclient, client]
 - name_prefix: openSUSE Leap 15.5
   platform_id: opensuse-leap-15_5
   allow_failure: true
-  variants: [server, localclient, client]
