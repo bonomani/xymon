@@ -1,0 +1,90 @@
+name: Reference Generation - Select Family
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Select which reference-generation family to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - linux
+          - freebsd
+          - netbsd
+          - openbsd
+  workflow_call:
+    inputs:
+      family:
+        description: Reference-generation family key (or all)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.generate.outputs.matrix }}
+      lane_count: ${{ steps.generate.outputs.lane_count }}
+    steps:
+      - name: Build selected lanes matrix
+        id: generate
+        shell: bash
+        env:
+          SELECTED_FAMILY: ${{ inputs.family }}
+        run: |
+          set -euo pipefail
+          python3 - <<'PY'
+          import json
+          import os
+
+          selected_family = os.environ["SELECTED_FAMILY"]
+          lanes = [
+            {"family": "linux", "name": "Linux - Server", "runtime": "linux_container", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "linux", "variant": "server"},
+            {"family": "linux", "name": "Linux - Client (ct-client)", "runtime": "linux_container", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "linux", "variant": "localclient"},
+            {"family": "linux", "name": "Linux - Client (ct-server)", "runtime": "linux_container", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "linux", "variant": "client"},
+            {"family": "freebsd", "name": "FreeBSD - Server", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "freebsd", "os_version": "15.0", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "server"},
+            {"family": "freebsd", "name": "FreeBSD - Client (ct-client)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "freebsd", "os_version": "15.0", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "localclient"},
+            {"family": "freebsd", "name": "FreeBSD - Client (ct-server)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "freebsd", "os_version": "15.0", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "client"},
+            {"family": "netbsd", "name": "NetBSD - Server", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "netbsd", "os_version": "10.1", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "server"},
+            {"family": "netbsd", "name": "NetBSD - Client (ct-client)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "netbsd", "os_version": "10.1", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "localclient"},
+            {"family": "netbsd", "name": "NetBSD - Client (ct-server)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "netbsd", "os_version": "10.1", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "client"},
+            {"family": "openbsd", "name": "OpenBSD - Server", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "openbsd", "os_version": "7.8", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "server"},
+            {"family": "openbsd", "name": "OpenBSD - Client (ct-client)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "openbsd", "os_version": "7.8", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "localclient"},
+            {"family": "openbsd", "name": "OpenBSD - Client (ct-server)", "runtime": "bsd_vm", "runs_on": "ubuntu-22.04", "build_tool": "make", "ref_os": "openbsd", "os_version": "7.8", "architecture": "x86-64", "vm_memory": "1024M", "vm_cpu_count": 2, "variant": "client"},
+          ]
+
+          if selected_family == "all":
+            filtered = lanes
+          else:
+            filtered = [lane for lane in lanes if lane["family"] == selected_family]
+
+          matrix = {"lane": filtered}
+          output_file = os.environ["GITHUB_OUTPUT"]
+          with open(output_file, "a", encoding="utf-8") as fh:
+            fh.write(f"matrix={json.dumps(matrix, separators=(',', ':'))}\n")
+            fh.write(f"lane_count={len(filtered)}\n")
+          PY
+
+      - name: Matrix summary
+        shell: bash
+        run: |
+          echo "Selected family: ${{ inputs.family }}"
+          echo "Lane count: ${{ steps.generate.outputs.lane_count }}"
+
+  ref-make:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count != '0' }}
+    name: ${{ matrix.lane.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
+    uses: ./.github/workflows/ref-make-reusable.yml
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
