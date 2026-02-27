@@ -36,12 +36,10 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       matrix_linux: ${{ steps.generate.outputs.matrix_linux }}
-      matrix_bsd: ${{ steps.generate.outputs.matrix_bsd }}
-      matrix_macos: ${{ steps.generate.outputs.matrix_macos }}
+      matrix_host_vm: ${{ steps.generate.outputs.matrix_host_vm }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux: ${{ steps.generate.outputs.lane_count_linux }}
-      lane_count_bsd: ${{ steps.generate.outputs.lane_count_bsd }}
-      lane_count_macos: ${{ steps.generate.outputs.lane_count_macos }}
+      lane_count_host_vm: ${{ steps.generate.outputs.lane_count_host_vm }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
     steps:
       - name: Checkout
@@ -68,6 +66,7 @@ jobs:
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
+          echo "Lane count (host_vm): ${{ steps.generate.outputs.lane_count_host_vm }}"
           echo "Lane count (bsd): ${{ steps.generate.outputs.lane_count_bsd }}"
           echo "Lane count (macos): ${{ steps.generate.outputs.lane_count_macos }}"
 
@@ -86,28 +85,13 @@ jobs:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
 
-  ref-validate-bsd:
+  ref-validate-host-vm:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_bsd != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_host_vm != '0' }}
     strategy:
       fail-fast: false
-      max-parallel: 2
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd) }}
-    name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-host-vm.yml
-    secrets: inherit
-    with:
-      family: ${{ matrix.family }}
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-
-  ref-validate-macos:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_macos != '0' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 2
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos) }}
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_host_vm) }}
     name: ${{ matrix.lane.name }}
     uses: ./.github/workflows/ref-validate-reusable-host-vm.yml
     secrets: inherit
