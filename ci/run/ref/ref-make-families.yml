@@ -1,6 +1,6 @@
 runtime_defaults:
-  linux_container:
-    runtime: linux_container
+  linux_host:
+    runtime: linux_host
     runs_on: ubuntu-22.04
     build_tool: make
   bsd_vm:
@@ -13,7 +13,7 @@ runtime_defaults:
 
 families:
   - family: linux
-    runtime: linux_container
+    runtime: linux_host
     lane_file: ci/run/ref/make-lanes/linux.yml
     lane_overrides:
       ref_os: linux

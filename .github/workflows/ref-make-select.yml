@@ -28,8 +28,11 @@ jobs:
   build-matrix:
     runs-on: ubuntu-22.04
     outputs:
-      matrix: ${{ steps.generate.outputs.matrix }}
-      lane_count: ${{ steps.generate.outputs.lane_count }}
+      matrix_linux: ${{ steps.generate.outputs.matrix_linux }}
+      matrix_host_vm: ${{ steps.generate.outputs.matrix_host_vm }}
+      lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
+      lane_count_linux: ${{ steps.generate.outputs.lane_count_linux }}
+      lane_count_host_vm: ${{ steps.generate.outputs.lane_count_host_vm }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
     steps:
       - name: Checkout
@@ -54,16 +57,31 @@ jobs:
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
-          echo "Lane count: ${{ steps.generate.outputs.lane_count }}"
+          echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
+          echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
+          echo "Lane count (host_vm): ${{ steps.generate.outputs.lane_count_host_vm }}"
 
-  ref-make:
+  ref-make-linux:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 6
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix) }}
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux) }}
+    uses: ./.github/workflows/ref-make-reusable.yml
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+
+  ref-make-host-vm:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_host_vm != '0' }}
+    name: ${{ matrix.lane.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_host_vm) }}
     uses: ./.github/workflows/ref-make-reusable.yml
     with:
       lane_name: ${{ matrix.lane.name }}
