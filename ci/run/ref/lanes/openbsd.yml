@@ -1,28 +1,28 @@
 include:
 - name: OpenBSD 7.8 - Server
-  openbsd_version: '7.8'
+  platform_id: openbsd-7_8
   variant: server
 - name: OpenBSD 7.8 - Client (ct-client)
-  openbsd_version: '7.8'
+  platform_id: openbsd-7_8
   variant: localclient
 - name: OpenBSD 7.8 - Client (ct-server)
-  openbsd_version: '7.8'
+  platform_id: openbsd-7_8
   variant: client
 - name: OpenBSD 7.7 - Server
-  openbsd_version: '7.7'
+  platform_id: openbsd-7_7
   variant: server
 - name: OpenBSD 7.7 - Client (ct-client)
-  openbsd_version: '7.7'
+  platform_id: openbsd-7_7
   variant: localclient
 - name: OpenBSD 7.7 - Client (ct-server)
-  openbsd_version: '7.7'
+  platform_id: openbsd-7_7
   variant: client
 - name: OpenBSD 7.6 - Server
-  openbsd_version: '7.6'
+  platform_id: openbsd-7_6
   variant: server
 - name: OpenBSD 7.6 - Client (ct-client)
-  openbsd_version: '7.6'
+  platform_id: openbsd-7_6
   variant: localclient
 - name: OpenBSD 7.6 - Client (ct-server)
-  openbsd_version: '7.6'
+  platform_id: openbsd-7_6
   variant: client

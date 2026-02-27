@@ -13,6 +13,12 @@ RUNTIME_TO_MATRIX_KEY = {
     "macos_host": "macos",
 }
 
+RUNTIME_TO_PLATFORM_RUNTIME = {
+    "linux_container": "docker",
+    "bsd_vm": "vm",
+    "macos_host": "host",
+}
+
 
 def die(message: str) -> None:
     raise SystemExit(message)
@@ -110,6 +116,25 @@ def load_manifest(path: Path):
     return families
 
 
+def load_platform_catalog(path: Path):
+    if not path.exists():
+        die(f"Missing platform catalog: {path}")
+
+    data = yaml.safe_load(path.read_text()) or {}
+    platforms = data.get("platforms")
+    if not isinstance(platforms, dict) or not platforms:
+        die(f"Platform catalog has no platforms mapping: {path}")
+
+    normalized = {}
+    for platform_id, entry in platforms.items():
+        platform_id = require_non_empty_string(platform_id, "Platform catalog platform id")
+        normalized[platform_id] = require_mapping(
+            entry, f"Platform catalog entry '{platform_id}'"
+        )
+
+    return normalized
+
+
 def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
     if not selector_workflow_path.exists():
         die(f"Missing selector workflow: {selector_workflow_path}")
@@ -138,9 +163,14 @@ def load_lanes_from_file(lane_file: Path):
         die(f"Missing lane file: {lane_file}")
 
     data = yaml.safe_load(lane_file.read_text()) or {}
+    lane_defaults = {}
     if isinstance(data, list):
         lanes = data
     elif isinstance(data, dict):
+        lane_defaults = data.get("defaults", {})
+        if lane_defaults is None:
+            lane_defaults = {}
+        lane_defaults = require_mapping(lane_defaults, f"Lane file defaults: {lane_file}")
         if "include" in data:
             lanes = data.get("include")
         elif "lanes" in data:
@@ -153,13 +183,124 @@ def load_lanes_from_file(lane_file: Path):
     if not isinstance(lanes, list):
         die(f"Lane file include value is not a list: {lane_file}")
 
-    return lanes
+    normalized_defaults = {}
+    for default_name, default_value in lane_defaults.items():
+        default_name = require_non_empty_string(
+            default_name, f"Lane file default name in {lane_file}"
+        )
+        normalized_defaults[default_name] = require_mapping(
+            default_value, f"Lane file default '{default_name}' in {lane_file}"
+        )
+
+    resolved_lanes = []
+    for index, lane in enumerate(lanes):
+        if not isinstance(lane, dict):
+            resolved_lanes.append(lane)
+            continue
+
+        lane_obj = dict(lane)
+        resolved_lane = {}
+
+        if "_all" in normalized_defaults:
+            resolved_lane.update(normalized_defaults["_all"])
+
+        selected_defaults = lane_obj.pop("defaults", None)
+        if selected_defaults is not None:
+            if isinstance(selected_defaults, str):
+                selected_defaults = [selected_defaults]
+            elif isinstance(selected_defaults, list):
+                selected_defaults = [
+                    require_non_empty_string(
+                        value,
+                        f"Lane file defaults selector entry #{index} in {lane_file}",
+                    )
+                    for value in selected_defaults
+                ]
+            else:
+                die(
+                    f"Lane file defaults selector must be string or list in "
+                    f"{lane_file} lane #{index}"
+                )
+
+            for default_name in selected_defaults:
+                if default_name == "_all":
+                    continue
+                if default_name not in normalized_defaults:
+                    die(
+                        f"Unknown lane default '{default_name}' in {lane_file} "
+                        f"lane #{index}"
+                    )
+                resolved_lane.update(normalized_defaults[default_name])
+
+        resolved_lane.update(lane_obj)
+        resolved_lanes.append(resolved_lane)
+
+    return resolved_lanes
 
 
-def normalize_lane(family_entry, lane):
+def infer_platform_version(platform_id: str) -> str:
+    parts = platform_id.split("-", 1)
+    if len(parts) != 2 or not parts[1]:
+        return ""
+    return parts[1].replace("_", ".")
+
+
+def normalize_lane(family_entry, lane, platform_catalog):
     lane_obj = dict(lane)
     lane_obj.setdefault("allow_failure", False)
     lane_obj.update(family_entry["lane_overrides"])
+
+    platform_id = lane_obj.get("platform_id")
+    if platform_id is not None:
+        platform_id = require_non_empty_string(
+            platform_id,
+            f"Lane '{lane_obj.get('name', '<unnamed>')}' platform_id",
+        )
+        platform_entry = platform_catalog.get(platform_id)
+        if platform_entry is None:
+            die(
+                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+                f"'{family_entry['family']}' references unknown platform_id '{platform_id}'"
+            )
+
+        platform_runtime = require_non_empty_string(
+            platform_entry.get("runtime"),
+            f"Platform '{platform_id}'.runtime",
+        ).lower()
+        expected_runtime = RUNTIME_TO_PLATFORM_RUNTIME[family_entry["runtime"]]
+        if platform_runtime != expected_runtime:
+            die(
+                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+                f"'{family_entry['family']}' expects runtime '{expected_runtime}' "
+                f"but platform '{platform_id}' is '{platform_runtime}'"
+            )
+
+        if platform_runtime == "docker":
+            lane_obj["container"] = require_non_empty_string(
+                platform_entry.get("image"), f"Platform '{platform_id}'.image"
+            )
+        elif platform_runtime == "host":
+            runner_key = family_entry["runner_key"]
+            if runner_key:
+                lane_obj.setdefault(
+                    runner_key,
+                    require_non_empty_string(
+                        platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
+                    ),
+                )
+
+        os_version_key = family_entry["os_version_key"]
+        if os_version_key and lane_obj.get(os_version_key) in (None, ""):
+            inferred_version = ""
+            deps = platform_entry.get("deps")
+            if isinstance(deps, dict):
+                version = deps.get("version")
+                if isinstance(version, (str, int, float)):
+                    inferred_version = str(version).strip()
+            if not inferred_version:
+                inferred_version = infer_platform_version(platform_id)
+            if inferred_version:
+                lane_obj[os_version_key] = inferred_version
 
     arm64_overrides = family_entry["container_arm64_overrides"]
     if arm64_overrides and family_entry["runtime"] == "linux_container":
@@ -200,6 +341,10 @@ def parse_args():
         "--selector-workflow",
         default=".github/workflows/ref-validate-select.yml",
     )
+    parser.add_argument(
+        "--platform-catalog",
+        default="ci/deps/platform-catalog.yaml",
+    )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
 
@@ -211,6 +356,7 @@ def main():
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
 
     families = load_manifest(Path(args.manifest))
+    platform_catalog = load_platform_catalog(Path(args.platform_catalog))
     expected_options = ["all"] + [entry["family"] for entry in families]
     validate_dropdown_parity(Path(args.selector_workflow), expected_options)
 
@@ -232,7 +378,7 @@ def main():
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue
-            normalized = normalize_lane(family_entry, lane)
+            normalized = normalize_lane(family_entry, lane, platform_catalog)
             matrices[family_entry["runtime"]].append(
                 {
                     "family": family_entry["family"],
