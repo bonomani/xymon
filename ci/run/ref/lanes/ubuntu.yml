@@ -9,81 +9,63 @@ include:
 - name: Ubuntu 24.04 amd64 - Server
   platform_id: ubuntu-24
   variant: server
-  allow_failure: false
 - name: Ubuntu 24.04 amd64 - Client (ct-client)
   platform_id: ubuntu-24
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 24.04 amd64 - Client (ct-server)
   platform_id: ubuntu-24
   variant: client
-  allow_failure: false
 - name: Ubuntu 24.04 arm64 - Server
   platform_id: ubuntu-24
   defaults: arm64
   variant: server
-  allow_failure: false
 - name: Ubuntu 24.04 arm64 - Client (ct-client)
   platform_id: ubuntu-24
   defaults: arm64
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 24.04 arm64 - Client (ct-server)
   platform_id: ubuntu-24
   defaults: arm64
   variant: client
-  allow_failure: false
 - name: Ubuntu 22.04 amd64 - Server
   platform_id: ubuntu-22
   variant: server
-  allow_failure: false
 - name: Ubuntu 22.04 amd64 - Client (ct-client)
   platform_id: ubuntu-22
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 22.04 amd64 - Client (ct-server)
   platform_id: ubuntu-22
   variant: client
-  allow_failure: false
 - name: Ubuntu 22.04 arm64 - Server
   platform_id: ubuntu-22
   defaults: arm64
   variant: server
-  allow_failure: false
 - name: Ubuntu 22.04 arm64 - Client (ct-client)
   platform_id: ubuntu-22
   defaults: arm64
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 22.04 arm64 - Client (ct-server)
   platform_id: ubuntu-22
   defaults: arm64
   variant: client
-  allow_failure: false
 - name: Ubuntu 20.04 amd64 - Server
   platform_id: ubuntu-20
   variant: server
-  allow_failure: false
 - name: Ubuntu 20.04 amd64 - Client (ct-client)
   platform_id: ubuntu-20
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 20.04 amd64 - Client (ct-server)
   platform_id: ubuntu-20
   variant: client
-  allow_failure: false
 - name: Ubuntu 20.04 arm64 - Server
   platform_id: ubuntu-20
   defaults: arm64
   variant: server
-  allow_failure: false
 - name: Ubuntu 20.04 arm64 - Client (ct-client)
   platform_id: ubuntu-20
   defaults: arm64
   variant: localclient
-  allow_failure: false
 - name: Ubuntu 20.04 arm64 - Client (ct-server)
   platform_id: ubuntu-20
   defaults: arm64
   variant: client
-  allow_failure: false

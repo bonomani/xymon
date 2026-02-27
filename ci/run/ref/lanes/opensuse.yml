@@ -30,15 +30,12 @@ include:
 - name: openSUSE Leap 15.6 - Server
   platform_id: opensuse-leap-15_6
   variant: server
-  allow_failure: false
 - name: openSUSE Leap 15.6 - Client (ct-client)
   platform_id: opensuse-leap-15_6
   variant: localclient
-  allow_failure: false
 - name: openSUSE Leap 15.6 - Client (ct-server)
   platform_id: opensuse-leap-15_6
   variant: client
-  allow_failure: false
 - name: openSUSE Leap 15.5 - Server
   platform_id: opensuse-leap-15_5
   variant: server

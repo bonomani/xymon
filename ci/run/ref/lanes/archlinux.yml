@@ -6,24 +6,18 @@ include:
 - name: Arch Linux amd64 - Server
   platform_id: archlinux-latest
   variant: server
-  allow_failure: false
 - name: Arch Linux amd64 - Client (ct-client)
   platform_id: archlinux-latest
   variant: localclient
-  allow_failure: false
 - name: Arch Linux amd64 - Client (ct-server)
   platform_id: archlinux-latest
   variant: client
-  allow_failure: false
 - name: Arch Linux base amd64 - Server
   platform_id: archlinux-base
   variant: server
-  allow_failure: false
 - name: Arch Linux base amd64 - Client (ct-client)
   platform_id: archlinux-base
   variant: localclient
-  allow_failure: false
 - name: Arch Linux base amd64 - Client (ct-server)
   platform_id: archlinux-base
   variant: client
-  allow_failure: false
