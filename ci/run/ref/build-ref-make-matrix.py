@@ -7,27 +7,16 @@ import subprocess
 from pathlib import Path
 
 import yaml
-from lane_utils import LaneSpecError, expand_lane_variants, extract_lane_include
+from matrix_common import (
+    die,
+    load_lanes_from_file,
+    require_mapping,
+    require_non_empty_string,
+    validate_dropdown_parity,
+)
 
 SUPPORTED_RUNTIMES = {"linux_container", "bsd_vm"}
 RESERVED_REF_MAKE_WORKFLOWS = {"ref-make-reusable.yml", "ref-make-select.yml"}
-
-
-def die(message: str) -> None:
-    raise SystemExit(message)
-
-
-def require_mapping(value, context: str):
-    if not isinstance(value, dict):
-        die(f"{context} must be a mapping")
-    return value
-
-
-def require_non_empty_string(value, context: str) -> str:
-    if not isinstance(value, str) or not value:
-        die(f"{context} must be a non-empty string")
-    return value
-
 
 def load_manifest(path: Path):
     if not path.exists():
@@ -94,30 +83,6 @@ def load_manifest(path: Path):
 
     return families
 
-
-def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
-    if not selector_workflow_path.exists():
-        die(f"Missing selector workflow: {selector_workflow_path}")
-
-    workflow_data = yaml.safe_load(selector_workflow_path.read_text()) or {}
-    on_config = workflow_data.get("on", workflow_data.get(True, {}))
-    if not isinstance(on_config, dict):
-        die(f"Workflow 'on' block is not a mapping: {selector_workflow_path}")
-
-    declared_options = (
-        on_config.get("workflow_dispatch", {})
-        .get("inputs", {})
-        .get("family", {})
-        .get("options", [])
-    )
-    if declared_options != expected_options:
-        die(
-            "workflow_dispatch family options drift from manifest\n"
-            f"expected: {expected_options}\n"
-            f"actual:   {declared_options}"
-        )
-
-
 def validate_wrapper_parity(repo_root: Path, families):
     workflows_dir = repo_root / ".github" / "workflows"
     expected_wrappers = [f"ref-make-{entry['family']}.yml" for entry in families]
@@ -181,30 +146,6 @@ def validate_workflow_list_parity(script_path: Path, expected_workflows):
             f"expected: {expected_workflows}\n"
             f"actual:   {listed}"
         )
-
-
-def load_lanes_from_file(lane_file: Path):
-    if not lane_file.exists():
-        die(f"Missing lane file: {lane_file}")
-
-    data = yaml.safe_load(lane_file.read_text()) or {}
-    try:
-        lanes = extract_lane_include(data, lane_file, require_include_key=isinstance(data, dict))
-    except LaneSpecError as exc:
-        die(str(exc))
-
-    expanded_lanes = []
-    for index, lane in enumerate(lanes):
-        if not isinstance(lane, dict):
-            die(f"Lane entry #{index} in {lane_file} must be a mapping")
-        lane_obj = dict(lane)
-        try:
-            expanded_lanes.extend(expand_lane_variants(lane_obj, lane_file, index))
-        except LaneSpecError as exc:
-            die(str(exc))
-
-    return expanded_lanes
-
 
 def normalize_lane(family_entry, lane):
     lane_obj = dict(family_entry["runtime_defaults"])
@@ -274,7 +215,9 @@ def main():
     selected_families = []
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
-        lanes = load_lanes_from_file(repo_root / family_entry["lane_file"])
+        lanes = load_lanes_from_file(
+            repo_root / family_entry["lane_file"], strict_lane_mapping=True
+        )
         for lane in lanes:
             normalized = normalize_lane(family_entry, lane)
             matrix_entries.append(
