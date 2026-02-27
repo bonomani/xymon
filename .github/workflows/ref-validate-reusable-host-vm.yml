@@ -3,10 +3,6 @@ name: Reference Validation - Reusable Host/VM Lane
 on:
   workflow_call:
     inputs:
-      family:
-        description: Reference validation family key (e.g. freebsd, netbsd, openbsd, macos)
-        required: true
-        type: string
       lane_name:
         description: Display name for the lane
         required: true

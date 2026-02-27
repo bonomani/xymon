@@ -65,6 +65,32 @@ def load_manifest(path: Path):
             defaults, f"Manifest runtime_defaults.{runtime_key}"
         )
 
+    lane_defaults_raw = data.get("lane_defaults", {})
+    if lane_defaults_raw is None:
+        lane_defaults_raw = {}
+    lane_defaults_raw = require_mapping(
+        lane_defaults_raw, f"Manifest lane_defaults in {path}"
+    )
+
+    lane_defaults = {}
+    for runtime_key, defaults in lane_defaults_raw.items():
+        runtime_key = require_non_empty_string(
+            runtime_key, f"Manifest lane_defaults key in {path}"
+        )
+        if runtime_key not in RUNTIME_TO_MATRIX_KEY:
+            die(f"Manifest has invalid lane_defaults key '{runtime_key}'")
+        defaults = require_mapping(defaults, f"Manifest lane_defaults.{runtime_key}")
+        lane_defaults[runtime_key] = {}
+        for default_name, default_value in defaults.items():
+            default_name = require_non_empty_string(
+                default_name,
+                f"Manifest lane_defaults.{runtime_key} default name in {path}",
+            )
+            lane_defaults[runtime_key][default_name] = require_mapping(
+                default_value,
+                f"Manifest lane_defaults.{runtime_key}.{default_name}",
+            )
+
     entries = data.get("families")
     if not isinstance(entries, list) or not entries:
         die(f"Manifest has no families list: {path}")
@@ -129,6 +155,7 @@ def load_manifest(path: Path):
                 "runtime": runtime,
                 "lane_file": lane_file,
                 "runtime_overrides": dict(runtime_defaults.get(runtime, {})),
+                "lane_defaults": dict(lane_defaults.get(runtime, {})),
                 "lane_overrides": lane_overrides,
                 "container_arm64_overrides": container_arm64_overrides,
                 "os_version_key": os_version_key,
@@ -252,9 +279,15 @@ def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
     return expanded
 
 
-def load_lanes_from_file(lane_file: Path):
+def load_lanes_from_file(lane_file: Path, shared_defaults=None):
     if not lane_file.exists():
         die(f"Missing lane file: {lane_file}")
+
+    if shared_defaults is None:
+        shared_defaults = {}
+    shared_defaults = require_mapping(
+        shared_defaults, f"Shared lane defaults for {lane_file}"
+    )
 
     data = yaml.safe_load(lane_file.read_text()) or {}
     lane_defaults = {}
@@ -278,6 +311,14 @@ def load_lanes_from_file(lane_file: Path):
         die(f"Lane file include value is not a list: {lane_file}")
 
     normalized_defaults = {}
+    for default_name, default_value in shared_defaults.items():
+        default_name = require_non_empty_string(
+            default_name, f"Shared lane default name for {lane_file}"
+        )
+        normalized_defaults[default_name] = require_mapping(
+            default_value, f"Shared lane default '{default_name}' for {lane_file}"
+        )
+
     for default_name, default_value in lane_defaults.items():
         default_name = require_non_empty_string(
             default_name, f"Lane file default name in {lane_file}"
@@ -478,7 +519,9 @@ def main():
 
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
-        lanes = load_lanes_from_file(Path(family_entry["lane_file"]))
+        lanes = load_lanes_from_file(
+            Path(family_entry["lane_file"]), family_entry.get("lane_defaults", {})
+        )
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue
