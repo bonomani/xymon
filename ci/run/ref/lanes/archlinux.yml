@@ -3,21 +3,9 @@ defaults:
     runs_on: ubuntu-22.04
     container_options: --platform linux/amd64
 include:
-- name: Arch Linux amd64 - Server
+- name_prefix: Arch Linux amd64
   platform_id: archlinux-latest
-  variant: server
-- name: Arch Linux amd64 - Client (ct-client)
-  platform_id: archlinux-latest
-  variant: localclient
-- name: Arch Linux amd64 - Client (ct-server)
-  platform_id: archlinux-latest
-  variant: client
-- name: Arch Linux base amd64 - Server
+  variants: [server, localclient, client]
+- name_prefix: Arch Linux base amd64
   platform_id: archlinux-base
-  variant: server
-- name: Arch Linux base amd64 - Client (ct-client)
-  platform_id: archlinux-base
-  variant: localclient
-- name: Arch Linux base amd64 - Client (ct-server)
-  platform_id: archlinux-base
-  variant: client
+  variants: [server, localclient, client]

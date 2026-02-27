@@ -3,15 +3,7 @@ defaults:
     runs_on: ubuntu-22.04
     container_options: --platform linux/amd64
 include:
-- name: CentOS 7 - Server
+- name_prefix: CentOS 7
   platform_id: centos-7
-  variant: server
   cmake_bin: cmake3
-- name: CentOS 7 - Client (ct-client)
-  platform_id: centos-7
-  variant: localclient
-  cmake_bin: cmake3
-- name: CentOS 7 - Client (ct-server)
-  platform_id: centos-7
-  variant: client
-  cmake_bin: cmake3
+  variants: [server, localclient, client]

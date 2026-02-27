@@ -3,48 +3,18 @@ defaults:
     runs_on: ubuntu-22.04
     container_options: --platform linux/amd64
 include:
-- name: openSUSE Tumbleweed - Server
+- name_prefix: openSUSE Tumbleweed
   platform_id: opensuse-tumbleweed
-  variant: server
   allow_failure: true
-- name: openSUSE Tumbleweed - Client (ct-client)
-  platform_id: opensuse-tumbleweed
-  variant: localclient
-  allow_failure: true
-- name: openSUSE Tumbleweed - Client (ct-server)
-  platform_id: opensuse-tumbleweed
-  variant: client
-  allow_failure: true
-- name: openSUSE Leap 16.0 - Server
+  variants: [server, localclient, client]
+- name_prefix: openSUSE Leap 16.0
   platform_id: opensuse-leap-16_0
-  variant: server
   allow_failure: true
-- name: openSUSE Leap 16.0 - Client (ct-client)
-  platform_id: opensuse-leap-16_0
-  variant: localclient
-  allow_failure: true
-- name: openSUSE Leap 16.0 - Client (ct-server)
-  platform_id: opensuse-leap-16_0
-  variant: client
-  allow_failure: true
-- name: openSUSE Leap 15.6 - Server
+  variants: [server, localclient, client]
+- name_prefix: openSUSE Leap 15.6
   platform_id: opensuse-leap-15_6
-  variant: server
-- name: openSUSE Leap 15.6 - Client (ct-client)
-  platform_id: opensuse-leap-15_6
-  variant: localclient
-- name: openSUSE Leap 15.6 - Client (ct-server)
-  platform_id: opensuse-leap-15_6
-  variant: client
-- name: openSUSE Leap 15.5 - Server
+  variants: [server, localclient, client]
+- name_prefix: openSUSE Leap 15.5
   platform_id: opensuse-leap-15_5
-  variant: server
   allow_failure: true
-- name: openSUSE Leap 15.5 - Client (ct-client)
-  platform_id: opensuse-leap-15_5
-  variant: localclient
-  allow_failure: true
-- name: openSUSE Leap 15.5 - Client (ct-server)
-  platform_id: opensuse-leap-15_5
-  variant: client
-  allow_failure: true
+  variants: [server, localclient, client]

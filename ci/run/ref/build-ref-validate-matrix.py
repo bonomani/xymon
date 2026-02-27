@@ -19,6 +19,12 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
     "macos_host": "host",
 }
 
+VARIANT_NAME_SUFFIX = {
+    "server": "Server",
+    "localclient": "Client (ct-client)",
+    "client": "Client (ct-server)",
+}
+
 
 def die(message: str) -> None:
     raise SystemExit(message)
@@ -177,6 +183,75 @@ def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
         )
 
 
+def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
+    variants = lane_obj.get("variants")
+    if variants is None:
+        return [lane_obj]
+
+    if "variant" in lane_obj:
+        die(
+            f"Lane file {lane_file} lane #{lane_index} cannot set both "
+            "'variant' and 'variants'"
+        )
+
+    if not isinstance(variants, list) or not variants:
+        die(f"Lane file {lane_file} lane #{lane_index} has invalid 'variants' list")
+
+    name_prefix = require_non_empty_string(
+        lane_obj.get("name_prefix"),
+        f"Lane file {lane_file} lane #{lane_index}.name_prefix",
+    )
+
+    base_lane = dict(lane_obj)
+    base_lane.pop("variants", None)
+    base_lane.pop("name_prefix", None)
+
+    expanded = []
+    for variant_index, raw_variant in enumerate(variants):
+        context = (
+            f"Lane file {lane_file} lane #{lane_index} variants entry #{variant_index}"
+        )
+        variant_overrides = {}
+        if isinstance(raw_variant, str):
+            variant = require_non_empty_string(raw_variant, context)
+        elif isinstance(raw_variant, dict):
+            variant_overrides = dict(raw_variant)
+            variant = require_non_empty_string(
+                variant_overrides.pop("variant", None), f"{context}.variant"
+            )
+        else:
+            die(f"{context} must be a string or mapping")
+
+        default_suffix = VARIANT_NAME_SUFFIX.get(variant)
+        if not default_suffix:
+            die(f"{context} has unsupported variant '{variant}'")
+
+        custom_name = variant_overrides.pop("name", None)
+        if custom_name is not None:
+            custom_name = require_non_empty_string(custom_name, f"{context}.name")
+
+        custom_suffix = variant_overrides.pop("name_suffix", None)
+        if custom_suffix is not None:
+            custom_suffix = require_non_empty_string(
+                custom_suffix, f"{context}.name_suffix"
+            )
+
+        if custom_name and custom_suffix:
+            die(f"{context} cannot set both 'name' and 'name_suffix'")
+
+        lane_variant = dict(base_lane)
+        lane_variant["variant"] = variant
+        if custom_name:
+            lane_variant["name"] = custom_name
+        else:
+            suffix = custom_suffix or default_suffix
+            lane_variant["name"] = f"{name_prefix} - {suffix}"
+        lane_variant.update(variant_overrides)
+        expanded.append(lane_variant)
+
+    return expanded
+
+
 def load_lanes_from_file(lane_file: Path):
     if not lane_file.exists():
         die(f"Missing lane file: {lane_file}")
@@ -211,8 +286,17 @@ def load_lanes_from_file(lane_file: Path):
             default_value, f"Lane file default '{default_name}' in {lane_file}"
         )
 
-    resolved_lanes = []
+    expanded_lanes = []
     for index, lane in enumerate(lanes):
+        if not isinstance(lane, dict):
+            expanded_lanes.append(lane)
+            continue
+
+        lane_obj = dict(lane)
+        expanded_lanes.extend(expand_lane_variants(lane_obj, lane_file, index))
+
+    resolved_lanes = []
+    for index, lane in enumerate(expanded_lanes):
         if not isinstance(lane, dict):
             resolved_lanes.append(lane)
             continue

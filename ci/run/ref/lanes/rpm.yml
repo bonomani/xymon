@@ -3,75 +3,27 @@ defaults:
     runs_on: ubuntu-22.04
     container_options: --platform linux/amd64
 include:
-- name: Rocky Linux 8 - Server
+- name_prefix: Rocky Linux 8
   platform_id: rockylinux-8
-  variant: server
-- name: Rocky Linux 8 - Client (ct-client)
-  platform_id: rockylinux-8
-  variant: localclient
-- name: Rocky Linux 8 - Client (ct-server)
-  platform_id: rockylinux-8
-  variant: client
-- name: Rocky Linux 9 - Server
+  variants: [server, localclient, client]
+- name_prefix: Rocky Linux 9
   platform_id: rockylinux-9
-  variant: server
-- name: Rocky Linux 9 - Client (ct-client)
-  platform_id: rockylinux-9
-  variant: localclient
-- name: Rocky Linux 9 - Client (ct-server)
-  platform_id: rockylinux-9
-  variant: client
-- name: AlmaLinux 8 - Server
+  variants: [server, localclient, client]
+- name_prefix: AlmaLinux 8
   platform_id: almalinux-8
-  variant: server
-- name: AlmaLinux 8 - Client (ct-client)
-  platform_id: almalinux-8
-  variant: localclient
-- name: AlmaLinux 8 - Client (ct-server)
-  platform_id: almalinux-8
-  variant: client
-- name: AlmaLinux 9 - Server
+  variants: [server, localclient, client]
+- name_prefix: AlmaLinux 9
   platform_id: almalinux-9
-  variant: server
-- name: AlmaLinux 9 - Client (ct-client)
-  platform_id: almalinux-9
-  variant: localclient
-- name: AlmaLinux 9 - Client (ct-server)
-  platform_id: almalinux-9
-  variant: client
-- name: AlmaLinux 10 - Server
+  variants: [server, localclient, client]
+- name_prefix: AlmaLinux 10
   platform_id: almalinux-10
-  variant: server
-- name: AlmaLinux 10 - Client (ct-client)
-  platform_id: almalinux-10
-  variant: localclient
-- name: AlmaLinux 10 - Client (ct-server)
-  platform_id: almalinux-10
-  variant: client
-- name: Fedora 40 - Server
+  variants: [server, localclient, client]
+- name_prefix: Fedora 40
   platform_id: fedora-40
-  variant: server
-- name: Fedora 40 - Client (ct-client)
-  platform_id: fedora-40
-  variant: localclient
-- name: Fedora 40 - Client (ct-server)
-  platform_id: fedora-40
-  variant: client
-- name: Fedora 41 - Server
+  variants: [server, localclient, client]
+- name_prefix: Fedora 41
   platform_id: fedora-41
-  variant: server
-- name: Fedora 41 - Client (ct-client)
-  platform_id: fedora-41
-  variant: localclient
-- name: Fedora 41 - Client (ct-server)
-  platform_id: fedora-41
-  variant: client
-- name: Fedora 42 - Server
+  variants: [server, localclient, client]
+- name_prefix: Fedora 42
   platform_id: fedora-42
-  variant: server
-- name: Fedora 42 - Client (ct-client)
-  platform_id: fedora-42
-  variant: localclient
-- name: Fedora 42 - Client (ct-server)
-  platform_id: fedora-42
-  variant: client
+  variants: [server, localclient, client]
