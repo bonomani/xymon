@@ -1,7 +1,3 @@
-defaults:
-  _all:
-    runs_on: ubuntu-22.04
-    container_options: --platform linux/amd64
 include:
 - name_prefix: Rocky Linux 8
   platform_id: rockylinux-8

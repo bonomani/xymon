@@ -11,6 +11,15 @@ runtime_defaults:
   macos_host:
     upload_artifacts: true
 
+lane_defaults:
+  linux_container:
+    _all:
+      runs_on: ubuntu-22.04
+      container_options: --platform linux/amd64
+    arm64:
+      runs_on: ubuntu-24.04-arm
+      container_options: --platform linux/arm64/v8
+
 families:
 - family: alpine
   runtime: linux_container

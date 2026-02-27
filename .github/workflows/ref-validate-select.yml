@@ -1,4 +1,4 @@
-name: Reference Validation - Select Family (Pass 1)
+name: Reference Validation - Select Family
 
 on:
   workflow_dispatch:
@@ -79,7 +79,6 @@ jobs:
     uses: ./.github/workflows/ref-validate-reusable-linux.yml
     secrets: inherit
     with:
-      family: ${{ matrix.family }}
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
 
@@ -94,6 +93,5 @@ jobs:
     uses: ./.github/workflows/ref-validate-reusable-host-vm.yml
     secrets: inherit
     with:
-      family: ${{ matrix.family }}
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
