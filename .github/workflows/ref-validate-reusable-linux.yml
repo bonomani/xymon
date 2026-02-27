@@ -41,9 +41,59 @@ jobs:
     steps:
       - name: Prepare checkout tools in container
         shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
         run: |
           set -eu
-          sh ci/deps/install-checkout-tools.sh --prepare-profile "${PREPARE_PROFILE}"
+          script_path="ci/deps/install-checkout-tools.sh"
+          if [ ! -f "${script_path}" ]; then
+            bootstrap_root="/tmp/ci-deps-bootstrap"
+            rm -rf "${bootstrap_root}"
+            mkdir -p "${bootstrap_root}/lib"
+
+            fetch_repo_file() {
+              rel_path="$1"
+              dest_path="$2"
+              url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${rel_path}?ref=${GITHUB_SHA}"
+
+              if command -v curl >/dev/null 2>&1; then
+                if [ -n "${GITHUB_TOKEN:-}" ]; then
+                  curl -fsSL \
+                    -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                    -H "Accept: application/vnd.github.raw" \
+                    "${url}" \
+                    -o "${dest_path}"
+                else
+                  curl -fsSL \
+                    -H "Accept: application/vnd.github.raw" \
+                    "${url}" \
+                    -o "${dest_path}"
+                fi
+              elif command -v wget >/dev/null 2>&1; then
+                if [ -n "${GITHUB_TOKEN:-}" ]; then
+                  wget -qO "${dest_path}" \
+                    --header="Authorization: Bearer ${GITHUB_TOKEN}" \
+                    --header="Accept: application/vnd.github.raw" \
+                    "${url}"
+                else
+                  wget -qO "${dest_path}" \
+                    --header="Accept: application/vnd.github.raw" \
+                    "${url}"
+                fi
+              else
+                echo "Need curl or wget to bootstrap checkout-tools installer" >&2
+                return 1
+              fi
+            }
+
+            fetch_repo_file "ci/deps/install-checkout-tools.sh" "${bootstrap_root}/install-checkout-tools.sh"
+            fetch_repo_file "ci/deps/lib/install-common.sh" "${bootstrap_root}/lib/install-common.sh"
+
+            chmod +x "${bootstrap_root}/install-checkout-tools.sh"
+            script_path="${bootstrap_root}/install-checkout-tools.sh"
+          fi
+
+          sh "${script_path}" --prepare-profile "${PREPARE_PROFILE}"
 
       - name: Checkout
         if: ${{ env.CHECKOUT_MODE == 'action' }}
