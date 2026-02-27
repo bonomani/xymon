@@ -1,0 +1,43 @@
+name: Reference Generation - Reusable Linux Lane
+
+on:
+  workflow_call:
+    inputs:
+      lane_name:
+        description: Display name for the lane
+        required: true
+        type: string
+      lane_json:
+        description: JSON-encoded lane object
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  make-linux:
+    name: ${{ inputs.lane_name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    env:
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
+      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Bootstrap install + refs on Linux
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/bootstrap-make-refs.sh
+
+      - name: Upload legacy references
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
+          path: |
+            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+          if-no-files-found: error
