@@ -1,0 +1,37 @@
+runtime_defaults:
+  linux_container:
+    runtime: linux_container
+    runs_on: ubuntu-22.04
+    build_tool: make
+  bsd_vm:
+    runtime: bsd_vm
+    runs_on: ubuntu-22.04
+    build_tool: make
+    architecture: x86-64
+    vm_memory: 1024M
+    vm_cpu_count: 2
+
+families:
+  - family: linux
+    runtime: linux_container
+    lane_file: ci/run/ref/make-lanes/linux.yml
+    lane_overrides:
+      ref_os: linux
+  - family: freebsd
+    runtime: bsd_vm
+    lane_file: ci/run/ref/make-lanes/freebsd.yml
+    lane_overrides:
+      ref_os: freebsd
+      os_version: "15.0"
+  - family: openbsd
+    runtime: bsd_vm
+    lane_file: ci/run/ref/make-lanes/openbsd.yml
+    lane_overrides:
+      ref_os: openbsd
+      os_version: "7.8"
+  - family: netbsd
+    runtime: bsd_vm
+    lane_file: ci/run/ref/make-lanes/netbsd.yml
+    lane_overrides:
+      ref_os: netbsd
+      os_version: "10.1"
