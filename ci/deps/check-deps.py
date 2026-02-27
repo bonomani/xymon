@@ -29,11 +29,20 @@ MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 REF_VALIDATE_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-validate-families.yml"
-REF_LANE_VARIANT_SUFFIX = {
-    "server": "Server",
-    "localclient": "Client (ct-client)",
-    "client": "Client (ct-server)",
-}
+REF_LANE_UTILS_DIR = ROOT / "ci" / "run" / "ref"
+
+if str(REF_LANE_UTILS_DIR) not in sys.path:
+    sys.path.insert(0, str(REF_LANE_UTILS_DIR))
+try:
+    from lane_utils import (  # type: ignore
+        LaneSpecError,
+        SUPPORTED_LANE_VARIANTS,
+        expand_lane_variants,
+        extract_lane_include,
+    )
+except Exception as exc:  # pragma: no cover
+    print(f"Failed to import lane_utils helpers: {exc}")
+    sys.exit(2)
 
 
 def load_yaml(path: Path) -> dict:
@@ -530,79 +539,6 @@ def find_package_steps(workflow: dict) -> list[str]:
     return hits
 
 
-def expand_ref_lane_variants(lane: dict, lane_path: Path, lane_index: int) -> list[dict]:
-    variants = lane.get("variants")
-    if variants is None:
-        return [dict(lane)]
-
-    if "variant" in lane:
-        print(
-            f"   ERROR: lane {lane_path} #{lane_index} cannot set both 'variant' and 'variants'"
-        )
-        return []
-
-    if not isinstance(variants, list) or not variants:
-        print(f"   ERROR: lane {lane_path} #{lane_index} has invalid 'variants' list")
-        return []
-
-    name_prefix = lane.get("name_prefix")
-    if not isinstance(name_prefix, str) or not name_prefix.strip():
-        print(f"   ERROR: lane {lane_path} #{lane_index} variants requires non-empty 'name_prefix'")
-        return []
-
-    base_lane = dict(lane)
-    base_lane.pop("variants", None)
-    base_lane.pop("name_prefix", None)
-
-    expanded: list[dict] = []
-    for variant_index, raw_variant in enumerate(variants):
-        context = f"lane {lane_path} #{lane_index} variants entry #{variant_index}"
-        variant_overrides: dict = {}
-        if isinstance(raw_variant, str):
-            variant = raw_variant.strip()
-        elif isinstance(raw_variant, dict):
-            variant_overrides = dict(raw_variant)
-            variant_raw = variant_overrides.pop("variant", "")
-            variant = variant_raw.strip() if isinstance(variant_raw, str) else ""
-        else:
-            print(f"   ERROR: {context} must be a string or mapping")
-            continue
-
-        suffix_default = REF_LANE_VARIANT_SUFFIX.get(variant, "")
-        if not suffix_default:
-            print(f"   ERROR: {context} has unsupported variant '{variant}'")
-            continue
-
-        custom_name = variant_overrides.pop("name", None)
-        if custom_name is not None:
-            if not isinstance(custom_name, str) or not custom_name.strip():
-                print(f"   ERROR: {context}.name must be a non-empty string")
-                continue
-            custom_name = custom_name.strip()
-
-        custom_suffix = variant_overrides.pop("name_suffix", None)
-        if custom_suffix is not None:
-            if not isinstance(custom_suffix, str) or not custom_suffix.strip():
-                print(f"   ERROR: {context}.name_suffix must be a non-empty string")
-                continue
-            custom_suffix = custom_suffix.strip()
-
-        if custom_name and custom_suffix:
-            print(f"   ERROR: {context} cannot set both 'name' and 'name_suffix'")
-            continue
-
-        lane_variant = dict(base_lane)
-        lane_variant["variant"] = variant
-        if custom_name:
-            lane_variant["name"] = custom_name
-        else:
-            lane_variant["name"] = f"{name_prefix} - {custom_suffix or suffix_default}"
-        lane_variant.update(variant_overrides)
-        expanded.append(lane_variant)
-
-    return expanded
-
-
 def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
     lanes: list[tuple[str, Path, str, dict]] = []
 
@@ -634,28 +570,27 @@ def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
             continue
 
         lane_doc = yaml.safe_load(lane_path.read_text()) or {}
-        include = []
-        if isinstance(lane_doc, list):
-            include = lane_doc
-        elif isinstance(lane_doc, dict):
-            include = lane_doc.get("include", lane_doc.get("lanes", []))
-        else:
-            print(f"   ERROR: lane file must be a list/mapping: {lane_path}")
-            continue
-
-        if not isinstance(include, list):
-            print(f"   ERROR: lane file include is not a list: {lane_path}")
+        try:
+            include = extract_lane_include(lane_doc, lane_path)
+        except LaneSpecError as exc:
+            print(f"   ERROR: {exc}")
             continue
 
         for lane_index, lane in enumerate(include):
             if not isinstance(lane, dict):
                 continue
-            for lane_variant in expand_ref_lane_variants(lane, lane_path, lane_index):
+            try:
+                lane_variants = expand_lane_variants(lane, lane_path, lane_index)
+            except LaneSpecError as exc:
+                print(f"   ERROR: {exc}")
+                continue
+
+            for lane_variant in lane_variants:
                 variant = lane_variant.get("variant")
                 if not isinstance(variant, str):
                     continue
                 variant = variant.strip()
-                if variant not in REF_LANE_VARIANT_SUFFIX:
+                if variant not in SUPPORTED_LANE_VARIANTS:
                     continue
                 lane_variant["variant"] = variant
                 lanes.append((family, lane_path, variant, lane_variant))
