@@ -67,8 +67,6 @@ jobs:
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
           echo "Lane count (host_vm): ${{ steps.generate.outputs.lane_count_host_vm }}"
-          echo "Lane count (bsd): ${{ steps.generate.outputs.lane_count_bsd }}"
-          echo "Lane count (macos): ${{ steps.generate.outputs.lane_count_macos }}"
 
   ref-validate-linux:
     needs: build-matrix
