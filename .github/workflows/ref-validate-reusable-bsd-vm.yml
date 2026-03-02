@@ -1,4 +1,4 @@
-name: Reference Validation - Reusable Host/VM Lane
+name: Reference Validation - Reusable BSD VM Lane
 
 on:
   workflow_call:
@@ -16,17 +16,16 @@ permissions:
   contents: read
 
 jobs:
-  host-vm:
+  bsd-vm:
     name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runner || fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'cmake' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
       ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
       LEGACY_APPLY_OWNERSHIP: ON
-      XYMONUSER: ${{ fromJSON(inputs.lane_json).ref_os == 'macos' && '_www' || '' }}
-      XYMONGROUP: ${{ fromJSON(inputs.lane_json).ref_os == 'macos' && '_www' || '' }}
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
@@ -45,8 +44,7 @@ jobs:
           bash ci/run/ref/load-legacy-hostname.sh \
             --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
 
-      - name: Bootstrap install + metadata (CMake, BSD VM adapter)
-        if: ${{ env.REF_OS != 'macos' }}
+      - name: Bootstrap install + refs snapshot (BSD VM)
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
           operating_system: ${{ env.REF_OS }}
@@ -58,26 +56,14 @@ jobs:
           sync_files: true
           run_script: |
             set -euo pipefail
-            bash ci/run/ref/bootstrap-cmake-refs.sh \
+            bash ci/run/ref/bootstrap-build-refs.sh \
+              --build "${{ env.BUILD_TOOL }}" \
               --os "${{ env.REF_OS }}" \
               --version "${{ env.OS_VERSION }}" \
               --variant "${{ env.VARIANT }}" \
               --ref-prefix "docs/cmake-legacy-migration/refs/${{ env.BASELINE_ROOT }}/${{ env.VARIANT }}" \
               --refs-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs" \
-              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}"
-
-      - name: Bootstrap install + metadata (CMake, macOS host adapter)
-        if: ${{ env.REF_OS == 'macos' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/bootstrap-cmake-refs.sh \
-            --os "${REF_OS}" \
-            --version "${OS_VERSION}" \
-            --variant "${VARIANT}" \
-            --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
-            --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${OS_VERSION}-${VARIANT}"
+              --artifact-root ".ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.OS_VERSION }}-${{ env.VARIANT }}"
 
       - name: Compare refs snapshot (blocking policy checks)
         shell: bash
@@ -85,7 +71,7 @@ jobs:
           set -euo pipefail
           bash ci/compare-refs.sh \
             --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/cmake.${REF_OS}.${VARIANT}"
+            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/${BUILD_TOOL}.${REF_OS}.${VARIANT}"
 
       - name: Upload artifacts
         if: ${{ always() }}
@@ -94,5 +80,5 @@ jobs:
           lane_name: ${{ inputs.lane_name }}
           if_no_files_found: warn
           extra_paths: |
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/cmake.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.OS_VERSION }}-${{ env.VARIANT }}/**
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**

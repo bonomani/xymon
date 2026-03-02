@@ -64,3 +64,10 @@ runs:
           /tmp/legacy.binlinks.diff
           /tmp/legacy.needed.norm.diff
           /tmp/legacy.embedded.diff
+          /tmp/install-make-legacy.log
+          /tmp/make.configure.log
+          /tmp/install-cmake-legacy.log
+          /tmp/cmake.configure.log
+          /tmp/cmake.trace.json
+          /tmp/cmake.trace.log
+          /tmp/xymon-root-vars.sh

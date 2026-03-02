@@ -1,3 +1,6 @@
+# Reference generation runtime model:
+# - linux_host: native Linux runner
+# - bsd_vm: BSD guest via VM action
 runtime_defaults:
   linux_host:
     runtime: linux_host

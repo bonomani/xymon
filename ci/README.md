@@ -7,6 +7,15 @@ The repository splits CI-related helpers into two clear subtrees:
 
 Use `ci/run` when you want to reuse the CI configure/build/install steps, and `ci/deps` when you need dependency lists, package installers, or validation. The legacy `scripts/ci/` folder now holds only the “wrapper” entry points (e.g., `check-deps.sh`) for compatibility; the real implementations live under `ci/`.
 
+## Ref runtime model
+
+The reference workflows use a small runtime vocabulary:
+
+- Generation: `linux_host`, `bsd_vm`
+- Validation: `linux_container`, `bsd_vm`, `macos_host`
+
+These names describe the execution environment, not the package manager or transport detail. In particular, `linux_container` means a Linux job running inside a container; `bsd_vm` means a BSD guest started through the VM action; and `macos_host` means a native macOS runner.
+
 ## Linting
 
 Run local CI lint checks with:
