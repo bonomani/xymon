@@ -1,5 +1,10 @@
+# Reference validation runtime model:
+# - linux_container: Linux container lane on a GitHub runner
+# - bsd_vm: BSD guest via VM action
+# - macos_host: native macOS runner
 runtime_defaults:
   linux_container:
+    build_tool: cmake
     ref_os: linux
     baseline_root: make_linux
     artifact_family: linux
@@ -7,8 +12,10 @@ runtime_defaults:
     checkout_mode: action
     upload_artifacts: true
   bsd_vm:
+    build_tool: cmake
     upload_artifacts: true
   macos_host:
+    build_tool: cmake
     upload_artifacts: true
 
 lane_defaults:

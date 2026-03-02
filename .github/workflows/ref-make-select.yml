@@ -14,6 +14,14 @@ on:
           - freebsd
           - openbsd
           - netbsd
+      build_tool:
+        description: Build tool used to generate reference artifacts
+        required: true
+        type: choice
+        default: make
+        options:
+          - make
+          - cmake
       source_ref:
         description: Optional branch or tag to run this selector on
         required: false
@@ -23,6 +31,11 @@ on:
       family:
         description: Reference-generation family key (or all)
         required: true
+        type: string
+      build_tool:
+        description: Build tool used to generate reference artifacts
+        required: false
+        default: make
         type: string
 
 permissions:
@@ -50,20 +63,21 @@ jobs:
               ref: '${{ inputs.source_ref }}',
               inputs: {
                 family: '${{ inputs.family }}',
+                build_tool: '${{ inputs.build_tool }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
     runs-on: ubuntu-22.04
     outputs:
       matrix_linux: ${{ steps.generate.outputs.matrix_linux }}
-      matrix_host_vm: ${{ steps.generate.outputs.matrix_host_vm }}
+      matrix_bsd_vm: ${{ steps.generate.outputs.matrix_bsd_vm }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux: ${{ steps.generate.outputs.lane_count_linux }}
-      lane_count_host_vm: ${{ steps.generate.outputs.lane_count_host_vm }}
+      lane_count_bsd_vm: ${{ steps.generate.outputs.lane_count_bsd_vm }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
     steps:
       - name: Checkout
@@ -76,10 +90,12 @@ jobs:
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
+          SELECTED_BUILD_TOOL: ${{ inputs.build_tool }}
         run: |
           set -euo pipefail
           python3 ci/run/ref/build-ref-make-matrix.py \
             --selected-family "${SELECTED_FAMILY}" \
+            --build-tool "${SELECTED_BUILD_TOOL}" \
             --manifest "ci/run/ref/ref-make-families.yml" \
             --selector-workflow ".github/workflows/ref-make-select.yml" \
             --github-output "${GITHUB_OUTPUT}"
@@ -88,9 +104,10 @@ jobs:
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
+          echo "Build tool: ${{ inputs.build_tool }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
-          echo "Lane count (host_vm): ${{ steps.generate.outputs.lane_count_host_vm }}"
+          echo "Lane count (bsd_vm): ${{ steps.generate.outputs.lane_count_bsd_vm }}"
 
   ref-make-linux:
     needs: build-matrix
@@ -105,15 +122,15 @@ jobs:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
 
-  ref-make-host-vm:
+  ref-make-bsd-vm:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_host_vm != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 4
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_host_vm) }}
-    uses: ./.github/workflows/ref-make-reusable-host-vm.yml
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
+    uses: ./.github/workflows/ref-make-reusable-bsd-vm.yml
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}

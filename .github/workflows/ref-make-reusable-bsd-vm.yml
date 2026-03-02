@@ -1,4 +1,4 @@
-name: Reference Generation - Reusable Host/VM Lane
+name: Reference Generation - Reusable BSD VM Lane
 
 on:
   workflow_call:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  make-host-vm:
+  make-bsd-vm:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     env:

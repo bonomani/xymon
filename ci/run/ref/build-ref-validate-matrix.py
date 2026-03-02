@@ -27,6 +27,8 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
     "macos_host": "host",
 }
 
+SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
+
 def load_manifest(path: Path):
     manifest_data = load_manifest_common(
         path,
@@ -120,11 +122,12 @@ def infer_platform_version(platform_id: str) -> str:
     return parts[1].replace("_", ".")
 
 
-def normalize_lane(family_entry, lane, platform_catalog):
+def normalize_lane(family_entry, lane, platform_catalog, build_tool):
     lane_obj = dict(lane)
     lane_obj.setdefault("allow_failure", False)
     lane_obj.update(family_entry["runtime_overrides"])
     lane_obj.update(family_entry["lane_overrides"])
+    lane_obj["build_tool"] = build_tool
 
     platform_id = lane_obj.get("platform_id")
     if platform_id is not None:
@@ -209,6 +212,7 @@ def parse_args():
         description="Build matrix outputs for ref-validate-select.yml"
     )
     parser.add_argument("--selected-family", required=True)
+    parser.add_argument("--build-tool", default="cmake")
     parser.add_argument(
         "--manifest",
         default="ci/run/ref/ref-validate-families.yml",
@@ -230,6 +234,8 @@ def main():
     github_output = args.github_output
     if not github_output:
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
+    if args.build_tool not in SUPPORTED_BUILD_TOOLS:
+        die(f"Unsupported build tool: {args.build_tool}")
 
     families = load_manifest(Path(args.manifest))
     platform_catalog = load_platform_catalog(Path(args.platform_catalog))
@@ -257,7 +263,9 @@ def main():
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue
-            normalized = normalize_lane(family_entry, lane, platform_catalog)
+            normalized = normalize_lane(
+                family_entry, lane, platform_catalog, args.build_tool
+            )
             matrices[family_entry["runtime"]].append(
                 {
                     "family": family_entry["family"],
@@ -266,18 +274,22 @@ def main():
             )
 
     matrix_linux = {"include": matrices["linux_container"]}
-    matrix_host_vm = {"include": matrices["bsd_vm"] + matrices["macos_host"]}
+    matrix_bsd_vm = {"include": matrices["bsd_vm"]}
+    matrix_macos_host = {"include": matrices["macos_host"]}
     lane_count_linux = len(matrix_linux["include"])
-    lane_count_host_vm = len(matrix_host_vm["include"])
-    lane_count_total = lane_count_linux + lane_count_host_vm
+    lane_count_bsd_vm = len(matrix_bsd_vm["include"])
+    lane_count_macos_host = len(matrix_macos_host["include"])
+    lane_count_total = lane_count_linux + lane_count_bsd_vm + lane_count_macos_host
 
     output_path = Path(github_output)
     with output_path.open("a", encoding="utf-8") as fh:
         fh.write(f"matrix_linux={json.dumps(matrix_linux)}\n")
-        fh.write(f"matrix_host_vm={json.dumps(matrix_host_vm)}\n")
+        fh.write(f"matrix_bsd_vm={json.dumps(matrix_bsd_vm)}\n")
+        fh.write(f"matrix_macos_host={json.dumps(matrix_macos_host)}\n")
         fh.write(f"lane_count_total={lane_count_total}\n")
         fh.write(f"lane_count_linux={lane_count_linux}\n")
-        fh.write(f"lane_count_host_vm={lane_count_host_vm}\n")
+        fh.write(f"lane_count_bsd_vm={lane_count_bsd_vm}\n")
+        fh.write(f"lane_count_macos_host={lane_count_macos_host}\n")
         fh.write(f"selected_families={','.join(selected_families)}\n")
 
 
