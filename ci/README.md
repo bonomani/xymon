@@ -9,12 +9,39 @@ Use `ci/run` when you want to reuse the CI configure/build/install steps, and `c
 
 ## Ref runtime model
 
-The reference workflows use a small runtime vocabulary:
+The reference workflows use one shared runtime vocabulary:
 
-- Generation: `linux_host`, `bsd_vm`
-- Validation: `linux_container`, `bsd_vm`, `macos_host`
+- `linux_host`
+- `linux_container`
+- `bsd_vm`
+- `macos_host`
 
 These names describe the execution environment, not the package manager or transport detail. In particular, `linux_container` means a Linux job running inside a container; `bsd_vm` means a BSD guest started through the VM action; and `macos_host` means a native macOS runner.
+
+Generation and validation both route lanes through those runtime buckets. A
+given manifest can still use only the subset it actually needs today.
+
+## Ref family catalog
+
+Reference generation and reference validation now share one family catalog:
+`ci/run/ref/ref-families.yml`.
+
+Each family can expose a `generation` section, a `validation` section, or
+both. The selectors stay separate, but they derive their family lists from the
+same manifest and only see the purpose-specific entries.
+
+## Oracle Linux validation family
+
+Reference validation keeps Oracle Linux as its own Linux-container family even
+though it remains part of the RPM packaging world.
+
+- Recommended matrix: `oraclelinux:10`, `oraclelinux:8`
+- Optional matrix lanes: `oraclelinux:10` on arm64, `oraclelinux:10-slim`
+- Oracle Linux is RPM-based and uses `dnf` on OL8/9/10
+- Package payloads remain `.rpm`, and package presence checks use `rpm -q`
+
+The requested `oraclelinux:10-fips` lane is intentionally not wired because
+that tag is not currently published in the upstream container image set.
 
 ## Linting
 

@@ -1,0 +1,134 @@
+name: Reference Generation - Reusable Linux Container Lane
+
+on:
+  workflow_call:
+    inputs:
+      lane_name:
+        description: Display name for the lane
+        required: true
+        type: string
+      lane_json:
+        description: JSON-encoded lane object
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  linux-container:
+    name: ${{ inputs.lane_name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
+    container:
+      image: ${{ fromJSON(inputs.lane_json).container }}
+      options: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
+    env:
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
+      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
+      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
+      CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}
+      UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}
+      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
+    steps:
+      - name: Prepare container checkout environment
+        shell: sh
+        env:
+          GITHUB_TOKEN: ${{ github.token }}
+        run: |
+          set -eu
+          bootstrap_script="ci/run/ref/prepare-checkout-tools-bootstrap.sh"
+          if [ ! -f "${bootstrap_script}" ]; then
+            url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ci/run/ref/prepare-checkout-tools-bootstrap.sh?ref=${GITHUB_SHA}"
+            bootstrap_script="/tmp/prepare-checkout-tools-bootstrap.sh"
+
+            run_as_root() {
+              if command -v sudo >/dev/null 2>&1; then
+                sudo "$@"
+              else
+                "$@"
+              fi
+            }
+
+            if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
+              if command -v apt-get >/dev/null 2>&1; then
+                run_as_root apt-get update
+                run_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
+                  apt-get install -y --no-install-recommends ca-certificates curl wget
+              elif command -v zypper >/dev/null 2>&1; then
+                run_as_root zypper --non-interactive refresh
+                run_as_root zypper --non-interactive install ca-certificates curl wget
+              elif command -v apk >/dev/null 2>&1; then
+                run_as_root apk add --no-cache ca-certificates curl wget
+              elif command -v dnf >/dev/null 2>&1; then
+                run_as_root dnf -y install ca-certificates curl wget
+              elif command -v yum >/dev/null 2>&1; then
+                run_as_root yum -y install ca-certificates curl wget
+              elif command -v pacman >/dev/null 2>&1; then
+                run_as_root pacman -Sy --noconfirm archlinux-keyring || true
+                run_as_root pacman -S --noconfirm ca-certificates curl wget
+              else
+                echo "Need curl or wget to bootstrap prepare-checkout-tools-bootstrap.sh" >&2
+                exit 1
+              fi
+            fi
+
+            if command -v curl >/dev/null 2>&1; then
+              if [ -n "${GITHUB_TOKEN:-}" ]; then
+                curl -fsSL \
+                  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                  -H "Accept: application/vnd.github.raw" \
+                  "${url}" \
+                  -o "${bootstrap_script}"
+              else
+                curl -fsSL \
+                  -H "Accept: application/vnd.github.raw" \
+                  "${url}" \
+                  -o "${bootstrap_script}"
+              fi
+            else
+              if [ -n "${GITHUB_TOKEN:-}" ]; then
+                wget -qO "${bootstrap_script}" \
+                  --header="Authorization: Bearer ${GITHUB_TOKEN}" \
+                  --header="Accept: application/vnd.github.raw" \
+                  "${url}"
+              else
+                wget -qO "${bootstrap_script}" \
+                  --header="Accept: application/vnd.github.raw" \
+                  "${url}"
+              fi
+            fi
+            chmod +x "${bootstrap_script}"
+          fi
+
+          sh "${bootstrap_script}" \
+            --prepare-profile "${PREPARE_PROFILE}" \
+            --checkout-mode "${CHECKOUT_MODE}"
+
+      - name: Checkout
+        if: ${{ env.CHECKOUT_MODE == 'action' }}
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Bootstrap install + refs on Linux container
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/bootstrap-make-refs.sh
+
+      - name: Upload legacy references
+        if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
+          path: |
+            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+          if-no-files-found: error
+
+      - name: Skip artifacts when upload is disabled
+        if: ${{ env.UPLOAD_ARTIFACTS != '1' }}
+        shell: bash
+        run: |
+          echo "Skipping actions/upload-artifact for this lane."

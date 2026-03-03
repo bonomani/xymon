@@ -143,6 +143,151 @@ def load_manifest_common(path: Path, *, supported_runtimes, include_lane_default
     }
 
 
+def load_purpose_manifest_common(
+    path: Path,
+    *,
+    purpose: str,
+    supported_runtimes,
+    include_lane_defaults=False,
+):
+    if not path.exists():
+        die(f"Missing families manifest: {path}")
+
+    data = yaml.safe_load(path.read_text()) or {}
+    data = require_mapping(data, f"Manifest root in {path}")
+
+    purpose = require_non_empty_string(purpose, f"Manifest purpose in {path}")
+    supported_runtime_keys = set(supported_runtimes)
+
+    runtime_defaults_root = data.get("runtime_defaults", {})
+    if runtime_defaults_root is None:
+        runtime_defaults_root = {}
+    runtime_defaults_root = require_mapping(
+        runtime_defaults_root, f"Manifest runtime_defaults in {path}"
+    )
+    runtime_defaults_raw = runtime_defaults_root.get(purpose, {})
+    if runtime_defaults_raw is None:
+        runtime_defaults_raw = {}
+    runtime_defaults_raw = require_mapping(
+        runtime_defaults_raw, f"Manifest runtime_defaults.{purpose} in {path}"
+    )
+
+    runtime_defaults = {}
+    for runtime_key, defaults in runtime_defaults_raw.items():
+        runtime_key = require_non_empty_string(
+            runtime_key, f"Manifest runtime_defaults.{purpose} key in {path}"
+        )
+        if runtime_key not in supported_runtime_keys:
+            die(
+                f"Manifest has invalid runtime_defaults.{purpose} key '{runtime_key}'"
+            )
+        runtime_defaults[runtime_key] = require_mapping(
+            defaults, f"Manifest runtime_defaults.{purpose}.{runtime_key}"
+        )
+
+    lane_defaults = {}
+    if include_lane_defaults:
+        lane_defaults_root = data.get("lane_defaults", {})
+        if lane_defaults_root is None:
+            lane_defaults_root = {}
+        lane_defaults_root = require_mapping(
+            lane_defaults_root, f"Manifest lane_defaults in {path}"
+        )
+        lane_defaults_raw = lane_defaults_root.get(purpose, {})
+        if lane_defaults_raw is None:
+            lane_defaults_raw = {}
+        lane_defaults_raw = require_mapping(
+            lane_defaults_raw, f"Manifest lane_defaults.{purpose} in {path}"
+        )
+
+        for runtime_key, defaults in lane_defaults_raw.items():
+            runtime_key = require_non_empty_string(
+                runtime_key, f"Manifest lane_defaults.{purpose} key in {path}"
+            )
+            if runtime_key not in supported_runtime_keys:
+                die(
+                    f"Manifest has invalid lane_defaults.{purpose} key '{runtime_key}'"
+                )
+            defaults = require_mapping(
+                defaults, f"Manifest lane_defaults.{purpose}.{runtime_key}"
+            )
+            lane_defaults[runtime_key] = {}
+            for default_name, default_value in defaults.items():
+                default_name = require_non_empty_string(
+                    default_name,
+                    f"Manifest lane_defaults.{purpose}.{runtime_key} default name in {path}",
+                )
+                lane_defaults[runtime_key][default_name] = require_mapping(
+                    default_value,
+                    f"Manifest lane_defaults.{purpose}.{runtime_key}.{default_name}",
+                )
+
+    entries = data.get("families")
+    if not isinstance(entries, list) or not entries:
+        die(f"Manifest has no families list: {path}")
+
+    normalized_entries = []
+    seen_families = set()
+    for index, raw in enumerate(entries):
+        entry = require_mapping(raw, f"Manifest entry #{index}")
+        family = require_non_empty_string(
+            entry.get("family"), f"Manifest entry #{index}.family"
+        )
+        if family in seen_families:
+            die(f"Duplicate family in manifest: {family}")
+        seen_families.add(family)
+
+        purpose_entry = entry.get(purpose)
+        if purpose_entry is None:
+            continue
+        purpose_entry = require_mapping(
+            purpose_entry, f"Manifest entry {family}.{purpose}"
+        )
+
+        enabled = purpose_entry.get("enabled", True)
+        if enabled is False:
+            continue
+        if enabled is not True:
+            die(f"Manifest entry {family}.{purpose}.enabled must be a boolean")
+
+        runtime = require_non_empty_string(
+            purpose_entry.get("runtime"), f"Manifest entry {family}.{purpose}.runtime"
+        )
+        lane_file = require_non_empty_string(
+            purpose_entry.get("lane_file"),
+            f"Manifest entry {family}.{purpose}.lane_file",
+        )
+
+        if runtime not in supported_runtime_keys:
+            die(
+                f"Manifest entry {family}.{purpose} has invalid runtime '{runtime}'"
+            )
+
+        lane_overrides = purpose_entry.get("lane_overrides", {})
+        if lane_overrides is None:
+            lane_overrides = {}
+        lane_overrides = require_mapping(
+            lane_overrides, f"Manifest entry {family}.{purpose}.lane_overrides"
+        )
+
+        normalized_entries.append(
+            {
+                "family": family,
+                "runtime": runtime,
+                "lane_file": lane_file,
+                "lane_overrides": lane_overrides,
+                "raw": purpose_entry,
+                "family_raw": entry,
+            }
+        )
+
+    return {
+        "runtime_defaults": runtime_defaults,
+        "lane_defaults": lane_defaults,
+        "entries": normalized_entries,
+    }
+
+
 def load_lanes_from_file(
     lane_file: Path,
     *,

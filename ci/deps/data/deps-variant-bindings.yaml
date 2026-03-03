@@ -23,6 +23,10 @@ bindings:
       profile: linux_default
     rockylinux_9:
       profile: linux_default
+    oraclelinux_8:
+      profile: linux_default
+    oraclelinux_10:
+      profile: linux_default
     almalinux_8:
       profile: linux_default
     almalinux_9:

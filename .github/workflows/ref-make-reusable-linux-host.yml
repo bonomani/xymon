@@ -1,4 +1,4 @@
-name: Reference Generation - Reusable Linux Lane
+name: Reference Generation - Reusable Linux Host Lane
 
 on:
   workflow_call:
@@ -16,7 +16,7 @@ permissions:
   contents: read
 
 jobs:
-  make-linux:
+  linux-host:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     env:
@@ -24,6 +24,7 @@ jobs:
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
+      UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -35,9 +36,16 @@ jobs:
           bash ci/run/ref/bootstrap-make-refs.sh
 
       - name: Upload legacy references
+        if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
           path: |
             ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
           if-no-files-found: error
+
+      - name: Skip artifacts when upload is disabled
+        if: ${{ env.UPLOAD_ARTIFACTS != '1' }}
+        shell: bash
+        run: |
+          echo "Skipping actions/upload-artifact for this lane."

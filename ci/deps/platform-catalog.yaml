@@ -8,6 +8,9 @@ binding_profiles:
   rockylinux:
     family: rpm
     os: rockylinux
+  oraclelinux:
+    family: rpm
+    os: oraclelinux
   almalinux:
     family: rpm
     os: almalinux
@@ -95,6 +98,24 @@ platforms:
     deps:
       profile: rockylinux
       version: 9
+  oraclelinux-10:
+    runtime: docker
+    image: oraclelinux:10
+    deps:
+      profile: oraclelinux
+      version: 10
+  oraclelinux-10-slim:
+    runtime: docker
+    image: oraclelinux:10-slim
+    deps:
+      profile: oraclelinux
+      version: 10
+  oraclelinux-8:
+    runtime: docker
+    image: oraclelinux:8
+    deps:
+      profile: oraclelinux
+      version: 8
   almalinux-8:
     runtime: docker
     image: almalinux:8

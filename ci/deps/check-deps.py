@@ -28,7 +28,7 @@ DEFAULT_VERSION_NOTES_FILE = DATA_DIR / "deps-version-notes.yaml"
 MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
-REF_VALIDATE_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-validate-families.yml"
+REF_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-families.yml"
 REF_LANE_UTILS_DIR = ROOT / "ci" / "run" / "ref"
 
 if str(REF_LANE_UTILS_DIR) not in sys.path:
@@ -40,6 +40,7 @@ try:
         expand_lane_variants,
         extract_lane_include,
     )
+    from matrix_common import load_purpose_manifest_common  # type: ignore
 except Exception as exc:  # pragma: no cover
     print(f"Failed to import lane_utils helpers: {exc}")
     sys.exit(2)
@@ -542,27 +543,28 @@ def find_package_steps(workflow: dict) -> list[str]:
 def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
     lanes: list[tuple[str, Path, str, dict]] = []
 
-    if not REF_VALIDATE_FAMILIES_MANIFEST.exists():
-        print(f"   ERROR: missing ref-validation families manifest: {REF_VALIDATE_FAMILIES_MANIFEST}")
+    if not REF_FAMILIES_MANIFEST.exists():
+        print(f"   ERROR: missing ref families manifest: {REF_FAMILIES_MANIFEST}")
         return lanes
 
-    manifest = load_yaml(REF_VALIDATE_FAMILIES_MANIFEST)
-    family_entries = manifest.get("families", [])
-    if not isinstance(family_entries, list):
-        print(f"   ERROR: {REF_VALIDATE_FAMILIES_MANIFEST} families must be a list")
+    try:
+        manifest = load_purpose_manifest_common(
+            REF_FAMILIES_MANIFEST,
+            purpose="validation",
+            supported_runtimes=(
+                "linux_host",
+                "linux_container",
+                "bsd_vm",
+                "macos_host",
+            ),
+        )
+    except SystemExit as exc:
+        print(f"   ERROR: {exc}")
         return lanes
 
-    for entry in family_entries:
-        if not isinstance(entry, dict):
-            continue
-
-        family = entry.get("family")
-        lane_file = entry.get("lane_file")
-        if not isinstance(family, str) or not family.strip():
-            continue
-        if not isinstance(lane_file, str) or not lane_file.strip():
-            print(f"   ERROR: family '{family}' missing lane_file in {REF_VALIDATE_FAMILIES_MANIFEST}")
-            continue
+    for entry in manifest["entries"]:
+        family = entry["family"]
+        lane_file = entry["lane_file"]
 
         lane_path = ROOT / lane_file
         if not lane_path.exists():

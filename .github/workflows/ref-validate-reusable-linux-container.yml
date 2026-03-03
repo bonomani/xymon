@@ -1,4 +1,4 @@
-name: Reference Validation - Reusable Linux Lane
+name: Reference Validation - Reusable Linux Container Lane
 
 on:
   workflow_call:
@@ -38,7 +38,7 @@ jobs:
       CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0' }}
     steps:
-      - name: Prepare checkout tools in container
+      - name: Prepare container checkout environment
         shell: sh
         env:
           GITHUB_TOKEN: ${{ github.token }}
@@ -108,83 +108,26 @@ jobs:
             chmod +x "${bootstrap_script}"
           fi
 
-          sh "${bootstrap_script}" --prepare-profile "${PREPARE_PROFILE}"
+          sh "${bootstrap_script}" \
+            --prepare-profile "${PREPARE_PROFILE}" \
+            --checkout-mode "${CHECKOUT_MODE}"
 
       - name: Checkout
         if: ${{ env.CHECKOUT_MODE == 'action' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-
-      - name: Checkout (git, no Node action)
-        if: ${{ env.CHECKOUT_MODE == 'git' }}
-        shell: sh
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          repo_url="${GITHUB_SERVER_URL}/${GITHUB_REPOSITORY}.git"
-          workdir="${GITHUB_WORKSPACE:-}"
-          if [ -z "${workdir}" ]; then
-            echo "GITHUB_WORKSPACE is not set" >&2
-            exit 1
-          fi
-
-          mkdir -p "${workdir}"
-          cd "${workdir}"
-          git config --global --add safe.directory "${workdir}"
-          git config --global --add safe.directory "$(pwd)"
-          rm -rf .git
-          git init .
-          git remote add origin "${repo_url}"
-          if [ -n "${GITHUB_TOKEN:-}" ]; then
-            auth_header="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\r\n')"
-            git config http."${GITHUB_SERVER_URL}/".extraheader "AUTHORIZATION: basic ${auth_header}"
-          fi
-          git fetch --depth=1 origin "${GITHUB_SHA}"
-          git checkout --force FETCH_HEAD
-
-      - name: Load legacy hostname (runs for each matrix variant)
+      - name: Run shared Linux validation sequence
         shell: bash
         run: |
           set -euo pipefail
-          bash ci/run/ref/load-legacy-hostname.sh \
-            --config "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/server/var/lib/xymon/server/etc/xymonserver.cfg"
-
-      - name: Seed baseline UID/GID identities (container)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/seed-legacy-identities.sh \
-            --passwd "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}/owners.passwd" \
-            --group "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}/owners.group"
-
-      - name: Bootstrap install + refs snapshot
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/bootstrap-build-refs.sh \
+          bash ci/run/ref/run-linux-ref-validation.sh \
             --build "${BUILD_TOOL}" \
-            --os linux \
             --variant "${VARIANT}" \
-            --ref-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --refs-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs" \
-            --artifact-root ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/${BUILD_TOOL}-${PLATFORM_ID}-${VARIANT}"
-
-      - name: Load staged tree metadata
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/load-staged-metadata.sh
-
-      - name: Compare refs snapshot (blocking policy checks)
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/compare-refs.sh \
-            --baseline-prefix "docs/cmake-legacy-migration/refs/${BASELINE_ROOT}/${VARIANT}" \
-            --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/${BUILD_TOOL}.linux.${VARIANT}" \
-            --candidate-root "${LEGACY_ROOT}"
+            --baseline-root "${BASELINE_ROOT}" \
+            --ref-os "${REF_OS}" \
+            --artifact-family "${ARTIFACT_FAMILY}" \
+            --platform-id "${PLATFORM_ID}"
 
       - name: Upload artifacts
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' }}
@@ -195,8 +138,8 @@ jobs:
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/**
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
 
-      - name: Skip artifacts when Node-based actions are unsupported
+      - name: Skip artifacts when upload is disabled
         if: ${{ always() && env.UPLOAD_ARTIFACTS != '1' }}
         shell: bash
         run: |
-          echo "Skipping actions/upload-artifact for this lane (Node-based actions unsupported in this environment)."
+          echo "Skipping actions/upload-artifact for this lane."

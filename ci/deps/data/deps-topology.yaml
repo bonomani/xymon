@@ -33,6 +33,12 @@ build:
     rockylinux_9:
       packagers:
         dnf: {}
+    oraclelinux_8:
+      packagers:
+        dnf: {}
+    oraclelinux_10:
+      packagers:
+        dnf: {}
     almalinux_8:
       packagers:
         dnf: {}

@@ -2,16 +2,21 @@
 set -eu
 
 prepare_profile="${PREPARE_PROFILE:-default}"
+checkout_mode="${CHECKOUT_MODE:-action}"
 install_script_path="ci/deps/install-checkout-tools.sh"
 bootstrap_root="/tmp/ci-deps-bootstrap"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: prepare-checkout-tools-bootstrap.sh [--prepare-profile PROFILE]
+Usage: prepare-checkout-tools-bootstrap.sh [--prepare-profile PROFILE] [--checkout-mode MODE]
 
 Ensures checkout/runtime tools are available in Linux container lanes.
 When repository scripts are not available yet, bootstraps them from
 the workflow commit via the GitHub Contents API.
+
+Modes:
+  action  Install checkout/runtime tools only.
+  git     Install checkout/runtime tools, then perform a manual git checkout.
 USAGE
 }
 
@@ -19,6 +24,10 @@ while [ $# -gt 0 ]; do
   case "$1" in
     --prepare-profile)
       prepare_profile="${2:-}"
+      shift 2
+      ;;
+    --checkout-mode)
+      checkout_mode="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -106,6 +115,35 @@ fetch_repo_file() {
   fi
 }
 
+git_checkout_fallback() {
+  repo_server="${GITHUB_SERVER_URL:-https://github.com}"
+  repo_url="${repo_server}/${GITHUB_REPOSITORY}.git"
+  workdir="${GITHUB_WORKSPACE:-}"
+
+  if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_SHA:-}" ]; then
+    echo "GITHUB_REPOSITORY and GITHUB_SHA must be set for checkout-mode=git" >&2
+    exit 1
+  fi
+  if [ -z "${workdir}" ]; then
+    echo "GITHUB_WORKSPACE is not set" >&2
+    exit 1
+  fi
+
+  mkdir -p "${workdir}"
+  cd "${workdir}"
+  git config --global --add safe.directory "${workdir}"
+  git config --global --add safe.directory "$(pwd)"
+  rm -rf .git
+  git init .
+  git remote add origin "${repo_url}"
+  if [ -n "${GITHUB_TOKEN:-}" ]; then
+    auth_header="$(printf 'x-access-token:%s' "${GITHUB_TOKEN}" | base64 | tr -d '\r\n')"
+    git config http."${repo_server}/".extraheader "AUTHORIZATION: basic ${auth_header}"
+  fi
+  git fetch --depth=1 origin "${GITHUB_SHA}"
+  git checkout --force FETCH_HEAD
+}
+
 if [ ! -f "${install_script_path}" ]; then
   if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_SHA:-}" ]; then
     echo "GITHUB_REPOSITORY and GITHUB_SHA must be set when bootstrap is required" >&2
@@ -123,3 +161,16 @@ if [ ! -f "${install_script_path}" ]; then
 fi
 
 sh "${install_script_path}" --prepare-profile "${prepare_profile}"
+
+case "${checkout_mode}" in
+  action)
+    ;;
+  git)
+    git_checkout_fallback
+    ;;
+  *)
+    echo "Unsupported checkout mode: ${checkout_mode}" >&2
+    usage
+    exit 2
+    ;;
+esac
