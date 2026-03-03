@@ -73,4 +73,5 @@ CMakePresets.user.json
 .vscode/
 build-cmake-gnu/
 build/*
+!build/Makefile.Darwin
 artifacts/
