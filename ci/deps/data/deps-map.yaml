@@ -7,7 +7,7 @@ package_templates:
     zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
     apk: [bash, build-base, cmake, ninja, git, findutils, diffutils]
     pacman: [base-devel, cmake, ninja, git, findutils, diffutils]
-    brew: [cmake, ninja]
+    brew: [make, cmake, ninja]
     pkg: [gmake, cmake, ninja]
     pkg_add: [gmake, cmake, ninja]
 
