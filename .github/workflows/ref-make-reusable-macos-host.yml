@@ -1,4 +1,4 @@
-name: Reference Generation - Reusable BSD VM Lane
+name: Reference Generation - Reusable macOS Host Lane
 
 on:
   workflow_call:
@@ -16,42 +16,28 @@ permissions:
   contents: read
 
 jobs:
-  make-bsd-vm:
+  macos-host:
     name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runner || fromJSON(inputs.lane_json).runs_on || 'macos-latest' }}
+    continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version || '' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
-      VM_MEMORY: ${{ fromJSON(inputs.lane_json).vm_memory || '1024M' }}
-      VM_CPU_COUNT: ${{ fromJSON(inputs.lane_json).vm_cpu_count || 2 }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
-
-      - name: Bootstrap install + refs on BSD VM
-        uses: ./.github/actions/run-bsd-vm-with-retry
         with:
-          operating_system: ${{ env.REF_OS }}
-          architecture: ${{ env.ARCHITECTURE }}
-          version: ${{ env.OS_VERSION }}
-          shell: bash
-          memory: ${{ env.VM_MEMORY }}
-          cpu_count: ${{ env.VM_CPU_COUNT }}
-          sync_files: true
-          shutdown_vm: true
-          run_script: |
-            set -euo pipefail
-            export BUILD_TOOL="${{ env.BUILD_TOOL }}"
-            export REF_OS="${{ env.REF_OS }}"
-            export OS_VERSION="${{ env.OS_VERSION }}"
-            export VARIANT="${{ env.VARIANT }}"
-            export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
-            bash ci/run/ref/bootstrap-make-refs.sh
+          fetch-depth: 1
+
+      - name: Bootstrap install + refs on macOS host
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/bootstrap-make-refs.sh
 
       - name: Upload legacy references
         if: ${{ env.UPLOAD_ARTIFACTS == '1' }}

@@ -9,19 +9,21 @@ import yaml
 from matrix_common import (
     die,
     load_lanes_from_file,
-    load_manifest_common,
+    load_purpose_manifest_common,
     require_mapping,
     require_non_empty_string,
     validate_dropdown_parity,
 )
 
 RUNTIME_TO_MATRIX_KEY = {
+    "linux_host": "linux_host",
     "linux_container": "linux",
     "bsd_vm": "bsd",
     "macos_host": "macos",
 }
 
 RUNTIME_TO_PLATFORM_RUNTIME = {
+    "linux_host": "host",
     "linux_container": "docker",
     "bsd_vm": "vm",
     "macos_host": "host",
@@ -30,8 +32,9 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 
 def load_manifest(path: Path):
-    manifest_data = load_manifest_common(
+    manifest_data = load_purpose_manifest_common(
         path,
+        purpose="validation",
         supported_runtimes=RUNTIME_TO_MATRIX_KEY,
         include_lane_defaults=True,
     )
@@ -127,6 +130,7 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
     lane_obj.setdefault("allow_failure", False)
     lane_obj.update(family_entry["runtime_overrides"])
     lane_obj.update(family_entry["lane_overrides"])
+    lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
 
     platform_id = lane_obj.get("platform_id")
@@ -204,6 +208,36 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
     if runner_key:
         lane_obj.setdefault(runner_key, family_entry["default_runner"])
 
+    required = ("name", "variant", "runtime", "build_tool", "ref_os")
+    for key in required:
+        if lane_obj.get(key) in (None, ""):
+            die(
+                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+                f"'{family_entry['family']}' is missing '{key}'"
+            )
+
+    runtime = lane_obj["runtime"]
+    if runtime in {"linux_host", "linux_container", "bsd_vm"} and lane_obj.get("runs_on") in (
+        None,
+        "",
+    ):
+        die(
+            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+            f"'{family_entry['family']}' is missing 'runs_on'"
+        )
+    if runtime == "linux_container" and lane_obj.get("container") in (None, ""):
+        die(
+            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+            f"'{family_entry['family']}' is missing 'container'"
+        )
+    if runtime == "macos_host" and lane_obj.get("runner") in (None, "") and lane_obj.get(
+        "runs_on"
+    ) in (None, ""):
+        die(
+            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+            f"'{family_entry['family']}' is missing 'runner' or 'runs_on'"
+        )
+
     return lane_obj
 
 
@@ -215,7 +249,7 @@ def parse_args():
     parser.add_argument("--build-tool", default="cmake")
     parser.add_argument(
         "--manifest",
-        default="ci/run/ref/ref-validate-families.yml",
+        default="ci/run/ref/ref-families.yml",
     )
     parser.add_argument(
         "--selector-workflow",
@@ -237,10 +271,11 @@ def main():
     if args.build_tool not in SUPPORTED_BUILD_TOOLS:
         die(f"Unsupported build tool: {args.build_tool}")
 
-    families = load_manifest(Path(args.manifest))
-    platform_catalog = load_platform_catalog(Path(args.platform_catalog))
+    repo_root = Path(__file__).resolve().parents[3]
+    families = load_manifest(repo_root / args.manifest)
+    platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
     expected_options = ["all"] + [entry["family"] for entry in families]
-    validate_dropdown_parity(Path(args.selector_workflow), expected_options)
+    validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
 
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
@@ -257,7 +292,7 @@ def main():
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
         lanes = load_lanes_from_file(
-            Path(family_entry["lane_file"]),
+            repo_root / family_entry["lane_file"],
             shared_defaults=family_entry.get("lane_defaults", {}),
         )
         for lane in lanes:
@@ -273,21 +308,30 @@ def main():
                 }
             )
 
-    matrix_linux = {"include": matrices["linux_container"]}
+    matrix_linux_host = {"include": matrices["linux_host"]}
+    matrix_linux_container = {"include": matrices["linux_container"]}
     matrix_bsd_vm = {"include": matrices["bsd_vm"]}
     matrix_macos_host = {"include": matrices["macos_host"]}
-    lane_count_linux = len(matrix_linux["include"])
+    lane_count_linux_host = len(matrix_linux_host["include"])
+    lane_count_linux_container = len(matrix_linux_container["include"])
     lane_count_bsd_vm = len(matrix_bsd_vm["include"])
     lane_count_macos_host = len(matrix_macos_host["include"])
-    lane_count_total = lane_count_linux + lane_count_bsd_vm + lane_count_macos_host
+    lane_count_total = (
+        lane_count_linux_host
+        + lane_count_linux_container
+        + lane_count_bsd_vm
+        + lane_count_macos_host
+    )
 
     output_path = Path(github_output)
     with output_path.open("a", encoding="utf-8") as fh:
-        fh.write(f"matrix_linux={json.dumps(matrix_linux)}\n")
+        fh.write(f"matrix_linux_host={json.dumps(matrix_linux_host)}\n")
+        fh.write(f"matrix_linux_container={json.dumps(matrix_linux_container)}\n")
         fh.write(f"matrix_bsd_vm={json.dumps(matrix_bsd_vm)}\n")
         fh.write(f"matrix_macos_host={json.dumps(matrix_macos_host)}\n")
         fh.write(f"lane_count_total={lane_count_total}\n")
-        fh.write(f"lane_count_linux={lane_count_linux}\n")
+        fh.write(f"lane_count_linux_host={lane_count_linux_host}\n")
+        fh.write(f"lane_count_linux_container={lane_count_linux_container}\n")
         fh.write(f"lane_count_bsd_vm={lane_count_bsd_vm}\n")
         fh.write(f"lane_count_macos_host={lane_count_macos_host}\n")
         fh.write(f"selected_families={','.join(selected_families)}\n")

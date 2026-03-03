@@ -92,7 +92,7 @@ elif command -v apk >/dev/null 2>&1; then
   ci_deps_as_root apk add --no-cache tar git bash gawk ca-certificates
 elif command -v dnf >/dev/null 2>&1; then
   dnf_repo_args=()
-  if [[ "${prepare_profile}" == "rpm" ]] && ci_deps_configure_rocky_fallback_repos ""; then
+  if [[ "${prepare_profile}" == "redhat" ]] && ci_deps_configure_rocky_fallback_repos ""; then
     ci_deps_parse_os_release || true
     if [[ "${CI_DEPS_OS_ID:-}" == "rocky" ]]; then
       dnf_repo_args=(
@@ -116,7 +116,7 @@ elif command -v yum >/dev/null 2>&1; then
       --enablerepo=centos7-vault-updates
       --enablerepo=centos7-vault-extras
     )
-  elif [[ "${prepare_profile}" == "rpm" ]] && ci_deps_configure_rocky_fallback_repos ""; then
+  elif [[ "${prepare_profile}" == "redhat" ]] && ci_deps_configure_rocky_fallback_repos ""; then
     ci_deps_parse_os_release || true
     if [[ "${CI_DEPS_OS_ID:-}" == "rocky" ]]; then
       yum_repo_args=(

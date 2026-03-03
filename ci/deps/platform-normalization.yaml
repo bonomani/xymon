@@ -30,6 +30,16 @@ normalization:
       os: rockylinux
       pkgmgr: dnf
       version_mode: major
+    ol:
+      family: rpm
+      os: oraclelinux
+      pkgmgr: dnf
+      version_mode: major
+    oraclelinux:
+      family: rpm
+      os: oraclelinux
+      pkgmgr: dnf
+      version_mode: major
     almalinux:
       family: rpm
       os: almalinux

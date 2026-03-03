@@ -19,7 +19,9 @@ on:
           - netbsd
           - openbsd
           - opensuse
-          - rpm
+          - redhat
+          - fedora
+          - oraclelinux
           - ubuntu
       build_tool:
         description: Build tool used for the validation candidate
@@ -80,11 +82,13 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
     runs-on: ubuntu-22.04
     outputs:
-      matrix_linux: ${{ steps.generate.outputs.matrix_linux }}
+      matrix_linux_host: ${{ steps.generate.outputs.matrix_linux_host }}
+      matrix_linux_container: ${{ steps.generate.outputs.matrix_linux_container }}
       matrix_bsd_vm: ${{ steps.generate.outputs.matrix_bsd_vm }}
       matrix_macos_host: ${{ steps.generate.outputs.matrix_macos_host }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
-      lane_count_linux: ${{ steps.generate.outputs.lane_count_linux }}
+      lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
+      lane_count_linux_container: ${{ steps.generate.outputs.lane_count_linux_container }}
       lane_count_bsd_vm: ${{ steps.generate.outputs.lane_count_bsd_vm }}
       lane_count_macos_host: ${{ steps.generate.outputs.lane_count_macos_host }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
@@ -105,7 +109,7 @@ jobs:
           python3 ci/run/ref/build-ref-validate-matrix.py \
             --selected-family "${SELECTED_FAMILY}" \
             --build-tool "${SELECTED_BUILD_TOOL}" \
-            --manifest "ci/run/ref/ref-validate-families.yml" \
+            --manifest "ci/run/ref/ref-families.yml" \
             --selector-workflow ".github/workflows/ref-validate-select.yml" \
             --github-output "${GITHUB_OUTPUT}"
 
@@ -115,19 +119,34 @@ jobs:
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Build tool: ${{ inputs.build_tool }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
-          echo "Lane count (linux): ${{ steps.generate.outputs.lane_count_linux }}"
+          echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
+          echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
           echo "Lane count (bsd_vm): ${{ steps.generate.outputs.lane_count_bsd_vm }}"
           echo "Lane count (macos_host): ${{ steps.generate.outputs.lane_count_macos_host }}"
 
-  ref-validate-linux:
+  ref-validate-linux-host:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-linux-host.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+
+  ref-validate-linux-container:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' }}
     strategy:
       fail-fast: false
       max-parallel: 8
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux) }}
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
     name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-linux.yml
+    uses: ./.github/workflows/ref-validate-reusable-linux-container.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
