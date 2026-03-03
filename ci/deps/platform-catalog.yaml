@@ -101,12 +101,14 @@ platforms:
   oraclelinux-10:
     runtime: docker
     image: oraclelinux:10
+    supported_build_tools: [cmake]
     deps:
       profile: oraclelinux
       version: 10
   oraclelinux-10-slim:
     runtime: docker
     image: oraclelinux:10-slim
+    supported_build_tools: [cmake]
     deps:
       profile: oraclelinux
       version: 10
@@ -131,6 +133,7 @@ platforms:
   almalinux-10:
     runtime: docker
     image: almalinux:10
+    supported_build_tools: [cmake]
     deps:
       profile: almalinux
       version: 10
