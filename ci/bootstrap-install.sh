@@ -362,7 +362,7 @@ configure_build_make() {
   export ENABLESSL=y
   export ENABLELDAP
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
-  export XYMONUSER=xymon
+  export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
   export CC=cc
