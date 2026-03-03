@@ -84,7 +84,9 @@ bash ci/run/ref/bootstrap-build-refs.sh \
   --refs-root "${refs_root}" \
   --artifact-root "${artifact_root}"
 
-bash ci/run/ref/load-staged-metadata.sh
+# This helper must run in the current shell so LEGACY_ROOT and friends remain available.
+# shellcheck source=ci/run/ref/load-staged-metadata.sh
+source ci/run/ref/load-staged-metadata.sh
 
 bash ci/compare-refs.sh \
   --baseline-prefix "${baseline_prefix}" \
