@@ -22,6 +22,25 @@ def require_non_empty_string(value, context: str) -> str:
     return value
 
 
+def parse_supported_build_tools(value, context: str, *, supported_values=None):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, list) and value:
+        values = value
+    else:
+        die(f"{context} must be a non-empty string or list")
+
+    normalized = []
+    for index, raw in enumerate(values):
+        tool = require_non_empty_string(raw, f"{context} entry #{index}")
+        if supported_values is not None and tool not in supported_values:
+            die(f"{context} entry #{index} has unsupported value '{tool}'")
+        normalized.append(tool)
+    return normalized
+
+
 def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
     if not selector_workflow_path.exists():
         die(f"Missing selector workflow: {selector_workflow_path}")

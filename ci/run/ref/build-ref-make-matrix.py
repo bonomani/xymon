@@ -10,6 +10,7 @@ from matrix_common import (
     die,
     load_lanes_from_file,
     load_purpose_manifest_common,
+    parse_supported_build_tools,
     require_mapping,
     require_non_empty_string,
     validate_dropdown_parity,
@@ -126,6 +127,14 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
+    supported_build_tools = parse_supported_build_tools(
+        lane_obj.pop("supported_build_tools", None),
+        (
+            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+            f"'{family_entry['family']}' supported_build_tools"
+        ),
+        supported_values=SUPPORTED_BUILD_TOOLS,
+    )
 
     platform_id = lane_obj.get("platform_id")
     if platform_id is not None:
@@ -138,6 +147,13 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
             die(
                 f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
                 f"'{family_entry['family']}' references unknown platform_id '{platform_id}'"
+            )
+
+        if supported_build_tools is None:
+            supported_build_tools = parse_supported_build_tools(
+                platform_entry.get("supported_build_tools"),
+                f"Platform '{platform_id}'.supported_build_tools",
+                supported_values=SUPPORTED_BUILD_TOOLS,
             )
 
         platform_runtime = require_non_empty_string(
@@ -178,6 +194,9 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
                 inferred_version = infer_platform_version(platform_id)
             if inferred_version:
                 lane_obj[os_version_key] = inferred_version
+
+    if supported_build_tools is not None and build_tool not in supported_build_tools:
+        return None
 
     arm64_overrides = family_entry["container_arm64_overrides"]
     if arm64_overrides and family_entry["runtime"] == "linux_container":
@@ -290,6 +309,8 @@ def main():
             normalized = normalize_lane(
                 family_entry, lane, platform_catalog, args.build_tool
             )
+            if normalized is None:
+                continue
             runtime = normalized.get("runtime")
             matrices[runtime].append(
                 {
