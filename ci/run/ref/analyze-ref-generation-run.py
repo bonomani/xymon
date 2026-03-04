@@ -103,7 +103,7 @@ def api_get(repo: str, token: str, path: str, params: dict[str, str] | None = No
         return json.load(response)
 
 
-def http_get_bytes(repo: str, token: str, url: str, accept: str = "application/octet-stream") -> bytes:
+def http_get_bytes(repo: str, token: str, url: str, accept: str = "application/vnd.github+json") -> bytes:
     request = urllib.request.Request(url, headers=build_headers(repo, token, accept=accept))
     with urllib.request.urlopen(request) as response:
         return response.read()
