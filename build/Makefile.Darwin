@@ -11,12 +11,19 @@ NETLIBS =
 HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 HOMEBREW_OPT := $(HOMEBREW_PREFIX)/opt
 HOMEBREW_SSL_PREFIX :=
+HOMEBREW_CARES_PREFIX :=
+HOMEBREW_RRDTOOL_PREFIX :=
 HOMEBREW_INCLUDE_CANDIDATES :=
 HOMEBREW_LIB_CANDIDATES :=
 HOMEBREW_INCLUDE_DIRS :=
 HOMEBREW_LIB_DIRS :=
 HOMEBREW_CFLAGS :=
 HOMEBREW_LDFLAGS :=
+HOMEBREW_PKG_CONFIG_PATH :=
+HOMEBREW_RRDTOOL_LIBDIRS_RAW :=
+HOMEBREW_RRDTOOL_LIBDIRS :=
+HOMEBREW_RRDTOOL_EXTRA_LIBS :=
+HOMEBREW_RRDTOOL_LIBS :=
 ifneq ($(HOMEBREW_PREFIX),)
 ifneq ($(wildcard $(HOMEBREW_OPT)/openssl@3/include/openssl),)
 HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl@3
@@ -24,6 +31,14 @@ else ifneq ($(wildcard $(HOMEBREW_OPT)/openssl@1.1/include/openssl),)
 HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl@1.1
 else ifneq ($(wildcard $(HOMEBREW_OPT)/openssl/include/openssl),)
 HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl
+endif
+ifneq ($(wildcard $(HOMEBREW_OPT)/c-ares/include/ares.h),)
+HOMEBREW_CARES_PREFIX := $(HOMEBREW_OPT)/c-ares
+else ifneq ($(wildcard $(HOMEBREW_OPT)/c-ares/include/ares/ares.h),)
+HOMEBREW_CARES_PREFIX := $(HOMEBREW_OPT)/c-ares
+endif
+ifneq ($(wildcard $(HOMEBREW_OPT)/rrdtool/include/rrd.h),)
+HOMEBREW_RRDTOOL_PREFIX := $(HOMEBREW_OPT)/rrdtool
 endif
 HOMEBREW_INCLUDE_CANDIDATES += $(HOMEBREW_PREFIX)/include
 HOMEBREW_INCLUDE_CANDIDATES += $(HOMEBREW_OPT)/pcre/include
@@ -43,6 +58,73 @@ HOMEBREW_INCLUDE_DIRS := $(foreach dir,$(HOMEBREW_INCLUDE_CANDIDATES),$(if $(wil
 HOMEBREW_LIB_DIRS := $(foreach dir,$(HOMEBREW_LIB_CANDIDATES),$(if $(wildcard $(dir)),$(dir)))
 HOMEBREW_CFLAGS := $(addprefix -I,$(HOMEBREW_INCLUDE_DIRS))
 HOMEBREW_LDFLAGS := $(addprefix -L,$(HOMEBREW_LIB_DIRS))
+HOMEBREW_PKG_CONFIG_PATH := $(HOMEBREW_PREFIX)/lib/pkgconfig:$(HOMEBREW_PREFIX)/share/pkgconfig
+ifneq ($(HOMEBREW_RRDTOOL_PREFIX),)
+HOMEBREW_PKG_CONFIG_PATH := $(HOMEBREW_RRDTOOL_PREFIX)/lib/pkgconfig:$(HOMEBREW_PKG_CONFIG_PATH)
+endif
+HOMEBREW_RRDTOOL_LIBDIRS_RAW := $(shell if [ -n "$(HOMEBREW_PKG_CONFIG_PATH)" ] && command -v pkg-config >/dev/null 2>&1; then PKG_CONFIG_PATH="$(HOMEBREW_PKG_CONFIG_PATH):$$PKG_CONFIG_PATH" pkg-config --libs-only-L librrd 2>/dev/null; fi)
+HOMEBREW_RRDTOOL_LIBDIRS := $(if $(strip $(HOMEBREW_RRDTOOL_LIBDIRS_RAW)),$(strip $(HOMEBREW_RRDTOOL_LIBDIRS_RAW)),$(if $(HOMEBREW_RRDTOOL_PREFIX),-L$(HOMEBREW_RRDTOOL_PREFIX)/lib))
+HOMEBREW_RRDTOOL_EXTRA_LIBS := $(strip $(shell if [ -n "$(HOMEBREW_PKG_CONFIG_PATH)" ] && command -v pkg-config >/dev/null 2>&1; then PKG_CONFIG_PATH="$(HOMEBREW_PKG_CONFIG_PATH):$$PKG_CONFIG_PATH" pkg-config --libs librrd 2>/dev/null | sed -e 's/[[:space:]]-L[^[:space:]]*//g' -e 's/[[:space:]]-lrrd\([[:space:]]\|$$\)/ /g' -e 's/^ *//' -e 's/  */ /g' -e 's/ *$$//'; fi))
+HOMEBREW_RRDTOOL_LIBS := $(strip $(HOMEBREW_RRDTOOL_LIBDIRS) -lrrd $(HOMEBREW_RRDTOOL_EXTRA_LIBS))
+endif
+
+ifeq ($(strip $(OSSLINC)),)
+ifneq ($(HOMEBREW_SSL_PREFIX),)
+OSSLINC = -I$(HOMEBREW_SSL_PREFIX)/include
+endif
+endif
+ifeq ($(strip $(OSSLLIB)),)
+ifneq ($(HOMEBREW_SSL_PREFIX),)
+OSSLLIB = -L$(HOMEBREW_SSL_PREFIX)/lib
+endif
+endif
+
+ifeq ($(strip $(CARESINC)),)
+ifneq ($(HOMEBREW_CARES_PREFIX),)
+CARESINC = -I$(HOMEBREW_CARES_PREFIX)/include
+endif
+endif
+ifeq ($(strip $(CARESLIB)),)
+ifneq ($(HOMEBREW_CARES_PREFIX),)
+CARESLIB = -L$(HOMEBREW_CARES_PREFIX)/lib
+endif
+endif
+
+ifeq ($(strip $(RRDINC)),)
+ifneq ($(HOMEBREW_RRDTOOL_PREFIX),)
+RRDINC = -I$(HOMEBREW_RRDTOOL_PREFIX)/include
+endif
+endif
+ifeq ($(strip $(RRDLIB)),)
+ifneq ($(HOMEBREW_RRDTOOL_LIBDIRS),)
+RRDLIB = $(HOMEBREW_RRDTOOL_LIBDIRS)
+endif
+endif
+ifeq ($(strip $(PNGLIB)),)
+ifneq ($(HOMEBREW_RRDTOOL_EXTRA_LIBS),)
+PNGLIB = $(HOMEBREW_RRDTOOL_EXTRA_LIBS)
+endif
+endif
+
+ifneq ($(strip $(CARESLIBS)),)
+ifneq ($(HOMEBREW_CARES_PREFIX),)
+ifeq ($(findstring -L,$(CARESLIBS)),)
+CARESLIBS = -L$(HOMEBREW_CARES_PREFIX)/lib -lcares
+endif
+endif
+endif
+
+ifeq ($(strip $(RRDINCDIR)),)
+ifneq ($(HOMEBREW_RRDTOOL_PREFIX),)
+RRDINCDIR = -I$(HOMEBREW_RRDTOOL_PREFIX)/include
+endif
+endif
+ifneq ($(strip $(RRDLIBS)),)
+ifneq ($(HOMEBREW_RRDTOOL_LIBS),)
+ifeq ($(findstring -L,$(RRDLIBS)),)
+RRDLIBS = $(HOMEBREW_RRDTOOL_LIBS)
+endif
+endif
 endif
 
 ifneq ($(strip $(SSLLIBS)),)
