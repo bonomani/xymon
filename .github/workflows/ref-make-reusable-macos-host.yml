@@ -22,6 +22,8 @@ jobs:
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
+      XYMONUSER: _www
+      XYMONGROUP: _www
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version || '' }}
