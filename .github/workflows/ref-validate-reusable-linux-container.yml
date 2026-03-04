@@ -20,9 +20,6 @@ jobs:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
-    container:
-      image: ${{ fromJSON(inputs.lane_json).container }}
-      options: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
     env:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'cmake' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
@@ -36,159 +33,27 @@ jobs:
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family || 'linux' }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || 'linux' }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
-      CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0' }}
+      CONTAINER_IMAGE: ${{ fromJSON(inputs.lane_json).container }}
+      CONTAINER_OPTIONS: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
     steps:
-      - name: Prepare container checkout environment
-        shell: sh
-        env:
-          GITHUB_TOKEN: ${{ github.token }}
-        run: |
-          set -eu
-          bootstrap_script="ci/run/ref/prepare-checkout-tools-bootstrap.sh"
-          if [ ! -f "${bootstrap_script}" ]; then
-            url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/ci/run/ref/prepare-checkout-tools-bootstrap.sh?ref=${GITHUB_SHA}"
-            bootstrap_script="/tmp/prepare-checkout-tools-bootstrap.sh"
-
-            run_as_root() {
-              if command -v sudo >/dev/null 2>&1; then
-                sudo "$@"
-              else
-                "$@"
-              fi
-            }
-
-            apt_get_with_retry() {
-              ci_deps_retry_attempt=1
-              ci_deps_retry_attempts="${CI_DEPS_RETRY_ATTEMPTS:-3}"
-              ci_deps_retry_sleep_secs="${CI_DEPS_RETRY_SLEEP_SECS:-5}"
-              ci_deps_apt_acquire_retries="${CI_DEPS_APT_ACQUIRE_RETRIES:-5}"
-
-              while :; do
-                if run_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
-                  apt-get -o "Acquire::Retries=${ci_deps_apt_acquire_retries}" "$@"; then
-                  return 0
-                else
-                  rc=$?
-                fi
-                if [ "${ci_deps_retry_attempt}" -ge "${ci_deps_retry_attempts}" ]; then
-                  return "${rc}"
-                fi
-                echo "apt-get $* failed with exit ${rc}; retrying (${ci_deps_retry_attempt}/${ci_deps_retry_attempts}) in ${ci_deps_retry_sleep_secs}s" >&2
-                sleep "${ci_deps_retry_sleep_secs}"
-                ci_deps_retry_attempt=$((ci_deps_retry_attempt + 1))
-              done
-            }
-
-            download_bootstrap_with_retry() {
-              ci_deps_retry_attempt=1
-              ci_deps_retry_attempts="${CI_DEPS_DOWNLOAD_RETRY_ATTEMPTS:-5}"
-              ci_deps_retry_sleep_secs="${CI_DEPS_DOWNLOAD_RETRY_SLEEP_SECS:-5}"
-
-              while :; do
-                rm -f "${bootstrap_script}"
-                if command -v curl >/dev/null 2>&1; then
-                  if [ -n "${GITHUB_TOKEN:-}" ]; then
-                    if curl -fsSL --connect-timeout 20 --max-time 120 \
-                      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                      -H "Accept: application/vnd.github.raw" \
-                      "${url}" \
-                      -o "${bootstrap_script}"; then
-                      return 0
-                    else
-                      rc=$?
-                    fi
-                  else
-                    if curl -fsSL --connect-timeout 20 --max-time 120 \
-                      -H "Accept: application/vnd.github.raw" \
-                      "${url}" \
-                      -o "${bootstrap_script}"; then
-                      return 0
-                    else
-                      rc=$?
-                    fi
-                  fi
-                else
-                  if [ -n "${GITHUB_TOKEN:-}" ]; then
-                    if wget -qO "${bootstrap_script}" \
-                      --timeout=30 \
-                      --tries=1 \
-                      --header="Authorization: Bearer ${GITHUB_TOKEN}" \
-                      --header="Accept: application/vnd.github.raw" \
-                      "${url}"; then
-                      return 0
-                    else
-                      rc=$?
-                    fi
-                  else
-                    if wget -qO "${bootstrap_script}" \
-                      --timeout=30 \
-                      --tries=1 \
-                      --header="Accept: application/vnd.github.raw" \
-                      "${url}"; then
-                      return 0
-                    else
-                      rc=$?
-                    fi
-                  fi
-                fi
-                if [ "${ci_deps_retry_attempt}" -ge "${ci_deps_retry_attempts}" ]; then
-                  return "${rc}"
-                fi
-                echo "bootstrap download failed with exit ${rc}; retrying (${ci_deps_retry_attempt}/${ci_deps_retry_attempts}) in ${ci_deps_retry_sleep_secs}s" >&2
-                sleep "${ci_deps_retry_sleep_secs}"
-                ci_deps_retry_attempt=$((ci_deps_retry_attempt + 1))
-              done
-            }
-
-            if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
-              if command -v apt-get >/dev/null 2>&1; then
-                apt_get_with_retry update
-                apt_get_with_retry install -y --no-install-recommends ca-certificates curl wget
-              elif command -v zypper >/dev/null 2>&1; then
-                run_as_root zypper --non-interactive refresh
-                run_as_root zypper --non-interactive install ca-certificates curl wget
-              elif command -v apk >/dev/null 2>&1; then
-                run_as_root apk add --no-cache ca-certificates curl wget
-              elif command -v dnf >/dev/null 2>&1; then
-                run_as_root dnf -y install ca-certificates curl wget
-              elif command -v microdnf >/dev/null 2>&1; then
-                run_as_root microdnf -y install ca-certificates curl wget
-              elif command -v yum >/dev/null 2>&1; then
-                run_as_root yum -y install ca-certificates curl wget
-              elif command -v pacman >/dev/null 2>&1; then
-                run_as_root pacman -Sy --noconfirm archlinux-keyring || true
-                run_as_root pacman -S --noconfirm ca-certificates curl wget
-              else
-                echo "Need curl or wget to bootstrap prepare-checkout-tools-bootstrap.sh" >&2
-                exit 1
-              fi
-            fi
-
-            download_bootstrap_with_retry
-            chmod +x "${bootstrap_script}"
-          fi
-
-          sh "${bootstrap_script}" \
-            --prepare-profile "${PREPARE_PROFILE}" \
-            --checkout-mode "${CHECKOUT_MODE}"
-
       - name: Checkout
-        if: ${{ env.CHECKOUT_MODE == 'action' }}
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
-      - name: Run shared Linux validation sequence
+
+      - name: Run shared Linux validation sequence in container
         shell: bash
         run: |
           set -euo pipefail
-          bash ci/run/ref/run-linux-ref-validation.sh \
-            --build "${BUILD_TOOL}" \
-            --variant "${VARIANT}" \
-            --baseline-root "${BASELINE_ROOT}" \
-            --ref-os "${REF_OS}" \
-            --artifact-family "${ARTIFACT_FAMILY}" \
-            --platform-id "${PLATFORM_ID}"
+          bash ci/run/ref/run-host-managed-linux-container.sh \
+            bash ci/run/ref/run-linux-ref-validation.sh \
+              --build "${BUILD_TOOL}" \
+              --variant "${VARIANT}" \
+              --baseline-root "${BASELINE_ROOT}" \
+              --ref-os "${REF_OS}" \
+              --artifact-family "${ARTIFACT_FAMILY}" \
+              --platform-id "${PLATFORM_ID}"
 
       - name: Upload dependency report
         if: ${{ always() }}
