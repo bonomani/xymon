@@ -218,6 +218,18 @@ def parse_dependency_artifact_name(name: str) -> dict[str, str]:
         artifact_kind = "generation"
         body = name[len("deps_") :]
 
+    artifact_arch = ""
+    lane_name = ""
+    if "__" in body:
+        body, *suffix_parts = body.split("__")
+        if suffix_parts:
+            first_suffix = suffix_parts[0].strip()
+            if first_suffix in {"amd64", "arm64"}:
+                artifact_arch = first_suffix
+                lane_name = "__".join(part for part in suffix_parts[1:] if part)
+            else:
+                lane_name = "__".join(part for part in suffix_parts if part)
+
     build_tool = ""
     platform_id = ""
     variant = ""
@@ -233,6 +245,8 @@ def parse_dependency_artifact_name(name: str) -> dict[str, str]:
         "build_tool": build_tool,
         "platform_id": platform_id,
         "variant": variant,
+        "artifact_arch": artifact_arch,
+        "lane_name": lane_name,
     }
 
 

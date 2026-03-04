@@ -50,6 +50,34 @@ def infer_platform_os(family: str, platform_id=None) -> str:
     return require_non_empty_string(family, "Lane family")
 
 
+def infer_artifact_arch(lane_obj) -> str:
+    """Return a stable arch label for artifact naming."""
+    architecture = str(lane_obj.get("architecture") or "").strip().lower()
+    if architecture:
+        normalized = architecture.replace("_", "-")
+        if normalized in {"x86-64", "x86_64", "amd64"}:
+            return "amd64"
+        if normalized in {"arm64", "aarch64"}:
+            return "arm64"
+        return normalized
+
+    container_options = str(lane_obj.get("container_options") or "").strip().lower()
+    if "linux/arm64" in container_options:
+        return "arm64"
+
+    runner = str(lane_obj.get("runner") or lane_obj.get("runs_on") or "").strip().lower()
+    if "-arm" in runner or "arm64" in runner or "aarch64" in runner:
+        return "arm64"
+
+    lane_name = str(lane_obj.get("name") or "").strip().lower()
+    if " arm64" in lane_name or lane_name.endswith("arm64") or " aarch64" in lane_name:
+        return "arm64"
+    if " x86-64" in lane_name or lane_name.endswith("x86-64") or " amd64" in lane_name:
+        return "amd64"
+
+    return "amd64"
+
+
 def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
     if not selector_workflow_path.exists():
         die(f"Missing selector workflow: {selector_workflow_path}")

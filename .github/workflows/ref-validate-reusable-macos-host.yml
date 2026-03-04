@@ -33,6 +33,7 @@ jobs:
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || fromJSON(inputs.lane_json).ref_os || 'macos' }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
     steps:
       - name: Checkout
@@ -72,7 +73,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}
+          name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
           path: .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.OS_VERSION }}-${{ env.VARIANT }}/deps-report.json
           if-no-files-found: warn
 

@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 from matrix_common import (
     die,
+    infer_artifact_arch,
     infer_platform_os,
     load_lanes_from_file,
     load_purpose_manifest_common,
@@ -262,6 +263,8 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
             f"'{family_entry['family']}' is missing 'runner' or 'runs_on'"
         )
+
+    lane_obj["artifact_arch"] = infer_artifact_arch(lane_obj)
 
     return lane_obj
 
