@@ -21,7 +21,9 @@ fi
 
 uname -a || true
 gcc --version || true
-ld --version || true
+if ! ld -v 2>/dev/null; then
+  ld --version || true
+fi
 
 mkdir -p "${REF_STAGE_ROOT}"
 
