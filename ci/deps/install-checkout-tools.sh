@@ -52,6 +52,8 @@ if [ "${CI_DEPS_REEXECED_WITH_BASH:-0}" != "1" ]; then
       apk add --no-cache bash
     elif command -v dnf >/dev/null 2>&1; then
       dnf -y install bash
+    elif command -v microdnf >/dev/null 2>&1; then
+      microdnf -y install bash dnf
     elif command -v yum >/dev/null 2>&1; then
       yum -y install bash
     elif command -v pacman >/dev/null 2>&1; then
@@ -106,6 +108,8 @@ elif command -v dnf >/dev/null 2>&1; then
     fi
   fi
   ci_deps_as_root dnf -y "${dnf_repo_args[@]}" install tar git bash gawk ca-certificates
+elif command -v microdnf >/dev/null 2>&1; then
+  ci_deps_as_root microdnf -y install dnf tar git bash gawk ca-certificates
 elif command -v yum >/dev/null 2>&1; then
   yum_repo_args=()
   if [[ "${prepare_profile}" == "centos7" ]]; then

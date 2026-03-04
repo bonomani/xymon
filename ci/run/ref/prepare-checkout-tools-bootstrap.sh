@@ -65,6 +65,8 @@ ensure_fetch_client() {
     run_as_root apk add --no-cache ca-certificates curl wget
   elif command -v dnf >/dev/null 2>&1; then
     run_as_root dnf -y install ca-certificates curl wget
+  elif command -v microdnf >/dev/null 2>&1; then
+    run_as_root microdnf -y install ca-certificates curl wget
   elif command -v yum >/dev/null 2>&1; then
     run_as_root yum -y install ca-certificates curl wget
   elif command -v pacman >/dev/null 2>&1; then
