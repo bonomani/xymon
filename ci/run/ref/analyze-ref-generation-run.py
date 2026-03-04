@@ -375,6 +375,7 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
             unreadable_artifacts.append({"name": artifact_name, "reason": str(exc)})
             continue
 
+        requested_packages = sorted(str(item) for item in report_payload.get("requested_packages", []) if item)
         requested_new = sorted(str(item) for item in report_payload.get("requested_newly_installed", []) if item)
         indirect_new = sorted(str(item) for item in report_payload.get("indirect_newly_installed", []) if item)
         direct_counter.update(requested_new)
@@ -385,11 +386,13 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
                 "artifact_name": artifact_name,
                 "artifact_id": artifact.get("id"),
                 "artifact_kind": artifact_meta["artifact_kind"],
+                "artifact_arch": artifact_meta["artifact_arch"],
                 "artifact_size_in_bytes": coerce_int(artifact.get("size_in_bytes"), default=0),
                 "artifact_created_at": artifact.get("created_at"),
                 "artifact_updated_at": artifact.get("updated_at"),
                 "artifact_expires_at": artifact.get("expires_at"),
                 "build_tool": artifact_meta["build_tool"],
+                "lane_name": artifact_meta["lane_name"],
                 "platform_id": artifact_meta["platform_id"],
                 "variant": artifact_meta["variant"] or str(report_payload.get("variant", "")),
                 "report_mode": str(report_payload.get("mode", "")),
@@ -405,6 +408,7 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
                 "requested_missing_after_count": count_from_report(report_payload, "requested_missing_after"),
                 "all_newly_installed_count": count_from_report(report_payload, "all_newly_installed"),
                 "indirect_newly_installed_count": count_from_report(report_payload, "indirect_newly_installed"),
+                "requested_packages": requested_packages,
                 "requested_newly_installed": requested_new,
                 "indirect_newly_installed": indirect_new,
             }
@@ -499,16 +503,20 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
             ]
         )
         for entry in reports:
+            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
             platform = str(entry.get("platform_id") or "").strip()
+            artifact_arch = str(entry.get("artifact_arch") or "").strip()
             if not platform:
                 platform = " ".join(
                     part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
                 ).strip()
+            if artifact_arch:
+                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
             lines.append(
                 "| "
                 + " | ".join(
                     [
-                        f"`{entry.get('artifact_name', '')}`",
+                        f"`{label or '<unknown>'}`",
                         f"`{platform or '<unknown>'}`",
                         f"`{entry.get('variant', '') or '<unknown>'}`",
                         f"`{entry.get('package_manager', '') or '<unknown>'}`",
@@ -521,6 +529,49 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
                 )
                 + " |"
             )
+
+        lines.extend(
+            [
+                "",
+                f"### Per-Lane Dependency Details ({len(reports)})",
+                "",
+                "<details>",
+                "<summary>Expand per-lane dependency lists</summary>",
+                "",
+            ]
+        )
+        for entry in reports:
+            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
+            platform = str(entry.get("platform_id") or "").strip()
+            artifact_arch = str(entry.get("artifact_arch") or "").strip()
+            if not platform:
+                platform = " ".join(
+                    part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
+                ).strip()
+            if artifact_arch:
+                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
+
+            requested_packages = entry.get("requested_packages", []) or []
+            requested_new = entry.get("requested_newly_installed", []) or []
+            indirect_new = entry.get("indirect_newly_installed", []) or []
+
+            lines.append(
+                f"- `{label or '<unknown>'}`"
+                f" ({platform or '<unknown>'}, {entry.get('variant', '') or '<unknown>'})"
+            )
+            lines.append(
+                "  requested packages: "
+                + (", ".join(f"`{pkg}`" for pkg in requested_packages) if requested_packages else "`<none>`")
+            )
+            lines.append(
+                "  requested newly installed: "
+                + (", ".join(f"`{pkg}`" for pkg in requested_new) if requested_new else "`<none>`")
+            )
+            lines.append(
+                "  indirect newly installed: "
+                + (", ".join(f"`{pkg}`" for pkg in indirect_new) if indirect_new else "`<none>`")
+            )
+        lines.extend(["", "</details>"])
 
     for heading, key in [
         ("Most Common Requested Installs", "requested_newly_installed_frequency"),
