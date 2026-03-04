@@ -33,6 +33,9 @@ build:
     rockylinux_9:
       packagers:
         dnf: {}
+    oraclelinux_9:
+      packagers:
+        dnf: {}
     oraclelinux_8:
       packagers:
         dnf: {}

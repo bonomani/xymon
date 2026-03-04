@@ -44,7 +44,7 @@ For example, Linux container lanes may run on `platform_os=alpine` or
 Reference validation keeps Oracle Linux as its own Linux-container family even
 though it remains part of the RPM packaging world.
 
-- Recommended matrix: `oraclelinux:10`, `oraclelinux:8`
+- Recommended matrix: `oraclelinux:10`, `oraclelinux:9`, `oraclelinux:8`
 - Optional matrix lanes: `oraclelinux:10` on arm64, `oraclelinux:10-slim`
 - Oracle Linux is RPM-based and uses `dnf` on OL8/9/10
 - Package payloads remain `.rpm`, and package presence checks use `rpm -q`
