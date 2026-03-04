@@ -6,10 +6,41 @@ OSDEF = -DDarwin
 # NETLIBS: You may need to add -lresolv or similar to pick up network libraries
 NETLIBS =
 
-# Homebrew installs several optional dependencies under keg-specific prefixes,
-# so add the common include/lib search paths for Darwin builds and configure tests.
+# Dependency search paths for Darwin package managers.
+# Auto mode prefers MacPorts when available, then falls back to Homebrew.
+DARWIN_PKGMGR ?= auto
+
 HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 HOMEBREW_OPT := $(HOMEBREW_PREFIX)/opt
+MACPORTS_PORT := $(shell command -v port 2>/dev/null)
+MACPORTS_PREFIX := $(patsubst %/bin/port,%,$(MACPORTS_PORT))
+ifeq ($(MACPORTS_PREFIX),)
+ifneq ($(wildcard /opt/local/bin/port),)
+MACPORTS_PREFIX := /opt/local
+endif
+endif
+
+DARWIN_PKG_MANAGER := none
+ifeq ($(DARWIN_PKGMGR),port)
+ifneq ($(MACPORTS_PREFIX),)
+DARWIN_PKG_MANAGER := port
+else ifneq ($(HOMEBREW_PREFIX),)
+DARWIN_PKG_MANAGER := brew
+endif
+else ifeq ($(DARWIN_PKGMGR),brew)
+ifneq ($(HOMEBREW_PREFIX),)
+DARWIN_PKG_MANAGER := brew
+else ifneq ($(MACPORTS_PREFIX),)
+DARWIN_PKG_MANAGER := port
+endif
+else
+ifneq ($(MACPORTS_PREFIX),)
+DARWIN_PKG_MANAGER := port
+else ifneq ($(HOMEBREW_PREFIX),)
+DARWIN_PKG_MANAGER := brew
+endif
+endif
+
 HOMEBREW_SSL_PREFIX :=
 HOMEBREW_CARES_PREFIX :=
 HOMEBREW_RRDTOOL_PREFIX :=
@@ -68,81 +99,154 @@ HOMEBREW_RRDTOOL_EXTRA_LIBS := $(strip $(shell if [ -n "$(HOMEBREW_PKG_CONFIG_PA
 HOMEBREW_RRDTOOL_LIBS := $(strip $(HOMEBREW_RRDTOOL_LIBDIRS) -lrrd $(HOMEBREW_RRDTOOL_EXTRA_LIBS))
 endif
 
+MACPORTS_SSL_PREFIX :=
+MACPORTS_CARES_PREFIX :=
+MACPORTS_RRDTOOL_PREFIX :=
+MACPORTS_INCLUDE_CANDIDATES :=
+MACPORTS_LIB_CANDIDATES :=
+MACPORTS_INCLUDE_DIRS :=
+MACPORTS_LIB_DIRS :=
+MACPORTS_CFLAGS :=
+MACPORTS_LDFLAGS :=
+MACPORTS_PKG_CONFIG_PATH :=
+MACPORTS_RRDTOOL_LIBDIRS_RAW :=
+MACPORTS_RRDTOOL_LIBDIRS :=
+MACPORTS_RRDTOOL_EXTRA_LIBS :=
+MACPORTS_RRDTOOL_LIBS :=
+ifneq ($(MACPORTS_PREFIX),)
+ifneq ($(wildcard $(MACPORTS_PREFIX)/libexec/openssl3/include/openssl),)
+MACPORTS_SSL_PREFIX := $(MACPORTS_PREFIX)/libexec/openssl3
+else ifneq ($(wildcard $(MACPORTS_PREFIX)/libexec/openssl11/include/openssl),)
+MACPORTS_SSL_PREFIX := $(MACPORTS_PREFIX)/libexec/openssl11
+else ifneq ($(wildcard $(MACPORTS_PREFIX)/include/openssl),)
+MACPORTS_SSL_PREFIX := $(MACPORTS_PREFIX)
+endif
+ifneq ($(wildcard $(MACPORTS_PREFIX)/include/ares.h),)
+MACPORTS_CARES_PREFIX := $(MACPORTS_PREFIX)
+else ifneq ($(wildcard $(MACPORTS_PREFIX)/include/ares/ares.h),)
+MACPORTS_CARES_PREFIX := $(MACPORTS_PREFIX)
+endif
+ifneq ($(wildcard $(MACPORTS_PREFIX)/include/rrd.h),)
+MACPORTS_RRDTOOL_PREFIX := $(MACPORTS_PREFIX)
+endif
+MACPORTS_INCLUDE_CANDIDATES += $(MACPORTS_PREFIX)/include
+MACPORTS_LIB_CANDIDATES += $(MACPORTS_PREFIX)/lib
+ifneq ($(MACPORTS_SSL_PREFIX),)
+MACPORTS_INCLUDE_CANDIDATES += $(MACPORTS_SSL_PREFIX)/include
+MACPORTS_LIB_CANDIDATES += $(MACPORTS_SSL_PREFIX)/lib
+endif
+MACPORTS_INCLUDE_DIRS := $(foreach dir,$(MACPORTS_INCLUDE_CANDIDATES),$(if $(wildcard $(dir)),$(dir)))
+MACPORTS_LIB_DIRS := $(foreach dir,$(MACPORTS_LIB_CANDIDATES),$(if $(wildcard $(dir)),$(dir)))
+MACPORTS_CFLAGS := $(addprefix -I,$(MACPORTS_INCLUDE_DIRS))
+MACPORTS_LDFLAGS := $(addprefix -L,$(MACPORTS_LIB_DIRS))
+MACPORTS_PKG_CONFIG_PATH := $(MACPORTS_PREFIX)/lib/pkgconfig:$(MACPORTS_PREFIX)/share/pkgconfig
+MACPORTS_RRDTOOL_LIBDIRS_RAW := $(shell if [ -n "$(MACPORTS_PKG_CONFIG_PATH)" ] && command -v pkg-config >/dev/null 2>&1; then PKG_CONFIG_PATH="$(MACPORTS_PKG_CONFIG_PATH):$$PKG_CONFIG_PATH" pkg-config --libs-only-L librrd 2>/dev/null; fi)
+MACPORTS_RRDTOOL_LIBDIRS := $(if $(strip $(MACPORTS_RRDTOOL_LIBDIRS_RAW)),$(strip $(MACPORTS_RRDTOOL_LIBDIRS_RAW)),-L$(MACPORTS_PREFIX)/lib)
+MACPORTS_RRDTOOL_EXTRA_LIBS := $(strip $(shell if [ -n "$(MACPORTS_PKG_CONFIG_PATH)" ] && command -v pkg-config >/dev/null 2>&1; then PKG_CONFIG_PATH="$(MACPORTS_PKG_CONFIG_PATH):$$PKG_CONFIG_PATH" pkg-config --libs librrd 2>/dev/null | sed -e 's/[[:space:]]-L[^[:space:]]*//g' -e 's/[[:space:]]-lrrd\([[:space:]]\|$$\)/ /g' -e 's/^ *//' -e 's/  */ /g' -e 's/ *$$//'; fi))
+MACPORTS_RRDTOOL_LIBS := $(strip $(MACPORTS_RRDTOOL_LIBDIRS) -lrrd $(MACPORTS_RRDTOOL_EXTRA_LIBS))
+endif
+
+DARWIN_SSL_PREFIX :=
+DARWIN_CARES_PREFIX :=
+DARWIN_RRDTOOL_PREFIX :=
+DARWIN_CFLAGS :=
+DARWIN_LDFLAGS :=
+DARWIN_RRDTOOL_LIBDIRS :=
+DARWIN_RRDTOOL_EXTRA_LIBS :=
+DARWIN_RRDTOOL_LIBS :=
+ifeq ($(DARWIN_PKG_MANAGER),port)
+DARWIN_SSL_PREFIX := $(MACPORTS_SSL_PREFIX)
+DARWIN_CARES_PREFIX := $(MACPORTS_CARES_PREFIX)
+DARWIN_RRDTOOL_PREFIX := $(MACPORTS_RRDTOOL_PREFIX)
+DARWIN_CFLAGS := $(MACPORTS_CFLAGS)
+DARWIN_LDFLAGS := $(MACPORTS_LDFLAGS)
+DARWIN_RRDTOOL_LIBDIRS := $(MACPORTS_RRDTOOL_LIBDIRS)
+DARWIN_RRDTOOL_EXTRA_LIBS := $(MACPORTS_RRDTOOL_EXTRA_LIBS)
+DARWIN_RRDTOOL_LIBS := $(MACPORTS_RRDTOOL_LIBS)
+else ifeq ($(DARWIN_PKG_MANAGER),brew)
+DARWIN_SSL_PREFIX := $(HOMEBREW_SSL_PREFIX)
+DARWIN_CARES_PREFIX := $(HOMEBREW_CARES_PREFIX)
+DARWIN_RRDTOOL_PREFIX := $(HOMEBREW_RRDTOOL_PREFIX)
+DARWIN_CFLAGS := $(HOMEBREW_CFLAGS)
+DARWIN_LDFLAGS := $(HOMEBREW_LDFLAGS)
+DARWIN_RRDTOOL_LIBDIRS := $(HOMEBREW_RRDTOOL_LIBDIRS)
+DARWIN_RRDTOOL_EXTRA_LIBS := $(HOMEBREW_RRDTOOL_EXTRA_LIBS)
+DARWIN_RRDTOOL_LIBS := $(HOMEBREW_RRDTOOL_LIBS)
+endif
+
 ifeq ($(strip $(OSSLINC)),)
-ifneq ($(HOMEBREW_SSL_PREFIX),)
-OSSLINC = -I$(HOMEBREW_SSL_PREFIX)/include
+ifneq ($(DARWIN_SSL_PREFIX),)
+OSSLINC = -I$(DARWIN_SSL_PREFIX)/include
 endif
 endif
 ifeq ($(strip $(OSSLLIB)),)
-ifneq ($(HOMEBREW_SSL_PREFIX),)
-OSSLLIB = -L$(HOMEBREW_SSL_PREFIX)/lib
+ifneq ($(DARWIN_SSL_PREFIX),)
+OSSLLIB = -L$(DARWIN_SSL_PREFIX)/lib
 endif
 endif
 
 ifeq ($(strip $(CARESINC)),)
-ifneq ($(HOMEBREW_CARES_PREFIX),)
-CARESINC = -I$(HOMEBREW_CARES_PREFIX)/include
+ifneq ($(DARWIN_CARES_PREFIX),)
+CARESINC = -I$(DARWIN_CARES_PREFIX)/include
 endif
 endif
 ifeq ($(strip $(CARESLIB)),)
-ifneq ($(HOMEBREW_CARES_PREFIX),)
-CARESLIB = -L$(HOMEBREW_CARES_PREFIX)/lib
+ifneq ($(DARWIN_CARES_PREFIX),)
+CARESLIB = -L$(DARWIN_CARES_PREFIX)/lib
 endif
 endif
 
 ifeq ($(strip $(RRDINC)),)
-ifneq ($(HOMEBREW_RRDTOOL_PREFIX),)
-RRDINC = -I$(HOMEBREW_RRDTOOL_PREFIX)/include
+ifneq ($(DARWIN_RRDTOOL_PREFIX),)
+RRDINC = -I$(DARWIN_RRDTOOL_PREFIX)/include
 endif
 endif
 ifeq ($(strip $(RRDLIB)),)
-ifneq ($(HOMEBREW_RRDTOOL_LIBDIRS),)
-RRDLIB = $(HOMEBREW_RRDTOOL_LIBDIRS)
+ifneq ($(DARWIN_RRDTOOL_LIBDIRS),)
+RRDLIB = $(DARWIN_RRDTOOL_LIBDIRS)
 endif
 endif
 ifeq ($(strip $(PNGLIB)),)
-ifneq ($(HOMEBREW_RRDTOOL_EXTRA_LIBS),)
-PNGLIB = $(HOMEBREW_RRDTOOL_EXTRA_LIBS)
+ifneq ($(DARWIN_RRDTOOL_EXTRA_LIBS),)
+PNGLIB = $(DARWIN_RRDTOOL_EXTRA_LIBS)
 endif
 endif
 
 ifneq ($(strip $(CARESLIBS)),)
-ifneq ($(HOMEBREW_CARES_PREFIX),)
+ifneq ($(DARWIN_CARES_PREFIX),)
 ifeq ($(findstring -L,$(CARESLIBS)),)
-CARESLIBS = -L$(HOMEBREW_CARES_PREFIX)/lib -lcares
+CARESLIBS = -L$(DARWIN_CARES_PREFIX)/lib -lcares
 endif
 endif
 endif
 
 ifeq ($(strip $(RRDINCDIR)),)
-ifneq ($(HOMEBREW_RRDTOOL_PREFIX),)
-RRDINCDIR = -I$(HOMEBREW_RRDTOOL_PREFIX)/include
+ifneq ($(DARWIN_RRDTOOL_PREFIX),)
+RRDINCDIR = -I$(DARWIN_RRDTOOL_PREFIX)/include
 endif
 endif
 ifneq ($(strip $(RRDLIBS)),)
-ifneq ($(HOMEBREW_RRDTOOL_LIBS),)
+ifneq ($(DARWIN_RRDTOOL_LIBS),)
 ifeq ($(findstring -L,$(RRDLIBS)),)
-RRDLIBS = $(HOMEBREW_RRDTOOL_LIBS)
+RRDLIBS = $(DARWIN_RRDTOOL_LIBS)
 endif
 endif
 endif
 
 ifneq ($(strip $(SSLLIBS)),)
-ifneq ($(HOMEBREW_SSL_PREFIX),)
+ifneq ($(DARWIN_SSL_PREFIX),)
 ifeq ($(strip $(SSLINCDIR)),)
-SSLINCDIR = -I$(HOMEBREW_SSL_PREFIX)/include
+SSLINCDIR = -I$(DARWIN_SSL_PREFIX)/include
 endif
 ifeq ($(findstring -L,$(SSLLIBS)),)
-SSLLIBS = -L$(HOMEBREW_SSL_PREFIX)/lib -lssl -lcrypto
-RPATHVAL += $(HOMEBREW_SSL_PREFIX)/lib
+SSLLIBS = -L$(DARWIN_SSL_PREFIX)/lib -lssl -lcrypto
+RPATHVAL += $(DARWIN_SSL_PREFIX)/lib
 endif
 endif
 endif
 
-# Keep Homebrew search paths in the final link step too. The legacy configure
-# probes rely on CFLAGS carrying these paths, but the real subdir links use
-# LDFLAGS and can miss keg-only formulas such as rrdtool otherwise.
-LDFLAGS += $(HOMEBREW_LDFLAGS)
+# Keep selected package-manager search paths in the final link step too.
+LDFLAGS += $(DARWIN_LDFLAGS)
 
 # Compile flags for normal build
 # On macOS, plain "gcc" is typically Apple's Clang driver. Prefer a real
@@ -161,7 +265,7 @@ endif
 CC_BASENAME := $(notdir $(CC))
 IS_GCC := $(findstring gcc,$(CC_BASENAME))
 BASE_CFLAGS = -g -O -Wall -Wno-unused -D_REENTRANT -DBIND_8_COMPAT=1 $(LFSDEF) $(OSDEF)
-CFLAGS = $(BASE_CFLAGS) $(HOMEBREW_CFLAGS)
+CFLAGS = $(BASE_CFLAGS) $(DARWIN_CFLAGS)
 ifneq ($(IS_GCC),)
 	CFLAGS += -Wno-pointer-sign
 endif
