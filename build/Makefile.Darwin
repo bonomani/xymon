@@ -12,6 +12,7 @@ HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 HOMEBREW_OPT := $(HOMEBREW_PREFIX)/opt
 HOMEBREW_SSL_PREFIX :=
 HOMEBREW_FLAGS :=
+HOMEBREW_LDFLAGS :=
 ifneq ($(HOMEBREW_PREFIX),)
 ifneq ($(wildcard $(HOMEBREW_OPT)/openssl@3/include/openssl),)
 HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl@3
@@ -26,6 +27,12 @@ HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/openssl@3/include -L$(HOMEBREW_OPT)/openssl@
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/openldap/include -L$(HOMEBREW_OPT)/openldap/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/c-ares/include -L$(HOMEBREW_OPT)/c-ares/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/rrdtool/include -L$(HOMEBREW_OPT)/rrdtool/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_PREFIX)/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_OPT)/pcre/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_OPT)/openssl@3/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_OPT)/openldap/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_OPT)/c-ares/lib
+HOMEBREW_LDFLAGS += -L$(HOMEBREW_OPT)/rrdtool/lib
 endif
 
 ifneq ($(strip $(SSLLIBS)),)
@@ -39,6 +46,11 @@ RPATHVAL += $(HOMEBREW_SSL_PREFIX)/lib
 endif
 endif
 endif
+
+# Keep Homebrew search paths in the final link step too. The legacy configure
+# probes rely on CFLAGS carrying these paths, but the real subdir links use
+# LDFLAGS and can miss keg-only formulas such as rrdtool otherwise.
+LDFLAGS += $(HOMEBREW_LDFLAGS)
 
 # Compile flags for normal build
 CC = gcc
