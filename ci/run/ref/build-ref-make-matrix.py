@@ -123,8 +123,8 @@ def infer_platform_version(platform_id: str) -> str:
 
 
 def normalize_lane(family_entry, lane, platform_catalog, build_tool):
-    lane_obj = dict(lane)
-    lane_obj.update(family_entry["runtime_overrides"])
+    lane_obj = dict(family_entry["runtime_overrides"])
+    lane_obj.update(lane)
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
