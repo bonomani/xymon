@@ -29,6 +29,7 @@ jobs:
       CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin || '' }}
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root || 'make_linux' }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family || 'linux' }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || 'linux-host' }}
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0' }}

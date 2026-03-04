@@ -22,6 +22,7 @@ jobs:
     env:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}

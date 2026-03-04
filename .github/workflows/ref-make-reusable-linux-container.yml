@@ -26,6 +26,7 @@ jobs:
     env:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
       CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}

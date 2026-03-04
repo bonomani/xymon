@@ -2,6 +2,7 @@
 set -euo pipefail
 
 OS_NAME=""
+PLATFORM_OS=""
 OS_VERSION=""
 REF_NAME=""
 KEYFILES_NAME=""
@@ -34,6 +35,10 @@ while [ $# -gt 0 ]; do
       ;;
     --version)
       OS_VERSION="${2:-}"
+      shift 2
+      ;;
+    --platform-os)
+      PLATFORM_OS="${2:-}"
       shift 2
       ;;
     --ref-name)
@@ -77,6 +82,9 @@ if [ -z "${OS_NAME}" ]; then
 fi
 if [ "${OS_NAME}" = "ubuntu" ]; then
   OS_NAME="linux"
+fi
+if [ -z "${PLATFORM_OS}" ]; then
+  PLATFORM_OS="${OS_NAME}"
 fi
 
 LEGACY_STAGING="/tmp/xymon-stage"
@@ -568,7 +576,11 @@ normalize_variant
 set_feature_flags
 select_build_adapter
 
-echo "=== Setup (${OS_NAME}) ==="
+if [ "${PLATFORM_OS}" = "${OS_NAME}" ]; then
+  echo "=== Setup (${OS_NAME}) ==="
+else
+  echo "=== Setup (${OS_NAME} on ${PLATFORM_OS}) ==="
+fi
 setup_os
 echo "=== Configure ==="
 "${RUN_CONFIGURE_FN}"

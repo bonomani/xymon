@@ -30,6 +30,7 @@ jobs:
       XYMONGROUP: _www
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
     steps:

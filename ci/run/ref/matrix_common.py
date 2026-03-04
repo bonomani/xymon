@@ -41,6 +41,15 @@ def parse_supported_build_tools(value, context: str, *, supported_values=None):
     return normalized
 
 
+def infer_platform_os(family: str, platform_id=None) -> str:
+    """Return the concrete platform OS/family for a lane."""
+    if isinstance(platform_id, str):
+        platform_id = platform_id.strip()
+    if platform_id:
+        return platform_id.split("-", 1)[0]
+    return require_non_empty_string(family, "Lane family")
+
+
 def validate_dropdown_parity(selector_workflow_path: Path, expected_options):
     if not selector_workflow_path.exists():
         die(f"Missing selector workflow: {selector_workflow_path}")
