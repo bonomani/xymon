@@ -318,6 +318,28 @@ def build_frequency_list(counter: Counter[str]) -> list[dict[str, object]]:
     ]
 
 
+def dependency_platform_label(entry: dict) -> str:
+    platform = str(entry.get("platform_id") or "").strip()
+    artifact_arch = str(entry.get("artifact_arch") or "").strip()
+    if not platform:
+        platform = " ".join(
+            part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
+        ).strip()
+    if artifact_arch:
+        platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
+    return platform or "<unknown>"
+
+
+def dependency_lane_label(entry: dict) -> str:
+    label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
+    return label or "<unknown>"
+
+
+def format_package_markdown(packages: list[str]) -> str:
+    values = [str(package).strip() for package in packages if str(package).strip()]
+    return ", ".join(f"`{package}`" for package in values) if values else "`<none>`"
+
+
 def empty_dependency_report(status: str, lane_job_count: int, error: str = "") -> dict:
     return {
         "status": status,
@@ -489,6 +511,10 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
 
     reports = dependency_report.get("reports", [])
     if reports:
+        grouped_reports: dict[str, list[dict]] = defaultdict(list)
+        for entry in reports:
+            grouped_reports[dependency_platform_label(entry)].append(entry)
+
         dependency_lines.extend(
             [
                 "",
@@ -496,32 +522,46 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
                 "",
             ]
         )
-        for entry in reports:
-            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
-            platform = str(entry.get("platform_id") or "").strip()
-            artifact_arch = str(entry.get("artifact_arch") or "").strip()
-            if not platform:
-                platform = " ".join(
-                    part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
-                ).strip()
-            if artifact_arch:
-                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
-
-            requested_packages = entry.get("requested_packages", []) or []
-            requested_new = entry.get("requested_newly_installed", []) or []
-            indirect_new = entry.get("indirect_newly_installed", []) or []
-
-            requested_packages_text = ", ".join(f"`{pkg}`" for pkg in requested_packages) if requested_packages else "`<none>`"
-            requested_new_text = ", ".join(f"`{pkg}`" for pkg in requested_new) if requested_new else "`<none>`"
-            indirect_new_text = ", ".join(f"`{pkg}`" for pkg in indirect_new) if indirect_new else "`<none>`"
-
-            dependency_lines.append(
-                f"- `{label or '<unknown>'}`"
-                f" ({platform or '<unknown>'}, {entry.get('variant', '') or '<unknown>'})"
-                f": requested {requested_packages_text};"
-                f" newly installed {requested_new_text};"
-                f" indirect {indirect_new_text}"
+        for platform in sorted(grouped_reports):
+            dependency_lines.extend(["", f"#### `{platform}`", ""])
+            platform_reports = sorted(
+                grouped_reports[platform],
+                key=lambda entry: (
+                    str(entry.get("variant", "")),
+                    dependency_lane_label(entry).lower(),
+                ),
             )
+            for entry in platform_reports:
+                label = dependency_lane_label(entry)
+                requested_packages = entry.get("requested_packages", []) or []
+                requested_new = entry.get("requested_newly_installed", []) or []
+                indirect_new = entry.get("indirect_newly_installed", []) or []
+
+                dependency_lines.append(f"**{label}**")
+                dependency_lines.append(
+                    "Variant: "
+                    f"`{entry.get('variant', '') or '<unknown>'}`"
+                    "  Package manager: "
+                    f"`{entry.get('package_manager', '') or '<unknown>'}`"
+                    "  Status: "
+                    f"`{entry.get('report_status', '') or '<unknown>'}`"
+                )
+                dependency_lines.append(
+                    "Requested "
+                    f"({coerce_int(entry.get('requested_packages_count'), default=0)}): "
+                    f"{format_package_markdown(requested_packages)}"
+                )
+                dependency_lines.append(
+                    "Newly installed "
+                    f"({coerce_int(entry.get('requested_newly_installed_count'), default=0)}): "
+                    f"{format_package_markdown(requested_new)}"
+                )
+                dependency_lines.append(
+                    "Indirect "
+                    f"({coerce_int(entry.get('indirect_newly_installed_count'), default=0)}): "
+                    f"{format_package_markdown(indirect_new)}"
+                )
+                dependency_lines.append("")
 
         dependency_lines.extend(
             [
@@ -533,15 +573,8 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
             ]
         )
         for entry in reports:
-            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
-            platform = str(entry.get("platform_id") or "").strip()
-            artifact_arch = str(entry.get("artifact_arch") or "").strip()
-            if not platform:
-                platform = " ".join(
-                    part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
-                ).strip()
-            if artifact_arch:
-                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
+            label = dependency_lane_label(entry)
+            platform = dependency_platform_label(entry)
             dependency_lines.append(
                 "| "
                 + " | ".join(
