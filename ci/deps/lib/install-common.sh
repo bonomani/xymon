@@ -391,6 +391,39 @@ ci_deps_as_root() {
   fi
 }
 
+ci_deps_retry_command() {
+  local retry_attempts="${CI_DEPS_RETRY_ATTEMPTS:-3}"
+  local retry_sleep_secs="${CI_DEPS_RETRY_SLEEP_SECS:-5}"
+  local retry_attempt=1
+  local retry_rc=0
+
+  if [[ "${retry_attempts}" -lt 1 ]]; then
+    retry_attempts=1
+  fi
+
+  while true; do
+    if "$@"; then
+      return 0
+    else
+      retry_rc=$?
+    fi
+    if [[ "${retry_attempt}" -ge "${retry_attempts}" ]]; then
+      return "${retry_rc}"
+    fi
+    echo "Command failed with exit ${retry_rc}; retrying (${retry_attempt}/${retry_attempts}) in ${retry_sleep_secs}s" >&2
+    sleep "${retry_sleep_secs}"
+    retry_attempt=$((retry_attempt + 1))
+  done
+}
+
+ci_deps_apt_get() {
+  local acquire_retries="${CI_DEPS_APT_ACQUIRE_RETRIES:-5}"
+
+  ci_deps_retry_command \
+    ci_deps_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
+    apt-get -o "Acquire::Retries=${acquire_retries}" "$@"
+}
+
 ci_deps_parse_os_release() {
   local os_release="/etc/os-release"
   local key=""

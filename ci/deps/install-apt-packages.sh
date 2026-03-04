@@ -35,13 +35,12 @@ apt_pkg_available() {
 }
 
 apt_install_one() {
-  ci_deps_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
-    apt-get install -y --no-install-recommends "$1"
+  ci_deps_apt_get install -y --no-install-recommends "$1"
 }
 
 apt_pre_install() {
   echo "=== Install (Linux packages) ==="
-  ci_deps_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC apt-get update
+  ci_deps_apt_get update
 }
 
 ci_deps_run_installer_modes \
