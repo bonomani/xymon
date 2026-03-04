@@ -7,6 +7,7 @@ PLATFORM_OS="${PLATFORM_OS:-${REF_OS:-}}"
 VARIANT="${VARIANT:-}"
 OS_VERSION="${OS_VERSION:-}"
 REF_STAGE_ROOT="${REF_STAGE_ROOT:-${GITHUB_WORKSPACE:-$(pwd)}/tmp/xymon-refs}"
+CI_DEPS_REPORT_JSON="${CI_DEPS_REPORT_JSON:-}"
 
 if [[ -z "${REF_OS}" ]]; then
   echo "REF_OS is required" >&2
@@ -23,6 +24,12 @@ gcc --version || true
 ld --version || true
 
 mkdir -p "${REF_STAGE_ROOT}"
+
+if [[ -z "${CI_DEPS_REPORT_JSON}" ]]; then
+  CI_DEPS_REPORT_JSON="${REF_STAGE_ROOT}/${BUILD_TOOL}.${REF_OS}.${VARIANT}/meta/deps-report.json"
+fi
+mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
+export CI_DEPS_REPORT_JSON
 
 bootstrap_args=(
   --os "${REF_OS}"

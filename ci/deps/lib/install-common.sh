@@ -265,7 +265,7 @@ ci_deps_resolve_package_alternatives() {
     fi
 
     if [[ "${chosen}" != "${spec}" ]]; then
-      echo "Resolved package alternative '${spec}' -> '${chosen}'"
+      echo "Resolved package alternative '${spec}' -> '${chosen}'" >&2
     fi
     resolved+=("${chosen}")
   done

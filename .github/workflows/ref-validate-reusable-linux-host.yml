@@ -51,6 +51,14 @@ jobs:
             --artifact-family "${ARTIFACT_FAMILY}" \
             --platform-id "${PLATFORM_ID}"
 
+      - name: Upload dependency report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}
+          path: .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/deps-report.json
+          if-no-files-found: warn
+
       - name: Upload artifacts
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' }}
         uses: ./.github/actions/upload-ref-valid-artifacts
