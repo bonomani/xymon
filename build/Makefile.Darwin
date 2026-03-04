@@ -10,14 +10,34 @@ NETLIBS =
 # so add the common include/lib search paths for Darwin builds and configure tests.
 HOMEBREW_PREFIX := $(shell brew --prefix 2>/dev/null)
 HOMEBREW_OPT := $(HOMEBREW_PREFIX)/opt
+HOMEBREW_SSL_PREFIX :=
 HOMEBREW_FLAGS :=
 ifneq ($(HOMEBREW_PREFIX),)
+ifneq ($(wildcard $(HOMEBREW_OPT)/openssl@3/include/openssl),)
+HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl@3
+else ifneq ($(wildcard $(HOMEBREW_OPT)/openssl@1.1/include/openssl),)
+HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl@1.1
+else ifneq ($(wildcard $(HOMEBREW_OPT)/openssl/include/openssl),)
+HOMEBREW_SSL_PREFIX := $(HOMEBREW_OPT)/openssl
+endif
 HOMEBREW_FLAGS += -I$(HOMEBREW_PREFIX)/include -L$(HOMEBREW_PREFIX)/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/pcre/include -L$(HOMEBREW_OPT)/pcre/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/openssl@3/include -L$(HOMEBREW_OPT)/openssl@3/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/openldap/include -L$(HOMEBREW_OPT)/openldap/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/c-ares/include -L$(HOMEBREW_OPT)/c-ares/lib
 HOMEBREW_FLAGS += -I$(HOMEBREW_OPT)/rrdtool/include -L$(HOMEBREW_OPT)/rrdtool/lib
+endif
+
+ifneq ($(strip $(SSLLIBS)),)
+ifneq ($(HOMEBREW_SSL_PREFIX),)
+ifeq ($(strip $(SSLINCDIR)),)
+SSLINCDIR = -I$(HOMEBREW_SSL_PREFIX)/include
+endif
+ifeq ($(findstring -L,$(SSLLIBS)),)
+SSLLIBS = -L$(HOMEBREW_SSL_PREFIX)/lib -lssl -lcrypto
+RPATHVAL += $(HOMEBREW_SSL_PREFIX)/lib
+endif
+endif
 endif
 
 # Compile flags for normal build
@@ -41,4 +61,3 @@ RUNTIMEDEFS =
 # Mail program: This must support "CMD -s SUBJECT ADDRESS" to send out a mail with a subject
 # Typically, this will be "mail" or "mailx"
 MAILPROGRAM="mail"
-
