@@ -26,6 +26,7 @@ jobs:
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || fromJSON(inputs.lane_json).ref_os || 'bsd' }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
       VM_MEMORY: ${{ fromJSON(inputs.lane_json).vm_memory || '1024M' }}
       VM_CPU_COUNT: ${{ fromJSON(inputs.lane_json).vm_cpu_count || 2 }}
@@ -60,7 +61,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}
+          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
           path: ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/meta/deps-report.json
           if-no-files-found: warn
 

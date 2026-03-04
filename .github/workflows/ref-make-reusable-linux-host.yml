@@ -25,6 +25,7 @@ jobs:
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || fromJSON(inputs.lane_json).ref_os || 'linux-host' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
+      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}
     steps:
@@ -41,7 +42,7 @@ jobs:
         if: ${{ always() }}
         uses: actions/upload-artifact@v4
         with:
-          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}
+          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
           path: ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/meta/deps-report.json
           if-no-files-found: warn
 
