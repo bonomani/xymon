@@ -75,6 +75,67 @@ jobs:
               done
             }
 
+            download_bootstrap_with_retry() {
+              ci_deps_retry_attempt=1
+              ci_deps_retry_attempts="${CI_DEPS_DOWNLOAD_RETRY_ATTEMPTS:-5}"
+              ci_deps_retry_sleep_secs="${CI_DEPS_DOWNLOAD_RETRY_SLEEP_SECS:-5}"
+
+              while :; do
+                rm -f "${bootstrap_script}"
+                if command -v curl >/dev/null 2>&1; then
+                  if [ -n "${GITHUB_TOKEN:-}" ]; then
+                    if curl -fsSL --connect-timeout 20 --max-time 120 \
+                      -H "Authorization: Bearer ${GITHUB_TOKEN}" \
+                      -H "Accept: application/vnd.github.raw" \
+                      "${url}" \
+                      -o "${bootstrap_script}"; then
+                      return 0
+                    else
+                      rc=$?
+                    fi
+                  else
+                    if curl -fsSL --connect-timeout 20 --max-time 120 \
+                      -H "Accept: application/vnd.github.raw" \
+                      "${url}" \
+                      -o "${bootstrap_script}"; then
+                      return 0
+                    else
+                      rc=$?
+                    fi
+                  fi
+                else
+                  if [ -n "${GITHUB_TOKEN:-}" ]; then
+                    if wget -qO "${bootstrap_script}" \
+                      --timeout=30 \
+                      --tries=1 \
+                      --header="Authorization: Bearer ${GITHUB_TOKEN}" \
+                      --header="Accept: application/vnd.github.raw" \
+                      "${url}"; then
+                      return 0
+                    else
+                      rc=$?
+                    fi
+                  else
+                    if wget -qO "${bootstrap_script}" \
+                      --timeout=30 \
+                      --tries=1 \
+                      --header="Accept: application/vnd.github.raw" \
+                      "${url}"; then
+                      return 0
+                    else
+                      rc=$?
+                    fi
+                  fi
+                fi
+                if [ "${ci_deps_retry_attempt}" -ge "${ci_deps_retry_attempts}" ]; then
+                  return "${rc}"
+                fi
+                echo "bootstrap download failed with exit ${rc}; retrying (${ci_deps_retry_attempt}/${ci_deps_retry_attempts}) in ${ci_deps_retry_sleep_secs}s" >&2
+                sleep "${ci_deps_retry_sleep_secs}"
+                ci_deps_retry_attempt=$((ci_deps_retry_attempt + 1))
+              done
+            }
+
             if ! command -v curl >/dev/null 2>&1 && ! command -v wget >/dev/null 2>&1; then
               if command -v apt-get >/dev/null 2>&1; then
                 apt_get_with_retry update
@@ -99,31 +160,7 @@ jobs:
               fi
             fi
 
-            if command -v curl >/dev/null 2>&1; then
-              if [ -n "${GITHUB_TOKEN:-}" ]; then
-                curl -fsSL \
-                  -H "Authorization: Bearer ${GITHUB_TOKEN}" \
-                  -H "Accept: application/vnd.github.raw" \
-                  "${url}" \
-                  -o "${bootstrap_script}"
-              else
-                curl -fsSL \
-                  -H "Accept: application/vnd.github.raw" \
-                  "${url}" \
-                  -o "${bootstrap_script}"
-              fi
-            else
-              if [ -n "${GITHUB_TOKEN:-}" ]; then
-                wget -qO "${bootstrap_script}" \
-                  --header="Authorization: Bearer ${GITHUB_TOKEN}" \
-                  --header="Accept: application/vnd.github.raw" \
-                  "${url}"
-              else
-                wget -qO "${bootstrap_script}" \
-                  --header="Accept: application/vnd.github.raw" \
-                  "${url}"
-              fi
-            fi
+            download_bootstrap_with_retry
             chmod +x "${bootstrap_script}"
           fi
 
