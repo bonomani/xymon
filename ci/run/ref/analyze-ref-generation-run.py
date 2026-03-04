@@ -456,16 +456,18 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
         return markdown
 
     lines = markdown.rstrip("\n").splitlines()
-    lines.extend(["", "## Dependency Reports", ""])
+    dependency_lines = ["", "## Dependency Reports", ""]
 
     status = str(dependency_report.get("status", "unknown"))
     if status == "unavailable":
-        lines.append(
+        dependency_lines.append(
             f"- Dependency report aggregation was unavailable: `{dependency_report.get('error') or 'unknown error'}`"
         )
+        lines.extend(dependency_lines)
         return "\n".join(lines) + "\n"
     if status == "none":
-        lines.append("- No dependency report artifacts were found for this run.")
+        dependency_lines.append("- No dependency report artifacts were found for this run.")
+        lines.extend(dependency_lines)
         return "\n".join(lines) + "\n"
 
     coverage = dependency_report.get("coverage", {})
@@ -476,67 +478,21 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
     unreadable_count = coerce_int(coverage.get("unreadable_artifact_count"), default=0)
     coverage_percent = coverage.get("parsed_coverage_percent", 0.0)
 
-    lines.append(f"- Dependency report artifacts found: `{artifact_count}`")
-    lines.append(
+    dependency_lines.append(f"- Dependency report artifacts found: `{artifact_count}`")
+    dependency_lines.append(
         f"- Parsed reports: `{parsed_count}` of `{lane_job_count}` lane jobs (`{coverage_percent}%` coverage)"
     )
     if jobs_without_artifact:
-        lines.append(f"- Lane jobs without dependency artifact (estimated): `{jobs_without_artifact}`")
+        dependency_lines.append(f"- Lane jobs without dependency artifact (estimated): `{jobs_without_artifact}`")
     if unreadable_count:
-        lines.append(f"- Unreadable dependency artifacts: `{unreadable_count}`")
-
-    unreadable_artifacts = dependency_report.get("unreadable_artifacts", [])
-    if unreadable_artifacts:
-        lines.extend(["", "### Unreadable Dependency Artifacts", ""])
-        for entry in unreadable_artifacts:
-            lines.append(f"- `{entry.get('name', '<unnamed>')}`: {entry.get('reason', 'unknown error')}")
+        dependency_lines.append(f"- Unreadable dependency artifacts: `{unreadable_count}`")
 
     reports = dependency_report.get("reports", [])
     if reports:
-        lines.extend(
+        dependency_lines.extend(
             [
                 "",
-                f"### Per-Lane Summary ({len(reports)})",
-                "",
-                "| Artifact | Platform | Variant | Pkg mgr | Status | Requested | Present | New | Indirect |",
-                "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |",
-            ]
-        )
-        for entry in reports:
-            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
-            platform = str(entry.get("platform_id") or "").strip()
-            artifact_arch = str(entry.get("artifact_arch") or "").strip()
-            if not platform:
-                platform = " ".join(
-                    part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
-                ).strip()
-            if artifact_arch:
-                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
-            lines.append(
-                "| "
-                + " | ".join(
-                    [
-                        f"`{label or '<unknown>'}`",
-                        f"`{platform or '<unknown>'}`",
-                        f"`{entry.get('variant', '') or '<unknown>'}`",
-                        f"`{entry.get('package_manager', '') or '<unknown>'}`",
-                        f"`{entry.get('report_status', '') or '<unknown>'}`",
-                        str(coerce_int(entry.get("requested_packages_count"), default=0)),
-                        str(coerce_int(entry.get("requested_already_present_count"), default=0)),
-                        str(coerce_int(entry.get("requested_newly_installed_count"), default=0)),
-                        str(coerce_int(entry.get("indirect_newly_installed_count"), default=0)),
-                    ]
-                )
-                + " |"
-            )
-
-        lines.extend(
-            [
-                "",
-                f"### Per-Lane Dependency Details ({len(reports)})",
-                "",
-                "<details>",
-                "<summary>Expand per-lane dependency lists</summary>",
+                f"### OS Variant Dependency Map ({len(reports)})",
                 "",
             ]
         )
@@ -555,23 +511,60 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
             requested_new = entry.get("requested_newly_installed", []) or []
             indirect_new = entry.get("indirect_newly_installed", []) or []
 
-            lines.append(
+            requested_packages_text = ", ".join(f"`{pkg}`" for pkg in requested_packages) if requested_packages else "`<none>`"
+            requested_new_text = ", ".join(f"`{pkg}`" for pkg in requested_new) if requested_new else "`<none>`"
+            indirect_new_text = ", ".join(f"`{pkg}`" for pkg in indirect_new) if indirect_new else "`<none>`"
+
+            dependency_lines.append(
                 f"- `{label or '<unknown>'}`"
                 f" ({platform or '<unknown>'}, {entry.get('variant', '') or '<unknown>'})"
+                f": requested {requested_packages_text};"
+                f" newly installed {requested_new_text};"
+                f" indirect {indirect_new_text}"
             )
-            lines.append(
-                "  requested packages: "
-                + (", ".join(f"`{pkg}`" for pkg in requested_packages) if requested_packages else "`<none>`")
+
+        dependency_lines.extend(
+            [
+                "",
+                f"### Per-Lane Summary ({len(reports)})",
+                "",
+                "| Artifact | Platform | Variant | Pkg mgr | Status | Requested | Present | New | Indirect |",
+                "| --- | --- | --- | --- | --- | ---: | ---: | ---: | ---: |",
+            ]
+        )
+        for entry in reports:
+            label = str(entry.get("lane_name", "")).strip() or str(entry.get("artifact_name", "")).strip()
+            platform = str(entry.get("platform_id") or "").strip()
+            artifact_arch = str(entry.get("artifact_arch") or "").strip()
+            if not platform:
+                platform = " ".join(
+                    part for part in [str(entry.get("os", "")).strip(), str(entry.get("version", "")).strip()] if part
+                ).strip()
+            if artifact_arch:
+                platform = f"{platform}/{artifact_arch}" if platform else artifact_arch
+            dependency_lines.append(
+                "| "
+                + " | ".join(
+                    [
+                        f"`{label or '<unknown>'}`",
+                        f"`{platform or '<unknown>'}`",
+                        f"`{entry.get('variant', '') or '<unknown>'}`",
+                        f"`{entry.get('package_manager', '') or '<unknown>'}`",
+                        f"`{entry.get('report_status', '') or '<unknown>'}`",
+                        str(coerce_int(entry.get("requested_packages_count"), default=0)),
+                        str(coerce_int(entry.get("requested_already_present_count"), default=0)),
+                        str(coerce_int(entry.get("requested_newly_installed_count"), default=0)),
+                        str(coerce_int(entry.get("indirect_newly_installed_count"), default=0)),
+                    ]
+                )
+                + " |"
             )
-            lines.append(
-                "  requested newly installed: "
-                + (", ".join(f"`{pkg}`" for pkg in requested_new) if requested_new else "`<none>`")
-            )
-            lines.append(
-                "  indirect newly installed: "
-                + (", ".join(f"`{pkg}`" for pkg in indirect_new) if indirect_new else "`<none>`")
-            )
-        lines.extend(["", "</details>"])
+
+    unreadable_artifacts = dependency_report.get("unreadable_artifacts", [])
+    if unreadable_artifacts:
+        dependency_lines.extend(["", "### Unreadable Dependency Artifacts", ""])
+        for entry in unreadable_artifacts:
+            dependency_lines.append(f"- `{entry.get('name', '<unnamed>')}`: {entry.get('reason', 'unknown error')}")
 
     for heading, key in [
         ("Most Common Requested Installs", "requested_newly_installed_frequency"),
@@ -580,11 +573,19 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
         frequency = dependency_report.get("aggregate", {}).get(key, [])
         if not frequency:
             continue
-        lines.extend(["", f"### {heading}", ""])
+        dependency_lines.extend(["", f"### {heading}", ""])
         for entry in frequency[:DEPENDENCY_ARTIFACT_TOP_N]:
-            lines.append(f"- `{entry['package']}`: {entry['count']} lane(s)")
+            dependency_lines.append(f"- `{entry['package']}`: {entry['count']} lane(s)")
 
-    return "\n".join(lines) + "\n"
+    insert_at = len(lines)
+    conclusion_prefixes = tuple(f"## {label} (" for label in CONCLUSION_LABELS.values())
+    for idx, line in enumerate(lines):
+        if line.startswith(conclusion_prefixes) or line == "## Notes":
+            insert_at = idx
+            break
+
+    output_lines = lines[:insert_at] + dependency_lines + lines[insert_at:]
+    return "\n".join(output_lines) + "\n"
 
 
 def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list[dict], resolved_via: str) -> tuple[str, dict]:
