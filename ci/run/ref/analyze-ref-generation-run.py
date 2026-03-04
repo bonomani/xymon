@@ -7,6 +7,7 @@ import io
 import json
 import os
 import sys
+import urllib.error
 import urllib.parse
 import urllib.request
 import zipfile
@@ -103,8 +104,43 @@ def api_get(repo: str, token: str, path: str, params: dict[str, str] | None = No
         return json.load(response)
 
 
-def http_get_bytes(repo: str, token: str, url: str, accept: str = "application/vnd.github+json") -> bytes:
-    request = urllib.request.Request(url, headers=build_headers(repo, token, accept=accept))
+class NoRedirectHandler(urllib.request.HTTPRedirectHandler):
+    """Prevent automatic redirect following so signed URLs can be fetched without repo auth."""
+
+    def redirect_request(self, req, fp, code, msg, headers, newurl):
+        return None
+
+
+def resolve_artifact_redirect_url(repo: str, token: str, url: str) -> str:
+    request = urllib.request.Request(
+        url,
+        headers=build_headers(repo, token, accept="application/vnd.github+json"),
+    )
+    opener = urllib.request.build_opener(NoRedirectHandler)
+    try:
+        with opener.open(request) as response:
+            location = str(response.headers.get("Location", "")).strip()
+            if location:
+                return location
+            return response.geturl()
+    except urllib.error.HTTPError as exc:
+        if exc.code not in (301, 302, 303, 307, 308):
+            raise
+        location = str(exc.headers.get("Location", "")).strip()
+        if not location:
+            raise ValueError("artifact download redirect missing Location header") from exc
+        return location
+
+
+def download_artifact_archive(repo: str, token: str, archive_url: str) -> bytes:
+    signed_url = resolve_artifact_redirect_url(repo, token, archive_url)
+    request = urllib.request.Request(
+        signed_url,
+        headers={
+            "Accept": "application/octet-stream",
+            "User-Agent": f"{repo}/ref-generation-analysis",
+        },
+    )
     with urllib.request.urlopen(request) as response:
         return response.read()
 
@@ -333,7 +369,7 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
             continue
 
         try:
-            archive_bytes = http_get_bytes(repo, token, archive_url)
+            archive_bytes = download_artifact_archive(repo, token, archive_url)
             report_payload = extract_dependency_report_from_archive(archive_bytes)
         except Exception as exc:  # pragma: no cover - best-effort artifact aggregation
             unreadable_artifacts.append({"name": artifact_name, "reason": str(exc)})
