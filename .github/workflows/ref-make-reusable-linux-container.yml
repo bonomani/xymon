@@ -27,6 +27,7 @@ jobs:
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
+      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
       CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode || 'action' }}
@@ -141,6 +142,14 @@ jobs:
         run: |
           set -euo pipefail
           bash ci/run/ref/bootstrap-make-refs.sh
+
+      - name: Upload dependency report
+        if: ${{ always() }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}
+          path: ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/meta/deps-report.json
+          if-no-files-found: warn
 
       - name: Upload legacy references
         if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
