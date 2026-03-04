@@ -137,7 +137,6 @@ platforms:
   almalinux-10:
     runtime: docker
     image: almalinux:10
-    supported_build_tools: [cmake]
     deps:
       profile: almalinux
       version: 10
