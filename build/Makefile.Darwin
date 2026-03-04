@@ -59,13 +59,25 @@ endif
 LDFLAGS += $(HOMEBREW_LDFLAGS)
 
 # Compile flags for normal build
-CC = gcc
-GCCVER := $(shell gcc -dumpversion|cut -d. -f1)
+# On macOS, plain "gcc" is typically Apple's Clang driver. Prefer a real
+# Homebrew GNU compiler when available, and otherwise use Clang explicitly.
+HOMEBREW_GCC := $(shell \
+	for cc in gcc-15 gcc-14 gcc-13 gcc-12 gcc-11; do \
+		if command -v $$cc >/dev/null 2>&1; then \
+			command -v $$cc; \
+			exit 0; \
+		fi; \
+	done; \
+	exit 0)
+ifeq ($(origin CC), default)
+CC := $(if $(strip $(HOMEBREW_GCC)),$(HOMEBREW_GCC),clang)
+endif
+CC_BASENAME := $(notdir $(CC))
+IS_GCC := $(findstring gcc,$(CC_BASENAME))
 BASE_CFLAGS = -g -O -Wall -Wno-unused -D_REENTRANT -DBIND_8_COMPAT=1 $(LFSDEF) $(OSDEF)
-ifeq ($(GCCVER),4)
-   CFLAGS = $(BASE_CFLAGS) -Wno-pointer-sign $(HOMEBREW_FLAGS)
-else
-   CFLAGS = $(BASE_CFLAGS) $(HOMEBREW_FLAGS)
+CFLAGS = $(BASE_CFLAGS) $(HOMEBREW_FLAGS)
+ifneq ($(IS_GCC),)
+	CFLAGS += -Wno-pointer-sign
 endif
 
 
