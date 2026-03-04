@@ -1,6 +1,4 @@
 include:
-- name_prefix: Oracle Linux 10 amd64
-  platform_id: oraclelinux-10
 - name_prefix: Oracle Linux 9 amd64
   platform_id: oraclelinux-9
 - name_prefix: Oracle Linux 8 amd64
