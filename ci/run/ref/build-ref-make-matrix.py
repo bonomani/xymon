@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 from matrix_common import (
     die,
+    infer_platform_os,
     load_lanes_from_file,
     load_purpose_manifest_common,
     parse_supported_build_tools,
@@ -221,7 +222,12 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
     if runner_key:
         lane_obj.setdefault(runner_key, family_entry["default_runner"])
 
-    required = ("name", "variant", "runtime", "build_tool", "ref_os")
+    lane_obj.setdefault(
+        "platform_os",
+        infer_platform_os(family_entry["family"], lane_obj.get("platform_id")),
+    )
+
+    required = ("name", "variant", "runtime", "build_tool", "ref_os", "platform_os")
     for key in required:
         if lane_obj.get(key) in (None, ""):
             die(

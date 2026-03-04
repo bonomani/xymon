@@ -3,6 +3,7 @@ set -euo pipefail
 
 BUILD_TOOL="${BUILD_TOOL:-make}"
 REF_OS="${REF_OS:-}"
+PLATFORM_OS="${PLATFORM_OS:-${REF_OS:-}}"
 VARIANT="${VARIANT:-}"
 OS_VERSION="${OS_VERSION:-}"
 REF_STAGE_ROOT="${REF_STAGE_ROOT:-${GITHUB_WORKSPACE:-$(pwd)}/tmp/xymon-refs}"
@@ -25,6 +26,7 @@ mkdir -p "${REF_STAGE_ROOT}"
 
 bootstrap_args=(
   --os "${REF_OS}"
+  --platform-os "${PLATFORM_OS}"
   --variant "${VARIANT}"
   --build "${BUILD_TOOL}"
 )

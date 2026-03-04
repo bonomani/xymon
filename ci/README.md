@@ -30,6 +30,15 @@ Each family can expose a `generation` section, a `validation` section, or
 both. The selectors stay separate, but they derive their family lists from the
 same manifest and only see the purpose-specific entries.
 
+Lane objects keep two OS concepts separate:
+
+- `ref_os`: the logical OS namespace used by the legacy bootstrap and ref paths
+- `platform_os`: the concrete platform family the lane actually runs on
+
+For example, Linux container lanes may run on `platform_os=alpine` or
+`platform_os=oraclelinux` while still generating or validating the shared
+`ref_os=linux` reference set.
+
 ## Oracle Linux validation family
 
 Reference validation keeps Oracle Linux as its own Linux-container family even

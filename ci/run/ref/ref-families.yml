@@ -82,7 +82,8 @@ families:
       upload_artifacts: false
     lane_file: ci/run/ref/lanes/alpine.yml
     lane_overrides:
-      ref_os: alpine
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     container_arm64_overrides:
@@ -95,7 +96,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/archlinux.yml
     lane_overrides:
-      ref_os: archlinux
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/archlinux.yml
@@ -105,7 +107,7 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/centos7.yml
     lane_overrides:
-      ref_os: centos7
+      ref_os: linux
       prepare_profile: centos7
       checkout_mode: git
       upload_artifacts: false
@@ -122,7 +124,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
     lane_overrides:
-      ref_os: debian
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
@@ -150,6 +153,7 @@ families:
     lane_file: ci/run/ref/lanes/macos.yml
     lane_overrides:
       ref_os: macos
+      upload_artifacts: false
     os_version_key: macos_version
     runner_key: runner
     default_runner: macos-latest
@@ -203,7 +207,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
     lane_overrides:
-      ref_os: opensuse
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
@@ -213,8 +218,9 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/redhat.yml
     lane_overrides:
-      ref_os: redhat
+      ref_os: linux
       prepare_profile: redhat
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/redhat.yml
@@ -226,7 +232,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/fedora.yml
     lane_overrides:
-      ref_os: fedora
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/fedora.yml
@@ -236,7 +243,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/oraclelinux.yml
     lane_overrides:
-      ref_os: oraclelinux
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/oraclelinux.yml
@@ -246,7 +254,8 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml
     lane_overrides:
-      ref_os: ubuntu
+      ref_os: linux
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml

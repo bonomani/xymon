@@ -28,6 +28,7 @@ jobs:
       LEGACY_APPLY_OWNERSHIP: ON
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os }}
       OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
       ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture || 'x86-64' }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
@@ -56,6 +57,7 @@ jobs:
           sync_files: true
           run_script: |
             set -euo pipefail
+            export PLATFORM_OS="${{ env.PLATFORM_OS }}"
             bash ci/run/ref/bootstrap-build-refs.sh \
               --build "${{ env.BUILD_TOOL }}" \
               --os "${{ env.REF_OS }}" \

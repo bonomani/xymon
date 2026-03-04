@@ -4,6 +4,7 @@ set -euo pipefail
 build_tool=""
 os_name=""
 os_version=""
+platform_os="${PLATFORM_OS:-}"
 variant=""
 ref_prefix=""
 refs_root=""
@@ -28,6 +29,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --version)
       os_version="${2:-}"
+      shift 2
+      ;;
+    --platform-os)
+      platform_os="${2:-}"
       shift 2
       ;;
     --variant)
@@ -68,6 +73,9 @@ esac
 if [[ -z "${os_name}" || -z "${variant}" || -z "${ref_prefix}" || -z "${refs_root}" || -z "${artifact_root}" ]]; then
   usage
 fi
+if [[ -z "${platform_os}" ]]; then
+  platform_os="${os_name}"
+fi
 
 mkdir -p "${refs_root}" "${artifact_root}"
 
@@ -91,11 +99,12 @@ trap '
   stage_if_present /tmp/xymon-root-vars.sh
 ' EXIT
 
-echo "Running bootstrap-install (${build_tool} / ${os_name} ${os_version:-unknown} / ${variant})"
+echo "Running bootstrap-install (${build_tool} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
 bootstrap_args=(
   bash
   ci/bootstrap-install.sh
   --os "${os_name}"
+  --platform-os "${platform_os}"
   --variant "${variant}"
   --build "${build_tool}"
 )
