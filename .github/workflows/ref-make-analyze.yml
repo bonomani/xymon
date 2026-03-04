@@ -1,0 +1,85 @@
+name: Reference Generation - Analyze Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Optional ref-make-select run ID to analyze
+        required: false
+        type: string
+      source_branch:
+        description: Optional branch used when run_id is empty
+        required: false
+        type: string
+      event_filter:
+        description: Event filter used when run_id is empty
+        required: true
+        default: workflow_dispatch
+        type: choice
+        options:
+          - workflow_dispatch
+          - workflow_call
+          - all
+  workflow_run:
+    workflows:
+      - Reference Generation - Select Family
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Analyze generation run
+        id: analyze
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANALYZE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_id }}
+          ANALYZE_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || inputs.source_branch }}
+          ANALYZE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || inputs.event_filter }}
+        run: |
+          set -euo pipefail
+
+          markdown="${RUNNER_TEMP}/ref-make-analysis.md"
+          report_json="${RUNNER_TEMP}/ref-make-analysis.json"
+          args=(
+            --repo "${GITHUB_REPOSITORY}"
+            --workflow "ref-make-select.yml"
+            --markdown-output "${markdown}"
+            --json-output "${report_json}"
+            --github-output "${GITHUB_OUTPUT}"
+          )
+
+          if [[ -n "${ANALYZE_RUN_ID}" ]]; then
+            args+=(--run-id "${ANALYZE_RUN_ID}")
+          fi
+
+          if [[ -n "${ANALYZE_BRANCH}" ]]; then
+            args+=(--branch "${ANALYZE_BRANCH}")
+          fi
+
+          if [[ -n "${ANALYZE_EVENT}" ]]; then
+            args+=(--event "${ANALYZE_EVENT}")
+          fi
+
+          python3 ci/run/ref/analyze-ref-generation-run.py "${args[@]}"
+
+          cat "${markdown}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload analysis artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ref_make_analysis_${{ steps.analyze.outputs.run_id }}
+          path: |
+            ${{ runner.temp }}/ref-make-analysis.md
+            ${{ runner.temp }}/ref-make-analysis.json
