@@ -11,9 +11,19 @@ on:
         options:
           - all
           - linux
+          - alpine
+          - archlinux
+          - centos7
+          - debian
           - freebsd
+          - macos
           - netbsd
           - openbsd
+          - opensuse
+          - redhat
+          - fedora
+          - oraclelinux
+          - ubuntu
       build_tool:
         description: Build tool used to generate reference artifacts
         required: true

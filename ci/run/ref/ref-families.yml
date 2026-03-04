@@ -75,6 +75,14 @@ families:
       ref_os: linux
 
 - family: alpine
+  generation:
+    runtime: linux_container
+    container_arm64_overrides:
+      checkout_mode: git
+      upload_artifacts: false
+    lane_file: ci/run/ref/lanes/alpine.yml
+    lane_overrides:
+      ref_os: alpine
   validation:
     runtime: linux_container
     container_arm64_overrides:
@@ -83,11 +91,24 @@ families:
     lane_file: ci/run/ref/lanes/alpine.yml
 
 - family: archlinux
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/archlinux.yml
+    lane_overrides:
+      ref_os: archlinux
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/archlinux.yml
 
 - family: centos7
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/centos7.yml
+    lane_overrides:
+      ref_os: centos7
+      prepare_profile: centos7
+      checkout_mode: git
+      upload_artifacts: false
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/centos7.yml
@@ -97,6 +118,11 @@ families:
       upload_artifacts: false
 
 - family: debian
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/debian.yml
+    lane_overrides:
+      ref_os: debian
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
@@ -119,6 +145,14 @@ families:
     default_architecture: x86-64
 
 - family: macos
+  generation:
+    runtime: macos_host
+    lane_file: ci/run/ref/lanes/macos.yml
+    lane_overrides:
+      ref_os: macos
+    os_version_key: macos_version
+    runner_key: runner
+    default_runner: macos-latest
   validation:
     runtime: macos_host
     lane_file: ci/run/ref/lanes/macos.yml
@@ -165,11 +199,22 @@ families:
     default_architecture: x86-64
 
 - family: opensuse
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/opensuse.yml
+    lane_overrides:
+      ref_os: opensuse
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
 
 - family: redhat
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/redhat.yml
+    lane_overrides:
+      ref_os: redhat
+      prepare_profile: redhat
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/redhat.yml
@@ -177,16 +222,31 @@ families:
       prepare_profile: redhat
 
 - family: fedora
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/fedora.yml
+    lane_overrides:
+      ref_os: fedora
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/fedora.yml
 
 - family: oraclelinux
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/oraclelinux.yml
+    lane_overrides:
+      ref_os: oraclelinux
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/oraclelinux.yml
 
 - family: ubuntu
+  generation:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/ubuntu.yml
+    lane_overrides:
+      ref_os: ubuntu
   validation:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml
