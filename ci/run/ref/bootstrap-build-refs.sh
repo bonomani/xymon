@@ -10,7 +10,7 @@ ref_prefix=""
 refs_root=""
 artifact_root=""
 CI_DEPS_REPORT_JSON="${CI_DEPS_REPORT_JSON:-}"
-CI_DEPS_REPORT_MODE="${CI_DEPS_REPORT_MODE:-${MODE:-}}"
+CI_DEPS_REPORT_MODE="${CI_DEPS_REPORT_MODE:-}"
 
 usage() {
   cat <<'USAGE' >&2

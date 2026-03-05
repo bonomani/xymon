@@ -76,7 +76,7 @@ docker_args+=(
    # needs runtime tools installed before running the requested command.
    sh ci/run/ref/prepare-checkout-tools-bootstrap.sh \
      --prepare-profile "${PREPARE_PROFILE:-default}" \
-     --checkout-mode action
+     --checkout-mode "${CHECKOUT_MODE:-action}"
    exec "$@"'
   sh
   "$@"

@@ -49,6 +49,18 @@ BSD validation uses server references under the same naming pattern:
 Update references only when legacy Makefiles change, and record the update in
 `STATUS-HISTORY.md`.
 
+CI Baseline Root Mapping
+------------------------
+Reference compare lanes read baseline files from:
+- `docs/cmake-legacy-migration/refs/${baseline_root}/${variant}/...`
+
+Current `baseline_root` mapping (selector manifest):
+- linux: `make_linux`
+- freebsd: `make_freebsd`
+- netbsd: `make_netbsd`
+- openbsd: `make_openbsd`
+- macos: `make_freebsd` (temporary compatibility baseline)
+
 BSD Reference Generation (Server)
 --------------------------------
 Run on the target BSD host after legacy Makefile changes:

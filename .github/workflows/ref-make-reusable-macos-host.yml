@@ -93,11 +93,18 @@ jobs:
 
       - name: Upload dependency report
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.DEP_MODE == 'compare' || (env.DEP_MODE == 'generate' && !failure() && !cancelled())) }}
-        uses: actions/upload-artifact@v4
+        uses: ./.github/actions/upload-deps-report
         with:
-          name: ${{ format('deps_{0}_{1}_{2}__{3}__{4}__{5}', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, env.DEP_MODE, inputs.lane_name) }}
-          path: ${{ env.DEP_MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
-          if-no-files-found: warn
+          dep_mode: ${{ env.DEP_MODE }}
+          build_tool: ${{ env.BUILD_TOOL }}
+          platform_id: ${{ env.PLATFORM_ID }}
+          variant: ${{ env.VARIANT }}
+          artifact_arch: ${{ env.ARTIFACT_ARCH }}
+          lane_name: ${{ inputs.lane_name }}
+          artifact_family: ${{ env.ARTIFACT_FAMILY }}
+          ref_stage_root: ${{ env.REF_STAGE_ROOT }}
+          ref_os: ${{ env.REF_OS }}
+          if_no_files_found: warn
 
       - name: Upload legacy references
         if: ${{ env.GOAL == 'ref' && env.REF_MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
