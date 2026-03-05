@@ -32,15 +32,43 @@ on:
         options:
           - make
           - cmake
-      extra_action:
-        description: Optional post-build action
+      preset:
+        description: Preset execution mode
         required: true
         type: choice
-        default: no
+        default: verify
         options:
-          - no
-          - upload_artifacts
-          - compare_artifacts
+          - verify
+          - ref_generate
+          - ref_compare
+          - custom
+      goal:
+        description: Orthogonal goal selector
+        required: true
+        type: choice
+        default: verify
+        options:
+          - verify
+          - ref
+          - package
+          - image
+      ref_mode:
+        description: Reference mode when goal=ref
+        required: true
+        type: choice
+        default: generate
+        options:
+          - generate
+          - compare
+      publish:
+        description: Publish channel
+        required: true
+        type: choice
+        default: none
+        options:
+          - none
+          - artifact
+          - registry
       source_ref:
         description: Optional branch or tag to run this selector on
         required: false
@@ -56,10 +84,25 @@ on:
         required: false
         default: make
         type: string
-      extra_action:
-        description: Optional post-build action (no|upload_artifacts|compare_artifacts)
+      preset:
+        description: Preset execution mode (verify|ref_generate|ref_compare|custom)
         required: false
-        default: no
+        default: verify
+        type: string
+      goal:
+        description: Orthogonal goal selector (verify|ref|package|image)
+        required: false
+        default: verify
+        type: string
+      ref_mode:
+        description: Reference mode when goal=ref (generate|compare)
+        required: false
+        default: generate
+        type: string
+      publish:
+        description: Publish channel (none|artifact|registry)
+        required: false
+        default: none
         type: string
 
 permissions:
@@ -88,11 +131,14 @@ jobs:
               inputs: {
                 family: '${{ inputs.family }}',
                 build_tool: '${{ inputs.build_tool }}',
-                extra_action: '${{ inputs.extra_action }}',
+                preset: '${{ inputs.preset }}',
+                goal: '${{ inputs.goal }}',
+                ref_mode: '${{ inputs.ref_mode }}',
+                publish: '${{ inputs.publish }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, extra_action=${{ inputs.extra_action }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, preset=${{ inputs.preset }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -102,6 +148,10 @@ jobs:
       matrix_linux_container: ${{ steps.generate.outputs.matrix_linux_container }}
       matrix_bsd_vm: ${{ steps.generate.outputs.matrix_bsd_vm }}
       matrix_macos_host: ${{ steps.generate.outputs.matrix_macos_host }}
+      goal: ${{ steps.resolve_execution.outputs.goal }}
+      ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
+      publish: ${{ steps.resolve_execution.outputs.publish }}
+      execution_preset: ${{ steps.resolve_execution.outputs.execution_preset }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
       lane_count_linux_container: ${{ steps.generate.outputs.lane_count_linux_container }}
@@ -114,17 +164,91 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Validate selector combination
+      - name: Resolve execution preset and orthogonal model
+        id: resolve_execution
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
-          EXTRA_ACTION: ${{ inputs.extra_action }}
+          INPUT_PRESET: ${{ inputs.preset }}
+          INPUT_GOAL: ${{ inputs.goal }}
+          INPUT_REF_MODE: ${{ inputs.ref_mode }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
-          if [[ "${EXTRA_ACTION}" == "compare_artifacts" && "${SELECTED_FAMILY}" == "linux" ]]; then
-            echo "family=linux is generation-only and cannot be used with extra_action=compare_artifacts" >&2
+
+          goal="${INPUT_GOAL}"
+          ref_mode="${INPUT_REF_MODE}"
+          publish="${INPUT_PUBLISH}"
+          execution_preset="custom"
+
+          case "${INPUT_PRESET}" in
+            verify)
+              goal="verify"
+              ref_mode="generate"
+              publish="none"
+              execution_preset="verify"
+              ;;
+            ref_generate)
+              goal="ref"
+              ref_mode="generate"
+              publish="artifact"
+              execution_preset="ref_generate"
+              ;;
+            ref_compare)
+              goal="ref"
+              ref_mode="compare"
+              publish="artifact"
+              execution_preset="ref_compare"
+              ;;
+            custom)
+              ;;
+            *)
+              echo "Unsupported preset: ${INPUT_PRESET}" >&2
+              exit 2
+              ;;
+          esac
+
+          case "${goal}" in
+            verify|ref|package|image)
+              ;;
+            *)
+              echo "Unsupported goal: ${goal}" >&2
+              exit 2
+              ;;
+          esac
+          case "${ref_mode}" in
+            generate|compare)
+              ;;
+            *)
+              echo "Unsupported ref_mode: ${ref_mode}" >&2
+              exit 2
+              ;;
+          esac
+          case "${publish}" in
+            none|artifact|registry)
+              ;;
+            *)
+              echo "Unsupported publish: ${publish}" >&2
+              exit 2
+              ;;
+          esac
+
+          if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
+            echo "ref_mode=compare is only valid when goal=ref" >&2
             exit 2
           fi
+
+          if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" && "${SELECTED_FAMILY}" == "linux" ]]; then
+            echo "family=linux is generation-only and cannot be used with goal=ref ref_mode=compare" >&2
+            exit 2
+          fi
+
+          {
+            echo "goal=${goal}"
+            echo "ref_mode=${ref_mode}"
+            echo "publish=${publish}"
+            echo "execution_preset=${execution_preset}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Build selected lanes matrix
         id: generate
@@ -132,13 +256,14 @@ jobs:
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_BUILD_TOOL: ${{ inputs.build_tool }}
-          EXTRA_ACTION: ${{ inputs.extra_action }}
+          GOAL: ${{ steps.resolve_execution.outputs.goal }}
+          REF_MODE: ${{ steps.resolve_execution.outputs.ref_mode }}
         run: |
           set -euo pipefail
 
           purpose="generation"
           skip_dropdown_parity=0
-          if [[ "${EXTRA_ACTION}" == "compare_artifacts" ]]; then
+          if [[ "${GOAL}" == "ref" && "${REF_MODE}" == "compare" ]]; then
             purpose="validation"
             # Unified selector has generation+comparison families in one dropdown.
             skip_dropdown_parity=1
@@ -165,7 +290,10 @@ jobs:
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Build tool: ${{ inputs.build_tool }}"
-          echo "Extra action: ${{ inputs.extra_action }}"
+          echo "Preset: ${{ steps.resolve_execution.outputs.execution_preset }}"
+          echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
+          echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
+          echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
           echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
@@ -185,9 +313,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
-      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
-      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
+      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-linux-container:
     needs: build-matrix
@@ -202,9 +332,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
-      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
-      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
+      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-bsd-vm:
     needs: build-matrix
@@ -219,9 +351,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
-      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
-      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
+      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-macos-host:
     needs: build-matrix
@@ -236,6 +370,8 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
-      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
-      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
+      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
