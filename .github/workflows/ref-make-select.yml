@@ -33,10 +33,10 @@ on:
           - make
           - cmake
       preset:
-        description: Preset execution mode
-        required: true
+        description: Optional alias for goal/ref_mode/publish
+        required: false
         type: choice
-        default: verify
+        default: custom
         options:
           - verify
           - ref_generate
@@ -85,9 +85,9 @@ on:
         default: make
         type: string
       preset:
-        description: Preset execution mode (verify|ref_generate|ref_compare|custom)
+        description: Optional alias (verify|ref_generate|ref_compare|custom)
         required: false
-        default: verify
+        default: ''
         type: string
       goal:
         description: Orthogonal goal selector (verify|ref|package|image)
@@ -176,37 +176,40 @@ jobs:
         run: |
           set -euo pipefail
 
-          goal="${INPUT_GOAL}"
-          ref_mode="${INPUT_REF_MODE}"
-          publish="${INPUT_PUBLISH}"
+          goal="${INPUT_GOAL:-verify}"
+          ref_mode="${INPUT_REF_MODE:-generate}"
+          publish="${INPUT_PUBLISH:-none}"
+          preset="${INPUT_PRESET:-}"
           execution_preset="custom"
 
-          case "${INPUT_PRESET}" in
-            verify)
-              goal="verify"
-              ref_mode="generate"
-              publish="none"
-              execution_preset="verify"
-              ;;
-            ref_generate)
-              goal="ref"
-              ref_mode="generate"
-              publish="artifact"
-              execution_preset="ref_generate"
-              ;;
-            ref_compare)
-              goal="ref"
-              ref_mode="compare"
-              publish="artifact"
-              execution_preset="ref_compare"
-              ;;
-            custom)
-              ;;
-            *)
-              echo "Unsupported preset: ${INPUT_PRESET}" >&2
-              exit 2
-              ;;
-          esac
+          if [[ -n "${preset}" ]]; then
+            case "${preset}" in
+              verify)
+                goal="verify"
+                ref_mode="generate"
+                publish="none"
+                execution_preset="verify"
+                ;;
+              ref_generate)
+                goal="ref"
+                ref_mode="generate"
+                publish="artifact"
+                execution_preset="ref_generate"
+                ;;
+              ref_compare)
+                goal="ref"
+                ref_mode="compare"
+                publish="artifact"
+                execution_preset="ref_compare"
+                ;;
+              custom)
+                ;;
+              *)
+                echo "Unsupported preset: ${preset}" >&2
+                exit 2
+                ;;
+            esac
+          fi
 
           case "${goal}" in
             verify|ref|package|image)
