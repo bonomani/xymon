@@ -10,6 +10,7 @@ ref_prefix=""
 refs_root=""
 artifact_root=""
 CI_DEPS_REPORT_JSON="${CI_DEPS_REPORT_JSON:-}"
+CI_DEPS_REPORT_MODE="${CI_DEPS_REPORT_MODE:-${MODE:-}}"
 
 usage() {
   cat <<'USAGE' >&2
@@ -92,6 +93,9 @@ if [[ -z "${CI_DEPS_REPORT_JSON}" ]]; then
 fi
 mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
 export CI_DEPS_REPORT_JSON
+if [[ -n "${CI_DEPS_REPORT_MODE}" ]]; then
+  export CI_DEPS_REPORT_MODE
+fi
 
 stage_if_present() {
   local src="$1"

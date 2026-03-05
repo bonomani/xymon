@@ -37,6 +37,7 @@ jobs:
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       MODE: ${{ inputs.mode }}
+      CI_DEPS_REPORT_MODE: ${{ inputs.mode }}
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.mode == 'compare' && 'cmake' || 'make') }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
@@ -85,7 +86,7 @@ jobs:
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.MODE == 'compare' || (env.MODE == 'generate' && !failure() && !cancelled())) }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('{0}{1}_{2}_{3}__{4}__{5}', env.MODE == 'compare' && 'deps_valid_' || 'deps_', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, inputs.lane_name) }}
+          name: ${{ format('deps_{0}_{1}_{2}__{3}__{4}__{5}', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, env.MODE, inputs.lane_name) }}
           path: ${{ env.MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
           if-no-files-found: warn
 

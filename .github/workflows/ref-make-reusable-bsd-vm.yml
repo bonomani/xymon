@@ -37,6 +37,7 @@ jobs:
     continue-on-error: ${{ inputs.mode == 'compare' && fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       MODE: ${{ inputs.mode }}
+      CI_DEPS_REPORT_MODE: ${{ inputs.mode }}
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.mode == 'compare' && 'cmake' || 'make') }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
@@ -81,6 +82,7 @@ jobs:
             export OS_VERSION="${{ env.OS_VERSION }}"
             export VARIANT="${{ env.VARIANT }}"
             export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
+            export CI_DEPS_REPORT_MODE="${{ env.MODE }}"
             bash ci/run/ref/bootstrap-make-refs.sh
 
       - name: Load legacy hostname (runs for each matrix variant)
@@ -105,6 +107,7 @@ jobs:
           run_script: |
             set -euo pipefail
             export PLATFORM_OS="${{ env.PLATFORM_OS }}"
+            export CI_DEPS_REPORT_MODE="${{ env.MODE }}"
             bash ci/run/ref/bootstrap-build-refs.sh \
               --build "${{ env.BUILD_TOOL }}" \
               --os "${{ env.REF_OS }}" \
@@ -127,7 +130,7 @@ jobs:
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.MODE == 'compare' || (env.MODE == 'generate' && !failure() && !cancelled())) }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('{0}{1}_{2}_{3}__{4}__{5}', env.MODE == 'compare' && 'deps_valid_' || 'deps_', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, inputs.lane_name) }}
+          name: ${{ format('deps_{0}_{1}_{2}__{3}__{4}__{5}', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, env.MODE, inputs.lane_name) }}
           path: ${{ env.MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.OS_VERSION, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
           if-no-files-found: warn
 
