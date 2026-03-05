@@ -31,16 +31,6 @@ on:
         required: false
         default: allow
         type: string
-      upload_artifacts:
-        description: Override artifact upload behavior (1 or 0)
-        required: false
-        default: ''
-        type: string
-      run_compare:
-        description: Run compare policy checks (1 or 0)
-        required: false
-        default: '1'
-        type: string
 
 permissions:
   contents: read
@@ -69,8 +59,7 @@ jobs:
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
-      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (inputs.publish == 'artifact' && '1' || '0') }}
-      RUN_COMPARE: ${{ inputs.run_compare }}
+      UPLOAD_ARTIFACTS: ${{ inputs.publish == 'artifact' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -94,8 +83,7 @@ jobs:
             --variant "${VARIANT}" \
             --baseline-root "${BASELINE_ROOT}" \
               --artifact-family "${ARTIFACT_FAMILY}" \
-              --platform-id "${PLATFORM_ID}" \
-              --run-compare "${RUN_COMPARE}"
+              --platform-id "${PLATFORM_ID}"
 
       - name: Enforce expected failure reset
         if: ${{ always() && inputs.allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_json).allow_failure == true }}
