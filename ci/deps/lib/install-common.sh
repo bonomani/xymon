@@ -381,6 +381,7 @@ ci_deps_write_json_report() {
   local target_rc="${9:-0}"
   local command_status="success"
   local family_value="${family:-bsd}"
+  local report_mode_value="${CI_DEPS_REPORT_MODE:-${mode}}"
 
   if [[ "${target_rc}" -ne 0 ]]; then
     if [[ "${mode}" == "check" ]]; then
@@ -394,7 +395,8 @@ ci_deps_write_json_report() {
   : > "${outfile}"
 
   printf '{\n' >> "${outfile}"
-  ci_deps_write_json_string_field "${outfile}" "mode" "${mode}"
+  ci_deps_write_json_string_field "${outfile}" "mode" "${report_mode_value}"
+  ci_deps_write_json_string_field "${outfile}" "installer_mode" "${mode}"
   ci_deps_write_json_string_field "${outfile}" "status" "${command_status}"
   ci_deps_write_json_number_field "${outfile}" "command_exit_code" "${target_rc}"
   ci_deps_write_json_string_field "${outfile}" "variant" "${VARIANT:-server}"

@@ -41,7 +41,7 @@ CONCLUSION_LABELS = {
     "stale": "Stale",
     "unknown": "Unknown",
 }
-DEPENDENCY_ARTIFACT_PREFIXES = ("deps_", "deps_valid_")
+DEPENDENCY_ARTIFACT_PREFIXES = ("deps_",)
 DEPENDENCY_ARTIFACT_TOP_N = 20
 
 
@@ -245,13 +245,8 @@ def is_dependency_artifact_name(name: str) -> bool:
 
 
 def parse_dependency_artifact_name(name: str) -> dict[str, str]:
-    artifact_kind = "unknown"
     body = name
-    if name.startswith("deps_valid_"):
-        artifact_kind = "validation"
-        body = name[len("deps_valid_") :]
-    elif name.startswith("deps_"):
-        artifact_kind = "generation"
+    if name.startswith("deps_"):
         body = name[len("deps_") :]
 
     artifact_arch = ""
@@ -262,9 +257,11 @@ def parse_dependency_artifact_name(name: str) -> dict[str, str]:
             first_suffix = suffix_parts[0].strip()
             if first_suffix in {"amd64", "arm64"}:
                 artifact_arch = first_suffix
-                lane_name = "__".join(part for part in suffix_parts[1:] if part)
-            else:
-                lane_name = "__".join(part for part in suffix_parts if part)
+                suffix_parts = suffix_parts[1:]
+            first_suffix = (suffix_parts[0].strip().lower() if suffix_parts else "")
+            if first_suffix in {"generate", "compare"}:
+                suffix_parts = suffix_parts[1:]
+            lane_name = "__".join(part for part in suffix_parts if part)
 
     build_tool = ""
     platform_id = ""
@@ -277,13 +274,21 @@ def parse_dependency_artifact_name(name: str) -> dict[str, str]:
             platform_id = remainder
 
     return {
-        "artifact_kind": artifact_kind,
         "build_tool": build_tool,
         "platform_id": platform_id,
         "variant": variant,
         "artifact_arch": artifact_arch,
         "lane_name": lane_name,
     }
+
+
+def dependency_artifact_kind_from_report_mode(report_mode: str) -> str:
+    normalized_mode = report_mode.strip().lower()
+    if normalized_mode == "generate":
+        return "generation"
+    if normalized_mode == "compare":
+        return "validation"
+    raise ValueError(f"unsupported dependency report mode '{report_mode}' (expected generate|compare)")
 
 
 def extract_dependency_report_from_archive(archive_bytes: bytes) -> dict:
@@ -397,6 +402,13 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
             unreadable_artifacts.append({"name": artifact_name, "reason": str(exc)})
             continue
 
+        report_mode = str(report_payload.get("mode", "")).strip().lower()
+        try:
+            artifact_kind = dependency_artifact_kind_from_report_mode(report_mode)
+        except ValueError as exc:
+            unreadable_artifacts.append({"name": artifact_name, "reason": str(exc)})
+            continue
+
         requested_packages = sorted(str(item) for item in report_payload.get("requested_packages", []) if item)
         requested_new = sorted(str(item) for item in report_payload.get("requested_newly_installed", []) if item)
         indirect_new = sorted(str(item) for item in report_payload.get("indirect_newly_installed", []) if item)
@@ -407,7 +419,7 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
             {
                 "artifact_name": artifact_name,
                 "artifact_id": artifact.get("id"),
-                "artifact_kind": artifact_meta["artifact_kind"],
+                "artifact_kind": artifact_kind,
                 "artifact_arch": artifact_meta["artifact_arch"],
                 "artifact_size_in_bytes": coerce_int(artifact.get("size_in_bytes"), default=0),
                 "artifact_created_at": artifact.get("created_at"),
@@ -417,7 +429,7 @@ def build_dependency_report(repo: str, token: str, run_id: int, lane_jobs: list[
                 "lane_name": artifact_meta["lane_name"],
                 "platform_id": artifact_meta["platform_id"],
                 "variant": artifact_meta["variant"] or str(report_payload.get("variant", "")),
-                "report_mode": str(report_payload.get("mode", "")),
+                "report_mode": report_mode,
                 "report_status": str(report_payload.get("status", "")),
                 "family": str(report_payload.get("family", "")),
                 "os": str(report_payload.get("os", "")),
