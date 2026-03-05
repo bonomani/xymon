@@ -238,11 +238,6 @@ jobs:
             exit 2
           fi
 
-          if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" && "${SELECTED_FAMILY}" == "linux" ]]; then
-            echo "family=linux is generation-only and cannot be used with goal=ref ref_mode=compare" >&2
-            exit 2
-          fi
-
           {
             echo "goal=${goal}"
             echo "ref_mode=${ref_mode}"
