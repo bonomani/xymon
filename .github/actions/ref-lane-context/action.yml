@@ -1,0 +1,219 @@
+name: Resolve Reference Lane Context
+description: Normalize lane JSON and mode inputs for reusable ref lane workflows.
+
+inputs:
+  lane_json:
+    description: JSON-encoded lane object.
+    required: true
+  goal:
+    description: Execution goal (verify|ref).
+    required: true
+  ref_mode:
+    description: Reference mode (generate|compare).
+    required: true
+  publish:
+    description: Publish channel (none|artifact).
+    required: true
+  allow_failure_mode:
+    description: Handling mode for lanes marked allow_failure (off|allow|expect_fail).
+    required: true
+  dep_mode:
+    description: Dependency report mode (generate|compare), resolved upstream.
+    required: true
+
+outputs:
+  goal:
+    description: Normalized goal.
+    value: ${{ steps.resolve.outputs.goal }}
+  ref_mode:
+    description: Normalized reference mode.
+    value: ${{ steps.resolve.outputs.ref_mode }}
+  publish:
+    description: Normalized publish mode.
+    value: ${{ steps.resolve.outputs.publish }}
+  allow_failure_mode:
+    description: Normalized allow-failure mode.
+    value: ${{ steps.resolve.outputs.allow_failure_mode }}
+  dep_mode:
+    description: Dependency report mode.
+    value: ${{ steps.resolve.outputs.dep_mode }}
+  build_tool:
+    description: Lane build tool.
+    value: ${{ steps.resolve.outputs.build_tool }}
+  variant:
+    description: Lane variant.
+    value: ${{ steps.resolve.outputs.variant }}
+  lane_allow_failure:
+    description: Whether lane is allow_failure (1|0).
+    value: ${{ steps.resolve.outputs.lane_allow_failure }}
+  ref_os:
+    description: Logical ref OS.
+    value: ${{ steps.resolve.outputs.ref_os }}
+  platform_os:
+    description: Concrete platform OS.
+    value: ${{ steps.resolve.outputs.platform_os }}
+  platform_id:
+    description: Concrete platform identifier.
+    value: ${{ steps.resolve.outputs.platform_id }}
+  os_version:
+    description: Platform version.
+    value: ${{ steps.resolve.outputs.os_version }}
+  artifact_arch:
+    description: Artifact architecture label.
+    value: ${{ steps.resolve.outputs.artifact_arch }}
+  baseline_root:
+    description: Baseline root namespace.
+    value: ${{ steps.resolve.outputs.baseline_root }}
+  artifact_family:
+    description: Artifact family namespace.
+    value: ${{ steps.resolve.outputs.artifact_family }}
+  ref_stage_root:
+    description: Root directory for staged refs.
+    value: ${{ steps.resolve.outputs.ref_stage_root }}
+  upload_artifacts:
+    description: Artifact upload flag (1|0).
+    value: ${{ steps.resolve.outputs.upload_artifacts }}
+  enable_ldap:
+    description: LDAP toggle for dependency installers (ON|OFF).
+    value: ${{ steps.resolve.outputs.enable_ldap }}
+  enable_snmp:
+    description: SNMP toggle for dependency installers (ON|OFF).
+    value: ${{ steps.resolve.outputs.enable_snmp }}
+  cmake_bin:
+    description: Optional cmake binary override.
+    value: ${{ steps.resolve.outputs.cmake_bin }}
+  prepare_profile:
+    description: Optional Linux container prepare profile.
+    value: ${{ steps.resolve.outputs.prepare_profile }}
+  checkout_mode:
+    description: Optional Linux container checkout mode.
+    value: ${{ steps.resolve.outputs.checkout_mode }}
+  container:
+    description: Optional Linux container image.
+    value: ${{ steps.resolve.outputs.container }}
+  container_options:
+    description: Optional Linux container options.
+    value: ${{ steps.resolve.outputs.container_options }}
+  architecture:
+    description: Optional VM architecture.
+    value: ${{ steps.resolve.outputs.architecture }}
+  vm_memory:
+    description: Optional VM memory.
+    value: ${{ steps.resolve.outputs.vm_memory }}
+  vm_cpu_count:
+    description: Optional VM CPU count.
+    value: ${{ steps.resolve.outputs.vm_cpu_count }}
+
+runs:
+  using: composite
+  steps:
+    - name: Normalize lane context
+      id: resolve
+      shell: bash
+      env:
+        INPUT_LANE_JSON: ${{ inputs.lane_json }}
+        INPUT_GOAL: ${{ inputs.goal }}
+        INPUT_REF_MODE: ${{ inputs.ref_mode }}
+        INPUT_PUBLISH: ${{ inputs.publish }}
+        INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
+        INPUT_DEP_MODE: ${{ inputs.dep_mode }}
+      run: |
+        set -euo pipefail
+        python3 - <<'PY'
+        import json
+        import os
+        import sys
+
+
+        def fail(msg: str) -> None:
+            print(msg, file=sys.stderr)
+            raise SystemExit(2)
+
+
+        def as_text(value) -> str:
+            if value is None:
+                return ""
+            return str(value).strip()
+
+
+        try:
+            lane = json.loads(os.environ["INPUT_LANE_JSON"])
+        except Exception as exc:  # pragma: no cover - defensive
+            fail(f"lane_json is not valid JSON: {exc}")
+        if not isinstance(lane, dict):
+            fail("lane_json must decode to an object")
+
+        goal = as_text(os.environ.get("INPUT_GOAL", ""))
+        ref_mode = as_text(os.environ.get("INPUT_REF_MODE", ""))
+        publish = as_text(os.environ.get("INPUT_PUBLISH", ""))
+        allow_failure_mode = as_text(os.environ.get("INPUT_ALLOW_FAILURE_MODE", ""))
+        dep_mode = as_text(os.environ.get("INPUT_DEP_MODE", ""))
+
+        if dep_mode not in {"generate", "compare"}:
+            fail(f"Unsupported dep_mode: {dep_mode}")
+
+        build_tool = as_text(lane.get("build_tool"))
+        variant = as_text(lane.get("variant"))
+        if not build_tool:
+            fail("lane_json missing build_tool")
+        if not variant:
+            fail("lane_json missing variant")
+
+        ref_os = as_text(lane.get("ref_os")) or "linux"
+        platform_os = as_text(lane.get("platform_os")) or ref_os
+        platform_id = as_text(lane.get("platform_id")) or platform_os
+        artifact_arch = as_text(lane.get("artifact_arch")) or "amd64"
+        os_version = as_text(lane.get("os_version"))
+
+        baseline_root = as_text(lane.get("baseline_root"))
+        if not baseline_root:
+            fail("lane_json missing baseline_root")
+
+        # Normalize to avoid empty artifact namespaces in logs/artifact names.
+        artifact_family = as_text(lane.get("artifact_family")) or ref_os
+
+        upload_artifacts = "1" if publish == "artifact" else "0"
+        lane_allow_failure = "1" if lane.get("allow_failure") is True else "0"
+
+        enable = "ON" if variant == "server" else "OFF"
+
+        workspace = as_text(os.environ.get("GITHUB_WORKSPACE"))
+        if workspace:
+            ref_stage_root = os.path.join(workspace, "tmp", "xymon-refs")
+        else:
+            ref_stage_root = "tmp/xymon-refs"
+
+        outputs = {
+            "goal": goal,
+            "ref_mode": ref_mode,
+            "publish": publish,
+            "allow_failure_mode": allow_failure_mode,
+            "dep_mode": dep_mode,
+            "build_tool": build_tool,
+            "variant": variant,
+            "lane_allow_failure": lane_allow_failure,
+            "ref_os": ref_os,
+            "platform_os": platform_os,
+            "platform_id": platform_id,
+            "os_version": os_version,
+            "artifact_arch": artifact_arch,
+            "baseline_root": baseline_root,
+            "artifact_family": artifact_family,
+            "ref_stage_root": ref_stage_root,
+            "upload_artifacts": upload_artifacts,
+            "enable_ldap": enable,
+            "enable_snmp": enable,
+            "cmake_bin": as_text(lane.get("cmake_bin")),
+            "prepare_profile": as_text(lane.get("prepare_profile")),
+            "checkout_mode": as_text(lane.get("checkout_mode")),
+            "container": as_text(lane.get("container")),
+            "container_options": as_text(lane.get("container_options")),
+            "architecture": as_text(lane.get("architecture")),
+            "vm_memory": as_text(lane.get("vm_memory")),
+            "vm_cpu_count": as_text(lane.get("vm_cpu_count")),
+        }
+
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+            for key, value in outputs.items():
+                fh.write(f"{key}={value}\n")
+        PY
