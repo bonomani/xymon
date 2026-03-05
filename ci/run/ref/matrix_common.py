@@ -195,6 +195,13 @@ def load_purpose_manifest_common(
             die(f"Duplicate family in manifest: {family}")
         seen_families.add(family)
 
+        common_entry = entry.get("common", {})
+        if common_entry is None:
+            common_entry = {}
+        common_entry = require_mapping(
+            common_entry, f"Manifest entry {family}.common"
+        )
+
         purpose_entry = entry.get(purpose)
         if purpose_entry is None:
             continue
@@ -202,17 +209,38 @@ def load_purpose_manifest_common(
             purpose_entry, f"Manifest entry {family}.{purpose}"
         )
 
-        enabled = purpose_entry.get("enabled", True)
+        merged_entry = dict(common_entry)
+        merged_entry.update(purpose_entry)
+
+        common_lane_overrides = common_entry.get("lane_overrides", {})
+        if common_lane_overrides is None:
+            common_lane_overrides = {}
+        common_lane_overrides = require_mapping(
+            common_lane_overrides, f"Manifest entry {family}.common.lane_overrides"
+        )
+
+        purpose_lane_overrides = purpose_entry.get("lane_overrides", {})
+        if purpose_lane_overrides is None:
+            purpose_lane_overrides = {}
+        purpose_lane_overrides = require_mapping(
+            purpose_lane_overrides, f"Manifest entry {family}.{purpose}.lane_overrides"
+        )
+
+        merged_lane_overrides = dict(common_lane_overrides)
+        merged_lane_overrides.update(purpose_lane_overrides)
+        merged_entry["lane_overrides"] = merged_lane_overrides
+
+        enabled = merged_entry.get("enabled", True)
         if enabled is False:
             continue
         if enabled is not True:
             die(f"Manifest entry {family}.{purpose}.enabled must be a boolean")
 
         runtime = require_non_empty_string(
-            purpose_entry.get("runtime"), f"Manifest entry {family}.{purpose}.runtime"
+            merged_entry.get("runtime"), f"Manifest entry {family}.{purpose}.runtime"
         )
         lane_file = require_non_empty_string(
-            purpose_entry.get("lane_file"),
+            merged_entry.get("lane_file"),
             f"Manifest entry {family}.{purpose}.lane_file",
         )
 
@@ -221,20 +249,13 @@ def load_purpose_manifest_common(
                 f"Manifest entry {family}.{purpose} has invalid runtime '{runtime}'"
             )
 
-        lane_overrides = purpose_entry.get("lane_overrides", {})
-        if lane_overrides is None:
-            lane_overrides = {}
-        lane_overrides = require_mapping(
-            lane_overrides, f"Manifest entry {family}.{purpose}.lane_overrides"
-        )
-
         normalized_entries.append(
             {
                 "family": family,
                 "runtime": runtime,
                 "lane_file": lane_file,
-                "lane_overrides": lane_overrides,
-                "raw": purpose_entry,
+                "lane_overrides": merged_lane_overrides,
+                "raw": merged_entry,
                 "family_raw": entry,
             }
         )

@@ -1,7 +1,6 @@
 # Shared reference family catalog:
-# - a family may participate in generation, validation, or both
-# - both workflows use the same runtime vocabulary
-# - omitting a purpose section means that purpose is disabled for the family
+# - common defines per-family topology (runtime/lane_file/shared knobs)
+# - generation/validation are purpose overlays (delta-only)
 runtime_defaults:
   generation:
     linux_host:
@@ -17,14 +16,8 @@ runtime_defaults:
       vm_cpu_count: 2
     macos_host: {}
   validation:
-    linux_host:
-      ref_os: linux
-      baseline_root: make_linux
-      artifact_family: linux
+    linux_host: {}
     linux_container:
-      ref_os: linux
-      baseline_root: make_linux
-      artifact_family: linux
       prepare_profile: default
       checkout_mode: action
     bsd_vm:
@@ -56,189 +49,118 @@ lane_defaults:
 
 families:
 - family: linux
-  generation:
+  common:
     runtime: linux_host
     lane_file: ci/run/ref/make-lanes/linux.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_host
-    lane_file: ci/run/ref/make-lanes/linux.yml
-    lane_overrides:
-      ref_os: linux
-      artifact_family: linux
-      baseline_root: make_linux
+  generation: {}
+  validation: {}
 
 - family: alpine
-  generation:
+  common:
     runtime: linux_container
+    lane_file: ci/run/ref/lanes/alpine.yml
     container_arm64_overrides:
       checkout_mode: git
-    lane_file: ci/run/ref/lanes/alpine.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    container_arm64_overrides:
-      checkout_mode: git
-    lane_file: ci/run/ref/lanes/alpine.yml
+  generation: {}
+  validation: {}
 
 - family: archlinux
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/archlinux.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/archlinux.yml
+  generation: {}
+  validation: {}
 
 - family: centos7
-  generation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/centos7.yml
-    lane_overrides:
-      ref_os: linux
-      prepare_profile: centos7
-      checkout_mode: git
-  validation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/centos7.yml
     lane_overrides:
       prepare_profile: centos7
       checkout_mode: git
+  generation: {}
+  validation: {}
 
 - family: debian
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/debian.yml
+  generation: {}
+  validation: {}
 
 - family: freebsd
-  generation:
+  common:
     runtime: bsd_vm
     lane_file: ci/run/ref/lanes/freebsd.yml
-    lane_overrides:
-      ref_os: freebsd
-    os_version_key: freebsd_version
-  validation:
-    runtime: bsd_vm
-    lane_file: ci/run/ref/lanes/freebsd.yml
-    lane_overrides:
-      ref_os: freebsd
-      artifact_family: freebsd
-      baseline_root: make_freebsd
     os_version_key: freebsd_version
     default_architecture: x86-64
+  generation: {}
+  validation: {}
 
 - family: macos
-  generation:
+  common:
     runtime: macos_host
     lane_file: ci/run/ref/lanes/macos.yml
-    lane_overrides:
-      ref_os: macos
     os_version_key: macos_version
     runner_key: runner
     default_runner: macos-latest
+  generation: {}
   validation:
-    runtime: macos_host
-    lane_file: ci/run/ref/lanes/macos.yml
     lane_overrides:
-      ref_os: macos
-      artifact_family: macos
       # macOS compare currently uses FreeBSD legacy refs as the closest baseline.
       baseline_root: make_freebsd
-    os_version_key: macos_version
-    runner_key: runner
-    default_runner: macos-latest
 
 - family: netbsd
-  generation:
+  common:
     runtime: bsd_vm
     lane_file: ci/run/ref/lanes/netbsd.yml
-    lane_overrides:
-      ref_os: netbsd
-    os_version_key: netbsd_version
-  validation:
-    runtime: bsd_vm
-    lane_file: ci/run/ref/lanes/netbsd.yml
-    lane_overrides:
-      ref_os: netbsd
-      artifact_family: netbsd
-      baseline_root: make_netbsd
     os_version_key: netbsd_version
     default_architecture: x86-64
+  generation: {}
+  validation: {}
 
 - family: openbsd
-  generation:
+  common:
     runtime: bsd_vm
     lane_file: ci/run/ref/lanes/openbsd.yml
-    lane_overrides:
-      ref_os: openbsd
-    os_version_key: openbsd_version
-  validation:
-    runtime: bsd_vm
-    lane_file: ci/run/ref/lanes/openbsd.yml
-    lane_overrides:
-      ref_os: openbsd
-      artifact_family: openbsd
-      baseline_root: make_openbsd
     os_version_key: openbsd_version
     default_architecture: x86-64
+  generation: {}
+  validation: {}
 
 - family: opensuse
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/opensuse.yml
+  generation: {}
+  validation: {}
 
 - family: redhat
-  generation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/redhat.yml
-    lane_overrides:
-      ref_os: linux
-      prepare_profile: redhat
-  validation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/redhat.yml
     lane_overrides:
       prepare_profile: redhat
+  generation: {}
+  validation: {}
 
 - family: fedora
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/fedora.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/fedora.yml
+  generation: {}
+  validation: {}
 
 - family: oraclelinux
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/oraclelinux.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/oraclelinux.yml
+  generation: {}
+  validation: {}
 
 - family: ubuntu
-  generation:
+  common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml
-    lane_overrides:
-      ref_os: linux
-  validation:
-    runtime: linux_container
-    lane_file: ci/run/ref/lanes/ubuntu.yml
+  generation: {}
+  validation: {}

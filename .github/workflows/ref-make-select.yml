@@ -25,23 +25,14 @@ on:
           - oraclelinux
           - ubuntu
       build_tool:
-        description: Build tool used to generate reference artifacts
+        description: Build tool selection (auto derives from goal/ref_mode)
         required: true
         type: choice
-        default: make
+        default: auto
         options:
+          - auto
           - make
           - cmake
-      preset:
-        description: Optional alias for goal/ref_mode/publish
-        required: false
-        type: choice
-        default: custom
-        options:
-          - verify
-          - ref_generate
-          - ref_compare
-          - custom
       goal:
         description: Orthogonal goal selector
         required: true
@@ -89,14 +80,9 @@ on:
         required: true
         type: string
       build_tool:
-        description: Build tool used to generate reference artifacts
+        description: Build tool selection (auto|make|cmake)
         required: false
-        default: make
-        type: string
-      preset:
-        description: Optional alias (verify|ref_generate|ref_compare|custom)
-        required: false
-        default: ''
+        default: auto
         type: string
       goal:
         description: Orthogonal goal selector (verify|ref|package|image)
@@ -145,7 +131,6 @@ jobs:
               inputs: {
                 family: '${{ inputs.family }}',
                 build_tool: '${{ inputs.build_tool }}',
-                preset: '${{ inputs.preset }}',
                 goal: '${{ inputs.goal }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -153,7 +138,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, preset=${{ inputs.preset }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -167,7 +152,6 @@ jobs:
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
       allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
-      execution_preset: ${{ steps.resolve_execution.outputs.execution_preset }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
       lane_count_linux_container: ${{ steps.generate.outputs.lane_count_linux_container }}
@@ -180,12 +164,11 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Resolve execution preset and orthogonal model
+      - name: Resolve execution model
         id: resolve_execution
         shell: bash
         env:
-          SELECTED_FAMILY: ${{ inputs.family }}
-          INPUT_PRESET: ${{ inputs.preset }}
+          INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
           INPUT_GOAL: ${{ inputs.goal }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
@@ -193,41 +176,11 @@ jobs:
         run: |
           set -euo pipefail
 
+          requested_build_tool="${INPUT_BUILD_TOOL:-auto}"
           goal="${INPUT_GOAL:-verify}"
           ref_mode="${INPUT_REF_MODE:-generate}"
           publish="${INPUT_PUBLISH:-none}"
           allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE:-allow}"
-          preset="${INPUT_PRESET:-}"
-          execution_preset="custom"
-
-          if [[ -n "${preset}" ]]; then
-            case "${preset}" in
-              verify)
-                goal="verify"
-                ref_mode="generate"
-                publish="none"
-                execution_preset="verify"
-                ;;
-              ref_generate)
-                goal="ref"
-                ref_mode="generate"
-                publish="artifact"
-                execution_preset="ref_generate"
-                ;;
-              ref_compare)
-                goal="ref"
-                ref_mode="compare"
-                publish="artifact"
-                execution_preset="ref_compare"
-                ;;
-              custom)
-                ;;
-              *)
-                echo "Unsupported preset: ${preset}" >&2
-                exit 2
-                ;;
-            esac
-          fi
 
           case "${goal}" in
             verify|ref|package|image)
@@ -261,18 +214,35 @@ jobs:
               exit 2
               ;;
           esac
+          case "${requested_build_tool}" in
+            auto|make|cmake)
+              ;;
+            *)
+              echo "Unsupported build_tool: ${requested_build_tool}" >&2
+              exit 2
+              ;;
+          esac
 
           if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
             echo "ref_mode=compare is only valid when goal=ref" >&2
             exit 2
           fi
 
+          build_tool="${requested_build_tool}"
+          if [[ "${build_tool}" == "auto" ]]; then
+            if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
+              build_tool="cmake"
+            else
+              build_tool="make"
+            fi
+          fi
+
           {
+            echo "build_tool=${build_tool}"
             echo "goal=${goal}"
             echo "ref_mode=${ref_mode}"
             echo "publish=${publish}"
             echo "allow_failure_mode=${allow_failure_mode}"
-            echo "execution_preset=${execution_preset}"
           } >> "${GITHUB_OUTPUT}"
 
       - name: Build selected lanes matrix
@@ -280,7 +250,7 @@ jobs:
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
-          SELECTED_BUILD_TOOL: ${{ inputs.build_tool }}
+          SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
           GOAL: ${{ steps.resolve_execution.outputs.goal }}
           REF_MODE: ${{ steps.resolve_execution.outputs.ref_mode }}
         run: |
@@ -307,8 +277,7 @@ jobs:
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
-          echo "Build tool: ${{ inputs.build_tool }}"
-          echo "Preset: ${{ steps.resolve_execution.outputs.execution_preset }}"
+          echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
           echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
           echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
