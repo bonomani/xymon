@@ -126,7 +126,7 @@ families:
 - family: freebsd
   generation:
     runtime: bsd_vm
-    lane_file: ci/run/ref/make-lanes/freebsd.yml
+    lane_file: ci/run/ref/lanes/freebsd.yml
     lane_overrides:
       ref_os: freebsd
     os_version_key: freebsd_version
@@ -163,7 +163,7 @@ families:
 - family: netbsd
   generation:
     runtime: bsd_vm
-    lane_file: ci/run/ref/make-lanes/netbsd.yml
+    lane_file: ci/run/ref/lanes/netbsd.yml
     lane_overrides:
       ref_os: netbsd
     os_version_key: netbsd_version
@@ -180,7 +180,7 @@ families:
 - family: openbsd
   generation:
     runtime: bsd_vm
-    lane_file: ci/run/ref/make-lanes/openbsd.yml
+    lane_file: ci/run/ref/lanes/openbsd.yml
     lane_overrides:
       ref_os: openbsd
     os_version_key: openbsd_version
