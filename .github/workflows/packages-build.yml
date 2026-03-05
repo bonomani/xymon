@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       release_version:
-        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag or debian/changelog."
+        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag."
         required: false
         type: string
         default: ""
@@ -20,7 +20,7 @@ on:
   workflow_call:
     inputs:
       release_version:
-        description: "Release version (ex: 4.3.34)."
+        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag."
         required: false
         type: string
         default: ""
