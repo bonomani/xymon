@@ -29,6 +29,8 @@ runtime_defaults:
       checkout_mode: action
     bsd_vm:
       runs_on: ubuntu-22.04
+      vm_memory: 1024M
+      vm_cpu_count: 2
     macos_host: {}
 
 lane_defaults:

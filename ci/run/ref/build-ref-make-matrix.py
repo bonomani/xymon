@@ -292,16 +292,32 @@ def parse_args():
         default=".github/workflows/ref-make-select.yml",
     )
     parser.add_argument(
-        "--skip-dropdown-parity",
-        action="store_true",
-        help="Skip workflow_dispatch family dropdown parity validation",
-    )
-    parser.add_argument(
         "--platform-catalog",
         default="ci/deps/platform-catalog.yaml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
+
+
+def expected_dropdown_families_union(manifest_path: Path) -> list[str]:
+    generation_families = {entry["family"] for entry in load_manifest(manifest_path, "generation")}
+    validation_families = {entry["family"] for entry in load_manifest(manifest_path, "validation")}
+    enabled_union = generation_families | validation_families
+
+    data = yaml.safe_load(manifest_path.read_text()) or {}
+    families = data.get("families", [])
+    if not isinstance(families, list):
+        die(f"Manifest has no families list: {manifest_path}")
+
+    ordered = []
+    seen = set()
+    for index, raw in enumerate(families):
+        entry = require_mapping(raw, f"Manifest entry #{index}")
+        family = require_non_empty_string(entry.get("family"), f"Manifest entry #{index}.family")
+        if family in enabled_union and family not in seen:
+            ordered.append(family)
+            seen.add(family)
+    return ordered
 
 
 def main():
@@ -317,9 +333,8 @@ def main():
     repo_root = Path(__file__).resolve().parents[3]
     families = load_manifest(repo_root / args.manifest, purpose)
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
-    if not args.skip_dropdown_parity:
-        expected_options = ["all"] + [entry["family"] for entry in families]
-        validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
+    expected_options = ["all"] + expected_dropdown_families_union(repo_root / args.manifest)
+    validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
 
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
