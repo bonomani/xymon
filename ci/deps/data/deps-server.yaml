@@ -1,6 +1,4 @@
-topology: deps-targets.yaml
-bindings_file: deps-targets.yaml
-version_notes_file: deps-version-notes.yaml
+targets_file: deps-targets.yaml
 base_file: deps-base.yaml
 overlay_file: deps-overlays.yaml
 overlay_variant: server

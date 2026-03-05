@@ -5,7 +5,13 @@
 # - deps-base.yaml: shared profile/runtime base
 # - deps-overlays.yaml: variant overlays (client/localclient/server)
 # - deps-{server,client,localclient}.yaml: lightweight variant selectors
-# - deps-version-notes.yaml: shared version notes referenced by all variants
+# - deps-version-notes.yaml: shared version notes referenced by deps-base.yaml
+#
+# Strict v2 selector schema:
+# - targets_file
+# - base_file
+# - overlay_file
+# - overlay_variant
 
 # Installer helpers default to VARIANT=server if not provided; valid variants are 'server', 'client', and 'localclient'.
 #

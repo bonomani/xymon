@@ -141,8 +141,7 @@ enable_snmp="$(normalize_onoff "${enable_snmp}" "OFF")"
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 data_dir="${script_dir}/data"
 deps_file="${data_dir}/deps-${variant}.yaml"
-topology_file="${data_dir}/deps-targets.yaml"
-bindings_file="${topology_file}"
+targets_file="${data_dir}/deps-targets.yaml"
 dep_map_file="${data_dir}/deps-map.yaml"
 base_file=""
 overlay_file=""
@@ -186,15 +185,24 @@ read_top_level_key() {
   ' "${src_file}"
 }
 
-topology_ref="$(read_top_level_key "${deps_file}" "topology")"
-if [[ -n "${topology_ref}" ]]; then
-  topology_file="${data_dir}/${topology_ref}"
+deprecated_topology_ref="$(read_top_level_key "${deps_file}" "topology")"
+if [[ -n "${deprecated_topology_ref}" ]]; then
+  echo "Deprecated key 'topology' found in ${deps_file}; use 'targets_file' (strict v2)." >&2
+  exit 1
 fi
 
-bindings_ref="$(read_top_level_key "${deps_file}" "bindings_file")"
-if [[ -n "${bindings_ref}" ]]; then
-  bindings_file="${data_dir}/${bindings_ref}"
+deprecated_bindings_ref="$(read_top_level_key "${deps_file}" "bindings_file")"
+if [[ -n "${deprecated_bindings_ref}" ]]; then
+  echo "Deprecated key 'bindings_file' found in ${deps_file}; strict v2 uses targets only." >&2
+  exit 1
 fi
+
+targets_ref="$(read_top_level_key "${deps_file}" "targets_file")"
+if [[ -z "${targets_ref}" ]]; then
+  echo "Strict v2 requires targets_file in ${deps_file}" >&2
+  exit 1
+fi
+targets_file="${data_dir}/${targets_ref}"
 
 base_ref="$(read_top_level_key "${deps_file}" "base_file")"
 if [[ -n "${base_ref}" ]]; then
@@ -211,27 +219,21 @@ if [[ -n "${overlay_variant_ref}" ]]; then
   overlay_variant="${overlay_variant_ref}"
 fi
 
-if [[ ! -f "${topology_file}" ]]; then
-  echo "Dependency topology missing: ${topology_file}" >&2
+if [[ ! -f "${targets_file}" ]]; then
+  echo "Dependency targets file missing: ${targets_file}" >&2
   exit 1
 fi
-if [[ ! -f "${bindings_file}" ]]; then
-  echo "Dependency bindings missing: ${bindings_file}" >&2
+if [[ -z "${base_file}" || -z "${overlay_file}" || -z "${overlay_variant}" ]]; then
+  echo "Strict v2 requires base_file + overlay_file + overlay_variant in ${deps_file}" >&2
   exit 1
 fi
-if [[ -n "${base_file}" || -n "${overlay_file}" || -n "${overlay_variant}" ]]; then
-  if [[ -z "${base_file}" || -z "${overlay_file}" || -z "${overlay_variant}" ]]; then
-    echo "Dependency overlay mode requires base_file + overlay_file + overlay_variant in ${deps_file}" >&2
-    exit 1
-  fi
-  if [[ ! -f "${base_file}" ]]; then
-    echo "Dependency base file missing: ${base_file}" >&2
-    exit 1
-  fi
-  if [[ ! -f "${overlay_file}" ]]; then
-    echo "Dependency overlay file missing: ${overlay_file}" >&2
-    exit 1
-  fi
+if [[ ! -f "${base_file}" ]]; then
+  echo "Dependency base file missing: ${base_file}" >&2
+  exit 1
+fi
+if [[ ! -f "${overlay_file}" ]]; then
+  echo "Dependency overlay file missing: ${overlay_file}" >&2
+  exit 1
 fi
 
 tmp_files=()
@@ -294,25 +296,17 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     value = dequote(value)
     set_key(key, depth)
 
-    if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && key == "profile") {
-      if (value != "") print "TARGET_PROFILE\t" value
-    }
     if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && key == "profile") {
       if (value != "") print "TARGET_PROFILE\t" value
     }
 
-    if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs" && key == "mandatory") {
-      list_context = "target"
-      list_indent = indent
-      next
-    }
     if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs" && key == "mandatory") {
       list_context = "target"
       list_indent = indent
       next
     }
   }
-' "${bindings_file}" > "${items_meta_file}"; then
+' "${targets_file}" > "${items_meta_file}"; then
   exit 1
 fi
 
@@ -393,9 +387,13 @@ parse_overlay_profile_items() {
 
     if (line ~ /^-/) {
       item = trim(substr(line, 2))
-      if (item != "" && index(list_context, "profile:") == 1) {
-        profile_name = substr(list_context, 9)
-        print "PROFILE_ITEM_OVERLAY\t" profile_name "\t" item
+      if (item != "" && index(list_context, "profile_add:") == 1) {
+        profile_name = substr(list_context, 13)
+        print "PROFILE_ITEM_OVERLAY_ADD\t" profile_name "\t" item
+      }
+      if (item != "" && index(list_context, "profile_remove:") == 1) {
+        profile_name = substr(list_context, 16)
+        print "PROFILE_ITEM_OVERLAY_REMOVE\t" profile_name "\t" item
       }
       next
     }
@@ -406,10 +404,18 @@ parse_overlay_profile_items() {
     key = trim(substr(line, 1, sep_pos - 1))
     set_key(key, depth)
 
-    if (keys[0] == "variants" && keys[1] == VARIANT && keys[2] == "profiles" && keys[4] == "libs" && key == "mandatory") {
+    if (keys[0] == "variants" && keys[1] == VARIANT && keys[2] == "profiles" && keys[4] == "libs" && keys[5] == "mandatory" && key == "add") {
       profile_name = keys[3]
       if (profile_name != "") {
-        list_context = "profile:" profile_name
+        list_context = "profile_add:" profile_name
+        list_indent = indent
+      }
+      next
+    }
+    if (keys[0] == "variants" && keys[1] == VARIANT && keys[2] == "profiles" && keys[4] == "libs" && keys[5] == "mandatory" && key == "remove") {
+      profile_name = keys[3]
+      if (profile_name != "") {
+        list_context = "profile_remove:" profile_name
         list_indent = indent
       }
       next
@@ -418,17 +424,11 @@ parse_overlay_profile_items() {
   ' "${source_file}" >> "${items_meta_file}"
 }
 
-if [[ -n "${base_file}" && -n "${overlay_file}" && -n "${overlay_variant}" ]]; then
-  if ! parse_profile_items "${base_file}" "PROFILE_ITEM_BASE"; then
-    exit 1
-  fi
-  if ! parse_overlay_profile_items "${overlay_file}" "${overlay_variant}"; then
-    exit 1
-  fi
-else
-  if ! parse_profile_items "${deps_file}" "PROFILE_ITEM"; then
-    exit 1
-  fi
+if ! parse_profile_items "${base_file}" "PROFILE_ITEM_BASE"; then
+  exit 1
+fi
+if ! parse_overlay_profile_items "${overlay_file}" "${overlay_variant}"; then
+  exit 1
 fi
 
 if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
@@ -450,9 +450,6 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     if (sep_pos <= 0) next
     key = trim(substr(line, 1, sep_pos - 1))
     set_key(key, depth)
-    if (keys[0] == "build" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && key == PKGMGR) {
-      found = 1
-    }
     if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && key == PKGMGR) {
       found = 1
     }
@@ -463,7 +460,7 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
       exit 1
     }
   }
-' "${topology_file}"; then
+' "${targets_file}"; then
   exit 1
 fi
 
@@ -487,34 +484,54 @@ if [[ "${#items[@]}" -eq 0 ]]; then
   fi
 
   profile_items_base=()
-  profile_items_overlay=()
+  profile_items_overlay_add=()
+  profile_items_overlay_remove=()
   while IFS=$'\t' read -r rec profile_name profile_item; do
     case "${rec}" in
-      PROFILE_ITEM|PROFILE_ITEM_BASE)
+      PROFILE_ITEM_BASE)
         if [[ "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
           profile_items_base+=("${profile_item}")
         fi
         ;;
-      PROFILE_ITEM_OVERLAY)
+      PROFILE_ITEM_OVERLAY_ADD)
         if [[ "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
-          profile_items_overlay+=("${profile_item}")
+          profile_items_overlay_add+=("${profile_item}")
+        fi
+        ;;
+      PROFILE_ITEM_OVERLAY_REMOVE)
+        if [[ "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
+          profile_items_overlay_remove+=("${profile_item}")
         fi
         ;;
     esac
   done < "${items_meta_file}"
 
-  if [[ "${#profile_items_overlay[@]}" -gt 0 ]]; then
-    items=("${profile_items_overlay[@]}")
-  else
-    items=("${profile_items_base[@]}")
-  fi
+  items=("${profile_items_base[@]}")
+  for remove_item in "${profile_items_overlay_remove[@]}"; do
+    next_items=()
+    for keep_item in "${items[@]}"; do
+      if [[ "${keep_item}" != "${remove_item}" ]]; then
+        next_items+=("${keep_item}")
+      fi
+    done
+    items=("${next_items[@]}")
+  done
+
+  for add_item in "${profile_items_overlay_add[@]}"; do
+    exists=0
+    for existing_item in "${items[@]}"; do
+      if [[ "${existing_item}" == "${add_item}" ]]; then
+        exists=1
+        break
+      fi
+    done
+    if [[ "${exists}" -eq 0 ]]; then
+      items+=("${add_item}")
+    fi
+  done
 
   if [[ "${#items[@]}" -eq 0 ]]; then
-    if [[ -n "${base_file}" ]]; then
-      echo "Profile '${target_profile}' has no libs.mandatory list in ${base_file} / ${overlay_file}" >&2
-    else
-      echo "Profile '${target_profile}' has no libs.mandatory list in ${deps_file}" >&2
-    fi
+    echo "Profile '${target_profile}' has no libs.mandatory list after applying delta from ${overlay_file}" >&2
     exit 1
   fi
 fi

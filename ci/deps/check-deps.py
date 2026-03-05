@@ -23,8 +23,6 @@ FILES = [
 ]
 MAP_FILE = DATA_DIR / "deps-map.yaml"
 DEFAULT_TOPOLOGY_FILE = DATA_DIR / "deps-targets.yaml"
-DEFAULT_BINDINGS_FILE = DATA_DIR / "deps-targets.yaml"
-DEFAULT_VERSION_NOTES_FILE = DATA_DIR / "deps-version-notes.yaml"
 MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
@@ -78,26 +76,29 @@ def normalize_string_list(value, label: str) -> list[str]:
 def load_topology(topology_file: Path) -> dict:
     require(topology_file.exists(), f"missing topology file: {topology_file}")
     data = load_yaml(topology_file)
-    build = data.get("build")
+    require("build" not in data, f"{topology_file} uses deprecated 'build' key; strict v2 requires 'targets'")
+    require("bindings" not in data, f"{topology_file} uses deprecated 'bindings' key; strict v2 requires 'targets'")
     targets = data.get("targets")
-    if build is None and isinstance(targets, dict):
-        build = copy.deepcopy(targets)
-        data["build"] = build
-    require(isinstance(build, dict), f"{topology_file} build/targets must be a mapping")
-    for family, family_entry in build.items():
+    require(isinstance(targets, dict), f"{topology_file} targets must be a mapping")
+    for family, family_entry in targets.items():
         require(
             isinstance(family_entry, dict),
-            f"{topology_file} build/targets.{family} must be a mapping",
+            f"{topology_file} targets.{family} must be a mapping",
         )
         for os_name, os_entry in family_entry.items():
             require(
                 isinstance(os_entry, dict),
-                f"{topology_file} build/targets.{family}.{os_name} must be a mapping",
+                f"{topology_file} targets.{family}.{os_name} must be a mapping",
+            )
+            profile_name = os_entry.get("profile")
+            require(
+                isinstance(profile_name, str) and profile_name.strip(),
+                f"{topology_file} targets.{family}.{os_name}.profile must be a non-empty string",
             )
             packagers = os_entry.get("packagers")
             require(
                 isinstance(packagers, dict) and bool(packagers),
-                f"{topology_file} build/targets.{family}.{os_name}.packagers must be a non-empty mapping",
+                f"{topology_file} targets.{family}.{os_name}.packagers must be a non-empty mapping",
             )
             for pkg_name, pkg_entry in packagers.items():
                 if pkg_entry is None:
@@ -105,21 +106,12 @@ def load_topology(topology_file: Path) -> dict:
                 require(
                     isinstance(pkg_entry, dict),
                     (
-                        f"{topology_file} build/targets.{family}.{os_name}.packagers."
+                        f"{topology_file} targets.{family}.{os_name}.packagers."
                         f"{pkg_name} must be a mapping"
                     ),
                 )
+    data["build"] = copy.deepcopy(targets)
     return data
-
-
-def load_shared_bindings(bindings_file: Path) -> dict:
-    require(bindings_file.exists(), f"missing bindings file: {bindings_file}")
-    data = load_yaml(bindings_file)
-    bindings = data.get("bindings")
-    if bindings is None:
-        bindings = data.get("targets")
-    require(isinstance(bindings, dict), f"{bindings_file} bindings/targets must be a mapping")
-    return bindings
 
 
 def load_shared_version_notes(version_notes_file: Path) -> dict:
@@ -138,6 +130,84 @@ def deep_merge_dict(base: dict, overlay: dict) -> dict:
         else:
             merged[key] = copy.deepcopy(value)
     return merged
+
+
+def apply_mandatory_delta(
+    base_items: list[str],
+    delta: dict,
+    label: str,
+) -> list[str]:
+    require(isinstance(delta, dict), f"{label} must be a mapping with add/remove lists")
+    unknown = sorted(set(delta.keys()) - {"add", "remove"})
+    require(not unknown, f"{label} contains unsupported keys: {', '.join(unknown)}")
+    add_items = normalize_string_list(delta.get("add", []), f"{label}.add")
+    remove_items = set(normalize_string_list(delta.get("remove", []), f"{label}.remove"))
+
+    merged = [item for item in base_items if item not in remove_items]
+    for item in add_items:
+        if item not in merged:
+            merged.append(item)
+    return merged
+
+
+def merge_profiles_with_overlay_delta(
+    base_profiles: dict,
+    overlay_profiles: dict,
+    label: str,
+) -> dict[str, dict]:
+    require(isinstance(base_profiles, dict), f"{label} base profiles must be a mapping")
+    require(isinstance(overlay_profiles, dict), f"{label} overlay profiles must be a mapping")
+
+    merged_profiles: dict[str, dict] = {}
+    for profile_name, base_entry in base_profiles.items():
+        require(
+            isinstance(profile_name, str) and profile_name.strip(),
+            f"{label} base profile names must be non-empty strings",
+        )
+        require(isinstance(base_entry, dict), f"{label} base profile '{profile_name}' must be a mapping")
+        merged_profiles[profile_name] = copy.deepcopy(base_entry)
+
+    for profile_name, overlay_entry in overlay_profiles.items():
+        require(
+            isinstance(profile_name, str) and profile_name.strip(),
+            f"{label} overlay profile names must be non-empty strings",
+        )
+        require(isinstance(overlay_entry, dict), f"{label} overlay profile '{profile_name}' must be a mapping")
+        require(
+            profile_name in merged_profiles,
+            f"{label} overlay profile '{profile_name}' is missing from base profiles",
+        )
+
+        base_entry = merged_profiles[profile_name]
+        merged_entry = deep_merge_dict(base_entry, overlay_entry)
+
+        base_libs = base_entry.get("libs")
+        overlay_libs = overlay_entry.get("libs")
+        if overlay_libs is not None:
+            require(
+                isinstance(overlay_libs, dict),
+                f"{label} overlay profile '{profile_name}'.libs must be a mapping",
+            )
+        if isinstance(overlay_libs, dict) and "mandatory" in overlay_libs:
+            require(
+                isinstance(base_libs, dict) and "mandatory" in base_libs,
+                f"{label} base profile '{profile_name}' must define libs.mandatory for overlay delta",
+            )
+            base_mandatory = normalize_string_list(
+                base_libs["mandatory"],
+                f"{label} base profile '{profile_name}'.libs.mandatory",
+            )
+            merged_mandatory = apply_mandatory_delta(
+                base_mandatory,
+                overlay_libs["mandatory"],
+                f"{label} overlay profile '{profile_name}'.libs.mandatory",
+            )
+            merged_entry.setdefault("libs", {})
+            merged_entry["libs"]["mandatory"] = merged_mandatory
+
+        merged_profiles[profile_name] = merged_entry
+
+    return merged_profiles
 
 
 def load_platform_normalization_rules() -> dict[str, dict]:
@@ -162,148 +232,132 @@ def expand_variant_profiles(
     path: Path,
     topology: dict,
     topology_file: Path,
-    shared_bindings: dict,
-    bindings_file: Path,
     shared_version_notes: dict,
     version_notes_file: Path,
 ) -> dict:
-    topology_build = topology.get("build", {})
-    require(isinstance(topology_build, dict), f"{topology_file} build/targets must be a mapping")
+    topology_targets = topology.get("targets", {})
+    require(isinstance(topology_targets, dict), f"{topology_file} targets must be a mapping")
 
-    topology_ref = data.get("topology")
-    if topology_ref is not None:
-        require(isinstance(topology_ref, str) and topology_ref.strip(), f"{path} topology must be a non-empty string")
-        require(
-            Path(topology_ref).name == topology_file.name,
-            f"{path} topology='{topology_ref}' does not match active topology '{topology_file.name}'",
-        )
+    require(
+        "topology" not in data,
+        f"{path} uses deprecated key 'topology'; strict v2 requires 'targets_file'",
+    )
+    require(
+        "bindings_file" not in data,
+        f"{path} uses deprecated key 'bindings_file'; strict v2 uses targets only",
+    )
+    require(
+        "profiles" not in data and "runtime" not in data,
+        f"{path} must not define inline profiles/runtime in strict v2",
+    )
 
-    bindings_ref = data.get("bindings_file")
-    if bindings_ref is not None:
-        require(
-            isinstance(bindings_ref, str) and bindings_ref.strip(),
-            f"{path} bindings_file must be a non-empty string",
-        )
-        require(
-            Path(bindings_ref).name == bindings_file.name,
-            f"{path} bindings_file='{bindings_ref}' does not match active bindings '{bindings_file.name}'",
-        )
+    targets_ref = data.get("targets_file")
+    require(
+        isinstance(targets_ref, str) and targets_ref.strip(),
+        f"{path} targets_file must be a non-empty string",
+    )
+    require(
+        Path(targets_ref).name == topology_file.name,
+        f"{path} targets_file='{targets_ref}' does not match active targets '{topology_file.name}'",
+    )
 
-    version_notes_ref = data.get("version_notes_file")
-    if version_notes_ref is not None:
-        require(
-            isinstance(version_notes_ref, str) and version_notes_ref.strip(),
-            f"{path} version_notes_file must be a non-empty string",
-        )
-        require(
-            Path(version_notes_ref).name == version_notes_file.name,
-            f"{path} version_notes_file='{version_notes_ref}' does not match active notes '{version_notes_file.name}'",
-        )
+    require(
+        "version_notes_file" not in data,
+        f"{path} must not define version_notes_file; strict v2 sources it from base_file",
+    )
 
     base_file_ref = data.get("base_file")
     overlay_file_ref = data.get("overlay_file")
     overlay_variant_ref = data.get("overlay_variant")
-    overlay_mode = any(
-        value is not None and str(value).strip()
-        for value in (base_file_ref, overlay_file_ref, overlay_variant_ref)
+    require(
+        isinstance(base_file_ref, str) and base_file_ref.strip(),
+        f"{path} base_file must be a non-empty string",
+    )
+    require(
+        isinstance(overlay_file_ref, str) and overlay_file_ref.strip(),
+        f"{path} overlay_file must be a non-empty string",
+    )
+    require(
+        isinstance(overlay_variant_ref, str) and overlay_variant_ref.strip(),
+        f"{path} overlay_variant must be a non-empty string",
     )
 
-    profiles_raw: dict = {}
-    runtime_raw: dict = {}
-    if overlay_mode:
-        require(
-            isinstance(base_file_ref, str) and base_file_ref.strip(),
-            f"{path} base_file must be a non-empty string",
-        )
-        require(
-            isinstance(overlay_file_ref, str) and overlay_file_ref.strip(),
-            f"{path} overlay_file must be a non-empty string",
-        )
-        require(
-            isinstance(overlay_variant_ref, str) and overlay_variant_ref.strip(),
-            f"{path} overlay_variant must be a non-empty string",
-        )
+    base_path = path.parent / base_file_ref
+    overlay_path = path.parent / overlay_file_ref
+    require(base_path.exists(), f"{path} references missing base_file: {base_path}")
+    require(overlay_path.exists(), f"{path} references missing overlay_file: {overlay_path}")
 
-        base_path = path.parent / base_file_ref
-        overlay_path = path.parent / overlay_file_ref
-        require(base_path.exists(), f"{path} references missing base_file: {base_path}")
-        require(overlay_path.exists(), f"{path} references missing overlay_file: {overlay_path}")
+    base_data = load_yaml(base_path)
+    overlay_data = load_yaml(overlay_path)
 
-        base_data = load_yaml(base_path)
-        overlay_data = load_yaml(overlay_path)
+    base_version_notes = base_data.get("version_notes_file")
+    require(
+        isinstance(base_version_notes, str) and base_version_notes.strip(),
+        f"{base_path} version_notes_file must be a non-empty string",
+    )
+    require(
+        Path(base_version_notes).name == version_notes_file.name,
+        f"{base_path} version_notes_file='{base_version_notes}' does not match active notes '{version_notes_file.name}'",
+    )
 
-        base_profiles = base_data.get("profiles", {})
-        require(isinstance(base_profiles, dict), f"{base_path} profiles must be a mapping")
-        profiles_raw = copy.deepcopy(base_profiles)
+    base_profiles = base_data.get("profiles", {})
+    require(isinstance(base_profiles, dict), f"{base_path} profiles must be a mapping")
 
-        variants_map = overlay_data.get("variants", {})
-        require(isinstance(variants_map, dict), f"{overlay_path} variants must be a mapping")
-        selected_overlay = variants_map.get(overlay_variant_ref)
-        if selected_overlay is None:
-            selected_overlay = {}
-        require(
-            isinstance(selected_overlay, dict),
-            (
-                f"{overlay_path} variants.{overlay_variant_ref} must be a mapping when provided "
-                f"(referenced by {path})"
-            ),
-        )
+    variants_map = overlay_data.get("variants", {})
+    require(isinstance(variants_map, dict), f"{overlay_path} variants must be a mapping")
+    selected_overlay = variants_map.get(overlay_variant_ref)
+    if selected_overlay is None:
+        selected_overlay = {}
+    require(
+        isinstance(selected_overlay, dict),
+        (
+            f"{overlay_path} variants.{overlay_variant_ref} must be a mapping when provided "
+            f"(referenced by {path})"
+        ),
+    )
 
-        overlay_profiles = selected_overlay.get("profiles", {})
-        if overlay_profiles is None:
-            overlay_profiles = {}
-        require(
-            isinstance(overlay_profiles, dict),
-            f"{overlay_path} variants.{overlay_variant_ref}.profiles must be a mapping",
-        )
-        profiles_raw = deep_merge_dict(profiles_raw, overlay_profiles)
+    overlay_profiles = selected_overlay.get("profiles", {})
+    if overlay_profiles is None:
+        overlay_profiles = {}
+    require(
+        isinstance(overlay_profiles, dict),
+        f"{overlay_path} variants.{overlay_variant_ref}.profiles must be a mapping",
+    )
 
-        base_runtime = base_data.get("runtime", {})
-        if base_runtime is None:
-            base_runtime = {}
-        require(isinstance(base_runtime, dict), f"{base_path} runtime must be a mapping")
-        runtime_raw = copy.deepcopy(base_runtime)
+    profiles = merge_profiles_with_overlay_delta(
+        base_profiles,
+        overlay_profiles,
+        f"{path}",
+    )
 
-        overlay_runtime = selected_overlay.get("runtime")
-        if overlay_runtime is not None:
-            require(
-                isinstance(overlay_runtime, dict),
-                f"{overlay_path} variants.{overlay_variant_ref}.runtime must be a mapping",
-            )
-            runtime_raw = deep_merge_dict(runtime_raw, overlay_runtime)
-
-        inline_profiles = data.get("profiles")
-        if inline_profiles is not None:
-            require(isinstance(inline_profiles, dict), f"{path} profiles must be a mapping when provided")
-            profiles_raw = deep_merge_dict(profiles_raw, inline_profiles)
-
-        inline_runtime = data.get("runtime")
-        if inline_runtime is not None:
-            require(isinstance(inline_runtime, dict), f"{path} runtime must be a mapping when provided")
-            runtime_raw = deep_merge_dict(runtime_raw, inline_runtime)
-    else:
-        profiles_raw = data.get("profiles", {})
-        require(isinstance(profiles_raw, dict), f"{path} profiles must be a mapping")
-        runtime_raw = data.get("runtime", {})
-        if runtime_raw is None:
-            runtime_raw = {}
-        require(isinstance(runtime_raw, dict), f"{path} runtime must be a mapping")
-
-    profiles: dict[str, dict] = {}
-    for profile_name, profile_entry in profiles_raw.items():
-        require(isinstance(profile_name, str) and profile_name.strip(), f"{path} profile names must be non-empty strings")
+    for profile_name, profile_entry in profiles.items():
         require(isinstance(profile_entry, dict), f"{path} profiles.{profile_name} must be a mapping")
         libs = profile_entry.get("libs")
         if libs is not None:
             require(isinstance(libs, dict), f"{path} profiles.{profile_name}.libs must be a mapping")
             if "mandatory" in libs:
-                normalize_string_list(libs["mandatory"], f"{path} profiles.{profile_name}.libs.mandatory")
+                normalize_string_list(
+                    libs["mandatory"],
+                    f"{path} profiles.{profile_name}.libs.mandatory",
+                )
         tools = profile_entry.get("tools")
         if tools is not None:
             require(isinstance(tools, dict), f"{path} profiles.{profile_name}.tools must be a mapping")
-        profiles[profile_name] = copy.deepcopy(profile_entry)
 
-    runtime = copy.deepcopy(runtime_raw)
+    base_runtime = base_data.get("runtime", {})
+    if base_runtime is None:
+        base_runtime = {}
+    require(isinstance(base_runtime, dict), f"{base_path} runtime must be a mapping")
+    runtime = copy.deepcopy(base_runtime)
+
+    overlay_runtime = selected_overlay.get("runtime")
+    if overlay_runtime is not None:
+        require(
+            isinstance(overlay_runtime, dict),
+            f"{overlay_path} variants.{overlay_variant_ref}.runtime must be a mapping",
+        )
+        runtime = deep_merge_dict(runtime, overlay_runtime)
+
     if "libs" not in runtime:
         runtime["libs"] = {}
     if "tools" not in runtime:
@@ -312,96 +366,50 @@ def expand_variant_profiles(
     require(isinstance(runtime["tools"], dict), f"{path} runtime.tools must be a mapping")
 
     expanded = copy.deepcopy(data)
-    bindings = copy.deepcopy(shared_bindings)
-    inline_bindings = expanded.get("bindings")
-    if inline_bindings is not None:
-        require(isinstance(inline_bindings, dict), f"{path} bindings must be a mapping when provided")
-        bindings = deep_merge_dict(bindings, inline_bindings)
-    require(isinstance(bindings, dict), f"{path} resolved bindings must be a mapping")
-
     build_out: dict[str, dict] = {}
-    for family, family_entry in topology_build.items():
+    for family, family_entry in topology_targets.items():
         require(
             isinstance(family_entry, dict),
-            f"{topology_file} build/targets.{family} must be a mapping",
-        )
-        family_binding = bindings.get(family)
-        require(
-            isinstance(family_binding, dict),
-            f"{path} bindings/targets.{family} missing or invalid for topology family '{family}'",
+            f"{topology_file} targets.{family} must be a mapping",
         )
         build_out[family] = {}
         for os_name, topology_os_entry in family_entry.items():
             require(
                 isinstance(topology_os_entry, dict),
-                f"{topology_file} build/targets.{family}.{os_name} must be a mapping",
-            )
-            os_entry = family_binding.get(os_name)
-            require(
-                isinstance(os_entry, dict),
-                f"{path} bindings/targets.{family}.{os_name} missing or invalid",
+                f"{topology_file} targets.{family}.{os_name} must be a mapping",
             )
 
             topology_packagers = topology_os_entry.get("packagers", {})
             require(
                 isinstance(topology_packagers, dict) and bool(topology_packagers),
-                f"{topology_file} build/targets.{family}.{os_name}.packagers must be a non-empty mapping",
+                f"{topology_file} targets.{family}.{os_name}.packagers must be a non-empty mapping",
             )
 
-            profile_name = os_entry.get("profile")
-            if profile_name is None:
-                profile_name = topology_os_entry.get("profile")
+            profile_name = topology_os_entry.get("profile")
             profile: dict = {}
-            if profile_name is not None:
-                require(
-                    isinstance(profile_name, str) and profile_name.strip(),
-                    f"{path} build.{family}.{os_name}.profile must be a non-empty string",
-                )
-                require(
-                    profile_name in profiles,
-                    f"{path} bindings/targets.{family}.{os_name}.profile references unknown profile '{profile_name}'",
-                )
-                profile = profiles[profile_name]
-
-            binding_packagers = os_entry.get("packagers", {})
-            if binding_packagers is None:
-                binding_packagers = {}
             require(
-                isinstance(binding_packagers, dict),
-                f"{path} bindings/targets.{family}.{os_name}.packagers must be a mapping when provided",
+                isinstance(profile_name, str) and profile_name.strip(),
+                f"{topology_file} targets.{family}.{os_name}.profile must be a non-empty string",
             )
-
-            extra_packagers = sorted(set(binding_packagers.keys()) - set(topology_packagers.keys()))
             require(
-                not extra_packagers,
-                (
-                    f"{path} bindings/targets.{family}.{os_name}.packagers has keys not in topology: "
-                    f"{', '.join(extra_packagers)}"
-                ),
+                profile_name in profiles,
+                f"{topology_file} targets.{family}.{os_name}.profile references unknown profile '{profile_name}'",
             )
+            profile = profiles[profile_name]
 
             packagers: dict[str, dict] = {}
-            for pkg_name in topology_packagers.keys():
-                topology_pkg_entry = topology_packagers.get(pkg_name, {})
+            for pkg_name, topology_pkg_entry in topology_packagers.items():
                 if topology_pkg_entry is None:
                     topology_pkg_entry = {}
                 require(
                     isinstance(topology_pkg_entry, dict),
                     (
-                        f"{topology_file} build/targets.{family}.{os_name}.packagers."
+                        f"{topology_file} targets.{family}.{os_name}.packagers."
                         f"{pkg_name} must be a mapping"
                     ),
                 )
 
-                pkg_entry = binding_packagers.get(pkg_name, {})
-                if pkg_entry is None:
-                    pkg_entry = {}
-                require(
-                    isinstance(pkg_entry, dict),
-                    f"{path} bindings/targets.{family}.{os_name}.packagers.{pkg_name} must be a mapping",
-                )
-
-                merged_pkg = deep_merge_dict(topology_pkg_entry, pkg_entry)
+                merged_pkg = copy.deepcopy(topology_pkg_entry)
                 for section in ("libs", "tools"):
                     section_map: dict = {}
                     profile_section = profile.get(section)
@@ -430,25 +438,7 @@ def expand_variant_profiles(
                 "packagers": packagers,
             }
 
-    for family, family_binding in bindings.items():
-        if not isinstance(family_binding, dict):
-            continue
-        if family not in topology_build:
-            require(False, f"{path} bindings contains family not present in topology: {family}")
-        extra_os = sorted(set(family_binding.keys()) - set(topology_build.get(family, {}).keys()))
-        require(
-            not extra_os,
-            f"{path} bindings/targets.{family} contains OS keys not present in topology: {', '.join(extra_os)}",
-        )
-
     resolved_version_notes = copy.deepcopy(shared_version_notes)
-    inline_version_notes = expanded.get("version_notes")
-    if inline_version_notes is not None:
-        require(
-            isinstance(inline_version_notes, dict),
-            f"{path} version_notes must be a mapping when provided",
-        )
-        resolved_version_notes = deep_merge_dict(resolved_version_notes, inline_version_notes)
 
     expanded["build"] = build_out
     expanded["runtime"] = runtime
@@ -460,8 +450,6 @@ def check_file(
     path: Path,
     topology: dict,
     topology_file: Path,
-    shared_bindings: dict,
-    bindings_file: Path,
     shared_version_notes: dict,
     version_notes_file: Path,
 ) -> None:
@@ -470,8 +458,6 @@ def check_file(
         path,
         topology,
         topology_file,
-        shared_bindings,
-        bindings_file,
         shared_version_notes,
         version_notes_file,
     )
@@ -1497,32 +1483,33 @@ def main() -> int:
             print(f"  - {p}")
         return 2
 
-    topology_name: str | None = None
-    bindings_name: str | None = None
-    version_notes_name: str | None = None
+    targets_name: str | None = None
     base_name: str | None = None
     overlay_name: str | None = None
     seen_overlay_variants: set[str] = set()
     for path in FILES:
         variant_data = load_yaml(path)
         variant_name = path.stem.removeprefix("deps-")
-        variant_topology = variant_data.get("topology", DEFAULT_TOPOLOGY_FILE.name)
-        variant_bindings = variant_data.get("bindings_file", DEFAULT_BINDINGS_FILE.name)
-        variant_version_notes = variant_data.get("version_notes_file", DEFAULT_VERSION_NOTES_FILE.name)
+        require(
+            "topology" not in variant_data,
+            f"{path} uses deprecated key 'topology'; strict v2 requires 'targets_file'",
+        )
+        require(
+            "bindings_file" not in variant_data,
+            f"{path} uses deprecated key 'bindings_file'; strict v2 uses targets only",
+        )
+        require(
+            "version_notes_file" not in variant_data,
+            f"{path} must not define version_notes_file; strict v2 sources it from base_file",
+        )
+
+        variant_targets = variant_data.get("targets_file")
         variant_base = variant_data.get("base_file")
         variant_overlay = variant_data.get("overlay_file")
         variant_overlay_variant = variant_data.get("overlay_variant")
         require(
-            isinstance(variant_topology, str) and variant_topology.strip(),
-            f"{path} topology must be a non-empty string when provided",
-        )
-        require(
-            isinstance(variant_bindings, str) and variant_bindings.strip(),
-            f"{path} bindings_file must be a non-empty string when provided",
-        )
-        require(
-            isinstance(variant_version_notes, str) and variant_version_notes.strip(),
-            f"{path} version_notes_file must be a non-empty string when provided",
+            isinstance(variant_targets, str) and variant_targets.strip(),
+            f"{path} targets_file must be a non-empty string when provided",
         )
         require(
             isinstance(variant_base, str) and variant_base.strip(),
@@ -1548,26 +1535,12 @@ def main() -> int:
             f"duplicate overlay_variant '{variant_overlay_variant}' across variant files",
         )
         seen_overlay_variants.add(variant_overlay_variant)
-        if topology_name is None:
-            topology_name = variant_topology
+        if targets_name is None:
+            targets_name = variant_targets
         else:
             require(
-                variant_topology == topology_name,
-                f"{path} topology '{variant_topology}' does not match '{topology_name}' used by other variants",
-            )
-        if bindings_name is None:
-            bindings_name = variant_bindings
-        else:
-            require(
-                variant_bindings == bindings_name,
-                f"{path} bindings_file '{variant_bindings}' does not match '{bindings_name}' used by other variants",
-            )
-        if version_notes_name is None:
-            version_notes_name = variant_version_notes
-        else:
-            require(
-                variant_version_notes == version_notes_name,
-                f"{path} version_notes_file '{variant_version_notes}' does not match '{version_notes_name}' used by other variants",
+                variant_targets == targets_name,
+                f"{path} targets_file '{variant_targets}' does not match '{targets_name}' used by other variants",
             )
         if base_name is None:
             base_name = variant_base
@@ -1584,25 +1557,28 @@ def main() -> int:
                 f"{path} overlay_file '{variant_overlay}' does not match '{overlay_name}' used by other variants",
             )
 
-    assert topology_name is not None
-    assert bindings_name is not None
-    assert version_notes_name is not None
+    assert targets_name is not None
     assert base_name is not None
     assert overlay_name is not None
-    topology_file = DATA_DIR / topology_name
-    bindings_file = DATA_DIR / bindings_name
+    topology_file = DATA_DIR / targets_name
+    base_file = DATA_DIR / base_name
+    require(base_file.exists(), f"missing base file: {base_file}")
+    base_data = load_yaml(base_file)
+    version_notes_name = base_data.get("version_notes_file")
+    require(
+        isinstance(version_notes_name, str) and version_notes_name.strip(),
+        f"{base_file} version_notes_file must be a non-empty string",
+    )
     version_notes_file = DATA_DIR / version_notes_name
+
     topology = load_topology(topology_file)
     normalization_rules = load_platform_normalization_rules()
-    shared_bindings = load_shared_bindings(bindings_file)
     shared_version_notes = load_shared_version_notes(version_notes_file)
     for path in FILES:
         check_file(
             path,
             topology,
             topology_file,
-            shared_bindings,
-            bindings_file,
             shared_version_notes,
             version_notes_file,
         )
@@ -1614,8 +1590,6 @@ def main() -> int:
         DATA_DIR / "deps-client.yaml",
         topology,
         topology_file,
-        shared_bindings,
-        bindings_file,
         shared_version_notes,
         version_notes_file,
     )
@@ -1624,8 +1598,6 @@ def main() -> int:
         DATA_DIR / "deps-localclient.yaml",
         topology,
         topology_file,
-        shared_bindings,
-        bindings_file,
         shared_version_notes,
         version_notes_file,
     )
@@ -1634,8 +1606,6 @@ def main() -> int:
         DATA_DIR / "deps-server.yaml",
         topology,
         topology_file,
-        shared_bindings,
-        bindings_file,
         shared_version_notes,
         version_notes_file,
     )

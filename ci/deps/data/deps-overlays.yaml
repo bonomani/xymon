@@ -6,52 +6,54 @@ variants:
       linux_default:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - OpenSSL
-          - PCRE
-          - TIRPC
+            add:
+            - PCRE
+            remove: []
       bsd_freebsd:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - PCRE
+            add:
+            - PCRE
+            remove: []
       bsd_net_open:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - PCRE
+            add:
+            - PCRE
+            remove: []
 
   server:
     profiles:
       linux_default:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - OpenSSL
-          - CARES
-          - PCRE
-          - RRD
-          - TIRPC
-          - LDAP
-          - NETSNMP
+            add:
+            - CARES
+            - PCRE
+            - RRD
+            - LDAP
+            - NETSNMP
+            remove: []
       bsd_freebsd:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - PCRE
-          - RRD
-          - CARES
-          - NETSNMP
-          - LDAP
+            add:
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            remove: []
       bsd_net_open:
         libs:
           mandatory:
-          - BUILD_TOOLS
-          - PCRE
-          - RRD
-          - CARES
-          - NETSNMP
-          - LDAP
+            add:
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            remove: []
     runtime:
       libs:
         optional:
