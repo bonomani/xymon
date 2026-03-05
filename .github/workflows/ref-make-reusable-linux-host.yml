@@ -11,10 +11,20 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
-      mode:
-        description: Lane mode (generate or compare)
+      goal:
+        description: Execution goal (verify|ref|package|image)
+        required: false
+        default: ref
+        type: string
+      ref_mode:
+        description: Reference mode when goal=ref (generate|compare)
         required: false
         default: generate
+        type: string
+      publish:
+        description: Publish channel (none|artifact|registry)
+        required: false
+        default: none
         type: string
       upload_artifacts:
         description: Override artifact upload behavior (1 or 0)
@@ -34,22 +44,25 @@ jobs:
   linux-host:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
-    continue-on-error: ${{ inputs.mode == 'compare' && fromJSON(inputs.lane_json).allow_failure == true }}
+    continue-on-error: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && fromJSON(inputs.lane_json).allow_failure == true }}
     env:
-      MODE: ${{ inputs.mode }}
-      CI_DEPS_REPORT_MODE: ${{ inputs.mode }}
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.mode == 'compare' && 'cmake' || 'make') }}
+      GOAL: ${{ inputs.goal }}
+      REF_MODE: ${{ inputs.ref_mode }}
+      PUBLISH: ${{ inputs.publish }}
+      DEP_MODE: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'cmake' || 'make') }}
       LEGACY_APPLY_OWNERSHIP: ON
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
-      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || (inputs.mode == 'compare' && 'linux-host' || fromJSON(inputs.lane_json).ref_os || 'linux-host') }}
+      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || (inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'linux-host' || fromJSON(inputs.lane_json).ref_os || 'linux-host') }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin || '' }}
+      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version || '' }}
       BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root || 'make_linux' }}
       ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family || 'linux' }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
-      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (inputs.mode == 'compare' && (fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0') || (fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1')) }}
+      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (inputs.publish == 'artifact' && '1' || '0') }}
       RUN_COMPARE: ${{ inputs.run_compare }}
     steps:
       - name: Checkout
@@ -57,37 +70,34 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Bootstrap install + refs on Linux
-        if: ${{ env.MODE == 'generate' }}
+      - name: Run lane orchestration on Linux host
         shell: bash
         run: |
           set -euo pipefail
-          bash ci/run/ref/bootstrap-make-refs.sh
-
-      - name: Run shared Linux validation sequence
-        if: ${{ env.MODE == 'compare' }}
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/run-linux-ref-validation.sh \
+          bash ci/run/ref/run-ref-lane.sh \
             --build "${BUILD_TOOL}" \
+            --goal "${GOAL}" \
+            --ref-mode "${REF_MODE}" \
+            --publish "${PUBLISH}" \
             --variant "${VARIANT}" \
             --baseline-root "${BASELINE_ROOT}" \
             --ref-os "${REF_OS}" \
+            --platform-os "${PLATFORM_OS}" \
+            --version "${OS_VERSION}" \
             --artifact-family "${ARTIFACT_FAMILY}" \
             --platform-id "${PLATFORM_ID}" \
             --run-compare "${RUN_COMPARE}"
 
       - name: Upload dependency report
-        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.MODE == 'compare' || (env.MODE == 'generate' && !failure() && !cancelled())) }}
+        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.DEP_MODE == 'compare' || (env.DEP_MODE == 'generate' && !failure() && !cancelled())) }}
         uses: actions/upload-artifact@v4
         with:
-          name: ${{ format('deps_{0}_{1}_{2}__{3}__{4}__{5}', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, env.MODE, inputs.lane_name) }}
-          path: ${{ env.MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
+          name: ${{ format('deps_{0}_{1}_{2}__{3}__{4}__{5}', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, env.DEP_MODE, inputs.lane_name) }}
+          path: ${{ env.DEP_MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
           if-no-files-found: warn
 
       - name: Upload legacy references
-        if: ${{ env.MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
+        if: ${{ env.GOAL == 'ref' && env.REF_MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}__${{ env.PLATFORM_ID }}__${{ env.ARTIFACT_ARCH }}
@@ -96,7 +106,7 @@ jobs:
           if-no-files-found: error
 
       - name: Upload artifacts
-        if: ${{ always() && env.MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
+        if: ${{ always() && env.GOAL == 'ref' && env.REF_MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
         uses: ./.github/actions/upload-ref-valid-artifacts
         with:
           lane_name: ${{ inputs.lane_name }}

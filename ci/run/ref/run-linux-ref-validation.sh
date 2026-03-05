@@ -7,11 +7,13 @@ baseline_root=""
 ref_os="linux"
 artifact_family=""
 platform_id=""
+platform_os=""
 run_compare="1"
+publish="none"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: run-linux-ref-validation.sh --build TOOL --variant NAME --baseline-root ROOT --artifact-family FAMILY --platform-id ID [--ref-os OS] [--run-compare 1|0]
+Usage: run-linux-ref-validation.sh --build TOOL --variant NAME --baseline-root ROOT --artifact-family FAMILY --platform-id ID [--ref-os OS] [--platform-os OS] [--run-compare 1|0] [--publish none|artifact|registry]
 USAGE
   exit 2
 }
@@ -42,8 +44,16 @@ while [[ $# -gt 0 ]]; do
       platform_id="${2:-}"
       shift 2
       ;;
+    --platform-os)
+      platform_os="${2:-}"
+      shift 2
+      ;;
     --run-compare)
       run_compare="${2:-}"
+      shift 2
+      ;;
+    --publish)
+      publish="${2:-}"
       shift 2
       ;;
     -h|--help)
@@ -82,48 +92,19 @@ if [[ -z "${variant}" || -z "${baseline_root}" || -z "${artifact_family}" || -z 
   usage
 fi
 
-baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
-refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
-artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}-${platform_id}-${variant}"
-candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
-
-legacy_hostname_env="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
-bash ci/run/ref/load-legacy-hostname.sh \
-  --config "docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg" \
-  --env-file "${legacy_hostname_env}"
-if [[ -s "${legacy_hostname_env}" ]]; then
-  # shellcheck disable=SC1090
-  source "${legacy_hostname_env}"
-  if [[ -n "${XYMONHOSTNAME:-}" ]]; then
-    export XYMONHOSTNAME
-    echo "Using legacy hostname in-process: ${XYMONHOSTNAME}"
-  fi
-else
-  echo "Legacy hostname: no in-process override loaded."
+if [[ -z "${platform_os}" ]]; then
+  platform_os="${ref_os}"
 fi
-rm -f "${legacy_hostname_env}"
 
-bash ci/run/ref/seed-legacy-identities.sh \
-  --passwd "docs/cmake-legacy-migration/refs/${baseline_root}/${variant}/owners.passwd" \
-  --group "docs/cmake-legacy-migration/refs/${baseline_root}/${variant}/owners.group"
-
-bash ci/run/ref/bootstrap-build-refs.sh \
+bash ci/run/ref/run-ref-lane.sh \
   --build "${build_tool}" \
-  --os "${ref_os}" \
+  --goal ref \
+  --ref-mode compare \
+  --publish "${publish}" \
+  --platform-os "${platform_os}" \
+  --ref-os "${ref_os}" \
   --variant "${variant}" \
-  --ref-prefix "${baseline_prefix}" \
-  --refs-root "${refs_root}" \
-  --artifact-root "${artifact_root}"
-
-if [[ "${run_compare}" == "1" ]]; then
-  # This helper must run in the current shell so LEGACY_ROOT and friends remain available.
-  # shellcheck source=ci/run/ref/load-staged-metadata.sh
-  source ci/run/ref/load-staged-metadata.sh
-
-  bash ci/compare-refs.sh \
-    --baseline-prefix "${baseline_prefix}" \
-    --candidate-dir "${candidate_dir}" \
-    --candidate-root "${LEGACY_ROOT}"
-else
-  echo "Skipping compare step (--run-compare=0)."
-fi
+  --baseline-root "${baseline_root}" \
+  --artifact-family "${artifact_family}" \
+  --platform-id "${platform_id}" \
+  --run-compare "${run_compare}"
