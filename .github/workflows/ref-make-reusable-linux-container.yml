@@ -11,6 +11,11 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
+      upload_artifacts:
+        description: Override artifact upload behavior (1 or 0)
+        required: false
+        default: ''
+        type: string
 
 permissions:
   contents: read
@@ -28,7 +33,7 @@ jobs:
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
-      UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1' }}
+      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1') }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       CONTAINER_IMAGE: ${{ fromJSON(inputs.lane_json).container }}
       CONTAINER_OPTIONS: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
@@ -46,7 +51,7 @@ jobs:
             bash ci/run/ref/bootstrap-make-refs.sh
 
       - name: Upload dependency report
-        if: ${{ always() }}
+        if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}

@@ -7,10 +7,11 @@ baseline_root=""
 ref_os="linux"
 artifact_family=""
 platform_id=""
+run_compare="1"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: run-linux-ref-validation.sh --build TOOL --variant NAME --baseline-root ROOT --artifact-family FAMILY --platform-id ID [--ref-os OS]
+Usage: run-linux-ref-validation.sh --build TOOL --variant NAME --baseline-root ROOT --artifact-family FAMILY --platform-id ID [--ref-os OS] [--run-compare 1|0]
 USAGE
   exit 2
 }
@@ -41,6 +42,10 @@ while [[ $# -gt 0 ]]; do
       platform_id="${2:-}"
       shift 2
       ;;
+    --run-compare)
+      run_compare="${2:-}"
+      shift 2
+      ;;
     -h|--help)
       usage
       ;;
@@ -56,6 +61,19 @@ case "${build_tool}" in
     ;;
   *)
     echo "Unsupported --build value: ${build_tool}" >&2
+    usage
+    ;;
+esac
+
+case "$(printf '%s' "${run_compare}" | tr '[:upper:]' '[:lower:]')" in
+  1|true|yes|on)
+    run_compare="1"
+    ;;
+  0|false|no|off)
+    run_compare="0"
+    ;;
+  *)
+    echo "Unsupported --run-compare value: ${run_compare}" >&2
     usage
     ;;
 esac
@@ -84,11 +102,15 @@ bash ci/run/ref/bootstrap-build-refs.sh \
   --refs-root "${refs_root}" \
   --artifact-root "${artifact_root}"
 
-# This helper must run in the current shell so LEGACY_ROOT and friends remain available.
-# shellcheck source=ci/run/ref/load-staged-metadata.sh
-source ci/run/ref/load-staged-metadata.sh
+if [[ "${run_compare}" == "1" ]]; then
+  # This helper must run in the current shell so LEGACY_ROOT and friends remain available.
+  # shellcheck source=ci/run/ref/load-staged-metadata.sh
+  source ci/run/ref/load-staged-metadata.sh
 
-bash ci/compare-refs.sh \
-  --baseline-prefix "${baseline_prefix}" \
-  --candidate-dir "${candidate_dir}" \
-  --candidate-root "${LEGACY_ROOT}"
+  bash ci/compare-refs.sh \
+    --baseline-prefix "${baseline_prefix}" \
+    --candidate-dir "${candidate_dir}" \
+    --candidate-root "${LEGACY_ROOT}"
+else
+  echo "Skipping compare step (--run-compare=0)."
+fi
