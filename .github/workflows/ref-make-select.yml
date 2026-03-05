@@ -177,7 +177,18 @@ jobs:
           goal="${INPUT_GOAL:-verify}"
           ref_mode="${INPUT_REF_MODE:-generate}"
           publish="${INPUT_PUBLISH:-none}"
-          allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE:-allow}"
+          allow_failure_mode_raw="${INPUT_ALLOW_FAILURE_MODE:-allow}"
+          case "${allow_failure_mode_raw}" in
+            false|0|no)
+              allow_failure_mode="off"
+              ;;
+            true|1|yes)
+              allow_failure_mode="allow"
+              ;;
+            *)
+              allow_failure_mode="${allow_failure_mode_raw}"
+              ;;
+          esac
 
           case "${goal}" in
             verify|ref)
