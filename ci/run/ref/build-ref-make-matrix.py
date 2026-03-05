@@ -26,12 +26,17 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
 }
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
+SUPPORTED_PURPOSES = {"generation", "validation"}
+DEFAULT_BUILD_TOOL_BY_PURPOSE = {
+    "generation": "make",
+    "validation": "cmake",
+}
 
 
-def load_manifest(path: Path):
+def load_manifest(path: Path, purpose: str):
     manifest_data = load_purpose_manifest_common(
         path,
-        purpose="generation",
+        purpose=purpose,
         supported_runtimes=RUNTIME_TO_PLATFORM_RUNTIME,
         include_lane_defaults=True,
     )
@@ -123,9 +128,11 @@ def infer_platform_version(platform_id: str) -> str:
     return parts[1].replace("_", ".")
 
 
-def normalize_lane(family_entry, lane, platform_catalog, build_tool):
+def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: str):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
+    if purpose == "validation":
+        lane_obj.setdefault("allow_failure", False)
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
@@ -265,14 +272,29 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Build matrix outputs for ref-make-select.yml"
+        description="Build matrix outputs for ref selector workflows"
+    )
+    parser.add_argument(
+        "--purpose",
+        default="generation",
+        choices=sorted(SUPPORTED_PURPOSES),
+        help="Manifest purpose to resolve (generation or validation)",
     )
     parser.add_argument("--selected-family", required=True)
-    parser.add_argument("--build-tool", default="make")
+    parser.add_argument(
+        "--build-tool",
+        default="",
+        help="Build tool override; defaults by purpose (generation=make, validation=cmake)",
+    )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
         "--selector-workflow",
         default=".github/workflows/ref-make-select.yml",
+    )
+    parser.add_argument(
+        "--skip-dropdown-parity",
+        action="store_true",
+        help="Skip workflow_dispatch family dropdown parity validation",
     )
     parser.add_argument(
         "--platform-catalog",
@@ -284,17 +306,20 @@ def parse_args():
 
 def main():
     args = parse_args()
+    purpose = args.purpose
     github_output = args.github_output
     if not github_output:
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
-    if args.build_tool not in SUPPORTED_BUILD_TOOLS:
-        die(f"Unsupported build tool: {args.build_tool}")
+    build_tool = args.build_tool or DEFAULT_BUILD_TOOL_BY_PURPOSE[purpose]
+    if build_tool not in SUPPORTED_BUILD_TOOLS:
+        die(f"Unsupported build tool: {build_tool}")
 
     repo_root = Path(__file__).resolve().parents[3]
-    families = load_manifest(repo_root / args.manifest)
+    families = load_manifest(repo_root / args.manifest, purpose)
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
-    expected_options = ["all"] + [entry["family"] for entry in families]
-    validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
+    if not args.skip_dropdown_parity:
+        expected_options = ["all"] + [entry["family"] for entry in families]
+        validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
 
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
@@ -312,11 +337,13 @@ def main():
         lanes = load_lanes_from_file(
             repo_root / family_entry["lane_file"],
             shared_defaults=family_entry.get("lane_defaults", {}),
-            strict_lane_mapping=True,
+            strict_lane_mapping=(purpose == "generation"),
         )
         for lane in lanes:
+            if not isinstance(lane, dict):
+                continue
             normalized = normalize_lane(
-                family_entry, lane, platform_catalog, args.build_tool
+                family_entry, lane, platform_catalog, build_tool, purpose
             )
             if normalized is None:
                 continue
