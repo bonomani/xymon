@@ -6,44 +6,30 @@ runtime_defaults:
   generation:
     linux_host:
       runs_on: ubuntu-22.04
-      build_tool: make
     linux_container:
       runs_on: ubuntu-22.04
-      build_tool: make
       prepare_profile: default
       checkout_mode: action
-      upload_artifacts: true
     bsd_vm:
       runs_on: ubuntu-22.04
-      build_tool: make
       architecture: x86-64
       vm_memory: 1024M
       vm_cpu_count: 2
-    macos_host:
-      build_tool: make
-      upload_artifacts: true
+    macos_host: {}
   validation:
     linux_host:
-      build_tool: cmake
       ref_os: linux
       baseline_root: make_linux
       artifact_family: linux
-      upload_artifacts: true
     linux_container:
-      build_tool: cmake
       ref_os: linux
       baseline_root: make_linux
       artifact_family: linux
       prepare_profile: default
       checkout_mode: action
-      upload_artifacts: true
     bsd_vm:
-      build_tool: cmake
       runs_on: ubuntu-22.04
-      upload_artifacts: true
-    macos_host:
-      build_tool: cmake
-      upload_artifacts: true
+    macos_host: {}
 
 lane_defaults:
   generation:

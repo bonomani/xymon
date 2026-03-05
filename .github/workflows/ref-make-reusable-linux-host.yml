@@ -26,6 +26,11 @@ on:
         required: false
         default: none
         type: string
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure (off|allow|expect_fail)
+        required: false
+        default: allow
+        type: string
       upload_artifacts:
         description: Override artifact upload behavior (1 or 0)
         required: false
@@ -44,7 +49,6 @@ jobs:
   linux-host:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
-    continue-on-error: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && fromJSON(inputs.lane_json).allow_failure == true }}
     env:
       GOAL: ${{ inputs.goal }}
       REF_MODE: ${{ inputs.ref_mode }}
@@ -71,6 +75,8 @@ jobs:
           fetch-depth: 1
 
       - name: Run lane orchestration on Linux host
+        id: lane_run
+        continue-on-error: ${{ inputs.allow_failure_mode != 'off' && fromJSON(inputs.lane_json).allow_failure == true }}
         shell: bash
         run: |
           set -euo pipefail
@@ -85,8 +91,26 @@ jobs:
             --platform-os "${PLATFORM_OS}" \
             --version "${OS_VERSION}" \
             --artifact-family "${ARTIFACT_FAMILY}" \
-            --platform-id "${PLATFORM_ID}" \
-            --run-compare "${RUN_COMPARE}"
+              --platform-id "${PLATFORM_ID}" \
+              --run-compare "${RUN_COMPARE}"
+
+      - name: Enforce expected failure reset
+        if: ${{ always() && inputs.allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_json).allow_failure == true }}
+        shell: bash
+        run: |
+          case "${{ steps.lane_run.outcome }}" in
+            failure)
+              echo "allow_failure lane failed as expected."
+              ;;
+            success)
+              echo "allow_failure lane succeeded unexpectedly. Remove allow_failure for this lane." >&2
+              exit 1
+              ;;
+            *)
+              echo "allow_failure lane ended with outcome='${{ steps.lane_run.outcome }}'." >&2
+              exit 1
+              ;;
+          esac
 
       - name: Upload dependency report
         if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.DEP_MODE == 'compare' || (env.DEP_MODE == 'generate' && !failure() && !cancelled())) }}
