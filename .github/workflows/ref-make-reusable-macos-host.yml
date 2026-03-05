@@ -99,11 +99,11 @@ jobs:
             --candidate-dir ".ci-artifacts/ref-valid-${ARTIFACT_FAMILY}/refs/${BUILD_TOOL}.${REF_OS}.${VARIANT}"
 
       - name: Upload dependency report
-        if: ${{ env.MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
+        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.MODE == 'compare' || (env.MODE == 'generate' && !failure() && !cancelled())) }}
         uses: actions/upload-artifact@v4
         with:
-          name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
-          path: ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/meta/deps-report.json
+          name: ${{ format('{0}{1}_{2}_{3}__{4}__{5}', env.MODE == 'compare' && 'deps_valid_' || 'deps_', env.BUILD_TOOL, env.PLATFORM_ID, env.VARIANT, env.ARTIFACT_ARCH, inputs.lane_name) }}
+          path: ${{ env.MODE == 'compare' && format('.ci-artifacts/ref-valid-{0}/{1}-{2}-{3}/deps-report.json', env.ARTIFACT_FAMILY, env.BUILD_TOOL, env.OS_VERSION, env.VARIANT) || format('{0}/{1}.{2}.{3}/meta/deps-report.json', env.REF_STAGE_ROOT, env.BUILD_TOOL, env.REF_OS, env.VARIANT) }}
           if-no-files-found: warn
 
       - name: Upload legacy references
@@ -114,14 +114,6 @@ jobs:
           path: |
             ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
           if-no-files-found: error
-
-      - name: Upload dependency report
-        if: ${{ always() && env.MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
-          path: .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.OS_VERSION }}-${{ env.VARIANT }}/deps-report.json
-          if-no-files-found: warn
 
       - name: Upload artifacts
         if: ${{ always() && env.MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
