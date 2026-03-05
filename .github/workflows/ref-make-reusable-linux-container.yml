@@ -23,6 +23,10 @@ on:
         description: Publish channel (none|artifact)
         required: true
         type: string
+      dep_mode:
+        description: Dependency report mode (generate|compare), resolved upstream.
+        required: true
+        type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
         required: true
@@ -35,38 +39,47 @@ jobs:
   linux-container:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
-    env:
-      GOAL: ${{ inputs.goal }}
-      REF_MODE: ${{ inputs.ref_mode }}
-      PUBLISH: ${{ inputs.publish }}
-      DEP_MODE: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool }}
-      LEGACY_APPLY_OWNERSHIP: ON
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os }}
-      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id }}
-      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch }}
-      PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile }}
-      CHECKOUT_MODE: ${{ fromJSON(inputs.lane_json).checkout_mode }}
-      CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
-      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
-      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
-      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
-      CONTAINER_IMAGE: ${{ fromJSON(inputs.lane_json).container }}
-      CONTAINER_OPTIONS: ${{ fromJSON(inputs.lane_json).container_options }}
-      UPLOAD_ARTIFACTS: ${{ inputs.publish == 'artifact' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: Resolve lane context
+        id: lane_ctx
+        uses: ./.github/actions/ref-lane-context
+        with:
+          lane_json: ${{ inputs.lane_json }}
+          goal: ${{ inputs.goal }}
+          ref_mode: ${{ inputs.ref_mode }}
+          publish: ${{ inputs.publish }}
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+          dep_mode: ${{ inputs.dep_mode }}
+
       - name: Run lane orchestration in Linux container
         id: lane_run
-        continue-on-error: ${{ inputs.allow_failure_mode != 'off' && fromJSON(inputs.lane_json).allow_failure == true }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
         shell: bash
+        env:
+          LEGACY_APPLY_OWNERSHIP: ON
+          BUILD_TOOL: ${{ steps.lane_ctx.outputs.build_tool }}
+          GOAL: ${{ steps.lane_ctx.outputs.goal }}
+          REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
+          PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
+          DEP_MODE: ${{ steps.lane_ctx.outputs.dep_mode }}
+          VARIANT: ${{ steps.lane_ctx.outputs.variant }}
+          BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
+          REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
+          PLATFORM_OS: ${{ steps.lane_ctx.outputs.platform_os }}
+          OS_VERSION: ${{ steps.lane_ctx.outputs.os_version }}
+          ARTIFACT_FAMILY: ${{ steps.lane_ctx.outputs.artifact_family }}
+          PLATFORM_ID: ${{ steps.lane_ctx.outputs.platform_id }}
+          REF_STAGE_ROOT: ${{ steps.lane_ctx.outputs.ref_stage_root }}
+          CMAKE_BIN: ${{ steps.lane_ctx.outputs.cmake_bin }}
+          PREPARE_PROFILE: ${{ steps.lane_ctx.outputs.prepare_profile }}
+          CHECKOUT_MODE: ${{ steps.lane_ctx.outputs.checkout_mode }}
+          CONTAINER_IMAGE: ${{ steps.lane_ctx.outputs.container }}
+          CONTAINER_OPTIONS: ${{ steps.lane_ctx.outputs.container_options }}
         run: |
           set -euo pipefail
           bash ci/run/ref/run-host-managed-linux-container.sh \
@@ -75,6 +88,7 @@ jobs:
               --goal "${GOAL}" \
               --ref-mode "${REF_MODE}" \
               --publish "${PUBLISH}" \
+              --dep-mode "${DEP_MODE}" \
               --variant "${VARIANT}" \
               --baseline-root "${BASELINE_ROOT}" \
               --ref-os "${REF_OS}" \
@@ -87,18 +101,18 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/ref-lane-post
         with:
-          allow_failure_mode: ${{ inputs.allow_failure_mode }}
-          lane_allow_failure: ${{ fromJSON(inputs.lane_json).allow_failure == true && '1' || '0' }}
+          allow_failure_mode: ${{ steps.lane_ctx.outputs.allow_failure_mode }}
+          lane_allow_failure: ${{ steps.lane_ctx.outputs.lane_allow_failure }}
           lane_outcome: ${{ steps.lane_run.outcome }}
-          dep_mode: ${{ env.DEP_MODE }}
-          goal: ${{ env.GOAL }}
-          ref_mode: ${{ env.REF_MODE }}
-          upload_artifacts: ${{ env.UPLOAD_ARTIFACTS }}
-          build_tool: ${{ env.BUILD_TOOL }}
-          platform_id: ${{ env.PLATFORM_ID }}
-          variant: ${{ env.VARIANT }}
-          artifact_arch: ${{ env.ARTIFACT_ARCH }}
+          dep_mode: ${{ steps.lane_ctx.outputs.dep_mode }}
+          goal: ${{ steps.lane_ctx.outputs.goal }}
+          ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
+          upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}
+          build_tool: ${{ steps.lane_ctx.outputs.build_tool }}
+          platform_id: ${{ steps.lane_ctx.outputs.platform_id }}
+          variant: ${{ steps.lane_ctx.outputs.variant }}
+          artifact_arch: ${{ steps.lane_ctx.outputs.artifact_arch }}
           lane_name: ${{ inputs.lane_name }}
-          artifact_family: ${{ env.ARTIFACT_FAMILY }}
-          ref_stage_root: ${{ env.REF_STAGE_ROOT }}
-          ref_os: ${{ env.REF_OS }}
+          artifact_family: ${{ steps.lane_ctx.outputs.artifact_family }}
+          ref_stage_root: ${{ steps.lane_ctx.outputs.ref_stage_root }}
+          ref_os: ${{ steps.lane_ctx.outputs.ref_os }}

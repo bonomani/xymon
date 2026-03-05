@@ -78,28 +78,23 @@ on:
         type: string
       build_tool:
         description: Build tool selection (auto|make|cmake)
-        required: false
-        default: auto
+        required: true
         type: string
       goal:
         description: Orthogonal goal selector (verify|ref)
-        required: false
-        default: verify
+        required: true
         type: string
       ref_mode:
         description: Reference mode when goal=ref (generate|compare)
-        required: false
-        default: generate
+        required: true
         type: string
       publish:
         description: Publish channel (none|artifact)
-        required: false
-        default: none
+        required: true
         type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
-        required: false
-        default: allow
+        required: true
         type: string
 
 permissions:
@@ -149,6 +144,7 @@ jobs:
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
       allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
+      dep_mode: ${{ steps.resolve_execution.outputs.dep_mode }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
       lane_count_linux_container: ${{ steps.generate.outputs.lane_count_linux_container }}
@@ -173,93 +169,13 @@ jobs:
         run: |
           set -euo pipefail
 
-          requested_build_tool="${INPUT_BUILD_TOOL:-auto}"
-          goal="${INPUT_GOAL:-verify}"
-          ref_mode="${INPUT_REF_MODE:-generate}"
-          publish="${INPUT_PUBLISH:-none}"
-          allow_failure_mode_raw="${INPUT_ALLOW_FAILURE_MODE:-allow}"
-          case "${allow_failure_mode_raw}" in
-            false|0|no)
-              allow_failure_mode="off"
-              ;;
-            true|1|yes)
-              allow_failure_mode="allow"
-              ;;
-            *)
-              allow_failure_mode="${allow_failure_mode_raw}"
-              ;;
-          esac
-
-          case "${goal}" in
-            verify|ref)
-              ;;
-            *)
-              echo "Unsupported goal: ${goal}" >&2
-              exit 2
-              ;;
-          esac
-          case "${ref_mode}" in
-            generate|compare)
-              ;;
-            *)
-              echo "Unsupported ref_mode: ${ref_mode}" >&2
-              exit 2
-              ;;
-          esac
-          case "${publish}" in
-            none|artifact)
-              ;;
-            *)
-              echo "Unsupported publish: ${publish}" >&2
-              exit 2
-              ;;
-          esac
-          case "${allow_failure_mode}" in
-            off|allow|expect_fail)
-              ;;
-            *)
-              echo "Unsupported allow_failure_mode: ${allow_failure_mode}" >&2
-              exit 2
-              ;;
-          esac
-          case "${requested_build_tool}" in
-            auto|make|cmake)
-              ;;
-            *)
-              echo "Unsupported build_tool: ${requested_build_tool}" >&2
-              exit 2
-              ;;
-          esac
-
-          if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
-            echo "ref_mode=compare is only valid when goal=ref" >&2
-            exit 2
-          fi
-          if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
-            echo "goal=verify requires ref_mode=generate" >&2
-            exit 2
-          fi
-          if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
-            echo "goal=verify requires publish=none" >&2
-            exit 2
-          fi
-
-          build_tool="${requested_build_tool}"
-          if [[ "${build_tool}" == "auto" ]]; then
-            if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
-              build_tool="cmake"
-            else
-              build_tool="make"
-            fi
-          fi
-
-          {
-            echo "build_tool=${build_tool}"
-            echo "goal=${goal}"
-            echo "ref_mode=${ref_mode}"
-            echo "publish=${publish}"
-            echo "allow_failure_mode=${allow_failure_mode}"
-          } >> "${GITHUB_OUTPUT}"
+          bash ci/run/ref/resolve-execution-model.sh \
+            --requested-build-tool "${INPUT_BUILD_TOOL:-auto}" \
+            --goal "${INPUT_GOAL:-verify}" \
+            --ref-mode "${INPUT_REF_MODE:-generate}" \
+            --publish "${INPUT_PUBLISH:-none}" \
+            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE:-allow}" \
+            --github-output "${GITHUB_OUTPUT}" > /dev/null
 
       - name: Build selected lanes matrix
         id: generate
@@ -267,19 +183,13 @@ jobs:
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
-          GOAL: ${{ steps.resolve_execution.outputs.goal }}
-          REF_MODE: ${{ steps.resolve_execution.outputs.ref_mode }}
+          PURPOSE: ${{ steps.resolve_execution.outputs.purpose }}
         run: |
           set -euo pipefail
 
-          purpose="generation"
-          if [[ "${GOAL}" == "ref" && "${REF_MODE}" == "compare" ]]; then
-            purpose="validation"
-          fi
-
           args=(
             python3 "ci/run/ref/build-ref-make-matrix.py"
-            --purpose "${purpose}"
+            --purpose "${PURPOSE}"
             --selected-family "${SELECTED_FAMILY}"
             --build-tool "${SELECTED_BUILD_TOOL}"
             --manifest "ci/run/ref/ref-families.yml"
@@ -298,6 +208,7 @@ jobs:
           echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
+          echo "Dependency mode: ${{ steps.resolve_execution.outputs.dep_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
           echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
@@ -321,6 +232,7 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
+      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
 
   ref-linux-container:
     needs: build-matrix
@@ -339,6 +251,7 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
+      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
 
   ref-bsd-vm:
     needs: build-matrix
@@ -357,6 +270,7 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
+      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
 
   ref-macos-host:
     needs: build-matrix
@@ -375,3 +289,4 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
+      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}

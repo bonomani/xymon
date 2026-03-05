@@ -23,6 +23,10 @@ on:
         description: Publish channel (none|artifact)
         required: true
         type: string
+      dep_mode:
+        description: Dependency report mode (generate|compare), resolved upstream.
+        required: true
+        type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
         required: true
@@ -35,66 +39,60 @@ jobs:
   bsd-vm:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
-    env:
-      GOAL: ${{ inputs.goal }}
-      REF_MODE: ${{ inputs.ref_mode }}
-      PUBLISH: ${{ inputs.publish }}
-      DEP_MODE: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool }}
-      VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ENABLE_LDAP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      ENABLE_SNMP: ${{ fromJSON(inputs.lane_json).variant == 'server' && 'ON' || 'OFF' }}
-      LEGACY_APPLY_OWNERSHIP: ON
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
-      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os }}
-      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id }}
-      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
-      ARCHITECTURE: ${{ fromJSON(inputs.lane_json).architecture }}
-      VM_MEMORY: ${{ fromJSON(inputs.lane_json).vm_memory }}
-      VM_CPU_COUNT: ${{ fromJSON(inputs.lane_json).vm_cpu_count }}
-      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
-      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
-      REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
-      UPLOAD_ARTIFACTS: ${{ inputs.publish == 'artifact' && '1' || '0' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
+      - name: Resolve lane context
+        id: lane_ctx
+        uses: ./.github/actions/ref-lane-context
+        with:
+          lane_json: ${{ inputs.lane_json }}
+          goal: ${{ inputs.goal }}
+          ref_mode: ${{ inputs.ref_mode }}
+          publish: ${{ inputs.publish }}
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+          dep_mode: ${{ inputs.dep_mode }}
+
       - name: Run lane orchestration on BSD VM
         id: lane_run
-        continue-on-error: ${{ inputs.allow_failure_mode != 'off' && fromJSON(inputs.lane_json).allow_failure == true }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
-          operating_system: ${{ env.REF_OS }}
-          architecture: ${{ env.ARCHITECTURE }}
-          version: ${{ env.OS_VERSION }}
+          operating_system: ${{ steps.lane_ctx.outputs.ref_os }}
+          architecture: ${{ steps.lane_ctx.outputs.architecture }}
+          version: ${{ steps.lane_ctx.outputs.os_version }}
           shell: bash
-          memory: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && '2048M' || env.VM_MEMORY }}
-          cpu_count: ${{ env.VM_CPU_COUNT }}
+          memory: ${{ steps.lane_ctx.outputs.dep_mode == 'compare' && '2048M' || steps.lane_ctx.outputs.vm_memory }}
+          cpu_count: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
           sync_files: true
           shutdown_vm: true
           run_script: |
             set -euo pipefail
-            export BUILD_TOOL="${{ env.BUILD_TOOL }}"
-            export GOAL="${{ env.GOAL }}"
-            export REF_MODE="${{ env.REF_MODE }}"
-            export PUBLISH="${{ env.PUBLISH }}"
-            export REF_OS="${{ env.REF_OS }}"
-            export PLATFORM_OS="${{ env.PLATFORM_OS }}"
-            export OS_VERSION="${{ env.OS_VERSION }}"
-            export VARIANT="${{ env.VARIANT }}"
-            export BASELINE_ROOT="${{ env.BASELINE_ROOT }}"
-            export ARTIFACT_FAMILY="${{ env.ARTIFACT_FAMILY }}"
-            export PLATFORM_ID="${{ env.PLATFORM_ID }}"
-            export REF_STAGE_ROOT="${{ env.REF_STAGE_ROOT }}"
+            export LEGACY_APPLY_OWNERSHIP=ON
+            export ENABLE_LDAP="${{ steps.lane_ctx.outputs.enable_ldap }}"
+            export ENABLE_SNMP="${{ steps.lane_ctx.outputs.enable_snmp }}"
+            export BUILD_TOOL="${{ steps.lane_ctx.outputs.build_tool }}"
+            export GOAL="${{ steps.lane_ctx.outputs.goal }}"
+            export REF_MODE="${{ steps.lane_ctx.outputs.ref_mode }}"
+            export PUBLISH="${{ steps.lane_ctx.outputs.publish }}"
+            export DEP_MODE="${{ steps.lane_ctx.outputs.dep_mode }}"
+            export REF_OS="${{ steps.lane_ctx.outputs.ref_os }}"
+            export PLATFORM_OS="${{ steps.lane_ctx.outputs.platform_os }}"
+            export OS_VERSION="${{ steps.lane_ctx.outputs.os_version }}"
+            export VARIANT="${{ steps.lane_ctx.outputs.variant }}"
+            export BASELINE_ROOT="${{ steps.lane_ctx.outputs.baseline_root }}"
+            export ARTIFACT_FAMILY="${{ steps.lane_ctx.outputs.artifact_family }}"
+            export PLATFORM_ID="${{ steps.lane_ctx.outputs.platform_id }}"
+            export REF_STAGE_ROOT="${{ steps.lane_ctx.outputs.ref_stage_root }}"
             bash ci/run/ref/run-ref-lane.sh \
               --build "${BUILD_TOOL}" \
               --goal "${GOAL}" \
               --ref-mode "${REF_MODE}" \
               --publish "${PUBLISH}" \
+              --dep-mode "${DEP_MODE}" \
               --ref-os "${REF_OS}" \
               --platform-os "${PLATFORM_OS}" \
               --version "${OS_VERSION}" \
@@ -107,19 +105,19 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/ref-lane-post
         with:
-          allow_failure_mode: ${{ inputs.allow_failure_mode }}
-          lane_allow_failure: ${{ fromJSON(inputs.lane_json).allow_failure == true && '1' || '0' }}
+          allow_failure_mode: ${{ steps.lane_ctx.outputs.allow_failure_mode }}
+          lane_allow_failure: ${{ steps.lane_ctx.outputs.lane_allow_failure }}
           lane_outcome: ${{ steps.lane_run.outcome }}
-          dep_mode: ${{ env.DEP_MODE }}
-          goal: ${{ env.GOAL }}
-          ref_mode: ${{ env.REF_MODE }}
-          upload_artifacts: ${{ env.UPLOAD_ARTIFACTS }}
-          build_tool: ${{ env.BUILD_TOOL }}
-          platform_id: ${{ env.PLATFORM_ID }}
-          variant: ${{ env.VARIANT }}
-          artifact_arch: ${{ env.ARTIFACT_ARCH }}
+          dep_mode: ${{ steps.lane_ctx.outputs.dep_mode }}
+          goal: ${{ steps.lane_ctx.outputs.goal }}
+          ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
+          upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}
+          build_tool: ${{ steps.lane_ctx.outputs.build_tool }}
+          platform_id: ${{ steps.lane_ctx.outputs.platform_id }}
+          variant: ${{ steps.lane_ctx.outputs.variant }}
+          artifact_arch: ${{ steps.lane_ctx.outputs.artifact_arch }}
           lane_name: ${{ inputs.lane_name }}
-          artifact_family: ${{ env.ARTIFACT_FAMILY }}
-          ref_stage_root: ${{ env.REF_STAGE_ROOT }}
-          ref_os: ${{ env.REF_OS }}
+          artifact_family: ${{ steps.lane_ctx.outputs.artifact_family }}
+          ref_stage_root: ${{ steps.lane_ctx.outputs.ref_stage_root }}
+          ref_os: ${{ steps.lane_ctx.outputs.ref_os }}
           ref_valid_if_no_files_found: warn

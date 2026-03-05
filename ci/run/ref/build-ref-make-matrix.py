@@ -146,9 +146,8 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
                 f"'{family_entry['family']}' has unknown runtime '{lane_obj['runtime']}'"
             )
 
-    if purpose == "validation":
-        lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
-        lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
+    lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
+    lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
     supported_build_tools = parse_supported_build_tools(
         lane_obj.pop("supported_build_tools", None),
         (
