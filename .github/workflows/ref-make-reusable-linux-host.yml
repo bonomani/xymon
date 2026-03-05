@@ -39,6 +39,7 @@ jobs:
       MODE: ${{ inputs.mode }}
       CI_DEPS_REPORT_MODE: ${{ inputs.mode }}
       BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.mode == 'compare' && 'cmake' || 'make') }}
+      LEGACY_APPLY_OWNERSHIP: ON
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || (inputs.mode == 'compare' && 'linux-host' || fromJSON(inputs.lane_json).ref_os || 'linux-host') }}
