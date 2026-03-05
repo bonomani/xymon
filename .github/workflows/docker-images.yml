@@ -57,10 +57,13 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install workflow parser dependencies
+      - name: Ensure workflow parser dependency
         shell: bash
         run: |
           set -euo pipefail
+          if python3 -c "import yaml" >/dev/null 2>&1; then
+            exit 0
+          fi
           python3 -m pip install --user pyyaml
 
       - name: Resolve docker build matrix

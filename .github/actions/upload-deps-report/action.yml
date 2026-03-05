@@ -22,16 +22,13 @@ inputs:
     required: true
   artifact_family:
     description: Artifact family used for compare-mode reports.
-    required: false
-    default: ""
+    required: true
   ref_stage_root:
     description: Root containing generated refs for generate mode.
-    required: false
-    default: ""
+    required: true
   ref_os:
     description: Logical ref OS used in generate-mode path names.
-    required: false
-    default: ""
+    required: true
   if_no_files_found:
     description: upload-artifact behavior when the report path is missing.
     required: false
