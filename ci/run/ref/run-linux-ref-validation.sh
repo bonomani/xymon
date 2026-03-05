@@ -87,8 +87,21 @@ refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
 artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}-${platform_id}-${variant}"
 candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
 
+legacy_hostname_env="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
 bash ci/run/ref/load-legacy-hostname.sh \
-  --config "docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+  --config "docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg" \
+  --env-file "${legacy_hostname_env}"
+if [[ -s "${legacy_hostname_env}" ]]; then
+  # shellcheck disable=SC1090
+  source "${legacy_hostname_env}"
+  if [[ -n "${XYMONHOSTNAME:-}" ]]; then
+    export XYMONHOSTNAME
+    echo "Using legacy hostname in-process: ${XYMONHOSTNAME}"
+  fi
+else
+  echo "Legacy hostname: no in-process override loaded."
+fi
+rm -f "${legacy_hostname_env}"
 
 bash ci/run/ref/seed-legacy-identities.sh \
   --passwd "docs/cmake-legacy-migration/refs/${baseline_root}/${variant}/owners.passwd" \
