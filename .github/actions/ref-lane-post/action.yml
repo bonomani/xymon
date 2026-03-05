@@ -1,0 +1,120 @@
+name: Reference Lane Post
+description: Shared post-processing for ref lanes (expected-failure policy and artifact uploads).
+
+inputs:
+  allow_failure_mode:
+    description: Handling mode for lanes marked allow_failure (off|allow|expect_fail).
+    required: true
+  lane_allow_failure:
+    description: Whether this lane is marked allow_failure (1 or 0).
+    required: true
+  lane_outcome:
+    description: Outcome of the lane execution step (success|failure|cancelled|...).
+    required: true
+  dep_mode:
+    description: Dependency report mode (generate|compare).
+    required: true
+  goal:
+    description: Execution goal (verify|ref|package|image).
+    required: true
+  ref_mode:
+    description: Reference mode (generate|compare).
+    required: true
+  upload_artifacts:
+    description: Whether artifact upload is enabled (1 or 0).
+    required: true
+  build_tool:
+    description: Build tool used by the lane.
+    required: true
+  platform_id:
+    description: Stable platform identifier for the lane.
+    required: true
+  variant:
+    description: Lane variant.
+    required: true
+  artifact_arch:
+    description: Lane artifact architecture label.
+    required: true
+  lane_name:
+    description: Display lane name.
+    required: true
+  artifact_family:
+    description: Artifact family for compare-mode outputs.
+    required: true
+  ref_stage_root:
+    description: Root containing generated refs for generate mode.
+    required: true
+  ref_os:
+    description: Logical ref OS used in generate-mode path names.
+    required: true
+  dep_if_no_files_found:
+    description: if-no-files-found behavior for dependency report upload.
+    required: false
+    default: warn
+  ref_valid_if_no_files_found:
+    description: if-no-files-found behavior for ref-valid upload.
+    required: false
+    default: warn
+  extra_paths:
+    description: Optional extra paths for compare-mode artifact upload.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Enforce expected failure reset
+      if: ${{ inputs.allow_failure_mode == 'expect_fail' && inputs.lane_allow_failure == '1' }}
+      shell: bash
+      run: |
+        case "${{ inputs.lane_outcome }}" in
+          failure)
+            echo "allow_failure lane failed as expected."
+            ;;
+          success)
+            echo "allow_failure lane succeeded unexpectedly. Remove allow_failure for this lane." >&2
+            exit 1
+            ;;
+          *)
+            echo "allow_failure lane ended with outcome='${{ inputs.lane_outcome }}'." >&2
+            exit 1
+            ;;
+        esac
+
+    - name: Upload dependency report
+      if: ${{ inputs.upload_artifacts == '1' && (inputs.dep_mode == 'compare' || (inputs.dep_mode == 'generate' && inputs.lane_outcome == 'success')) }}
+      uses: ./.github/actions/upload-deps-report
+      with:
+        dep_mode: ${{ inputs.dep_mode }}
+        build_tool: ${{ inputs.build_tool }}
+        platform_id: ${{ inputs.platform_id }}
+        variant: ${{ inputs.variant }}
+        artifact_arch: ${{ inputs.artifact_arch }}
+        lane_name: ${{ inputs.lane_name }}
+        artifact_family: ${{ inputs.artifact_family }}
+        ref_stage_root: ${{ inputs.ref_stage_root }}
+        ref_os: ${{ inputs.ref_os }}
+        if_no_files_found: ${{ inputs.dep_if_no_files_found }}
+
+    - name: Upload legacy references
+      if: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'generate' && inputs.upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ format('ref_{0}_{1}-{2}__{3}__{4}', inputs.build_tool, inputs.ref_os, inputs.variant, inputs.platform_id, inputs.artifact_arch) }}
+        path: |
+          ${{ inputs.ref_stage_root }}/${{ inputs.build_tool }}.${{ inputs.ref_os }}.${{ inputs.variant }}/**
+        if-no-files-found: error
+
+    - name: Upload artifacts
+      if: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && inputs.upload_artifacts == '1' }}
+      uses: ./.github/actions/upload-ref-valid-artifacts
+      with:
+        lane_name: ${{ inputs.lane_name }}
+        if_no_files_found: ${{ inputs.ref_valid_if_no_files_found }}
+        extra_paths: ${{ inputs.extra_paths }}
+
+    - name: Skip artifacts when upload is disabled
+      if: ${{ inputs.upload_artifacts != '1' }}
+      shell: bash
+      run: |
+        echo "Skipping actions/upload-artifact for this lane."

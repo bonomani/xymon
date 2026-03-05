@@ -136,6 +136,23 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
+
+    if lane_obj.get("ref_os") in (None, ""):
+        if lane_obj["runtime"] in {"linux_host", "linux_container"}:
+            lane_obj["ref_os"] = "linux"
+        elif lane_obj["runtime"] == "macos_host":
+            lane_obj["ref_os"] = "macos"
+        elif lane_obj["runtime"] == "bsd_vm":
+            lane_obj["ref_os"] = family_entry["family"]
+        else:
+            die(
+                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+                f"'{family_entry['family']}' has unknown runtime '{lane_obj['runtime']}'"
+            )
+
+    if purpose == "validation":
+        lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
+        lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
     supported_build_tools = parse_supported_build_tools(
         lane_obj.pop("supported_build_tools", None),
         (
@@ -284,7 +301,7 @@ def parse_args():
     parser.add_argument(
         "--build-tool",
         default="",
-        help="Build tool override; defaults by purpose (generation=make, validation=cmake)",
+        help="Build tool override; when omitted, defaults by purpose (generation=make, validation=cmake)",
     )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(

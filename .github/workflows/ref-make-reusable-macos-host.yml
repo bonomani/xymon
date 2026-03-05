@@ -85,29 +85,17 @@ jobs:
               --artifact-family "${ARTIFACT_FAMILY}" \
               --platform-id "${PLATFORM_ID}"
 
-      - name: Enforce expected failure reset
-        if: ${{ always() && inputs.allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_json).allow_failure == true }}
-        shell: bash
-        run: |
-          case "${{ steps.lane_run.outcome }}" in
-            failure)
-              echo "allow_failure lane failed as expected."
-              ;;
-            success)
-              echo "allow_failure lane succeeded unexpectedly. Remove allow_failure for this lane." >&2
-              exit 1
-              ;;
-            *)
-              echo "allow_failure lane ended with outcome='${{ steps.lane_run.outcome }}'." >&2
-              exit 1
-              ;;
-          esac
-
-      - name: Upload dependency report
-        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' && (env.DEP_MODE == 'compare' || (env.DEP_MODE == 'generate' && !failure() && !cancelled())) }}
-        uses: ./.github/actions/upload-deps-report
+      - name: Post lane (policy + artifacts)
+        if: ${{ always() }}
+        uses: ./.github/actions/ref-lane-post
         with:
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+          lane_allow_failure: ${{ fromJSON(inputs.lane_json).allow_failure == true && '1' || '0' }}
+          lane_outcome: ${{ steps.lane_run.outcome }}
           dep_mode: ${{ env.DEP_MODE }}
+          goal: ${{ env.GOAL }}
+          ref_mode: ${{ env.REF_MODE }}
+          upload_artifacts: ${{ env.UPLOAD_ARTIFACTS }}
           build_tool: ${{ env.BUILD_TOOL }}
           platform_id: ${{ env.PLATFORM_ID }}
           variant: ${{ env.VARIANT }}
@@ -116,29 +104,7 @@ jobs:
           artifact_family: ${{ env.ARTIFACT_FAMILY }}
           ref_stage_root: ${{ env.REF_STAGE_ROOT }}
           ref_os: ${{ env.REF_OS }}
-          if_no_files_found: warn
-
-      - name: Upload legacy references
-        if: ${{ env.GOAL == 'ref' && env.REF_MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
-        uses: actions/upload-artifact@v4
-        with:
-          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}__${{ env.PLATFORM_ID }}__${{ env.ARTIFACT_ARCH }}
-          path: |
-            ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-          if-no-files-found: error
-
-      - name: Upload artifacts
-        if: ${{ always() && env.GOAL == 'ref' && env.REF_MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
-        uses: ./.github/actions/upload-ref-valid-artifacts
-        with:
-          lane_name: ${{ inputs.lane_name }}
-          if_no_files_found: warn
+          ref_valid_if_no_files_found: warn
           extra_paths: |
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/**
             .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
-
-      - name: Skip artifacts when upload is disabled
-        if: ${{ always() && env.UPLOAD_ARTIFACTS != '1' }}
-        shell: bash
-        run: |
-          echo "Skipping actions/upload-artifact for this lane."
