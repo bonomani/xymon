@@ -12,9 +12,11 @@ ci_deps_enable_trace() {
 ci_deps_init_cli() {
   mode="install"
   print_list="0"
+  report_json_path="${CI_DEPS_REPORT_JSON:-}"
   family=""
   os_name=""
   version=""
+  report_pkgmgr=""
 }
 
 ci_deps_parse_cli() {
@@ -37,6 +39,14 @@ ci_deps_parse_cli() {
         ;;
       --install)
         mode="install"
+        shift
+        ;;
+      --report-json)
+        report_json_path="${2:-}"
+        shift 2
+        ;;
+      --report-json=*)
+        report_json_path="${1#*=}"
         shift
         ;;
       --family)
@@ -112,6 +122,7 @@ ci_deps_init_linux_installer() {
   ci_deps_init_cli
   ci_deps_parse_cli 1 1 "$@"
   ci_deps_setup_variant_defaults
+  report_pkgmgr="${pkgmgr}"
   ci_deps_build_os_key
   ci_deps_resolve_packages "${pkgmgr}" "${family}" "${os_key}"
 }
@@ -148,6 +159,388 @@ ci_deps_resolve_packages() {
   fi
 }
 
+ci_deps_sort_unique_file() {
+  local file="${1:-}"
+  sort -u "${file}" -o "${file}"
+}
+
+ci_deps_sorted_file_diff() {
+  local left="${1:-}"
+  local right="${2:-}"
+  local outfile="${3:-}"
+
+  comm -23 "${left}" "${right}" > "${outfile}"
+}
+
+ci_deps_count_file_lines() {
+  local file="${1:-}"
+  awk 'END { print NR + 0 }' "${file}"
+}
+
+ci_deps_json_escape() {
+  local value="${1:-}"
+  local xtrace_was_on=0
+
+  if [[ "${-}" == *x* ]]; then
+    xtrace_was_on=1
+    set +x
+  fi
+
+  value="${value//\\/\\\\}"
+  value="${value//\"/\\\"}"
+  value="${value//$'\n'/\\n}"
+  value="${value//$'\r'/\\r}"
+  value="${value//$'\t'/\\t}"
+
+  printf '%s' "${value}"
+
+  if [[ "${xtrace_was_on}" == "1" ]]; then
+    set -x
+  fi
+}
+
+ci_deps_write_json_string_field() {
+  local outfile="${1:-}"
+  local key="${2:-}"
+  local value="${3:-}"
+  local trailing="${4:-1}"
+
+  printf '  "%s": "%s"' "$(ci_deps_json_escape "${key}")" "$(ci_deps_json_escape "${value}")" >> "${outfile}"
+  if [[ "${trailing}" == "1" ]]; then
+    printf ',\n' >> "${outfile}"
+  else
+    printf '\n' >> "${outfile}"
+  fi
+}
+
+ci_deps_write_json_number_field() {
+  local outfile="${1:-}"
+  local key="${2:-}"
+  local value="${3:-0}"
+  local trailing="${4:-1}"
+
+  printf '  "%s": %s' "$(ci_deps_json_escape "${key}")" "${value}" >> "${outfile}"
+  if [[ "${trailing}" == "1" ]]; then
+    printf ',\n' >> "${outfile}"
+  else
+    printf '\n' >> "${outfile}"
+  fi
+}
+
+ci_deps_write_json_array_field() {
+  local outfile="${1:-}"
+  local key="${2:-}"
+  local file="${3:-}"
+  local trailing="${4:-1}"
+  local first="1"
+  local item=""
+
+  printf '  "%s": [' "$(ci_deps_json_escape "${key}")" >> "${outfile}"
+  while IFS= read -r item || [[ -n "${item}" ]]; do
+    [[ -n "${item}" ]] || continue
+    if [[ "${first}" == "0" ]]; then
+      printf ', ' >> "${outfile}"
+    fi
+    printf '"%s"' "$(ci_deps_json_escape "${item}")" >> "${outfile}"
+    first="0"
+  done < "${file}"
+  printf ']' >> "${outfile}"
+  if [[ "${trailing}" == "1" ]]; then
+    printf ',\n' >> "${outfile}"
+  else
+    printf '\n' >> "${outfile}"
+  fi
+}
+
+ci_deps_extract_pkg_bases_from_pkg_info() {
+  local infile="${1:-}"
+
+  awk '
+    {
+      token = $1
+      if (token ~ /^[[:alnum:]_.+-]+-[0-9][[:alnum:]_.+~-]*$/) {
+        base = token
+        sub(/-[0-9][[:alnum:]_.+~-]*$/, "", base)
+        print base
+      }
+    }
+  ' "${infile}"
+}
+
+ci_deps_capture_pkg_add_like_packages() {
+  local pkg_info_bin="${1:-}"
+  local outfile="${2:-}"
+  local raw_file=""
+  local dbdir=""
+  local entry=""
+  local base=""
+
+  if [[ -z "${pkg_info_bin}" || -z "${outfile}" ]]; then
+    return 2
+  fi
+
+  raw_file="$(mktemp -t ci-deps-pkg-info.XXXXXX)"
+  if [[ -x "${pkg_info_bin}" ]]; then
+    if "${pkg_info_bin}" -a > "${raw_file}" 2>/dev/null; then
+      ci_deps_extract_pkg_bases_from_pkg_info "${raw_file}" > "${outfile}"
+      if [[ -s "${outfile}" ]]; then
+        ci_deps_sort_unique_file "${outfile}"
+        rm -f "${raw_file}"
+        return 0
+      fi
+    fi
+
+    if "${pkg_info_bin}" -q -a > "${raw_file}" 2>/dev/null; then
+      ci_deps_extract_pkg_bases_from_pkg_info "${raw_file}" > "${outfile}"
+      if [[ -s "${outfile}" ]]; then
+        ci_deps_sort_unique_file "${outfile}"
+        rm -f "${raw_file}"
+        return 0
+      fi
+    fi
+  fi
+  rm -f "${raw_file}"
+
+  : > "${outfile}"
+  for dbdir in /var/db/pkg /usr/pkg/pkgdb /usr/pkgdb; do
+    [[ -d "${dbdir}" ]] || continue
+    for entry in "${dbdir}"/*; do
+      [[ -d "${entry}" ]] || continue
+      base="$(basename "${entry}" | sed -E 's/-[0-9][[:alnum:]_.+~-]*$//')"
+      [[ -n "${base}" ]] && printf '%s\n' "${base}" >> "${outfile}"
+    done
+    if [[ -s "${outfile}" ]]; then
+      ci_deps_sort_unique_file "${outfile}"
+      return 0
+    fi
+  done
+
+  return 2
+}
+
+ci_deps_capture_installed_packages() {
+  local outfile="${1:-}"
+
+  case "${report_pkgmgr:-}" in
+    apt)
+      dpkg-query -W -f='${Package}\n' > "${outfile}"
+      ;;
+    dnf|yum|zypper)
+      rpm -qa --qf '%{NAME}\n' > "${outfile}"
+      ;;
+    apk)
+      apk info > "${outfile}"
+      ;;
+    pacman)
+      pacman -Qq > "${outfile}"
+      ;;
+    brew)
+      brew list --formula > "${outfile}"
+      ;;
+    pkg)
+      /usr/sbin/pkg query '%n' > "${outfile}"
+      ;;
+    pkg_add)
+      ci_deps_capture_pkg_add_like_packages /usr/sbin/pkg_info "${outfile}"
+      ;;
+    pkgin)
+      ci_deps_capture_pkg_add_like_packages /usr/pkg/bin/pkg_info "${outfile}"
+      ;;
+    *)
+      echo "Package inventory is not supported for package manager: ${report_pkgmgr:-<unset>}" >&2
+      return 2
+      ;;
+  esac
+
+  ci_deps_sort_unique_file "${outfile}"
+}
+
+ci_deps_collect_missing_packages() {
+  local check_fn="${1:-}"
+  local outfile="${2:-}"
+  local pkg=""
+
+  : > "${outfile}"
+  for pkg in "${PKGS[@]}"; do
+    if ! "${check_fn}" "${pkg}"; then
+      printf '%s\n' "${pkg}" >> "${outfile}"
+    fi
+  done
+  ci_deps_sort_unique_file "${outfile}"
+}
+
+ci_deps_write_json_report() {
+  local outfile="${1:-}"
+  local requested_file="${2:-}"
+  local present_before_file="${3:-}"
+  local missing_before_file="${4:-}"
+  local direct_new_file="${5:-}"
+  local missing_after_file="${6:-}"
+  local all_new_file="${7:-}"
+  local indirect_new_file="${8:-}"
+  local target_rc="${9:-0}"
+  local command_status="success"
+  local family_value="${family:-bsd}"
+
+  if [[ "${target_rc}" -ne 0 ]]; then
+    if [[ "${mode}" == "check" ]]; then
+      command_status="missing"
+    else
+      command_status="failed"
+    fi
+  fi
+
+  mkdir -p "$(dirname "${outfile}")"
+  : > "${outfile}"
+
+  printf '{\n' >> "${outfile}"
+  ci_deps_write_json_string_field "${outfile}" "mode" "${mode}"
+  ci_deps_write_json_string_field "${outfile}" "status" "${command_status}"
+  ci_deps_write_json_number_field "${outfile}" "command_exit_code" "${target_rc}"
+  ci_deps_write_json_string_field "${outfile}" "variant" "${VARIANT:-server}"
+  ci_deps_write_json_string_field "${outfile}" "enable_ldap" "${ENABLE_LDAP:-ON}"
+  ci_deps_write_json_string_field "${outfile}" "enable_snmp" "${ENABLE_SNMP:-ON}"
+  ci_deps_write_json_string_field "${outfile}" "family" "${family_value}"
+  ci_deps_write_json_string_field "${outfile}" "os" "${os_name}"
+  ci_deps_write_json_string_field "${outfile}" "version" "${version}"
+  ci_deps_write_json_string_field "${outfile}" "package_manager" "${report_pkgmgr}"
+  ci_deps_write_json_array_field "${outfile}" "requested_packages" "${requested_file}"
+  ci_deps_write_json_array_field "${outfile}" "requested_already_present" "${present_before_file}"
+  ci_deps_write_json_array_field "${outfile}" "requested_missing_before" "${missing_before_file}"
+  ci_deps_write_json_array_field "${outfile}" "requested_newly_installed" "${direct_new_file}"
+  ci_deps_write_json_array_field "${outfile}" "requested_missing_after" "${missing_after_file}"
+  ci_deps_write_json_array_field "${outfile}" "all_newly_installed" "${all_new_file}"
+  ci_deps_write_json_array_field "${outfile}" "indirect_newly_installed" "${indirect_new_file}"
+  printf '  "counts": {\n' >> "${outfile}"
+  printf '    "requested_packages": %s,\n' "$(ci_deps_count_file_lines "${requested_file}")" >> "${outfile}"
+  printf '    "requested_already_present": %s,\n' "$(ci_deps_count_file_lines "${present_before_file}")" >> "${outfile}"
+  printf '    "requested_missing_before": %s,\n' "$(ci_deps_count_file_lines "${missing_before_file}")" >> "${outfile}"
+  printf '    "requested_newly_installed": %s,\n' "$(ci_deps_count_file_lines "${direct_new_file}")" >> "${outfile}"
+  printf '    "requested_missing_after": %s,\n' "$(ci_deps_count_file_lines "${missing_after_file}")" >> "${outfile}"
+  printf '    "all_newly_installed": %s,\n' "$(ci_deps_count_file_lines "${all_new_file}")" >> "${outfile}"
+  printf '    "indirect_newly_installed": %s\n' "$(ci_deps_count_file_lines "${indirect_new_file}")" >> "${outfile}"
+  printf '  },\n' >> "${outfile}"
+  ci_deps_write_json_string_field "${outfile}" "unneeded_packages_status" "undetermined" "0"
+  printf '}\n' >> "${outfile}"
+}
+
+ci_deps_run_installer_with_report() {
+  local installed_fn="${1:-}"
+  local available_fn="${2:-}"
+  local install_fn="${3:-}"
+  local pre_install_fn="${4:-}"
+  local install_banner="${5:-}"
+  local requested_file=""
+  local present_before_file=""
+  local missing_before_file=""
+  local direct_new_file=""
+  local missing_after_file=""
+  local all_new_file=""
+  local indirect_new_file=""
+  local installed_before_file=""
+  local installed_after_file=""
+  local file=""
+  local target_rc=0
+  local -a install_specs=()
+  local -a check_specs=()
+  local -a tmp_report_files=()
+
+  for file in \
+    requested_file present_before_file missing_before_file direct_new_file \
+    missing_after_file all_new_file indirect_new_file installed_before_file \
+    installed_after_file; do
+    local created_file=""
+    created_file="$(mktemp -t ci-deps-report.XXXXXX)"
+    tmp_report_files+=("${created_file}")
+    printf -v "${file}" '%s' "${created_file}"
+  done
+
+  if ! ci_deps_capture_installed_packages "${installed_before_file}"; then
+    target_rc=$?
+    ci_deps_write_json_report \
+      "${report_json_path}" \
+      "${requested_file}" \
+      "${present_before_file}" \
+      "${missing_before_file}" \
+      "${direct_new_file}" \
+      "${missing_after_file}" \
+      "${all_new_file}" \
+      "${indirect_new_file}" \
+      "${target_rc}"
+    rm -f -- "${tmp_report_files[@]}"
+    return "${target_rc}"
+  fi
+
+  install_specs=("${PKGS[@]}")
+  ci_deps_resolve_package_alternatives "${installed_fn}" "${available_fn}"
+  check_specs=("${PKGS[@]}")
+  printf '%s\n' "${check_specs[@]}" > "${requested_file}"
+  ci_deps_sort_unique_file "${requested_file}"
+  ci_deps_collect_missing_packages "${installed_fn}" "${missing_before_file}"
+  ci_deps_sorted_file_diff "${requested_file}" "${missing_before_file}" "${present_before_file}"
+
+  case "${mode}" in
+    print)
+      printf '%s\n' "${check_specs[@]}"
+      ;;
+    check)
+      if [[ -s "${missing_before_file}" ]]; then
+        target_rc=1
+        if [[ "${print_list}" == "1" ]]; then
+          cat "${missing_before_file}"
+        fi
+      fi
+      ;;
+    install)
+      if [[ "${print_list}" == "1" ]]; then
+        printf '%s\n' "${check_specs[@]}"
+      fi
+      if [[ -n "${pre_install_fn}" ]]; then
+        "${pre_install_fn}"
+      fi
+      if [[ -n "${install_banner}" ]]; then
+        echo "${install_banner}"
+      fi
+      PKGS=("${install_specs[@]}")
+      if ! ci_deps_install_packages_with_alternatives \
+          "${installed_fn}" "${available_fn}" "${install_fn}"; then
+        target_rc=$?
+      fi
+      ;;
+    *)
+      echo "Unsupported mode: ${mode}" >&2
+      target_rc=2
+      ;;
+  esac
+
+  if [[ "${mode}" == "install" ]]; then
+    ci_deps_capture_installed_packages "${installed_after_file}" || true
+    PKGS=("${check_specs[@]}")
+    ci_deps_collect_missing_packages "${installed_fn}" "${missing_after_file}"
+  else
+    cp -f "${installed_before_file}" "${installed_after_file}"
+    cp -f "${missing_before_file}" "${missing_after_file}"
+  fi
+
+  ci_deps_sorted_file_diff "${missing_before_file}" "${missing_after_file}" "${direct_new_file}"
+  ci_deps_sorted_file_diff "${installed_after_file}" "${installed_before_file}" "${all_new_file}"
+  ci_deps_sorted_file_diff "${all_new_file}" "${direct_new_file}" "${indirect_new_file}"
+
+  ci_deps_write_json_report \
+    "${report_json_path}" \
+    "${requested_file}" \
+    "${present_before_file}" \
+    "${missing_before_file}" \
+    "${direct_new_file}" \
+    "${missing_after_file}" \
+    "${all_new_file}" \
+    "${indirect_new_file}" \
+    "${target_rc}"
+
+  rm -f -- "${tmp_report_files[@]}"
+  return "${target_rc}"
+}
+
 ci_deps_run_installer_modes() {
   local installed_fn="${1:-}"
   local available_fn="${2:-}"
@@ -163,6 +556,12 @@ ci_deps_run_installer_modes() {
   if [[ -z "${install_fn}" ]]; then
     echo "Missing package install callback function" >&2
     exit 2
+  fi
+
+  if [[ -n "${report_json_path:-}" ]]; then
+    ci_deps_run_installer_with_report \
+      "${installed_fn}" "${available_fn}" "${install_fn}" "${pre_install_fn}" "${install_banner}"
+    return $?
   fi
 
   if [[ "${mode}" == "install" && -n "${pre_install_fn}" ]]; then

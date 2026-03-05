@@ -31,6 +31,7 @@ bsd_require_os_for_pkgmgr pkgin
 
 # pkgin currently reuses the NetBSD pkg_add dependency set in deps YAML.
 bsd_resolve_packages pkgin pkg_add
+export report_pkgmgr="pkgin"
 
 pkgin_pkg_installed() {
   bsd_pkg_installed pkgin "$1"

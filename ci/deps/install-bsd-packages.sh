@@ -13,6 +13,7 @@ usage() {
   cat <<'USAGE'
 Usage: install-bsd-packages.sh [--print] [--check-only] [--install]
                                [--os NAME] [--version NAME] [--pkgmgr NAME]
+                               [--report-json PATH]
 
 Options:
   --print          Print package list and exit
@@ -21,6 +22,8 @@ Options:
   --os NAME        Override OS (default: detected)
   --version NAME   Override version (default: detected)
   --pkgmgr NAME    Override package manager (pkg|pkg_add|pkgin)
+  --report-json PATH
+                   Write dependency report JSON to PATH
 USAGE
 }
 
@@ -29,6 +32,7 @@ print_list="0"
 os_override=""
 version_override=""
 pkgmgr_override="${BSD_PKGMGR:-}"
+report_json_path="${CI_DEPS_REPORT_JSON:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -58,6 +62,14 @@ while [[ $# -gt 0 ]]; do
     --pkgmgr)
       pkgmgr_override="$2"
       shift 2
+      ;;
+    --report-json)
+      report_json_path="${2:-}"
+      shift 2
+      ;;
+    --report-json=*)
+      report_json_path="${1#*=}"
+      shift
       ;;
     -h|--help)
       usage
@@ -118,6 +130,9 @@ esac
 forward_args+=(--os "${BSD_OS_LOWER}")
 if [[ -n "${BSD_OS_VERSION}" ]]; then
   forward_args+=(--version "${BSD_OS_VERSION}")
+fi
+if [[ -n "${report_json_path}" ]]; then
+  forward_args+=(--report-json "${report_json_path}")
 fi
 
 exec "${target_script}" "${forward_args[@]}"

@@ -29,6 +29,7 @@ ci_deps_setup_variant_defaults
 bsd_init_os_context "${os_name}" "${version}"
 bsd_require_os_for_pkgmgr pkg
 bsd_resolve_packages pkg
+export report_pkgmgr="pkg"
 
 pkg_pkg_installed() {
   bsd_pkg_installed pkg "$1"
