@@ -262,6 +262,9 @@ build_target_args() {
   esac
 
   target_args+=("${target_base_args[@]}")
+  if [[ -n "${report_json_path}" ]]; then
+    target_args+=(--report-json "${report_json_path}")
+  fi
 }
 
 sort_unique_file() {
@@ -594,12 +597,8 @@ main() {
   detect_runner_os
   resolve_target_script
 
-  if [[ -z "${report_json_path}" ]]; then
-    build_target_args
-    exec "${target_script}" "${target_args[@]}"
-  fi
-
-  run_with_report
+  build_target_args
+  exec "${target_script}" "${target_args[@]}"
 }
 
 if [[ "${BASH_SOURCE[0]}" == "$0" ]]; then
