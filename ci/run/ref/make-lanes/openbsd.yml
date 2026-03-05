@@ -1,7 +1,0 @@
-include:
-  - name_prefix: OpenBSD 7.8
-    platform_id: openbsd-7_8
-  - name_prefix: OpenBSD 7.7
-    platform_id: openbsd-7_7
-  - name_prefix: OpenBSD 7.6
-    platform_id: openbsd-7_6

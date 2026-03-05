@@ -10,6 +10,16 @@ package_templates:
     brew: [make, cmake, ninja]
     pkg: [gmake, cmake, ninja]
     pkg_add: [gmake, cmake, ninja]
+  build_tools_make:
+    apt: [build-essential, ninja-build, git, findutils]
+    dnf: [gcc, gcc-c++, make, ninja-build, git, findutils, diffutils]
+    yum: [gcc, gcc-c++, make, ninja-build, git, findutils, diffutils]
+    zypper: [gcc, gcc-c++, make, ninja, git, findutils, diffutils]
+    apk: [bash, build-base, ninja, git, findutils, diffutils]
+    pacman: [base-devel, ninja, git, findutils, diffutils]
+    brew: [make, ninja]
+    pkg: [gmake, ninja]
+    pkg_add: [gmake, ninja]
 
 map:
   BUILD_TOOLS:
@@ -21,6 +31,14 @@ map:
           yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
         netbsd:
           pkg_add: [gmake, cmake, ninja-build]
+
+  BUILD_TOOLS_MAKE:
+    defaults:
+      template: build_tools_make
+    overrides:
+      by_os:
+        netbsd:
+          pkg_add: [gmake, ninja-build]
 
   PCRE:
     defaults:
@@ -111,4 +129,5 @@ map:
       pkg: [python3]
       pkg_add: [python3]
 
-aliases: {}
+aliases:
+  BUILD_TOOLS_CMAKE: BUILD_TOOLS
