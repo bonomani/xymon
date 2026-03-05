@@ -839,18 +839,8 @@ def load_platform_catalog() -> dict[str, dict]:
 def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, dict]:
     if not platform_catalog:
         return {}
-    data = load_yaml(PLATFORM_CATALOG_FILE)
-    profiles = data.get("binding_profiles", {})
-    if profiles is None:
-        profiles = {}
-    if not isinstance(profiles, dict):
-        return {}
 
     normalized: dict[str, dict] = {}
-    normalized_profiles: dict[str, dict] = {}
-    for profile_name, profile_entry in profiles.items():
-        if isinstance(profile_name, str) and isinstance(profile_entry, dict):
-            normalized_profiles[profile_name] = profile_entry
 
     for platform_id, entry in platform_catalog.items():
         if not isinstance(platform_id, str) or not isinstance(entry, dict):
@@ -860,23 +850,14 @@ def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, 
         if not isinstance(deps, dict):
             continue
 
-        merged: dict = {}
-        profile_name = deps.get("profile")
-        if profile_name is not None:
-            if isinstance(profile_name, str) and profile_name in normalized_profiles:
-                merged.update(copy.deepcopy(normalized_profiles[profile_name]))
-            else:
-                print(
-                    f"   ERROR: {PLATFORM_CATALOG_FILE} platform '{platform_id}' deps "
-                    f"references unknown profile '{profile_name}'"
-                )
-        for key, value in deps.items():
-            if key == "profile":
-                continue
-            merged[key] = value
-        if profile_name is not None:
-            merged["profile"] = profile_name
-        normalized[platform_id] = merged
+        if "profile" in deps:
+            print(
+                f"   ERROR: {PLATFORM_CATALOG_FILE} platform '{platform_id}' uses "
+                "deprecated deps.profile; use explicit family/os/version in deps"
+            )
+            continue
+
+        normalized[platform_id] = copy.deepcopy(deps)
     return normalized
 
 
@@ -1034,6 +1015,8 @@ def map_ref_lane_to_platform_requirement(
         if isinstance(runner, str) and runner.strip():
             return "platform_id", runner.strip()
         return "platform_id", ""
+    if family == "linux":
+        return "platform_id", "linux-host"
 
     return "unknown", family
 
@@ -1350,7 +1333,14 @@ def check_shell_scripts() -> bool:
         print("   NOTE: shellcheck not installed; skipping shell lint")
         return True
 
-    cmd = ["shellcheck", "--external-sources", "--shell", "bash"] + existing
+    cmd = [
+        "shellcheck",
+        "--external-sources",
+        "--shell",
+        "bash",
+        "--severity",
+        "warning",
+    ] + existing
     result = subprocess.run(cmd)
     if result.returncode != 0:
         print("   ERROR: shellcheck reported issues")

@@ -23,6 +23,9 @@ USAGE
 }
 
 ci_deps_init_linux_installer dnf "$@"
+# Populated by ci_deps_init_linux_installer from install-common.sh.
+os_name="${os_name:-}"
+version="${version:-}"
 
 DNF_REPO_ARGS=()
 

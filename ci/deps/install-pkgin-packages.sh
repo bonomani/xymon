@@ -26,6 +26,9 @@ USAGE
 ci_deps_init_cli
 ci_deps_parse_cli 0 1 "$@"
 ci_deps_setup_variant_defaults
+# Populated by ci_deps_parse_cli from install-common.sh.
+os_name="${os_name:-}"
+version="${version:-}"
 bsd_init_os_context "${os_name}" "${version}"
 bsd_require_os_for_pkgmgr pkgin
 

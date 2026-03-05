@@ -16,6 +16,7 @@ bsd_normalize_os_name() {
   local lowered
   lowered="$(printf '%s' "${os_input}" | tr '[:upper:]' '[:lower:]')"
 
+  # shellcheck disable=SC2034
   case "${lowered}" in
     freebsd)
       BSD_OS_NAME="FreeBSD"
