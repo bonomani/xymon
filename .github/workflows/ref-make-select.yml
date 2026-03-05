@@ -172,122 +172,70 @@ jobs:
           echo "Lane count (bsd_vm): ${{ steps.generate.outputs.lane_count_bsd_vm }}"
           echo "Lane count (macos_host): ${{ steps.generate.outputs.lane_count_macos_host }}"
 
-  ref-make-linux-host:
+  ref-linux-host:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' && inputs.extra_action != 'compare_artifacts' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 6
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
     uses: ./.github/workflows/ref-make-reusable-linux-host.yml
+    secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
       upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
+      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
 
-  ref-make-linux-container:
+  ref-linux-container:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' && inputs.extra_action != 'compare_artifacts' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 8
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
     uses: ./.github/workflows/ref-make-reusable-linux-container.yml
+    secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
       upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
+      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
 
-  ref-make-bsd-vm:
+  ref-bsd-vm:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' && inputs.extra_action != 'compare_artifacts' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
     uses: ./.github/workflows/ref-make-reusable-bsd-vm.yml
+    secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
       upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
+      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
 
-  ref-make-macos-host:
+  ref-macos-host:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' && inputs.extra_action != 'compare_artifacts' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 4
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos_host) }}
     uses: ./.github/workflows/ref-make-reusable-macos-host.yml
+    secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      mode: ${{ inputs.extra_action == 'compare_artifacts' && 'compare' || 'generate' }}
       upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
-
-  ref-compare-linux-host:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' && inputs.extra_action == 'compare_artifacts' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 6
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
-    name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-linux-host.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      upload_artifacts: '0'
-      run_compare: '1'
-
-  ref-compare-linux-container:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' && inputs.extra_action == 'compare_artifacts' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 8
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
-    name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-linux-container.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      upload_artifacts: '0'
-      run_compare: '1'
-
-  ref-compare-bsd-vm:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' && inputs.extra_action == 'compare_artifacts' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
-    name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-bsd-vm.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      upload_artifacts: '0'
-      run_compare: '1'
-
-  ref-compare-macos-host:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' && inputs.extra_action == 'compare_artifacts' }}
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos_host) }}
-    name: ${{ matrix.lane.name }}
-    uses: ./.github/workflows/ref-validate-reusable-macos-host.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      upload_artifacts: '0'
-      run_compare: '1'
+      run_compare: ${{ inputs.extra_action == 'compare_artifacts' && '1' || '0' }}
