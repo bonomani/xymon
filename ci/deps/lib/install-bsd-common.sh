@@ -107,10 +107,30 @@ bsd_pick_openldap_variant() {
   echo "${picked}"
 }
 
+bsd_pick_openldap_variant_from_pkg_add_probe() {
+  local probe_file="${1:-}"
+  local ambiguous=""
+
+  if [[ -z "${probe_file}" || ! -f "${probe_file}" ]]; then
+    return 1
+  fi
+
+  ambiguous="$(
+    sed -n 's/^Ambiguous:[[:space:]]*//p' "${probe_file}" \
+      | head -n 1 || true
+  )"
+  if [[ -z "${ambiguous}" ]]; then
+    return 1
+  fi
+
+  bsd_pick_openldap_variant "${ambiguous}"
+}
+
 bsd_pick_ldap_pkg() {
   local pkgmgr="${1:-}"
   local found=""
-  local probe_out=""
+  local probe_file=""
+  local probe_rc=0
 
   case "${pkgmgr}" in
     pkg)
@@ -136,11 +156,20 @@ bsd_pick_ldap_pkg() {
       ;;
     pkg_add)
       if [ -x /usr/sbin/pkg_add ]; then
-        set +e
-        probe_out="$(/usr/sbin/pkg_add -n openldap-client 2>&1)"
-        set -e
-        if echo "${probe_out}" | grep -q '^Ambiguous:'; then
-          found="$(bsd_pick_openldap_variant "${probe_out}")"
+        probe_file="$(mktemp -t install-bsd-openldap.XXXXXX || true)"
+        if [[ -n "${probe_file}" ]]; then
+          set +e
+          /usr/sbin/pkg_add -n openldap-client >"${probe_file}" 2>&1
+          probe_rc=$?
+          set -e
+
+          if [[ "${probe_rc}" -eq 0 ]]; then
+            found="openldap-client"
+          else
+            found="$(bsd_pick_openldap_variant_from_pkg_add_probe "${probe_file}")" || true
+          fi
+
+          rm -f "${probe_file}"
         elif /usr/sbin/pkg_add -n openldap-client >/dev/null 2>&1; then
           found="openldap-client"
         fi
