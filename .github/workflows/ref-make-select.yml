@@ -69,6 +69,15 @@ on:
           - none
           - artifact
           - registry
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure
+        required: true
+        type: choice
+        default: allow
+        options:
+          - off
+          - allow
+          - expect_fail
       source_ref:
         description: Optional branch or tag to run this selector on
         required: false
@@ -104,6 +113,11 @@ on:
         required: false
         default: none
         type: string
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure (off|allow|expect_fail)
+        required: false
+        default: allow
+        type: string
 
 permissions:
   contents: read
@@ -135,10 +149,11 @@ jobs:
                 goal: '${{ inputs.goal }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
+                allow_failure_mode: '${{ inputs.allow_failure_mode }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, preset=${{ inputs.preset }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, preset=${{ inputs.preset }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -151,6 +166,7 @@ jobs:
       goal: ${{ steps.resolve_execution.outputs.goal }}
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
+      allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
       execution_preset: ${{ steps.resolve_execution.outputs.execution_preset }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
@@ -173,12 +189,14 @@ jobs:
           INPUT_GOAL: ${{ inputs.goal }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
+          INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
         run: |
           set -euo pipefail
 
           goal="${INPUT_GOAL:-verify}"
           ref_mode="${INPUT_REF_MODE:-generate}"
           publish="${INPUT_PUBLISH:-none}"
+          allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE:-allow}"
           preset="${INPUT_PRESET:-}"
           execution_preset="custom"
 
@@ -235,6 +253,14 @@ jobs:
               exit 2
               ;;
           esac
+          case "${allow_failure_mode}" in
+            off|allow|expect_fail)
+              ;;
+            *)
+              echo "Unsupported allow_failure_mode: ${allow_failure_mode}" >&2
+              exit 2
+              ;;
+          esac
 
           if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
             echo "ref_mode=compare is only valid when goal=ref" >&2
@@ -245,6 +271,7 @@ jobs:
             echo "goal=${goal}"
             echo "ref_mode=${ref_mode}"
             echo "publish=${publish}"
+            echo "allow_failure_mode=${allow_failure_mode}"
             echo "execution_preset=${execution_preset}"
           } >> "${GITHUB_OUTPUT}"
 
@@ -292,6 +319,7 @@ jobs:
           echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
           echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
           echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
@@ -314,6 +342,7 @@ jobs:
       goal: ${{ needs.build-matrix.outputs.goal }}
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
       upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
       run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
@@ -333,6 +362,7 @@ jobs:
       goal: ${{ needs.build-matrix.outputs.goal }}
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
       upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
       run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
@@ -352,6 +382,7 @@ jobs:
       goal: ${{ needs.build-matrix.outputs.goal }}
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
       upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
       run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
@@ -371,5 +402,6 @@ jobs:
       goal: ${{ needs.build-matrix.outputs.goal }}
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
       upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
       run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
