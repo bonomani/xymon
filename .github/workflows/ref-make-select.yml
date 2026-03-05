@@ -136,16 +136,17 @@ jobs:
         run: |
           set -euo pipefail
 
-          matrix_builder="ci/run/ref/build-ref-make-matrix.py"
+          purpose="generation"
           skip_dropdown_parity=0
           if [[ "${EXTRA_ACTION}" == "compare_artifacts" ]]; then
-            matrix_builder="ci/run/ref/build-ref-validate-matrix.py"
+            purpose="validation"
             # Unified selector has generation+comparison families in one dropdown.
             skip_dropdown_parity=1
           fi
 
           args=(
-            python3 "${matrix_builder}"
+            python3 "ci/run/ref/build-ref-make-matrix.py"
+            --purpose "${purpose}"
             --selected-family "${SELECTED_FAMILY}"
             --build-tool "${SELECTED_BUILD_TOOL}"
             --manifest "ci/run/ref/ref-families.yml"
