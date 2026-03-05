@@ -336,8 +336,6 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
-      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-linux-container:
     needs: build-matrix
@@ -356,8 +354,6 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
-      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-bsd-vm:
     needs: build-matrix
@@ -376,8 +372,6 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
-      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}
 
   ref-macos-host:
     needs: build-matrix
@@ -396,5 +390,3 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      upload_artifacts: ${{ needs.build-matrix.outputs.publish == 'artifact' && '1' || '0' }}
-      run_compare: ${{ needs.build-matrix.outputs.goal == 'ref' && needs.build-matrix.outputs.ref_mode == 'compare' && '1' || '0' }}

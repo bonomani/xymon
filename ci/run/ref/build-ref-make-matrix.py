@@ -352,7 +352,7 @@ def main():
         lanes = load_lanes_from_file(
             repo_root / family_entry["lane_file"],
             shared_defaults=family_entry.get("lane_defaults", {}),
-            strict_lane_mapping=(purpose == "generation"),
+            strict_lane_mapping=True,
         )
         for lane in lanes:
             if not isinstance(lane, dict):

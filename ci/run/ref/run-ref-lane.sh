@@ -11,7 +11,6 @@ ref_os="linux"
 platform_os=""
 artifact_family=""
 platform_id=""
-run_compare="1"
 os_version=""
 
 ref_stage_root="${REF_STAGE_ROOT:-${GITHUB_WORKSPACE:-$(pwd)}/tmp/xymon-refs}"
@@ -32,7 +31,6 @@ Usage: run-ref-lane.sh
   [--platform-os OS]
   [--artifact-family FAMILY]
   [--platform-id ID]
-  [--run-compare 1|0]
   [--version VERSION]
   [--refs-root DIR]
   [--artifact-root DIR]
@@ -81,10 +79,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --platform-id)
       platform_id="${2:-}"
-      shift 2
-      ;;
-    --run-compare)
-      run_compare="${2:-}"
       shift 2
       ;;
     --version)
@@ -145,19 +139,6 @@ case "${publish}" in
     ;;
   *)
     echo "Unsupported --publish value: ${publish}" >&2
-    usage
-    ;;
-esac
-
-case "$(printf '%s' "${run_compare}" | tr '[:upper:]' '[:lower:]')" in
-  1|true|yes|on)
-    run_compare="1"
-    ;;
-  0|false|no|off)
-    run_compare="0"
-    ;;
-  *)
-    echo "Unsupported --run-compare value: ${run_compare}" >&2
     usage
     ;;
 esac
@@ -292,11 +273,8 @@ case "${goal}" in
         --group "docs/cmake-legacy-migration/refs/${baseline_root}/${variant}/owners.group"
     fi
     run_ref_snapshot
-    if [[ "${ref_mode}" == "compare" && "${run_compare}" == "1" ]]; then
+    if [[ "${ref_mode}" == "compare" ]]; then
       run_ref_compare
-    fi
-    if [[ "${ref_mode}" == "compare" && "${run_compare}" != "1" ]]; then
-      echo "Skipping reference comparison (--run-compare=0)."
     fi
     ;;
   package)
