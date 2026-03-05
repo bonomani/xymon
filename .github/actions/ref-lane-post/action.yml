@@ -15,7 +15,7 @@ inputs:
     description: Dependency report mode (generate|compare).
     required: true
   goal:
-    description: Execution goal (verify|ref|package|image).
+    description: Execution goal (verify|ref).
     required: true
   ref_mode:
     description: Reference mode (generate|compare).
@@ -111,7 +111,10 @@ runs:
       with:
         lane_name: ${{ inputs.lane_name }}
         if_no_files_found: ${{ inputs.ref_valid_if_no_files_found }}
-        extra_paths: ${{ inputs.extra_paths }}
+        extra_paths: |
+          ${{ inputs.extra_paths }}
+          .ci-artifacts/ref-valid-${{ inputs.artifact_family }}/${{ inputs.build_tool }}-${{ inputs.platform_id }}-${{ inputs.variant }}/**
+          .ci-artifacts/ref-valid-${{ inputs.artifact_family }}/refs/${{ inputs.build_tool }}.${{ inputs.ref_os }}.${{ inputs.variant }}/**
 
     - name: Skip artifacts when upload is disabled
       if: ${{ inputs.upload_artifacts != '1' }}

@@ -12,24 +12,20 @@ on:
         required: true
         type: string
       goal:
-        description: Execution goal (verify|ref|package|image)
-        required: false
-        default: ref
+        description: Execution goal (verify|ref)
+        required: true
         type: string
       ref_mode:
         description: Reference mode when goal=ref (generate|compare)
-        required: false
-        default: generate
+        required: true
         type: string
       publish:
-        description: Publish channel (none|artifact|registry)
-        required: false
-        default: none
+        description: Publish channel (none|artifact)
+        required: true
         type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
-        required: false
-        default: allow
+        required: true
         type: string
 
 permissions:
@@ -106,6 +102,3 @@ jobs:
           artifact_family: ${{ env.ARTIFACT_FAMILY }}
           ref_stage_root: ${{ env.REF_STAGE_ROOT }}
           ref_os: ${{ env.REF_OS }}
-          extra_paths: |
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/**
-            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**

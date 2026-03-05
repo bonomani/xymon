@@ -41,8 +41,6 @@ on:
         options:
           - verify
           - ref
-          - package
-          - image
       ref_mode:
         description: Reference mode when goal=ref
         required: true
@@ -59,7 +57,6 @@ on:
         options:
           - none
           - artifact
-          - registry
       allow_failure_mode:
         description: Handling of lanes marked allow_failure
         required: true
@@ -85,7 +82,7 @@ on:
         default: auto
         type: string
       goal:
-        description: Orthogonal goal selector (verify|ref|package|image)
+        description: Orthogonal goal selector (verify|ref)
         required: false
         default: verify
         type: string
@@ -95,7 +92,7 @@ on:
         default: generate
         type: string
       publish:
-        description: Publish channel (none|artifact|registry)
+        description: Publish channel (none|artifact)
         required: false
         default: none
         type: string
@@ -183,7 +180,7 @@ jobs:
           allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE:-allow}"
 
           case "${goal}" in
-            verify|ref|package|image)
+            verify|ref)
               ;;
             *)
               echo "Unsupported goal: ${goal}" >&2
@@ -199,7 +196,7 @@ jobs:
               ;;
           esac
           case "${publish}" in
-            none|artifact|registry)
+            none|artifact)
               ;;
             *)
               echo "Unsupported publish: ${publish}" >&2
@@ -225,6 +222,14 @@ jobs:
 
           if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
             echo "ref_mode=compare is only valid when goal=ref" >&2
+            exit 2
+          fi
+          if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
+            echo "goal=verify requires ref_mode=generate" >&2
+            exit 2
+          fi
+          if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
+            echo "goal=verify requires publish=none" >&2
             exit 2
           fi
 

@@ -52,8 +52,6 @@ families:
   common:
     runtime: linux_host
     lane_file: ci/run/ref/make-lanes/linux.yml
-  generation: {}
-  validation: {}
 
 - family: alpine
   common:
@@ -61,15 +59,11 @@ families:
     lane_file: ci/run/ref/lanes/alpine.yml
     container_arm64_overrides:
       checkout_mode: git
-  generation: {}
-  validation: {}
 
 - family: archlinux
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/archlinux.yml
-  generation: {}
-  validation: {}
 
 - family: centos7
   common:
@@ -78,15 +72,11 @@ families:
     lane_overrides:
       prepare_profile: centos7
       checkout_mode: git
-  generation: {}
-  validation: {}
 
 - family: debian
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
-  generation: {}
-  validation: {}
 
 - family: freebsd
   common:
@@ -94,8 +84,6 @@ families:
     lane_file: ci/run/ref/lanes/freebsd.yml
     os_version_key: freebsd_version
     default_architecture: x86-64
-  generation: {}
-  validation: {}
 
 - family: macos
   common:
@@ -104,7 +92,6 @@ families:
     os_version_key: macos_version
     runner_key: runner
     default_runner: macos-latest
-  generation: {}
   validation:
     lane_overrides:
       # macOS compare currently uses FreeBSD legacy refs as the closest baseline.
@@ -116,8 +103,6 @@ families:
     lane_file: ci/run/ref/lanes/netbsd.yml
     os_version_key: netbsd_version
     default_architecture: x86-64
-  generation: {}
-  validation: {}
 
 - family: openbsd
   common:
@@ -125,15 +110,11 @@ families:
     lane_file: ci/run/ref/lanes/openbsd.yml
     os_version_key: openbsd_version
     default_architecture: x86-64
-  generation: {}
-  validation: {}
 
 - family: opensuse
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
-  generation: {}
-  validation: {}
 
 - family: redhat
   common:
@@ -141,26 +122,18 @@ families:
     lane_file: ci/run/ref/lanes/redhat.yml
     lane_overrides:
       prepare_profile: redhat
-  generation: {}
-  validation: {}
 
 - family: fedora
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/fedora.yml
-  generation: {}
-  validation: {}
 
 - family: oraclelinux
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/oraclelinux.yml
-  generation: {}
-  validation: {}
 
 - family: ubuntu
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml
-  generation: {}
-  validation: {}

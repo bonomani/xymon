@@ -507,7 +507,7 @@ if [[ "${#items[@]}" -eq 0 ]]; then
   done < "${items_meta_file}"
 
   items=("${profile_items_base[@]}")
-  for remove_item in "${profile_items_overlay_remove[@]}"; do
+  for remove_item in "${profile_items_overlay_remove[@]+"${profile_items_overlay_remove[@]}"}"; do
     next_items=()
     for keep_item in "${items[@]}"; do
       if [[ "${keep_item}" != "${remove_item}" ]]; then
@@ -517,7 +517,7 @@ if [[ "${#items[@]}" -eq 0 ]]; then
     items=("${next_items[@]}")
   done
 
-  for add_item in "${profile_items_overlay_add[@]}"; do
+  for add_item in "${profile_items_overlay_add[@]+"${profile_items_overlay_add[@]}"}"; do
     exists=0
     for existing_item in "${items[@]}"; do
       if [[ "${existing_item}" == "${add_item}" ]]; then
