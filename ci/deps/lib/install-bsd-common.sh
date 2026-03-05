@@ -183,22 +183,87 @@ bsd_pick_pkg_add_variant() {
   return 1
 }
 
+bsd_pick_pkg_add_alternative_for_probe() {
+  local spec="${1:-}"
+  local cand=""
+  local first=""
+  local chosen=""
+  local -a candidates=()
+
+  if [[ "${spec}" != *"|"* ]]; then
+    printf '%s' "${spec}"
+    return 0
+  fi
+
+  while IFS= read -r cand; do
+    candidates+=("${cand}")
+  done < <(ci_deps_parse_alternative_candidates "${spec}")
+
+  for cand in "${candidates[@]}"; do
+    if [[ -z "${first}" ]]; then
+      first="${cand}"
+    fi
+    if bsd_pkg_installed pkg_add "${cand}"; then
+      chosen="${cand}"
+      break
+    fi
+  done
+
+  if [[ -z "${chosen}" ]]; then
+    for cand in "${candidates[@]}"; do
+      if bsd_pkg_available pkg_add "${cand}"; then
+        chosen="${cand}"
+        break
+      fi
+    done
+  fi
+
+  if [[ -z "${chosen}" ]]; then
+    chosen="${first}"
+  fi
+
+  if [[ -z "${chosen}" ]]; then
+    echo "Invalid alternative package expression: '${spec}'" >&2
+    return 1
+  fi
+
+  printf '%s' "${chosen}"
+}
+
 bsd_resolve_pkg_add_variants() {
   local resolved=()
+  local spec=""
+  local probe_pkg=""
+  local resolved_pkg=""
   local picked=""
   declare -A pkg_add_cache
 
-  for pkg in "${PKGS[@]}"; do
-    if [[ -n "${pkg_add_cache[${pkg}]:-}" ]]; then
-      picked="${pkg_add_cache[${pkg}]}"
-    else
-      picked="$(bsd_pick_pkg_add_variant "${pkg}")" || true
-      pkg_add_cache["${pkg}"]="${picked}"
+  for spec in "${PKGS[@]}"; do
+    probe_pkg="${spec}"
+    resolved_pkg="${spec}"
+
+    if [[ "${spec}" == *"|"* ]]; then
+      if [[ "${mode:-install}" != "install" ]]; then
+        probe_pkg="$(bsd_pick_pkg_add_alternative_for_probe "${spec}")"
+        resolved_pkg="${probe_pkg}"
+      else
+        # Preserve alternatives in install mode so install fallback can try each candidate.
+        resolved+=("${resolved_pkg}")
+        continue
+      fi
     fi
+
+    if [[ -n "${pkg_add_cache[${probe_pkg}]:-}" ]]; then
+      picked="${pkg_add_cache[${probe_pkg}]}"
+    else
+      picked="$(bsd_pick_pkg_add_variant "${probe_pkg}")" || true
+      pkg_add_cache["${probe_pkg}"]="${picked}"
+    fi
+
     if [[ -n "${picked}" ]]; then
       resolved+=("${picked}")
     else
-      resolved+=("${pkg}")
+      resolved+=("${resolved_pkg}")
     fi
   done
 
