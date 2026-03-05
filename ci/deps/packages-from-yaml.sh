@@ -3,7 +3,7 @@ set -euo pipefail
 
 usage() {
   cat <<'USAGE' >&2
-Usage: packages-from-yaml.sh --variant server|client|localclient --family FAMILY --os OS --pkgmgr PKG [--enable-ldap ON|OFF] [--enable-snmp ON|OFF]
+Usage: packages-from-yaml.sh --variant server|client|localclient --family FAMILY --os OS --pkgmgr PKG [--build-tool make|cmake] [--enable-ldap ON|OFF] [--enable-snmp ON|OFF]
 Print the mandatory dependency list for the requested configuration.
 USAGE
   exit 2
@@ -34,6 +34,7 @@ variant=""
 family=""
 os_name=""
 pkgmgr=""
+build_tool="${CI_DEPS_BUILD_TOOL:-}"
 enable_ldap=""
 enable_snmp=""
 
@@ -69,6 +70,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --pkgmgr=*)
       pkgmgr="${1#*=}"
+      shift
+      ;;
+    --build-tool)
+      build_tool="$2"
+      shift 2
+      ;;
+    --build-tool=*)
+      build_tool="${1#*=}"
       shift
       ;;
     --enable-ldap)
@@ -110,23 +119,44 @@ case "${variant}" in
     ;;
 esac
 
+build_tool="$(printf '%s' "${build_tool}" | tr '[:upper:]' '[:lower:]')"
+case "${build_tool}" in
+  ""|default)
+    build_tool=""
+    ;;
+  make|gmake)
+    build_tool="make"
+    ;;
+  cmake)
+    ;;
+  *)
+    echo "Unknown build tool: ${build_tool}" >&2
+    exit 2
+    ;;
+esac
+
 enable_ldap="$(normalize_onoff "${enable_ldap}" "OFF")"
 enable_snmp="$(normalize_onoff "${enable_snmp}" "OFF")"
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 data_dir="${script_dir}/data"
 deps_file="${data_dir}/deps-${variant}.yaml"
-topology_file="${data_dir}/deps-topology.yaml"
-bindings_file="${deps_file}"
+topology_file="${data_dir}/deps-targets.yaml"
+bindings_file="${topology_file}"
 dep_map_file="${data_dir}/deps-map.yaml"
+base_file=""
+overlay_file=""
+overlay_variant=""
 
 if [[ ! -f "${deps_file}" ]]; then
   echo "Dependency file missing: ${deps_file}" >&2
   exit 1
 fi
 
-topology_ref="$(
-  awk '
+read_top_level_key() {
+  local src_file="${1:-}"
+  local wanted_key="${2:-}"
+  awk -v WANTED_KEY="${wanted_key}" '
     function trim(val) {
       gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
       return val
@@ -148,49 +178,37 @@ topology_ref="$(
       key = trim(substr(line, 1, sep_pos - 1))
       value = trim(substr(line, sep_pos + 1))
       value = dequote(value)
-      if (key == "topology" && value != "") {
+      if (key == WANTED_KEY && value != "") {
         print value
         exit
       }
     }
-  ' "${deps_file}"
-)"
+  ' "${src_file}"
+}
+
+topology_ref="$(read_top_level_key "${deps_file}" "topology")"
 if [[ -n "${topology_ref}" ]]; then
   topology_file="${data_dir}/${topology_ref}"
 fi
 
-bindings_ref="$(
-  awk '
-    function trim(val) {
-      gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
-      return val
-    }
-    function dequote(val) {
-      if ((val ~ /^".*"$/) || (val ~ /^\047.*\047$/)) {
-        return substr(val, 2, length(val) - 2)
-      }
-      return val
-    }
-    {
-      if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
-      indent = match($0, /[^ ]/) - 1
-      if (indent < 0) indent = 0
-      if (indent != 0) next
-      line = substr($0, indent + 1)
-      sep_pos = index(line, ":")
-      if (sep_pos <= 0) next
-      key = trim(substr(line, 1, sep_pos - 1))
-      value = trim(substr(line, sep_pos + 1))
-      value = dequote(value)
-      if (key == "bindings_file" && value != "") {
-        print value
-        exit
-      }
-    }
-  ' "${deps_file}"
-)"
+bindings_ref="$(read_top_level_key "${deps_file}" "bindings_file")"
 if [[ -n "${bindings_ref}" ]]; then
   bindings_file="${data_dir}/${bindings_ref}"
+fi
+
+base_ref="$(read_top_level_key "${deps_file}" "base_file")"
+if [[ -n "${base_ref}" ]]; then
+  base_file="${data_dir}/${base_ref}"
+fi
+
+overlay_ref="$(read_top_level_key "${deps_file}" "overlay_file")"
+if [[ -n "${overlay_ref}" ]]; then
+  overlay_file="${data_dir}/${overlay_ref}"
+fi
+
+overlay_variant_ref="$(read_top_level_key "${deps_file}" "overlay_variant")"
+if [[ -n "${overlay_variant_ref}" ]]; then
+  overlay_variant="${overlay_variant_ref}"
 fi
 
 if [[ ! -f "${topology_file}" ]]; then
@@ -200,6 +218,20 @@ fi
 if [[ ! -f "${bindings_file}" ]]; then
   echo "Dependency bindings missing: ${bindings_file}" >&2
   exit 1
+fi
+if [[ -n "${base_file}" || -n "${overlay_file}" || -n "${overlay_variant}" ]]; then
+  if [[ -z "${base_file}" || -z "${overlay_file}" || -z "${overlay_variant}" ]]; then
+    echo "Dependency overlay mode requires base_file + overlay_file + overlay_variant in ${deps_file}" >&2
+    exit 1
+  fi
+  if [[ ! -f "${base_file}" ]]; then
+    echo "Dependency base file missing: ${base_file}" >&2
+    exit 1
+  fi
+  if [[ ! -f "${overlay_file}" ]]; then
+    echo "Dependency overlay file missing: ${overlay_file}" >&2
+    exit 1
+  fi
 fi
 
 tmp_files=()
@@ -265,8 +297,16 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && key == "profile") {
       if (value != "") print "TARGET_PROFILE\t" value
     }
+    if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && key == "profile") {
+      if (value != "") print "TARGET_PROFILE\t" value
+    }
 
     if (keys[0] == "bindings" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs" && key == "mandatory") {
+      list_context = "target"
+      list_indent = indent
+      next
+    }
+    if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && keys[4] == PKGMGR && keys[5] == "libs" && key == "mandatory") {
       list_context = "target"
       list_indent = indent
       next
@@ -276,7 +316,10 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
   exit 1
 fi
 
-if ! awk '
+parse_profile_items() {
+  local source_file="${1:-}"
+  local record_tag="${2:-PROFILE_ITEM}"
+  awk -v REC="${record_tag}" '
   function trim(val) {
     gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
     return val
@@ -301,7 +344,7 @@ if ! awk '
       item = trim(substr(line, 2))
       if (item != "" && index(list_context, "profile:") == 1) {
         profile_name = substr(list_context, 9)
-        print "PROFILE_ITEM\t" profile_name "\t" item
+        print REC "\t" profile_name "\t" item
       }
       next
     }
@@ -321,8 +364,71 @@ if ! awk '
       next
     }
   }
-' "${deps_file}" >> "${items_meta_file}"; then
-  exit 1
+  ' "${source_file}" >> "${items_meta_file}"
+}
+
+parse_overlay_profile_items() {
+  local source_file="${1:-}"
+  local selected_variant="${2:-}"
+  awk -v VARIANT="${selected_variant}" '
+  function trim(val) {
+    gsub(/^[[:space:]]+|[[:space:]]+$/, "", val)
+    return val
+  }
+  function set_key(key, depth) {
+    keys[depth] = key
+    for (i = depth + 1; i < 64; ++i) delete keys[i]
+  }
+  {
+    if ($0 ~ /^[[:space:]]*#/ || $0 ~ /^[[:space:]]*$/) next
+
+    indent = match($0, /[^ ]/) - 1
+    if (indent < 0) indent = 0
+    depth = int(indent / 2)
+    line = substr($0, indent + 1)
+
+    if (list_context != "" && line !~ /^-/ && indent <= list_indent) {
+      list_context = ""
+    }
+
+    if (line ~ /^-/) {
+      item = trim(substr(line, 2))
+      if (item != "" && index(list_context, "profile:") == 1) {
+        profile_name = substr(list_context, 9)
+        print "PROFILE_ITEM_OVERLAY\t" profile_name "\t" item
+      }
+      next
+    }
+
+    sep_pos = index(line, ":")
+    if (sep_pos <= 0) next
+
+    key = trim(substr(line, 1, sep_pos - 1))
+    set_key(key, depth)
+
+    if (keys[0] == "variants" && keys[1] == VARIANT && keys[2] == "profiles" && keys[4] == "libs" && key == "mandatory") {
+      profile_name = keys[3]
+      if (profile_name != "") {
+        list_context = "profile:" profile_name
+        list_indent = indent
+      }
+      next
+    }
+  }
+  ' "${source_file}" >> "${items_meta_file}"
+}
+
+if [[ -n "${base_file}" && -n "${overlay_file}" && -n "${overlay_variant}" ]]; then
+  if ! parse_profile_items "${base_file}" "PROFILE_ITEM_BASE"; then
+    exit 1
+  fi
+  if ! parse_overlay_profile_items "${overlay_file}" "${overlay_variant}"; then
+    exit 1
+  fi
+else
+  if ! parse_profile_items "${deps_file}" "PROFILE_ITEM"; then
+    exit 1
+  fi
 fi
 
 if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
@@ -345,6 +451,9 @@ if ! awk -v FAMILY="${family}" -v OS="${os_name}" -v PKGMGR="${pkgmgr}" '
     key = trim(substr(line, 1, sep_pos - 1))
     set_key(key, depth)
     if (keys[0] == "build" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && key == PKGMGR) {
+      found = 1
+    }
+    if (keys[0] == "targets" && keys[1] == FAMILY && keys[2] == OS && keys[3] == "packagers" && key == PKGMGR) {
       found = 1
     }
   }
@@ -377,14 +486,35 @@ if [[ "${#items[@]}" -eq 0 ]]; then
     exit 1
   fi
 
+  profile_items_base=()
+  profile_items_overlay=()
   while IFS=$'\t' read -r rec profile_name profile_item; do
-    if [[ "${rec}" == "PROFILE_ITEM" && "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
-      items+=("${profile_item}")
-    fi
+    case "${rec}" in
+      PROFILE_ITEM|PROFILE_ITEM_BASE)
+        if [[ "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
+          profile_items_base+=("${profile_item}")
+        fi
+        ;;
+      PROFILE_ITEM_OVERLAY)
+        if [[ "${profile_name}" == "${target_profile}" && -n "${profile_item}" ]]; then
+          profile_items_overlay+=("${profile_item}")
+        fi
+        ;;
+    esac
   done < "${items_meta_file}"
 
+  if [[ "${#profile_items_overlay[@]}" -gt 0 ]]; then
+    items=("${profile_items_overlay[@]}")
+  else
+    items=("${profile_items_base[@]}")
+  fi
+
   if [[ "${#items[@]}" -eq 0 ]]; then
-    echo "Profile '${target_profile}' has no libs.mandatory list in ${deps_file}" >&2
+    if [[ -n "${base_file}" ]]; then
+      echo "Profile '${target_profile}' has no libs.mandatory list in ${base_file} / ${overlay_file}" >&2
+    else
+      echo "Profile '${target_profile}' has no libs.mandatory list in ${deps_file}" >&2
+    fi
     exit 1
   fi
 fi
@@ -400,6 +530,21 @@ for item in "${items[@]}"; do
   if [[ "${family}" == "bsd" && "${item}" == "LDAP" ]]; then
     continue
   fi
+
+  if [[ "${item}" == "BUILD_TOOLS" ]]; then
+    case "${build_tool}" in
+      make)
+        item="BUILD_TOOLS_MAKE"
+        ;;
+      cmake)
+        item="BUILD_TOOLS_CMAKE"
+        ;;
+      *)
+        item="BUILD_TOOLS"
+        ;;
+    esac
+  fi
+
   filtered+=("${item}")
 done
 

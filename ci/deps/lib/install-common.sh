@@ -13,6 +13,7 @@ ci_deps_init_cli() {
   mode="install"
   print_list="0"
   report_json_path="${CI_DEPS_REPORT_JSON:-}"
+  build_tool="${CI_DEPS_BUILD_TOOL:-}"
   family=""
   os_name=""
   version=""
@@ -47,6 +48,14 @@ ci_deps_parse_cli() {
         ;;
       --report-json=*)
         report_json_path="${1#*=}"
+        shift
+        ;;
+      --build-tool)
+        build_tool="${2:-}"
+        shift 2
+        ;;
+      --build-tool=*)
+        build_tool="${1#*=}"
         shift
         ;;
       --family)
@@ -133,16 +142,21 @@ ci_deps_resolve_packages() {
   local os_key="$3"
   local apply_ci_compiler="${4:-1}"
   local packages_output=""
+  local -a resolver_args=()
 
-  packages_output="$(
-    "${CI_DEPS_DIR}/packages-from-yaml.sh" \
-      --variant "${DEPS_VARIANT}" \
-      --family "${family_key}" \
-      --os "${os_key}" \
-      --pkgmgr "${pkgmgr}" \
-      --enable-ldap "${ENABLE_LDAP}" \
-      --enable-snmp "${ENABLE_SNMP}"
-  )"
+  resolver_args=(
+    --variant "${DEPS_VARIANT}"
+    --family "${family_key}"
+    --os "${os_key}"
+    --pkgmgr "${pkgmgr}"
+    --enable-ldap "${ENABLE_LDAP}"
+    --enable-snmp "${ENABLE_SNMP}"
+  )
+  if [[ -n "${build_tool}" ]]; then
+    resolver_args+=(--build-tool "${build_tool}")
+  fi
+
+  packages_output="$("${CI_DEPS_DIR}/packages-from-yaml.sh" "${resolver_args[@]}")"
 
   PKGS=()
   while IFS= read -r pkg; do

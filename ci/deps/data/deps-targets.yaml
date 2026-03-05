@@ -1,100 +1,130 @@
-build:
+targets:
   gh-debian:
     ubuntu_latest:
+      profile: linux_default
       packagers:
         apt: {}
   ubuntu:
     ubuntu_latest:
+      profile: linux_default
       packagers:
         apt: {}
     ubuntu_local:
+      profile: linux_default
       packagers:
         apt: {}
     ubuntu_20:
+      profile: linux_default
       packagers:
         apt: {}
   debian:
     ubuntu_local:
+      profile: linux_default
       packagers:
         apt: {}
     debian_bookworm:
+      profile: linux_default
       packagers:
         apt: {}
     debian_bullseye:
+      profile: linux_default
       packagers:
         apt: {}
     debian_13:
+      profile: linux_default
       packagers:
         apt: {}
   rpm:
     rockylinux_8:
+      profile: linux_default
       packagers:
         dnf: {}
     rockylinux_9:
+      profile: linux_default
       packagers:
         dnf: {}
     oraclelinux_9:
+      profile: linux_default
       packagers:
         dnf: {}
     oraclelinux_8:
+      profile: linux_default
       packagers:
         dnf: {}
     oraclelinux_10:
+      profile: linux_default
       packagers:
         dnf: {}
     almalinux_8:
+      profile: linux_default
       packagers:
         dnf: {}
     almalinux_9:
+      profile: linux_default
       packagers:
         dnf: {}
     almalinux_10:
+      profile: linux_default
       packagers:
         dnf: {}
     centos_7:
+      profile: linux_default
       packagers:
         yum: {}
     fedora_41:
+      profile: linux_default
       packagers:
         dnf: {}
     fedora_42:
+      profile: linux_default
       packagers:
         dnf: {}
     fedora_40:
+      profile: linux_default
       packagers:
         dnf: {}
   suse:
     opensuse_tumbleweed_latest:
+      profile: linux_default
       packagers:
         zypper: {}
     opensuse_leap_16_0:
+      profile: linux_default
       packagers:
         zypper: {}
     opensuse_leap_15_6:
+      profile: linux_default
       packagers:
         zypper: {}
     opensuse_leap_15_5:
+      profile: linux_default
       packagers:
         zypper: {}
   alpine:
     alpine_3:
+      profile: linux_default
       packagers:
         apk: {}
   arch:
     archlinux_latest:
+      profile: linux_default
       packagers:
         pacman: {}
   macos:
     macos_latest:
+      profile: linux_default
       packagers:
         brew: {}
   bsd:
     freebsd:
+      profile: bsd_freebsd
       packagers:
         pkg: {}
     netbsd:
+      profile: bsd_net_open
       packagers:
         pkg_add: {}
     openbsd:
+      profile: bsd_net_open
       packagers:
         pkg_add: {}

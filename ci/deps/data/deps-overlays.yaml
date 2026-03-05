@@ -1,0 +1,68 @@
+variants:
+  client: {}
+
+  localclient:
+    profiles:
+      linux_default:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - OpenSSL
+          - PCRE
+          - TIRPC
+      bsd_freebsd:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - PCRE
+      bsd_net_open:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - PCRE
+
+  server:
+    profiles:
+      linux_default:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - OpenSSL
+          - CARES
+          - PCRE
+          - RRD
+          - TIRPC
+          - LDAP
+          - NETSNMP
+      bsd_freebsd:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - PCRE
+          - RRD
+          - CARES
+          - NETSNMP
+          - LDAP
+      bsd_net_open:
+        libs:
+          mandatory:
+          - BUILD_TOOLS
+          - PCRE
+          - RRD
+          - CARES
+          - NETSNMP
+          - LDAP
+    runtime:
+      libs:
+        optional:
+        - OpenSSL
+        - OpenLDAP client
+        - net-snmp
+        - c-ares
+      tools:
+        mandatory:
+        - sendmail (or equivalent)
+        - fping
+        - mtr
+        - perl
+        - python

@@ -1,63 +1,6 @@
-topology: deps-topology.yaml
-bindings_file: deps-variant-bindings.yaml
+topology: deps-targets.yaml
+bindings_file: deps-targets.yaml
 version_notes_file: deps-version-notes.yaml
-profiles:
-  linux_default:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      - OpenSSL
-      - CARES
-      - PCRE
-      - RRD
-      - TIRPC
-      - LDAP
-      - NETSNMP
-    tools:
-      optional:
-      - clang
-  bsd_freebsd:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      - PCRE
-      - RRD
-      - CARES
-      - NETSNMP
-      - LDAP
-      base_system:
-      - OpenSSL
-      - TIRPC
-      - PYTHON
-    tools:
-      optional:
-      - clang
-  bsd_net_open:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      - PCRE
-      - RRD
-      - CARES
-      - NETSNMP
-      - LDAP
-      base_system:
-      - OpenSSL
-      - TIRPC
-    tools:
-      optional:
-      - clang
-runtime:
-  libs:
-    optional:
-    - OpenSSL
-    - OpenLDAP client
-    - net-snmp
-    - c-ares
-  tools:
-    mandatory:
-    - sendmail (or equivalent)
-    - fping
-    - mtr
-    - perl
-    - python
+base_file: deps-base.yaml
+overlay_file: deps-overlays.yaml
+overlay_variant: server

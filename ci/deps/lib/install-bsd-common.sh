@@ -303,15 +303,20 @@ bsd_resolve_packages() {
   local pkgmgr="${1:-}"
   local yaml_pkgmgr="${2:-${pkgmgr}}"
   local packages_output=""
+  local -a resolver_args=()
 
-  packages_output="$(
-    "${BSD_DEPS_DIR}/packages-from-yaml.sh" \
-      --variant "${DEPS_VARIANT}" \
-      --family bsd \
-      --os "${BSD_OS_LOWER}" \
-      --pkgmgr "${yaml_pkgmgr}" \
-      --enable-snmp "${ENABLE_SNMP}"
-  )"
+  resolver_args=(
+    --variant "${DEPS_VARIANT}"
+    --family bsd
+    --os "${BSD_OS_LOWER}"
+    --pkgmgr "${yaml_pkgmgr}"
+    --enable-snmp "${ENABLE_SNMP}"
+  )
+  if [[ -n "${build_tool:-}" ]]; then
+    resolver_args+=(--build-tool "${build_tool}")
+  fi
+
+  packages_output="$("${BSD_DEPS_DIR}/packages-from-yaml.sh" "${resolver_args[@]}")"
 
   PKGS=()
   while IFS= read -r pkg; do
