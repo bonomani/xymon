@@ -1,4 +1,4 @@
-name: Reference Generation - Reusable Linux Container Lane
+name: Reference Lane - Reusable Linux Container
 
 on:
   workflow_call:
@@ -11,10 +11,20 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
+      mode:
+        description: Lane mode (generate or compare)
+        required: false
+        default: generate
+        type: string
       upload_artifacts:
         description: Override artifact upload behavior (1 or 0)
         required: false
         default: ''
+        type: string
+      run_compare:
+        description: Run compare policy checks (1 or 0)
+        required: false
+        default: '1'
         type: string
 
 permissions:
@@ -26,17 +36,22 @@ jobs:
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
     continue-on-error: ${{ fromJSON(inputs.lane_json).allow_failure == true }}
     env:
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || 'make' }}
+      MODE: ${{ inputs.mode }}
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.mode == 'compare' && 'cmake' || 'make') }}
       REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || fromJSON(inputs.lane_json).ref_os || 'linux' }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
       ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
-      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1') }}
+      CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin || '' }}
+      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root || 'make_linux' }}
+      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family || 'linux' }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       CONTAINER_IMAGE: ${{ fromJSON(inputs.lane_json).container }}
       CONTAINER_OPTIONS: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
+      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (inputs.mode == 'compare' && (fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0') || (fromJSON(inputs.lane_json).upload_artifacts == false && '0' || '1')) }}
+      RUN_COMPARE: ${{ inputs.run_compare }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -44,14 +59,30 @@ jobs:
           fetch-depth: 1
 
       - name: Bootstrap install + refs in Linux container
+        if: ${{ env.MODE == 'generate' }}
         shell: bash
         run: |
           set -euo pipefail
           bash ci/run/ref/run-host-managed-linux-container.sh \
             bash ci/run/ref/bootstrap-make-refs.sh
 
+      - name: Run shared Linux validation sequence in container
+        if: ${{ env.MODE == 'compare' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/run-host-managed-linux-container.sh \
+            bash ci/run/ref/run-linux-ref-validation.sh \
+              --build "${BUILD_TOOL}" \
+              --variant "${VARIANT}" \
+              --baseline-root "${BASELINE_ROOT}" \
+              --ref-os "${REF_OS}" \
+              --artifact-family "${ARTIFACT_FAMILY}" \
+              --platform-id "${PLATFORM_ID}" \
+              --run-compare "${RUN_COMPARE}"
+
       - name: Upload dependency report
-        if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
+        if: ${{ env.MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: deps_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
@@ -59,7 +90,7 @@ jobs:
           if-no-files-found: warn
 
       - name: Upload legacy references
-        if: ${{ env.UPLOAD_ARTIFACTS == '1' }}
+        if: ${{ env.MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
@@ -67,8 +98,25 @@ jobs:
             ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
           if-no-files-found: error
 
+      - name: Upload dependency report
+        if: ${{ always() && env.MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
+        uses: actions/upload-artifact@v4
+        with:
+          name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
+          path: .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/deps-report.json
+          if-no-files-found: warn
+
+      - name: Upload artifacts
+        if: ${{ always() && env.MODE == 'compare' && env.UPLOAD_ARTIFACTS == '1' }}
+        uses: ./.github/actions/upload-ref-valid-artifacts
+        with:
+          lane_name: ${{ inputs.lane_name }}
+          extra_paths: |
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/${{ env.BUILD_TOOL }}-${{ env.PLATFORM_ID }}-${{ env.VARIANT }}/**
+            .ci-artifacts/ref-valid-${{ env.ARTIFACT_FAMILY }}/refs/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
+
       - name: Skip artifacts when upload is disabled
-        if: ${{ env.UPLOAD_ARTIFACTS != '1' }}
+        if: ${{ always() && env.UPLOAD_ARTIFACTS != '1' }}
         shell: bash
         run: |
           echo "Skipping actions/upload-artifact for this lane."
