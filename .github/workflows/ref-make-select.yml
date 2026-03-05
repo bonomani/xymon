@@ -170,11 +170,11 @@ jobs:
           set -euo pipefail
 
           bash ci/run/ref/resolve-execution-model.sh \
-            --requested-build-tool "${INPUT_BUILD_TOOL:-auto}" \
-            --goal "${INPUT_GOAL:-verify}" \
-            --ref-mode "${INPUT_REF_MODE:-generate}" \
-            --publish "${INPUT_PUBLISH:-none}" \
-            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE:-allow}" \
+            --requested-build-tool "${INPUT_BUILD_TOOL}" \
+            --goal "${INPUT_GOAL}" \
+            --ref-mode "${INPUT_REF_MODE}" \
+            --publish "${INPUT_PUBLISH}" \
+            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
             --github-output "${GITHUB_OUTPUT}" > /dev/null
 
       - name: Build selected lanes matrix

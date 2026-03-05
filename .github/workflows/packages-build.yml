@@ -74,10 +74,7 @@ jobs:
             release_version="${GITHUB_REF_NAME#rel-}"
           fi
           if [[ -z "${release_version}" ]]; then
-            release_version="$(sed -n '1s/^xymon (\\([^)]*\\)).*/\\1/p' debian/changelog)"
-          fi
-          if [[ -z "${release_version}" ]]; then
-            echo "Unable to resolve release version (input/tag/changelog)." >&2
+            echo "Missing release version. Provide inputs.release_version or run on tag rel-*." >&2
             exit 2
           fi
 
@@ -142,7 +139,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash build/makedeb.sh "${{ needs.resolve.outputs.release_version }}"
+          bash ci/run/package/build-deb.sh --release "${{ needs.resolve.outputs.release_version }}"
 
       - name: Upload deb artifacts
         uses: actions/upload-artifact@v4
@@ -185,7 +182,7 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          bash build/makerpm.sh "${{ needs.resolve.outputs.release_version }}"
+          bash ci/run/package/build-rpm.sh --release "${{ needs.resolve.outputs.release_version }}"
 
       - name: Upload rpm artifacts
         uses: actions/upload-artifact@v4
