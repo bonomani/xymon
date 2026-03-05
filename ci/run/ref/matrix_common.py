@@ -202,12 +202,19 @@ def load_purpose_manifest_common(
             common_entry, f"Manifest entry {family}.common"
         )
 
-        purpose_entry = entry.get(purpose)
-        if purpose_entry is None:
-            continue
-        purpose_entry = require_mapping(
-            purpose_entry, f"Manifest entry {family}.{purpose}"
-        )
+        if purpose in entry:
+            purpose_entry_raw = entry.get(purpose)
+            if purpose_entry_raw is False:
+                continue
+            if purpose_entry_raw in (None, True):
+                purpose_entry = {}
+            else:
+                purpose_entry = require_mapping(
+                    purpose_entry_raw, f"Manifest entry {family}.{purpose}"
+                )
+        else:
+            # Purpose overlays are optional; when omitted, common applies to both modes.
+            purpose_entry = {}
 
         merged_entry = dict(common_entry)
         merged_entry.update(purpose_entry)

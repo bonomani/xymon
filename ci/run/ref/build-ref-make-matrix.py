@@ -27,10 +27,6 @@ RUNTIME_TO_PLATFORM_RUNTIME = {
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_PURPOSES = {"generation", "validation"}
-DEFAULT_BUILD_TOOL_BY_PURPOSE = {
-    "generation": "make",
-    "validation": "cmake",
-}
 
 
 def load_manifest(path: Path, purpose: str):
@@ -300,8 +296,9 @@ def parse_args():
     parser.add_argument("--selected-family", required=True)
     parser.add_argument(
         "--build-tool",
-        default="",
-        help="Build tool override; when omitted, defaults by purpose (generation=make, validation=cmake)",
+        required=True,
+        choices=sorted(SUPPORTED_BUILD_TOOLS),
+        help="Build tool selection (make or cmake)",
     )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
@@ -343,7 +340,7 @@ def main():
     github_output = args.github_output
     if not github_output:
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
-    build_tool = args.build_tool or DEFAULT_BUILD_TOOL_BY_PURPOSE[purpose]
+    build_tool = args.build_tool
     if build_tool not in SUPPORTED_BUILD_TOOLS:
         die(f"Unsupported build tool: {build_tool}")
 

@@ -22,10 +22,10 @@ usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane.sh
   --build TOOL
-  --goal verify|ref|package|image
+  --goal verify|ref
   --variant NAME
   [--ref-mode generate|compare]
-  [--publish none|artifact|registry]
+  [--publish none|artifact]
   [--baseline-root ROOT]
   [--ref-os OS]
   [--platform-os OS]
@@ -117,7 +117,7 @@ case "${build_tool}" in
 esac
 
 case "${goal}" in
-  verify|ref|package|image)
+  verify|ref)
     ;;
   *)
     echo "Unsupported --goal value: ${goal}" >&2
@@ -135,13 +135,26 @@ case "${ref_mode}" in
 esac
 
 case "${publish}" in
-  none|artifact|registry)
+  none|artifact)
     ;;
   *)
     echo "Unsupported --publish value: ${publish}" >&2
     usage
     ;;
 esac
+
+if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
+  echo "ref_mode=compare is only valid when goal=ref" >&2
+  usage
+fi
+if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
+  echo "goal=verify requires ref_mode=generate" >&2
+  usage
+fi
+if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
+  echo "goal=verify requires publish=none" >&2
+  usage
+fi
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
@@ -277,16 +290,4 @@ case "${goal}" in
       run_ref_compare
     fi
     ;;
-  package)
-    run_core_build_install
-    echo "Package goal selected: core build/install completed. Packaging pipeline not implemented yet."
-    ;;
-  image)
-    run_core_build_install
-    echo "Image goal selected: core build/install completed. Container image pipeline not implemented yet."
-    ;;
 esac
-
-if [[ "${publish}" == "registry" ]]; then
-  echo "publish=registry selected: registry publication not implemented yet."
-fi
