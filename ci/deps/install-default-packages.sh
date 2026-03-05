@@ -345,13 +345,24 @@ count_file_lines() {
 
 json_escape() {
   local value="${1:-}"
+  local xtrace_was_on=0
+
+  if [[ "${-}" == *x* ]]; then
+    xtrace_was_on=1
+    set +x
+  fi
 
   value="${value//\\/\\\\}"
   value="${value//\"/\\\"}"
   value="${value//$'\n'/\\n}"
   value="${value//$'\r'/\\r}"
   value="${value//$'\t'/\\t}"
+
   printf '%s' "${value}"
+
+  if [[ "${xtrace_was_on}" == "1" ]]; then
+    set -x
+  fi
 }
 
 write_json_string_field() {
