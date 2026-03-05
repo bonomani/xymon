@@ -88,7 +88,7 @@ jobs:
         if: ${{ env.MODE == 'generate' && env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
-          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}
+          name: ref_${{ env.BUILD_TOOL }}_${{ env.REF_OS }}-${{ env.VARIANT }}__${{ env.PLATFORM_ID }}__${{ env.ARTIFACT_ARCH }}
           path: |
             ${{ env.REF_STAGE_ROOT }}/${{ env.BUILD_TOOL }}.${{ env.REF_OS }}.${{ env.VARIANT }}/**
           if-no-files-found: error
