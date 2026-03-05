@@ -293,7 +293,7 @@ detect_cares_prefix() {
 }
 
 install_default_packages() {
-  bash ci/deps/install-default-packages.sh
+  CI_DEPS_BUILD_TOOL="${BUILD_TOOL}" bash ci/deps/install-default-packages.sh
 }
 
 prepare_os() {

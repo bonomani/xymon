@@ -1,42 +1,6 @@
-topology: deps-topology.yaml
-bindings_file: deps-variant-bindings.yaml
+topology: deps-targets.yaml
+bindings_file: deps-targets.yaml
 version_notes_file: deps-version-notes.yaml
-profiles:
-  linux_default:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      - OpenSSL
-      - TIRPC
-    tools:
-      optional:
-      - clang
-  bsd_freebsd:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      base_system:
-      - OpenSSL
-      - TIRPC
-      - PYTHON
-    tools:
-      optional:
-      - clang
-  bsd_net_open:
-    libs:
-      mandatory:
-      - BUILD_TOOLS
-      base_system:
-      - OpenSSL
-      - TIRPC
-    tools:
-      optional:
-      - clang
-runtime:
-  libs:
-    optional:
-  tools:
-    mandatory:
-    optional:
-    - perl
-    - python
+base_file: deps-base.yaml
+overlay_file: deps-overlays.yaml
+overlay_variant: client

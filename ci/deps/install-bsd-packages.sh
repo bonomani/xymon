@@ -13,7 +13,7 @@ usage() {
   cat <<'USAGE'
 Usage: install-bsd-packages.sh [--print] [--check-only] [--install]
                                [--os NAME] [--version NAME] [--pkgmgr NAME]
-                               [--report-json PATH]
+                               [--report-json PATH] [--build-tool make|cmake]
 
 Options:
   --print          Print package list and exit
@@ -24,6 +24,8 @@ Options:
   --pkgmgr NAME    Override package manager (pkg|pkg_add|pkgin)
   --report-json PATH
                    Write dependency report JSON to PATH
+  --build-tool TOOL
+                   Resolve build-specific deps (make|cmake)
 USAGE
 }
 
@@ -33,6 +35,7 @@ os_override=""
 version_override=""
 pkgmgr_override="${BSD_PKGMGR:-}"
 report_json_path="${CI_DEPS_REPORT_JSON:-}"
+build_tool="${CI_DEPS_BUILD_TOOL:-}"
 
 while [[ $# -gt 0 ]]; do
   case "$1" in
@@ -69,6 +72,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --report-json=*)
       report_json_path="${1#*=}"
+      shift
+      ;;
+    --build-tool)
+      build_tool="${2:-}"
+      shift 2
+      ;;
+    --build-tool=*)
+      build_tool="${1#*=}"
       shift
       ;;
     -h|--help)
@@ -133,6 +144,9 @@ if [[ -n "${BSD_OS_VERSION}" ]]; then
 fi
 if [[ -n "${report_json_path}" ]]; then
   forward_args+=(--report-json "${report_json_path}")
+fi
+if [[ -n "${build_tool}" ]]; then
+  forward_args+=(--build-tool "${build_tool}")
 fi
 
 exec "${target_script}" "${forward_args[@]}"

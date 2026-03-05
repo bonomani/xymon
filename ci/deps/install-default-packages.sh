@@ -10,6 +10,7 @@ normalization_resolver="${script_dir}/lib/resolve-platform-normalization.awk"
 mode="install"
 print_list="0"
 report_json_path="${CI_DEPS_REPORT_JSON:-}"
+build_tool="${CI_DEPS_BUILD_TOOL:-}"
 
 family=""
 os_name=""
@@ -27,6 +28,7 @@ usage() {
   cat <<'USAGE'
 Usage: install-default-packages.sh [--print] [--check-only] [--install]
                                    [--report-json PATH]
+                                   [--build-tool make|cmake]
 
 Detect the current OS and dispatch to the matching install-<pkgmgr>-packages.sh
 script. When --report-json is provided, also write a JSON report describing:
@@ -40,6 +42,7 @@ Options:
   --check-only        Exit 0 if all packages are installed, 1 otherwise
   --install           Install packages (default)
   --report-json PATH  Write dependency state report to PATH
+  --build-tool TOOL   Resolve build-specific deps (make|cmake)
 USAGE
 }
 
@@ -93,6 +96,14 @@ parse_args() {
         report_json_path="${1#*=}"
         shift
         ;;
+      --build-tool)
+        build_tool="${2:-}"
+        shift 2
+        ;;
+      --build-tool=*)
+        build_tool="${1#*=}"
+        shift
+        ;;
       -h|--help)
         usage
         exit 0
@@ -107,6 +118,9 @@ parse_args() {
 
   if [[ -z "${report_json_path}" && -n "${CI_DEPS_REPORT_JSON:-}" ]]; then
     report_json_path="${CI_DEPS_REPORT_JSON}"
+  fi
+  if [[ -z "${build_tool}" && -n "${CI_DEPS_BUILD_TOOL:-}" ]]; then
+    build_tool="${CI_DEPS_BUILD_TOOL}"
   fi
 }
 
@@ -264,6 +278,9 @@ build_target_args() {
   target_args+=("${target_base_args[@]}")
   if [[ -n "${report_json_path}" ]]; then
     target_args+=(--report-json "${report_json_path}")
+  fi
+  if [[ -n "${build_tool}" ]]; then
+    target_args+=(--build-tool "${build_tool}")
   fi
 }
 
