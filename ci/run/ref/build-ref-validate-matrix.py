@@ -271,7 +271,7 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool):
 
 def parse_args():
     parser = argparse.ArgumentParser(
-        description="Build matrix outputs for ref-validate-select.yml"
+        description="Build matrix outputs for validation selector workflows"
     )
     parser.add_argument("--selected-family", required=True)
     parser.add_argument("--build-tool", default="cmake")
@@ -281,7 +281,12 @@ def parse_args():
     )
     parser.add_argument(
         "--selector-workflow",
-        default=".github/workflows/ref-validate-select.yml",
+        default=".github/workflows/ref-make-select.yml",
+    )
+    parser.add_argument(
+        "--skip-dropdown-parity",
+        action="store_true",
+        help="Skip workflow_dispatch family dropdown parity validation",
     )
     parser.add_argument(
         "--platform-catalog",
@@ -302,8 +307,9 @@ def main():
     repo_root = Path(__file__).resolve().parents[3]
     families = load_manifest(repo_root / args.manifest)
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
-    expected_options = ["all"] + [entry["family"] for entry in families]
-    validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
+    if not args.skip_dropdown_parity:
+        expected_options = ["all"] + [entry["family"] for entry in families]
+        validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
 
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family

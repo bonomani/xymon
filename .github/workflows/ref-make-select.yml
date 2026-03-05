@@ -32,6 +32,15 @@ on:
         options:
           - make
           - cmake
+      extra_action:
+        description: Optional post-build action
+        required: true
+        type: choice
+        default: no
+        options:
+          - no
+          - upload_artifacts
+          - compare_artifacts
       source_ref:
         description: Optional branch or tag to run this selector on
         required: false
@@ -46,6 +55,11 @@ on:
         description: Build tool used to generate reference artifacts
         required: false
         default: make
+        type: string
+      extra_action:
+        description: Optional post-build action (no|upload_artifacts|compare_artifacts)
+        required: false
+        default: no
         type: string
 
 permissions:
@@ -74,10 +88,11 @@ jobs:
               inputs: {
                 family: '${{ inputs.family }}',
                 build_tool: '${{ inputs.build_tool }}',
+                extra_action: '${{ inputs.extra_action }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, extra_action=${{ inputs.extra_action }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -99,26 +114,57 @@ jobs:
         with:
           fetch-depth: 1
 
+      - name: Validate selector combination
+        shell: bash
+        env:
+          SELECTED_FAMILY: ${{ inputs.family }}
+          EXTRA_ACTION: ${{ inputs.extra_action }}
+        run: |
+          set -euo pipefail
+          if [[ "${EXTRA_ACTION}" == "compare_artifacts" && "${SELECTED_FAMILY}" == "linux" ]]; then
+            echo "family=linux is generation-only and cannot be used with extra_action=compare_artifacts" >&2
+            exit 2
+          fi
+
       - name: Build selected lanes matrix
         id: generate
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_BUILD_TOOL: ${{ inputs.build_tool }}
+          EXTRA_ACTION: ${{ inputs.extra_action }}
         run: |
           set -euo pipefail
-          python3 ci/run/ref/build-ref-make-matrix.py \
-            --selected-family "${SELECTED_FAMILY}" \
-            --build-tool "${SELECTED_BUILD_TOOL}" \
-            --manifest "ci/run/ref/ref-families.yml" \
-            --selector-workflow ".github/workflows/ref-make-select.yml" \
+
+          matrix_builder="ci/run/ref/build-ref-make-matrix.py"
+          skip_dropdown_parity=0
+          if [[ "${EXTRA_ACTION}" == "compare_artifacts" ]]; then
+            matrix_builder="ci/run/ref/build-ref-validate-matrix.py"
+            # Unified selector has generation+comparison families in one dropdown.
+            skip_dropdown_parity=1
+          fi
+
+          args=(
+            python3 "${matrix_builder}"
+            --selected-family "${SELECTED_FAMILY}"
+            --build-tool "${SELECTED_BUILD_TOOL}"
+            --manifest "ci/run/ref/ref-families.yml"
+            --selector-workflow ".github/workflows/ref-make-select.yml"
             --github-output "${GITHUB_OUTPUT}"
+          )
+
+          if [[ "${skip_dropdown_parity}" == "1" ]]; then
+            args+=(--skip-dropdown-parity)
+          fi
+
+          "${args[@]}"
 
       - name: Matrix summary
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Build tool: ${{ inputs.build_tool }}"
+          echo "Extra action: ${{ inputs.extra_action }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
           echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
@@ -127,7 +173,7 @@ jobs:
 
   ref-make-linux-host:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' && inputs.extra_action != 'compare_artifacts' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
@@ -137,10 +183,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
 
   ref-make-linux-container:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' && inputs.extra_action != 'compare_artifacts' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
@@ -150,10 +197,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
 
   ref-make-bsd-vm:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' && inputs.extra_action != 'compare_artifacts' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
@@ -163,10 +211,11 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
 
   ref-make-macos-host:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' && inputs.extra_action != 'compare_artifacts' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
@@ -176,3 +225,68 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: ${{ inputs.extra_action == 'upload_artifacts' && '1' || '0' }}
+
+  ref-compare-linux-host:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' && inputs.extra_action == 'compare_artifacts' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 6
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-linux-host.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: '0'
+      run_compare: '1'
+
+  ref-compare-linux-container:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' && inputs.extra_action == 'compare_artifacts' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-linux-container.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: '0'
+      run_compare: '1'
+
+  ref-compare-bsd-vm:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' && inputs.extra_action == 'compare_artifacts' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-bsd-vm.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: '0'
+      run_compare: '1'
+
+  ref-compare-macos-host:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' && inputs.extra_action == 'compare_artifacts' }}
+    strategy:
+      fail-fast: false
+      max-parallel: 4
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos_host) }}
+    name: ${{ matrix.lane.name }}
+    uses: ./.github/workflows/ref-validate-reusable-macos-host.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      upload_artifacts: '0'
+      run_compare: '1'

@@ -11,6 +11,16 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
+      upload_artifacts:
+        description: Override artifact upload behavior (1 or 0)
+        required: false
+        default: ''
+        type: string
+      run_compare:
+        description: Run compare policy checks (1 or 0)
+        required: false
+        default: '1'
+        type: string
 
 permissions:
   contents: read
@@ -34,7 +44,8 @@ jobs:
       PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || 'linux' }}
       ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
       PREPARE_PROFILE: ${{ fromJSON(inputs.lane_json).prepare_profile || 'default' }}
-      UPLOAD_ARTIFACTS: ${{ fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0' }}
+      UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (fromJSON(inputs.lane_json).upload_artifacts == true && '1' || '0') }}
+      RUN_COMPARE: ${{ inputs.run_compare }}
       CONTAINER_IMAGE: ${{ fromJSON(inputs.lane_json).container }}
       CONTAINER_OPTIONS: ${{ fromJSON(inputs.lane_json).container_options || '--platform linux/amd64' }}
     steps:
@@ -54,10 +65,11 @@ jobs:
               --baseline-root "${BASELINE_ROOT}" \
               --ref-os "${REF_OS}" \
               --artifact-family "${ARTIFACT_FAMILY}" \
-              --platform-id "${PLATFORM_ID}"
+              --platform-id "${PLATFORM_ID}" \
+              --run-compare "${RUN_COMPARE}"
 
       - name: Upload dependency report
-        if: ${{ always() }}
+        if: ${{ always() && env.UPLOAD_ARTIFACTS == '1' }}
         uses: actions/upload-artifact@v4
         with:
           name: deps_valid_${{ env.BUILD_TOOL }}_${{ env.PLATFORM_ID }}_${{ env.VARIANT }}__${{ env.ARTIFACT_ARCH }}__${{ inputs.lane_name }}
