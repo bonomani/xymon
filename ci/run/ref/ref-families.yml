@@ -1,51 +1,37 @@
 # Shared reference family catalog:
 # - common defines per-family topology (runtime/lane_file/shared knobs)
 # - generation/validation are purpose overlays (delta-only)
+runtime_defaults_shared:
+  linux_host:
+    runs_on: ubuntu-22.04
+  linux_container:
+    runs_on: ubuntu-22.04
+    prepare_profile: default
+    checkout_mode: action
+  bsd_vm:
+    runs_on: ubuntu-22.04
+    vm_memory: 1024M
+    vm_cpu_count: 2
+  macos_host: {}
+
 runtime_defaults:
   generation:
-    linux_host:
-      runs_on: ubuntu-22.04
-    linux_container:
-      runs_on: ubuntu-22.04
-      prepare_profile: default
-      checkout_mode: action
     bsd_vm:
-      runs_on: ubuntu-22.04
       architecture: x86-64
-      vm_memory: 1024M
-      vm_cpu_count: 2
-    macos_host: {}
-  validation:
-    linux_host: {}
-    linux_container:
-      prepare_profile: default
-      checkout_mode: action
-    bsd_vm:
+  validation: {}
+
+lane_defaults_shared:
+  linux_container:
+    _all:
       runs_on: ubuntu-22.04
-      vm_memory: 1024M
-      vm_cpu_count: 2
-    macos_host: {}
+      container_options: --platform linux/amd64
+    arm64:
+      runs_on: ubuntu-24.04-arm
+      container_options: --platform linux/arm64/v8
 
 lane_defaults:
-  generation:
-    linux_container:
-      _all:
-        runs_on: ubuntu-22.04
-        container_options: --platform linux/amd64
-      arm64:
-        runs_on: ubuntu-24.04-arm
-        container_options: --platform linux/arm64/v8
-  validation:
-    linux_host:
-      _all:
-        runs_on: ubuntu-22.04
-    linux_container:
-      _all:
-        runs_on: ubuntu-22.04
-        container_options: --platform linux/amd64
-      arm64:
-        runs_on: ubuntu-24.04-arm
-        container_options: --platform linux/arm64/v8
+  generation: {}
+  validation: {}
 
 families:
 - family: linux

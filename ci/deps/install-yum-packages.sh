@@ -23,6 +23,9 @@ USAGE
 }
 
 ci_deps_init_linux_installer yum "$@"
+# Populated by ci_deps_init_linux_installer from install-common.sh.
+os_name="${os_name:-}"
+version="${version:-}"
 
 yum_pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1

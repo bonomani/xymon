@@ -122,7 +122,6 @@ runs:
         python3 - <<'PY'
         import json
         import os
-        import subprocess
         import sys
 
 
@@ -144,81 +143,56 @@ runs:
         if not isinstance(lane, dict):
             fail("lane_json must decode to an object")
 
+        goal = as_text(os.environ.get("INPUT_GOAL", ""))
+        ref_mode = as_text(os.environ.get("INPUT_REF_MODE", ""))
+        publish = as_text(os.environ.get("INPUT_PUBLISH", ""))
+        allow_failure_mode = as_text(
+            os.environ.get("INPUT_ALLOW_FAILURE_MODE", "")
+        ).lower()
+        dep_mode = as_text(os.environ.get("INPUT_DEP_MODE", ""))
+
+        if allow_failure_mode in {"false", "0", "no"}:
+            allow_failure_mode = "off"
+        elif allow_failure_mode in {"true", "1", "yes"}:
+            allow_failure_mode = "allow"
+
+        if goal not in {"verify", "ref"}:
+            fail(f"Unsupported goal input: {goal}")
+        if ref_mode not in {"generate", "compare"}:
+            fail(f"Unsupported ref_mode input: {ref_mode}")
+        if publish not in {"none", "artifact"}:
+            fail(f"Unsupported publish input: {publish}")
+        if allow_failure_mode not in {"off", "allow", "expect_fail"}:
+            fail(f"Unsupported allow_failure_mode input: {allow_failure_mode}")
+        if dep_mode not in {"generate", "compare"}:
+            fail(f"Unsupported dep_mode input: {dep_mode}")
+
+        if goal != "ref" and ref_mode == "compare":
+            fail("ref_mode=compare is only valid when goal=ref")
+        if goal == "verify" and ref_mode != "generate":
+            fail("goal=verify requires ref_mode=generate")
+        if goal == "verify" and publish != "none":
+            fail("goal=verify requires publish=none")
+
+        expected_dep_mode = (
+            "compare" if goal == "ref" and ref_mode == "compare" else "generate"
+        )
+        if dep_mode != expected_dep_mode:
+            fail(
+                "dep_mode mismatch: input="
+                + dep_mode
+                + " expected="
+                + expected_dep_mode
+            )
+
         build_tool = as_text(lane.get("build_tool"))
         variant = as_text(lane.get("variant"))
         if not build_tool:
             fail("lane_json missing build_tool")
+        if build_tool not in {"make", "cmake"}:
+            fail(f"Unsupported lane build_tool: {build_tool}")
         if not variant:
             fail("lane_json missing variant")
-
-        dep_mode_input = as_text(os.environ.get("INPUT_DEP_MODE", ""))
-
-        resolver = os.path.join(os.getcwd(), "ci", "run", "ref", "resolve-execution-model.sh")
-        if not os.path.isfile(resolver):
-            fail(f"Missing execution model resolver: {resolver}")
-
-        result = subprocess.run(
-            [
-                "bash",
-                resolver,
-                "--requested-build-tool",
-                build_tool,
-                "--goal",
-                as_text(os.environ.get("INPUT_GOAL", "")),
-                "--ref-mode",
-                as_text(os.environ.get("INPUT_REF_MODE", "")),
-                "--publish",
-                as_text(os.environ.get("INPUT_PUBLISH", "")),
-                "--allow-failure-mode",
-                as_text(os.environ.get("INPUT_ALLOW_FAILURE_MODE", "")),
-            ],
-            capture_output=True,
-            text=True,
-            check=False,
-        )
-        if result.returncode != 0:
-            details = (result.stderr or result.stdout or "").strip()
-            fail(f"Execution model resolution failed: {details}")
-
-        resolved = {}
-        for line in result.stdout.splitlines():
-            if "=" not in line:
-                continue
-            key, value = line.split("=", 1)
-            resolved[key.strip()] = value.strip()
-
-        required = {
-            "build_tool",
-            "goal",
-            "ref_mode",
-            "publish",
-            "allow_failure_mode",
-            "dep_mode",
-        }
-        missing = sorted(key for key in required if not resolved.get(key, ""))
-        if missing:
-            fail(
-                "Execution model resolver returned incomplete output: "
-                + ", ".join(missing)
-            )
-
-        if dep_mode_input not in {"generate", "compare"}:
-            fail(f"Unsupported dep_mode input: {dep_mode_input}")
-
-        if dep_mode_input != resolved["dep_mode"]:
-            fail(
-                "dep_mode mismatch: input="
-                + dep_mode_input
-                + " resolved="
-                + resolved["dep_mode"]
-            )
-
-        build_tool = resolved["build_tool"]
-        goal = resolved["goal"]
-        ref_mode = resolved["ref_mode"]
-        publish = resolved["publish"]
-        allow_failure_mode = resolved["allow_failure_mode"]
-        dep_mode = resolved["dep_mode"]
 
         ref_os = as_text(lane.get("ref_os")) or "linux"
         platform_os = as_text(lane.get("platform_os")) or ref_os

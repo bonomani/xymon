@@ -117,68 +117,94 @@ def load_purpose_manifest_common(
     purpose = require_non_empty_string(purpose, f"Manifest purpose in {path}")
     supported_runtime_keys = set(supported_runtimes)
 
+    def parse_runtime_defaults_block(raw_block, context):
+        if raw_block is None:
+            raw_block = {}
+        raw_block = require_mapping(raw_block, context)
+        parsed = {}
+        for runtime_key, defaults in raw_block.items():
+            runtime_key = require_non_empty_string(
+                runtime_key, f"{context} key in {path}"
+            )
+            if runtime_key not in supported_runtime_keys:
+                die(f"Manifest has invalid {context} key '{runtime_key}'")
+            parsed[runtime_key] = require_mapping(
+                defaults, f"{context}.{runtime_key}"
+            )
+        return parsed
+
+    runtime_defaults_shared = parse_runtime_defaults_block(
+        data.get("runtime_defaults_shared", {}),
+        "Manifest runtime_defaults_shared",
+    )
+
     runtime_defaults_root = data.get("runtime_defaults", {})
     if runtime_defaults_root is None:
         runtime_defaults_root = {}
     runtime_defaults_root = require_mapping(
         runtime_defaults_root, f"Manifest runtime_defaults in {path}"
     )
-    runtime_defaults_raw = runtime_defaults_root.get(purpose, {})
-    if runtime_defaults_raw is None:
-        runtime_defaults_raw = {}
-    runtime_defaults_raw = require_mapping(
-        runtime_defaults_raw, f"Manifest runtime_defaults.{purpose} in {path}"
+    runtime_defaults_raw = parse_runtime_defaults_block(
+        runtime_defaults_root.get(purpose, {}),
+        f"Manifest runtime_defaults.{purpose}",
     )
 
     runtime_defaults = {}
-    for runtime_key, defaults in runtime_defaults_raw.items():
-        runtime_key = require_non_empty_string(
-            runtime_key, f"Manifest runtime_defaults.{purpose} key in {path}"
-        )
-        if runtime_key not in supported_runtime_keys:
-            die(
-                f"Manifest has invalid runtime_defaults.{purpose} key '{runtime_key}'"
-            )
-        runtime_defaults[runtime_key] = require_mapping(
-            defaults, f"Manifest runtime_defaults.{purpose}.{runtime_key}"
-        )
+    for runtime_key in sorted(set(runtime_defaults_shared) | set(runtime_defaults_raw)):
+        merged_defaults = {}
+        merged_defaults.update(runtime_defaults_shared.get(runtime_key, {}))
+        merged_defaults.update(runtime_defaults_raw.get(runtime_key, {}))
+        runtime_defaults[runtime_key] = merged_defaults
 
     lane_defaults = {}
     if include_lane_defaults:
+        def parse_lane_defaults_block(raw_block, context):
+            if raw_block is None:
+                raw_block = {}
+            raw_block = require_mapping(raw_block, context)
+            parsed = {}
+            for runtime_key, defaults in raw_block.items():
+                runtime_key = require_non_empty_string(
+                    runtime_key, f"{context} key in {path}"
+                )
+                if runtime_key not in supported_runtime_keys:
+                    die(f"Manifest has invalid {context} key '{runtime_key}'")
+                defaults = require_mapping(
+                    defaults, f"{context}.{runtime_key}"
+                )
+                parsed[runtime_key] = {}
+                for default_name, default_value in defaults.items():
+                    default_name = require_non_empty_string(
+                        default_name,
+                        f"{context}.{runtime_key} default name in {path}",
+                    )
+                    parsed[runtime_key][default_name] = require_mapping(
+                        default_value,
+                        f"{context}.{runtime_key}.{default_name}",
+                    )
+            return parsed
+
+        lane_defaults_shared = parse_lane_defaults_block(
+            data.get("lane_defaults_shared", {}),
+            "Manifest lane_defaults_shared",
+        )
+
         lane_defaults_root = data.get("lane_defaults", {})
         if lane_defaults_root is None:
             lane_defaults_root = {}
         lane_defaults_root = require_mapping(
             lane_defaults_root, f"Manifest lane_defaults in {path}"
         )
-        lane_defaults_raw = lane_defaults_root.get(purpose, {})
-        if lane_defaults_raw is None:
-            lane_defaults_raw = {}
-        lane_defaults_raw = require_mapping(
-            lane_defaults_raw, f"Manifest lane_defaults.{purpose} in {path}"
+        lane_defaults_raw = parse_lane_defaults_block(
+            lane_defaults_root.get(purpose, {}),
+            f"Manifest lane_defaults.{purpose}",
         )
 
-        for runtime_key, defaults in lane_defaults_raw.items():
-            runtime_key = require_non_empty_string(
-                runtime_key, f"Manifest lane_defaults.{purpose} key in {path}"
-            )
-            if runtime_key not in supported_runtime_keys:
-                die(
-                    f"Manifest has invalid lane_defaults.{purpose} key '{runtime_key}'"
-                )
-            defaults = require_mapping(
-                defaults, f"Manifest lane_defaults.{purpose}.{runtime_key}"
-            )
-            lane_defaults[runtime_key] = {}
-            for default_name, default_value in defaults.items():
-                default_name = require_non_empty_string(
-                    default_name,
-                    f"Manifest lane_defaults.{purpose}.{runtime_key} default name in {path}",
-                )
-                lane_defaults[runtime_key][default_name] = require_mapping(
-                    default_value,
-                    f"Manifest lane_defaults.{purpose}.{runtime_key}.{default_name}",
-                )
+        for runtime_key in sorted(set(lane_defaults_shared) | set(lane_defaults_raw)):
+            merged_defaults = {}
+            merged_defaults.update(lane_defaults_shared.get(runtime_key, {}))
+            merged_defaults.update(lane_defaults_raw.get(runtime_key, {}))
+            lane_defaults[runtime_key] = merged_defaults
 
     entries = data.get("families")
     if not isinstance(entries, list) or not entries:
