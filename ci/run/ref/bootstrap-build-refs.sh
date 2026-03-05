@@ -78,6 +78,13 @@ if [[ -z "${platform_os}" ]]; then
   platform_os="${os_name}"
 fi
 
+# Keep per-build-tool artifact roots to avoid make/cmake collisions.
+artifact_root_base="$(basename "${artifact_root}")"
+if [[ "${artifact_root_base}" != "${build_tool}-"* ]]; then
+  echo "artifact-root basename must start with '${build_tool}-' to avoid path collisions: ${artifact_root}" >&2
+  exit 2
+fi
+
 mkdir -p "${refs_root}" "${artifact_root}"
 
 if [[ -z "${CI_DEPS_REPORT_JSON}" ]]; then
