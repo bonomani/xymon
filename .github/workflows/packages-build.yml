@@ -1,0 +1,197 @@
+name: Build Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag or debian/changelog."
+        required: false
+        type: string
+        default: ""
+      package_set:
+        description: Package formats to build.
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - deb
+          - rpm
+  workflow_call:
+    inputs:
+      release_version:
+        description: "Release version (ex: 4.3.34)."
+        required: false
+        type: string
+        default: ""
+      package_set:
+        description: Package formats to build (all|deb|rpm).
+        required: false
+        type: string
+        default: all
+  push:
+    tags:
+      - 'rel-*'
+
+permissions:
+  contents: read
+
+jobs:
+  resolve:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_version: ${{ steps.resolve.outputs.release_version }}
+      package_set: ${{ steps.resolve.outputs.package_set }}
+      build_deb: ${{ steps.resolve.outputs.build_deb }}
+      build_rpm: ${{ steps.resolve.outputs.build_rpm }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve package build inputs
+        id: resolve
+        shell: bash
+        env:
+          INPUT_RELEASE_VERSION: ${{ inputs.release_version }}
+          INPUT_PACKAGE_SET: ${{ inputs.package_set }}
+        run: |
+          set -euo pipefail
+
+          package_set="${INPUT_PACKAGE_SET:-all}"
+          case "${package_set}" in
+            all|deb|rpm)
+              ;;
+            *)
+              echo "Unsupported package_set: ${package_set}" >&2
+              exit 2
+              ;;
+          esac
+
+          release_version="${INPUT_RELEASE_VERSION:-}"
+          if [[ -z "${release_version}" && "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == rel-* ]]; then
+            release_version="${GITHUB_REF_NAME#rel-}"
+          fi
+          if [[ -z "${release_version}" ]]; then
+            release_version="$(sed -n '1s/^xymon (\\([^)]*\\)).*/\\1/p' debian/changelog)"
+          fi
+          if [[ -z "${release_version}" ]]; then
+            echo "Unable to resolve release version (input/tag/changelog)." >&2
+            exit 2
+          fi
+
+          build_deb=0
+          build_rpm=0
+          case "${package_set}" in
+            all)
+              build_deb=1
+              build_rpm=1
+              ;;
+            deb)
+              build_deb=1
+              ;;
+            rpm)
+              build_rpm=1
+              ;;
+          esac
+
+          {
+            echo "release_version=${release_version}"
+            echo "package_set=${package_set}"
+            echo "build_deb=${build_deb}"
+            echo "build_rpm=${build_rpm}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "Release version: ${{ steps.resolve.outputs.release_version }}"
+          echo "Package set: ${{ steps.resolve.outputs.package_set }}"
+          echo "Build deb: ${{ steps.resolve.outputs.build_deb }}"
+          echo "Build rpm: ${{ steps.resolve.outputs.build_rpm }}"
+
+  build-deb:
+    needs: resolve
+    if: ${{ needs.resolve.outputs.build_deb == '1' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install Debian packaging dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cpio \
+            debhelper \
+            dpkg-dev \
+            fakeroot \
+            libc-ares-dev \
+            libldap2-dev \
+            libpcre3-dev \
+            librrd-dev \
+            libssl-dev
+
+      - name: Build deb packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash build/makedeb.sh "${{ needs.resolve.outputs.release_version }}"
+
+      - name: Upload deb artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: deb_${{ needs.resolve.outputs.release_version }}
+          path: |
+            debbuild/*.deb
+            debbuild/*.dsc
+            debbuild/*.changes
+            debbuild/*.buildinfo
+            debbuild/*.tar.*
+          if-no-files-found: error
+
+  build-rpm:
+    needs: resolve
+    if: ${{ needs.resolve.outputs.build_rpm == '1' }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Install RPM packaging dependencies
+        shell: bash
+        run: |
+          set -euo pipefail
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential \
+            cpio \
+            libc-ares-dev \
+            libldap2-dev \
+            libpcre3-dev \
+            librrd-dev \
+            libssl-dev \
+            rpm
+
+      - name: Build rpm packages
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash build/makerpm.sh "${{ needs.resolve.outputs.release_version }}"
+
+      - name: Upload rpm artifacts
+        uses: actions/upload-artifact@v4
+        with:
+          name: rpm_${{ needs.resolve.outputs.release_version }}
+          path: |
+            rpmbuild/RPMS/**/*.rpm
+            rpmbuild/SRPMS/*.rpm
+          if-no-files-found: error
