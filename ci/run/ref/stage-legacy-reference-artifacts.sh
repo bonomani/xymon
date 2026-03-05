@@ -55,7 +55,7 @@ find "${artifacts_dir}" -type f -print0 \
       artifact="${rel%%/*}"
       rest="${rel#*/}"
       dst_rel="${rel}"
-      if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)$ ]]; then
+      if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)(__[[:alnum:]_.-]+(__[[:alnum:]_.-]+)?)?$ ]]; then
         tool="${BASH_REMATCH[1]}"
         os="${BASH_REMATCH[2]}"
         variant="${BASH_REMATCH[3]}"
