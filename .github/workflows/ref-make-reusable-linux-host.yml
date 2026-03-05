@@ -48,23 +48,23 @@ permissions:
 jobs:
   linux-host:
     name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runs_on || 'ubuntu-22.04' }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
     env:
       GOAL: ${{ inputs.goal }}
       REF_MODE: ${{ inputs.ref_mode }}
       PUBLISH: ${{ inputs.publish }}
       DEP_MODE: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
-      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool || (inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'cmake' || 'make') }}
+      BUILD_TOOL: ${{ fromJSON(inputs.lane_json).build_tool }}
       LEGACY_APPLY_OWNERSHIP: ON
-      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os || 'linux' }}
-      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os || fromJSON(inputs.lane_json).ref_os || 'linux' }}
-      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id || (inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'linux-host' || fromJSON(inputs.lane_json).ref_os || 'linux-host') }}
+      REF_OS: ${{ fromJSON(inputs.lane_json).ref_os }}
+      PLATFORM_OS: ${{ fromJSON(inputs.lane_json).platform_os }}
+      PLATFORM_ID: ${{ fromJSON(inputs.lane_json).platform_id }}
       VARIANT: ${{ fromJSON(inputs.lane_json).variant }}
-      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch || 'amd64' }}
-      CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin || '' }}
-      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version || '' }}
-      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root || 'make_linux' }}
-      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family || 'linux' }}
+      ARTIFACT_ARCH: ${{ fromJSON(inputs.lane_json).artifact_arch }}
+      CMAKE_BIN: ${{ fromJSON(inputs.lane_json).cmake_bin }}
+      OS_VERSION: ${{ fromJSON(inputs.lane_json).os_version }}
+      BASELINE_ROOT: ${{ fromJSON(inputs.lane_json).baseline_root }}
+      ARTIFACT_FAMILY: ${{ fromJSON(inputs.lane_json).artifact_family }}
       REF_STAGE_ROOT: ${{ github.workspace }}/tmp/xymon-refs
       UPLOAD_ARTIFACTS: ${{ inputs.upload_artifacts != '' && inputs.upload_artifacts || (inputs.publish == 'artifact' && '1' || '0') }}
       RUN_COMPARE: ${{ inputs.run_compare }}

@@ -287,11 +287,8 @@ jobs:
           set -euo pipefail
 
           purpose="generation"
-          skip_dropdown_parity=0
           if [[ "${GOAL}" == "ref" && "${REF_MODE}" == "compare" ]]; then
             purpose="validation"
-            # Unified selector has generation+comparison families in one dropdown.
-            skip_dropdown_parity=1
           fi
 
           args=(
@@ -303,10 +300,6 @@ jobs:
             --selector-workflow ".github/workflows/ref-make-select.yml"
             --github-output "${GITHUB_OUTPUT}"
           )
-
-          if [[ "${skip_dropdown_parity}" == "1" ]]; then
-            args+=(--skip-dropdown-parity)
-          fi
 
           "${args[@]}"
 
