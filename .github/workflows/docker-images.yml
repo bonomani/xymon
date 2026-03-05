@@ -73,88 +73,13 @@ jobs:
           REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
-
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-          from pathlib import Path
-
-          import yaml
-
-          target_raw = (os.environ.get("INPUT_TARGET") or "all").strip()
-          tag_raw = (os.environ.get("INPUT_IMAGE_TAG") or "").strip()
-          push_raw = (os.environ.get("INPUT_PUSH") or "no").strip().lower()
-          repo_owner = (os.environ.get("REPOSITORY_OWNER") or "").strip().lower()
-
-          if push_raw not in {"yes", "no"}:
-              print(f"Unsupported push mode: {push_raw}", file=sys.stderr)
-              raise SystemExit(2)
-
-          matrix_path = Path("ci/deps/docker-matrix.yaml")
-          if not matrix_path.exists():
-              print(f"Missing docker matrix file: {matrix_path}", file=sys.stderr)
-              raise SystemExit(2)
-
-          raw = yaml.safe_load(matrix_path.read_text(encoding="utf-8")) or {}
-          services = raw.get("services", [])
-          if not isinstance(services, list) or not services:
-              print("ci/deps/docker-matrix.yaml has no services list", file=sys.stderr)
-              raise SystemExit(2)
-
-          selected_names = set()
-          if target_raw.lower() != "all":
-              for item in target_raw.split(","):
-                  name = item.strip()
-                  if name:
-                      selected_names.add(name)
-
-          include = []
-          known = set()
-          for entry in services:
-              if not isinstance(entry, dict):
-                  continue
-              name = str(entry.get("name") or "").strip()
-              if not name:
-                  continue
-              known.add(name)
-              if selected_names and name not in selected_names:
-                  continue
-              dockerfile = Path("docker") / name / "Dockerfile"
-              if not dockerfile.exists():
-                  print(f"Missing Dockerfile for service '{name}': {dockerfile}", file=sys.stderr)
-                  raise SystemExit(2)
-              include.append(
-                  {
-                      "name": name,
-                      "dockerfile": str(dockerfile),
-                      "image": f"ghcr.io/{repo_owner}/xymon-{name}",
-                  }
-              )
-
-          if selected_names:
-              missing = sorted(selected_names - known)
-              if missing:
-                  print(
-                      "Unknown docker target(s): " + ", ".join(missing),
-                      file=sys.stderr,
-                  )
-                  raise SystemExit(2)
-
-          image_tag = tag_raw if tag_raw else f"sha-{(os.environ.get('GITHUB_SHA') or '')[:12]}"
-          if not image_tag:
-              image_tag = "manual"
-
-          matrix = {"include": include}
-          out_path = Path(os.environ["GITHUB_OUTPUT"])
-          with out_path.open("a", encoding="utf-8") as fh:
-              fh.write("matrix<<EOF\n")
-              fh.write(json.dumps(matrix))
-              fh.write("\nEOF\n")
-              fh.write(f"matrix_count={len(include)}\n")
-              fh.write(f"image_tag={image_tag}\n")
-              fh.write(f"push_enabled={'1' if push_raw == 'yes' else '0'}\n")
-          PY
+          python3 ci/run/docker/resolve-matrix.py \
+            --matrix-file ci/deps/docker-matrix.yaml \
+            --target "${INPUT_TARGET}" \
+            --image-tag "${INPUT_IMAGE_TAG}" \
+            --push "${INPUT_PUSH}" \
+            --repo-owner "${REPOSITORY_OWNER}" \
+            --github-output "${GITHUB_OUTPUT}"
 
       - name: Summary
         shell: bash
