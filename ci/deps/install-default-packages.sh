@@ -269,6 +269,71 @@ sort_unique_file() {
   sort -u "${file}" -o "${file}"
 }
 
+extract_pkg_bases_from_pkg_info() {
+  local infile="${1:-}"
+
+  awk '
+    {
+      token = $1
+      if (token ~ /^[[:alnum:]_.+-]+-[0-9][[:alnum:]_.+~-]*$/) {
+        base = token
+        sub(/-[0-9][[:alnum:]_.+~-]*$/, "", base)
+        print base
+      }
+    }
+  ' "${infile}"
+}
+
+capture_pkg_add_like_packages() {
+  local pkg_info_bin="${1:-}"
+  local outfile="${2:-}"
+  local raw_file=""
+  local dbdir=""
+  local entry=""
+  local base=""
+
+  if [[ -z "${pkg_info_bin}" || -z "${outfile}" ]]; then
+    return 2
+  fi
+
+  make_temp raw_file
+
+  if [[ -x "${pkg_info_bin}" ]]; then
+    if "${pkg_info_bin}" -a > "${raw_file}" 2>/dev/null; then
+      extract_pkg_bases_from_pkg_info "${raw_file}" > "${outfile}"
+      if [[ -s "${outfile}" ]]; then
+        sort_unique_file "${outfile}"
+        return 0
+      fi
+    fi
+
+    # Some pkg_info variants with -q output comments; keep this as fallback only.
+    if "${pkg_info_bin}" -q -a > "${raw_file}" 2>/dev/null; then
+      extract_pkg_bases_from_pkg_info "${raw_file}" > "${outfile}"
+      if [[ -s "${outfile}" ]]; then
+        sort_unique_file "${outfile}"
+        return 0
+      fi
+    fi
+  fi
+
+  : > "${outfile}"
+  for dbdir in /var/db/pkg /usr/pkg/pkgdb /usr/pkgdb; do
+    [[ -d "${dbdir}" ]] || continue
+    for entry in "${dbdir}"/*; do
+      [[ -d "${entry}" ]] || continue
+      base="$(basename "${entry}" | sed -E 's/-[0-9][[:alnum:]_.+~-]*$//')"
+      [[ -n "${base}" ]] && printf '%s\n' "${base}" >> "${outfile}"
+    done
+    if [[ -s "${outfile}" ]]; then
+      sort_unique_file "${outfile}"
+      return 0
+    fi
+  done
+
+  return 2
+}
+
 capture_installed_packages() {
   local outfile="${1:-}"
 
@@ -292,10 +357,10 @@ capture_installed_packages() {
       /usr/sbin/pkg query '%n' > "${outfile}"
       ;;
     pkg_add)
-      /usr/sbin/pkg_info -q -a > "${outfile}"
+      capture_pkg_add_like_packages /usr/sbin/pkg_info "${outfile}"
       ;;
     pkgin)
-      /usr/pkg/bin/pkg_info -q -a > "${outfile}"
+      capture_pkg_add_like_packages /usr/pkg/bin/pkg_info "${outfile}"
       ;;
     *)
       echo "Package inventory is not supported for package manager: ${report_pkgmgr}" >&2
