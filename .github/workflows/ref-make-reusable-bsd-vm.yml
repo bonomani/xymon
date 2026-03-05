@@ -65,7 +65,7 @@ jobs:
           architecture: ${{ steps.lane_ctx.outputs.architecture }}
           version: ${{ steps.lane_ctx.outputs.os_version }}
           shell: bash
-          memory: ${{ steps.lane_ctx.outputs.dep_mode == 'compare' && '2048M' || steps.lane_ctx.outputs.vm_memory }}
+          memory: ${{ steps.lane_ctx.outputs.vm_memory }}
           cpu_count: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
           sync_files: true
           shutdown_vm: true
