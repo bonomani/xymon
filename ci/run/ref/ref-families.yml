@@ -73,6 +73,13 @@ families:
     lane_file: ci/run/ref/make-lanes/linux.yml
     lane_overrides:
       ref_os: linux
+  validation:
+    runtime: linux_host
+    lane_file: ci/run/ref/make-lanes/linux.yml
+    lane_overrides:
+      ref_os: linux
+      artifact_family: linux
+      baseline_root: make_linux
 
 - family: alpine
   generation:
