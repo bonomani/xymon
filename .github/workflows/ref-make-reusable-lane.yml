@@ -11,6 +11,10 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
+      verify_depth:
+        description: Verification depth (configure|build|install)
+        required: true
+        type: string
       goal:
         description: Execution goal (verify|ref)
         required: true
@@ -46,6 +50,7 @@ jobs:
         uses: ./.github/actions/ref-lane-context
         with:
           lane_json: ${{ inputs.lane_json }}
+          verify_depth: ${{ inputs.verify_depth }}
           goal: ${{ inputs.goal }}
           ref_mode: ${{ inputs.ref_mode }}
           publish: ${{ inputs.publish }}

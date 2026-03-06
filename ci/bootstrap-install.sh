@@ -14,6 +14,7 @@ HTTPDGID=""
 BUILD_TOOL="make"
 CI_COMPILER="${CI_COMPILER:-gcc}"
 CMAKE_PRESET="${PRESET:-default}"
+VERIFY_DEPTH="${VERIFY_DEPTH:-install}"
 XYMONUSER="${XYMONUSER:-xymon}"
 XYMONGROUP="${XYMONGROUP:-${XYMONUSER}}"
 
@@ -77,6 +78,10 @@ while [ $# -gt 0 ]; do
       ;;
     --preset)
       CMAKE_PRESET="${2:-}"
+      shift 2
+      ;;
+    --verify-depth)
+      VERIFY_DEPTH="${2:-}"
       shift 2
       ;;
     *)
@@ -155,6 +160,18 @@ normalize_cmake_preset() {
       ;;
     *)
       echo "Unsupported --preset value: ${CMAKE_PRESET}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+normalize_verify_depth() {
+  VERIFY_DEPTH="$(printf '%s' "${VERIFY_DEPTH:-install}" | tr '[:upper:]' '[:lower:]')"
+  case "${VERIFY_DEPTH}" in
+    configure|build|install)
+      ;;
+    *)
+      echo "Unsupported --verify-depth value: ${VERIFY_DEPTH}" >&2
       exit 1
       ;;
   esac
@@ -654,6 +671,7 @@ EOF
 normalize_build_tool
 normalize_compiler
 normalize_cmake_preset
+normalize_verify_depth
 normalize_variant
 set_feature_flags
 select_build_adapter
@@ -663,11 +681,20 @@ if [ "${PLATFORM_OS}" = "${OS_NAME}" ]; then
 else
   echo "=== Setup (${OS_NAME} on ${PLATFORM_OS}) ==="
 fi
+echo "=== Verify depth: ${VERIFY_DEPTH} ==="
 setup_os
 echo "=== Configure ==="
 "${RUN_CONFIGURE_FN}"
+if [ "${VERIFY_DEPTH}" = "configure" ]; then
+  echo "=== Skip build/install for verify depth: configure ==="
+  exit 0
+fi
 echo "=== Build ==="
 "${RUN_BUILD_FN}"
+if [ "${VERIFY_DEPTH}" = "build" ]; then
+  echo "=== Skip install for verify depth: build ==="
+  exit 0
+fi
 echo "=== Install staged tree ==="
 "${RUN_INSTALL_FN}"
 echo "=== Record staged tree metadata ==="
