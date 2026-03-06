@@ -9,11 +9,9 @@ if [[ ! -f "${contract_file}" ]]; then
   exit 2
 fi
 
-required_vars=()
-while IFS= read -r key; do
-  required_vars+=("${key}")
-done < <(
-  awk -v section="lane_exec_required" '
+read_contract_section() {
+  local section="$1"
+  awk -v section="${section}" '
     BEGIN { in_section = 0 }
     /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
     /^\[[^]]+\][[:space:]]*$/ {
@@ -25,14 +23,51 @@ done < <(
     }
     in_section { print $0 }
   ' "${contract_file}"
-)
+}
 
-if [[ "${#required_vars[@]}" -eq 0 ]]; then
-  echo "No keys found in [lane_exec_required] section: ${contract_file}" >&2
+runtime_execution="${RUNTIME_EXECUTION:-}"
+if [[ -z "${runtime_execution}" ]]; then
+  echo "Missing required environment variable: RUNTIME_EXECUTION" >&2
   exit 2
 fi
 
+section_suffix=""
+case "${runtime_execution}" in
+  host)
+    section_suffix="host"
+    ;;
+  container)
+    section_suffix="container"
+    ;;
+  vm)
+    section_suffix="vm"
+    ;;
+  *)
+    echo "Unsupported RUNTIME_EXECUTION value: ${runtime_execution}" >&2
+    exit 2
+    ;;
+esac
+
+required_vars=()
+while IFS= read -r key; do
+  required_vars+=("${key}")
+done < <(read_contract_section "lane_exec_required_common")
+while IFS= read -r key; do
+  required_vars+=("${key}")
+done < <(read_contract_section "lane_exec_required_${section_suffix}")
+
+if [[ "${#required_vars[@]}" -eq 0 ]]; then
+  echo "No keys found in lane_exec_required sections: ${contract_file}" >&2
+  exit 2
+fi
+
+declare -A seen_required=()
 for var_name in "${required_vars[@]}"; do
+  [[ -n "${var_name}" ]] || continue
+  if [[ -n "${seen_required[${var_name}]:-}" ]]; then
+    continue
+  fi
+  seen_required["${var_name}"]=1
   if [[ -z "${!var_name:-}" ]]; then
     echo "Missing required environment variable: ${var_name}" >&2
     exit 2

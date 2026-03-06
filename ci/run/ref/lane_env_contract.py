@@ -61,14 +61,8 @@ _SECTIONS = _load_contract_sections(_CONTRACT_PATH)
 LANE_ENV_KEYS: FrozenSet[str] = frozenset(
     _normalize_section(_SECTIONS, "all", dedupe=True)
 )
-LANE_META_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
-    _SECTIONS, "lane_meta_required", dedupe=True
-)
 LANE_POST_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
     _SECTIONS, "lane_post_required", dedupe=True
-)
-LANE_EXEC_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
-    _SECTIONS, "lane_exec_required", dedupe=True
 )
 
 

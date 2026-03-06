@@ -1,9 +1,11 @@
 # Canonical lane environment contract.
 # Sections:
 #   [all]                -> complete lane_env keyspace
-#   [lane_meta_required] -> required keys for decode-lane-env --profile lane_meta
 #   [lane_post_required] -> required keys for decode-lane-env --profile lane_post
-#   [lane_exec_required] -> required keys for run-ref-lane-command.sh
+#   [lane_exec_required_common] -> required keys for run-ref-lane-command.sh
+#   [lane_exec_required_host] -> host-only required exec keys
+#   [lane_exec_required_container] -> container-only required exec keys
+#   [lane_exec_required_vm] -> vm-only required exec keys
 
 [all]
 ALLOW_FAILURE_MODE
@@ -42,14 +44,6 @@ VM_MEMORY
 XYMONGROUP
 XYMONUSER
 
-[lane_meta_required]
-RUNTIME_EXECUTION
-ALLOW_FAILURE_MODE
-LANE_ALLOW_FAILURE
-REF_OS
-RUNTIME
-RUNTIME_OUTCOME_CHANNEL
-
 [lane_post_required]
 ALLOW_FAILURE_MODE
 LANE_ALLOW_FAILURE
@@ -67,7 +61,7 @@ ARTIFACT_FAMILY
 REF_STAGE_ROOT
 REF_OS
 
-[lane_exec_required]
+[lane_exec_required_common]
 BUILD_TOOL
 GOAL
 REF_MODE
@@ -78,3 +72,15 @@ VARIANT
 REF_OS
 PLATFORM_OS
 PLATFORM_ID
+RUNTIME_EXECUTION
+
+[lane_exec_required_host]
+# no additional host-only keys
+
+[lane_exec_required_container]
+CONTAINER_IMAGE
+CHECKOUT_MODE
+PREPARE_PROFILE
+
+[lane_exec_required_vm]
+# no additional vm-only keys

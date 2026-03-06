@@ -1,14 +1,11 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
-
 import argparse
 import json
 import os
 import sys
 
 from lane_env_contract import (
-    LANE_META_REQUIRED_KEYS,
     LANE_POST_REQUIRED_KEYS,
     as_text,
     validate_known_lane_env_keys,
@@ -28,7 +25,7 @@ def parse_args():
     parser.add_argument(
         "--profile",
         required=True,
-        choices=["lane_meta", "lane_post"],
+        choices=["lane_post"],
         help="Output profile to produce",
     )
     parser.add_argument(
@@ -44,29 +41,6 @@ def require_key(payload: dict[str, object], key: str) -> str:
     if not value:
         fail(f"lane_env_json missing required key: {key}")
     return value
-
-
-def build_lane_meta_outputs(payload: dict[str, object]) -> dict[str, str]:
-    values = {key: require_key(payload, key) for key in LANE_META_REQUIRED_KEYS}
-
-    continue_on_error = (
-        "true"
-        if values["ALLOW_FAILURE_MODE"] != "off"
-        and values["LANE_ALLOW_FAILURE"] == "1"
-        else "false"
-    )
-
-    return {
-        "runtime_execution": values["RUNTIME_EXECUTION"],
-        "continue_on_error": continue_on_error,
-        "ref_os": values["REF_OS"],
-        "architecture": as_text(payload.get("ARCHITECTURE", "")),
-        "os_version": as_text(payload.get("OS_VERSION", "")),
-        "vm_memory": as_text(payload.get("VM_MEMORY", "")),
-        "vm_cpu_count": as_text(payload.get("VM_CPU_COUNT", "")),
-        "runtime": values["RUNTIME"],
-        "runtime_outcome_channel": values["RUNTIME_OUTCOME_CHANNEL"],
-    }
 
 
 def build_lane_post_outputs(payload: dict[str, object]) -> dict[str, str]:
@@ -86,10 +60,7 @@ def main() -> None:
     if unknown_keys:
         fail(f"lane_env_json contains unknown keys: {', '.join(unknown_keys)}")
 
-    if args.profile == "lane_meta":
-        outputs = build_lane_meta_outputs(payload)
-    else:
-        outputs = build_lane_post_outputs(payload)
+    outputs = build_lane_post_outputs(payload)
 
     lines = [f"{key}={value}" for key, value in outputs.items()]
     if args.github_output:
