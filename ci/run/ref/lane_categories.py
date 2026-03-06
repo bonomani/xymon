@@ -10,10 +10,10 @@ CATEGORY_ORDER = [
 ]
 
 CATEGORY_LABELS = {
-    "success": "Success",
-    "success_with_allow_failure": "Success with allow_failure",
-    "fails_with_allow_failure": "Fails with allow_failure",
-    "fails_hard": "Fails hard",
+    "success": "Passed jobs on normal lanes",
+    "success_with_allow_failure": "Passed jobs on masked lanes",
+    "fails_with_allow_failure": "Failed jobs on masked lanes",
+    "fails_hard": "Failed jobs on normal lanes",
 }
 
 

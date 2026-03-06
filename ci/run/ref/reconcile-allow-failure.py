@@ -25,6 +25,18 @@ from lane_registry import build_lane_registry
 API_VERSION = "2022-11-28"
 DEFAULT_WORKFLOW = "pipeline-select-run-lanes.yml"
 FAIL_CONCLUSIONS = {"failure", "timed_out", "action_required", "startup_failure"}
+GROUP_STATE_ORDER = [
+    "normal_passing",
+    "normal_failing",
+    "masked_ready_to_reset",
+    "masked_still_failing",
+]
+GROUP_STATE_LABELS = {
+    "normal_passing": "Normal lane groups passing",
+    "normal_failing": "Normal lane groups failing and eligible to mask",
+    "masked_ready_to_reset": "Masked lane groups ready to reset",
+    "masked_still_failing": "Masked lane groups still failing",
+}
 
 
 def die(message: str) -> None:
@@ -254,6 +266,8 @@ def main() -> None:
     category_counts_with_legacy["fails"] = total_fail_count(category_counts)
 
     docs = load_lane_file_docs(repo_root, {record.lane_file for record in registry.values()})
+    group_states: list[dict] = []
+    group_state_counts = {key: 0 for key in GROUP_STATE_ORDER}
     proposed_changes: list[dict] = []
     touched_files: set[str] = set()
 
@@ -273,6 +287,25 @@ def main() -> None:
         elif all_success:
             desired = False
 
+        if current:
+            group_state = "masked_still_failing" if has_failure else "masked_ready_to_reset"
+        else:
+            group_state = "normal_failing" if has_failure else "normal_passing"
+        group_state_counts[group_state] += 1
+
+        group_record = {
+            "lane_file": lane_file,
+            "include_index": include_index,
+            "lane_names": sorted(set(entry_lane_names[entry_key])),
+            "conclusions": sorted(conclusions),
+            "current_allow_failure": current,
+            "desired_allow_failure": desired,
+            "group_state": group_state,
+            "has_failure": has_failure,
+            "all_success": all_success,
+        }
+        group_states.append(group_record)
+
         if desired == current:
             continue
 
@@ -284,10 +317,10 @@ def main() -> None:
         touched_files.add(lane_file)
         proposed_changes.append(
             {
-                "lane_file": lane_file,
-                "include_index": include_index,
-                "lane_names": sorted(set(entry_lane_names[entry_key])),
-                "conclusions": sorted(conclusions),
+                "lane_file": group_record["lane_file"],
+                "include_index": group_record["include_index"],
+                "lane_names": group_record["lane_names"],
+                "conclusions": group_record["conclusions"],
                 "from_allow_failure": current,
                 "to_allow_failure": desired,
             }
@@ -299,6 +332,15 @@ def main() -> None:
 
     set_count = sum(1 for change in proposed_changes if change["to_allow_failure"])
     reset_count = sum(1 for change in proposed_changes if not change["to_allow_failure"])
+    reset_candidates = [
+        group for group in group_states if group["current_allow_failure"] and group["all_success"]
+    ]
+    still_masked_failures = [
+        group for group in group_states if group["current_allow_failure"] and group["has_failure"]
+    ]
+    new_mask_candidates = [
+        group for group in group_states if (not group["current_allow_failure"]) and group["has_failure"]
+    ]
 
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
     run_number = run.get("run_number")
@@ -319,13 +361,28 @@ def main() -> None:
         f"- Workflow conclusion: `{run_conclusion}`",
         f"- Apply mode: `{'on' if args.apply else 'off (dry-run)'}`",
         "",
-        "## Categories",
+        "## Job Categories",
         "",
-        "| Category | Count |",
+        "| Job category | Count |",
         "| --- | ---: |",
     ]
     for key in CATEGORY_ORDER:
         markdown_lines.append(f"| {CATEGORY_LABELS[key]} | {category_counts[key]} |")
+
+    markdown_lines.extend(
+        [
+        "",
+        "- Job counts are per individual workflow job.",
+        "- Reconciliation decisions are per lane group (one YAML entry may expand to several jobs).",
+        "",
+        "## Lane Group States",
+        "",
+        "| Lane group state | Count |",
+        "| --- | ---: |",
+        ]
+    )
+    for key in GROUP_STATE_ORDER:
+        markdown_lines.append(f"| {GROUP_STATE_LABELS[key]} | {group_state_counts[key]} |")
 
     markdown_lines.extend(
         [
@@ -335,6 +392,7 @@ def main() -> None:
         f"- Lane jobs analyzed: `{len(lane_jobs)}`",
         f"- Mapped lane jobs: `{sum(1 for job in lane_jobs if job.get('mapped'))}`",
         f"- Unmapped lane jobs: `{len(unmapped_jobs)}`",
+        f"- Lane groups analyzed: `{len(group_states)}`",
         f"- Proposed `allow_failure=true`: `{set_count}`",
         f"- Proposed `allow_failure` reset: `{reset_count}`",
         f"- Files touched: `{len(touched_files)}`",
@@ -362,9 +420,42 @@ def main() -> None:
             markdown_lines.append(f"  lanes: {lane_list}")
     else:
         no_change_message = "- No allow_failure updates required."
-        if category_counts["fails_with_allow_failure"] and not category_counts["fails_hard"]:
-            no_change_message += " All failing mapped lanes are already marked `allow_failure`."
+        if still_masked_failures and not new_mask_candidates:
+            no_change_message += (
+                f" {category_counts['fails_with_allow_failure']} failing jobs map to "
+                f"{len(still_masked_failures)} masked lane groups, all already marked `allow_failure`."
+            )
         markdown_lines.extend(["", "## Proposed Changes", "", no_change_message])
+
+    if reset_candidates:
+        markdown_lines.extend(["", "## Reset Candidates", ""])
+        for group in reset_candidates:
+            lane_list = ", ".join(group["lane_names"])
+            markdown_lines.append(
+                f"- `{group['lane_file']}#{group['include_index']}` "
+                f"(all jobs passed; would reset `allow_failure`)"
+            )
+            markdown_lines.append(f"  lanes: {lane_list}")
+
+    if new_mask_candidates:
+        markdown_lines.extend(["", "## New Mask Candidates", ""])
+        for group in new_mask_candidates:
+            lane_list = ", ".join(group["lane_names"])
+            markdown_lines.append(
+                f"- `{group['lane_file']}#{group['include_index']}` "
+                f"(contains failures; would set `allow_failure=true`)"
+            )
+            markdown_lines.append(f"  lanes: {lane_list}")
+
+    if still_masked_failures:
+        markdown_lines.extend(["", "## Still Masked Failures", ""])
+        for group in still_masked_failures:
+            lane_list = ", ".join(group["lane_names"])
+            markdown_lines.append(
+                f"- `{group['lane_file']}#{group['include_index']}` "
+                f"(still failing while masked; conclusions: {', '.join(group['conclusions'])})"
+            )
+            markdown_lines.append(f"  lanes: {lane_list}")
 
     markdown = "\n".join(markdown_lines) + "\n"
     report = {
@@ -383,7 +474,9 @@ def main() -> None:
             "lane_job_count": len(lane_jobs),
             "mapped_lane_job_count": sum(1 for job in lane_jobs if job.get("mapped")),
             "unmapped_lane_job_count": len(unmapped_jobs),
+            "lane_group_count": len(group_states),
             "category_counts": category_counts_with_legacy,
+            "group_state_counts": group_state_counts,
             "proposed_set_count": set_count,
             "proposed_reset_count": reset_count,
             "proposed_change_count": len(proposed_changes),
@@ -391,6 +484,7 @@ def main() -> None:
             "apply": args.apply,
         },
         "lane_jobs": lane_jobs,
+        "lane_groups": group_states,
         "unmapped_lane_jobs": unmapped_jobs,
         "proposed_changes": proposed_changes,
         "touched_files": sorted(touched_files),
@@ -407,6 +501,7 @@ def main() -> None:
             handle.write(f"lane_job_count={len(lane_jobs)}\n")
             handle.write(f"mapped_lane_job_count={sum(1 for job in lane_jobs if job.get('mapped'))}\n")
             handle.write(f"unmapped_lane_job_count={len(unmapped_jobs)}\n")
+            handle.write(f"lane_group_count={len(group_states)}\n")
             handle.write(f"success_lane_count={category_counts['success']}\n")
             handle.write(f"success_allow_failure_lane_count={category_counts['success_with_allow_failure']}\n")
             handle.write(
@@ -414,6 +509,18 @@ def main() -> None:
             )
             handle.write(f"fails_hard_lane_count={category_counts_with_legacy['fails_hard']}\n")
             handle.write(f"fails_lane_count={category_counts_with_legacy['fails']}\n")
+            handle.write(
+                f"normal_passing_group_count={group_state_counts['normal_passing']}\n"
+            )
+            handle.write(
+                f"normal_failing_group_count={group_state_counts['normal_failing']}\n"
+            )
+            handle.write(
+                f"masked_ready_to_reset_group_count={group_state_counts['masked_ready_to_reset']}\n"
+            )
+            handle.write(
+                f"masked_still_failing_group_count={group_state_counts['masked_still_failing']}\n"
+            )
             handle.write(f"proposed_set_count={set_count}\n")
             handle.write(f"proposed_reset_count={reset_count}\n")
             handle.write(f"proposed_change_count={len(proposed_changes)}\n")
