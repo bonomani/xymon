@@ -188,7 +188,16 @@ fi
 if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
   usage
 fi
-dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
+derived_dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
+dep_mode="${DEP_MODE:-${derived_dep_mode}}"
+if [[ "${dep_mode}" != "generate" && "${dep_mode}" != "compare" ]]; then
+  echo "Unsupported DEP_MODE: ${dep_mode}" >&2
+  usage
+fi
+if [[ -n "${DEP_MODE:-}" && "${DEP_MODE}" != "${derived_dep_mode}" ]]; then
+  echo "DEP_MODE (${DEP_MODE}) does not match goal/ref_mode-derived mode (${derived_dep_mode})" >&2
+  usage
+fi
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2

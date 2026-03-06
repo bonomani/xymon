@@ -69,10 +69,72 @@ jobs:
             --lane-env-json "${LANE_ENV_JSON}"
           echo "path=${out_file}" >> "${GITHUB_OUTPUT}"
 
+      - name: Decode lane metadata
+        id: lane_meta
+        shell: bash
+        env:
+          LANE_ENV_JSON: ${{ steps.lane_ctx.outputs.lane_env_json }}
+        run: |
+          set -euo pipefail
+
+          python3 - <<'PY'
+          import json
+          import os
+          import sys
+
+
+          def fail(msg: str) -> None:
+              print(msg, file=sys.stderr)
+              raise SystemExit(2)
+
+
+          try:
+              payload = json.loads(os.environ["LANE_ENV_JSON"])
+          except Exception as exc:
+              fail(f"LANE_ENV_JSON is invalid JSON: {exc}")
+
+          if not isinstance(payload, dict):
+              fail("LANE_ENV_JSON must decode to an object")
+
+          required = [
+              "RUNTIME_EXECUTION",
+              "ALLOW_FAILURE_MODE",
+              "LANE_ALLOW_FAILURE",
+              "REF_OS",
+              "RUNTIME",
+              "RUNTIME_OUTCOME_CHANNEL",
+          ]
+          for key in required:
+              if str(payload.get(key, "")).strip() == "":
+                  fail(f"LANE_ENV_JSON missing key: {key}")
+
+          continue_on_error = (
+              "true"
+              if payload["ALLOW_FAILURE_MODE"] != "off" and payload["LANE_ALLOW_FAILURE"] == "1"
+              else "false"
+          )
+
+          lines = [
+              f"runtime_execution={payload['RUNTIME_EXECUTION']}",
+              f"continue_on_error={continue_on_error}",
+              f"ref_os={payload['REF_OS']}",
+              f"architecture={payload.get('ARCHITECTURE', '')}",
+              f"os_version={payload.get('OS_VERSION', '')}",
+              f"vm_memory={payload.get('VM_MEMORY', '')}",
+              f"vm_cpu_count={payload.get('VM_CPU_COUNT', '')}",
+              f"runtime={payload['RUNTIME']}",
+              f"runtime_outcome_channel={payload['RUNTIME_OUTCOME_CHANNEL']}",
+          ]
+
+          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
+              for line in lines:
+                  fh.write(f"{line}\n")
+          PY
+
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
-        if: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_EXECUTION != 'vm' }}
-        continue-on-error: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE != 'off' && fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE == '1' }}
+        if: ${{ steps.lane_meta.outputs.runtime_execution != 'vm' }}
+        continue-on-error: ${{ steps.lane_meta.outputs.continue_on_error == 'true' }}
         shell: bash
         env:
           LANE_ENV_FILE: ${{ steps.lane_env.outputs.path }}
@@ -82,16 +144,16 @@ jobs:
 
       - name: Run lane orchestration on BSD VM
         id: lane_run_bsd_vm
-        if: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_EXECUTION == 'vm' }}
-        continue-on-error: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE != 'off' && fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE == '1' }}
+        if: ${{ steps.lane_meta.outputs.runtime_execution == 'vm' }}
+        continue-on-error: ${{ steps.lane_meta.outputs.continue_on_error == 'true' }}
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
-          operating_system: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}
-          architecture: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARCHITECTURE }}
-          version: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).OS_VERSION }}
+          operating_system: ${{ steps.lane_meta.outputs.ref_os }}
+          architecture: ${{ steps.lane_meta.outputs.architecture }}
+          version: ${{ steps.lane_meta.outputs.os_version }}
           shell: bash
-          memory: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VM_MEMORY }}
-          cpu_count: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VM_CPU_COUNT }}
+          memory: ${{ steps.lane_meta.outputs.vm_memory }}
+          cpu_count: ${{ steps.lane_meta.outputs.vm_cpu_count }}
           sync_files: true
           shutdown_vm: true
           run_script: |
@@ -104,8 +166,8 @@ jobs:
         if: ${{ always() }}
         shell: bash
         env:
-          RUNTIME: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME }}
-          OUTCOME_CHANNEL: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_OUTCOME_CHANNEL }}
+          RUNTIME: ${{ steps.lane_meta.outputs.runtime }}
+          OUTCOME_CHANNEL: ${{ steps.lane_meta.outputs.runtime_outcome_channel }}
           OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
         run: |
@@ -135,18 +197,5 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/ref-lane-post
         with:
-          allow_failure_mode: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE }}
-          lane_allow_failure: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE }}
+          lane_env_json: ${{ steps.lane_ctx.outputs.lane_env_json }}
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}
-          goal: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).GOAL }}
-          ref_mode: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_MODE }}
-          dep_report_path: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CI_DEPS_REPORT_JSON }}
-          upload_artifacts: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).UPLOAD_ARTIFACTS }}
-          build_tool: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).BUILD_TOOL }}
-          platform_id: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).PLATFORM_ID }}
-          variant: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VARIANT }}
-          artifact_arch: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_ARCH }}
-          lane_name: ${{ inputs.lane_name }}
-          artifact_family: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_FAMILY }}
-          ref_stage_root: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_STAGE_ROOT }}
-          ref_os: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}
