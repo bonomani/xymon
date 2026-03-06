@@ -1,7 +1,25 @@
 include:
 - platform_id: freebsd-15_0
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true
 - platform_id: freebsd-14_3
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true
 - platform_id: freebsd-13_5
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true

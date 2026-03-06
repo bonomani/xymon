@@ -19,15 +19,6 @@ runtime_defaults:
   generation:
     bsd_vm:
       architecture: x86-64
-  validation:
-    linux_host:
-      allow_failure: false
-    linux_container:
-      allow_failure: false
-    bsd_vm:
-      allow_failure: false
-    macos_host:
-      allow_failure: false
 
 lane_defaults_shared:
   linux_container:
