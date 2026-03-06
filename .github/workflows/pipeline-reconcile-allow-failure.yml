@@ -6,7 +6,7 @@ on:
       selection_mode:
         description: How to choose the selector workflow run
         required: true
-        default: explicit
+        default: latest
         type: choice
         options:
           - explicit
@@ -63,6 +63,7 @@ jobs:
           INPUT_EVENT_FILTER: ${{ inputs.event_filter }}
           INPUT_ALLOW_LATEST_APPLY: ${{ inputs.allow_latest_apply }}
           INPUT_APPLY_CHANGES: ${{ inputs.apply_changes }}
+          INPUT_DEFAULT_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -90,8 +91,9 @@ jobs:
                 exit 1
               fi
 
-              if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
-                args+=(--branch "${INPUT_SOURCE_BRANCH}")
+              branch_filter="${INPUT_SOURCE_BRANCH:-${INPUT_DEFAULT_BRANCH}}"
+              if [[ -n "${branch_filter}" ]]; then
+                args+=(--branch "${branch_filter}")
               fi
 
               if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
