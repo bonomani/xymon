@@ -16,7 +16,6 @@ from matrix_common import (
     parse_supported_build_tools,
     require_mapping,
     require_non_empty_string,
-    validate_dropdown_parity,
 )
 from runtime_model import load_runtime_model
 
@@ -309,10 +308,6 @@ def parse_args():
     )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
-        "--selector-workflow",
-        default=".github/workflows/ref-make-select.yml",
-    )
-    parser.add_argument(
         "--platform-catalog",
         default="ci/deps/platform-catalog.yaml",
     )
@@ -322,37 +317,6 @@ def parse_args():
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
-
-
-def expected_dropdown_families_union(manifest_path: Path, runtime_to_platform_runtime) -> list[str]:
-    generation_families = {
-        entry["family"]
-        for entry in load_manifest(
-            manifest_path, "generation", runtime_to_platform_runtime
-        )
-    }
-    validation_families = {
-        entry["family"]
-        for entry in load_manifest(
-            manifest_path, "validation", runtime_to_platform_runtime
-        )
-    }
-    enabled_union = generation_families | validation_families
-
-    data = yaml.safe_load(manifest_path.read_text()) or {}
-    families = data.get("families", [])
-    if not isinstance(families, list):
-        die(f"Manifest has no families list: {manifest_path}")
-
-    ordered = []
-    seen = set()
-    for index, raw in enumerate(families):
-        entry = require_mapping(raw, f"Manifest entry #{index}")
-        family = require_non_empty_string(entry.get("family"), f"Manifest entry #{index}.family")
-        if family in enabled_union and family not in seen:
-            ordered.append(family)
-            seen.add(family)
-    return ordered
 
 
 def main():
@@ -385,11 +349,6 @@ def main():
         ]
 
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
-    expected_options = ["all"] + expected_dropdown_families_union(
-        repo_root / args.manifest, runtime_to_platform_runtime
-    )
-    validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
-
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
     if selected_family == "all":

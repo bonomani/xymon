@@ -19,7 +19,11 @@ if [[ -z "${runtime}" ]]; then
   exit 2
 fi
 
-runtime_execution="$(python3 ci/run/ref/runtime-model-query.py --runtime "${runtime}" --field execution)"
+runtime_execution="${RUNTIME_EXECUTION:-}"
+if [[ -z "${runtime_execution}" ]]; then
+  echo "RUNTIME_EXECUTION is required" >&2
+  exit 2
+fi
 
 case "${runtime_execution}" in
   container)

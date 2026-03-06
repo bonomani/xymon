@@ -45,14 +45,23 @@ docker_args+=(
   -w "${GITHUB_WORKSPACE}"
 )
 
+lane_env_keys=()
 while IFS= read -r line; do
   if [[ "${line}" =~ ^[[:space:]]*export[[:space:]]+([A-Za-z_][A-Za-z0-9_]*)= ]]; then
-    docker_key="${BASH_REMATCH[1]}"
-    if [[ -v "${docker_key}" ]]; then
-      docker_args+=(-e "${docker_key}")
-    fi
+    lane_env_keys+=("${BASH_REMATCH[1]}")
   fi
 done < "${LANE_ENV_FILE}"
+
+set -a
+# shellcheck disable=SC1090
+source "${LANE_ENV_FILE}"
+set +a
+
+for docker_key in "${lane_env_keys[@]}"; do
+  if [[ -v "${docker_key}" ]]; then
+    docker_args+=(-e "${docker_key}=${!docker_key}")
+  fi
+done
 
 docker_args+=(
   "${CONTAINER_IMAGE}"

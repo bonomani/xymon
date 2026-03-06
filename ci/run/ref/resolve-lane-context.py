@@ -117,43 +117,12 @@ def main():
             f"{ref_stage_root}/{build_tool}.{ref_os}.{variant}/meta/deps-report.json"
         )
 
-    outputs = {
-        "goal": goal,
-        "ref_mode": ref_mode,
-        "publish": publish,
-        "allow_failure_mode": allow_failure_mode,
-        "runtime": runtime,
-        "runtime_execution": runtime_execution,
-        "runtime_outcome_channel": runtime_outcome_channel,
-        "build_tool": build_tool,
-        "variant": variant,
-        "lane_allow_failure": lane_allow_failure,
-        "ref_os": ref_os,
-        "platform_os": platform_os,
-        "platform_id": platform_id,
-        "os_version": os_version,
-        "artifact_arch": artifact_arch,
-        "baseline_root": baseline_root,
-        "artifact_family": artifact_family,
-        "ref_stage_root": ref_stage_root,
-        "deps_report_path": deps_report_path,
-        "upload_artifacts": upload_artifacts,
-        "enable_ldap": enable,
-        "enable_snmp": enable,
-        "cmake_bin": as_text(lane.get("cmake_bin")),
-        "prepare_profile": as_text(lane.get("prepare_profile")),
-        "checkout_mode": as_text(lane.get("checkout_mode")),
-        "container": as_text(lane.get("container")),
-        "container_options": as_text(lane.get("container_options")),
-        "architecture": as_text(lane.get("architecture")),
-        "vm_memory": as_text(lane.get("vm_memory")),
-        "vm_cpu_count": as_text(lane.get("vm_cpu_count")),
-    }
-
     lane_env = {
         "LEGACY_APPLY_OWNERSHIP": "ON",
         "XYMONUSER": "_www",
         "XYMONGROUP": "_www",
+        "ALLOW_FAILURE_MODE": allow_failure_mode,
+        "LANE_ALLOW_FAILURE": lane_allow_failure,
         "ENABLE_LDAP": enable,
         "ENABLE_SNMP": enable,
         "BUILD_TOOL": build_tool,
@@ -166,8 +135,10 @@ def main():
         "PLATFORM_OS": platform_os,
         "OS_VERSION": os_version,
         "ARTIFACT_FAMILY": artifact_family,
+        "ARTIFACT_ARCH": artifact_arch,
         "PLATFORM_ID": platform_id,
         "REF_STAGE_ROOT": ref_stage_root,
+        "UPLOAD_ARTIFACTS": upload_artifacts,
         "CMAKE_BIN": as_text(lane.get("cmake_bin")),
         "CI_DEPS_REPORT_JSON": deps_report_path,
         "PREPARE_PROFILE": as_text(lane.get("prepare_profile")),
@@ -175,14 +146,20 @@ def main():
         "CONTAINER_IMAGE": as_text(lane.get("container")),
         "CONTAINER_OPTIONS": as_text(lane.get("container_options")),
         "RUNTIME": runtime,
+        "RUNTIME_EXECUTION": runtime_execution,
+        "RUNTIME_OUTCOME_CHANNEL": runtime_outcome_channel,
+        "ARCHITECTURE": as_text(lane.get("architecture")),
+        "VM_MEMORY": as_text(lane.get("vm_memory")),
+        "VM_CPU_COUNT": as_text(lane.get("vm_cpu_count")),
     }
-    outputs["lane_env_json"] = json.dumps(
-        lane_env,
-        separators=(",", ":"),
-        sort_keys=True,
-    )
-
-    output_lines = [f"{key}={value}" for key, value in outputs.items()]
+    output_lines = [
+        "lane_env_json="
+        + json.dumps(
+            lane_env,
+            separators=(",", ":"),
+            sort_keys=True,
+        )
+    ]
 
     if args.github_output:
         with open(args.github_output, "a", encoding="utf-8") as fh:

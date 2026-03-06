@@ -170,6 +170,16 @@ jobs:
             --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
             --github-output "${GITHUB_OUTPUT}" > /dev/null
 
+      - name: Validate ref models
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 ci/run/ref/check-ref-models.py \
+            --manifest "ci/run/ref/ref-families.yml" \
+            --runtime-model "ci/run/ref/runtime-model.json" \
+            --selector-workflow ".github/workflows/ref-make-select.yml"
+
       - name: Build selected lanes matrix
         id: generate
         shell: bash
@@ -186,7 +196,6 @@ jobs:
             --selected-family "${SELECTED_FAMILY}"
             --build-tool "${SELECTED_BUILD_TOOL}"
             --manifest "ci/run/ref/ref-families.yml"
-            --selector-workflow ".github/workflows/ref-make-select.yml"
             --github-output "${GITHUB_OUTPUT}"
           )
 

@@ -71,8 +71,8 @@ jobs:
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
-        if: ${{ steps.lane_ctx.outputs.runtime_execution != 'vm' }}
-        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
+        if: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_EXECUTION != 'vm' }}
+        continue-on-error: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE != 'off' && fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE == '1' }}
         shell: bash
         env:
           LANE_ENV_FILE: ${{ steps.lane_env.outputs.path }}
@@ -82,16 +82,16 @@ jobs:
 
       - name: Run lane orchestration on BSD VM
         id: lane_run_bsd_vm
-        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'vm' }}
-        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
+        if: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_EXECUTION == 'vm' }}
+        continue-on-error: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE != 'off' && fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE == '1' }}
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
-          operating_system: ${{ steps.lane_ctx.outputs.ref_os }}
-          architecture: ${{ steps.lane_ctx.outputs.architecture }}
-          version: ${{ steps.lane_ctx.outputs.os_version }}
+          operating_system: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}
+          architecture: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARCHITECTURE }}
+          version: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).OS_VERSION }}
           shell: bash
-          memory: ${{ steps.lane_ctx.outputs.vm_memory }}
-          cpu_count: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
+          memory: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VM_MEMORY }}
+          cpu_count: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VM_CPU_COUNT }}
           sync_files: true
           shutdown_vm: true
           run_script: |
@@ -104,8 +104,8 @@ jobs:
         if: ${{ always() }}
         shell: bash
         env:
-          RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
-          OUTCOME_CHANNEL: ${{ steps.lane_ctx.outputs.runtime_outcome_channel }}
+          RUNTIME: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME }}
+          OUTCOME_CHANNEL: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).RUNTIME_OUTCOME_CHANNEL }}
           OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
         run: |
@@ -135,18 +135,18 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/ref-lane-post
         with:
-          allow_failure_mode: ${{ steps.lane_ctx.outputs.allow_failure_mode }}
-          lane_allow_failure: ${{ steps.lane_ctx.outputs.lane_allow_failure }}
+          allow_failure_mode: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ALLOW_FAILURE_MODE }}
+          lane_allow_failure: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).LANE_ALLOW_FAILURE }}
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}
-          goal: ${{ steps.lane_ctx.outputs.goal }}
-          ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
-          dep_report_path: ${{ steps.lane_ctx.outputs.deps_report_path }}
-          upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}
-          build_tool: ${{ steps.lane_ctx.outputs.build_tool }}
-          platform_id: ${{ steps.lane_ctx.outputs.platform_id }}
-          variant: ${{ steps.lane_ctx.outputs.variant }}
-          artifact_arch: ${{ steps.lane_ctx.outputs.artifact_arch }}
+          goal: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).GOAL }}
+          ref_mode: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_MODE }}
+          dep_report_path: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CI_DEPS_REPORT_JSON }}
+          upload_artifacts: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).UPLOAD_ARTIFACTS }}
+          build_tool: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).BUILD_TOOL }}
+          platform_id: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).PLATFORM_ID }}
+          variant: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VARIANT }}
+          artifact_arch: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_ARCH }}
           lane_name: ${{ inputs.lane_name }}
-          artifact_family: ${{ steps.lane_ctx.outputs.artifact_family }}
-          ref_stage_root: ${{ steps.lane_ctx.outputs.ref_stage_root }}
-          ref_os: ${{ steps.lane_ctx.outputs.ref_os }}
+          artifact_family: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_FAMILY }}
+          ref_stage_root: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_STAGE_ROOT }}
+          ref_os: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}

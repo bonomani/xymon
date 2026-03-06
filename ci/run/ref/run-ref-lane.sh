@@ -2,8 +2,6 @@
 set -euo pipefail
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ci/run/ref/lib/mode-model.sh
-source "${script_dir}/lib/mode-model.sh"
 
 build_tool=""
 goal="verify"
@@ -115,15 +113,30 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
-if ! validate_lane_build_tool "${build_tool}"; then
+if ! dep_mode="$(
+  PYTHONPATH="${script_dir}:${PYTHONPATH:-}" \
+    python3 - "${build_tool}" "${goal}" "${ref_mode}" "${publish}" <<'PY'
+import sys
+
+from execution_model import derive_dep_mode, validate_goal_ref_publish, validate_lane_build_tool
+
+
+build_tool = sys.argv[1]
+goal = sys.argv[2]
+ref_mode = sys.argv[3]
+publish = sys.argv[4]
+
+try:
+    validate_lane_build_tool(build_tool)
+    validate_goal_ref_publish(goal, ref_mode, publish)
+except ValueError as exc:
+    raise SystemExit(str(exc)) from exc
+
+print(derive_dep_mode(goal, ref_mode))
+PY
+)"; then
   usage
 fi
-
-if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
-  usage
-fi
-
-dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
