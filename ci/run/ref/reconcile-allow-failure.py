@@ -54,6 +54,14 @@ def normalize_job_name(name: str) -> str:
     return cleaned
 
 
+def append_details_section(markdown_lines: list[str], title: str, items: list[str]) -> None:
+    if not items:
+        return
+    markdown_lines.extend(["", f"<details><summary>{title}</summary>", ""])
+    markdown_lines.extend(items)
+    markdown_lines.extend(["", "</details>"])
+
+
 def load_token(token_env: str) -> str:
     for env_name in [token_env, "GH_TOKEN", "GITHUB_TOKEN"]:
         if not env_name:
@@ -361,51 +369,31 @@ def main() -> None:
         f"- Workflow conclusion: `{run_conclusion}`",
         f"- Apply mode: `{'on' if args.apply else 'off (dry-run)'}`",
         "",
-        "## Job Categories",
+        "## Outcome",
         "",
-        "| Job category | Count |",
-        "| --- | ---: |",
-    ]
-    for key in CATEGORY_ORDER:
-        markdown_lines.append(f"| {CATEGORY_LABELS[key]} | {category_counts[key]} |")
-
-    markdown_lines.extend(
-        [
+        f"- Hard failures: `{category_counts_with_legacy['fails_hard']}` jobs across `{group_state_counts['normal_failing']}` lane groups",
+        f"- Masked failures: `{category_counts_with_legacy['fails_with_allow_failure']}` jobs across `{group_state_counts['masked_still_failing']}` lane groups",
+        f"- Ready to reset: `{len(reset_candidates)}` masked lane groups",
+        f"- Eligible to mask: `{len(new_mask_candidates)}` normal lane groups",
         "",
-        "- Job counts are per individual workflow job.",
-        "- Reconciliation decisions are per lane group (one YAML entry may expand to several jobs).",
+        "## Actions",
         "",
-        "## Lane Group States",
-        "",
-        "| Lane group state | Count |",
-        "| --- | ---: |",
-        ]
-    )
-    for key in GROUP_STATE_ORDER:
-        markdown_lines.append(f"| {GROUP_STATE_LABELS[key]} | {group_state_counts[key]} |")
-
-    markdown_lines.extend(
-        [
-        "",
-        "## Reconciliation",
-        "",
-        f"- Lane jobs analyzed: `{len(lane_jobs)}`",
-        f"- Mapped lane jobs: `{sum(1 for job in lane_jobs if job.get('mapped'))}`",
-        f"- Unmapped lane jobs: `{len(unmapped_jobs)}`",
+        f"- Set `allow_failure=true`: `{set_count}` lane groups",
+        f"- Reset `allow_failure`: `{reset_count}` lane groups",
         f"- Lane groups analyzed: `{len(group_states)}`",
-        f"- Proposed `allow_failure=true`: `{set_count}`",
-        f"- Proposed `allow_failure` reset: `{reset_count}`",
+        f"- Lane jobs analyzed: `{len(lane_jobs)}`",
+        f"- Unmapped lane jobs: `{len(unmapped_jobs)}`",
         f"- Files touched: `{len(touched_files)}`",
-        ]
-    )
+    ]
 
     if unmapped_jobs:
-        markdown_lines.extend(["", "## Unmapped Lanes", ""])
+        unmapped_lines: list[str] = []
         for job in sorted(unmapped_jobs, key=lambda item: item["name"].lower()):
             if job.get("html_url"):
-                markdown_lines.append(f"- [{job['name']}]({job['html_url']}) (`{job['conclusion']}`)")
+                unmapped_lines.append(f"- [{job['name']}]({job['html_url']}) (`{job['conclusion']}`)")
             else:
-                markdown_lines.append(f"- {job['name']} (`{job['conclusion']}`)")
+                unmapped_lines.append(f"- {job['name']} (`{job['conclusion']}`)")
+        append_details_section(markdown_lines, f"Unmapped lanes ({len(unmapped_jobs)})", unmapped_lines)
 
     if proposed_changes:
         markdown_lines.extend(["", "## Proposed Changes", ""])
@@ -427,35 +415,36 @@ def main() -> None:
             )
         markdown_lines.extend(["", "## Proposed Changes", "", no_change_message])
 
-    if reset_candidates:
-        markdown_lines.extend(["", "## Reset Candidates", ""])
-        for group in reset_candidates:
-            lane_list = ", ".join(group["lane_names"])
-            markdown_lines.append(
-                f"- `{group['lane_file']}#{group['include_index']}` "
-                f"(all jobs passed; would reset `allow_failure`)"
-            )
-            markdown_lines.append(f"  lanes: {lane_list}")
+    reset_lines: list[str] = []
+    for group in reset_candidates:
+        lane_list = ", ".join(group["lane_names"])
+        reset_lines.append(
+            f"- `{group['lane_file']}#{group['include_index']}` "
+            f"(all jobs passed; would reset `allow_failure`) : {lane_list}"
+        )
+    append_details_section(markdown_lines, f"Reset candidates ({len(reset_candidates)})", reset_lines)
 
-    if new_mask_candidates:
-        markdown_lines.extend(["", "## New Mask Candidates", ""])
-        for group in new_mask_candidates:
-            lane_list = ", ".join(group["lane_names"])
-            markdown_lines.append(
-                f"- `{group['lane_file']}#{group['include_index']}` "
-                f"(contains failures; would set `allow_failure=true`)"
-            )
-            markdown_lines.append(f"  lanes: {lane_list}")
+    new_mask_lines: list[str] = []
+    for group in new_mask_candidates:
+        lane_list = ", ".join(group["lane_names"])
+        new_mask_lines.append(
+            f"- `{group['lane_file']}#{group['include_index']}` "
+            f"(contains failures; would set `allow_failure=true`) : {lane_list}"
+        )
+    append_details_section(markdown_lines, f"New mask candidates ({len(new_mask_candidates)})", new_mask_lines)
 
-    if still_masked_failures:
-        markdown_lines.extend(["", "## Still Masked Failures", ""])
-        for group in still_masked_failures:
-            lane_list = ", ".join(group["lane_names"])
-            markdown_lines.append(
-                f"- `{group['lane_file']}#{group['include_index']}` "
-                f"(still failing while masked; conclusions: {', '.join(group['conclusions'])})"
-            )
-            markdown_lines.append(f"  lanes: {lane_list}")
+    still_masked_lines: list[str] = []
+    for group in still_masked_failures:
+        lane_list = ", ".join(group["lane_names"])
+        still_masked_lines.append(
+            f"- `{group['lane_file']}#{group['include_index']}` "
+            f"(conclusions: {', '.join(group['conclusions'])}) : {lane_list}"
+        )
+    append_details_section(
+        markdown_lines,
+        f"Still masked failures ({len(still_masked_failures)} lane groups)",
+        still_masked_lines,
+    )
 
     markdown = "\n".join(markdown_lines) + "\n"
     report = {
