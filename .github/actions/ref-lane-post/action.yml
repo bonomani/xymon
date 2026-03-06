@@ -24,6 +24,46 @@ inputs:
 runs:
   using: composite
   steps:
+    - name: Write masked lane outcome metadata
+      id: lane_outcome_metadata
+      if: ${{ fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
+      shell: bash
+      env:
+        LANE_POST_JSON: ${{ inputs.lane_post_json }}
+        LANE_OUTCOME: ${{ inputs.lane_outcome }}
+        OUTPUT_PATH: ${{ runner.temp }}/${{ format('lane-outcome-{0}-{1}-{2}.json', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant) }}
+      run: |
+        set -euo pipefail
+
+        python3 - <<'PY'
+        import json
+        import os
+        from pathlib import Path
+
+        lane_post = json.loads(os.environ["LANE_POST_JSON"])
+        payload = {
+            "lane_name": lane_post.get("lane_name", ""),
+            "lane_outcome": os.environ["LANE_OUTCOME"],
+            "allow_failure_mode": lane_post.get("allow_failure_mode", ""),
+            "lane_allow_failure": lane_post.get("lane_allow_failure", ""),
+            "build_tool": lane_post.get("build_tool", ""),
+            "platform_id": lane_post.get("platform_id", ""),
+            "variant": lane_post.get("variant", ""),
+        }
+        output_path = Path(os.environ["OUTPUT_PATH"])
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+            handle.write(f"path={output_path}\n")
+        PY
+
+    - name: Upload masked lane outcome metadata
+      if: ${{ fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
+      uses: actions/upload-artifact@v4
+      with:
+        name: ${{ format('lane_outcome_{0}_{1}_{2}__{3}', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant, fromJSON(inputs.lane_post_json).lane_name) }}
+        path: ${{ steps.lane_outcome_metadata.outputs.path }}
+        if-no-files-found: error
+
     - name: Enforce expected failure reset
       if: ${{ fromJSON(inputs.lane_post_json).allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
       shell: bash
