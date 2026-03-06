@@ -20,7 +20,7 @@ from matrix_common import (
 from runtime_model import load_runtime_model
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
-SUPPORTED_COMPILERS = {"gcc", "clang"}
+SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PRESETS = {"default", "gnuinstall", "packaging"}
 SUPPORTED_PURPOSES = {"generation", "validation"}
 
@@ -273,7 +273,7 @@ def normalize_lane(
     lane,
     platform_catalog,
     build_tool,
-    compiler,
+    requested_compiler,
     preset,
     purpose: str,
 ):
@@ -282,6 +282,15 @@ def normalize_lane(
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
+    # Resolve compiler per lane so auto can follow runtime defaults.
+    # BSD/macOS lanes default to clang; Linux lanes default to gcc.
+    compiler = requested_compiler
+    if compiler == "auto":
+        runtime_key = family_entry["runtime"]
+        if runtime_key in {"bsd_vm", "macos_host"}:
+            compiler = "clang"
+        else:
+            compiler = "gcc"
     lane_obj["compiler"] = compiler
     lane_obj["preset"] = preset
     runtime_execution = family_entry["runtime_execution"]
@@ -349,7 +358,7 @@ def parse_args():
         "--compiler",
         required=True,
         choices=sorted(SUPPORTED_COMPILERS),
-        help="Compiler selection (gcc or clang)",
+        help="Compiler selection (auto, gcc, or clang)",
     )
     parser.add_argument(
         "--preset",
