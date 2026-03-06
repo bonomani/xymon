@@ -12,7 +12,7 @@ from collections import defaultdict
 from pathlib import Path
 
 import yaml
-from github_actions_runs import load_latest_workflow_run, load_run_from_selector
+from github_actions_runs import format_resolved_via, load_latest_workflow_run, load_run_from_selector
 from lane_categories import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
@@ -300,16 +300,19 @@ def main() -> None:
     reset_count = sum(1 for change in proposed_changes if not change["to_allow_failure"])
 
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
+    run_number = run.get("run_number")
     run_url = run.get("html_url") or f"{server_url}/{args.repo}/actions/runs/{run.get('id')}"
     workflow_name = run.get("name") or args.workflow
     run_conclusion = str(run.get("conclusion") or run.get("status") or "unknown").strip().lower()
+    resolved_via_label = format_resolved_via(resolved_via)
 
     markdown_lines = [
         "# Allow-Failure Reconciliation",
         "",
         f"- Workflow: `{workflow_name}`",
         f"- Run: [{run.get('id')}]({run_url})",
-        f"- Resolved via: `{resolved_via}`",
+        f"- Run number: `#{run_number}`" if run_number is not None else "- Run number: `<unknown>`",
+        f"- Resolved via: `{resolved_via_label}`",
         f"- Branch: `{run.get('head_branch') or ''}`",
         f"- Event: `{run.get('event') or ''}`",
         f"- Workflow conclusion: `{run_conclusion}`",
