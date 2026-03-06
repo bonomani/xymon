@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: Optional selector workflow run ID to analyze
+        description: Optional selector run selector (numeric ID, run URL, or "... #N")
         required: false
         type: string
       source_branch:
@@ -62,14 +62,14 @@ jobs:
 
           if [[ -n "${ANALYZE_RUN_ID}" ]]; then
             args+=(--run-id "${ANALYZE_RUN_ID}")
-          fi
+          else
+            if [[ -n "${ANALYZE_BRANCH}" ]]; then
+              args+=(--branch "${ANALYZE_BRANCH}")
+            fi
 
-          if [[ -n "${ANALYZE_BRANCH}" ]]; then
-            args+=(--branch "${ANALYZE_BRANCH}")
-          fi
-
-          if [[ -n "${ANALYZE_EVENT}" ]]; then
-            args+=(--event "${ANALYZE_EVENT}")
+            if [[ -n "${ANALYZE_EVENT}" ]]; then
+              args+=(--event "${ANALYZE_EVENT}")
+            fi
           fi
 
           python3 ci/run/ref/analyze-ref-generation-run.py "${args[@]}"

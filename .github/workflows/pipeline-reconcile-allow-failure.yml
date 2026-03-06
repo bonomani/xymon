@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       run_id:
-        description: Optional selector workflow run ID to analyze
+        description: Optional selector run selector (numeric ID, run URL, or "... #N")
         required: false
         type: string
       source_branch:
@@ -63,14 +63,14 @@ jobs:
 
           if [[ -n "${INPUT_RUN_ID}" ]]; then
             args+=(--run-id "${INPUT_RUN_ID}")
-          fi
+          else
+            if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
+              args+=(--branch "${INPUT_SOURCE_BRANCH}")
+            fi
 
-          if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
-            args+=(--branch "${INPUT_SOURCE_BRANCH}")
-          fi
-
-          if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
-            args+=(--event "${INPUT_EVENT_FILTER}")
+            if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
+              args+=(--event "${INPUT_EVENT_FILTER}")
+            fi
           fi
 
           if [[ "${INPUT_APPLY_CHANGES}" == "true" ]]; then
