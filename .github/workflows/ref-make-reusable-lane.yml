@@ -56,50 +56,17 @@ jobs:
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
           dep_mode: ${{ inputs.dep_mode }}
 
-      - name: Run lane orchestration on Linux host
-        id: lane_run_linux_host
-        if: ${{ steps.lane_ctx.outputs.runtime == 'linux_host' }}
+      - name: Run lane orchestration (host/container)
+        id: lane_run_host_container
+        if: ${{ steps.lane_ctx.outputs.runtime != 'bsd_vm' }}
         continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
         shell: bash
         env:
           LEGACY_APPLY_OWNERSHIP: ON
-          BUILD_TOOL: ${{ steps.lane_ctx.outputs.build_tool }}
-          GOAL: ${{ steps.lane_ctx.outputs.goal }}
-          REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
-          PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
-          DEP_MODE: ${{ steps.lane_ctx.outputs.dep_mode }}
-          VARIANT: ${{ steps.lane_ctx.outputs.variant }}
-          BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
-          REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
-          PLATFORM_OS: ${{ steps.lane_ctx.outputs.platform_os }}
-          OS_VERSION: ${{ steps.lane_ctx.outputs.os_version }}
-          ARTIFACT_FAMILY: ${{ steps.lane_ctx.outputs.artifact_family }}
-          PLATFORM_ID: ${{ steps.lane_ctx.outputs.platform_id }}
-          REF_STAGE_ROOT: ${{ steps.lane_ctx.outputs.ref_stage_root }}
-          CMAKE_BIN: ${{ steps.lane_ctx.outputs.cmake_bin }}
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/run-ref-lane.sh \
-            --build "${BUILD_TOOL}" \
-            --goal "${GOAL}" \
-            --ref-mode "${REF_MODE}" \
-            --publish "${PUBLISH}" \
-            --dep-mode "${DEP_MODE}" \
-            --variant "${VARIANT}" \
-            --baseline-root "${BASELINE_ROOT}" \
-            --ref-os "${REF_OS}" \
-            --platform-os "${PLATFORM_OS}" \
-            --version "${OS_VERSION}" \
-            --artifact-family "${ARTIFACT_FAMILY}" \
-            --platform-id "${PLATFORM_ID}"
-
-      - name: Run lane orchestration in Linux container
-        id: lane_run_linux_container
-        if: ${{ steps.lane_ctx.outputs.runtime == 'linux_container' }}
-        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
-        shell: bash
-        env:
-          LEGACY_APPLY_OWNERSHIP: ON
+          XYMONUSER: _www
+          XYMONGROUP: _www
+          ENABLE_LDAP: ${{ steps.lane_ctx.outputs.enable_ldap }}
+          ENABLE_SNMP: ${{ steps.lane_ctx.outputs.enable_snmp }}
           BUILD_TOOL: ${{ steps.lane_ctx.outputs.build_tool }}
           GOAL: ${{ steps.lane_ctx.outputs.goal }}
           REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
@@ -118,22 +85,10 @@ jobs:
           CHECKOUT_MODE: ${{ steps.lane_ctx.outputs.checkout_mode }}
           CONTAINER_IMAGE: ${{ steps.lane_ctx.outputs.container }}
           CONTAINER_OPTIONS: ${{ steps.lane_ctx.outputs.container_options }}
+          RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
         run: |
           set -euo pipefail
-          bash ci/run/ref/run-host-managed-linux-container.sh \
-            bash ci/run/ref/run-ref-lane.sh \
-              --build "${BUILD_TOOL}" \
-              --goal "${GOAL}" \
-              --ref-mode "${REF_MODE}" \
-              --publish "${PUBLISH}" \
-              --dep-mode "${DEP_MODE}" \
-              --variant "${VARIANT}" \
-              --baseline-root "${BASELINE_ROOT}" \
-              --ref-os "${REF_OS}" \
-              --platform-os "${PLATFORM_OS}" \
-              --version "${OS_VERSION}" \
-              --artifact-family "${ARTIFACT_FAMILY}" \
-              --platform-id "${PLATFORM_ID}"
+          bash ci/run/ref/run-runtime-lane.sh
 
       - name: Run lane orchestration on BSD VM
         id: lane_run_bsd_vm
@@ -167,59 +122,8 @@ jobs:
             export ARTIFACT_FAMILY="${{ steps.lane_ctx.outputs.artifact_family }}"
             export PLATFORM_ID="${{ steps.lane_ctx.outputs.platform_id }}"
             export REF_STAGE_ROOT="${{ steps.lane_ctx.outputs.ref_stage_root }}"
-            bash ci/run/ref/run-ref-lane.sh \
-              --build "${BUILD_TOOL}" \
-              --goal "${GOAL}" \
-              --ref-mode "${REF_MODE}" \
-              --publish "${PUBLISH}" \
-              --dep-mode "${DEP_MODE}" \
-              --ref-os "${REF_OS}" \
-              --platform-os "${PLATFORM_OS}" \
-              --version "${OS_VERSION}" \
-              --variant "${VARIANT}" \
-              --baseline-root "${BASELINE_ROOT}" \
-              --artifact-family "${ARTIFACT_FAMILY}" \
-              --platform-id "${PLATFORM_ID}"
-
-      - name: Run lane orchestration on macOS host
-        id: lane_run_macos_host
-        if: ${{ steps.lane_ctx.outputs.runtime == 'macos_host' }}
-        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
-        shell: bash
-        env:
-          LEGACY_APPLY_OWNERSHIP: ON
-          XYMONUSER: _www
-          XYMONGROUP: _www
-          ENABLE_LDAP: ${{ steps.lane_ctx.outputs.enable_ldap }}
-          ENABLE_SNMP: ${{ steps.lane_ctx.outputs.enable_snmp }}
-          BUILD_TOOL: ${{ steps.lane_ctx.outputs.build_tool }}
-          GOAL: ${{ steps.lane_ctx.outputs.goal }}
-          REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
-          PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
-          DEP_MODE: ${{ steps.lane_ctx.outputs.dep_mode }}
-          VARIANT: ${{ steps.lane_ctx.outputs.variant }}
-          BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
-          REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
-          PLATFORM_OS: ${{ steps.lane_ctx.outputs.platform_os }}
-          OS_VERSION: ${{ steps.lane_ctx.outputs.os_version }}
-          ARTIFACT_FAMILY: ${{ steps.lane_ctx.outputs.artifact_family }}
-          PLATFORM_ID: ${{ steps.lane_ctx.outputs.platform_id }}
-          REF_STAGE_ROOT: ${{ steps.lane_ctx.outputs.ref_stage_root }}
-        run: |
-          set -euo pipefail
-          bash ci/run/ref/run-ref-lane.sh \
-            --build "${BUILD_TOOL}" \
-            --goal "${GOAL}" \
-            --ref-mode "${REF_MODE}" \
-            --publish "${PUBLISH}" \
-            --dep-mode "${DEP_MODE}" \
-            --ref-os "${REF_OS}" \
-            --platform-os "${PLATFORM_OS}" \
-            --version "${OS_VERSION}" \
-            --variant "${VARIANT}" \
-            --baseline-root "${BASELINE_ROOT}" \
-            --artifact-family "${ARTIFACT_FAMILY}" \
-            --platform-id "${PLATFORM_ID}"
+            export CMAKE_BIN="${{ steps.lane_ctx.outputs.cmake_bin }}"
+            bash ci/run/ref/run-ref-lane-command.sh
 
       - name: Resolve lane run outcome
         id: lane_outcome
@@ -227,25 +131,17 @@ jobs:
         shell: bash
         env:
           RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
-          OUTCOME_LINUX_HOST: ${{ steps.lane_run_linux_host.outcome }}
-          OUTCOME_LINUX_CONTAINER: ${{ steps.lane_run_linux_container.outcome }}
+          OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
-          OUTCOME_MACOS_HOST: ${{ steps.lane_run_macos_host.outcome }}
         run: |
           set -euo pipefail
           outcome=""
           case "${RUNTIME}" in
-            linux_host)
-              outcome="${OUTCOME_LINUX_HOST}"
-              ;;
-            linux_container)
-              outcome="${OUTCOME_LINUX_CONTAINER}"
-              ;;
             bsd_vm)
               outcome="${OUTCOME_BSD_VM}"
               ;;
-            macos_host)
-              outcome="${OUTCOME_MACOS_HOST}"
+            linux_host|linux_container|macos_host)
+              outcome="${OUTCOME_HOST_CONTAINER}"
               ;;
             *)
               echo "Unsupported runtime '${RUNTIME}'" >&2
