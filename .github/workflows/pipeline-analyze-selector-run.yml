@@ -30,7 +30,7 @@ on:
           - all
   workflow_run:
     workflows:
-      - Pipeline - Select and Run Lanes
+      - Pipeline - Select and Run Lanes (Advanced)
     types:
       - completed
 

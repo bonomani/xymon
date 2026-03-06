@@ -12,7 +12,7 @@ inputs:
     description: Execution goal (verify|ref).
     required: true
   ref_mode:
-    description: Reference mode (generate|compare).
+    description: Reference handling mode (off|generate|compare).
     required: true
   publish:
     description: Publish channel (none|artifact).

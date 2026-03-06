@@ -178,7 +178,7 @@ run_ref_compare() {
 }
 
 echo "=== Lane execution ==="
-echo "goal=${goal} verify_depth=${verify_depth} ref_mode=${ref_mode} publish=${publish}"
+echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
 echo "build=${build_tool} compiler=${ci_compiler} preset=${preset} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
 
 case "${goal}" in

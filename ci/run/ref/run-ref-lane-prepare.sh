@@ -7,7 +7,7 @@ ci_compiler="gcc"
 preset="default"
 goal="verify"
 verify_depth="install"
-ref_mode="generate"
+ref_mode="off"
 publish="none"
 variant=""
 baseline_root=""
@@ -33,7 +33,7 @@ Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --goal verify|ref
   --verify-depth configure|build|install
   --variant NAME
-  [--ref-mode generate|compare]
+  [--ref-mode off|generate|compare]
   [--publish none|artifact]
   [--baseline-root ROOT]
   [--ref-os OS]

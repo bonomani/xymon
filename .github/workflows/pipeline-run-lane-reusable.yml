@@ -20,7 +20,7 @@ on:
         required: true
         type: string
       ref_mode:
-        description: Reference mode when goal=ref (generate|compare)
+        description: Reference handling mode (off|generate|compare)
         required: true
         type: string
       publish:
