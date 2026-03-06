@@ -182,8 +182,8 @@ jobs:
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
-          SELECTED_BUILD_TOOL: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).build_tool }}
-          PURPOSE: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).purpose }}
+          SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
+          PURPOSE: ${{ steps.resolve_execution.outputs.purpose }}
         run: |
           set -euo pipefail
 
@@ -202,11 +202,11 @@ jobs:
         shell: bash
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
-          echo "Build tool: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).build_tool }}"
-          echo "Goal: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).goal }}"
-          echo "Ref mode: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).ref_mode }}"
-          echo "Publish: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).publish }}"
-          echo "Allow-failure mode: ${{ fromJSON(steps.resolve_execution.outputs.execution_model_json).allow_failure_mode }}"
+          echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
+          echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
+          echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
+          echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane counts (by runtime): ${{ steps.generate.outputs.lane_counts_json }}"
 

@@ -57,7 +57,15 @@ set -a
 source "${LANE_ENV_FILE}"
 set +a
 
+allow_container_token=0
+if [[ "${CHECKOUT_MODE:-action}" == "git" ]]; then
+  allow_container_token=1
+fi
+
 for docker_key in "${lane_env_keys[@]}"; do
+  if [[ "${docker_key}" == "GITHUB_TOKEN" && "${allow_container_token}" != "1" ]]; then
+    continue
+  fi
   if [[ -v "${docker_key}" ]]; then
     docker_args+=(-e "${docker_key}=${!docker_key}")
   fi
