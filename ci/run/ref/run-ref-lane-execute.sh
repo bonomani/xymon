@@ -2,6 +2,8 @@
 set -euo pipefail
 
 build_tool="${build_tool:-}"
+ci_compiler="${ci_compiler:-}"
+preset="${preset:-}"
 goal="${goal:-}"
 ref_mode="${ref_mode:-}"
 publish="${publish:-}"
@@ -24,6 +26,14 @@ if [[ -z "${build_tool}" ]]; then
 fi
 if [[ -z "${goal}" ]]; then
   echo "Missing prepared variable: goal" >&2
+  exit 2
+fi
+if [[ -z "${ci_compiler}" ]]; then
+  echo "Missing prepared variable: ci_compiler" >&2
+  exit 2
+fi
+if [[ -z "${preset}" ]]; then
+  echo "Missing prepared variable: preset" >&2
   exit 2
 fi
 if [[ -z "${variant}" ]]; then
@@ -60,6 +70,24 @@ if [[ -z "${CI_DEPS_REPORT_JSON:-}" ]]; then
 fi
 mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
 
+case "${ci_compiler}" in
+  gcc|clang)
+    ;;
+  *)
+    echo "Unsupported prepared compiler value: ${ci_compiler}" >&2
+    exit 2
+    ;;
+esac
+
+case "${preset}" in
+  default|gnuinstall|packaging)
+    ;;
+  *)
+    echo "Unsupported prepared preset value: ${preset}" >&2
+    exit 2
+    ;;
+esac
+
 load_legacy_hostname_in_process() {
   local env_file=""
   env_file="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
@@ -90,6 +118,8 @@ run_core_build_install() {
     --platform-os "${platform_os}"
     --variant "${variant}"
     --build "${build_tool}"
+    --compiler "${ci_compiler}"
+    --preset "${preset}"
   )
   if [[ -n "${os_version}" ]]; then
     args+=(--version "${os_version}")
@@ -102,6 +132,8 @@ run_ref_snapshot() {
     bash
     ci/run/ref/bootstrap-build-refs.sh
     --build "${build_tool}"
+    --compiler "${ci_compiler}"
+    --preset "${preset}"
     --os "${ref_os}"
     --platform-os "${platform_os}"
     --variant "${variant}"
@@ -128,7 +160,7 @@ run_ref_compare() {
 
 echo "=== Lane execution ==="
 echo "goal=${goal} ref_mode=${ref_mode} publish=${publish}"
-echo "build=${build_tool} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+echo "build=${build_tool} compiler=${ci_compiler} preset=${preset} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
 
 case "${goal}" in
   verify)
@@ -151,4 +183,3 @@ case "${goal}" in
     exit 2
     ;;
 esac
-

@@ -10,6 +10,8 @@ def parse_args():
         description="Resolve goal/ref/publish/build into normalized execution model"
     )
     parser.add_argument("--requested-build-tool", required=True)
+    parser.add_argument("--requested-compiler", default="auto")
+    parser.add_argument("--requested-preset", default="auto")
     parser.add_argument("--goal", default="verify")
     parser.add_argument("--ref-mode", default="generate")
     parser.add_argument("--publish", default="none")
@@ -24,6 +26,8 @@ def main() -> None:
     try:
         outputs = resolve_execution_model(
             requested_build_tool=args.requested_build_tool,
+            requested_compiler=args.requested_compiler,
+            requested_preset=args.requested_preset,
             goal=args.goal,
             ref_mode=args.ref_mode,
             publish=args.publish,

@@ -112,6 +112,8 @@ def main():
     supported_runtimes = set(runtime_model["ordered_keys"])
 
     build_tool = as_text(lane.get("build_tool"))
+    compiler = as_text(lane.get("compiler"))
+    preset = as_text(lane.get("preset"))
     lane_name = as_text(lane.get("name"))
     variant = as_text(lane.get("variant"))
     runtime = as_text(lane.get("runtime"))
@@ -120,6 +122,10 @@ def main():
         validate_lane_build_tool(build_tool)
     except ValueError as exc:
         fail(str(exc))
+    if compiler not in {"gcc", "clang"}:
+        fail(f"lane_json has unsupported compiler: {compiler}")
+    if preset not in {"default", "gnuinstall", "packaging"}:
+        fail(f"lane_json has unsupported preset: {preset}")
     if not lane_name:
         fail("lane_json missing name")
     if not variant:
@@ -185,6 +191,8 @@ def main():
         "ENABLE_LDAP": enable,
         "ENABLE_SNMP": enable,
         "BUILD_TOOL": build_tool,
+        "CI_COMPILER": compiler,
+        "PRESET": preset,
         "LANE_NAME": lane_name,
         "DEP_MODE": dep_mode,
         "GOAL": goal,

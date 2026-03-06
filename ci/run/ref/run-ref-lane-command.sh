@@ -80,6 +80,8 @@ args=(
   bash
   ci/run/ref/run-ref-lane.sh
   --build "${BUILD_TOOL}"
+  --compiler "${CI_COMPILER}"
+  --preset "${PRESET}"
   --goal "${GOAL}"
   --ref-mode "${REF_MODE}"
   --publish "${PUBLISH}"
