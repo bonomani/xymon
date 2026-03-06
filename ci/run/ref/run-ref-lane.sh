@@ -1,8 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
 build_tool=""
 goal="verify"
 ref_mode="generate"
@@ -19,6 +17,77 @@ ref_stage_root="${REF_STAGE_ROOT:-${GITHUB_WORKSPACE:-$(pwd)}/tmp/xymon-refs}"
 refs_root=""
 artifact_root=""
 legacy_hostname_config=""
+
+validate_lane_build_tool() {
+  local value="${1:-}"
+  case "${value}" in
+    make|cmake)
+      return 0
+      ;;
+    *)
+      echo "Unsupported lane build_tool: ${value}" >&2
+      return 2
+      ;;
+  esac
+}
+
+validate_goal_ref_publish() {
+  local lane_goal="${1:-}"
+  local lane_ref_mode="${2:-}"
+  local lane_publish="${3:-}"
+
+  case "${lane_goal}" in
+    verify|ref)
+      ;;
+    *)
+      echo "Unsupported goal: ${lane_goal}" >&2
+      return 2
+      ;;
+  esac
+
+  case "${lane_ref_mode}" in
+    generate|compare)
+      ;;
+    *)
+      echo "Unsupported ref_mode: ${lane_ref_mode}" >&2
+      return 2
+      ;;
+  esac
+
+  case "${lane_publish}" in
+    none|artifact)
+      ;;
+    *)
+      echo "Unsupported publish: ${lane_publish}" >&2
+      return 2
+      ;;
+  esac
+
+  if [[ "${lane_goal}" != "ref" && "${lane_ref_mode}" == "compare" ]]; then
+    echo "ref_mode=compare is only valid when goal=ref" >&2
+    return 2
+  fi
+  if [[ "${lane_goal}" == "verify" && "${lane_ref_mode}" != "generate" ]]; then
+    echo "goal=verify requires ref_mode=generate" >&2
+    return 2
+  fi
+  if [[ "${lane_goal}" == "verify" && "${lane_publish}" != "none" ]]; then
+    echo "goal=verify requires publish=none" >&2
+    return 2
+  fi
+
+  return 0
+}
+
+derive_dep_mode() {
+  local lane_goal="${1:-}"
+  local lane_ref_mode="${2:-}"
+  if [[ "${lane_goal}" == "ref" && "${lane_ref_mode}" == "compare" ]]; then
+    printf 'compare\n'
+  else
+    printf 'generate\n'
+  fi
+}
 
 usage() {
   cat <<'USAGE' >&2
@@ -113,30 +182,13 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
-if ! dep_mode="$(
-  PYTHONPATH="${script_dir}:${PYTHONPATH:-}" \
-    python3 - "${build_tool}" "${goal}" "${ref_mode}" "${publish}" <<'PY'
-import sys
-
-from execution_model import derive_dep_mode, validate_goal_ref_publish, validate_lane_build_tool
-
-
-build_tool = sys.argv[1]
-goal = sys.argv[2]
-ref_mode = sys.argv[3]
-publish = sys.argv[4]
-
-try:
-    validate_lane_build_tool(build_tool)
-    validate_goal_ref_publish(goal, ref_mode, publish)
-except ValueError as exc:
-    raise SystemExit(str(exc)) from exc
-
-print(derive_dep_mode(goal, ref_mode))
-PY
-)"; then
+if ! validate_lane_build_tool "${build_tool}"; then
   usage
 fi
+if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
+  usage
+fi
+dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
