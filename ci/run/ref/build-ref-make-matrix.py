@@ -387,19 +387,23 @@ def main():
     matrix_linux_container = {"include": matrices["linux_container"]}
     matrix_bsd_vm = {"include": matrices["bsd_vm"]}
     matrix_macos_host = {"include": matrices["macos_host"]}
+    matrix_all = {
+        "include": [
+            *matrices["linux_host"],
+            *matrices["linux_container"],
+            *matrices["bsd_vm"],
+            *matrices["macos_host"],
+        ]
+    }
     lane_count_linux_host = len(matrix_linux_host["include"])
     lane_count_linux_container = len(matrix_linux_container["include"])
     lane_count_bsd_vm = len(matrix_bsd_vm["include"])
     lane_count_macos_host = len(matrix_macos_host["include"])
-    lane_count_total = (
-        lane_count_linux_host
-        + lane_count_linux_container
-        + lane_count_bsd_vm
-        + lane_count_macos_host
-    )
+    lane_count_total = len(matrix_all["include"])
 
     output_path = Path(github_output)
     with output_path.open("a", encoding="utf-8") as fh:
+        fh.write(f"matrix_all={json.dumps(matrix_all)}\n")
         fh.write(f"matrix_linux_host={json.dumps(matrix_linux_host)}\n")
         fh.write(f"matrix_linux_container={json.dumps(matrix_linux_container)}\n")
         fh.write(f"matrix_bsd_vm={json.dumps(matrix_bsd_vm)}\n")

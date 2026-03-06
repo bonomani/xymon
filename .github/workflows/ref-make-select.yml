@@ -136,6 +136,7 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
     runs-on: ubuntu-22.04
     outputs:
+      matrix_all: ${{ steps.generate.outputs.matrix_all }}
       matrix_linux_host: ${{ steps.generate.outputs.matrix_linux_host }}
       matrix_linux_container: ${{ steps.generate.outputs.matrix_linux_container }}
       matrix_bsd_vm: ${{ steps.generate.outputs.matrix_bsd_vm }}
@@ -215,71 +216,14 @@ jobs:
           echo "Lane count (bsd_vm): ${{ steps.generate.outputs.lane_count_bsd_vm }}"
           echo "Lane count (macos_host): ${{ steps.generate.outputs.lane_count_macos_host }}"
 
-  ref-linux-host:
+  ref-lanes:
     needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_host != '0' }}
-    name: ${{ matrix.lane.name }}
-    strategy:
-      fail-fast: false
-      max-parallel: 6
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
-    uses: ./.github/workflows/ref-make-reusable-lane.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      goal: ${{ needs.build-matrix.outputs.goal }}
-      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
-      publish: ${{ needs.build-matrix.outputs.publish }}
-      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
-
-  ref-linux-container:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_linux_container != '0' }}
+    if: ${{ needs.build-matrix.outputs.lane_count_total != '0' }}
     name: ${{ matrix.lane.name }}
     strategy:
       fail-fast: false
       max-parallel: 8
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
-    uses: ./.github/workflows/ref-make-reusable-lane.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      goal: ${{ needs.build-matrix.outputs.goal }}
-      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
-      publish: ${{ needs.build-matrix.outputs.publish }}
-      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
-
-  ref-bsd-vm:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_bsd_vm != '0' }}
-    name: ${{ matrix.lane.name }}
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
-    uses: ./.github/workflows/ref-make-reusable-lane.yml
-    secrets: inherit
-    with:
-      lane_name: ${{ matrix.lane.name }}
-      lane_json: ${{ toJSON(matrix.lane) }}
-      goal: ${{ needs.build-matrix.outputs.goal }}
-      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
-      publish: ${{ needs.build-matrix.outputs.publish }}
-      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
-
-  ref-macos-host:
-    needs: build-matrix
-    if: ${{ needs.build-matrix.outputs.lane_count_macos_host != '0' }}
-    name: ${{ matrix.lane.name }}
-    strategy:
-      fail-fast: false
-      max-parallel: 4
-      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos_host) }}
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_all) }}
     uses: ./.github/workflows/ref-make-reusable-lane.yml
     secrets: inherit
     with:

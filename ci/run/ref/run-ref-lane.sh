@@ -22,12 +22,12 @@ legacy_hostname_config=""
 usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane.sh
-  --build TOOL
+  --build make|cmake
   --goal verify|ref
   --variant NAME
   [--ref-mode generate|compare]
   [--publish none|artifact]
-  [--dep-mode generate|compare]
+  --dep-mode generate|compare
   [--baseline-root ROOT]
   [--ref-os OS]
   [--platform-os OS]
@@ -113,49 +113,49 @@ while [[ $# -gt 0 ]]; do
   esac
 done
 
-resolved_build_tool=""
-resolved_goal=""
-resolved_ref_mode=""
-resolved_publish=""
-resolved_dep_mode=""
-while IFS='=' read -r key value; do
-  case "${key}" in
-    build_tool)
-      resolved_build_tool="${value}"
-      ;;
-    goal)
-      resolved_goal="${value}"
-      ;;
-    ref_mode)
-      resolved_ref_mode="${value}"
-      ;;
-    publish)
-      resolved_publish="${value}"
-      ;;
-    dep_mode)
-      resolved_dep_mode="${value}"
-      ;;
-  esac
-done < <(
-  bash ci/run/ref/resolve-execution-model.sh \
-    --requested-build-tool "${build_tool}" \
-    --goal "${goal}" \
-    --ref-mode "${ref_mode}" \
-    --publish "${publish}" \
-    --allow-failure-mode allow
-)
-
-build_tool="${resolved_build_tool}"
-goal="${resolved_goal}"
-ref_mode="${resolved_ref_mode}"
-publish="${resolved_publish}"
-
-if [[ -n "${dep_mode}" && "${dep_mode}" != "${resolved_dep_mode}" ]]; then
-  echo "Provided --dep-mode (${dep_mode}) does not match resolved mode (${resolved_dep_mode})" >&2
+if [[ -z "${build_tool}" ]]; then
+  echo "Missing --build" >&2
   usage
 fi
+case "${build_tool}" in
+  make|cmake)
+    ;;
+  *)
+    echo "Unsupported --build value: ${build_tool}" >&2
+    usage
+    ;;
+esac
+
+case "${goal}" in
+  verify|ref)
+    ;;
+  *)
+    echo "Unsupported --goal value: ${goal}" >&2
+    usage
+    ;;
+esac
+
+case "${ref_mode}" in
+  generate|compare)
+    ;;
+  *)
+    echo "Unsupported --ref-mode value: ${ref_mode}" >&2
+    usage
+    ;;
+esac
+
+case "${publish}" in
+  none|artifact)
+    ;;
+  *)
+    echo "Unsupported --publish value: ${publish}" >&2
+    usage
+    ;;
+esac
+
 if [[ -z "${dep_mode}" ]]; then
-  dep_mode="${resolved_dep_mode}"
+  echo "Missing --dep-mode" >&2
+  usage
 fi
 
 case "${dep_mode}" in
@@ -166,6 +166,28 @@ case "${dep_mode}" in
     usage
     ;;
 esac
+
+if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
+  echo "--ref-mode compare is only valid with --goal ref" >&2
+  usage
+fi
+if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
+  echo "--goal verify requires --ref-mode generate" >&2
+  usage
+fi
+if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
+  echo "--goal verify requires --publish none" >&2
+  usage
+fi
+
+expected_dep_mode="generate"
+if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
+  expected_dep_mode="compare"
+fi
+if [[ "${dep_mode}" != "${expected_dep_mode}" ]]; then
+  echo "--dep-mode ${dep_mode} does not match expected mode ${expected_dep_mode} for goal/ref_mode" >&2
+  usage
+fi
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
