@@ -104,6 +104,168 @@ def infer_platform_version(platform_id: str) -> str:
     return parts[1].replace("_", ".")
 
 
+def lane_context_label(family_entry, lane_obj) -> str:
+    return (
+        f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
+        f"'{family_entry['family']}'"
+    )
+
+
+def resolve_supported_build_tools(family_entry, lane_obj, platform_entry, platform_id):
+    supported_build_tools = parse_supported_build_tools(
+        lane_obj.pop("supported_build_tools", None),
+        f"{lane_context_label(family_entry, lane_obj)} supported_build_tools",
+        supported_values=SUPPORTED_BUILD_TOOLS,
+    )
+    if supported_build_tools is None and platform_entry is not None:
+        supported_build_tools = parse_supported_build_tools(
+            platform_entry.get("supported_build_tools"),
+            f"Platform '{platform_id}'.supported_build_tools",
+            supported_values=SUPPORTED_BUILD_TOOLS,
+        )
+    return supported_build_tools
+
+
+def resolve_platform_binding(family_entry, lane_obj, platform_catalog):
+    platform_id = lane_obj.get("platform_id")
+    if platform_id is None:
+        return None, None, ""
+
+    platform_id = require_non_empty_string(
+        platform_id,
+        f"{lane_context_label(family_entry, lane_obj)} platform_id",
+    )
+    platform_entry = platform_catalog.get(platform_id)
+    if platform_entry is None:
+        die(
+            f"{lane_context_label(family_entry, lane_obj)} references unknown "
+            f"platform_id '{platform_id}'"
+        )
+
+    platform_runtime = require_non_empty_string(
+        platform_entry.get("runtime"),
+        f"Platform '{platform_id}'.runtime",
+    ).lower()
+    expected_runtime = family_entry["runtime_to_platform_runtime"][family_entry["runtime"]]
+    if platform_runtime != expected_runtime:
+        die(
+            f"{lane_context_label(family_entry, lane_obj)} expects runtime "
+            f"'{expected_runtime}' but platform '{platform_id}' is '{platform_runtime}'"
+        )
+
+    return platform_id, platform_entry, platform_runtime
+
+
+def apply_platform_runtime_defaults(
+    family_entry,
+    lane_obj,
+    platform_entry,
+    platform_id,
+    platform_runtime,
+):
+    if platform_entry is None:
+        return
+
+    if platform_runtime == "docker":
+        lane_obj["container"] = require_non_empty_string(
+            platform_entry.get("image"), f"Platform '{platform_id}'.image"
+        )
+    elif platform_runtime == "host":
+        lane_obj.setdefault(
+            "runs_on",
+            require_non_empty_string(
+                platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
+            ),
+        )
+
+    os_version_key = family_entry["os_version_key"]
+    if os_version_key and lane_obj.get(os_version_key) in (None, ""):
+        inferred_version = ""
+        deps = platform_entry.get("deps")
+        if isinstance(deps, dict):
+            version = deps.get("version")
+            if isinstance(version, (str, int, float)):
+                inferred_version = str(version).strip()
+        if not inferred_version:
+            inferred_version = infer_platform_version(platform_id)
+        if inferred_version:
+            lane_obj[os_version_key] = inferred_version
+
+
+def auto_name_lane(family_entry, lane_obj, platform_entry, platform_id):
+    if lane_obj.get("name") not in (None, ""):
+        return
+    if platform_entry is None:
+        die(
+            f"Lane for family '{family_entry['family']}' is missing name "
+            "and cannot be auto-named without platform_id"
+        )
+
+    display_name = require_non_empty_string(
+        platform_entry.get("display_name"),
+        f"Platform '{platform_id}'.display_name",
+    )
+    variant = lane_obj.get("variant")
+    suffix = VARIANT_NAME_SUFFIX.get(variant)
+    if not suffix:
+        die(
+            f"Lane for family '{family_entry['family']}' has unsupported "
+            f"variant '{variant}' for auto naming"
+        )
+    lane_obj["name"] = f"{display_name} - {suffix}"
+
+
+def apply_container_arm64_overrides(family_entry, lane_obj, runtime_execution):
+    arm64_overrides = family_entry["container_arm64_overrides"]
+    if not arm64_overrides or runtime_execution != "container":
+        return
+    container_options = str(lane_obj.get("container_options", "")).lower()
+    if "linux/arm64" in container_options:
+        lane_obj.update(arm64_overrides)
+
+
+def finalize_lane_defaults(family_entry, lane_obj):
+    os_version_key = family_entry["os_version_key"]
+    if os_version_key:
+        lane_obj["os_version"] = lane_obj.get(os_version_key)
+        if lane_obj["os_version"] in (None, ""):
+            die(
+                f"{lane_context_label(family_entry, lane_obj)} is missing "
+                f"'{os_version_key}'"
+            )
+
+    default_architecture = family_entry["default_architecture"]
+    if default_architecture:
+        lane_obj.setdefault("architecture", default_architecture)
+
+    # Keep runs_on as the canonical runner selector key.
+    lane_obj.pop("runner", None)
+
+    lane_obj.setdefault(
+        "platform_os",
+        infer_platform_os(family_entry["family"], lane_obj.get("platform_id")),
+    )
+
+
+def validate_lane_requirements(
+    family_entry,
+    lane_obj,
+    runtime_execution,
+    runtime_requires_runs_on,
+):
+    required = ("name", "variant", "runtime", "build_tool", "ref_os", "platform_os")
+    for key in required:
+        if lane_obj.get(key) in (None, ""):
+            die(f"{lane_context_label(family_entry, lane_obj)} is missing '{key}'")
+
+    if runtime_requires_runs_on and lane_obj.get("runs_on") in (None, ""):
+        die(f"{lane_context_label(family_entry, lane_obj)} is missing 'runs_on'")
+    if runtime_execution == "container" and lane_obj.get("container") in (None, ""):
+        die(f"{lane_context_label(family_entry, lane_obj)} is missing 'container'")
+    if runtime_execution == "host" and lane_obj.get("runs_on") in (None, ""):
+        die(f"{lane_context_label(family_entry, lane_obj)} is missing 'runs_on'")
+
+
 def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: str):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -124,146 +286,32 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
 
     lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
     lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
-    supported_build_tools = parse_supported_build_tools(
-        lane_obj.pop("supported_build_tools", None),
-        (
-            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-            f"'{family_entry['family']}' supported_build_tools"
-        ),
-        supported_values=SUPPORTED_BUILD_TOOLS,
+    platform_id, platform_entry, platform_runtime = resolve_platform_binding(
+        family_entry, lane_obj, platform_catalog
     )
-
-    platform_entry = None
-    platform_id = lane_obj.get("platform_id")
-    if platform_id is not None:
-        platform_id = require_non_empty_string(
-            platform_id,
-            f"Lane '{lane_obj.get('name', '<unnamed>')}' platform_id",
-        )
-        platform_entry = platform_catalog.get(platform_id)
-        if platform_entry is None:
-            die(
-                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-                f"'{family_entry['family']}' references unknown platform_id '{platform_id}'"
-            )
-
-        if supported_build_tools is None:
-            supported_build_tools = parse_supported_build_tools(
-                platform_entry.get("supported_build_tools"),
-                f"Platform '{platform_id}'.supported_build_tools",
-                supported_values=SUPPORTED_BUILD_TOOLS,
-            )
-
-        platform_runtime = require_non_empty_string(
-            platform_entry.get("runtime"),
-            f"Platform '{platform_id}'.runtime",
-        ).lower()
-        expected_runtime = family_entry["runtime_to_platform_runtime"][family_entry["runtime"]]
-        if platform_runtime != expected_runtime:
-            die(
-                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-                f"'{family_entry['family']}' expects runtime '{expected_runtime}' "
-                f"but platform '{platform_id}' is '{platform_runtime}'"
-            )
-
-        if platform_runtime == "docker":
-            lane_obj["container"] = require_non_empty_string(
-                platform_entry.get("image"), f"Platform '{platform_id}'.image"
-            )
-        elif platform_runtime == "host":
-            lane_obj.setdefault(
-                "runs_on",
-                require_non_empty_string(
-                    platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
-                ),
-            )
-
-        os_version_key = family_entry["os_version_key"]
-        if os_version_key and lane_obj.get(os_version_key) in (None, ""):
-            inferred_version = ""
-            deps = platform_entry.get("deps")
-            if isinstance(deps, dict):
-                version = deps.get("version")
-                if isinstance(version, (str, int, float)):
-                    inferred_version = str(version).strip()
-            if not inferred_version:
-                inferred_version = infer_platform_version(platform_id)
-            if inferred_version:
-                lane_obj[os_version_key] = inferred_version
-
-    if lane_obj.get("name") in (None, ""):
-        if platform_entry is None:
-            die(
-                f"Lane for family '{family_entry['family']}' is missing name "
-                "and cannot be auto-named without platform_id"
-            )
-        display_name = require_non_empty_string(
-            platform_entry.get("display_name"),
-            f"Platform '{platform_id}'.display_name",
-        )
-        variant = lane_obj.get("variant")
-        suffix = VARIANT_NAME_SUFFIX.get(variant)
-        if not suffix:
-            die(
-                f"Lane for family '{family_entry['family']}' has unsupported "
-                f"variant '{variant}' for auto naming"
-            )
-        lane_obj["name"] = f"{display_name} - {suffix}"
+    supported_build_tools = resolve_supported_build_tools(
+        family_entry, lane_obj, platform_entry, platform_id
+    )
+    apply_platform_runtime_defaults(
+        family_entry,
+        lane_obj,
+        platform_entry,
+        platform_id,
+        platform_runtime,
+    )
+    auto_name_lane(family_entry, lane_obj, platform_entry, platform_id)
 
     if supported_build_tools is not None and build_tool not in supported_build_tools:
         return None
 
-    arm64_overrides = family_entry["container_arm64_overrides"]
-    if arm64_overrides and runtime_execution == "container":
-        container_options = str(lane_obj.get("container_options", "")).lower()
-        if "linux/arm64" in container_options:
-            lane_obj.update(arm64_overrides)
-
-    os_version_key = family_entry["os_version_key"]
-    if os_version_key:
-        lane_obj["os_version"] = lane_obj.get(os_version_key)
-        if lane_obj["os_version"] in (None, ""):
-            die(
-                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-                f"'{family_entry['family']}' is missing '{os_version_key}'"
-            )
-
-    default_architecture = family_entry["default_architecture"]
-    if default_architecture:
-        lane_obj.setdefault("architecture", default_architecture)
-
-    # Keep runs_on as the canonical runner selector key.
-    lane_obj.pop("runner", None)
-
-    lane_obj.setdefault(
-        "platform_os",
-        infer_platform_os(family_entry["family"], lane_obj.get("platform_id")),
+    apply_container_arm64_overrides(family_entry, lane_obj, runtime_execution)
+    finalize_lane_defaults(family_entry, lane_obj)
+    validate_lane_requirements(
+        family_entry,
+        lane_obj,
+        runtime_execution,
+        runtime_requires_runs_on,
     )
-
-    required = ("name", "variant", "runtime", "build_tool", "ref_os", "platform_os")
-    for key in required:
-        if lane_obj.get(key) in (None, ""):
-            die(
-                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-                f"'{family_entry['family']}' is missing '{key}'"
-            )
-
-    runtime = lane_obj["runtime"]
-    if runtime_requires_runs_on and lane_obj.get("runs_on") in (None, ""):
-        die(
-            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-            f"'{family_entry['family']}' is missing 'runs_on'"
-        )
-    if runtime_execution == "container" and lane_obj.get("container") in (None, ""):
-        die(
-            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-            f"'{family_entry['family']}' is missing 'container'"
-        )
-    if runtime_execution == "host" and lane_obj.get("runs_on") in (None, ""):
-        die(
-            f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-            f"'{family_entry['family']}' is missing 'runs_on'"
-        )
 
     lane_obj["artifact_arch"] = infer_artifact_arch(lane_obj)
 

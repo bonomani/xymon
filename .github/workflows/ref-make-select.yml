@@ -137,7 +137,6 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       matrix_all: ${{ steps.generate.outputs.matrix_all }}
-      execution_model_json: ${{ steps.resolve_execution.outputs.execution_model_json }}
       build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
       goal: ${{ steps.resolve_execution.outputs.goal }}
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}

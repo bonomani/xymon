@@ -172,6 +172,24 @@ def main():
             sort_keys=True,
         )
     ]
+    continue_on_error = (
+        "true"
+        if allow_failure_mode != "off" and lane_allow_failure == "1"
+        else "false"
+    )
+    output_lines.extend(
+        [
+            f"runtime_execution={runtime_execution}",
+            f"continue_on_error={continue_on_error}",
+            f"ref_os={ref_os}",
+            f"architecture={as_text(lane.get('architecture'))}",
+            f"os_version={os_version}",
+            f"vm_memory={as_text(lane.get('vm_memory'))}",
+            f"vm_cpu_count={as_text(lane.get('vm_cpu_count'))}",
+            f"runtime={runtime}",
+            f"runtime_outcome_channel={runtime_outcome_channel}",
+        ]
+    )
 
     if args.github_output:
         with open(args.github_output, "a", encoding="utf-8") as fh:

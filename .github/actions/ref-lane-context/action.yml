@@ -22,6 +22,33 @@ outputs:
   lane_env_json:
     description: Canonical lane environment payload as JSON mapping.
     value: ${{ steps.resolve.outputs.lane_env_json }}
+  runtime_execution:
+    description: Runtime execution type (host|container|vm).
+    value: ${{ steps.resolve.outputs.runtime_execution }}
+  continue_on_error:
+    description: Whether lane execution steps should continue-on-error.
+    value: ${{ steps.resolve.outputs.continue_on_error }}
+  ref_os:
+    description: Reference OS key resolved for lane runtime.
+    value: ${{ steps.resolve.outputs.ref_os }}
+  architecture:
+    description: Architecture hint used by VM-backed lanes.
+    value: ${{ steps.resolve.outputs.architecture }}
+  os_version:
+    description: OS version used by VM-backed lanes.
+    value: ${{ steps.resolve.outputs.os_version }}
+  vm_memory:
+    description: VM memory for BSD lanes.
+    value: ${{ steps.resolve.outputs.vm_memory }}
+  vm_cpu_count:
+    description: VM CPU count for BSD lanes.
+    value: ${{ steps.resolve.outputs.vm_cpu_count }}
+  runtime:
+    description: Runtime key of the selected lane.
+    value: ${{ steps.resolve.outputs.runtime }}
+  runtime_outcome_channel:
+    description: Outcome channel for selecting lane result source.
+    value: ${{ steps.resolve.outputs.runtime_outcome_channel }}
 
 runs:
   using: composite

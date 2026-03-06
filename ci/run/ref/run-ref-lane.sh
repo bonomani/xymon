@@ -111,54 +111,8 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
-case "${build_tool}" in
-  make|cmake)
-    ;;
-  *)
-    echo "Unsupported --build value: ${build_tool}" >&2
-    usage
-    ;;
-esac
-
-case "${goal}" in
-  verify|ref)
-    ;;
-  *)
-    echo "Unsupported --goal value: ${goal}" >&2
-    usage
-    ;;
-esac
-
-case "${ref_mode}" in
-  generate|compare)
-    ;;
-  *)
-    echo "Unsupported --ref-mode value: ${ref_mode}" >&2
-    usage
-    ;;
-esac
-
-case "${publish}" in
-  none|artifact)
-    ;;
-  *)
-    echo "Unsupported --publish value: ${publish}" >&2
-    usage
-    ;;
-esac
-
-if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
-  echo "ref_mode=compare is only valid when goal=ref" >&2
-  usage
-fi
-if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
-  echo "goal=verify requires ref_mode=generate" >&2
-  usage
-fi
-if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
-  echo "goal=verify requires publish=none" >&2
-  usage
-fi
+# goal/ref_mode/publish consistency is validated upstream by execution_model.py
+# before lane execution reaches this script.
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
@@ -290,5 +244,9 @@ case "${goal}" in
     if [[ "${ref_mode}" == "compare" ]]; then
       run_ref_compare
     fi
+    ;;
+  *)
+    echo "Unsupported --goal value: ${goal}" >&2
+    usage
     ;;
 esac
