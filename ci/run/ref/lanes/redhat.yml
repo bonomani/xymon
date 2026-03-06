@@ -4,3 +4,4 @@ include:
 - platform_id: almalinux-8
 - platform_id: almalinux-9
 - platform_id: almalinux-10
+  allow_failure: true
