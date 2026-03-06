@@ -31,7 +31,7 @@ runs:
       env:
         LANE_POST_JSON: ${{ inputs.lane_post_json }}
         LANE_OUTCOME: ${{ inputs.lane_outcome }}
-        OUTPUT_PATH: ${{ runner.temp }}/${{ format('lane-outcome-{0}-{1}-{2}.json', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant) }}
+        OUTPUT_DIR: ${{ runner.temp }}/${{ format('lane-outcome-{0}-{1}-{2}', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant) }}
       run: |
         set -euo pipefail
 
@@ -50,10 +50,12 @@ runs:
             "platform_id": lane_post.get("platform_id", ""),
             "variant": lane_post.get("variant", ""),
         }
-        output_path = Path(os.environ["OUTPUT_PATH"])
+        output_dir = Path(os.environ["OUTPUT_DIR"])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / "lane-outcome.json"
         output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
-            handle.write(f"path={output_path}\n")
+            handle.write(f"path={output_dir}\n")
         PY
 
     - name: Upload masked lane outcome metadata

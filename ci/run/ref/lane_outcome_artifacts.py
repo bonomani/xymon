@@ -88,10 +88,15 @@ def extract_lane_outcome_from_archive(archive_bytes: bytes) -> dict:
         members = sorted(
             name
             for name in archive.namelist()
-            if name == "lane-outcome.json" or name.endswith("/lane-outcome.json")
+            if (
+                name == "lane-outcome.json"
+                or name.endswith("/lane-outcome.json")
+                or name.startswith("lane-outcome-")
+                or "/lane-outcome-" in name
+            )
         )
         if not members:
-            raise ValueError("lane-outcome.json not found in artifact archive")
+            raise ValueError("lane outcome JSON not found in artifact archive")
         payload = json.loads(archive.read(members[0]).decode("utf-8"))
     if not isinstance(payload, dict):
         raise ValueError("lane-outcome.json payload is not a JSON object")
