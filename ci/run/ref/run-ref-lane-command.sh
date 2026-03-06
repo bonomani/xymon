@@ -27,8 +27,6 @@ done
 validate_lane_build_tool "${BUILD_TOOL}"
 # shellcheck disable=SC2153
 validate_goal_ref_publish "${GOAL}" "${REF_MODE}" "${PUBLISH}"
-# shellcheck disable=SC2153
-dep_mode="$(derive_dep_mode "${GOAL}" "${REF_MODE}")"
 
 args=(
   bash
@@ -37,7 +35,6 @@ args=(
   --goal "${GOAL}"
   --ref-mode "${REF_MODE}"
   --publish "${PUBLISH}"
-  --dep-mode "${dep_mode}"
   --variant "${VARIANT}"
   --ref-os "${REF_OS}"
   --platform-os "${PLATFORM_OS}"

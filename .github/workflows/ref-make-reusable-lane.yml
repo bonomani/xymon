@@ -51,10 +51,8 @@ jobs:
           publish: ${{ inputs.publish }}
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
 
-      - name: Run lane orchestration (host/container)
-        id: lane_run_host_container
-        if: ${{ steps.lane_ctx.outputs.runtime != 'bsd_vm' }}
-        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
+      - name: Render lane environment
+        id: lane_env
         shell: bash
         env:
           LEGACY_APPLY_OWNERSHIP: ON
@@ -80,6 +78,24 @@ jobs:
           CONTAINER_IMAGE: ${{ steps.lane_ctx.outputs.container }}
           CONTAINER_OPTIONS: ${{ steps.lane_ctx.outputs.container_options }}
           RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
+          CI: ${{ env.CI }}
+          GITHUB_WORKSPACE: ${{ github.workspace }}
+          GITHUB_REPOSITORY: ${{ github.repository }}
+          GITHUB_SHA: ${{ github.sha }}
+          GITHUB_SERVER_URL: ${{ github.server_url }}
+        run: |
+          set -euo pipefail
+          out_file="tmp/xymon-refs/lane.env.sh"
+          bash ci/run/ref/write-lane-env.sh --output "${out_file}"
+          echo "path=${out_file}" >> "${GITHUB_OUTPUT}"
+
+      - name: Run lane orchestration (host/container)
+        id: lane_run_host_container
+        if: ${{ steps.lane_ctx.outputs.runtime != 'bsd_vm' }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
+        shell: bash
+        env:
+          LANE_ENV_FILE: ${{ steps.lane_env.outputs.path }}
         run: |
           set -euo pipefail
           bash ci/run/ref/run-runtime-lane.sh
@@ -100,23 +116,8 @@ jobs:
           shutdown_vm: true
           run_script: |
             set -euo pipefail
-            export LEGACY_APPLY_OWNERSHIP=ON
-            export ENABLE_LDAP="${{ steps.lane_ctx.outputs.enable_ldap }}"
-            export ENABLE_SNMP="${{ steps.lane_ctx.outputs.enable_snmp }}"
-            export BUILD_TOOL="${{ steps.lane_ctx.outputs.build_tool }}"
-            export GOAL="${{ steps.lane_ctx.outputs.goal }}"
-            export REF_MODE="${{ steps.lane_ctx.outputs.ref_mode }}"
-            export PUBLISH="${{ steps.lane_ctx.outputs.publish }}"
-            export REF_OS="${{ steps.lane_ctx.outputs.ref_os }}"
-            export PLATFORM_OS="${{ steps.lane_ctx.outputs.platform_os }}"
-            export OS_VERSION="${{ steps.lane_ctx.outputs.os_version }}"
-            export VARIANT="${{ steps.lane_ctx.outputs.variant }}"
-            export BASELINE_ROOT="${{ steps.lane_ctx.outputs.baseline_root }}"
-            export ARTIFACT_FAMILY="${{ steps.lane_ctx.outputs.artifact_family }}"
-            export PLATFORM_ID="${{ steps.lane_ctx.outputs.platform_id }}"
-            export REF_STAGE_ROOT="${{ steps.lane_ctx.outputs.ref_stage_root }}"
-            export CMAKE_BIN="${{ steps.lane_ctx.outputs.cmake_bin }}"
-            bash ci/run/ref/run-ref-lane-command.sh
+            export LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}"
+            bash ci/run/ref/run-runtime-lane.sh
 
       - name: Resolve lane run outcome
         id: lane_outcome
@@ -128,16 +129,17 @@ jobs:
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
         run: |
           set -euo pipefail
+          outcome_channel="$(python3 ci/run/ref/runtime-model-query.py --runtime "${RUNTIME}" --field outcome_channel)"
           outcome=""
-          case "${RUNTIME}" in
+          case "${outcome_channel}" in
             bsd_vm)
               outcome="${OUTCOME_BSD_VM}"
               ;;
-            linux_host|linux_container|macos_host)
+            host_container)
               outcome="${OUTCOME_HOST_CONTAINER}"
               ;;
             *)
-              echo "Unsupported runtime '${RUNTIME}'" >&2
+              echo "Unsupported outcome channel '${outcome_channel}' for runtime '${RUNTIME}'" >&2
               exit 2
               ;;
           esac

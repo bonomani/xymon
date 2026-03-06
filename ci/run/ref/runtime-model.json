@@ -1,0 +1,28 @@
+{
+  "runtimes": [
+    {
+      "key": "linux_host",
+      "platform_runtime": "host",
+      "execution": "host",
+      "outcome_channel": "host_container"
+    },
+    {
+      "key": "linux_container",
+      "platform_runtime": "docker",
+      "execution": "container",
+      "outcome_channel": "host_container"
+    },
+    {
+      "key": "bsd_vm",
+      "platform_runtime": "vm",
+      "execution": "vm",
+      "outcome_channel": "bsd_vm"
+    },
+    {
+      "key": "macos_host",
+      "platform_runtime": "host",
+      "execution": "host",
+      "outcome_channel": "host_container"
+    }
+  ]
+}

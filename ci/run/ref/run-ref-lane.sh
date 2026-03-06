@@ -9,7 +9,6 @@ build_tool=""
 goal="verify"
 ref_mode="generate"
 publish="none"
-dep_mode=""
 variant=""
 baseline_root=""
 ref_os="linux"
@@ -31,7 +30,6 @@ Usage: run-ref-lane.sh
   --variant NAME
   [--ref-mode generate|compare]
   [--publish none|artifact]
-  [--dep-mode generate|compare]
   [--baseline-root ROOT]
   [--ref-os OS]
   [--platform-os OS]
@@ -61,10 +59,6 @@ while [[ $# -gt 0 ]]; do
       ;;
     --publish)
       publish="${2:-}"
-      shift 2
-      ;;
-    --dep-mode)
-      dep_mode="${2:-}"
       shift 2
       ;;
     --variant)
@@ -125,28 +119,11 @@ if ! validate_lane_build_tool "${build_tool}"; then
   usage
 fi
 
-if [[ -z "${dep_mode}" ]]; then
-  dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
-fi
-
-case "${dep_mode}" in
-  generate|compare)
-    ;;
-  *)
-    echo "Unsupported --dep-mode value: ${dep_mode}" >&2
-    usage
-    ;;
-esac
-
 if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
   usage
 fi
 
-expected_dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
-if [[ "${dep_mode}" != "${expected_dep_mode}" ]]; then
-  echo "--dep-mode ${dep_mode} does not match expected mode ${expected_dep_mode} for goal/ref_mode" >&2
-  usage
-fi
+dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
@@ -171,19 +148,21 @@ if [[ "${goal}" == "ref" ]]; then
   fi
 fi
 
-if [[ -z "${refs_root}" ]]; then
-  refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
+baseline_prefix=""
+candidate_dir=""
+if [[ "${goal}" == "ref" ]]; then
+  if [[ -z "${refs_root}" ]]; then
+    refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
+  fi
+  if [[ -z "${artifact_root}" ]]; then
+    artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}-${platform_id}-${variant}"
+  fi
+  if [[ -z "${legacy_hostname_config}" ]]; then
+    legacy_hostname_config="docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+  fi
+  baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
+  candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
 fi
-if [[ -z "${artifact_root}" ]]; then
-  artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}-${platform_id}-${variant}"
-fi
-
-if [[ -z "${legacy_hostname_config}" ]]; then
-  legacy_hostname_config="docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
-fi
-
-baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
-candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
 
 report_mode="${dep_mode}"
 export CI_DEPS_REPORT_MODE="${CI_DEPS_REPORT_MODE:-${report_mode}}"
