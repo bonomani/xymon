@@ -14,13 +14,13 @@ from pathlib import Path
 import yaml
 from github_actions_runs import format_resolved_via, load_latest_workflow_run, load_run_from_selector
 from lane_categories import (
-    CATEGORY_LABELS,
     CATEGORY_ORDER,
     build_category_counts,
     classify_lane_category,
     total_fail_count,
 )
 from lane_registry import build_lane_registry
+from lane_utils import DEFAULT_LANE_VARIANTS
 
 API_VERSION = "2022-11-28"
 DEFAULT_WORKFLOW = "pipeline-select-run-lanes.yml"
@@ -31,12 +31,6 @@ GROUP_STATE_ORDER = [
     "masked_ready_to_reset",
     "masked_still_failing",
 ]
-GROUP_STATE_LABELS = {
-    "normal_passing": "Normal lane groups passing",
-    "normal_failing": "Normal lane groups failing and eligible to mask",
-    "masked_ready_to_reset": "Masked lane groups ready to reset",
-    "masked_still_failing": "Masked lane groups still failing",
-}
 
 
 def die(message: str) -> None:
@@ -60,6 +54,154 @@ def append_details_section(markdown_lines: list[str], title: str, items: list[st
     markdown_lines.extend(["", f"<details><summary>{title}</summary>", ""])
     markdown_lines.extend(items)
     markdown_lines.extend(["", "</details>"])
+
+
+def normalize_variant_name(value: object, context: str) -> str:
+    if not isinstance(value, str) or not value.strip():
+        raise ValueError(f"{context} must be a non-empty string")
+    return value.strip()
+
+
+def extract_entry_variant_specs(entry: dict, lane_file: str, include_index: int) -> dict[str, object]:
+    if "variant" in entry:
+        variant = normalize_variant_name(
+            entry.get("variant"),
+            f"{lane_file}#{include_index}.variant",
+        )
+        return {
+            "single_variant": True,
+            "had_variants_key": False,
+            "specs": [
+                {
+                    "variant": variant,
+                    "raw": dict(entry),
+                }
+            ],
+        }
+
+    raw_variants = entry.get("variants")
+    had_variants_key = raw_variants is not None
+    if raw_variants is None:
+        raw_variants = list(DEFAULT_LANE_VARIANTS)
+    if not isinstance(raw_variants, list) or not raw_variants:
+        raise ValueError(f"{lane_file}#{include_index}.variants must be a non-empty list")
+
+    seen_variants: set[str] = set()
+    specs: list[dict[str, object]] = []
+    for variant_index, raw_variant in enumerate(raw_variants):
+        context = f"{lane_file}#{include_index}.variants[{variant_index}]"
+        if isinstance(raw_variant, str):
+            variant = normalize_variant_name(raw_variant, context)
+        elif isinstance(raw_variant, dict):
+            variant = normalize_variant_name(raw_variant.get("variant"), f"{context}.variant")
+        else:
+            raise ValueError(f"{context} must be a string or mapping")
+        if variant in seen_variants:
+            raise ValueError(f"{lane_file}#{include_index} defines duplicate variant '{variant}'")
+        seen_variants.add(variant)
+        specs.append({"variant": variant, "raw": raw_variant})
+
+    return {
+        "single_variant": False,
+        "had_variants_key": had_variants_key,
+        "specs": specs,
+    }
+
+
+def render_variant_item(
+    raw_variant: object,
+    variant: str,
+    allow_failure: bool,
+    *,
+    inherit_from_entry: bool,
+) -> object:
+    if isinstance(raw_variant, str):
+        if inherit_from_entry or not allow_failure:
+            return variant
+        return {"variant": variant, "allow_failure": True}
+
+    item_data = dict(raw_variant) if isinstance(raw_variant, dict) else {"variant": variant}
+    item_data.pop("variant", None)
+    if inherit_from_entry:
+        item_data.pop("allow_failure", None)
+    elif allow_failure:
+        item_data["allow_failure"] = True
+    else:
+        item_data.pop("allow_failure", None)
+
+    item = {"variant": variant}
+    item.update(item_data)
+    if set(item.keys()) == {"variant"}:
+        return variant
+    return item
+
+
+def apply_entry_lane_states(
+    entry: dict,
+    variant_specs: dict[str, object],
+    desired_by_variant: dict[str, bool],
+) -> None:
+    specs = list(variant_specs["specs"])
+    if not specs:
+        return
+
+    if variant_specs["single_variant"]:
+        desired = desired_by_variant[specs[0]["variant"]]
+        if desired:
+            entry["allow_failure"] = True
+        else:
+            entry.pop("allow_failure", None)
+        return
+
+    desired_values = {desired_by_variant[spec["variant"]] for spec in specs}
+    if len(desired_values) == 1:
+        shared_allow_failure = desired_values.pop()
+        if shared_allow_failure:
+            entry["allow_failure"] = True
+        else:
+            entry.pop("allow_failure", None)
+
+        rendered_variants = [
+            render_variant_item(
+                spec["raw"],
+                spec["variant"],
+                shared_allow_failure,
+                inherit_from_entry=True,
+            )
+            for spec in specs
+        ]
+        if (
+            rendered_variants == list(DEFAULT_LANE_VARIANTS)
+            and not variant_specs["had_variants_key"]
+        ):
+            entry.pop("variants", None)
+        else:
+            entry["variants"] = rendered_variants
+        return
+
+    entry.pop("allow_failure", None)
+    entry["variants"] = [
+        render_variant_item(
+            spec["raw"],
+            spec["variant"],
+            desired_by_variant[spec["variant"]],
+            inherit_from_entry=False,
+        )
+        for spec in specs
+    ]
+
+
+def classify_entry_state(entry_lanes: list[dict]) -> str:
+    has_normal_failure = any((not lane["current_allow_failure"]) and lane["has_failure"] for lane in entry_lanes)
+    has_masked_failure = any(lane["current_allow_failure"] and lane["has_failure"] for lane in entry_lanes)
+    has_masked_success = any(lane["current_allow_failure"] and lane["all_success"] for lane in entry_lanes)
+    if has_normal_failure:
+        return "normal_failing"
+    if has_masked_failure:
+        return "masked_still_failing"
+    if has_masked_success:
+        return "masked_ready_to_reset"
+    return "normal_passing"
 
 
 def load_token(token_env: str) -> str:
@@ -212,10 +354,13 @@ def main() -> None:
         repo_root / args.manifest,
         repo_root / args.platform_catalog,
     )
+    entry_registry: dict[tuple[str, int], list[object]] = defaultdict(list)
+    for record in registry.values():
+        entry_registry[(record.lane_file, record.include_index)].append(record)
 
     lane_jobs: list[dict] = []
-    entry_conclusions: dict[tuple[str, int], set[str]] = defaultdict(set)
-    entry_lane_names: dict[tuple[str, int], list[str]] = defaultdict(list)
+    lane_conclusions_by_name: dict[str, set[str]] = defaultdict(set)
+    lane_urls_by_name: dict[str, str] = {}
     unmapped_jobs: list[dict] = []
     categorized: dict[str, list[dict]] = defaultdict(list)
     for key in CATEGORY_ORDER:
@@ -249,9 +394,9 @@ def main() -> None:
             categorized[lane_jobs[-1]["category"]].append(lane_jobs[-1])
             continue
 
-        entry_key = (record.lane_file, record.include_index)
-        entry_conclusions[entry_key].add(conclusion)
-        entry_lane_names[entry_key].append(normalized_name)
+        lane_conclusions_by_name[normalized_name].add(conclusion)
+        if job.get("html_url"):
+            lane_urls_by_name[normalized_name] = str(job["html_url"])
         category = classify_lane_category(conclusion, record.allow_failure)
         lane_jobs.append(
             {
@@ -274,63 +419,108 @@ def main() -> None:
     category_counts_with_legacy["fails"] = total_fail_count(category_counts)
 
     docs = load_lane_file_docs(repo_root, {record.lane_file for record in registry.values()})
-    group_states: list[dict] = []
+    lane_states: list[dict] = []
+    lanes_by_entry: dict[tuple[str, int], list[dict]] = defaultdict(list)
     group_state_counts = {key: 0 for key in GROUP_STATE_ORDER}
-    proposed_changes: list[dict] = []
+    proposed_lane_changes: list[dict] = []
+    proposed_entry_changes: list[dict] = []
+    touched_entries: set[tuple[str, int]] = set()
     touched_files: set[str] = set()
 
-    for entry_key, conclusions in sorted(entry_conclusions.items()):
-        lane_file, include_index = entry_key
-        include = docs[lane_file]["include"]
-        entry = include[include_index]
-        if not isinstance(entry, dict):
-            continue
-        current = bool(entry.get("allow_failure") is True)
-
+    for lane_name, conclusions in sorted(lane_conclusions_by_name.items()):
+        record = registry[lane_name]
         has_failure = any(conclusion in FAIL_CONCLUSIONS for conclusion in conclusions)
         all_success = bool(conclusions) and all(conclusion == "success" for conclusion in conclusions)
+        current = bool(record.allow_failure)
         desired = current
         if has_failure:
             desired = True
         elif all_success:
             desired = False
 
-        if current:
-            group_state = "masked_still_failing" if has_failure else "masked_ready_to_reset"
-        else:
-            group_state = "normal_failing" if has_failure else "normal_passing"
-        group_state_counts[group_state] += 1
-
-        group_record = {
-            "lane_file": lane_file,
-            "include_index": include_index,
-            "lane_names": sorted(set(entry_lane_names[entry_key])),
+        lane_state = {
+            "name": lane_name,
+            "lane_file": record.lane_file,
+            "include_index": record.include_index,
+            "variant": record.variant,
+            "platform_id": record.platform_id,
             "conclusions": sorted(conclusions),
             "current_allow_failure": current,
             "desired_allow_failure": desired,
-            "group_state": group_state,
             "has_failure": has_failure,
             "all_success": all_success,
+            "html_url": lane_urls_by_name.get(lane_name, ""),
         }
-        group_states.append(group_record)
+        lane_states.append(lane_state)
+        lanes_by_entry[(record.lane_file, record.include_index)].append(lane_state)
 
-        if desired == current:
+    for entry_key, entry_lanes in sorted(lanes_by_entry.items()):
+        lane_file, include_index = entry_key
+        include = docs[lane_file]["include"]
+        entry = include[include_index]
+        if not isinstance(entry, dict):
             continue
 
-        if desired:
-            entry["allow_failure"] = True
-        else:
-            entry.pop("allow_failure", None)
+        group_state = classify_entry_state(entry_lanes)
+        group_state_counts[group_state] += 1
 
-        touched_files.add(lane_file)
-        proposed_changes.append(
-            {
-                "lane_file": group_record["lane_file"],
-                "include_index": group_record["include_index"],
-                "lane_names": group_record["lane_names"],
-                "conclusions": group_record["conclusions"],
+        variant_specs = extract_entry_variant_specs(entry, lane_file, include_index)
+        desired_by_variant = {}
+        current_by_variant = {}
+        lane_name_by_variant = {}
+
+        for record in entry_registry[entry_key]:
+            if record.variant in current_by_variant:
+                raise ValueError(
+                    f"Duplicate variant '{record.variant}' detected for {lane_file}#{include_index}"
+                )
+            current_by_variant[record.variant] = bool(record.allow_failure)
+            lane_name_by_variant[record.variant] = record.name
+
+        for spec in variant_specs["specs"]:
+            variant = spec["variant"]
+            desired_by_variant[variant] = current_by_variant.get(variant, False)
+
+        for lane in entry_lanes:
+            desired_by_variant[lane["variant"]] = lane["desired_allow_failure"]
+
+        entry_changes = {"set": [], "reset": []}
+        for variant, desired in desired_by_variant.items():
+            current = current_by_variant.get(variant, False)
+            if desired == current:
+                continue
+            lane_name = lane_name_by_variant.get(variant, variant)
+            change_record = {
+                "name": lane_name,
+                "lane_file": lane_file,
+                "include_index": include_index,
+                "variant": variant,
                 "from_allow_failure": current,
                 "to_allow_failure": desired,
+                "conclusions": next(
+                    (
+                        lane["conclusions"]
+                        for lane in entry_lanes
+                        if lane["variant"] == variant
+                    ),
+                    [],
+                ),
+            }
+            proposed_lane_changes.append(change_record)
+            entry_changes["set" if desired else "reset"].append(lane_name)
+
+        if not entry_changes["set"] and not entry_changes["reset"]:
+            continue
+
+        apply_entry_lane_states(entry, variant_specs, desired_by_variant)
+        touched_entries.add(entry_key)
+        touched_files.add(lane_file)
+        proposed_entry_changes.append(
+            {
+                "lane_file": lane_file,
+                "include_index": include_index,
+                "set_lanes": sorted(entry_changes["set"]),
+                "reset_lanes": sorted(entry_changes["reset"]),
             }
         )
 
@@ -338,16 +528,16 @@ def main() -> None:
         for lane_file in sorted(touched_files):
             write_lane_file(docs[lane_file]["path"], docs[lane_file]["data"])
 
-    set_count = sum(1 for change in proposed_changes if change["to_allow_failure"])
-    reset_count = sum(1 for change in proposed_changes if not change["to_allow_failure"])
+    set_count = sum(1 for change in proposed_lane_changes if change["to_allow_failure"])
+    reset_count = sum(1 for change in proposed_lane_changes if not change["to_allow_failure"])
     reset_candidates = [
-        group for group in group_states if group["current_allow_failure"] and group["all_success"]
+        lane for lane in lane_states if lane["current_allow_failure"] and lane["all_success"]
     ]
     still_masked_failures = [
-        group for group in group_states if group["current_allow_failure"] and group["has_failure"]
+        lane for lane in lane_states if lane["current_allow_failure"] and lane["has_failure"]
     ]
     new_mask_candidates = [
-        group for group in group_states if (not group["current_allow_failure"]) and group["has_failure"]
+        lane for lane in lane_states if (not lane["current_allow_failure"]) and lane["has_failure"]
     ]
 
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
@@ -371,17 +561,19 @@ def main() -> None:
         "",
         "## Outcome",
         "",
-        f"- Hard failures: `{category_counts_with_legacy['fails_hard']}` jobs across `{group_state_counts['normal_failing']}` lane groups",
-        f"- Masked failures: `{category_counts_with_legacy['fails_with_allow_failure']}` jobs across `{group_state_counts['masked_still_failing']}` lane groups",
-        f"- Ready to reset: `{len(reset_candidates)}` masked lane groups",
-        f"- Eligible to mask: `{len(new_mask_candidates)}` normal lane groups",
+        f"- Hard failures: `{category_counts_with_legacy['fails_hard']}` jobs",
+        f"- Masked failures: `{category_counts_with_legacy['fails_with_allow_failure']}` jobs",
+        f"- Ready to reset: `{len(reset_candidates)}` masked lanes",
+        f"- Eligible to mask: `{len(new_mask_candidates)}` normal lanes",
         "",
         "## Actions",
         "",
-        f"- Set `allow_failure=true`: `{set_count}` lane groups",
-        f"- Reset `allow_failure`: `{reset_count}` lane groups",
-        f"- Lane groups analyzed: `{len(group_states)}`",
+        f"- Set `allow_failure=true`: `{set_count}` lanes",
+        f"- Reset `allow_failure`: `{reset_count}` lanes",
+        f"- Source entries touched: `{len(touched_entries)}`",
+        f"- Source entries analyzed: `{len(lanes_by_entry)}`",
         f"- Lane jobs analyzed: `{len(lane_jobs)}`",
+        f"- Concrete lanes analyzed: `{len(lane_states)}`",
         f"- Unmapped lane jobs: `{len(unmapped_jobs)}`",
         f"- Files touched: `{len(touched_files)}`",
     ]
@@ -395,54 +587,52 @@ def main() -> None:
                 unmapped_lines.append(f"- {job['name']} (`{job['conclusion']}`)")
         append_details_section(markdown_lines, f"Unmapped lanes ({len(unmapped_jobs)})", unmapped_lines)
 
-    if proposed_changes:
+    if proposed_entry_changes:
         markdown_lines.extend(["", "## Proposed Changes", ""])
-        for change in proposed_changes:
-            lane_list = ", ".join(change["lane_names"])
+        for change in proposed_entry_changes:
+            fragments: list[str] = []
+            if change["set_lanes"]:
+                fragments.append(
+                    "set `allow_failure=true` on " + ", ".join(change["set_lanes"])
+                )
+            if change["reset_lanes"]:
+                fragments.append(
+                    "reset `allow_failure` on " + ", ".join(change["reset_lanes"])
+                )
             markdown_lines.append(
-                "- "
-                f"`{change['lane_file']}#{change['include_index']}` "
-                f"`{change['from_allow_failure']}` -> `{change['to_allow_failure']}` "
-                f"(conclusions: {', '.join(change['conclusions'])})"
+                f"- `{change['lane_file']}#{change['include_index']}` : " + "; ".join(fragments)
             )
-            markdown_lines.append(f"  lanes: {lane_list}")
     else:
         no_change_message = "- No allow_failure updates required."
         if still_masked_failures and not new_mask_candidates:
             no_change_message += (
                 f" {category_counts['fails_with_allow_failure']} failing jobs map to "
-                f"{len(still_masked_failures)} masked lane groups, all already marked `allow_failure`."
+                f"{len(still_masked_failures)} masked lanes, all already marked `allow_failure`."
             )
         markdown_lines.extend(["", "## Proposed Changes", "", no_change_message])
 
     reset_lines: list[str] = []
-    for group in reset_candidates:
-        lane_list = ", ".join(group["lane_names"])
+    for lane in reset_candidates:
         reset_lines.append(
-            f"- `{group['lane_file']}#{group['include_index']}` "
-            f"(all jobs passed; would reset `allow_failure`) : {lane_list}"
+            f"- `{lane['name']}` (`{lane['lane_file']}#{lane['include_index']}` / `{lane['variant']}`)"
         )
-    append_details_section(markdown_lines, f"Reset candidates ({len(reset_candidates)})", reset_lines)
+    append_details_section(markdown_lines, f"Reset candidates ({len(reset_candidates)} lanes)", reset_lines)
 
     new_mask_lines: list[str] = []
-    for group in new_mask_candidates:
-        lane_list = ", ".join(group["lane_names"])
+    for lane in new_mask_candidates:
         new_mask_lines.append(
-            f"- `{group['lane_file']}#{group['include_index']}` "
-            f"(contains failures; would set `allow_failure=true`) : {lane_list}"
+            f"- `{lane['name']}` (`{lane['lane_file']}#{lane['include_index']}` / `{lane['variant']}`; conclusions: {', '.join(lane['conclusions'])})"
         )
-    append_details_section(markdown_lines, f"New mask candidates ({len(new_mask_candidates)})", new_mask_lines)
+    append_details_section(markdown_lines, f"New mask candidates ({len(new_mask_candidates)} lanes)", new_mask_lines)
 
     still_masked_lines: list[str] = []
-    for group in still_masked_failures:
-        lane_list = ", ".join(group["lane_names"])
+    for lane in still_masked_failures:
         still_masked_lines.append(
-            f"- `{group['lane_file']}#{group['include_index']}` "
-            f"(conclusions: {', '.join(group['conclusions'])}) : {lane_list}"
+            f"- `{lane['name']}` (`{lane['lane_file']}#{lane['include_index']}` / `{lane['variant']}`; conclusions: {', '.join(lane['conclusions'])})"
         )
     append_details_section(
         markdown_lines,
-        f"Still masked failures ({len(still_masked_failures)} lane groups)",
+        f"Still masked failures ({len(still_masked_failures)} lanes)",
         still_masked_lines,
     )
 
@@ -463,19 +653,24 @@ def main() -> None:
             "lane_job_count": len(lane_jobs),
             "mapped_lane_job_count": sum(1 for job in lane_jobs if job.get("mapped")),
             "unmapped_lane_job_count": len(unmapped_jobs),
-            "lane_group_count": len(group_states),
+            "lane_group_count": len(lanes_by_entry),
+            "source_entry_count": len(lanes_by_entry),
+            "touched_entry_count": len(touched_entries),
             "category_counts": category_counts_with_legacy,
             "group_state_counts": group_state_counts,
             "proposed_set_count": set_count,
             "proposed_reset_count": reset_count,
-            "proposed_change_count": len(proposed_changes),
+            "proposed_change_count": len(proposed_lane_changes),
+            "proposed_entry_change_count": len(proposed_entry_changes),
             "touched_files_count": len(touched_files),
             "apply": args.apply,
         },
         "lane_jobs": lane_jobs,
-        "lane_groups": group_states,
+        "lane_groups": list(lanes_by_entry.values()),
+        "lane_states": lane_states,
         "unmapped_lane_jobs": unmapped_jobs,
-        "proposed_changes": proposed_changes,
+        "proposed_changes": proposed_lane_changes,
+        "proposed_entry_changes": proposed_entry_changes,
         "touched_files": sorted(touched_files),
     }
 
@@ -490,7 +685,9 @@ def main() -> None:
             handle.write(f"lane_job_count={len(lane_jobs)}\n")
             handle.write(f"mapped_lane_job_count={sum(1 for job in lane_jobs if job.get('mapped'))}\n")
             handle.write(f"unmapped_lane_job_count={len(unmapped_jobs)}\n")
-            handle.write(f"lane_group_count={len(group_states)}\n")
+            handle.write(f"lane_group_count={len(lanes_by_entry)}\n")
+            handle.write(f"source_entry_count={len(lanes_by_entry)}\n")
+            handle.write(f"touched_entry_count={len(touched_entries)}\n")
             handle.write(f"success_lane_count={category_counts['success']}\n")
             handle.write(f"success_allow_failure_lane_count={category_counts['success_with_allow_failure']}\n")
             handle.write(
@@ -512,7 +709,8 @@ def main() -> None:
             )
             handle.write(f"proposed_set_count={set_count}\n")
             handle.write(f"proposed_reset_count={reset_count}\n")
-            handle.write(f"proposed_change_count={len(proposed_changes)}\n")
+            handle.write(f"proposed_change_count={len(proposed_lane_changes)}\n")
+            handle.write(f"proposed_entry_change_count={len(proposed_entry_changes)}\n")
             handle.write(f"touched_files_count={len(touched_files)}\n")
             handle.write(f"apply_mode={'true' if args.apply else 'false'}\n")
 
