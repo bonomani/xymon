@@ -15,10 +15,12 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from github_actions_runs import format_resolved_via, load_latest_workflow_run, load_run_from_selector
+from lane_outcome_artifacts import load_lane_outcome_artifacts
 from lane_categories import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
     build_category_counts,
+    effective_lane_conclusion,
     classify_lane_category,
     total_fail_count,
 )
@@ -638,22 +640,44 @@ def build_report(
     resolved_via: str,
     lane_registry: dict,
     lane_registry_error: str,
+    lane_outcome_artifacts: dict,
 ) -> tuple[str, dict]:
     categorized: dict[str, list[dict]] = defaultdict(list)
     for key in CATEGORY_ORDER:
         categorized.setdefault(key, [])
     lane_registry_miss_count = 0
+    masked_outcome_missing_count = 0
+    normalized_lane_outcomes = lane_outcome_artifacts.get("records", {})
+    unreadable_lane_outcomes = lane_outcome_artifacts.get("unreadable_artifacts", [])
     for job in lane_jobs:
         record = lane_registry.get(job["normalized_name"])
         allow_failure = bool(record.allow_failure) if record is not None else False
         if record is None:
             lane_registry_miss_count += 1
 
-        category = classify_lane_category(job["normalized_conclusion"], allow_failure)
+        lane_outcome_record = normalized_lane_outcomes.get(job["normalized_name"])
+        effective_conclusion, used_recorded_outcome = effective_lane_conclusion(
+            job["normalized_conclusion"],
+            allow_failure=allow_failure,
+            recorded_outcome=(
+                str(lane_outcome_record.get("lane_outcome", "")) if lane_outcome_record else ""
+            ),
+        )
+        if allow_failure and lane_outcome_record is None and job["normalized_conclusion"] == "success":
+            masked_outcome_missing_count += 1
+
+        category = classify_lane_category(effective_conclusion, allow_failure)
 
         job["allow_failure"] = allow_failure
         job["category"] = category
         job["lane_registry_found"] = record is not None
+        job["github_conclusion"] = job["normalized_conclusion"]
+        job["recorded_lane_outcome"] = (
+            str(lane_outcome_record.get("lane_outcome", "")) if lane_outcome_record else ""
+        )
+        job["effective_conclusion"] = effective_conclusion
+        job["used_recorded_outcome"] = used_recorded_outcome
+        job["normalized_conclusion"] = effective_conclusion
         if record is not None:
             job["family"] = record.family
             job["lane_file"] = record.lane_file
@@ -732,6 +756,21 @@ def build_report(
                 f"- Lanes missing allow_failure mapping: `{lane_registry_miss_count}`",
             ]
         )
+    if masked_outcome_missing_count:
+        lines.extend(
+            [
+                "",
+                f"- Masked lanes without recorded outcome artifact: `{masked_outcome_missing_count}`",
+                "  Treated conservatively as non-success to avoid false resets.",
+            ]
+        )
+    if unreadable_lane_outcomes:
+        lines.extend(
+            [
+                "",
+                f"- Unreadable masked lane outcome artifacts: `{len(unreadable_lane_outcomes)}`",
+            ]
+        )
 
     if not lane_jobs:
         lines.extend(
@@ -788,12 +827,19 @@ def build_report(
             "category_counts": category_counts_with_legacy,
             "lane_registry_miss_count": lane_registry_miss_count,
             "lane_registry_error": lane_registry_error,
+            "masked_outcome_missing_count": masked_outcome_missing_count,
+            "lane_outcome_artifact_count": lane_outcome_artifacts.get("artifact_count", 0),
+            "lane_outcome_record_count": len(lane_outcome_artifacts.get("records", {})),
+            "lane_outcome_unreadable_count": len(unreadable_lane_outcomes),
         },
         "lane_jobs": [
             {
                 "name": job["normalized_name"],
                 "raw_name": job.get("name"),
                 "conclusion": job["normalized_conclusion"],
+                "github_conclusion": job.get("github_conclusion"),
+                "recorded_lane_outcome": job.get("recorded_lane_outcome"),
+                "used_recorded_outcome": bool(job.get("used_recorded_outcome")),
                 "category": job.get("category"),
                 "allow_failure": bool(job.get("allow_failure")),
                 "lane_registry_found": bool(job.get("lane_registry_found")),
@@ -916,11 +962,16 @@ def main() -> None:
 
     if fixture_mode:
         dependency_report = empty_dependency_report("skipped", len(lane_jobs))
+        lane_outcome_report = {"artifact_count": 0, "records": {}, "unreadable_artifacts": []}
     else:
         try:
             dependency_report = build_dependency_report(args.repo, token, int(run["id"]), lane_jobs)
         except Exception as exc:  # pragma: no cover - degrade gracefully when artifact aggregation fails
             dependency_report = empty_dependency_report("unavailable", len(lane_jobs), error=str(exc))
+        try:
+            lane_outcome_report = load_lane_outcome_artifacts(api_get, args.repo, token, int(run["id"]))
+        except Exception:
+            lane_outcome_report = {"artifact_count": 0, "records": {}, "unreadable_artifacts": []}
     markdown, report = build_report(
         args.repo,
         run,
@@ -929,8 +980,21 @@ def main() -> None:
         resolved_via,
         lane_registry,
         lane_registry_error,
+        {
+            "artifact_count": lane_outcome_report.get("artifact_count", 0),
+            "records": {
+                normalize_job_name(name): payload
+                for name, payload in lane_outcome_report["records"].items()
+            },
+            "unreadable_artifacts": lane_outcome_report.get("unreadable_artifacts", []),
+        },
     )
     report["dependency_reports"] = dependency_report
+    report["lane_outcome_artifacts"] = {
+        "artifact_count": lane_outcome_report.get("artifact_count", 0),
+        "record_count": len(lane_outcome_report.get("records", {})),
+        "unreadable_artifacts": lane_outcome_report.get("unreadable_artifacts", []),
+    }
     markdown = append_dependency_markdown(markdown, dependency_report)
 
     if args.markdown_output:

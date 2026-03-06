@@ -13,9 +13,11 @@ from pathlib import Path
 
 import yaml
 from github_actions_runs import format_resolved_via, load_latest_workflow_run, load_run_from_selector
+from lane_outcome_artifacts import load_lane_outcome_artifacts
 from lane_categories import (
     CATEGORY_ORDER,
     build_category_counts,
+    effective_lane_conclusion,
     classify_lane_category,
     total_fail_count,
 )
@@ -185,8 +187,8 @@ def apply_entry_lane_states(
 
 
 def classify_entry_state(entry_lanes: list[dict]) -> str:
-    has_normal_failure = any((not lane["current_allow_failure"]) and lane["has_failure"] for lane in entry_lanes)
-    has_masked_failure = any(lane["current_allow_failure"] and lane["has_failure"] for lane in entry_lanes)
+    has_normal_failure = any((not lane["current_allow_failure"]) and lane["has_non_success"] for lane in entry_lanes)
+    has_masked_failure = any(lane["current_allow_failure"] and lane["has_non_success"] for lane in entry_lanes)
     has_masked_success = any(lane["current_allow_failure"] and lane["all_success"] for lane in entry_lanes)
     if has_normal_failure:
         return "normal_failing"
@@ -336,17 +338,26 @@ def main() -> None:
         run = load_fixture(args.run_json)
         jobs = load_fixture_jobs(args.jobs_json)
         resolved_via = "fixture"
+        lane_outcome_report = {"artifact_count": 0, "records": {}, "unreadable_artifacts": []}
     else:
         token = load_token(args.token_env)
         event = "" if args.event == "all" else args.event
         run, resolved_via = load_run(args.repo, token, args.workflow, args.run_selector, args.branch, event)
         jobs = load_jobs(args.repo, token, int(run["id"]))
+        try:
+            lane_outcome_report = load_lane_outcome_artifacts(api_get, args.repo, token, int(run["id"]))
+        except Exception:
+            lane_outcome_report = {"artifact_count": 0, "records": {}, "unreadable_artifacts": []}
 
     repo_root = Path(__file__).resolve().parents[3]
     registry = build_lane_registry(
         repo_root / args.manifest,
         repo_root / args.platform_catalog,
     )
+    normalized_lane_outcomes = {
+        normalize_job_name(name): payload
+        for name, payload in lane_outcome_report["records"].items()
+    }
     entry_registry: dict[tuple[str, int], list[object]] = defaultdict(list)
     for record in registry.values():
         entry_registry[(record.lane_file, record.include_index)].append(record)
@@ -356,6 +367,7 @@ def main() -> None:
     lane_urls_by_name: dict[str, str] = {}
     unmapped_jobs: list[dict] = []
     categorized: dict[str, list[dict]] = defaultdict(list)
+    masked_outcome_missing_count = 0
     for key in CATEGORY_ORDER:
         categorized.setdefault(key, [])
 
@@ -364,22 +376,22 @@ def main() -> None:
         if normalized_name in {"build-matrix", "redispatch-selected-ref"}:
             continue
 
-        conclusion = str(job.get("conclusion") or job.get("status") or "unknown").strip().lower() or "unknown"
+        github_conclusion = str(job.get("conclusion") or job.get("status") or "unknown").strip().lower() or "unknown"
         record = registry.get(normalized_name)
         if record is None:
             unmapped_jobs.append(
                 {
                     "name": normalized_name,
-                    "conclusion": conclusion,
+                    "conclusion": github_conclusion,
                     "html_url": job.get("html_url"),
                 }
             )
             lane_jobs.append(
                 {
                     "name": normalized_name,
-                    "conclusion": conclusion,
+                    "conclusion": github_conclusion,
                     "allow_failure": False,
-                    "category": classify_lane_category(conclusion, allow_failure=False),
+                    "category": classify_lane_category(github_conclusion, allow_failure=False),
                     "mapped": False,
                     "html_url": job.get("html_url"),
                 }
@@ -387,14 +399,30 @@ def main() -> None:
             categorized[lane_jobs[-1]["category"]].append(lane_jobs[-1])
             continue
 
-        lane_conclusions_by_name[normalized_name].add(conclusion)
+        lane_outcome_record = normalized_lane_outcomes.get(normalized_name)
+        effective_conclusion, used_recorded_outcome = effective_lane_conclusion(
+            github_conclusion,
+            allow_failure=record.allow_failure,
+            recorded_outcome=(
+                str(lane_outcome_record.get("lane_outcome", "")) if lane_outcome_record else ""
+            ),
+        )
+        if record.allow_failure and lane_outcome_record is None and github_conclusion == "success":
+            masked_outcome_missing_count += 1
+
+        lane_conclusions_by_name[normalized_name].add(effective_conclusion)
         if job.get("html_url"):
             lane_urls_by_name[normalized_name] = str(job["html_url"])
-        category = classify_lane_category(conclusion, record.allow_failure)
+        category = classify_lane_category(effective_conclusion, record.allow_failure)
         lane_jobs.append(
             {
                 "name": normalized_name,
-                "conclusion": conclusion,
+                "conclusion": effective_conclusion,
+                "github_conclusion": github_conclusion,
+                "recorded_lane_outcome": (
+                    str(lane_outcome_record.get("lane_outcome", "")) if lane_outcome_record else ""
+                ),
+                "used_recorded_outcome": used_recorded_outcome,
                 "allow_failure": record.allow_failure,
                 "category": category,
                 "mapped": True,
@@ -423,6 +451,7 @@ def main() -> None:
     for lane_name, conclusions in sorted(lane_conclusions_by_name.items()):
         record = registry[lane_name]
         has_failure = any(conclusion in FAIL_CONCLUSIONS for conclusion in conclusions)
+        has_non_success = any(conclusion != "success" for conclusion in conclusions)
         all_success = bool(conclusions) and all(conclusion == "success" for conclusion in conclusions)
         current = bool(record.allow_failure)
         desired = current
@@ -441,6 +470,7 @@ def main() -> None:
             "current_allow_failure": current,
             "desired_allow_failure": desired,
             "has_failure": has_failure,
+            "has_non_success": has_non_success,
             "all_success": all_success,
             "html_url": lane_urls_by_name.get(lane_name, ""),
         }
@@ -527,7 +557,7 @@ def main() -> None:
         lane for lane in lane_states if lane["current_allow_failure"] and lane["all_success"]
     ]
     still_masked_failures = [
-        lane for lane in lane_states if lane["current_allow_failure"] and lane["has_failure"]
+        lane for lane in lane_states if lane["current_allow_failure"] and lane["has_non_success"]
     ]
     new_mask_candidates = [
         lane for lane in lane_states if (not lane["current_allow_failure"]) and lane["has_failure"]
@@ -570,6 +600,22 @@ def main() -> None:
         f"- Unmapped lane jobs: `{len(unmapped_jobs)}`",
         f"- Files touched: `{len(touched_files)}`",
     ]
+    if masked_outcome_missing_count:
+        markdown_lines.extend(
+            [
+                "",
+                f"- Masked lanes without recorded outcome artifact: `{masked_outcome_missing_count}`",
+                "  Treated conservatively as non-success to avoid false resets.",
+            ]
+        )
+    unreadable_lane_outcomes = lane_outcome_report.get("unreadable_artifacts", [])
+    if unreadable_lane_outcomes:
+        markdown_lines.extend(
+            [
+                "",
+                f"- Unreadable masked lane outcome artifacts: `{len(unreadable_lane_outcomes)}`",
+            ]
+        )
 
     if unmapped_jobs:
         unmapped_lines: list[str] = []
@@ -651,6 +697,10 @@ def main() -> None:
             "touched_entry_count": len(touched_entries),
             "category_counts": category_counts_with_legacy,
             "group_state_counts": group_state_counts,
+            "masked_outcome_missing_count": masked_outcome_missing_count,
+            "lane_outcome_artifact_count": lane_outcome_report.get("artifact_count", 0),
+            "lane_outcome_record_count": len(lane_outcome_report.get("records", {})),
+            "lane_outcome_unreadable_count": len(unreadable_lane_outcomes),
             "proposed_set_count": set_count,
             "proposed_reset_count": reset_count,
             "proposed_change_count": len(proposed_lane_changes),
