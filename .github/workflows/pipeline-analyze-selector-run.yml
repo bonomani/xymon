@@ -6,7 +6,7 @@ on:
       selection_mode:
         description: How to choose the selector workflow run
         required: true
-        default: explicit
+        default: latest
         type: choice
         options:
           - explicit
@@ -56,6 +56,7 @@ jobs:
           ANALYZE_RUN_SELECTOR: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_selector }}
           ANALYZE_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || inputs.source_branch }}
           ANALYZE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || inputs.event_filter }}
+          ANALYZE_DEFAULT_BRANCH: ${{ github.ref_name }}
         run: |
           set -euo pipefail
 
@@ -78,8 +79,9 @@ jobs:
               args+=(--run-selector "${ANALYZE_RUN_SELECTOR}")
               ;;
             latest)
-              if [[ -n "${ANALYZE_BRANCH}" ]]; then
-                args+=(--branch "${ANALYZE_BRANCH}")
+              branch_filter="${ANALYZE_BRANCH:-${ANALYZE_DEFAULT_BRANCH}}"
+              if [[ -n "${branch_filter}" ]]; then
+                args+=(--branch "${branch_filter}")
               fi
 
               if [[ -n "${ANALYZE_EVENT}" ]]; then
