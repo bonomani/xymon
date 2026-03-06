@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Service name from ci/deps/docker-matrix.yaml, or all (comma-separated accepted).
+        description: Service name from ci/deps/docker-matrix.yaml (platform_id resolved via platform-catalog), or all (comma-separated accepted).
         required: true
         type: string
         default: all
@@ -24,7 +24,7 @@ on:
   workflow_call:
     inputs:
       target:
-        description: Service name from ci/deps/docker-matrix.yaml, or all (comma-separated accepted).
+        description: Service name from ci/deps/docker-matrix.yaml (platform_id resolved via platform-catalog), or all (comma-separated accepted).
         required: false
         type: string
         default: all
@@ -78,6 +78,7 @@ jobs:
           set -euo pipefail
           python3 ci/run/docker/resolve-matrix.py \
             --matrix-file ci/deps/docker-matrix.yaml \
+            --platform-catalog ci/deps/platform-catalog.yaml \
             --target "${INPUT_TARGET}" \
             --image-tag "${INPUT_IMAGE_TAG}" \
             --push "${INPUT_PUSH}" \

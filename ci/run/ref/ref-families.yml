@@ -18,7 +18,6 @@ runtime_defaults:
   generation:
     bsd_vm:
       architecture: x86-64
-  validation: {}
 
 lane_defaults_shared:
   linux_container:
@@ -28,10 +27,6 @@ lane_defaults_shared:
     arm64:
       runs_on: ubuntu-24.04-arm
       container_options: --platform linux/arm64/v8
-
-lane_defaults:
-  generation: {}
-  validation: {}
 
 families:
 - family: linux
