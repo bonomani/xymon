@@ -61,13 +61,15 @@ if [[ "${#required_vars[@]}" -eq 0 ]]; then
   exit 2
 fi
 
-declare -A seen_required=()
+seen_required="|"
 for var_name in "${required_vars[@]}"; do
   [[ -n "${var_name}" ]] || continue
-  if [[ -n "${seen_required[${var_name}]:-}" ]]; then
-    continue
-  fi
-  seen_required["${var_name}"]=1
+  case "${seen_required}" in
+    *"|${var_name}|"*)
+      continue
+      ;;
+  esac
+  seen_required="${seen_required}${var_name}|"
   if [[ -z "${!var_name:-}" ]]; then
     echo "Missing required environment variable: ${var_name}" >&2
     exit 2
