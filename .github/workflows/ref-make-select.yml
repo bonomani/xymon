@@ -138,6 +138,11 @@ jobs:
     outputs:
       matrix_all: ${{ steps.generate.outputs.matrix_all }}
       execution_model_json: ${{ steps.resolve_execution.outputs.execution_model_json }}
+      build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
+      goal: ${{ steps.resolve_execution.outputs.goal }}
+      ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
+      publish: ${{ steps.resolve_execution.outputs.publish }}
+      allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_counts_json: ${{ steps.generate.outputs.lane_counts_json }}
       selected_families: ${{ steps.generate.outputs.selected_families }}
@@ -223,7 +228,7 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      goal: ${{ fromJSON(needs.build-matrix.outputs.execution_model_json).goal }}
-      ref_mode: ${{ fromJSON(needs.build-matrix.outputs.execution_model_json).ref_mode }}
-      publish: ${{ fromJSON(needs.build-matrix.outputs.execution_model_json).publish }}
-      allow_failure_mode: ${{ fromJSON(needs.build-matrix.outputs.execution_model_json).allow_failure_mode }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}

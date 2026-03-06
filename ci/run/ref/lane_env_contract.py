@@ -1,72 +1,74 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
+from pathlib import Path
+from typing import Dict, FrozenSet, List, Tuple
 
-LANE_ENV_KEYS = frozenset(
-    {
-        "ALLOW_FAILURE_MODE",
-        "ARCHITECTURE",
-        "ARTIFACT_ARCH",
-        "ARTIFACT_FAMILY",
-        "BASELINE_ROOT",
-        "BUILD_TOOL",
-        "CHECKOUT_MODE",
-        "CI_DEPS_REPORT_JSON",
-        "CMAKE_BIN",
-        "CONTAINER_IMAGE",
-        "CONTAINER_OPTIONS",
-        "DEP_MODE",
-        "ENABLE_LDAP",
-        "ENABLE_SNMP",
-        "GOAL",
-        "LANE_ALLOW_FAILURE",
-        "LANE_NAME",
-        "LEGACY_APPLY_OWNERSHIP",
-        "OS_VERSION",
-        "PLATFORM_ID",
-        "PLATFORM_OS",
-        "PREPARE_PROFILE",
-        "PUBLISH",
-        "REF_MODE",
-        "REF_OS",
-        "REF_STAGE_ROOT",
-        "RUNTIME",
-        "RUNTIME_EXECUTION",
-        "RUNTIME_OUTCOME_CHANNEL",
-        "UPLOAD_ARTIFACTS",
-        "VARIANT",
-        "VM_CPU_COUNT",
-        "VM_MEMORY",
-        "XYMONGROUP",
-        "XYMONUSER",
-    }
+
+_CONTRACT_PATH = Path(__file__).with_name("lane-env-contract.txt")
+
+
+def _load_contract_sections(path: Path) -> Dict[str, List[str]]:
+    if not path.exists():
+        raise RuntimeError(f"Lane env contract file missing: {path}")
+
+    sections: Dict[str, List[str]] = {}
+    current_section = ""
+
+    for lineno, raw_line in enumerate(path.read_text(encoding="utf-8").splitlines(), start=1):
+        line = raw_line.strip()
+        if not line or line.startswith("#"):
+            continue
+
+        if line.startswith("[") and line.endswith("]"):
+            current_section = line[1:-1].strip()
+            if not current_section:
+                raise RuntimeError(f"Invalid empty section name at {path}:{lineno}")
+            sections.setdefault(current_section, [])
+            continue
+
+        if not current_section:
+            raise RuntimeError(
+                f"Contract entry outside section at {path}:{lineno}: {line}"
+            )
+        sections[current_section].append(line)
+
+    return sections
+
+
+def _normalize_section(
+    sections: Dict[str, List[str]], section_name: str, *, dedupe: bool = False
+) -> Tuple[str, ...]:
+    values = sections.get(section_name)
+    if values is None:
+        raise RuntimeError(f"Missing section [{section_name}] in {_CONTRACT_PATH}")
+
+    normalized: List[str] = []
+    seen = set()
+    for value in values:
+        key = value.strip()
+        if not key:
+            continue
+        if dedupe:
+            if key in seen:
+                continue
+            seen.add(key)
+        normalized.append(key)
+    return tuple(normalized)
+
+
+_SECTIONS = _load_contract_sections(_CONTRACT_PATH)
+
+LANE_ENV_KEYS: FrozenSet[str] = frozenset(
+    _normalize_section(_SECTIONS, "all", dedupe=True)
 )
-
-LANE_META_REQUIRED_KEYS = (
-    "RUNTIME_EXECUTION",
-    "ALLOW_FAILURE_MODE",
-    "LANE_ALLOW_FAILURE",
-    "REF_OS",
-    "RUNTIME",
-    "RUNTIME_OUTCOME_CHANNEL",
+LANE_META_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
+    _SECTIONS, "lane_meta_required", dedupe=True
 )
-
-LANE_POST_REQUIRED_KEYS = (
-    "ALLOW_FAILURE_MODE",
-    "LANE_ALLOW_FAILURE",
-    "GOAL",
-    "DEP_MODE",
-    "REF_MODE",
-    "CI_DEPS_REPORT_JSON",
-    "UPLOAD_ARTIFACTS",
-    "BUILD_TOOL",
-    "PLATFORM_ID",
-    "VARIANT",
-    "ARTIFACT_ARCH",
-    "LANE_NAME",
-    "ARTIFACT_FAMILY",
-    "REF_STAGE_ROOT",
-    "REF_OS",
+LANE_POST_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
+    _SECTIONS, "lane_post_required", dedupe=True
+)
+LANE_EXEC_REQUIRED_KEYS: Tuple[str, ...] = _normalize_section(
+    _SECTIONS, "lane_exec_required", dedupe=True
 )
 
 
@@ -76,6 +78,5 @@ def as_text(value) -> str:
     return str(value).strip()
 
 
-def validate_known_lane_env_keys(payload: dict[str, object]) -> list[str]:
-    unknown = sorted(set(payload.keys()) - set(LANE_ENV_KEYS))
-    return unknown
+def validate_known_lane_env_keys(payload: Dict[str, object]) -> List[str]:
+    return sorted(set(payload.keys()) - set(LANE_ENV_KEYS))

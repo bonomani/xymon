@@ -1,18 +1,36 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-required_vars=(
-  BUILD_TOOL
-  GOAL
-  REF_MODE
-  PUBLISH
-  DEP_MODE
-  CI_DEPS_REPORT_JSON
-  VARIANT
-  REF_OS
-  PLATFORM_OS
-  PLATFORM_ID
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+contract_file="${script_dir}/lane-env-contract.txt"
+
+if [[ ! -f "${contract_file}" ]]; then
+  echo "Missing lane env contract file: ${contract_file}" >&2
+  exit 2
+fi
+
+required_vars=()
+while IFS= read -r key; do
+  required_vars+=("${key}")
+done < <(
+  awk -v section="lane_exec_required" '
+    BEGIN { in_section = 0 }
+    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
+    /^\[[^]]+\][[:space:]]*$/ {
+      name = $0
+      sub(/^\[/, "", name)
+      sub(/\][[:space:]]*$/, "", name)
+      in_section = (name == section)
+      next
+    }
+    in_section { print $0 }
+  ' "${contract_file}"
 )
+
+if [[ "${#required_vars[@]}" -eq 0 ]]; then
+  echo "No keys found in [lane_exec_required] section: ${contract_file}" >&2
+  exit 2
+fi
 
 for var_name in "${required_vars[@]}"; do
   if [[ -z "${!var_name:-}" ]]; then

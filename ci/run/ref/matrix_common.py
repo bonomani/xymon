@@ -65,7 +65,7 @@ def infer_artifact_arch(lane_obj) -> str:
     if "linux/arm64" in container_options:
         return "arm64"
 
-    runner = str(lane_obj.get("runner") or lane_obj.get("runs_on") or "").strip().lower()
+    runner = str(lane_obj.get("runs_on") or "").strip().lower()
     if "-arm" in runner or "arm64" in runner or "aarch64" in runner:
         return "arm64"
 
