@@ -12,6 +12,7 @@ from execution_model import (
     validate_allow_failure_mode,
     validate_goal_ref_publish,
     validate_lane_build_tool,
+    validate_requested_verify_depth,
 )
 from lane_env_contract import as_text, validate_known_lane_env_keys
 from runtime_model import DEFAULT_RUNTIME_MODEL_PATH, load_runtime_model
@@ -76,6 +77,7 @@ def parse_args():
         description="Resolve lane_json + normalized mode inputs into lane context outputs"
     )
     parser.add_argument("--lane-json", required=True)
+    parser.add_argument("--verify-depth", required=True)
     parser.add_argument("--goal", required=True)
     parser.add_argument("--ref-mode", required=True)
     parser.add_argument("--publish", required=True)
@@ -91,6 +93,7 @@ def parse_args():
 
 def main():
     args = parse_args()
+    verify_depth = as_text(args.verify_depth)
     goal = as_text(args.goal)
     ref_mode = as_text(args.ref_mode)
     publish = as_text(args.publish)
@@ -98,8 +101,11 @@ def main():
     try:
         validate_goal_ref_publish(goal, ref_mode, publish)
         validate_allow_failure_mode(allow_failure_mode)
+        validate_requested_verify_depth(verify_depth)
     except ValueError as exc:
         fail(str(exc))
+    if goal == "ref":
+        verify_depth = "install"
 
     try:
         lane = json.loads(args.lane_json)
@@ -196,6 +202,7 @@ def main():
         "LANE_NAME": lane_name,
         "DEP_MODE": dep_mode,
         "GOAL": goal,
+        "VERIFY_DEPTH": verify_depth,
         "REF_MODE": ref_mode,
         "PUBLISH": publish,
         "VARIANT": variant,

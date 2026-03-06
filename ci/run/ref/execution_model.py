@@ -48,6 +48,11 @@ def validate_requested_preset(preset: str) -> None:
         raise ValueError(f"Unsupported requested_preset: {preset}")
 
 
+def validate_requested_verify_depth(verify_depth: str) -> None:
+    if verify_depth not in {"configure", "build", "install"}:
+        raise ValueError(f"Unsupported requested_verify_depth: {verify_depth}")
+
+
 def validate_lane_build_tool(build_tool: str) -> None:
     if build_tool not in {"make", "cmake"}:
         raise ValueError(f"Unsupported lane build_tool: {build_tool}")
@@ -78,6 +83,12 @@ def resolve_preset(requested_preset: str, build_tool: str) -> str:
     return requested_preset
 
 
+def resolve_verify_depth(goal: str, requested_verify_depth: str) -> str:
+    if goal == "ref":
+        return "install"
+    return requested_verify_depth
+
+
 def derive_dep_mode(goal: str, ref_mode: str) -> str:
     if goal == "ref" and ref_mode == "compare":
         return "compare"
@@ -95,6 +106,7 @@ def resolve_execution_model(
     requested_build_tool: str,
     requested_compiler: str,
     requested_preset: str,
+    requested_verify_depth: str,
     goal: str,
     ref_mode: str,
     publish: str,
@@ -107,12 +119,15 @@ def resolve_execution_model(
     validate_requested_build_tool(requested_build_tool)
     validate_requested_compiler(requested_compiler)
     validate_requested_preset(requested_preset)
+    validate_requested_verify_depth(requested_verify_depth)
     build_tool = resolve_build_tool(requested_build_tool, goal, ref_mode)
+    verify_depth = resolve_verify_depth(goal, requested_verify_depth)
 
     return {
         "build_tool": build_tool,
         "compiler": resolve_compiler(requested_compiler),
         "preset": resolve_preset(requested_preset, build_tool),
+        "verify_depth": verify_depth,
         "goal": goal,
         "ref_mode": ref_mode,
         "publish": publish,

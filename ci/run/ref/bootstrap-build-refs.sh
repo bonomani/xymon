@@ -4,6 +4,7 @@ set -euo pipefail
 build_tool=""
 ci_compiler="gcc"
 preset="default"
+verify_depth="install"
 os_name=""
 os_version=""
 platform_os="${PLATFORM_OS:-}"
@@ -16,7 +17,7 @@ DEP_MODE="${DEP_MODE:-}"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--preset PRESET] [--version VERSION]
+Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--preset PRESET] [--verify-depth DEPTH] [--version VERSION]
 USAGE
   exit 2
 }
@@ -33,6 +34,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --preset)
       preset="${2:-}"
+      shift 2
+      ;;
+    --verify-depth)
+      verify_depth="${2:-}"
       shift 2
       ;;
     --os)
@@ -99,6 +104,18 @@ case "${preset}" in
     usage
     ;;
 esac
+case "${verify_depth}" in
+  configure|build|install)
+    ;;
+  *)
+    echo "Unsupported --verify-depth value: ${verify_depth}" >&2
+    usage
+    ;;
+esac
+if [[ "${verify_depth}" != "install" ]]; then
+  echo "bootstrap-build-refs requires --verify-depth install (got: ${verify_depth})" >&2
+  exit 2
+fi
 
 if [[ -z "${os_name}" || -z "${variant}" || -z "${ref_prefix}" || -z "${refs_root}" || -z "${artifact_root}" ]]; then
   usage
@@ -155,6 +172,7 @@ bootstrap_args=(
   --build "${build_tool}"
   --compiler "${ci_compiler}"
   --preset "${preset}"
+  --verify-depth "${verify_depth}"
 )
 if [[ -n "${os_version}" ]]; then
   bootstrap_args+=(--version "${os_version}")

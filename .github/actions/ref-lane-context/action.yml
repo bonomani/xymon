@@ -5,6 +5,9 @@ inputs:
   lane_json:
     description: JSON-encoded lane object.
     required: true
+  verify_depth:
+    description: Verification depth (configure|build|install).
+    required: true
   goal:
     description: Execution goal (verify|ref).
     required: true
@@ -61,6 +64,7 @@ runs:
       shell: bash
       env:
         INPUT_LANE_JSON: ${{ inputs.lane_json }}
+        INPUT_VERIFY_DEPTH: ${{ inputs.verify_depth }}
         INPUT_GOAL: ${{ inputs.goal }}
         INPUT_REF_MODE: ${{ inputs.ref_mode }}
         INPUT_PUBLISH: ${{ inputs.publish }}
@@ -70,6 +74,7 @@ runs:
 
         python3 ci/run/ref/resolve-lane-context.py \
           --lane-json "${INPUT_LANE_JSON}" \
+          --verify-depth "${INPUT_VERIFY_DEPTH}" \
           --goal "${INPUT_GOAL}" \
           --ref-mode "${INPUT_REF_MODE}" \
           --publish "${INPUT_PUBLISH}" \

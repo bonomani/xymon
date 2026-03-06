@@ -5,6 +5,7 @@ build_tool="${build_tool:-}"
 ci_compiler="${ci_compiler:-}"
 preset="${preset:-}"
 goal="${goal:-}"
+verify_depth="${verify_depth:-}"
 ref_mode="${ref_mode:-}"
 publish="${publish:-}"
 variant="${variant:-}"
@@ -26,6 +27,10 @@ if [[ -z "${build_tool}" ]]; then
 fi
 if [[ -z "${goal}" ]]; then
   echo "Missing prepared variable: goal" >&2
+  exit 2
+fi
+if [[ -z "${verify_depth}" ]]; then
+  echo "Missing prepared variable: verify_depth" >&2
   exit 2
 fi
 if [[ -z "${ci_compiler}" ]]; then
@@ -88,6 +93,18 @@ case "${preset}" in
     ;;
 esac
 
+case "${verify_depth}" in
+  configure|build|install)
+    ;;
+  *)
+    echo "Unsupported prepared verify_depth value: ${verify_depth}" >&2
+    exit 2
+    ;;
+esac
+if [[ "${goal}" == "ref" ]]; then
+  verify_depth="install"
+fi
+
 load_legacy_hostname_in_process() {
   local env_file=""
   env_file="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
@@ -120,6 +137,7 @@ run_core_build_install() {
     --build "${build_tool}"
     --compiler "${ci_compiler}"
     --preset "${preset}"
+    --verify-depth "${verify_depth}"
   )
   if [[ -n "${os_version}" ]]; then
     args+=(--version "${os_version}")
@@ -134,6 +152,7 @@ run_ref_snapshot() {
     --build "${build_tool}"
     --compiler "${ci_compiler}"
     --preset "${preset}"
+    --verify-depth "${verify_depth}"
     --os "${ref_os}"
     --platform-os "${platform_os}"
     --variant "${variant}"
@@ -159,7 +178,7 @@ run_ref_compare() {
 }
 
 echo "=== Lane execution ==="
-echo "goal=${goal} ref_mode=${ref_mode} publish=${publish}"
+echo "goal=${goal} verify_depth=${verify_depth} ref_mode=${ref_mode} publish=${publish}"
 echo "build=${build_tool} compiler=${ci_compiler} preset=${preset} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
 
 case "${goal}" in

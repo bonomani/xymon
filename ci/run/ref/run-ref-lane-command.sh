@@ -83,6 +83,7 @@ args=(
   --compiler "${CI_COMPILER}"
   --preset "${PRESET}"
   --goal "${GOAL}"
+  --verify-depth "${VERIFY_DEPTH}"
   --ref-mode "${REF_MODE}"
   --publish "${PUBLISH}"
   --variant "${VARIANT}"

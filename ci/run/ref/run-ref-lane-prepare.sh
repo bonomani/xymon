@@ -6,6 +6,7 @@ build_tool=""
 ci_compiler="gcc"
 preset="default"
 goal="verify"
+verify_depth="install"
 ref_mode="generate"
 publish="none"
 variant=""
@@ -30,6 +31,7 @@ Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --compiler gcc|clang
   --preset default|gnuinstall|packaging
   --goal verify|ref
+  --verify-depth configure|build|install
   --variant NAME
   [--ref-mode generate|compare]
   [--publish none|artifact]
@@ -68,6 +70,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --goal)
       goal="${2:-}"
+      shift 2
+      ;;
+    --verify-depth)
+      verify_depth="${2:-}"
       shift 2
       ;;
     --ref-mode)
@@ -160,6 +166,14 @@ case "${preset}" in
     usage
     ;;
 esac
+case "${verify_depth}" in
+  configure|build|install)
+    ;;
+  *)
+    echo "Unsupported --verify-depth value: ${verify_depth}" >&2
+    usage
+    ;;
+esac
 # goal/ref_mode/publish consistency is validated upstream by execution_model.py
 # before lane execution reaches this script.
 if [[ -z "${variant}" ]]; then
@@ -209,6 +223,7 @@ mkdir -p "$(dirname "${env_out}")"
   printf 'ci_compiler=%q\n' "${ci_compiler}"
   printf 'preset=%q\n' "${preset}"
   printf 'goal=%q\n' "${goal}"
+  printf 'verify_depth=%q\n' "${verify_depth}"
   printf 'ref_mode=%q\n' "${ref_mode}"
   printf 'publish=%q\n' "${publish}"
   printf 'variant=%q\n' "${variant}"
