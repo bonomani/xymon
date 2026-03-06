@@ -3,16 +3,24 @@ name: Pipeline - Reconcile Lane allow_failure
 on:
   workflow_dispatch:
     inputs:
-      run_id:
-        description: Optional selector run selector (numeric ID, run URL, or "... #N")
+      selection_mode:
+        description: How to choose the selector workflow run
+        required: true
+        default: explicit
+        type: choice
+        options:
+          - explicit
+          - latest
+      run_selector:
+        description: Selector run reference used when selection_mode=explicit (numeric ID, run URL, or "... #N")
         required: false
         type: string
       source_branch:
-        description: Optional branch used when run_id is empty
+        description: Branch filter used when selection_mode=latest
         required: false
         type: string
       event_filter:
-        description: Event filter used when run_id is empty
+        description: Event filter used when selection_mode=latest
         required: true
         default: workflow_dispatch
         type: choice
@@ -20,6 +28,11 @@ on:
           - workflow_dispatch
           - workflow_call
           - all
+      allow_latest_apply:
+        description: Override safety guard and allow apply_changes with selection_mode=latest
+        required: true
+        type: boolean
+        default: false
       apply_changes:
         description: Apply and push allow_failure updates on this branch
         required: true
@@ -44,9 +57,11 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_SELECTION_MODE: ${{ inputs.selection_mode }}
+          INPUT_RUN_SELECTOR: ${{ inputs.run_selector }}
           INPUT_SOURCE_BRANCH: ${{ inputs.source_branch }}
           INPUT_EVENT_FILTER: ${{ inputs.event_filter }}
+          INPUT_ALLOW_LATEST_APPLY: ${{ inputs.allow_latest_apply }}
           INPUT_APPLY_CHANGES: ${{ inputs.apply_changes }}
         run: |
           set -euo pipefail
@@ -61,17 +76,33 @@ jobs:
             --github-output "${GITHUB_OUTPUT}"
           )
 
-          if [[ -n "${INPUT_RUN_ID}" ]]; then
-            args+=(--run-id "${INPUT_RUN_ID}")
-          else
-            if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
-              args+=(--branch "${INPUT_SOURCE_BRANCH}")
-            fi
+          case "${INPUT_SELECTION_MODE}" in
+            explicit)
+              if [[ -z "${INPUT_RUN_SELECTOR}" ]]; then
+                echo "selection_mode=explicit requires run_selector" >&2
+                exit 1
+              fi
+              args+=(--run-selector "${INPUT_RUN_SELECTOR}")
+              ;;
+            latest)
+              if [[ "${INPUT_APPLY_CHANGES}" == "true" && "${INPUT_ALLOW_LATEST_APPLY}" != "true" ]]; then
+                echo "apply_changes=true with selection_mode=latest is blocked; provide an explicit run_selector or set allow_latest_apply=true" >&2
+                exit 1
+              fi
 
-            if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
-              args+=(--event "${INPUT_EVENT_FILTER}")
-            fi
-          fi
+              if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
+                args+=(--branch "${INPUT_SOURCE_BRANCH}")
+              fi
+
+              if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
+                args+=(--event "${INPUT_EVENT_FILTER}")
+              fi
+              ;;
+            *)
+              echo "Unsupported selection_mode: ${INPUT_SELECTION_MODE}" >&2
+              exit 1
+              ;;
+          esac
 
           if [[ "${INPUT_APPLY_CHANGES}" == "true" ]]; then
             args+=(--apply)

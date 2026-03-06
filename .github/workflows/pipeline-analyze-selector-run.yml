@@ -3,16 +3,24 @@ name: Pipeline - Analyze Selector Run
 on:
   workflow_dispatch:
     inputs:
-      run_id:
-        description: Optional selector run selector (numeric ID, run URL, or "... #N")
+      selection_mode:
+        description: How to choose the selector workflow run
+        required: true
+        default: explicit
+        type: choice
+        options:
+          - explicit
+          - latest
+      run_selector:
+        description: Selector run reference used when selection_mode=explicit (numeric ID, run URL, or "... #N")
         required: false
         type: string
       source_branch:
-        description: Optional branch used when run_id is empty
+        description: Branch filter used when selection_mode=latest
         required: false
         type: string
       event_filter:
-        description: Event filter used when run_id is empty
+        description: Event filter used when selection_mode=latest
         required: true
         default: workflow_dispatch
         type: choice
@@ -44,7 +52,8 @@ jobs:
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          ANALYZE_RUN_ID: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_id }}
+          ANALYZE_SELECTION_MODE: ${{ github.event_name == 'workflow_run' && 'explicit' || inputs.selection_mode }}
+          ANALYZE_RUN_SELECTOR: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_selector }}
           ANALYZE_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || inputs.source_branch }}
           ANALYZE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || inputs.event_filter }}
         run: |
@@ -60,17 +69,28 @@ jobs:
             --github-output "${GITHUB_OUTPUT}"
           )
 
-          if [[ -n "${ANALYZE_RUN_ID}" ]]; then
-            args+=(--run-id "${ANALYZE_RUN_ID}")
-          else
-            if [[ -n "${ANALYZE_BRANCH}" ]]; then
-              args+=(--branch "${ANALYZE_BRANCH}")
-            fi
+          case "${ANALYZE_SELECTION_MODE}" in
+            explicit)
+              if [[ -z "${ANALYZE_RUN_SELECTOR}" ]]; then
+                echo "selection_mode=explicit requires run_selector" >&2
+                exit 1
+              fi
+              args+=(--run-selector "${ANALYZE_RUN_SELECTOR}")
+              ;;
+            latest)
+              if [[ -n "${ANALYZE_BRANCH}" ]]; then
+                args+=(--branch "${ANALYZE_BRANCH}")
+              fi
 
-            if [[ -n "${ANALYZE_EVENT}" ]]; then
-              args+=(--event "${ANALYZE_EVENT}")
-            fi
-          fi
+              if [[ -n "${ANALYZE_EVENT}" ]]; then
+                args+=(--event "${ANALYZE_EVENT}")
+              fi
+              ;;
+            *)
+              echo "Unsupported selection_mode: ${ANALYZE_SELECTION_MODE}" >&2
+              exit 1
+              ;;
+          esac
 
           python3 ci/run/ref/analyze-ref-generation-run.py "${args[@]}"
 
