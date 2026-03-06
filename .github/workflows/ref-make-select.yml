@@ -33,6 +33,25 @@ on:
           - auto
           - make
           - cmake
+      compiler:
+        description: Compiler selection (auto|gcc|clang)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - gcc
+          - clang
+      preset:
+        description: CMake preset selection (auto|default|gnuinstall|packaging)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - default
+          - gnuinstall
+          - packaging
       goal:
         description: Orthogonal goal selector
         required: true
@@ -80,6 +99,14 @@ on:
         description: Build tool selection (auto|make|cmake)
         required: true
         type: string
+      compiler:
+        description: Compiler selection (auto|gcc|clang)
+        required: true
+        type: string
+      preset:
+        description: CMake preset selection (auto|default|gnuinstall|packaging)
+        required: true
+        type: string
       goal:
         description: Orthogonal goal selector (verify|ref)
         required: true
@@ -123,6 +150,8 @@ jobs:
               inputs: {
                 family: '${{ inputs.family }}',
                 build_tool: '${{ inputs.build_tool }}',
+                compiler: '${{ inputs.compiler }}',
+                preset: '${{ inputs.preset }}',
                 goal: '${{ inputs.goal }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -130,7 +159,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, preset=${{ inputs.preset }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -138,6 +167,8 @@ jobs:
     outputs:
       matrix_all: ${{ steps.generate.outputs.matrix_all }}
       build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
+      compiler: ${{ steps.resolve_execution.outputs.compiler }}
+      preset: ${{ steps.resolve_execution.outputs.preset }}
       goal: ${{ steps.resolve_execution.outputs.goal }}
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
@@ -156,6 +187,8 @@ jobs:
         shell: bash
         env:
           INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
+          INPUT_COMPILER: ${{ inputs.compiler }}
+          INPUT_PRESET: ${{ inputs.preset }}
           INPUT_GOAL: ${{ inputs.goal }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
@@ -165,6 +198,8 @@ jobs:
 
           python3 ci/run/ref/resolve-execution-model.py \
             --requested-build-tool "${INPUT_BUILD_TOOL}" \
+            --requested-compiler "${INPUT_COMPILER}" \
+            --requested-preset "${INPUT_PRESET}" \
             --goal "${INPUT_GOAL}" \
             --ref-mode "${INPUT_REF_MODE}" \
             --publish "${INPUT_PUBLISH}" \
@@ -187,6 +222,8 @@ jobs:
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
+          SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
+          SELECTED_PRESET: ${{ steps.resolve_execution.outputs.preset }}
           PURPOSE: ${{ steps.resolve_execution.outputs.purpose }}
         run: |
           set -euo pipefail
@@ -196,6 +233,8 @@ jobs:
             --purpose "${PURPOSE}"
             --selected-family "${SELECTED_FAMILY}"
             --build-tool "${SELECTED_BUILD_TOOL}"
+            --compiler "${SELECTED_COMPILER}"
+            --preset "${SELECTED_PRESET}"
             --manifest "ci/run/ref/ref-families.yml"
             --github-output "${GITHUB_OUTPUT}"
           )
@@ -207,6 +246,8 @@ jobs:
         run: |
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
+          echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
+          echo "Preset: ${{ steps.resolve_execution.outputs.preset }}"
           echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
           echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"

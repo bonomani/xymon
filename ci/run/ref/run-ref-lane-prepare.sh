@@ -3,6 +3,8 @@ set -euo pipefail
 
 env_out=""
 build_tool=""
+ci_compiler="gcc"
+preset="default"
 goal="verify"
 ref_mode="generate"
 publish="none"
@@ -25,6 +27,8 @@ usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --build make|cmake
+  --compiler gcc|clang
+  --preset default|gnuinstall|packaging
   --goal verify|ref
   --variant NAME
   [--ref-mode generate|compare]
@@ -52,6 +56,14 @@ while [[ $# -gt 0 ]]; do
       ;;
     --build)
       build_tool="${2:-}"
+      shift 2
+      ;;
+    --compiler)
+      ci_compiler="${2:-}"
+      shift 2
+      ;;
+    --preset)
+      preset="${2:-}"
       shift 2
       ;;
     --goal)
@@ -132,6 +144,22 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
+case "${ci_compiler}" in
+  gcc|clang)
+    ;;
+  *)
+    echo "Unsupported --compiler value: ${ci_compiler}" >&2
+    usage
+    ;;
+esac
+case "${preset}" in
+  default|gnuinstall|packaging)
+    ;;
+  *)
+    echo "Unsupported --preset value: ${preset}" >&2
+    usage
+    ;;
+esac
 # goal/ref_mode/publish consistency is validated upstream by execution_model.py
 # before lane execution reaches this script.
 if [[ -z "${variant}" ]]; then
@@ -178,6 +206,8 @@ fi
 mkdir -p "$(dirname "${env_out}")"
 {
   printf 'build_tool=%q\n' "${build_tool}"
+  printf 'ci_compiler=%q\n' "${ci_compiler}"
+  printf 'preset=%q\n' "${preset}"
   printf 'goal=%q\n' "${goal}"
   printf 'ref_mode=%q\n' "${ref_mode}"
   printf 'publish=%q\n' "${publish}"
@@ -195,4 +225,3 @@ mkdir -p "$(dirname "${env_out}")"
   printf 'baseline_prefix=%q\n' "${baseline_prefix}"
   printf 'candidate_dir=%q\n' "${candidate_dir}"
 } > "${env_out}"
-

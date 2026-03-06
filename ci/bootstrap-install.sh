@@ -12,6 +12,8 @@ CLIENTONLY=""
 LOCALCLIENT=""
 HTTPDGID=""
 BUILD_TOOL="make"
+CI_COMPILER="${CI_COMPILER:-gcc}"
+CMAKE_PRESET="${PRESET:-default}"
 XYMONUSER="${XYMONUSER:-xymon}"
 XYMONGROUP="${XYMONGROUP:-${XYMONUSER}}"
 
@@ -69,6 +71,14 @@ while [ $# -gt 0 ]; do
       BUILD_TOOL="${2:-}"
       shift 2
       ;;
+    --compiler)
+      CI_COMPILER="${2:-}"
+      shift 2
+      ;;
+    --preset)
+      CMAKE_PRESET="${2:-}"
+      shift 2
+      ;;
     *)
       echo "Unknown arg: $1" >&2
       exit 1
@@ -94,6 +104,11 @@ DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
 CMAKE_BIN="${CMAKE_BIN:-cmake}"
+if [ -n "${CMAKE_BUILD_DIR:-}" ]; then
+  CMAKE_BUILD_DIR_USER_SET=1
+else
+  CMAKE_BUILD_DIR_USER_SET=0
+fi
 CMAKE_BUILD_DIR="${CMAKE_BUILD_DIR:-build-cmake}"
 CMAKE_LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR:-/tmp/cmake-ref-root}"
 CMAKE_LEGACY_DESTROOT="${CMAKE_LEGACY_DESTDIR}${DEFAULT_TOP}"
@@ -116,6 +131,30 @@ normalize_build_tool() {
       ;;
     *)
       echo "Unsupported --build value: ${BUILD_TOOL}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+normalize_compiler() {
+  CI_COMPILER="$(printf '%s' "${CI_COMPILER:-gcc}" | tr '[:upper:]' '[:lower:]')"
+  case "${CI_COMPILER}" in
+    gcc|clang)
+      ;;
+    *)
+      echo "Unsupported --compiler value: ${CI_COMPILER}" >&2
+      exit 1
+      ;;
+  esac
+}
+
+normalize_cmake_preset() {
+  CMAKE_PRESET="$(printf '%s' "${CMAKE_PRESET:-default}" | tr '[:upper:]' '[:lower:]')"
+  case "${CMAKE_PRESET}" in
+    default|gnuinstall|packaging)
+      ;;
+    *)
+      echo "Unsupported --preset value: ${CMAKE_PRESET}" >&2
       exit 1
       ;;
   esac
@@ -293,7 +332,8 @@ detect_cares_prefix() {
 }
 
 install_default_packages() {
-  CI_DEPS_BUILD_TOOL="${BUILD_TOOL}" bash ci/deps/install-default-packages.sh
+  CI_DEPS_BUILD_TOOL="${BUILD_TOOL}" CI_COMPILER="${CI_COMPILER}" \
+    bash ci/deps/install-default-packages.sh
 }
 
 prepare_os() {
@@ -373,7 +413,7 @@ configure_build_make() {
   export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
   export XYMONTOPDIR="${DEFAULT_TOP}"
-  export CC=cc
+  export CC="${CC:-${CI_COMPILER}}"
   if [ -n "${LEGACY_CONFTYPE}" ]; then
     export CONFTYPE="${LEGACY_CONFTYPE}"
   fi
@@ -396,10 +436,49 @@ configure_build_make() {
 configure_build_cmake() {
   local cmake_enable_ldap
   local cmake_apply_ownership
+  local cmake_use_gnuinstalldirs
+  local cmake_install_prefix
+  local cmake_httpdgid_chgrp
   local extra_args=()
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
   cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
+  case "${CMAKE_PRESET}" in
+    default)
+      cmake_use_gnuinstalldirs="OFF"
+      cmake_install_prefix="/"
+      cmake_httpdgid_chgrp="ON"
+      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
+        CMAKE_BUILD_DIR="build-cmake"
+      fi
+      ;;
+    gnuinstall)
+      cmake_use_gnuinstalldirs="ON"
+      cmake_install_prefix="/"
+      cmake_httpdgid_chgrp="ON"
+      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
+        CMAKE_BUILD_DIR="build-cmake-gnu"
+      fi
+      ;;
+    packaging)
+      cmake_use_gnuinstalldirs="ON"
+      cmake_install_prefix="/usr"
+      cmake_httpdgid_chgrp="OFF"
+      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
+        CMAKE_BUILD_DIR="build-cmake-packaging"
+      fi
+      ;;
+  esac
+  case "${CI_COMPILER}" in
+    gcc)
+      export CC="${CC:-gcc}"
+      export CXX="${CXX:-g++}"
+      ;;
+    clang)
+      export CC="${CC:-clang}"
+      export CXX="${CXX:-clang++}"
+      ;;
+  esac
   if [ -n "${XYMONHOSTNAME:-}" ]; then
     extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
   fi
@@ -407,8 +486,9 @@ configure_build_cmake() {
   echo "configure: ${CMAKE_BIN} -S . -B ${CMAKE_BUILD_DIR}"
   "${CMAKE_BIN}" -S . -B "${CMAKE_BUILD_DIR}" \
     -G Ninja \
-    -DUSE_GNUINSTALLDIRS=OFF \
-    -DCMAKE_INSTALL_PREFIX=/ \
+    -DUSE_GNUINSTALLDIRS="${cmake_use_gnuinstalldirs}" \
+    -DCMAKE_INSTALL_PREFIX="${cmake_install_prefix}" \
+    -DHTTPDGID_CHGRP="${cmake_httpdgid_chgrp}" \
     -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}" \
     -DXYMONUSER="${XYMONUSER}" \
     -DHTTPDGID="${HTTPDGID}" \
@@ -572,6 +652,8 @@ EOF
 }
 
 normalize_build_tool
+normalize_compiler
+normalize_cmake_preset
 normalize_variant
 set_feature_flags
 select_build_adapter

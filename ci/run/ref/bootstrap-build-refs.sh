@@ -2,6 +2,8 @@
 set -euo pipefail
 
 build_tool=""
+ci_compiler="gcc"
+preset="default"
 os_name=""
 os_version=""
 platform_os="${PLATFORM_OS:-}"
@@ -14,7 +16,7 @@ DEP_MODE="${DEP_MODE:-}"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--version VERSION]
+Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--preset PRESET] [--version VERSION]
 USAGE
   exit 2
 }
@@ -23,6 +25,14 @@ while [[ $# -gt 0 ]]; do
   case "$1" in
     --build)
       build_tool="${2:-}"
+      shift 2
+      ;;
+    --compiler)
+      ci_compiler="${2:-}"
+      shift 2
+      ;;
+    --preset)
+      preset="${2:-}"
       shift 2
       ;;
     --os)
@@ -72,6 +82,24 @@ case "${build_tool}" in
     ;;
 esac
 
+case "${ci_compiler}" in
+  gcc|clang)
+    ;;
+  *)
+    echo "Unsupported --compiler value: ${ci_compiler}" >&2
+    usage
+    ;;
+esac
+
+case "${preset}" in
+  default|gnuinstall|packaging)
+    ;;
+  *)
+    echo "Unsupported --preset value: ${preset}" >&2
+    usage
+    ;;
+esac
+
 if [[ -z "${os_name}" || -z "${variant}" || -z "${ref_prefix}" || -z "${refs_root}" || -z "${artifact_root}" ]]; then
   usage
 fi
@@ -117,7 +145,7 @@ trap '
   stage_if_present /tmp/xymon-root-vars.sh
 ' EXIT
 
-echo "Running bootstrap-install (${build_tool} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
+echo "Running bootstrap-install (${build_tool} / compiler=${ci_compiler} / preset=${preset} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
 bootstrap_args=(
   bash
   ci/bootstrap-install.sh
@@ -125,6 +153,8 @@ bootstrap_args=(
   --platform-os "${platform_os}"
   --variant "${variant}"
   --build "${build_tool}"
+  --compiler "${ci_compiler}"
+  --preset "${preset}"
 )
 if [[ -n "${os_version}" ]]; then
   bootstrap_args+=(--version "${os_version}")

@@ -20,6 +20,8 @@ from matrix_common import (
 from runtime_model import load_runtime_model
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
+SUPPORTED_COMPILERS = {"gcc", "clang"}
+SUPPORTED_PRESETS = {"default", "gnuinstall", "packaging"}
 SUPPORTED_PURPOSES = {"generation", "validation"}
 
 
@@ -266,12 +268,22 @@ def validate_lane_requirements(
         die(f"{lane_context_label(family_entry, lane_obj)} is missing 'runs_on'")
 
 
-def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: str):
+def normalize_lane(
+    family_entry,
+    lane,
+    platform_catalog,
+    build_tool,
+    compiler,
+    preset,
+    purpose: str,
+):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
+    lane_obj["compiler"] = compiler
+    lane_obj["preset"] = preset
     runtime_execution = family_entry["runtime_execution"]
     runtime_default_ref_os = family_entry["runtime_default_ref_os"]
     runtime_requires_runs_on = family_entry["runtime_requires_runs_on"]
@@ -333,6 +345,18 @@ def parse_args():
         choices=sorted(SUPPORTED_BUILD_TOOLS),
         help="Build tool selection (make or cmake)",
     )
+    parser.add_argument(
+        "--compiler",
+        required=True,
+        choices=sorted(SUPPORTED_COMPILERS),
+        help="Compiler selection (gcc or clang)",
+    )
+    parser.add_argument(
+        "--preset",
+        required=True,
+        choices=sorted(SUPPORTED_PRESETS),
+        help="CMake preset selection",
+    )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
         "--platform-catalog",
@@ -355,6 +379,12 @@ def main():
     build_tool = args.build_tool
     if build_tool not in SUPPORTED_BUILD_TOOLS:
         die(f"Unsupported build tool: {build_tool}")
+    compiler = args.compiler
+    if compiler not in SUPPORTED_COMPILERS:
+        die(f"Unsupported compiler: {compiler}")
+    preset = args.preset
+    if preset not in SUPPORTED_PRESETS:
+        die(f"Unsupported preset: {preset}")
 
     repo_root = Path(__file__).resolve().parents[3]
     runtime_model = load_runtime_model(repo_root / args.runtime_model)
@@ -398,7 +428,13 @@ def main():
             if not isinstance(lane, dict):
                 continue
             normalized = normalize_lane(
-                family_entry, lane, platform_catalog, build_tool, purpose
+                family_entry,
+                lane,
+                platform_catalog,
+                build_tool,
+                compiler,
+                preset,
+                purpose,
             )
             if normalized is None:
                 continue

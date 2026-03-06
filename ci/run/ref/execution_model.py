@@ -38,6 +38,16 @@ def validate_requested_build_tool(build_tool: str) -> None:
         raise ValueError(f"Unsupported requested_build_tool: {build_tool}")
 
 
+def validate_requested_compiler(compiler: str) -> None:
+    if compiler not in {"auto", "gcc", "clang"}:
+        raise ValueError(f"Unsupported requested_compiler: {compiler}")
+
+
+def validate_requested_preset(preset: str) -> None:
+    if preset not in {"auto", "default", "gnuinstall", "packaging"}:
+        raise ValueError(f"Unsupported requested_preset: {preset}")
+
+
 def validate_lane_build_tool(build_tool: str) -> None:
     if build_tool not in {"make", "cmake"}:
         raise ValueError(f"Unsupported lane build_tool: {build_tool}")
@@ -49,6 +59,23 @@ def resolve_build_tool(requested_build_tool: str, goal: str, ref_mode: str) -> s
             return "cmake"
         return "make"
     return requested_build_tool
+
+
+def resolve_compiler(requested_compiler: str) -> str:
+    if requested_compiler == "auto":
+        return "gcc"
+    return requested_compiler
+
+
+def resolve_preset(requested_preset: str, build_tool: str) -> str:
+    if build_tool == "make":
+        if requested_preset in {"auto", "default"}:
+            return "default"
+        raise ValueError(f"preset={requested_preset} requires build_tool=cmake")
+
+    if requested_preset == "auto":
+        return "default"
+    return requested_preset
 
 
 def derive_dep_mode(goal: str, ref_mode: str) -> str:
@@ -66,6 +93,8 @@ def derive_purpose(goal: str, ref_mode: str) -> str:
 def resolve_execution_model(
     *,
     requested_build_tool: str,
+    requested_compiler: str,
+    requested_preset: str,
     goal: str,
     ref_mode: str,
     publish: str,
@@ -76,9 +105,14 @@ def resolve_execution_model(
     validate_goal_ref_publish(goal, ref_mode, publish)
     validate_allow_failure_mode(allow_failure_mode)
     validate_requested_build_tool(requested_build_tool)
+    validate_requested_compiler(requested_compiler)
+    validate_requested_preset(requested_preset)
+    build_tool = resolve_build_tool(requested_build_tool, goal, ref_mode)
 
     return {
-        "build_tool": resolve_build_tool(requested_build_tool, goal, ref_mode),
+        "build_tool": build_tool,
+        "compiler": resolve_compiler(requested_compiler),
+        "preset": resolve_preset(requested_preset, build_tool),
         "goal": goal,
         "ref_mode": ref_mode,
         "publish": publish,
