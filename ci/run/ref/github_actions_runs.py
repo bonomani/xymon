@@ -14,6 +14,16 @@ def normalize_run_selector(run_selector: str) -> str:
     return " ".join((run_selector or "").strip().split())
 
 
+def format_resolved_via(resolved_via: str) -> str:
+    labels = {
+        "fixture": "fixture",
+        "latest": "latest completed run matching filters",
+        "run_id": "explicit run ID",
+        "run_number": "explicit run-number selector",
+    }
+    return labels.get(resolved_via, resolved_via)
+
+
 def extract_run_id(run_selector: str) -> int | None:
     selector = normalize_run_selector(run_selector)
     if not selector:
@@ -111,4 +121,3 @@ def load_latest_workflow_run(
             selector = f"{selector} for event {event}"
         raise ValueError(f"No completed workflow runs found for {selector}")
     return runs[0]
-

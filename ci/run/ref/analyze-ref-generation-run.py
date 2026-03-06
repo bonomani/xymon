@@ -14,7 +14,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
-from github_actions_runs import load_latest_workflow_run, load_run_from_selector
+from github_actions_runs import format_resolved_via, load_latest_workflow_run, load_run_from_selector
 from lane_categories import (
     CATEGORY_LABELS,
     CATEGORY_ORDER,
@@ -679,18 +679,21 @@ def build_report(
     control_names = sorted(job["normalized_name"] for job in control_jobs)
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
     run_id = run.get("id")
+    run_number = run.get("run_number")
     run_url = run.get("html_url") or f"{server_url}/{repo}/actions/runs/{run_id}"
     run_conclusion = str(run.get("conclusion") or run.get("status") or "unknown").strip().lower()
     workflow_name = run.get("name") or "Pipeline - Select and Run Lanes"
     head_sha = str(run.get("head_sha") or "")
     short_sha = head_sha[:12] if head_sha else ""
+    resolved_via_label = format_resolved_via(resolved_via)
 
     lines = [
         "# Pipeline Selector Run Analysis",
         "",
         f"- Workflow: `{workflow_name}`",
         f"- Run: [{run_id}]({run_url})",
-        f"- Resolved via: `{resolved_via}`",
+        f"- Run number: `#{run_number}`" if run_number is not None else "- Run number: `<unknown>`",
+        f"- Resolved via: `{resolved_via_label}`",
         f"- Branch: `{run.get('head_branch') or ''}`",
         f"- Event: `{run.get('event') or ''}`",
         f"- Workflow conclusion: `{run_conclusion}`",
