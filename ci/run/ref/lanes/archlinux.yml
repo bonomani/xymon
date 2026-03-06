@@ -1,5 +1,3 @@
 include:
-- name_prefix: Arch Linux amd64
-  platform_id: archlinux-latest
-- name_prefix: Arch Linux base amd64
-  platform_id: archlinux-base
+- platform_id: archlinux-latest
+- platform_id: archlinux-base

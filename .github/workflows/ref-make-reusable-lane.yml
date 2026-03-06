@@ -55,29 +55,7 @@ jobs:
         id: lane_env
         shell: bash
         env:
-          LEGACY_APPLY_OWNERSHIP: ON
-          XYMONUSER: _www
-          XYMONGROUP: _www
-          ENABLE_LDAP: ${{ steps.lane_ctx.outputs.enable_ldap }}
-          ENABLE_SNMP: ${{ steps.lane_ctx.outputs.enable_snmp }}
-          BUILD_TOOL: ${{ steps.lane_ctx.outputs.build_tool }}
-          GOAL: ${{ steps.lane_ctx.outputs.goal }}
-          REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
-          PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
-          VARIANT: ${{ steps.lane_ctx.outputs.variant }}
-          BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
-          REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
-          PLATFORM_OS: ${{ steps.lane_ctx.outputs.platform_os }}
-          OS_VERSION: ${{ steps.lane_ctx.outputs.os_version }}
-          ARTIFACT_FAMILY: ${{ steps.lane_ctx.outputs.artifact_family }}
-          PLATFORM_ID: ${{ steps.lane_ctx.outputs.platform_id }}
-          REF_STAGE_ROOT: ${{ steps.lane_ctx.outputs.ref_stage_root }}
-          CMAKE_BIN: ${{ steps.lane_ctx.outputs.cmake_bin }}
-          PREPARE_PROFILE: ${{ steps.lane_ctx.outputs.prepare_profile }}
-          CHECKOUT_MODE: ${{ steps.lane_ctx.outputs.checkout_mode }}
-          CONTAINER_IMAGE: ${{ steps.lane_ctx.outputs.container }}
-          CONTAINER_OPTIONS: ${{ steps.lane_ctx.outputs.container_options }}
-          RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
+          LANE_ENV_JSON: ${{ steps.lane_ctx.outputs.lane_env_json }}
           CI: ${{ env.CI }}
           GITHUB_WORKSPACE: ${{ github.workspace }}
           GITHUB_REPOSITORY: ${{ github.repository }}
@@ -86,12 +64,14 @@ jobs:
         run: |
           set -euo pipefail
           out_file="tmp/xymon-refs/lane.env.sh"
-          bash ci/run/ref/write-lane-env.sh --output "${out_file}"
+          bash ci/run/ref/write-lane-env.sh \
+            --output "${out_file}" \
+            --lane-env-json "${LANE_ENV_JSON}"
           echo "path=${out_file}" >> "${GITHUB_OUTPUT}"
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
-        if: ${{ steps.lane_ctx.outputs.runtime != 'bsd_vm' }}
+        if: ${{ steps.lane_ctx.outputs.runtime_execution != 'vm' }}
         continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
         shell: bash
         env:
@@ -102,7 +82,7 @@ jobs:
 
       - name: Run lane orchestration on BSD VM
         id: lane_run_bsd_vm
-        if: ${{ steps.lane_ctx.outputs.runtime == 'bsd_vm' }}
+        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'vm' }}
         continue-on-error: ${{ steps.lane_ctx.outputs.allow_failure_mode != 'off' && steps.lane_ctx.outputs.lane_allow_failure == '1' }}
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
@@ -125,13 +105,13 @@ jobs:
         shell: bash
         env:
           RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
+          OUTCOME_CHANNEL: ${{ steps.lane_ctx.outputs.runtime_outcome_channel }}
           OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
         run: |
           set -euo pipefail
-          outcome_channel="$(python3 ci/run/ref/runtime-model-query.py --runtime "${RUNTIME}" --field outcome_channel)"
           outcome=""
-          case "${outcome_channel}" in
+          case "${OUTCOME_CHANNEL}" in
             bsd_vm)
               outcome="${OUTCOME_BSD_VM}"
               ;;
@@ -139,7 +119,7 @@ jobs:
               outcome="${OUTCOME_HOST_CONTAINER}"
               ;;
             *)
-              echo "Unsupported outcome channel '${outcome_channel}' for runtime '${RUNTIME}'" >&2
+              echo "Unsupported outcome channel '${OUTCOME_CHANNEL}' for runtime '${RUNTIME}'" >&2
               exit 2
               ;;
           esac
@@ -160,7 +140,7 @@ jobs:
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}
           goal: ${{ steps.lane_ctx.outputs.goal }}
           ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
-          dep_mode: ${{ steps.lane_ctx.outputs.dep_mode }}
+          dep_report_path: ${{ steps.lane_ctx.outputs.deps_report_path }}
           upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}
           build_tool: ${{ steps.lane_ctx.outputs.build_tool }}
           platform_id: ${{ steps.lane_ctx.outputs.platform_id }}

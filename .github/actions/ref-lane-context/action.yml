@@ -28,15 +28,18 @@ outputs:
   publish:
     description: Normalized publish mode.
     value: ${{ steps.resolve.outputs.publish }}
-  dep_mode:
-    description: Derived dependency report mode (generate|compare).
-    value: ${{ steps.resolve.outputs.dep_mode }}
   allow_failure_mode:
     description: Normalized allow-failure mode.
     value: ${{ steps.resolve.outputs.allow_failure_mode }}
   runtime:
     description: Lane runtime key.
     value: ${{ steps.resolve.outputs.runtime }}
+  runtime_execution:
+    description: Runtime execution class from runtime model (host|container|vm).
+    value: ${{ steps.resolve.outputs.runtime_execution }}
+  runtime_outcome_channel:
+    description: Outcome channel from runtime model.
+    value: ${{ steps.resolve.outputs.runtime_outcome_channel }}
   build_tool:
     description: Lane build tool.
     value: ${{ steps.resolve.outputs.build_tool }}
@@ -70,6 +73,9 @@ outputs:
   ref_stage_root:
     description: Root directory for staged refs.
     value: ${{ steps.resolve.outputs.ref_stage_root }}
+  deps_report_path:
+    description: Canonical dependency report path for this lane.
+    value: ${{ steps.resolve.outputs.deps_report_path }}
   upload_artifacts:
     description: Artifact upload flag (1|0).
     value: ${{ steps.resolve.outputs.upload_artifacts }}
@@ -103,6 +109,9 @@ outputs:
   vm_cpu_count:
     description: Optional VM CPU count.
     value: ${{ steps.resolve.outputs.vm_cpu_count }}
+  lane_env_json:
+    description: Canonical lane environment payload as JSON mapping.
+    value: ${{ steps.resolve.outputs.lane_env_json }}
 
 runs:
   using: composite
@@ -119,24 +128,11 @@ runs:
       run: |
         set -euo pipefail
 
-        # shellcheck source=ci/run/ref/lib/mode-model.sh
-        source ci/run/ref/lib/mode-model.sh
-
-        resolved_goal="${INPUT_GOAL}"
-        resolved_ref_mode="${INPUT_REF_MODE}"
-        resolved_publish="${INPUT_PUBLISH}"
-        resolved_allow_failure_mode="$(normalize_allow_failure_mode "${INPUT_ALLOW_FAILURE_MODE}")"
-        resolved_dep_mode="$(derive_dep_mode "${resolved_goal}" "${resolved_ref_mode}")"
-
-        validate_goal_ref_publish "${resolved_goal}" "${resolved_ref_mode}" "${resolved_publish}"
-        validate_allow_failure_mode "${resolved_allow_failure_mode}"
-
         python3 ci/run/ref/resolve-lane-context.py \
           --lane-json "${INPUT_LANE_JSON}" \
-          --goal "${resolved_goal}" \
-          --ref-mode "${resolved_ref_mode}" \
-          --publish "${resolved_publish}" \
-          --allow-failure-mode "${resolved_allow_failure_mode}" \
-          --dep-mode "${resolved_dep_mode}" \
+          --goal "${INPUT_GOAL}" \
+          --ref-mode "${INPUT_REF_MODE}" \
+          --publish "${INPUT_PUBLISH}" \
+          --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
           --runtime-model "ci/run/ref/runtime-model.json" \
           --github-output "${GITHUB_OUTPUT}"

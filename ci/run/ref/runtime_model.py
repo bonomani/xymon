@@ -39,6 +39,8 @@ def load_runtime_model(path: Path | None = None):
     platform_runtime_by_key = {}
     execution_by_key = {}
     outcome_channel_by_key = {}
+    default_ref_os_by_key = {}
+    requires_runs_on_by_key = {}
 
     seen = set()
     for index, raw in enumerate(entries):
@@ -60,15 +62,31 @@ def load_runtime_model(path: Path | None = None):
             entry.get("outcome_channel"),
             f"Runtime entry {key}.outcome_channel",
         )
+        default_ref_os = _require_non_empty_string(
+            entry.get("default_ref_os"),
+            f"Runtime entry {key}.default_ref_os",
+        )
+        if default_ref_os not in {"linux", "macos", "family"}:
+            _die(
+                f"Runtime entry {key}.default_ref_os must be one of "
+                "'linux', 'macos', or 'family'"
+            )
+        requires_runs_on = entry.get("requires_runs_on")
+        if not isinstance(requires_runs_on, bool):
+            _die(f"Runtime entry {key}.requires_runs_on must be a boolean")
 
         ordered_keys.append(key)
         platform_runtime_by_key[key] = platform_runtime
         execution_by_key[key] = execution
         outcome_channel_by_key[key] = outcome_channel
+        default_ref_os_by_key[key] = default_ref_os
+        requires_runs_on_by_key[key] = requires_runs_on
 
     return {
         "ordered_keys": ordered_keys,
         "platform_runtime_by_key": platform_runtime_by_key,
         "execution_by_key": execution_by_key,
         "outcome_channel_by_key": outcome_channel_by_key,
+        "default_ref_os_by_key": default_ref_os_by_key,
+        "requires_runs_on_by_key": requires_runs_on_by_key,
     }

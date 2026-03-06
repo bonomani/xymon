@@ -1,9 +1,5 @@
 include:
-- name_prefix: macOS latest
-  platform_id: macos-latest
-- name_prefix: macOS 26
-  platform_id: macos-26
-- name_prefix: macOS 15
-  platform_id: macos-15
-- name_prefix: macOS 14
-  platform_id: macos-14
+- platform_id: macos-latest
+- platform_id: macos-26
+- platform_id: macos-15
+- platform_id: macos-14

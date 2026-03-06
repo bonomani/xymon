@@ -1,11 +1,6 @@
 include:
-- name_prefix: Rocky Linux 8
-  platform_id: rockylinux-8
-- name_prefix: Rocky Linux 9
-  platform_id: rockylinux-9
-- name_prefix: AlmaLinux 8
-  platform_id: almalinux-8
-- name_prefix: AlmaLinux 9
-  platform_id: almalinux-9
-- name_prefix: AlmaLinux 10
-  platform_id: almalinux-10
+- platform_id: rockylinux-8
+- platform_id: rockylinux-9
+- platform_id: almalinux-8
+- platform_id: almalinux-9
+- platform_id: almalinux-10

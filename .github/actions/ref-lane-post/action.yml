@@ -17,8 +17,8 @@ inputs:
   ref_mode:
     description: Reference mode (generate|compare).
     required: true
-  dep_mode:
-    description: Derived dependency mode (generate|compare).
+  dep_report_path:
+    description: Canonical dependency report path for this lane.
     required: true
   upload_artifacts:
     description: Whether artifact upload is enabled (1 or 0).
@@ -85,15 +85,14 @@ runs:
       if: ${{ inputs.upload_artifacts == '1' && ((inputs.goal == 'ref' && inputs.ref_mode == 'compare') || inputs.lane_outcome == 'success') }}
       uses: ./.github/actions/upload-deps-report
       with:
-        dep_mode: ${{ inputs.dep_mode }}
+        goal: ${{ inputs.goal }}
+        ref_mode: ${{ inputs.ref_mode }}
+        report_path: ${{ inputs.dep_report_path }}
         build_tool: ${{ inputs.build_tool }}
         platform_id: ${{ inputs.platform_id }}
         variant: ${{ inputs.variant }}
         artifact_arch: ${{ inputs.artifact_arch }}
         lane_name: ${{ inputs.lane_name }}
-        artifact_family: ${{ inputs.artifact_family }}
-        ref_stage_root: ${{ inputs.ref_stage_root }}
-        ref_os: ${{ inputs.ref_os }}
         if_no_files_found: ${{ inputs.dep_if_no_files_found }}
 
     - name: Upload legacy references

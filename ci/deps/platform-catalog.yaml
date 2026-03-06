@@ -2,6 +2,7 @@ platforms:
   debian-11:
     runtime: docker
     image: debian:11.11-slim
+    display_name: Debian 11.11-slim amd64
     deps:
       family: debian
       os: debian
@@ -9,6 +10,7 @@ platforms:
   debian-12:
     runtime: docker
     image: debian:12.13-slim
+    display_name: Debian 12.13-slim amd64
     deps:
       family: debian
       os: debian
@@ -16,6 +18,7 @@ platforms:
   debian-13:
     runtime: docker
     image: debian:13.3-slim
+    display_name: Debian 13.3-slim amd64
     deps:
       family: debian
       os: debian
@@ -23,6 +26,7 @@ platforms:
   ubuntu-20:
     runtime: docker
     image: ubuntu:20.04
+    display_name: Ubuntu 20.04 amd64
     deps:
       family: ubuntu
       os: ubuntu
@@ -30,6 +34,7 @@ platforms:
   ubuntu-22:
     runtime: docker
     image: ubuntu:22.04
+    display_name: Ubuntu 22.04 amd64
     deps:
       family: ubuntu
       os: ubuntu
@@ -37,6 +42,7 @@ platforms:
   ubuntu-24:
     runtime: docker
     image: ubuntu:24.04
+    display_name: Ubuntu 24.04 amd64
     deps:
       family: ubuntu
       os: ubuntu
@@ -44,6 +50,7 @@ platforms:
   rockylinux-8:
     runtime: docker
     image: rockylinux:8
+    display_name: Rocky Linux 8
     deps:
       family: rpm
       os: rockylinux
@@ -51,6 +58,7 @@ platforms:
   rockylinux-9:
     runtime: docker
     image: rockylinux:9
+    display_name: Rocky Linux 9
     deps:
       family: rpm
       os: rockylinux
@@ -58,6 +66,7 @@ platforms:
   oraclelinux-10:
     runtime: docker
     image: oraclelinux:10
+    display_name: Oracle Linux 10 arm64
     deps:
       family: rpm
       os: oraclelinux
@@ -65,6 +74,7 @@ platforms:
   oraclelinux-10-slim:
     runtime: docker
     image: oraclelinux:10-slim
+    display_name: Oracle Linux 10-slim amd64
     deps:
       family: rpm
       os: oraclelinux
@@ -72,6 +82,7 @@ platforms:
   oraclelinux-9:
     runtime: docker
     image: oraclelinux:9
+    display_name: Oracle Linux 9 amd64
     deps:
       family: rpm
       os: oraclelinux
@@ -79,6 +90,7 @@ platforms:
   oraclelinux-8:
     runtime: docker
     image: oraclelinux:8
+    display_name: Oracle Linux 8 amd64
     deps:
       family: rpm
       os: oraclelinux
@@ -86,6 +98,7 @@ platforms:
   almalinux-8:
     runtime: docker
     image: almalinux:8
+    display_name: AlmaLinux 8
     deps:
       family: rpm
       os: almalinux
@@ -93,6 +106,7 @@ platforms:
   almalinux-9:
     runtime: docker
     image: almalinux:9
+    display_name: AlmaLinux 9
     deps:
       family: rpm
       os: almalinux
@@ -100,6 +114,7 @@ platforms:
   almalinux-10:
     runtime: docker
     image: almalinux:10
+    display_name: AlmaLinux 10
     deps:
       family: rpm
       os: almalinux
@@ -107,6 +122,7 @@ platforms:
   centos-7:
     runtime: docker
     image: centos:7
+    display_name: CentOS 7
     deps:
       family: rpm
       os: centos
@@ -114,6 +130,7 @@ platforms:
   fedora-40:
     runtime: docker
     image: fedora:40
+    display_name: Fedora 40
     deps:
       family: rpm
       os: fedora
@@ -121,6 +138,7 @@ platforms:
   fedora-41:
     runtime: docker
     image: fedora:41
+    display_name: Fedora 41
     deps:
       family: rpm
       os: fedora
@@ -128,6 +146,7 @@ platforms:
   fedora-42:
     runtime: docker
     image: fedora:42
+    display_name: Fedora 42
     deps:
       family: rpm
       os: fedora
@@ -135,6 +154,7 @@ platforms:
   opensuse-tumbleweed:
     runtime: docker
     image: opensuse/tumbleweed:latest
+    display_name: openSUSE Tumbleweed
     deps:
       family: suse
       os: opensuse_tumbleweed
@@ -142,6 +162,7 @@ platforms:
   opensuse-leap-16_0:
     runtime: docker
     image: opensuse/leap:16.0
+    display_name: openSUSE Leap 16.0
     deps:
       family: suse
       os: opensuse_leap
@@ -149,6 +170,7 @@ platforms:
   opensuse-leap-15_6:
     runtime: docker
     image: opensuse/leap:15.6
+    display_name: openSUSE Leap 15.6
     deps:
       family: suse
       os: opensuse_leap
@@ -156,6 +178,7 @@ platforms:
   opensuse-leap-15_5:
     runtime: docker
     image: opensuse/leap:15.5
+    display_name: openSUSE Leap 15.5
     deps:
       family: suse
       os: opensuse_leap
@@ -163,6 +186,7 @@ platforms:
   alpine-3_23:
     runtime: docker
     image: alpine:3.23
+    display_name: Alpine 3.23 amd64
     deps:
       family: alpine
       os: alpine
@@ -170,6 +194,7 @@ platforms:
   alpine-3_22:
     runtime: docker
     image: alpine:3.22
+    display_name: Alpine 3.22 amd64
     deps:
       family: alpine
       os: alpine
@@ -177,6 +202,7 @@ platforms:
   alpine-3_21:
     runtime: docker
     image: alpine:3.21
+    display_name: Alpine 3.21 amd64
     deps:
       family: alpine
       os: alpine
@@ -184,6 +210,7 @@ platforms:
   alpine-3_20:
     runtime: docker
     image: alpine:3.20
+    display_name: Alpine 3.20 amd64
     deps:
       family: alpine
       os: alpine
@@ -191,6 +218,7 @@ platforms:
   alpine-3_19:
     runtime: docker
     image: alpine:3.19
+    display_name: Alpine 3.19 amd64
     deps:
       family: alpine
       os: alpine
@@ -198,6 +226,7 @@ platforms:
   alpine-edge:
     runtime: docker
     image: alpine:edge
+    display_name: Alpine edge amd64
     deps:
       family: alpine
       os: alpine
@@ -205,6 +234,7 @@ platforms:
   archlinux-latest:
     runtime: docker
     image: archlinux:latest
+    display_name: Arch Linux amd64
     deps:
       family: arch
       os: archlinux
@@ -212,6 +242,7 @@ platforms:
   archlinux-base:
     runtime: docker
     image: archlinux:base
+    display_name: Arch Linux base amd64
     deps:
       family: arch
       os: archlinux
@@ -219,66 +250,77 @@ platforms:
   freebsd-15_0:
     runtime: vm
     provider: cross-platform-actions
+    display_name: FreeBSD 15.0
     deps:
       family: bsd
       os: freebsd
   freebsd-14_3:
     runtime: vm
     provider: cross-platform-actions
+    display_name: FreeBSD 14.3
     deps:
       family: bsd
       os: freebsd
   freebsd-13_5:
     runtime: vm
     provider: cross-platform-actions
+    display_name: FreeBSD 13.5
     deps:
       family: bsd
       os: freebsd
   netbsd-10_1:
     runtime: vm
     provider: cross-platform-actions
+    display_name: NetBSD 10.1 x86-64
     deps:
       family: bsd
       os: netbsd
   netbsd-10_0:
     runtime: vm
     provider: cross-platform-actions
+    display_name: NetBSD 10.0 x86-64
     deps:
       family: bsd
       os: netbsd
   netbsd-9_4:
     runtime: vm
     provider: cross-platform-actions
+    display_name: NetBSD 9.4 x86-64
     deps:
       family: bsd
       os: netbsd
   netbsd-9_3:
     runtime: vm
     provider: cross-platform-actions
+    display_name: NetBSD 9.3 x86-64
     deps:
       family: bsd
       os: netbsd
   netbsd-9_2:
     runtime: vm
     provider: cross-platform-actions
+    display_name: NetBSD 9.2 x86-64
     deps:
       family: bsd
       os: netbsd
   openbsd-7_8:
     runtime: vm
     provider: cross-platform-actions
+    display_name: OpenBSD 7.8
     deps:
       family: bsd
       os: openbsd
   openbsd-7_7:
     runtime: vm
     provider: cross-platform-actions
+    display_name: OpenBSD 7.7
     deps:
       family: bsd
       os: openbsd
   openbsd-7_6:
     runtime: vm
     provider: cross-platform-actions
+    display_name: OpenBSD 7.6
     deps:
       family: bsd
       os: openbsd
@@ -286,6 +328,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: macos-latest
+    display_name: macOS latest
     deps:
       family: macos
       os: macos
@@ -294,6 +337,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: macos-26
+    display_name: macOS 26
     deps:
       family: macos
       os: macos
@@ -302,6 +346,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: macos-15
+    display_name: macOS 15
     deps:
       family: macos
       os: macos
@@ -310,6 +355,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: macos-14
+    display_name: macOS 14
     deps:
       family: macos
       os: macos
@@ -318,6 +364,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: ubuntu-22.04
+    display_name: Linux
     deps:
       family: gh-debian
       os: ubuntu

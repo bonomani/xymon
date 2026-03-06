@@ -1,2 +1,2 @@
 include:
-  - name_prefix: Linux
+- platform_id: linux-host

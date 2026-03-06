@@ -6,6 +6,13 @@ import os
 import sys
 from pathlib import Path
 
+from execution_model import (
+    derive_dep_mode,
+    normalize_allow_failure_mode,
+    validate_allow_failure_mode,
+    validate_goal_ref_publish,
+    validate_lane_build_tool,
+)
 from runtime_model import DEFAULT_RUNTIME_MODEL_PATH, load_runtime_model
 
 
@@ -25,15 +32,10 @@ def parse_args():
         description="Resolve lane_json + normalized mode inputs into lane context outputs"
     )
     parser.add_argument("--lane-json", required=True)
-    parser.add_argument("--goal", required=True, choices=["verify", "ref"])
-    parser.add_argument("--ref-mode", required=True, choices=["generate", "compare"])
-    parser.add_argument("--publish", required=True, choices=["none", "artifact"])
-    parser.add_argument(
-        "--allow-failure-mode",
-        required=True,
-        choices=["off", "allow", "expect_fail"],
-    )
-    parser.add_argument("--dep-mode", required=True, choices=["generate", "compare"])
+    parser.add_argument("--goal", required=True)
+    parser.add_argument("--ref-mode", required=True)
+    parser.add_argument("--publish", required=True)
+    parser.add_argument("--allow-failure-mode", required=True)
     parser.add_argument(
         "--runtime-model",
         default=str(DEFAULT_RUNTIME_MODEL_PATH),
@@ -45,6 +47,15 @@ def parse_args():
 
 def main():
     args = parse_args()
+    goal = as_text(args.goal)
+    ref_mode = as_text(args.ref_mode)
+    publish = as_text(args.publish)
+    allow_failure_mode = normalize_allow_failure_mode(as_text(args.allow_failure_mode))
+    try:
+        validate_goal_ref_publish(goal, ref_mode, publish)
+        validate_allow_failure_mode(allow_failure_mode)
+    except ValueError as exc:
+        fail(str(exc))
 
     try:
         lane = json.loads(args.lane_json)
@@ -60,12 +71,16 @@ def main():
     variant = as_text(lane.get("variant"))
     runtime = as_text(lane.get("runtime"))
 
-    if build_tool not in {"make", "cmake"}:
-        fail(f"Unsupported lane build_tool: {build_tool}")
+    try:
+        validate_lane_build_tool(build_tool)
+    except ValueError as exc:
+        fail(str(exc))
     if not variant:
         fail("lane_json missing variant")
     if runtime not in supported_runtimes:
         fail(f"lane_json has unsupported runtime: {runtime}")
+    runtime_execution = runtime_model["execution_by_key"][runtime]
+    runtime_outcome_channel = runtime_model["outcome_channel_by_key"][runtime]
 
     ref_os = as_text(lane.get("ref_os")) or "linux"
     platform_os = as_text(lane.get("platform_os")) or ref_os
@@ -74,13 +89,13 @@ def main():
     os_version = as_text(lane.get("os_version"))
 
     baseline_root = as_text(lane.get("baseline_root"))
-    if args.goal == "ref" and not baseline_root:
+    if goal == "ref" and not baseline_root:
         fail("lane_json missing baseline_root")
 
     # Normalize to avoid empty artifact namespaces in logs/artifact names.
     artifact_family = as_text(lane.get("artifact_family")) or ref_os
 
-    upload_artifacts = "1" if args.publish == "artifact" else "0"
+    upload_artifacts = "1" if publish == "artifact" else "0"
     lane_allow_failure = "1" if lane.get("allow_failure") is True else "0"
 
     enable = "ON" if variant == "server" else "OFF"
@@ -91,13 +106,25 @@ def main():
     else:
         ref_stage_root = "tmp/xymon-refs"
 
+    dep_mode = derive_dep_mode(goal, ref_mode)
+    if dep_mode == "compare":
+        deps_report_path = (
+            f".ci-artifacts/ref-valid-{artifact_family}/"
+            f"{build_tool}-{platform_id}-{variant}/deps-report.json"
+        )
+    else:
+        deps_report_path = (
+            f"{ref_stage_root}/{build_tool}.{ref_os}.{variant}/meta/deps-report.json"
+        )
+
     outputs = {
-        "goal": args.goal,
-        "ref_mode": args.ref_mode,
-        "publish": args.publish,
-        "dep_mode": args.dep_mode,
-        "allow_failure_mode": args.allow_failure_mode,
+        "goal": goal,
+        "ref_mode": ref_mode,
+        "publish": publish,
+        "allow_failure_mode": allow_failure_mode,
         "runtime": runtime,
+        "runtime_execution": runtime_execution,
+        "runtime_outcome_channel": runtime_outcome_channel,
         "build_tool": build_tool,
         "variant": variant,
         "lane_allow_failure": lane_allow_failure,
@@ -109,6 +136,7 @@ def main():
         "baseline_root": baseline_root,
         "artifact_family": artifact_family,
         "ref_stage_root": ref_stage_root,
+        "deps_report_path": deps_report_path,
         "upload_artifacts": upload_artifacts,
         "enable_ldap": enable,
         "enable_snmp": enable,
@@ -121,6 +149,38 @@ def main():
         "vm_memory": as_text(lane.get("vm_memory")),
         "vm_cpu_count": as_text(lane.get("vm_cpu_count")),
     }
+
+    lane_env = {
+        "LEGACY_APPLY_OWNERSHIP": "ON",
+        "XYMONUSER": "_www",
+        "XYMONGROUP": "_www",
+        "ENABLE_LDAP": enable,
+        "ENABLE_SNMP": enable,
+        "BUILD_TOOL": build_tool,
+        "GOAL": goal,
+        "REF_MODE": ref_mode,
+        "PUBLISH": publish,
+        "VARIANT": variant,
+        "BASELINE_ROOT": baseline_root,
+        "REF_OS": ref_os,
+        "PLATFORM_OS": platform_os,
+        "OS_VERSION": os_version,
+        "ARTIFACT_FAMILY": artifact_family,
+        "PLATFORM_ID": platform_id,
+        "REF_STAGE_ROOT": ref_stage_root,
+        "CMAKE_BIN": as_text(lane.get("cmake_bin")),
+        "CI_DEPS_REPORT_JSON": deps_report_path,
+        "PREPARE_PROFILE": as_text(lane.get("prepare_profile")),
+        "CHECKOUT_MODE": as_text(lane.get("checkout_mode")),
+        "CONTAINER_IMAGE": as_text(lane.get("container")),
+        "CONTAINER_OPTIONS": as_text(lane.get("container_options")),
+        "RUNTIME": runtime,
+    }
+    outputs["lane_env_json"] = json.dumps(
+        lane_env,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
 
     output_lines = [f"{key}={value}" for key, value in outputs.items()]
 

@@ -1,4 +1,3 @@
 include:
-- name_prefix: CentOS 7
-  platform_id: centos-7
+- platform_id: centos-7
   cmake_bin: cmake3

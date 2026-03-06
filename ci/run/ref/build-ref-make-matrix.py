@@ -6,6 +6,7 @@ import os
 from pathlib import Path
 
 import yaml
+from lane_utils import VARIANT_NAME_SUFFIX
 from matrix_common import (
     die,
     infer_artifact_arch,
@@ -126,19 +127,15 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool
+    runtime_execution = family_entry["runtime_execution"]
+    runtime_default_ref_os = family_entry["runtime_default_ref_os"]
+    runtime_requires_runs_on = family_entry["runtime_requires_runs_on"]
 
     if lane_obj.get("ref_os") in (None, ""):
-        if lane_obj["runtime"] in {"linux_host", "linux_container"}:
-            lane_obj["ref_os"] = "linux"
-        elif lane_obj["runtime"] == "macos_host":
-            lane_obj["ref_os"] = "macos"
-        elif lane_obj["runtime"] == "bsd_vm":
+        if runtime_default_ref_os == "family":
             lane_obj["ref_os"] = family_entry["family"]
         else:
-            die(
-                f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-                f"'{family_entry['family']}' has unknown runtime '{lane_obj['runtime']}'"
-            )
+            lane_obj["ref_os"] = runtime_default_ref_os
 
     lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
     lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
@@ -151,6 +148,7 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
         supported_values=SUPPORTED_BUILD_TOOLS,
     )
 
+    platform_entry = None
     platform_id = lane_obj.get("platform_id")
     if platform_id is not None:
         platform_id = require_non_empty_string(
@@ -210,11 +208,30 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
             if inferred_version:
                 lane_obj[os_version_key] = inferred_version
 
+    if lane_obj.get("name") in (None, ""):
+        if platform_entry is None:
+            die(
+                f"Lane for family '{family_entry['family']}' is missing name "
+                "and cannot be auto-named without platform_id"
+            )
+        display_name = require_non_empty_string(
+            platform_entry.get("display_name"),
+            f"Platform '{platform_id}'.display_name",
+        )
+        variant = lane_obj.get("variant")
+        suffix = VARIANT_NAME_SUFFIX.get(variant)
+        if not suffix:
+            die(
+                f"Lane for family '{family_entry['family']}' has unsupported "
+                f"variant '{variant}' for auto naming"
+            )
+        lane_obj["name"] = f"{display_name} - {suffix}"
+
     if supported_build_tools is not None and build_tool not in supported_build_tools:
         return None
 
     arm64_overrides = family_entry["container_arm64_overrides"]
-    if arm64_overrides and family_entry["runtime"] == "linux_container":
+    if arm64_overrides and runtime_execution == "container":
         container_options = str(lane_obj.get("container_options", "")).lower()
         if "linux/arm64" in container_options:
             lane_obj.update(arm64_overrides)
@@ -250,22 +267,19 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
             )
 
     runtime = lane_obj["runtime"]
-    if runtime in {"linux_host", "linux_container", "bsd_vm"} and lane_obj.get("runs_on") in (
-        None,
-        "",
-    ):
+    if runtime_requires_runs_on and lane_obj.get("runs_on") in (None, ""):
         die(
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
             f"'{family_entry['family']}' is missing 'runs_on'"
         )
-    if runtime == "linux_container" and lane_obj.get("container") in (None, ""):
+    if runtime_execution == "container" and lane_obj.get("container") in (None, ""):
         die(
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
             f"'{family_entry['family']}' is missing 'container'"
         )
-    if runtime == "macos_host" and lane_obj.get("runner") in (None, "") and lane_obj.get(
-        "runs_on"
-    ) in (None, ""):
+    if runtime_execution == "host" and family_entry["runner_key"] and lane_obj.get(
+        "runner"
+    ) in (None, "") and lane_obj.get("runs_on") in (None, ""):
         die(
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
             f"'{family_entry['family']}' is missing 'runner' or 'runs_on'"
@@ -354,11 +368,21 @@ def main():
     repo_root = Path(__file__).resolve().parents[3]
     runtime_model = load_runtime_model(repo_root / args.runtime_model)
     runtime_to_platform_runtime = runtime_model["platform_runtime_by_key"]
+    runtime_to_execution = runtime_model["execution_by_key"]
+    runtime_to_default_ref_os = runtime_model["default_ref_os_by_key"]
+    runtime_to_requires_runs_on = runtime_model["requires_runs_on_by_key"]
     runtime_order = runtime_model["ordered_keys"]
 
     families = load_manifest(repo_root / args.manifest, purpose, runtime_to_platform_runtime)
     for family_entry in families:
         family_entry["runtime_to_platform_runtime"] = runtime_to_platform_runtime
+        family_entry["runtime_execution"] = runtime_to_execution[family_entry["runtime"]]
+        family_entry["runtime_default_ref_os"] = runtime_to_default_ref_os[
+            family_entry["runtime"]
+        ]
+        family_entry["runtime_requires_runs_on"] = runtime_to_requires_runs_on[
+            family_entry["runtime"]
+        ]
 
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
     expected_options = ["all"] + expected_dropdown_families_union(
