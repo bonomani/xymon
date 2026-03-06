@@ -17,23 +17,17 @@ from matrix_common import (
     require_non_empty_string,
     validate_dropdown_parity,
 )
-
-RUNTIME_TO_PLATFORM_RUNTIME = {
-    "linux_host": "host",
-    "linux_container": "docker",
-    "bsd_vm": "vm",
-    "macos_host": "host",
-}
+from runtime_model import load_runtime_model
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_PURPOSES = {"generation", "validation"}
 
 
-def load_manifest(path: Path, purpose: str):
+def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
     manifest_data = load_purpose_manifest_common(
         path,
         purpose=purpose,
-        supported_runtimes=RUNTIME_TO_PLATFORM_RUNTIME,
+        supported_runtimes=runtime_to_platform_runtime,
         include_lane_defaults=True,
     )
     runtime_defaults = manifest_data["runtime_defaults"]
@@ -181,7 +175,7 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
             platform_entry.get("runtime"),
             f"Platform '{platform_id}'.runtime",
         ).lower()
-        expected_runtime = RUNTIME_TO_PLATFORM_RUNTIME[family_entry["runtime"]]
+        expected_runtime = family_entry["runtime_to_platform_runtime"][family_entry["runtime"]]
         if platform_runtime != expected_runtime:
             die(
                 f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
@@ -308,13 +302,27 @@ def parse_args():
         "--platform-catalog",
         default="ci/deps/platform-catalog.yaml",
     )
+    parser.add_argument(
+        "--runtime-model",
+        default="ci/run/ref/runtime-model.json",
+    )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
 
 
-def expected_dropdown_families_union(manifest_path: Path) -> list[str]:
-    generation_families = {entry["family"] for entry in load_manifest(manifest_path, "generation")}
-    validation_families = {entry["family"] for entry in load_manifest(manifest_path, "validation")}
+def expected_dropdown_families_union(manifest_path: Path, runtime_to_platform_runtime) -> list[str]:
+    generation_families = {
+        entry["family"]
+        for entry in load_manifest(
+            manifest_path, "generation", runtime_to_platform_runtime
+        )
+    }
+    validation_families = {
+        entry["family"]
+        for entry in load_manifest(
+            manifest_path, "validation", runtime_to_platform_runtime
+        )
+    }
     enabled_union = generation_families | validation_families
 
     data = yaml.safe_load(manifest_path.read_text()) or {}
@@ -344,9 +352,18 @@ def main():
         die(f"Unsupported build tool: {build_tool}")
 
     repo_root = Path(__file__).resolve().parents[3]
-    families = load_manifest(repo_root / args.manifest, purpose)
+    runtime_model = load_runtime_model(repo_root / args.runtime_model)
+    runtime_to_platform_runtime = runtime_model["platform_runtime_by_key"]
+    runtime_order = runtime_model["ordered_keys"]
+
+    families = load_manifest(repo_root / args.manifest, purpose, runtime_to_platform_runtime)
+    for family_entry in families:
+        family_entry["runtime_to_platform_runtime"] = runtime_to_platform_runtime
+
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
-    expected_options = ["all"] + expected_dropdown_families_union(repo_root / args.manifest)
+    expected_options = ["all"] + expected_dropdown_families_union(
+        repo_root / args.manifest, runtime_to_platform_runtime
+    )
     validate_dropdown_parity(repo_root / args.selector_workflow, expected_options)
 
     lookup = {entry["family"]: entry for entry in families}
@@ -358,7 +375,7 @@ def main():
             die(f"Unsupported family input: {selected_family}")
         selected_entries = [lookup[selected_family]]
 
-    matrices = {runtime: [] for runtime in RUNTIME_TO_PLATFORM_RUNTIME}
+    matrices = {runtime: [] for runtime in runtime_order}
     selected_families = []
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
@@ -384,12 +401,7 @@ def main():
             )
 
     matrix_all = {
-        "include": [
-            *matrices["linux_host"],
-            *matrices["linux_container"],
-            *matrices["bsd_vm"],
-            *matrices["macos_host"],
-        ]
+        "include": [entry for runtime in runtime_order for entry in matrices[runtime]]
     }
     lane_counts = {runtime: len(entries) for runtime, entries in matrices.items()}
     lane_count_total = len(matrix_all["include"])
