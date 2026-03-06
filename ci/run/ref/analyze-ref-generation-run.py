@@ -14,6 +14,7 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from github_actions_runs import load_latest_workflow_run, load_run_from_selector
 from lane_registry import build_lane_registry
 
 API_VERSION = "2022-11-28"
@@ -155,28 +156,15 @@ def download_artifact_archive(repo: str, token: str, archive_url: str) -> bytes:
 
 def load_run(repo: str, token: str, workflow: str, run_id: str, branch: str, event: str) -> tuple[dict, str]:
     if run_id:
-        run = api_get(repo, token, f"/repos/{repo}/actions/runs/{run_id}")
-        return run, "run_id"
+        try:
+            return load_run_from_selector(api_get, repo, token, workflow, run_id)
+        except ValueError as exc:
+            die(str(exc))
 
-    params = {"per_page": "1", "status": "completed"}
-    if branch:
-        params["branch"] = branch
-    if event:
-        params["event"] = event
-    runs = api_get(
-        repo,
-        token,
-        f"/repos/{repo}/actions/workflows/{urllib.parse.quote(workflow, safe='')}/runs",
-        params=params,
-    ).get("workflow_runs", [])
-    if not runs:
-        selector = workflow
-        if branch:
-            selector = f"{selector} on branch {branch}"
-        if event:
-            selector = f"{selector} for event {event}"
-        die(f"No completed workflow runs found for {selector}")
-    return runs[0], "latest"
+    try:
+        return load_latest_workflow_run(api_get, repo, token, workflow, branch, event), "latest"
+    except ValueError as exc:
+        die(str(exc))
 
 
 def load_jobs(repo: str, token: str, run_id: int) -> list[dict]:
