@@ -395,7 +395,7 @@ ci_deps_write_json_report() {
   local target_rc="${9:-0}"
   local command_status="success"
   local family_value="${family:-bsd}"
-  local report_mode_value="${CI_DEPS_REPORT_MODE:-${mode}}"
+  local report_mode_value="${DEP_MODE:-${mode}}"
 
   if [[ "${target_rc}" -ne 0 ]]; then
     if [[ "${mode}" == "check" ]]; then

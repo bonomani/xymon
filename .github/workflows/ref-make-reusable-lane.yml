@@ -76,60 +76,10 @@ jobs:
           LANE_ENV_JSON: ${{ steps.lane_ctx.outputs.lane_env_json }}
         run: |
           set -euo pipefail
-
-          python3 - <<'PY'
-          import json
-          import os
-          import sys
-
-
-          def fail(msg: str) -> None:
-              print(msg, file=sys.stderr)
-              raise SystemExit(2)
-
-
-          try:
-              payload = json.loads(os.environ["LANE_ENV_JSON"])
-          except Exception as exc:
-              fail(f"LANE_ENV_JSON is invalid JSON: {exc}")
-
-          if not isinstance(payload, dict):
-              fail("LANE_ENV_JSON must decode to an object")
-
-          required = [
-              "RUNTIME_EXECUTION",
-              "ALLOW_FAILURE_MODE",
-              "LANE_ALLOW_FAILURE",
-              "REF_OS",
-              "RUNTIME",
-              "RUNTIME_OUTCOME_CHANNEL",
-          ]
-          for key in required:
-              if str(payload.get(key, "")).strip() == "":
-                  fail(f"LANE_ENV_JSON missing key: {key}")
-
-          continue_on_error = (
-              "true"
-              if payload["ALLOW_FAILURE_MODE"] != "off" and payload["LANE_ALLOW_FAILURE"] == "1"
-              else "false"
-          )
-
-          lines = [
-              f"runtime_execution={payload['RUNTIME_EXECUTION']}",
-              f"continue_on_error={continue_on_error}",
-              f"ref_os={payload['REF_OS']}",
-              f"architecture={payload.get('ARCHITECTURE', '')}",
-              f"os_version={payload.get('OS_VERSION', '')}",
-              f"vm_memory={payload.get('VM_MEMORY', '')}",
-              f"vm_cpu_count={payload.get('VM_CPU_COUNT', '')}",
-              f"runtime={payload['RUNTIME']}",
-              f"runtime_outcome_channel={payload['RUNTIME_OUTCOME_CHANNEL']}",
-          ]
-
-          with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-              for line in lines:
-                  fh.write(f"{line}\n")
-          PY
+          python3 ci/run/ref/decode-lane-env.py \
+            --lane-env-json "${LANE_ENV_JSON}" \
+            --profile lane_meta \
+            --github-output "${GITHUB_OUTPUT}"
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container

@@ -31,59 +31,10 @@ runs:
         INPUT_LANE_ENV_JSON: ${{ inputs.lane_env_json }}
       run: |
         set -euo pipefail
-
-        python3 - <<'PY'
-        import json
-        import os
-        import sys
-
-
-        def fail(msg: str) -> None:
-            print(msg, file=sys.stderr)
-            raise SystemExit(2)
-
-
-        def get_required(env: dict[str, str], key: str) -> str:
-            val = str(env.get(key, "")).strip()
-            if not val:
-                fail(f"lane_env_json missing required key: {key}")
-            return val
-
-
-        try:
-            payload = json.loads(os.environ["INPUT_LANE_ENV_JSON"])
-        except Exception as exc:
-            fail(f"lane_env_json is invalid JSON: {exc}")
-
-        if not isinstance(payload, dict):
-            fail("lane_env_json must decode to an object")
-
-        required = [
-            "ALLOW_FAILURE_MODE",
-            "LANE_ALLOW_FAILURE",
-            "GOAL",
-            "DEP_MODE",
-            "REF_MODE",
-            "CI_DEPS_REPORT_JSON",
-            "UPLOAD_ARTIFACTS",
-            "BUILD_TOOL",
-            "PLATFORM_ID",
-            "VARIANT",
-            "ARTIFACT_ARCH",
-            "LANE_NAME",
-            "ARTIFACT_FAMILY",
-            "REF_STAGE_ROOT",
-            "REF_OS",
-        ]
-
-        out_lines = []
-        for key in required:
-            out_lines.append(f"{key.lower()}={get_required(payload, key)}")
-
-        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as fh:
-            for line in out_lines:
-                fh.write(f"{line}\n")
-        PY
+        python3 ci/run/ref/decode-lane-env.py \
+          --lane-env-json "${INPUT_LANE_ENV_JSON}" \
+          --profile lane_post \
+          --github-output "${GITHUB_OUTPUT}"
 
     - name: Enforce expected failure reset
       if: ${{ steps.lane_env.outputs.allow_failure_mode == 'expect_fail' && steps.lane_env.outputs.lane_allow_failure == '1' }}
