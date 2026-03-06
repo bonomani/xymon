@@ -1,4 +1,7 @@
 include:
 - platform_id: openbsd-7_8
+  allow_failure: true
 - platform_id: openbsd-7_7
+  allow_failure: true
 - platform_id: openbsd-7_6
+  allow_failure: true

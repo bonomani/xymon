@@ -1,8 +1,5 @@
 include:
 - platform_id: opensuse-tumbleweed
-  allow_failure: true
 - platform_id: opensuse-leap-16_0
-  allow_failure: true
 - platform_id: opensuse-leap-15_6
 - platform_id: opensuse-leap-15_5
-  allow_failure: true

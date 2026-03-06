@@ -3,6 +3,4 @@ include:
 - platform_id: oraclelinux-8
 - platform_id: oraclelinux-10
   defaults: arm64
-  allow_failure: true
 - platform_id: oraclelinux-10-slim
-  allow_failure: true
