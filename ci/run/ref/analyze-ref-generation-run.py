@@ -155,10 +155,10 @@ def download_artifact_archive(repo: str, token: str, archive_url: str) -> bytes:
         return response.read()
 
 
-def load_run(repo: str, token: str, workflow: str, run_id: str, branch: str, event: str) -> tuple[dict, str]:
-    if run_id:
+def load_run(repo: str, token: str, workflow: str, run_selector: str, branch: str, event: str) -> tuple[dict, str]:
+    if run_selector:
         try:
-            return load_run_from_selector(api_get, repo, token, workflow, run_id)
+            return load_run_from_selector(api_get, repo, token, workflow, run_selector)
         except ValueError as exc:
             die(str(exc))
 
@@ -868,7 +868,8 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--repo", default=os.environ.get("GITHUB_REPOSITORY", ""))
     parser.add_argument("--workflow", default=DEFAULT_WORKFLOW)
-    parser.add_argument("--run-id", default="")
+    parser.add_argument("--run-selector", dest="run_selector", default="")
+    parser.add_argument("--run-id", dest="run_selector", help=argparse.SUPPRESS)
     parser.add_argument("--branch", default="")
     parser.add_argument("--event", default="workflow_dispatch")
     parser.add_argument("--token-env", default="GH_TOKEN")
@@ -898,7 +899,7 @@ def main() -> None:
     else:
         token = load_token(args.token_env)
         event = "" if args.event == "all" else args.event
-        run, resolved_via = load_run(args.repo, token, args.workflow, args.run_id, args.branch, event)
+        run, resolved_via = load_run(args.repo, token, args.workflow, args.run_selector, args.branch, event)
         jobs = load_jobs(args.repo, token, int(run["id"]))
 
     lane_jobs, control_jobs = classify_jobs(jobs)
