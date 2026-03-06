@@ -2,8 +2,8 @@ name: Reference Lane Post
 description: Shared post-processing for ref lanes (expected-failure policy and artifact uploads).
 
 inputs:
-  lane_env_json:
-    description: Canonical lane environment payload as JSON mapping.
+  lane_post_json:
+    description: Canonical post-processing payload as JSON mapping.
     required: true
   lane_outcome:
     description: Outcome of the lane execution step (success|failure|cancelled|...).
@@ -24,20 +24,8 @@ inputs:
 runs:
   using: composite
   steps:
-    - name: Decode lane env
-      id: lane_env
-      shell: bash
-      env:
-        INPUT_LANE_ENV_JSON: ${{ inputs.lane_env_json }}
-      run: |
-        set -euo pipefail
-        python3 ci/run/ref/decode-lane-env.py \
-          --lane-env-json "${INPUT_LANE_ENV_JSON}" \
-          --profile lane_post \
-          --github-output "${GITHUB_OUTPUT}"
-
     - name: Enforce expected failure reset
-      if: ${{ steps.lane_env.outputs.allow_failure_mode == 'expect_fail' && steps.lane_env.outputs.lane_allow_failure == '1' }}
+      if: ${{ fromJSON(inputs.lane_post_json).allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
       shell: bash
       run: |
         case "${{ inputs.lane_outcome }}" in
@@ -55,40 +43,39 @@ runs:
         esac
 
     - name: Upload dependency report
-      if: ${{ steps.lane_env.outputs.upload_artifacts == '1' && (steps.lane_env.outputs.dep_mode == 'compare' || inputs.lane_outcome == 'success') }}
+      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts == '1' && (fromJSON(inputs.lane_post_json).dep_mode == 'compare' || inputs.lane_outcome == 'success') }}
       uses: ./.github/actions/upload-deps-report
       with:
-        dep_mode: ${{ steps.lane_env.outputs.dep_mode }}
-        report_path: ${{ steps.lane_env.outputs.ci_deps_report_json }}
-        build_tool: ${{ steps.lane_env.outputs.build_tool }}
-        platform_id: ${{ steps.lane_env.outputs.platform_id }}
-        variant: ${{ steps.lane_env.outputs.variant }}
-        artifact_arch: ${{ steps.lane_env.outputs.artifact_arch }}
-        lane_name: ${{ steps.lane_env.outputs.lane_name }}
+        dep_mode: ${{ fromJSON(inputs.lane_post_json).dep_mode }}
+        report_path: ${{ fromJSON(inputs.lane_post_json).ci_deps_report_json }}
+        build_tool: ${{ fromJSON(inputs.lane_post_json).build_tool }}
+        platform_id: ${{ fromJSON(inputs.lane_post_json).platform_id }}
+        variant: ${{ fromJSON(inputs.lane_post_json).variant }}
+        artifact_arch: ${{ fromJSON(inputs.lane_post_json).artifact_arch }}
+        lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}
         if_no_files_found: ${{ inputs.dep_if_no_files_found }}
 
     - name: Upload legacy references
-      if: ${{ steps.lane_env.outputs.goal == 'ref' && steps.lane_env.outputs.dep_mode == 'generate' && steps.lane_env.outputs.upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).dep_mode == 'generate' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
       uses: actions/upload-artifact@v4
       with:
-        name: ${{ format('ref_{0}_{1}-{2}__{3}__{4}', steps.lane_env.outputs.build_tool, steps.lane_env.outputs.ref_os, steps.lane_env.outputs.variant, steps.lane_env.outputs.platform_id, steps.lane_env.outputs.artifact_arch) }}
-        path: |
-          ${{ steps.lane_env.outputs.ref_stage_root }}/${{ steps.lane_env.outputs.build_tool }}.${{ steps.lane_env.outputs.ref_os }}.${{ steps.lane_env.outputs.variant }}/**
+        name: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_name }}
+        path: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_path }}
         if-no-files-found: error
 
     - name: Upload artifacts
-      if: ${{ steps.lane_env.outputs.goal == 'ref' && steps.lane_env.outputs.dep_mode == 'compare' && steps.lane_env.outputs.upload_artifacts == '1' }}
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).dep_mode == 'compare' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' }}
       uses: ./.github/actions/upload-ref-valid-artifacts
       with:
-        lane_name: ${{ steps.lane_env.outputs.lane_name }}
+        lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}
         if_no_files_found: ${{ inputs.ref_valid_if_no_files_found }}
         extra_paths: |
           ${{ inputs.extra_paths }}
-          .ci-artifacts/ref-valid-${{ steps.lane_env.outputs.artifact_family }}/${{ steps.lane_env.outputs.build_tool }}-${{ steps.lane_env.outputs.platform_id }}-${{ steps.lane_env.outputs.variant }}/**
-          .ci-artifacts/ref-valid-${{ steps.lane_env.outputs.artifact_family }}/refs/${{ steps.lane_env.outputs.build_tool }}.${{ steps.lane_env.outputs.ref_os }}.${{ steps.lane_env.outputs.variant }}/**
+          ${{ fromJSON(inputs.lane_post_json).ref_compare_artifact_path }}
+          ${{ fromJSON(inputs.lane_post_json).ref_compare_refs_path }}
 
     - name: Skip artifacts when upload is disabled
-      if: ${{ steps.lane_env.outputs.upload_artifacts != '1' }}
+      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts != '1' }}
       shell: bash
       run: |
         echo "Skipping actions/upload-artifact for this lane."

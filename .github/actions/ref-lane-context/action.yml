@@ -22,6 +22,9 @@ outputs:
   lane_env_json:
     description: Canonical lane environment payload as JSON mapping.
     value: ${{ steps.resolve.outputs.lane_env_json }}
+  lane_post_json:
+    description: Canonical post-processing payload as JSON mapping.
+    value: ${{ steps.resolve.outputs.lane_post_json }}
   runtime_execution:
     description: Runtime execution type (host|container|vm).
     value: ${{ steps.resolve.outputs.runtime_execution }}

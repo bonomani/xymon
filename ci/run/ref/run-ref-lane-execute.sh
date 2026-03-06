@@ -1,0 +1,154 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+build_tool="${build_tool:-}"
+goal="${goal:-}"
+ref_mode="${ref_mode:-}"
+publish="${publish:-}"
+variant="${variant:-}"
+baseline_root="${baseline_root:-}"
+ref_os="${ref_os:-}"
+platform_os="${platform_os:-}"
+artifact_family="${artifact_family:-}"
+platform_id="${platform_id:-}"
+os_version="${os_version:-}"
+refs_root="${refs_root:-}"
+artifact_root="${artifact_root:-}"
+legacy_hostname_config="${legacy_hostname_config:-}"
+baseline_prefix="${baseline_prefix:-}"
+candidate_dir="${candidate_dir:-}"
+
+if [[ -z "${build_tool}" ]]; then
+  echo "Missing prepared variable: build_tool" >&2
+  exit 2
+fi
+if [[ -z "${goal}" ]]; then
+  echo "Missing prepared variable: goal" >&2
+  exit 2
+fi
+if [[ -z "${variant}" ]]; then
+  echo "Missing prepared variable: variant" >&2
+  exit 2
+fi
+if [[ -z "${ref_os}" ]]; then
+  echo "Missing prepared variable: ref_os" >&2
+  exit 2
+fi
+if [[ -z "${platform_os}" ]]; then
+  echo "Missing prepared variable: platform_os" >&2
+  exit 2
+fi
+if [[ -z "${platform_id}" ]]; then
+  echo "Missing prepared variable: platform_id" >&2
+  exit 2
+fi
+
+if [[ "${goal}" == "ref" ]]; then
+  for var_name in \
+    baseline_root artifact_family refs_root artifact_root \
+    baseline_prefix candidate_dir legacy_hostname_config; do
+    if [[ -z "${!var_name:-}" ]]; then
+      echo "Missing prepared variable for goal=ref: ${var_name}" >&2
+      exit 2
+    fi
+  done
+fi
+
+if [[ -z "${CI_DEPS_REPORT_JSON:-}" ]]; then
+  echo "Missing CI_DEPS_REPORT_JSON" >&2
+  exit 2
+fi
+mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
+
+load_legacy_hostname_in_process() {
+  local env_file=""
+  env_file="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
+
+  bash ci/run/ref/load-legacy-hostname.sh \
+    --config "${legacy_hostname_config}" \
+    --env-file "${env_file}"
+
+  if [[ -s "${env_file}" ]]; then
+    # shellcheck disable=SC1090
+    source "${env_file}"
+    if [[ -n "${XYMONHOSTNAME:-}" ]]; then
+      export XYMONHOSTNAME
+      echo "Using legacy hostname in-process: ${XYMONHOSTNAME}"
+    fi
+  else
+    echo "Legacy hostname: no in-process override loaded."
+  fi
+
+  rm -f "${env_file}"
+}
+
+run_core_build_install() {
+  local args=(
+    bash
+    ci/bootstrap-install.sh
+    --os "${ref_os}"
+    --platform-os "${platform_os}"
+    --variant "${variant}"
+    --build "${build_tool}"
+  )
+  if [[ -n "${os_version}" ]]; then
+    args+=(--version "${os_version}")
+  fi
+  "${args[@]}"
+}
+
+run_ref_snapshot() {
+  local args=(
+    bash
+    ci/run/ref/bootstrap-build-refs.sh
+    --build "${build_tool}"
+    --os "${ref_os}"
+    --platform-os "${platform_os}"
+    --variant "${variant}"
+    --ref-prefix "${baseline_prefix}"
+    --refs-root "${refs_root}"
+    --artifact-root "${artifact_root}"
+  )
+  if [[ -n "${os_version}" ]]; then
+    args+=(--version "${os_version}")
+  fi
+  "${args[@]}"
+}
+
+run_ref_compare() {
+  # shellcheck disable=SC1091
+  # shellcheck source=ci/run/ref/load-staged-metadata.sh
+  source ci/run/ref/load-staged-metadata.sh
+
+  bash ci/compare-refs.sh \
+    --baseline-prefix "${baseline_prefix}" \
+    --candidate-dir "${candidate_dir}" \
+    --candidate-root "${LEGACY_ROOT}"
+}
+
+echo "=== Lane execution ==="
+echo "goal=${goal} ref_mode=${ref_mode} publish=${publish}"
+echo "build=${build_tool} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+
+case "${goal}" in
+  verify)
+    run_core_build_install
+    ;;
+  ref)
+    if [[ "${ref_mode}" == "compare" ]]; then
+      load_legacy_hostname_in_process
+      bash ci/run/ref/seed-legacy-identities.sh \
+        --passwd "${baseline_prefix}/owners.passwd" \
+        --group "${baseline_prefix}/owners.group"
+    fi
+    run_ref_snapshot
+    if [[ "${ref_mode}" == "compare" ]]; then
+      run_ref_compare
+    fi
+    ;;
+  *)
+    echo "Unsupported goal value: ${goal}" >&2
+    exit 2
+    ;;
+esac
+

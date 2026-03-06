@@ -95,6 +95,26 @@ if [[ -n "${ARTIFACT_FAMILY:-}" ]]; then
   args+=(--artifact-family "${ARTIFACT_FAMILY}")
 fi
 
+if [[ -n "${REFS_ROOT:-}" ]]; then
+  args+=(--refs-root "${REFS_ROOT}")
+fi
+
+if [[ -n "${ARTIFACT_ROOT:-}" ]]; then
+  args+=(--artifact-root "${ARTIFACT_ROOT}")
+fi
+
+if [[ -n "${BASELINE_PREFIX:-}" ]]; then
+  args+=(--baseline-prefix "${BASELINE_PREFIX}")
+fi
+
+if [[ -n "${CANDIDATE_DIR:-}" ]]; then
+  args+=(--candidate-dir "${CANDIDATE_DIR}")
+fi
+
+if [[ -n "${LEGACY_HOSTNAME_CONFIG:-}" ]]; then
+  args+=(--legacy-hostname-config "${LEGACY_HOSTNAME_CONFIG}")
+fi
+
 if [[ -n "${OS_VERSION:-}" ]]; then
   args+=(--version "${OS_VERSION}")
 fi
