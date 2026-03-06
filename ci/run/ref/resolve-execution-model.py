@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 import argparse
+import json
 
 from execution_model import resolve_execution_model
 
@@ -32,7 +33,14 @@ def main() -> None:
     except ValueError as exc:
         raise SystemExit(str(exc)) from exc
 
-    lines = [f"{key}={value}" for key, value in outputs.items()]
+    output_payload = dict(outputs)
+    output_payload["execution_model_json"] = json.dumps(
+        outputs,
+        separators=(",", ":"),
+        sort_keys=True,
+    )
+
+    lines = [f"{key}={value}" for key, value in output_payload.items()]
     for line in lines:
         print(line)
 

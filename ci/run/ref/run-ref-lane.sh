@@ -239,7 +239,7 @@ if [[ "${goal}" == "ref" ]]; then
 fi
 
 report_mode="${dep_mode}"
-export CI_DEPS_REPORT_MODE="${CI_DEPS_REPORT_MODE:-${report_mode}}"
+export DEP_MODE="${DEP_MODE:-${report_mode}}"
 
 if [[ -z "${CI_DEPS_REPORT_JSON:-}" ]]; then
   if [[ "${report_mode}" == "compare" ]]; then
