@@ -174,7 +174,7 @@ def main():
     else:
         ref_stage_root = "tmp/xymon-refs"
 
-    dep_mode = derive_dep_mode(goal, ref_mode)
+    dep_mode = derive_dep_mode(ref_mode)
     lane_paths = derive_lane_paths(
         goal=goal,
         dep_mode=dep_mode,

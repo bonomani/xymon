@@ -682,7 +682,7 @@ def build_report(
     run_number = run.get("run_number")
     run_url = run.get("html_url") or f"{server_url}/{repo}/actions/runs/{run_id}"
     run_conclusion = str(run.get("conclusion") or run.get("status") or "unknown").strip().lower()
-    workflow_name = run.get("name") or "Pipeline - Select and Run Lanes"
+    workflow_name = run.get("name") or "Pipeline - Select and Run Lanes (Advanced)"
     head_sha = str(run.get("head_sha") or "")
     short_sha = head_sha[:12] if head_sha else ""
     resolved_via_label = format_resolved_via(resolved_via)

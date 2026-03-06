@@ -22,7 +22,6 @@ from runtime_model import load_runtime_model
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PRESETS = {"default", "gnuinstall", "packaging"}
-SUPPORTED_PURPOSES = {"generation", "validation"}
 
 
 def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
@@ -78,6 +77,12 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
         )
 
     return families
+
+
+def derive_manifest_purpose(ref_mode: str) -> str:
+    if ref_mode == "compare":
+        return "validation"
+    return "generation"
 
 
 def load_platform_catalog(path: Path):
@@ -275,7 +280,6 @@ def normalize_lane(
     build_tool,
     requested_compiler,
     preset,
-    purpose: str,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -341,13 +345,13 @@ def parse_args():
     parser = argparse.ArgumentParser(
         description="Build matrix outputs for ref selector workflows"
     )
-    parser.add_argument(
-        "--purpose",
-        default="generation",
-        choices=sorted(SUPPORTED_PURPOSES),
-        help="Manifest purpose to resolve (generation or validation)",
-    )
     parser.add_argument("--selected-family", required=True)
+    parser.add_argument(
+        "--ref-mode",
+        required=True,
+        choices=("off", "generate", "compare"),
+        help="Reference handling mode selection",
+    )
     parser.add_argument(
         "--build-tool",
         required=True,
@@ -381,7 +385,7 @@ def parse_args():
 
 def main():
     args = parse_args()
-    purpose = args.purpose
+    purpose = derive_manifest_purpose(args.ref_mode)
     github_output = args.github_output
     if not github_output:
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
@@ -443,7 +447,6 @@ def main():
                 build_tool,
                 compiler,
                 preset,
-                purpose,
             )
             if normalized is None:
                 continue

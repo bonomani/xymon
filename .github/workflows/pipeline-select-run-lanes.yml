@@ -1,4 +1,4 @@
-name: Pipeline - Select and Run Lanes
+name: Pipeline - Select and Run Lanes (Advanced)
 
 on:
   workflow_dispatch:
@@ -25,7 +25,7 @@ on:
           - oraclelinux
           - ubuntu
       build_tool:
-        description: Build tool selection (auto derives from goal/ref_mode)
+        description: Build tool selection (auto derives from ref_mode)
         required: true
         type: choice
         default: auto
@@ -53,7 +53,7 @@ on:
           - gnuinstall
           - packaging
       verify_depth:
-        description: Verification depth (configure|build|install, goal=ref forces install)
+        description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
         type: choice
         default: install
@@ -61,20 +61,13 @@ on:
           - configure
           - build
           - install
-      goal:
-        description: Orthogonal goal selector
-        required: true
-        type: choice
-        default: verify
-        options:
-          - verify
-          - ref
       ref_mode:
-        description: Reference mode when goal=ref
+        description: Reference handling mode
         required: true
         type: choice
-        default: generate
+        default: off
         options:
+          - off
           - generate
           - compare
       publish:
@@ -117,15 +110,11 @@ on:
         required: true
         type: string
       verify_depth:
-        description: Verification depth (configure|build|install, goal=ref forces install)
-        required: true
-        type: string
-      goal:
-        description: Orthogonal goal selector (verify|ref)
+        description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
         type: string
       ref_mode:
-        description: Reference mode when goal=ref (generate|compare)
+        description: Reference handling mode (off|generate|compare)
         required: true
         type: string
       publish:
@@ -166,14 +155,13 @@ jobs:
                 compiler: '${{ inputs.compiler }}',
                 preset: '${{ inputs.preset }}',
                 verify_depth: '${{ inputs.verify_depth }}',
-                goal: '${{ inputs.goal }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
                 allow_failure_mode: '${{ inputs.allow_failure_mode }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, preset=${{ inputs.preset }}, verify_depth=${{ inputs.verify_depth }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, preset=${{ inputs.preset }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -205,7 +193,6 @@ jobs:
           INPUT_COMPILER: ${{ inputs.compiler }}
           INPUT_PRESET: ${{ inputs.preset }}
           INPUT_VERIFY_DEPTH: ${{ inputs.verify_depth }}
-          INPUT_GOAL: ${{ inputs.goal }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
           INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
@@ -217,7 +204,6 @@ jobs:
             --requested-compiler "${INPUT_COMPILER}" \
             --requested-preset "${INPUT_PRESET}" \
             --requested-verify-depth "${INPUT_VERIFY_DEPTH}" \
-            --goal "${INPUT_GOAL}" \
             --ref-mode "${INPUT_REF_MODE}" \
             --publish "${INPUT_PUBLISH}" \
             --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
@@ -238,17 +224,17 @@ jobs:
         shell: bash
         env:
           SELECTED_FAMILY: ${{ inputs.family }}
+          SELECTED_REF_MODE: ${{ steps.resolve_execution.outputs.ref_mode }}
           SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
           SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
           SELECTED_PRESET: ${{ steps.resolve_execution.outputs.preset }}
-          PURPOSE: ${{ steps.resolve_execution.outputs.purpose }}
         run: |
           set -euo pipefail
 
           args=(
             python3 "ci/run/ref/build-ref-make-matrix.py"
-            --purpose "${PURPOSE}"
             --selected-family "${SELECTED_FAMILY}"
+            --ref-mode "${SELECTED_REF_MODE}"
             --build-tool "${SELECTED_BUILD_TOOL}"
             --compiler "${SELECTED_COMPILER}"
             --preset "${SELECTED_PRESET}"
@@ -266,8 +252,7 @@ jobs:
           echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
           echo "Preset: ${{ steps.resolve_execution.outputs.preset }}"
           echo "Verify depth: ${{ steps.resolve_execution.outputs.verify_depth }}"
-          echo "Goal: ${{ steps.resolve_execution.outputs.goal }}"
-          echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
+          echo "Reference mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
