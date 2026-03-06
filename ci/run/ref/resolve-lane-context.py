@@ -68,6 +68,7 @@ def main():
     supported_runtimes = set(runtime_model["ordered_keys"])
 
     build_tool = as_text(lane.get("build_tool"))
+    lane_name = as_text(lane.get("name"))
     variant = as_text(lane.get("variant"))
     runtime = as_text(lane.get("runtime"))
 
@@ -75,6 +76,8 @@ def main():
         validate_lane_build_tool(build_tool)
     except ValueError as exc:
         fail(str(exc))
+    if not lane_name:
+        fail("lane_json missing name")
     if not variant:
         fail("lane_json missing variant")
     if runtime not in supported_runtimes:
@@ -126,6 +129,8 @@ def main():
         "ENABLE_LDAP": enable,
         "ENABLE_SNMP": enable,
         "BUILD_TOOL": build_tool,
+        "LANE_NAME": lane_name,
+        "DEP_MODE": dep_mode,
         "GOAL": goal,
         "REF_MODE": ref_mode,
         "PUBLISH": publish,
