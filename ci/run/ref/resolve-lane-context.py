@@ -13,18 +13,13 @@ from execution_model import (
     validate_goal_ref_publish,
     validate_lane_build_tool,
 )
+from lane_env_contract import as_text, validate_known_lane_env_keys
 from runtime_model import DEFAULT_RUNTIME_MODEL_PATH, load_runtime_model
 
 
 def fail(msg: str) -> None:
     print(msg, file=sys.stderr)
     raise SystemExit(2)
-
-
-def as_text(value) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
 
 
 def parse_args():
@@ -85,7 +80,16 @@ def main():
     runtime_execution = runtime_model["execution_by_key"][runtime]
     runtime_outcome_channel = runtime_model["outcome_channel_by_key"][runtime]
 
-    ref_os = as_text(lane.get("ref_os")) or "linux"
+    runtime_default_ref_os = runtime_model["default_ref_os_by_key"][runtime]
+
+    ref_os = as_text(lane.get("ref_os"))
+    if not ref_os:
+        if runtime_default_ref_os == "family":
+            fail(
+                f"lane_json missing ref_os for runtime '{runtime}' "
+                "(runtime default is family-specific)"
+            )
+        ref_os = runtime_default_ref_os
     platform_os = as_text(lane.get("platform_os")) or ref_os
     platform_id = as_text(lane.get("platform_id")) or platform_os
     artifact_arch = as_text(lane.get("artifact_arch")) or "amd64"
@@ -157,6 +161,9 @@ def main():
         "VM_MEMORY": as_text(lane.get("vm_memory")),
         "VM_CPU_COUNT": as_text(lane.get("vm_cpu_count")),
     }
+    unknown_keys = validate_known_lane_env_keys(lane_env)
+    if unknown_keys:
+        fail(f"Internal error: lane_env has unknown keys: {', '.join(unknown_keys)}")
     output_lines = [
         "lane_env_json="
         + json.dumps(

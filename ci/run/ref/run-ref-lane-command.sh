@@ -6,6 +6,8 @@ required_vars=(
   GOAL
   REF_MODE
   PUBLISH
+  DEP_MODE
+  CI_DEPS_REPORT_JSON
   VARIANT
   REF_OS
   PLATFORM_OS

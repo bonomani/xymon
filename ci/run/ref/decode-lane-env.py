@@ -7,6 +7,13 @@ import json
 import os
 import sys
 
+from lane_env_contract import (
+    LANE_META_REQUIRED_KEYS,
+    LANE_POST_REQUIRED_KEYS,
+    as_text,
+    validate_known_lane_env_keys,
+)
+
 
 def fail(msg: str) -> None:
     print(msg, file=sys.stderr)
@@ -32,12 +39,6 @@ def parse_args():
     return parser.parse_args()
 
 
-def as_text(value) -> str:
-    if value is None:
-        return ""
-    return str(value).strip()
-
-
 def require_key(payload: dict[str, object], key: str) -> str:
     value = as_text(payload.get(key, ""))
     if not value:
@@ -46,15 +47,7 @@ def require_key(payload: dict[str, object], key: str) -> str:
 
 
 def build_lane_meta_outputs(payload: dict[str, object]) -> dict[str, str]:
-    required = [
-        "RUNTIME_EXECUTION",
-        "ALLOW_FAILURE_MODE",
-        "LANE_ALLOW_FAILURE",
-        "REF_OS",
-        "RUNTIME",
-        "RUNTIME_OUTCOME_CHANNEL",
-    ]
-    values = {key: require_key(payload, key) for key in required}
+    values = {key: require_key(payload, key) for key in LANE_META_REQUIRED_KEYS}
 
     continue_on_error = (
         "true"
@@ -77,24 +70,7 @@ def build_lane_meta_outputs(payload: dict[str, object]) -> dict[str, str]:
 
 
 def build_lane_post_outputs(payload: dict[str, object]) -> dict[str, str]:
-    required = [
-        "ALLOW_FAILURE_MODE",
-        "LANE_ALLOW_FAILURE",
-        "GOAL",
-        "DEP_MODE",
-        "REF_MODE",
-        "CI_DEPS_REPORT_JSON",
-        "UPLOAD_ARTIFACTS",
-        "BUILD_TOOL",
-        "PLATFORM_ID",
-        "VARIANT",
-        "ARTIFACT_ARCH",
-        "LANE_NAME",
-        "ARTIFACT_FAMILY",
-        "REF_STAGE_ROOT",
-        "REF_OS",
-    ]
-    return {key.lower(): require_key(payload, key) for key in required}
+    return {key.lower(): require_key(payload, key) for key in LANE_POST_REQUIRED_KEYS}
 
 
 def main() -> None:
@@ -106,6 +82,9 @@ def main() -> None:
         fail(f"lane_env_json is invalid JSON: {exc}")
     if not isinstance(payload, dict):
         fail("lane_env_json must decode to an object")
+    unknown_keys = validate_known_lane_env_keys(payload)
+    if unknown_keys:
+        fail(f"lane_env_json contains unknown keys: {', '.join(unknown_keys)}")
 
     if args.profile == "lane_meta":
         outputs = build_lane_meta_outputs(payload)

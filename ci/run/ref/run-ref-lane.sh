@@ -18,77 +18,6 @@ refs_root=""
 artifact_root=""
 legacy_hostname_config=""
 
-validate_lane_build_tool() {
-  local value="${1:-}"
-  case "${value}" in
-    make|cmake)
-      return 0
-      ;;
-    *)
-      echo "Unsupported lane build_tool: ${value}" >&2
-      return 2
-      ;;
-  esac
-}
-
-validate_goal_ref_publish() {
-  local lane_goal="${1:-}"
-  local lane_ref_mode="${2:-}"
-  local lane_publish="${3:-}"
-
-  case "${lane_goal}" in
-    verify|ref)
-      ;;
-    *)
-      echo "Unsupported goal: ${lane_goal}" >&2
-      return 2
-      ;;
-  esac
-
-  case "${lane_ref_mode}" in
-    generate|compare)
-      ;;
-    *)
-      echo "Unsupported ref_mode: ${lane_ref_mode}" >&2
-      return 2
-      ;;
-  esac
-
-  case "${lane_publish}" in
-    none|artifact)
-      ;;
-    *)
-      echo "Unsupported publish: ${lane_publish}" >&2
-      return 2
-      ;;
-  esac
-
-  if [[ "${lane_goal}" != "ref" && "${lane_ref_mode}" == "compare" ]]; then
-    echo "ref_mode=compare is only valid when goal=ref" >&2
-    return 2
-  fi
-  if [[ "${lane_goal}" == "verify" && "${lane_ref_mode}" != "generate" ]]; then
-    echo "goal=verify requires ref_mode=generate" >&2
-    return 2
-  fi
-  if [[ "${lane_goal}" == "verify" && "${lane_publish}" != "none" ]]; then
-    echo "goal=verify requires publish=none" >&2
-    return 2
-  fi
-
-  return 0
-}
-
-derive_dep_mode() {
-  local lane_goal="${1:-}"
-  local lane_ref_mode="${2:-}"
-  if [[ "${lane_goal}" == "ref" && "${lane_ref_mode}" == "compare" ]]; then
-    printf 'compare\n'
-  else
-    printf 'generate\n'
-  fi
-}
-
 usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane.sh
@@ -108,6 +37,73 @@ Usage: run-ref-lane.sh
   [--legacy-hostname-config PATH]
 USAGE
   exit 2
+}
+
+resolve_execution_model_or_die() {
+  local output=""
+  local line=""
+  local key=""
+  local value=""
+  local requested_allow_failure_mode="${ALLOW_FAILURE_MODE:-allow}"
+
+  if ! command -v python3 >/dev/null 2>&1; then
+    echo "python3 is required to resolve lane execution mode" >&2
+    exit 2
+  fi
+
+  if ! output="$(
+    python3 ci/run/ref/resolve-execution-model.py \
+      --requested-build-tool "${build_tool}" \
+      --goal "${goal}" \
+      --ref-mode "${ref_mode}" \
+      --publish "${publish}" \
+      --allow-failure-mode "${requested_allow_failure_mode}"
+  )"; then
+    echo "Failed to resolve lane execution model" >&2
+    usage
+  fi
+
+  local resolved_build_tool=""
+  local resolved_goal=""
+  local resolved_ref_mode=""
+  local resolved_publish=""
+  local resolved_dep_mode=""
+
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      build_tool)
+        resolved_build_tool="${value}"
+        ;;
+      goal)
+        resolved_goal="${value}"
+        ;;
+      ref_mode)
+        resolved_ref_mode="${value}"
+        ;;
+      publish)
+        resolved_publish="${value}"
+        ;;
+      dep_mode)
+        resolved_dep_mode="${value}"
+        ;;
+    esac
+  done <<< "${output}"
+
+  if [[ -z "${resolved_build_tool}" || -z "${resolved_goal}" || -z "${resolved_ref_mode}" || -z "${resolved_publish}" || -z "${resolved_dep_mode}" ]]; then
+    echo "Execution model resolver returned incomplete output" >&2
+    usage
+  fi
+
+  build_tool="${resolved_build_tool}"
+  goal="${resolved_goal}"
+  ref_mode="${resolved_ref_mode}"
+  publish="${resolved_publish}"
+
+  if [[ -n "${DEP_MODE:-}" && "${DEP_MODE}" != "${resolved_dep_mode}" ]]; then
+    echo "DEP_MODE (${DEP_MODE}) does not match execution model dep_mode (${resolved_dep_mode})" >&2
+    usage
+  fi
+  export DEP_MODE="${DEP_MODE:-${resolved_dep_mode}}"
 }
 
 while [[ $# -gt 0 ]]; do
@@ -182,22 +178,8 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
-if ! validate_lane_build_tool "${build_tool}"; then
-  usage
-fi
-if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
-  usage
-fi
-derived_dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
-dep_mode="${DEP_MODE:-${derived_dep_mode}}"
-if [[ "${dep_mode}" != "generate" && "${dep_mode}" != "compare" ]]; then
-  echo "Unsupported DEP_MODE: ${dep_mode}" >&2
-  usage
-fi
-if [[ -n "${DEP_MODE:-}" && "${DEP_MODE}" != "${derived_dep_mode}" ]]; then
-  echo "DEP_MODE (${DEP_MODE}) does not match goal/ref_mode-derived mode (${derived_dep_mode})" >&2
-  usage
-fi
+resolve_execution_model_or_die
+dep_mode="${DEP_MODE}"
 
 if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
@@ -238,15 +220,9 @@ if [[ "${goal}" == "ref" ]]; then
   candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
 fi
 
-report_mode="${dep_mode}"
-export DEP_MODE="${DEP_MODE:-${report_mode}}"
-
 if [[ -z "${CI_DEPS_REPORT_JSON:-}" ]]; then
-  if [[ "${report_mode}" == "compare" ]]; then
-    export CI_DEPS_REPORT_JSON="${artifact_root}/deps-report.json"
-  else
-    export CI_DEPS_REPORT_JSON="${ref_stage_root}/${build_tool}.${ref_os}.${variant}/meta/deps-report.json"
-  fi
+  echo "Missing CI_DEPS_REPORT_JSON" >&2
+  usage
 fi
 mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
 

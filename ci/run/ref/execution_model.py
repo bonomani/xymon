@@ -83,5 +83,6 @@ def resolve_execution_model(
         "ref_mode": ref_mode,
         "publish": publish,
         "allow_failure_mode": allow_failure_mode,
+        "dep_mode": derive_dep_mode(goal, ref_mode),
         "purpose": derive_purpose(goal, ref_mode),
     }
