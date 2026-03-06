@@ -66,7 +66,6 @@ jobs:
           GOAL: ${{ steps.lane_ctx.outputs.goal }}
           REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
           PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
-          DEP_MODE: ${{ steps.lane_ctx.outputs.goal == 'ref' && steps.lane_ctx.outputs.ref_mode == 'compare' && 'compare' || 'generate' }}
           VARIANT: ${{ steps.lane_ctx.outputs.variant }}
           BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
           REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
@@ -108,7 +107,6 @@ jobs:
             export GOAL="${{ steps.lane_ctx.outputs.goal }}"
             export REF_MODE="${{ steps.lane_ctx.outputs.ref_mode }}"
             export PUBLISH="${{ steps.lane_ctx.outputs.publish }}"
-            export DEP_MODE="${{ steps.lane_ctx.outputs.goal == 'ref' && steps.lane_ctx.outputs.ref_mode == 'compare' && 'compare' || 'generate' }}"
             export REF_OS="${{ steps.lane_ctx.outputs.ref_os }}"
             export PLATFORM_OS="${{ steps.lane_ctx.outputs.platform_os }}"
             export OS_VERSION="${{ steps.lane_ctx.outputs.os_version }}"
@@ -160,6 +158,7 @@ jobs:
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}
           goal: ${{ steps.lane_ctx.outputs.goal }}
           ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
+          dep_mode: ${{ steps.lane_ctx.outputs.dep_mode }}
           upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}
           build_tool: ${{ steps.lane_ctx.outputs.build_tool }}
           platform_id: ${{ steps.lane_ctx.outputs.platform_id }}

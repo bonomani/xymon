@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ci/run/ref/lib/mode-model.sh
+source "${script_dir}/lib/mode-model.sh"
+
 build_tool=""
 goal="verify"
 ref_mode="generate"
@@ -27,7 +31,7 @@ Usage: run-ref-lane.sh
   --variant NAME
   [--ref-mode generate|compare]
   [--publish none|artifact]
-  --dep-mode generate|compare
+  [--dep-mode generate|compare]
   [--baseline-root ROOT]
   [--ref-os OS]
   [--platform-os OS]
@@ -117,45 +121,12 @@ if [[ -z "${build_tool}" ]]; then
   echo "Missing --build" >&2
   usage
 fi
-case "${build_tool}" in
-  make|cmake)
-    ;;
-  *)
-    echo "Unsupported --build value: ${build_tool}" >&2
-    usage
-    ;;
-esac
-
-case "${goal}" in
-  verify|ref)
-    ;;
-  *)
-    echo "Unsupported --goal value: ${goal}" >&2
-    usage
-    ;;
-esac
-
-case "${ref_mode}" in
-  generate|compare)
-    ;;
-  *)
-    echo "Unsupported --ref-mode value: ${ref_mode}" >&2
-    usage
-    ;;
-esac
-
-case "${publish}" in
-  none|artifact)
-    ;;
-  *)
-    echo "Unsupported --publish value: ${publish}" >&2
-    usage
-    ;;
-esac
+if ! validate_lane_build_tool "${build_tool}"; then
+  usage
+fi
 
 if [[ -z "${dep_mode}" ]]; then
-  echo "Missing --dep-mode" >&2
-  usage
+  dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
 fi
 
 case "${dep_mode}" in
@@ -167,23 +138,11 @@ case "${dep_mode}" in
     ;;
 esac
 
-if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
-  echo "--ref-mode compare is only valid with --goal ref" >&2
-  usage
-fi
-if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
-  echo "--goal verify requires --ref-mode generate" >&2
-  usage
-fi
-if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
-  echo "--goal verify requires --publish none" >&2
+if ! validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"; then
   usage
 fi
 
-expected_dep_mode="generate"
-if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
-  expected_dep_mode="compare"
-fi
+expected_dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
 if [[ "${dep_mode}" != "${expected_dep_mode}" ]]; then
   echo "--dep-mode ${dep_mode} does not match expected mode ${expected_dep_mode} for goal/ref_mode" >&2
   usage
@@ -201,14 +160,15 @@ if [[ -z "${platform_id}" ]]; then
   platform_id="${platform_os}"
 fi
 
-if [[ -z "${baseline_root}" ]]; then
-  echo "Missing --baseline-root" >&2
-  usage
-fi
-
-if [[ -z "${artifact_family}" ]]; then
-  echo "Missing --artifact-family" >&2
-  usage
+if [[ "${goal}" == "ref" ]]; then
+  if [[ -z "${baseline_root}" ]]; then
+    echo "Missing --baseline-root" >&2
+    usage
+  fi
+  if [[ -z "${artifact_family}" ]]; then
+    echo "Missing --artifact-family" >&2
+    usage
+  fi
 fi
 
 if [[ -z "${refs_root}" ]]; then

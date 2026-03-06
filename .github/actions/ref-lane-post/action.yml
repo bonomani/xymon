@@ -17,6 +17,9 @@ inputs:
   ref_mode:
     description: Reference mode (generate|compare).
     required: true
+  dep_mode:
+    description: Derived dependency mode (generate|compare).
+    required: true
   upload_artifacts:
     description: Whether artifact upload is enabled (1 or 0).
     required: true
@@ -82,7 +85,7 @@ runs:
       if: ${{ inputs.upload_artifacts == '1' && ((inputs.goal == 'ref' && inputs.ref_mode == 'compare') || inputs.lane_outcome == 'success') }}
       uses: ./.github/actions/upload-deps-report
       with:
-        dep_mode: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
+        dep_mode: ${{ inputs.dep_mode }}
         build_tool: ${{ inputs.build_tool }}
         platform_id: ${{ inputs.platform_id }}
         variant: ${{ inputs.variant }}
