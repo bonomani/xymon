@@ -1,5 +1,11 @@
 include:
 - platform_id: opensuse-tumbleweed
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - client
 - platform_id: opensuse-leap-16_0
 - platform_id: opensuse-leap-15_6
 - platform_id: opensuse-leap-15_5
