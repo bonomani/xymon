@@ -1,4 +1,4 @@
-name: Reference Lane - Reusable
+name: Pipeline - Run Lane (Reusable)
 
 on:
   workflow_call:

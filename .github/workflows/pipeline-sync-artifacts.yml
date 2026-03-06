@@ -1,4 +1,4 @@
-name: ref-sync
+name: Pipeline - Sync Artifacts to Branches
 
 on:
   workflow_dispatch:
@@ -37,7 +37,7 @@ jobs:
           artifacts_dir="/tmp/legacy-reference-artifacts"
           rm -rf "${artifacts_dir}"
           mkdir -p "${artifacts_dir}"
-          workflow="ref-make-select.yml"
+          workflow="pipeline-select-run-lanes.yml"
           echo "Fetching latest successful run for ${workflow} (family=all) on ${{ inputs.source_branch }}"
           run_id="$(
             gh run list \
