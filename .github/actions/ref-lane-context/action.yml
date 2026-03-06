@@ -28,6 +28,9 @@ outputs:
   publish:
     description: Normalized publish mode.
     value: ${{ steps.resolve.outputs.publish }}
+  dep_mode:
+    description: Derived dependency report mode (generate|compare).
+    value: ${{ steps.resolve.outputs.dep_mode }}
   allow_failure_mode:
     description: Normalized allow-failure mode.
     value: ${{ steps.resolve.outputs.allow_failure_mode }}
@@ -116,6 +119,9 @@ runs:
       run: |
         set -euo pipefail
 
+        # shellcheck source=ci/run/ref/lib/mode-model.sh
+        source ci/run/ref/lib/mode-model.sh
+
         lane_build_tool="$(python3 - <<'PY'
         import json
         import os
@@ -128,78 +134,19 @@ runs:
         resolved_ref_mode="${INPUT_REF_MODE}"
         resolved_publish="${INPUT_PUBLISH}"
         resolved_build_tool="${lane_build_tool}"
+        resolved_allow_failure_mode="$(normalize_allow_failure_mode "${INPUT_ALLOW_FAILURE_MODE}")"
+        resolved_dep_mode="$(derive_dep_mode "${resolved_goal}" "${resolved_ref_mode}")"
 
-        case "${INPUT_ALLOW_FAILURE_MODE}" in
-          false|0|no)
-            resolved_allow_failure_mode="off"
-            ;;
-          true|1|yes)
-            resolved_allow_failure_mode="allow"
-            ;;
-          *)
-            resolved_allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE}"
-            ;;
-        esac
-
-        case "${resolved_goal}" in
-          verify|ref)
-            ;;
-          *)
-            echo "Unsupported goal: ${resolved_goal}" >&2
-            exit 2
-            ;;
-        esac
-        case "${resolved_ref_mode}" in
-          generate|compare)
-            ;;
-          *)
-            echo "Unsupported ref_mode: ${resolved_ref_mode}" >&2
-            exit 2
-            ;;
-        esac
-        case "${resolved_publish}" in
-          none|artifact)
-            ;;
-          *)
-            echo "Unsupported publish: ${resolved_publish}" >&2
-            exit 2
-            ;;
-        esac
-        case "${resolved_allow_failure_mode}" in
-          off|allow|expect_fail)
-            ;;
-          *)
-            echo "Unsupported allow_failure_mode: ${resolved_allow_failure_mode}" >&2
-            exit 2
-            ;;
-        esac
-        case "${resolved_build_tool}" in
-          make|cmake)
-            ;;
-          *)
-            echo "Unsupported lane build_tool: ${resolved_build_tool}" >&2
-            exit 2
-            ;;
-        esac
-
-        if [[ "${resolved_goal}" != "ref" && "${resolved_ref_mode}" == "compare" ]]; then
-          echo "ref_mode=compare is only valid when goal=ref" >&2
-          exit 2
-        fi
-        if [[ "${resolved_goal}" == "verify" && "${resolved_ref_mode}" != "generate" ]]; then
-          echo "goal=verify requires ref_mode=generate" >&2
-          exit 2
-        fi
-        if [[ "${resolved_goal}" == "verify" && "${resolved_publish}" != "none" ]]; then
-          echo "goal=verify requires publish=none" >&2
-          exit 2
-        fi
+        validate_goal_ref_publish "${resolved_goal}" "${resolved_ref_mode}" "${resolved_publish}"
+        validate_allow_failure_mode "${resolved_allow_failure_mode}"
+        validate_lane_build_tool "${resolved_build_tool}"
 
         export RESOLVED_BUILD_TOOL="${resolved_build_tool}"
         export RESOLVED_GOAL="${resolved_goal}"
         export RESOLVED_REF_MODE="${resolved_ref_mode}"
         export RESOLVED_PUBLISH="${resolved_publish}"
         export RESOLVED_ALLOW_FAILURE_MODE="${resolved_allow_failure_mode}"
+        export RESOLVED_DEP_MODE="${resolved_dep_mode}"
 
         python3 - <<'PY'
         import json
@@ -228,6 +175,7 @@ runs:
         goal = as_text(os.environ.get("RESOLVED_GOAL", ""))
         ref_mode = as_text(os.environ.get("RESOLVED_REF_MODE", ""))
         publish = as_text(os.environ.get("RESOLVED_PUBLISH", ""))
+        dep_mode = as_text(os.environ.get("RESOLVED_DEP_MODE", ""))
         allow_failure_mode = as_text(
             os.environ.get("RESOLVED_ALLOW_FAILURE_MODE", "")
         )
@@ -262,7 +210,7 @@ runs:
         os_version = as_text(lane.get("os_version"))
 
         baseline_root = as_text(lane.get("baseline_root"))
-        if not baseline_root:
+        if goal == "ref" and not baseline_root:
             fail("lane_json missing baseline_root")
 
         # Normalize to avoid empty artifact namespaces in logs/artifact names.
@@ -283,6 +231,7 @@ runs:
             "goal": goal,
             "ref_mode": ref_mode,
             "publish": publish,
+            "dep_mode": dep_mode,
             "allow_failure_mode": allow_failure_mode,
             "runtime": runtime,
             "build_tool": build_tool,

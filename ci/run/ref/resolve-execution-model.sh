@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ci/run/ref/lib/mode-model.sh
+source "${script_dir}/lib/mode-model.sh"
+
 requested_build_tool=""
 goal="verify"
 ref_mode="generate"
@@ -62,91 +66,15 @@ if [[ -z "${requested_build_tool}" ]]; then
   usage
 fi
 
-case "${allow_failure_mode_raw}" in
-  false|0|no)
-    allow_failure_mode="off"
-    ;;
-  true|1|yes)
-    allow_failure_mode="allow"
-    ;;
-  *)
-    allow_failure_mode="${allow_failure_mode_raw}"
-    ;;
-esac
+allow_failure_mode="$(normalize_allow_failure_mode "${allow_failure_mode_raw}")"
 
-case "${goal}" in
-  verify|ref)
-    ;;
-  *)
-    echo "Unsupported goal: ${goal}" >&2
-    exit 2
-    ;;
-esac
+validate_goal_ref_publish "${goal}" "${ref_mode}" "${publish}"
+validate_allow_failure_mode "${allow_failure_mode}"
+validate_requested_build_tool "${requested_build_tool}"
 
-case "${ref_mode}" in
-  generate|compare)
-    ;;
-  *)
-    echo "Unsupported ref_mode: ${ref_mode}" >&2
-    exit 2
-    ;;
-esac
-
-case "${publish}" in
-  none|artifact)
-    ;;
-  *)
-    echo "Unsupported publish: ${publish}" >&2
-    exit 2
-    ;;
-esac
-
-case "${allow_failure_mode}" in
-  off|allow|expect_fail)
-    ;;
-  *)
-    echo "Unsupported allow_failure_mode: ${allow_failure_mode}" >&2
-    exit 2
-    ;;
-esac
-
-case "${requested_build_tool}" in
-  auto|make|cmake)
-    ;;
-  *)
-    echo "Unsupported requested_build_tool: ${requested_build_tool}" >&2
-    exit 2
-    ;;
-esac
-
-if [[ "${goal}" != "ref" && "${ref_mode}" == "compare" ]]; then
-  echo "ref_mode=compare is only valid when goal=ref" >&2
-  exit 2
-fi
-if [[ "${goal}" == "verify" && "${ref_mode}" != "generate" ]]; then
-  echo "goal=verify requires ref_mode=generate" >&2
-  exit 2
-fi
-if [[ "${goal}" == "verify" && "${publish}" != "none" ]]; then
-  echo "goal=verify requires publish=none" >&2
-  exit 2
-fi
-
-build_tool="${requested_build_tool}"
-if [[ "${build_tool}" == "auto" ]]; then
-  if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
-    build_tool="cmake"
-  else
-    build_tool="make"
-  fi
-fi
-
-dep_mode="generate"
-purpose="generation"
-if [[ "${goal}" == "ref" && "${ref_mode}" == "compare" ]]; then
-  dep_mode="compare"
-  purpose="validation"
-fi
+build_tool="$(resolve_build_tool "${requested_build_tool}" "${goal}" "${ref_mode}")"
+dep_mode="$(derive_dep_mode "${goal}" "${ref_mode}")"
+purpose="$(derive_purpose "${goal}" "${ref_mode}")"
 
 {
   echo "build_tool=${build_tool}"
