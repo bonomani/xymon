@@ -1,0 +1,136 @@
+name: Pipeline - Run CMake Lanes
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Select which reference-generation family to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - linux
+          - alpine
+          - archlinux
+          - centos7
+          - debian
+          - freebsd
+          - macos
+          - netbsd
+          - openbsd
+          - opensuse
+          - redhat
+          - fedora
+          - oraclelinux
+          - ubuntu
+      compiler:
+        description: Compiler selection (auto|gcc|clang)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - gcc
+          - clang
+      preset:
+        description: CMake preset selection
+        required: true
+        type: choice
+        default: default
+        options:
+          - default
+          - gnuinstall
+          - packaging
+      verify_depth:
+        description: Verification depth (configure|build|install, ref_mode!=off forces install)
+        required: true
+        type: choice
+        default: install
+        options:
+          - configure
+          - build
+          - install
+      ref_mode:
+        description: Reference handling mode for CMake lanes
+        required: true
+        type: choice
+        default: off
+        options:
+          - off
+          - generate
+          - compare
+      publish:
+        description: Publish channel (artifact is only meaningful with ref_mode=generate)
+        required: true
+        type: choice
+        default: none
+        options:
+          - none
+          - artifact
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure
+        required: true
+        type: choice
+        default: allow
+        options:
+          - off
+          - allow
+          - expect_fail
+      source_ref:
+        description: Optional branch or tag to run the advanced selector on
+        required: false
+        type: string
+
+permissions:
+  actions: write
+  contents: read
+
+jobs:
+  dispatch-advanced-selector:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Dispatch advanced selector
+        uses: actions/github-script@v7
+        with:
+          retries: 5
+          retry-exempt-status-codes: 400,401,403,404,422
+          script: |
+            const requestedRef = `${{ inputs.source_ref }}`.trim();
+            const targetRef = requestedRef || (
+              context.ref.startsWith('refs/heads/')
+                ? context.ref.slice('refs/heads/'.length)
+                : context.ref
+            );
+
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'pipeline-select-run-lanes.yml',
+              ref: targetRef,
+              inputs: {
+                family: '${{ inputs.family }}',
+                build_tool: 'cmake',
+                compiler: '${{ inputs.compiler }}',
+                preset: '${{ inputs.preset }}',
+                verify_depth: '${{ inputs.verify_depth }}',
+                ref_mode: '${{ inputs.ref_mode }}',
+                publish: '${{ inputs.publish }}',
+                allow_failure_mode: '${{ inputs.allow_failure_mode }}',
+                source_ref: ''
+              }
+            });
+
+            core.summary
+              .addHeading('Dispatched Advanced Selector')
+              .addRaw(`Target ref: ${targetRef}\n`, true)
+              .addRaw(`Build tool: cmake\n`, true)
+              .addRaw(`Family: ${{ inputs.family }}\n`, true)
+              .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
+              .addRaw(`Preset: ${{ inputs.preset }}\n`, true)
+              .addRaw(`Reference mode: ${{ inputs.ref_mode }}\n`, true)
+              .addRaw(`Publish: ${{ inputs.publish }}\n`, true)
+              .addRaw(`Allow-failure mode: ${{ inputs.allow_failure_mode }}\n`, true)
+              .write();
+
+            core.info(`Dispatched pipeline-select-run-lanes.yml on ref ${targetRef} with build_tool=cmake`);
