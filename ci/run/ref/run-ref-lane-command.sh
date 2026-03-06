@@ -1,10 +1,6 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-# shellcheck source=ci/run/ref/lib/mode-model.sh
-source "${script_dir}/lib/mode-model.sh"
-
 required_vars=(
   BUILD_TOOL
   GOAL
@@ -22,11 +18,6 @@ for var_name in "${required_vars[@]}"; do
     exit 2
   fi
 done
-
-# shellcheck disable=SC2153
-validate_lane_build_tool "${BUILD_TOOL}"
-# shellcheck disable=SC2153
-validate_goal_ref_publish "${GOAL}" "${REF_MODE}" "${PUBLISH}"
 
 args=(
   bash
