@@ -37,6 +37,9 @@ outputs:
   dep_mode:
     description: Dependency report mode.
     value: ${{ steps.resolve.outputs.dep_mode }}
+  runtime:
+    description: Lane runtime key.
+    value: ${{ steps.resolve.outputs.runtime }}
   build_tool:
     description: Lane build tool.
     value: ${{ steps.resolve.outputs.build_tool }}
@@ -119,6 +122,68 @@ runs:
         INPUT_DEP_MODE: ${{ inputs.dep_mode }}
       run: |
         set -euo pipefail
+
+        resolved_build_tool=""
+        resolved_goal=""
+        resolved_ref_mode=""
+        resolved_publish=""
+        resolved_allow_failure_mode=""
+        resolved_dep_mode=""
+
+        lane_build_tool="$(python3 - <<'PY'
+        import json
+        import os
+        lane = json.loads(os.environ["INPUT_LANE_JSON"])
+        print((lane.get("build_tool") or "").strip())
+        PY
+        )"
+
+        while IFS='=' read -r key value; do
+          case "${key}" in
+            build_tool)
+              resolved_build_tool="${value}"
+              ;;
+            goal)
+              resolved_goal="${value}"
+              ;;
+            ref_mode)
+              resolved_ref_mode="${value}"
+              ;;
+            publish)
+              resolved_publish="${value}"
+              ;;
+            allow_failure_mode)
+              resolved_allow_failure_mode="${value}"
+              ;;
+            dep_mode)
+              resolved_dep_mode="${value}"
+              ;;
+          esac
+        done < <(
+          bash ci/run/ref/resolve-execution-model.sh \
+            --requested-build-tool "${lane_build_tool}" \
+            --goal "${INPUT_GOAL}" \
+            --ref-mode "${INPUT_REF_MODE}" \
+            --publish "${INPUT_PUBLISH}" \
+            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}"
+        )
+
+        if [[ -z "${resolved_dep_mode}" ]]; then
+          echo "Failed to resolve execution model output dep_mode" >&2
+          exit 2
+        fi
+        if [[ "${INPUT_DEP_MODE}" != "${resolved_dep_mode}" ]]; then
+          echo "dep_mode mismatch: input=${INPUT_DEP_MODE} expected=${resolved_dep_mode}" >&2
+          exit 2
+        fi
+
+        export RESOLVED_BUILD_TOOL="${resolved_build_tool}"
+        export RESOLVED_GOAL="${resolved_goal}"
+        export RESOLVED_REF_MODE="${resolved_ref_mode}"
+        export RESOLVED_PUBLISH="${resolved_publish}"
+        export RESOLVED_ALLOW_FAILURE_MODE="${resolved_allow_failure_mode}"
+        export RESOLVED_DEP_MODE="${resolved_dep_mode}"
+
         python3 - <<'PY'
         import json
         import os
@@ -143,56 +208,36 @@ runs:
         if not isinstance(lane, dict):
             fail("lane_json must decode to an object")
 
-        goal = as_text(os.environ.get("INPUT_GOAL", ""))
-        ref_mode = as_text(os.environ.get("INPUT_REF_MODE", ""))
-        publish = as_text(os.environ.get("INPUT_PUBLISH", ""))
+        goal = as_text(os.environ.get("RESOLVED_GOAL", ""))
+        ref_mode = as_text(os.environ.get("RESOLVED_REF_MODE", ""))
+        publish = as_text(os.environ.get("RESOLVED_PUBLISH", ""))
         allow_failure_mode = as_text(
-            os.environ.get("INPUT_ALLOW_FAILURE_MODE", "")
-        ).lower()
-        dep_mode = as_text(os.environ.get("INPUT_DEP_MODE", ""))
-
-        if allow_failure_mode in {"false", "0", "no"}:
-            allow_failure_mode = "off"
-        elif allow_failure_mode in {"true", "1", "yes"}:
-            allow_failure_mode = "allow"
-
-        if goal not in {"verify", "ref"}:
-            fail(f"Unsupported goal input: {goal}")
-        if ref_mode not in {"generate", "compare"}:
-            fail(f"Unsupported ref_mode input: {ref_mode}")
-        if publish not in {"none", "artifact"}:
-            fail(f"Unsupported publish input: {publish}")
-        if allow_failure_mode not in {"off", "allow", "expect_fail"}:
-            fail(f"Unsupported allow_failure_mode input: {allow_failure_mode}")
-        if dep_mode not in {"generate", "compare"}:
-            fail(f"Unsupported dep_mode input: {dep_mode}")
-
-        if goal != "ref" and ref_mode == "compare":
-            fail("ref_mode=compare is only valid when goal=ref")
-        if goal == "verify" and ref_mode != "generate":
-            fail("goal=verify requires ref_mode=generate")
-        if goal == "verify" and publish != "none":
-            fail("goal=verify requires publish=none")
-
-        expected_dep_mode = (
-            "compare" if goal == "ref" and ref_mode == "compare" else "generate"
+            os.environ.get("RESOLVED_ALLOW_FAILURE_MODE", "")
         )
-        if dep_mode != expected_dep_mode:
-            fail(
-                "dep_mode mismatch: input="
-                + dep_mode
-                + " expected="
-                + expected_dep_mode
-            )
+        dep_mode = as_text(os.environ.get("RESOLVED_DEP_MODE", ""))
+        resolved_build_tool = as_text(os.environ.get("RESOLVED_BUILD_TOOL", ""))
 
         build_tool = as_text(lane.get("build_tool"))
         variant = as_text(lane.get("variant"))
+        runtime = as_text(lane.get("runtime"))
+
+        if not resolved_build_tool:
+            fail("Resolved execution model did not return build_tool")
         if not build_tool:
             fail("lane_json missing build_tool")
+        if build_tool != resolved_build_tool:
+            fail(
+                "lane_json build_tool mismatch: lane="
+                + build_tool
+                + " resolved="
+                + resolved_build_tool
+            )
         if build_tool not in {"make", "cmake"}:
             fail(f"Unsupported lane build_tool: {build_tool}")
         if not variant:
             fail("lane_json missing variant")
+        if runtime not in {"linux_host", "linux_container", "bsd_vm", "macos_host"}:
+            fail(f"lane_json has unsupported runtime: {runtime}")
 
         ref_os = as_text(lane.get("ref_os")) or "linux"
         platform_os = as_text(lane.get("platform_os")) or ref_os
@@ -224,6 +269,7 @@ runs:
             "publish": publish,
             "allow_failure_mode": allow_failure_mode,
             "dep_mode": dep_mode,
+            "runtime": runtime,
             "build_tool": build_tool,
             "variant": variant,
             "lane_allow_failure": lane_allow_failure,

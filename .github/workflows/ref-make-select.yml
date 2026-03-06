@@ -223,7 +223,7 @@ jobs:
       fail-fast: false
       max-parallel: 6
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_host) }}
-    uses: ./.github/workflows/ref-make-reusable-linux-host.yml
+    uses: ./.github/workflows/ref-make-reusable-lane.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
@@ -242,7 +242,7 @@ jobs:
       fail-fast: false
       max-parallel: 8
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_linux_container) }}
-    uses: ./.github/workflows/ref-make-reusable-linux-container.yml
+    uses: ./.github/workflows/ref-make-reusable-lane.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
@@ -261,7 +261,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_bsd_vm) }}
-    uses: ./.github/workflows/ref-make-reusable-bsd-vm.yml
+    uses: ./.github/workflows/ref-make-reusable-lane.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}
@@ -280,7 +280,7 @@ jobs:
       fail-fast: false
       max-parallel: 4
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_macos_host) }}
-    uses: ./.github/workflows/ref-make-reusable-macos-host.yml
+    uses: ./.github/workflows/ref-make-reusable-lane.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}

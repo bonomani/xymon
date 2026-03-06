@@ -28,9 +28,12 @@ PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yam
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 REF_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-families.yml"
 REF_LANE_UTILS_DIR = ROOT / "ci" / "run" / "ref"
+CHECKDEPS_DIR = ROOT / "ci" / "deps" / "checkdeps"
 
 if str(REF_LANE_UTILS_DIR) not in sys.path:
     sys.path.insert(0, str(REF_LANE_UTILS_DIR))
+if str(CHECKDEPS_DIR) not in sys.path:
+    sys.path.insert(0, str(CHECKDEPS_DIR))
 try:
     from lane_utils import (  # type: ignore
         LaneSpecError,
@@ -41,6 +44,18 @@ try:
     from matrix_common import load_purpose_manifest_common  # type: ignore
 except Exception as exc:  # pragma: no cover
     print(f"Failed to import lane_utils helpers: {exc}")
+    sys.exit(2)
+
+try:
+    from workflow_io import find_package_steps, parse_workflow_yaml  # type: ignore
+    from platform_catalog import (  # type: ignore
+        build_docker_image_index,
+        load_platform_catalog,
+        load_platform_deps_bindings,
+    )
+    from shell_lint import check_shell_scripts  # type: ignore
+except Exception as exc:  # pragma: no cover
+    print(f"Failed to import checkdeps helpers: {exc}")
     sys.exit(2)
 
 
@@ -625,34 +640,6 @@ def check_packages_from_yaml_mapping(data: dict, variant: str) -> bool:
     return ok
 
 
-def parse_workflow_yaml(path: Path) -> dict:
-    try:
-        data = yaml.safe_load(path.read_text())
-    except Exception:
-        return {}
-    if not isinstance(data, dict):
-        return {}
-    return data
-
-
-def find_package_steps(workflow: dict) -> list[str]:
-    hits: list[str] = []
-    jobs = workflow.get("jobs", {})
-    if not isinstance(jobs, dict):
-        return hits
-    for job in jobs.values():
-        steps = job.get("steps", [])
-        if not isinstance(steps, list):
-            continue
-        for step in steps:
-            if not isinstance(step, dict):
-                continue
-            run = step.get("run", "")
-            if isinstance(run, str) and "ci/deps/" in run and "packages" in run:
-                hits.append(run)
-    return hits
-
-
 def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
     lanes: list[tuple[str, Path, str, dict]] = []
 
@@ -820,67 +807,6 @@ def check_ref_workflow_deps_coverage(
     if ok:
         print("   OK: ref-validation lanes are covered by deps keys")
     return ok
-
-
-def load_platform_catalog() -> dict[str, dict]:
-    if not PLATFORM_CATALOG_FILE.exists():
-        return {}
-    data = load_yaml(PLATFORM_CATALOG_FILE)
-    platforms = data.get("platforms", {})
-    if not isinstance(platforms, dict):
-        return {}
-    normalized: dict[str, dict] = {}
-    for platform_id, entry in platforms.items():
-        if isinstance(platform_id, str) and isinstance(entry, dict):
-            normalized[platform_id] = entry
-    return normalized
-
-
-def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, dict]:
-    if not platform_catalog:
-        return {}
-
-    normalized: dict[str, dict] = {}
-
-    for platform_id, entry in platform_catalog.items():
-        if not isinstance(platform_id, str) or not isinstance(entry, dict):
-            continue
-
-        deps = entry.get("deps")
-        if not isinstance(deps, dict):
-            continue
-
-        if "profile" in deps:
-            print(
-                f"   ERROR: {PLATFORM_CATALOG_FILE} platform '{platform_id}' uses "
-                "deprecated deps.profile; use explicit family/os/version in deps"
-            )
-            continue
-
-        normalized[platform_id] = copy.deepcopy(deps)
-    return normalized
-
-
-def build_docker_image_index(platform_catalog: dict[str, dict]) -> tuple[dict[str, str], dict[str, set[str]]]:
-    image_to_platform: dict[str, str] = {}
-    duplicate_images: dict[str, set[str]] = {}
-
-    for platform_id, entry in platform_catalog.items():
-        runtime = str(entry.get("runtime", "")).strip().lower()
-        if runtime != "docker":
-            continue
-        image_ref = entry.get("image")
-        if not isinstance(image_ref, str) or not image_ref.strip():
-            continue
-        normalized_ref = normalize_container_ref(image_ref)
-        current = image_to_platform.get(normalized_ref)
-        if current is None:
-            image_to_platform[normalized_ref] = platform_id
-            continue
-        if current != platform_id:
-            duplicate_images.setdefault(normalized_ref, {current}).add(platform_id)
-
-    return image_to_platform, duplicate_images
 
 
 def check_platform_catalog_bindings_consistency(
@@ -1296,58 +1222,6 @@ def parse_ldap_pkg_name() -> str | None:
     return None
 
 
-def check_shell_scripts() -> bool:
-    scripts = [
-        ROOT / "cmake-local-setup.sh",
-        ROOT / "cmake-local-build.sh",
-        ROOT / "cmake-local-install.sh",
-        ROOT / "ci" / "deps" / "install-default-packages.sh",
-        ROOT / "ci" / "deps" / "install-checkout-tools.sh",
-        ROOT / "ci" / "deps" / "install-apt-packages.sh",
-        ROOT / "ci" / "deps" / "install-apk-packages.sh",
-        ROOT / "ci" / "deps" / "install-bsd-packages.sh",
-        ROOT / "ci" / "deps" / "install-brew-packages.sh",
-        ROOT / "ci" / "deps" / "install-pkg-packages.sh",
-        ROOT / "ci" / "deps" / "install-pkg-add-packages.sh",
-        ROOT / "ci" / "deps" / "install-pkgin-packages.sh",
-        ROOT / "ci" / "deps" / "install-dnf-packages.sh",
-        ROOT / "ci" / "deps" / "install-pacman-packages.sh",
-        ROOT / "ci" / "deps" / "install-yum-packages.sh",
-        ROOT / "ci" / "deps" / "install-zypper-packages.sh",
-        ROOT / "ci" / "deps" / "lib" / "install-common.sh",
-        ROOT / "ci" / "deps" / "lib" / "install-bsd-common.sh",
-    ]
-    existing = [str(path) for path in scripts if path.exists()]
-    if not existing:
-        print("   NOTE: no shell scripts found for linting")
-        return True
-
-    try:
-        subprocess.run(
-            ["shellcheck", "--version"],
-            check=True,
-            stdout=subprocess.DEVNULL,
-            stderr=subprocess.DEVNULL,
-        )
-    except FileNotFoundError:
-        print("   NOTE: shellcheck not installed; skipping shell lint")
-        return True
-
-    cmd = [
-        "shellcheck",
-        "--external-sources",
-        "--shell",
-        "bash",
-        "--severity",
-        "warning",
-    ] + existing
-    result = subprocess.run(cmd)
-    if result.returncode != 0:
-        print("   ERROR: shellcheck reported issues")
-        return False
-    return True
-
-
 def extract_cmake_deps(text: str) -> set[str]:
     deps = set()
     for pattern in (
@@ -1605,7 +1479,7 @@ def main() -> int:
         "localclient": build_family_os_index(localclient),
         "server": build_family_os_index(server),
     }
-    platform_catalog = load_platform_catalog()
+    platform_catalog = load_platform_catalog(PLATFORM_CATALOG_FILE, load_yaml, require)
     platform_bindings = load_platform_deps_bindings(platform_catalog)
 
     # --- normalization -> topology coverage ---
@@ -1927,7 +1801,7 @@ def main() -> int:
         ok = False
 
     print("-- shellcheck: local + CI helpers")
-    if not check_shell_scripts():
+    if not check_shell_scripts(ROOT):
         ok = False
 
     if not ok:
