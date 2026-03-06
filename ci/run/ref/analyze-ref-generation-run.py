@@ -14,6 +14,8 @@ import zipfile
 from collections import Counter, defaultdict
 from pathlib import Path
 
+from lane_registry import build_lane_registry
+
 API_VERSION = "2022-11-28"
 DEFAULT_WORKFLOW = "pipeline-select-run-lanes.yml"
 CONTROL_JOB_NAMES = frozenset({"build-matrix", "redispatch-selected-ref"})
@@ -43,6 +45,12 @@ CONCLUSION_LABELS = {
 }
 DEPENDENCY_ARTIFACT_PREFIXES = ("deps_",)
 DEPENDENCY_ARTIFACT_TOP_N = 20
+CATEGORY_ORDER = ["success", "success_with_allow_failure", "fails"]
+CATEGORY_LABELS = {
+    "success": "Success",
+    "success_with_allow_failure": "Success with allow_failure",
+    "fails": "Fails",
+}
 
 
 def die(message: str) -> None:
@@ -633,7 +641,46 @@ def append_dependency_markdown(markdown: str, dependency_report: dict) -> str:
     return "\n".join(output_lines) + "\n"
 
 
-def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list[dict], resolved_via: str) -> tuple[str, dict]:
+def build_report(
+    repo: str,
+    run: dict,
+    lane_jobs: list[dict],
+    control_jobs: list[dict],
+    resolved_via: str,
+    lane_registry: dict,
+    lane_registry_error: str,
+) -> tuple[str, dict]:
+    categorized: dict[str, list[dict]] = defaultdict(list)
+    categorized.setdefault("success", [])
+    categorized.setdefault("success_with_allow_failure", [])
+    categorized.setdefault("fails", [])
+    lane_registry_miss_count = 0
+    for job in lane_jobs:
+        record = lane_registry.get(job["normalized_name"])
+        allow_failure = bool(record.allow_failure) if record is not None else False
+        if record is None:
+            lane_registry_miss_count += 1
+
+        if job["normalized_conclusion"] == "success":
+            category = "success_with_allow_failure" if allow_failure else "success"
+        else:
+            category = "fails"
+
+        job["allow_failure"] = allow_failure
+        job["category"] = category
+        job["lane_registry_found"] = record is not None
+        if record is not None:
+            job["family"] = record.family
+            job["lane_file"] = record.lane_file
+            job["include_index"] = record.include_index
+            job["platform_id"] = record.platform_id
+            job["variant"] = record.variant
+
+        categorized[category].append(job)
+
+    for jobs in categorized.values():
+        jobs.sort(key=lambda job: job["normalized_name"].lower())
+
     grouped: dict[str, list[dict]] = defaultdict(list)
     for job in lane_jobs:
         grouped[job["normalized_conclusion"]].append(job)
@@ -641,6 +688,7 @@ def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list
         jobs.sort(key=lambda job: job["normalized_name"].lower())
 
     counts = {key: len(grouped.get(key, [])) for key in CONCLUSION_ORDER}
+    category_counts = {key: len(categorized.get(key, [])) for key in CATEGORY_ORDER}
     control_names = sorted(job["normalized_name"] for job in control_jobs)
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
     run_id = run.get("id")
@@ -671,8 +719,29 @@ def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list
     for key in CONCLUSION_ORDER:
         lines.append(f"| {CONCLUSION_LABELS.get(key, key)} | {counts[key]} |")
 
+    lines.extend(
+        [
+            "",
+            "## Lane Categories",
+            "",
+            "| Category | Count |",
+            "| --- | ---: |",
+        ]
+    )
+    for key in CATEGORY_ORDER:
+        lines.append(f"| {CATEGORY_LABELS[key]} | {category_counts[key]} |")
+
     if control_names:
         lines.extend(["", f"- Ignored control jobs: {', '.join(control_names)}"])
+    if lane_registry_error:
+        lines.extend(["", f"- Lane registry resolution warning: `{lane_registry_error}`"])
+    elif lane_registry_miss_count:
+        lines.extend(
+            [
+                "",
+                f"- Lanes missing allow_failure mapping: `{lane_registry_miss_count}`",
+            ]
+        )
 
     if not lane_jobs:
         lines.extend(
@@ -684,6 +753,19 @@ def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list
             ]
         )
     else:
+        for key in CATEGORY_ORDER:
+            jobs = categorized.get(key, [])
+            if not jobs:
+                continue
+            lines.extend(["", f"## {CATEGORY_LABELS[key]} ({len(jobs)})", ""])
+            for job in jobs:
+                job_name = job["normalized_name"]
+                job_url = job.get("html_url")
+                if job_url:
+                    lines.append(f"- [{job_name}]({job_url})")
+                else:
+                    lines.append(f"- {job_name}")
+
         for key in CONCLUSION_ORDER:
             jobs = grouped.get(key, [])
             if not jobs:
@@ -713,12 +795,23 @@ def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list
             "lane_job_count": len(lane_jobs),
             "control_job_count": len(control_jobs),
             "counts": counts,
+            "category_counts": category_counts,
+            "lane_registry_miss_count": lane_registry_miss_count,
+            "lane_registry_error": lane_registry_error,
         },
         "lane_jobs": [
             {
                 "name": job["normalized_name"],
                 "raw_name": job.get("name"),
                 "conclusion": job["normalized_conclusion"],
+                "category": job.get("category"),
+                "allow_failure": bool(job.get("allow_failure")),
+                "lane_registry_found": bool(job.get("lane_registry_found")),
+                "family": job.get("family"),
+                "lane_file": job.get("lane_file"),
+                "include_index": job.get("include_index"),
+                "platform_id": job.get("platform_id"),
+                "variant": job.get("variant"),
                 "status": job.get("status"),
                 "html_url": job.get("html_url"),
                 "started_at": job.get("started_at"),
@@ -750,6 +843,7 @@ def write_json(path: str, payload: dict) -> None:
 
 def write_github_output(path: str, report: dict) -> None:
     counts = report["analysis"]["counts"]
+    category_counts = report["analysis"].get("category_counts", {})
     dependency = report.get("dependency_reports", {})
     dependency_coverage = dependency.get("coverage", {})
     with Path(path).open("a", encoding="utf-8") as handle:
@@ -757,6 +851,12 @@ def write_github_output(path: str, report: dict) -> None:
         handle.write(f"run_url={report['workflow']['html_url']}\n")
         handle.write(f"lane_job_count={report['analysis']['lane_job_count']}\n")
         handle.write(f"control_job_count={report['analysis']['control_job_count']}\n")
+        handle.write(f"success_lane_count={category_counts.get('success', 0)}\n")
+        handle.write(
+            "success_allow_failure_lane_count="
+            f"{category_counts.get('success_with_allow_failure', 0)}\n"
+        )
+        handle.write(f"fails_lane_count={category_counts.get('fails', 0)}\n")
         handle.write(f"dependency_report_status={dependency.get('status', 'skipped')}\n")
         handle.write(
             f"dependency_report_count={coerce_int(dependency_coverage.get('parsed_report_count'), default=0)}\n"
@@ -783,6 +883,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     parser.add_argument("--run-json", default="")
     parser.add_argument("--jobs-json", default="")
+    parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
+    parser.add_argument("--platform-catalog", default="ci/deps/platform-catalog.yaml")
     return parser.parse_args()
 
 
@@ -806,6 +908,17 @@ def main() -> None:
         jobs = load_jobs(args.repo, token, int(run["id"]))
 
     lane_jobs, control_jobs = classify_jobs(jobs)
+    repo_root = Path(__file__).resolve().parents[3]
+    lane_registry: dict = {}
+    lane_registry_error = ""
+    try:
+        lane_registry = build_lane_registry(
+            repo_root / args.manifest,
+            repo_root / args.platform_catalog,
+        )
+    except Exception as exc:
+        lane_registry_error = str(exc)
+
     if fixture_mode:
         dependency_report = empty_dependency_report("skipped", len(lane_jobs))
     else:
@@ -813,7 +926,15 @@ def main() -> None:
             dependency_report = build_dependency_report(args.repo, token, int(run["id"]), lane_jobs)
         except Exception as exc:  # pragma: no cover - degrade gracefully when artifact aggregation fails
             dependency_report = empty_dependency_report("unavailable", len(lane_jobs), error=str(exc))
-    markdown, report = build_report(args.repo, run, lane_jobs, control_jobs, resolved_via)
+    markdown, report = build_report(
+        args.repo,
+        run,
+        lane_jobs,
+        control_jobs,
+        resolved_via,
+        lane_registry,
+        lane_registry_error,
+    )
     report["dependency_reports"] = dependency_report
     markdown = append_dependency_markdown(markdown, dependency_report)
 
