@@ -145,7 +145,6 @@ jobs:
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
       allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
-      dep_mode: ${{ steps.resolve_execution.outputs.dep_mode }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
       lane_count_linux_host: ${{ steps.generate.outputs.lane_count_linux_host }}
       lane_count_linux_container: ${{ steps.generate.outputs.lane_count_linux_container }}
@@ -209,7 +208,6 @@ jobs:
           echo "Ref mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
-          echo "Dependency mode: ${{ steps.resolve_execution.outputs.dep_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
           echo "Lane count (linux_host): ${{ steps.generate.outputs.lane_count_linux_host }}"
           echo "Lane count (linux_container): ${{ steps.generate.outputs.lane_count_linux_container }}"
@@ -233,4 +231,3 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
-      dep_mode: ${{ needs.build-matrix.outputs.dep_mode }}
