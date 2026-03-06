@@ -36,6 +36,9 @@ docker_args+=(
 
 forward_envs=(
   BUILD_TOOL
+  GOAL
+  REF_MODE
+  PUBLISH
   REF_OS
   PLATFORM_OS
   PLATFORM_ID
