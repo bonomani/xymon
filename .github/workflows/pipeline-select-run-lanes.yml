@@ -1,4 +1,4 @@
-name: Reference Generation - Select Family
+name: Pipeline - Select and Run Lanes
 
 on:
   workflow_dispatch:
@@ -158,7 +158,7 @@ jobs:
             await github.rest.actions.createWorkflowDispatch({
               owner: context.repo.owner,
               repo: context.repo.repo,
-              workflow_id: 'ref-make-select.yml',
+              workflow_id: 'pipeline-select-run-lanes.yml',
               ref: '${{ inputs.source_ref }}',
               inputs: {
                 family: '${{ inputs.family }}',
@@ -173,7 +173,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched ref-make-select.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, preset=${{ inputs.preset }}, verify_depth=${{ inputs.verify_depth }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, preset=${{ inputs.preset }}, verify_depth=${{ inputs.verify_depth }}, goal=${{ inputs.goal }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -231,7 +231,7 @@ jobs:
           python3 ci/run/ref/check-ref-models.py \
             --manifest "ci/run/ref/ref-families.yml" \
             --runtime-model "ci/run/ref/runtime-model.json" \
-            --selector-workflow ".github/workflows/ref-make-select.yml"
+            --selector-workflow ".github/workflows/pipeline-select-run-lanes.yml"
 
       - name: Build selected lanes matrix
         id: generate
@@ -281,7 +281,7 @@ jobs:
       fail-fast: false
       max-parallel: 8
       matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_all) }}
-    uses: ./.github/workflows/ref-make-reusable-lane.yml
+    uses: ./.github/workflows/pipeline-run-lane-reusable.yml
     secrets: inherit
     with:
       lane_name: ${{ matrix.lane.name }}

@@ -15,7 +15,7 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 API_VERSION = "2022-11-28"
-DEFAULT_WORKFLOW = "ref-make-select.yml"
+DEFAULT_WORKFLOW = "pipeline-select-run-lanes.yml"
 CONTROL_JOB_NAMES = frozenset({"build-matrix", "redispatch-selected-ref"})
 CONCLUSION_ORDER = [
     "success",
@@ -646,12 +646,12 @@ def build_report(repo: str, run: dict, lane_jobs: list[dict], control_jobs: list
     run_id = run.get("id")
     run_url = run.get("html_url") or f"{server_url}/{repo}/actions/runs/{run_id}"
     run_conclusion = str(run.get("conclusion") or run.get("status") or "unknown").strip().lower()
-    workflow_name = run.get("name") or "Reference Generation - Select Family"
+    workflow_name = run.get("name") or "Pipeline - Select and Run Lanes"
     head_sha = str(run.get("head_sha") or "")
     short_sha = head_sha[:12] if head_sha else ""
 
     lines = [
-        "# Reference Generation Analysis",
+        "# Pipeline Selector Run Analysis",
         "",
         f"- Workflow: `{workflow_name}`",
         f"- Run: [{run_id}]({run_url})",
