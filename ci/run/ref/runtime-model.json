@@ -4,25 +4,33 @@
       "key": "linux_host",
       "platform_runtime": "host",
       "execution": "host",
-      "outcome_channel": "host_container"
+      "outcome_channel": "host_container",
+      "default_ref_os": "linux",
+      "requires_runs_on": true
     },
     {
       "key": "linux_container",
       "platform_runtime": "docker",
       "execution": "container",
-      "outcome_channel": "host_container"
+      "outcome_channel": "host_container",
+      "default_ref_os": "linux",
+      "requires_runs_on": true
     },
     {
       "key": "bsd_vm",
       "platform_runtime": "vm",
       "execution": "vm",
-      "outcome_channel": "bsd_vm"
+      "outcome_channel": "bsd_vm",
+      "default_ref_os": "family",
+      "requires_runs_on": true
     },
     {
       "key": "macos_host",
       "platform_runtime": "host",
       "execution": "host",
-      "outcome_channel": "host_container"
+      "outcome_channel": "host_container",
+      "default_ref_os": "macos",
+      "requires_runs_on": false
     }
   ]
 }

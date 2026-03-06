@@ -51,11 +51,9 @@ def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
     """Expand a lane mapping into concrete per-variant lane mappings."""
     variants = lane_obj.get("variants")
     if variants is None:
-        # When a lane uses name_prefix-based naming and omits explicit variants,
-        # expand the conventional server/localclient/client set by default.
+        # When a lane omits explicit variants, expand the conventional
+        # server/localclient/client set by default.
         if "variant" in lane_obj:
-            return [dict(lane_obj)]
-        if "name_prefix" not in lane_obj:
             return [dict(lane_obj)]
         variants = list(DEFAULT_LANE_VARIANTS)
 
@@ -68,10 +66,13 @@ def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
     if not isinstance(variants, list) or not variants:
         raise LaneSpecError(f"Lane file {lane_file} lane #{lane_index} has invalid 'variants' list")
 
-    name_prefix = _require_non_empty_string(
-        lane_obj.get("name_prefix"),
-        f"Lane file {lane_file} lane #{lane_index}.name_prefix",
-    )
+    name_prefix_raw = lane_obj.get("name_prefix")
+    name_prefix = ""
+    if name_prefix_raw is not None:
+        name_prefix = _require_non_empty_string(
+            name_prefix_raw,
+            f"Lane file {lane_file} lane #{lane_index}.name_prefix",
+        )
 
     base_lane = dict(lane_obj)
     base_lane.pop("variants", None)
@@ -110,9 +111,11 @@ def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
         lane_variant["variant"] = variant
         if custom_name:
             lane_variant["name"] = custom_name
-        else:
+        elif name_prefix:
             suffix = custom_suffix or default_suffix
             lane_variant["name"] = f"{name_prefix} - {suffix}"
+        elif custom_suffix:
+            lane_variant["name"] = custom_suffix
         lane_variant.update(variant_overrides)
         expanded.append(lane_variant)
 

@@ -1,16 +1,13 @@
 include:
-- name_prefix: Debian 13.3-slim amd64
-  platform_id: debian-13
+- platform_id: debian-13
 - name_prefix: Debian 13.3-slim arm64
   platform_id: debian-13
   defaults: arm64
-- name_prefix: Debian 12.13-slim amd64
-  platform_id: debian-12
+- platform_id: debian-12
 - name_prefix: Debian 12.13-slim arm64
   platform_id: debian-12
   defaults: arm64
-- name_prefix: Debian 11.11-slim amd64
-  platform_id: debian-11
+- platform_id: debian-11
 - name_prefix: Debian 11.11-slim arm64
   platform_id: debian-11
   defaults: arm64

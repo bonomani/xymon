@@ -1,7 +1,4 @@
 include:
-- name_prefix: Fedora 40
-  platform_id: fedora-40
-- name_prefix: Fedora 41
-  platform_id: fedora-41
-- name_prefix: Fedora 42
-  platform_id: fedora-42
+- platform_id: fedora-40
+- platform_id: fedora-41
+- platform_id: fedora-42

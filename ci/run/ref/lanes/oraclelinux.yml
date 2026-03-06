@@ -1,12 +1,8 @@
 include:
-- name_prefix: Oracle Linux 9 amd64
-  platform_id: oraclelinux-9
-- name_prefix: Oracle Linux 8 amd64
-  platform_id: oraclelinux-8
-- name_prefix: Oracle Linux 10 arm64
-  platform_id: oraclelinux-10
+- platform_id: oraclelinux-9
+- platform_id: oraclelinux-8
+- platform_id: oraclelinux-10
   defaults: arm64
   allow_failure: true
-- name_prefix: Oracle Linux 10-slim amd64
-  platform_id: oraclelinux-10-slim
+- platform_id: oraclelinux-10-slim
   allow_failure: true
