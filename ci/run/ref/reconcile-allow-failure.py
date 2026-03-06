@@ -13,6 +13,13 @@ from pathlib import Path
 
 import yaml
 from github_actions_runs import load_latest_workflow_run, load_run_from_selector
+from lane_categories import (
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    build_category_counts,
+    classify_lane_category,
+    total_fail_count,
+)
 from lane_registry import build_lane_registry
 
 API_VERSION = "2022-11-28"
@@ -147,12 +154,6 @@ def write_lane_file(path: Path, data: object) -> None:
     path.write_text(rendered, encoding="utf-8")
 
 
-def classify_category(conclusion: str, allow_failure: bool) -> str:
-    if conclusion == "success":
-        return "success_with_allow_failure" if allow_failure else "success"
-    return "fails"
-
-
 def load_fixture(path: str) -> dict:
     return json.loads(Path(path).read_text(encoding="utf-8"))
 
@@ -195,11 +196,9 @@ def main() -> None:
     entry_conclusions: dict[tuple[str, int], set[str]] = defaultdict(set)
     entry_lane_names: dict[tuple[str, int], list[str]] = defaultdict(list)
     unmapped_jobs: list[dict] = []
-    category_counts = {
-        "success": 0,
-        "success_with_allow_failure": 0,
-        "fails": 0,
-    }
+    categorized: dict[str, list[dict]] = defaultdict(list)
+    for key in CATEGORY_ORDER:
+        categorized.setdefault(key, [])
 
     for job in jobs:
         normalized_name = normalize_job_name(str(job.get("name", "")))
@@ -221,18 +220,18 @@ def main() -> None:
                     "name": normalized_name,
                     "conclusion": conclusion,
                     "allow_failure": False,
-                    "category": "fails" if conclusion != "success" else "success",
+                    "category": classify_lane_category(conclusion, allow_failure=False),
                     "mapped": False,
                     "html_url": job.get("html_url"),
                 }
             )
+            categorized[lane_jobs[-1]["category"]].append(lane_jobs[-1])
             continue
 
         entry_key = (record.lane_file, record.include_index)
         entry_conclusions[entry_key].add(conclusion)
         entry_lane_names[entry_key].append(normalized_name)
-        category = classify_category(conclusion, record.allow_failure)
-        category_counts[category] += 1
+        category = classify_lane_category(conclusion, record.allow_failure)
         lane_jobs.append(
             {
                 "name": normalized_name,
@@ -247,6 +246,11 @@ def main() -> None:
                 "html_url": job.get("html_url"),
             }
         )
+        categorized[category].append(lane_jobs[-1])
+
+    category_counts = build_category_counts(categorized)
+    category_counts_with_legacy = dict(category_counts)
+    category_counts_with_legacy["fails"] = total_fail_count(category_counts)
 
     docs = load_lane_file_docs(repo_root, {record.lane_file for record in registry.values()})
     proposed_changes: list[dict] = []
@@ -315,9 +319,12 @@ def main() -> None:
         "",
         "| Category | Count |",
         "| --- | ---: |",
-        f"| Success | {category_counts['success']} |",
-        f"| Success with allow_failure | {category_counts['success_with_allow_failure']} |",
-        f"| Fails | {category_counts['fails']} |",
+    ]
+    for key in CATEGORY_ORDER:
+        markdown_lines.append(f"| {CATEGORY_LABELS[key]} | {category_counts[key]} |")
+
+    markdown_lines.extend(
+        [
         "",
         "## Reconciliation",
         "",
@@ -327,7 +334,8 @@ def main() -> None:
         f"- Proposed `allow_failure=true`: `{set_count}`",
         f"- Proposed `allow_failure` reset: `{reset_count}`",
         f"- Files touched: `{len(touched_files)}`",
-    ]
+        ]
+    )
 
     if unmapped_jobs:
         markdown_lines.extend(["", "## Unmapped Lanes", ""])
@@ -349,7 +357,10 @@ def main() -> None:
             )
             markdown_lines.append(f"  lanes: {lane_list}")
     else:
-        markdown_lines.extend(["", "## Proposed Changes", "", "- No allow_failure updates required."])
+        no_change_message = "- No allow_failure updates required."
+        if category_counts["fails_with_allow_failure"] and not category_counts["fails_hard"]:
+            no_change_message += " All failing mapped lanes are already marked `allow_failure`."
+        markdown_lines.extend(["", "## Proposed Changes", "", no_change_message])
 
     markdown = "\n".join(markdown_lines) + "\n"
     report = {
@@ -368,7 +379,7 @@ def main() -> None:
             "lane_job_count": len(lane_jobs),
             "mapped_lane_job_count": sum(1 for job in lane_jobs if job.get("mapped")),
             "unmapped_lane_job_count": len(unmapped_jobs),
-            "category_counts": category_counts,
+            "category_counts": category_counts_with_legacy,
             "proposed_set_count": set_count,
             "proposed_reset_count": reset_count,
             "proposed_change_count": len(proposed_changes),
@@ -394,7 +405,11 @@ def main() -> None:
             handle.write(f"unmapped_lane_job_count={len(unmapped_jobs)}\n")
             handle.write(f"success_lane_count={category_counts['success']}\n")
             handle.write(f"success_allow_failure_lane_count={category_counts['success_with_allow_failure']}\n")
-            handle.write(f"fails_lane_count={category_counts['fails']}\n")
+            handle.write(
+                f"fails_allow_failure_lane_count={category_counts_with_legacy['fails_with_allow_failure']}\n"
+            )
+            handle.write(f"fails_hard_lane_count={category_counts_with_legacy['fails_hard']}\n")
+            handle.write(f"fails_lane_count={category_counts_with_legacy['fails']}\n")
             handle.write(f"proposed_set_count={set_count}\n")
             handle.write(f"proposed_reset_count={reset_count}\n")
             handle.write(f"proposed_change_count={len(proposed_changes)}\n")

@@ -15,6 +15,13 @@ from collections import Counter, defaultdict
 from pathlib import Path
 
 from github_actions_runs import load_latest_workflow_run, load_run_from_selector
+from lane_categories import (
+    CATEGORY_LABELS,
+    CATEGORY_ORDER,
+    build_category_counts,
+    classify_lane_category,
+    total_fail_count,
+)
 from lane_registry import build_lane_registry
 
 API_VERSION = "2022-11-28"
@@ -46,12 +53,6 @@ CONCLUSION_LABELS = {
 }
 DEPENDENCY_ARTIFACT_PREFIXES = ("deps_",)
 DEPENDENCY_ARTIFACT_TOP_N = 20
-CATEGORY_ORDER = ["success", "success_with_allow_failure", "fails"]
-CATEGORY_LABELS = {
-    "success": "Success",
-    "success_with_allow_failure": "Success with allow_failure",
-    "fails": "Fails",
-}
 
 
 def die(message: str) -> None:
@@ -639,9 +640,8 @@ def build_report(
     lane_registry_error: str,
 ) -> tuple[str, dict]:
     categorized: dict[str, list[dict]] = defaultdict(list)
-    categorized.setdefault("success", [])
-    categorized.setdefault("success_with_allow_failure", [])
-    categorized.setdefault("fails", [])
+    for key in CATEGORY_ORDER:
+        categorized.setdefault(key, [])
     lane_registry_miss_count = 0
     for job in lane_jobs:
         record = lane_registry.get(job["normalized_name"])
@@ -649,10 +649,7 @@ def build_report(
         if record is None:
             lane_registry_miss_count += 1
 
-        if job["normalized_conclusion"] == "success":
-            category = "success_with_allow_failure" if allow_failure else "success"
-        else:
-            category = "fails"
+        category = classify_lane_category(job["normalized_conclusion"], allow_failure)
 
         job["allow_failure"] = allow_failure
         job["category"] = category
@@ -676,7 +673,9 @@ def build_report(
         jobs.sort(key=lambda job: job["normalized_name"].lower())
 
     counts = {key: len(grouped.get(key, [])) for key in CONCLUSION_ORDER}
-    category_counts = {key: len(categorized.get(key, [])) for key in CATEGORY_ORDER}
+    category_counts = build_category_counts(categorized)
+    category_counts_with_legacy = dict(category_counts)
+    category_counts_with_legacy["fails"] = total_fail_count(category_counts)
     control_names = sorted(job["normalized_name"] for job in control_jobs)
     server_url = os.environ.get("GITHUB_SERVER_URL", "https://github.com").rstrip("/")
     run_id = run.get("id")
@@ -783,7 +782,7 @@ def build_report(
             "lane_job_count": len(lane_jobs),
             "control_job_count": len(control_jobs),
             "counts": counts,
-            "category_counts": category_counts,
+            "category_counts": category_counts_with_legacy,
             "lane_registry_miss_count": lane_registry_miss_count,
             "lane_registry_error": lane_registry_error,
         },
@@ -844,6 +843,10 @@ def write_github_output(path: str, report: dict) -> None:
             "success_allow_failure_lane_count="
             f"{category_counts.get('success_with_allow_failure', 0)}\n"
         )
+        handle.write(
+            f"fails_allow_failure_lane_count={category_counts.get('fails_with_allow_failure', 0)}\n"
+        )
+        handle.write(f"fails_hard_lane_count={category_counts.get('fails_hard', 0)}\n")
         handle.write(f"fails_lane_count={category_counts.get('fails', 0)}\n")
         handle.write(f"dependency_report_status={dependency.get('status', 'skipped')}\n")
         handle.write(
