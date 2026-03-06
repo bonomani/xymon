@@ -1,7 +1,25 @@
 include:
 - platform_id: openbsd-7_8
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true
 - platform_id: openbsd-7_7
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true
 - platform_id: openbsd-7_6
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true

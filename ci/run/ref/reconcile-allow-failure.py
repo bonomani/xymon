@@ -153,33 +153,26 @@ def apply_entry_lane_states(
             entry.pop("allow_failure", None)
         return
 
+    entry.pop("allow_failure", None)
     desired_values = {desired_by_variant[spec["variant"]] for spec in specs}
     if len(desired_values) == 1:
         shared_allow_failure = desired_values.pop()
-        if shared_allow_failure:
-            entry["allow_failure"] = True
-        else:
-            entry.pop("allow_failure", None)
 
         rendered_variants = [
             render_variant_item(
                 spec["raw"],
                 spec["variant"],
                 shared_allow_failure,
-                inherit_from_entry=True,
+                inherit_from_entry=False,
             )
             for spec in specs
         ]
-        if (
-            rendered_variants == list(DEFAULT_LANE_VARIANTS)
-            and not variant_specs["had_variants_key"]
-        ):
+        if rendered_variants == list(DEFAULT_LANE_VARIANTS):
             entry.pop("variants", None)
         else:
             entry["variants"] = rendered_variants
         return
 
-    entry.pop("allow_failure", None)
     entry["variants"] = [
         render_variant_item(
             spec["raw"],

@@ -4,4 +4,10 @@ include:
 - platform_id: almalinux-8
 - platform_id: almalinux-9
 - platform_id: almalinux-10
-  allow_failure: true
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - variant: client
+    allow_failure: true

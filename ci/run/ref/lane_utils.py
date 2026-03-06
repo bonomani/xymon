@@ -49,6 +49,12 @@ def _require_non_empty_string(value, context: str) -> str:
 
 def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
     """Expand a lane mapping into concrete per-variant lane mappings."""
+    if "allow_failure" in lane_obj and "variant" not in lane_obj:
+        raise LaneSpecError(
+            f"Lane file {lane_file} lane #{lane_index} must set allow_failure on concrete variants, "
+            "not on the multi-variant entry"
+        )
+
     variants = lane_obj.get("variants")
     if variants is None:
         # When a lane omits explicit variants, expand the conventional
