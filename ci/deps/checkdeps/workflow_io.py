@@ -2,9 +2,12 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 import yaml
+
+INSTALLER_RUN_PATTERN = re.compile(r"\bci/deps/install-[A-Za-z0-9-]+packages\.sh\b")
 
 
 def parse_workflow_yaml(path: Path) -> dict:
@@ -20,7 +23,7 @@ def find_package_steps(workflow: dict) -> list[str]:
     if not isinstance(jobs, dict):
         return found
 
-    for job_name, job_body in jobs.items():
+    for job_body in jobs.values():
         if not isinstance(job_body, dict):
             continue
         steps = job_body.get("steps")
@@ -30,6 +33,6 @@ def find_package_steps(workflow: dict) -> list[str]:
             if not isinstance(step, dict):
                 continue
             run = step.get("run")
-            if isinstance(run, str) and "install-default-packages.sh" in run:
-                found.append(job_name)
+            if isinstance(run, str) and INSTALLER_RUN_PATTERN.search(run):
+                found.append(run)
     return found
