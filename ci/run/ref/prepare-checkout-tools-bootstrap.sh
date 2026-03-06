@@ -103,6 +103,10 @@ ensure_fetch_client() {
 fetch_repo_file() {
   rel_path="$1"
   dest_path="$2"
+  if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_SHA:-}" ]; then
+    echo "GITHUB_REPOSITORY and GITHUB_SHA must be set to fetch repository files" >&2
+    return 1
+  fi
   url="https://api.github.com/repos/${GITHUB_REPOSITORY}/contents/${rel_path}?ref=${GITHUB_SHA}"
 
   ensure_fetch_client || {
@@ -139,14 +143,13 @@ fetch_repo_file() {
 }
 
 git_checkout_fallback() {
-  repo_server="${GITHUB_SERVER_URL:-https://github.com}"
-  repo_url="${repo_server}/${GITHUB_REPOSITORY}.git"
-  workdir="${GITHUB_WORKSPACE:-}"
-
   if [ -z "${GITHUB_REPOSITORY:-}" ] || [ -z "${GITHUB_SHA:-}" ]; then
     echo "GITHUB_REPOSITORY and GITHUB_SHA must be set for checkout-mode=git" >&2
     exit 1
   fi
+  repo_server="${GITHUB_SERVER_URL:-https://github.com}"
+  repo_url="${repo_server}/${GITHUB_REPOSITORY}.git"
+  workdir="${GITHUB_WORKSPACE:-}"
   if [ -z "${workdir}" ]; then
     echo "GITHUB_WORKSPACE is not set" >&2
     exit 1
@@ -183,7 +186,9 @@ if [ ! -f "${install_script_path}" ]; then
   install_script_path="${bootstrap_root}/install-checkout-tools.sh"
 fi
 
-sh "${install_script_path}" --prepare-profile "${prepare_profile}"
+sh "${install_script_path}" \
+  --prepare-profile "${prepare_profile}" \
+  --checkout-mode "${checkout_mode}"
 
 case "${checkout_mode}" in
   action)

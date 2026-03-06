@@ -12,7 +12,8 @@ runtime_defaults_shared:
     runs_on: ubuntu-22.04
     vm_memory: 1024M
     vm_cpu_count: 2
-  macos_host: {}
+  macos_host:
+    runs_on: macos-latest
 
 runtime_defaults:
   generation:
@@ -71,8 +72,6 @@ families:
     runtime: macos_host
     lane_file: ci/run/ref/lanes/macos.yml
     os_version_key: macos_version
-    runner_key: runner
-    default_runner: macos-latest
   validation:
     lane_overrides:
       # macOS compare currently uses FreeBSD legacy refs as the closest baseline.

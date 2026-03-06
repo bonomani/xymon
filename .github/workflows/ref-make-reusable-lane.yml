@@ -34,7 +34,7 @@ permissions:
 jobs:
   lane:
     name: ${{ inputs.lane_name }}
-    runs-on: ${{ fromJSON(inputs.lane_json).runner || fromJSON(inputs.lane_json).runs_on }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4

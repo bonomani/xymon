@@ -30,7 +30,7 @@
       "execution": "host",
       "outcome_channel": "host_container",
       "default_ref_os": "macos",
-      "requires_runs_on": false
+      "requires_runs_on": true
     }
   ]
 }

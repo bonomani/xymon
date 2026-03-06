@@ -61,18 +61,6 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
                 default_architecture, f"Manifest entry {family}.default_architecture"
             )
 
-        runner_key = entry.get("runner_key")
-        default_runner = entry.get("default_runner")
-        if runner_key is not None:
-            runner_key = require_non_empty_string(
-                runner_key, f"Manifest entry {family}.runner_key"
-            )
-            default_runner = require_non_empty_string(
-                default_runner, f"Manifest entry {family}.default_runner"
-            )
-        elif default_runner is not None:
-            die(f"Manifest entry {family} sets default_runner without runner_key")
-
         families.append(
             {
                 "family": family,
@@ -84,8 +72,6 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
                 "container_arm64_overrides": container_arm64_overrides,
                 "os_version_key": os_version_key,
                 "default_architecture": default_architecture,
-                "runner_key": runner_key,
-                "default_runner": default_runner,
             }
         )
 
@@ -185,14 +171,12 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
                 platform_entry.get("image"), f"Platform '{platform_id}'.image"
             )
         elif platform_runtime == "host":
-            runner_key = family_entry["runner_key"]
-            if runner_key:
-                lane_obj.setdefault(
-                    runner_key,
-                    require_non_empty_string(
-                        platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
-                    ),
-                )
+            lane_obj.setdefault(
+                "runs_on",
+                require_non_empty_string(
+                    platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
+                ),
+            )
 
         os_version_key = family_entry["os_version_key"]
         if os_version_key and lane_obj.get(os_version_key) in (None, ""):
@@ -248,9 +232,8 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
     if default_architecture:
         lane_obj.setdefault("architecture", default_architecture)
 
-    runner_key = family_entry["runner_key"]
-    if runner_key:
-        lane_obj.setdefault(runner_key, family_entry["default_runner"])
+    # Keep runs_on as the canonical runner selector key.
+    lane_obj.pop("runner", None)
 
     lane_obj.setdefault(
         "platform_os",
@@ -276,12 +259,10 @@ def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: st
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
             f"'{family_entry['family']}' is missing 'container'"
         )
-    if runtime_execution == "host" and family_entry["runner_key"] and lane_obj.get(
-        "runner"
-    ) in (None, "") and lane_obj.get("runs_on") in (None, ""):
+    if runtime_execution == "host" and lane_obj.get("runs_on") in (None, ""):
         die(
             f"Lane '{lane_obj.get('name', '<unnamed>')}' for family "
-            f"'{family_entry['family']}' is missing 'runner' or 'runs_on'"
+            f"'{family_entry['family']}' is missing 'runs_on'"
         )
 
     lane_obj["artifact_arch"] = infer_artifact_arch(lane_obj)
