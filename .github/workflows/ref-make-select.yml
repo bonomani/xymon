@@ -163,7 +163,7 @@ jobs:
         run: |
           set -euo pipefail
 
-          bash ci/run/ref/resolve-execution-model.sh \
+          python3 ci/run/ref/resolve-execution-model.py \
             --requested-build-tool "${INPUT_BUILD_TOOL}" \
             --goal "${INPUT_GOAL}" \
             --ref-mode "${INPUT_REF_MODE}" \

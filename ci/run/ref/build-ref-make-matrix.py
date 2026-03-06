@@ -269,8 +269,6 @@ def validate_lane_requirements(
 def normalize_lane(family_entry, lane, platform_catalog, build_tool, purpose: str):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
-    if purpose == "validation":
-        lane_obj.setdefault("allow_failure", False)
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
     lane_obj["build_tool"] = build_tool

@@ -121,5 +121,5 @@ jobs:
         if: ${{ always() }}
         uses: ./.github/actions/ref-lane-post
         with:
-          lane_env_json: ${{ steps.lane_ctx.outputs.lane_env_json }}
+          lane_post_json: ${{ steps.lane_ctx.outputs.lane_post_json }}
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}

@@ -31,6 +31,9 @@ if [[ ! -f "${LANE_ENV_FILE}" ]]; then
   exit 2
 fi
 
+# Keep this wrapper as shell (instead of replacing it with Python) because
+# Docker invocation here depends on shell-native array/quoting behavior and
+# direct environment propagation into `docker run`.
 container_opts=()
 if [[ -n "${CONTAINER_OPTIONS}" ]]; then
   read -r -a container_opts <<< "${CONTAINER_OPTIONS}"

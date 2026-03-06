@@ -1,7 +1,6 @@
 # Canonical lane environment contract.
 # Sections:
 #   [all]                -> complete lane_env keyspace
-#   [lane_post_required] -> required keys for decode-lane-env --profile lane_post
 #   [lane_exec_required_common] -> required keys for run-ref-lane-command.sh
 #   [lane_exec_required_host] -> host-only required exec keys
 #   [lane_exec_required_container] -> container-only required exec keys
@@ -12,8 +11,11 @@ ALLOW_FAILURE_MODE
 ARCHITECTURE
 ARTIFACT_ARCH
 ARTIFACT_FAMILY
+ARTIFACT_ROOT
+BASELINE_PREFIX
 BASELINE_ROOT
 BUILD_TOOL
+CANDIDATE_DIR
 CHECKOUT_MODE
 CI_DEPS_REPORT_JSON
 CMAKE_BIN
@@ -26,6 +28,7 @@ GOAL
 LANE_ALLOW_FAILURE
 LANE_NAME
 LEGACY_APPLY_OWNERSHIP
+LEGACY_HOSTNAME_CONFIG
 OS_VERSION
 PLATFORM_ID
 PLATFORM_OS
@@ -33,6 +36,7 @@ PREPARE_PROFILE
 PUBLISH
 REF_MODE
 REF_OS
+REFS_ROOT
 REF_STAGE_ROOT
 RUNTIME
 RUNTIME_EXECUTION
@@ -43,23 +47,6 @@ VM_CPU_COUNT
 VM_MEMORY
 XYMONGROUP
 XYMONUSER
-
-[lane_post_required]
-ALLOW_FAILURE_MODE
-LANE_ALLOW_FAILURE
-GOAL
-DEP_MODE
-REF_MODE
-CI_DEPS_REPORT_JSON
-UPLOAD_ARTIFACTS
-BUILD_TOOL
-PLATFORM_ID
-VARIANT
-ARTIFACT_ARCH
-LANE_NAME
-ARTIFACT_FAMILY
-REF_STAGE_ROOT
-REF_OS
 
 [lane_exec_required_common]
 BUILD_TOOL

@@ -22,6 +22,55 @@ def fail(msg: str) -> None:
     raise SystemExit(2)
 
 
+def derive_lane_paths(
+    *,
+    goal: str,
+    dep_mode: str,
+    build_tool: str,
+    variant: str,
+    ref_os: str,
+    platform_id: str,
+    artifact_arch: str,
+    artifact_family: str,
+    baseline_root: str,
+    ref_stage_root: str,
+) -> dict[str, str]:
+    lane_ref_key = f"{build_tool}.{ref_os}.{variant}"
+    ref_valid_root = f".ci-artifacts/ref-valid-{artifact_family}"
+    refs_root = f"{ref_valid_root}/refs"
+    artifact_root = f"{ref_valid_root}/{build_tool}-{platform_id}-{variant}"
+    candidate_dir = f"{refs_root}/{lane_ref_key}"
+    baseline_prefix = ""
+    legacy_hostname_config = ""
+    if goal == "ref":
+        baseline_prefix = f"docs/cmake-legacy-migration/refs/{baseline_root}/{variant}"
+        legacy_hostname_config = (
+            "docs/cmake-legacy-migration/refs/"
+            f"{baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+        )
+
+    if dep_mode == "compare":
+        deps_report_path = f"{artifact_root}/deps-report.json"
+    else:
+        deps_report_path = f"{ref_stage_root}/{lane_ref_key}/meta/deps-report.json"
+
+    return {
+        "lane_ref_key": lane_ref_key,
+        "refs_root": refs_root,
+        "artifact_root": artifact_root,
+        "candidate_dir": candidate_dir,
+        "baseline_prefix": baseline_prefix,
+        "legacy_hostname_config": legacy_hostname_config,
+        "deps_report_path": deps_report_path,
+        "ref_generate_artifact_name": (
+            f"ref_{build_tool}_{ref_os}-{variant}__{platform_id}__{artifact_arch}"
+        ),
+        "ref_generate_artifact_path": f"{candidate_dir}/**",
+        "ref_compare_artifact_path": f"{artifact_root}/**",
+        "ref_compare_refs_path": f"{candidate_dir}/**",
+    }
+
+
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Resolve lane_json + normalized mode inputs into lane context outputs"
@@ -114,15 +163,18 @@ def main():
         ref_stage_root = "tmp/xymon-refs"
 
     dep_mode = derive_dep_mode(goal, ref_mode)
-    if dep_mode == "compare":
-        deps_report_path = (
-            f".ci-artifacts/ref-valid-{artifact_family}/"
-            f"{build_tool}-{platform_id}-{variant}/deps-report.json"
-        )
-    else:
-        deps_report_path = (
-            f"{ref_stage_root}/{build_tool}.{ref_os}.{variant}/meta/deps-report.json"
-        )
+    lane_paths = derive_lane_paths(
+        goal=goal,
+        dep_mode=dep_mode,
+        build_tool=build_tool,
+        variant=variant,
+        ref_os=ref_os,
+        platform_id=platform_id,
+        artifact_arch=artifact_arch,
+        artifact_family=artifact_family,
+        baseline_root=baseline_root,
+        ref_stage_root=ref_stage_root,
+    )
 
     lane_env = {
         "LEGACY_APPLY_OWNERSHIP": "ON",
@@ -147,9 +199,14 @@ def main():
         "ARTIFACT_ARCH": artifact_arch,
         "PLATFORM_ID": platform_id,
         "REF_STAGE_ROOT": ref_stage_root,
+        "REFS_ROOT": lane_paths["refs_root"],
+        "ARTIFACT_ROOT": lane_paths["artifact_root"],
+        "BASELINE_PREFIX": lane_paths["baseline_prefix"],
+        "CANDIDATE_DIR": lane_paths["candidate_dir"],
+        "LEGACY_HOSTNAME_CONFIG": lane_paths["legacy_hostname_config"],
         "UPLOAD_ARTIFACTS": upload_artifacts,
         "CMAKE_BIN": as_text(lane.get("cmake_bin")),
-        "CI_DEPS_REPORT_JSON": deps_report_path,
+        "CI_DEPS_REPORT_JSON": lane_paths["deps_report_path"],
         "PREPARE_PROFILE": as_text(lane.get("prepare_profile")),
         "CHECKOUT_MODE": as_text(lane.get("checkout_mode")),
         "CONTAINER_IMAGE": as_text(lane.get("container")),
@@ -164,13 +221,40 @@ def main():
     unknown_keys = validate_known_lane_env_keys(lane_env)
     if unknown_keys:
         fail(f"Internal error: lane_env has unknown keys: {', '.join(unknown_keys)}")
+    lane_post = {
+        "allow_failure_mode": allow_failure_mode,
+        "lane_allow_failure": lane_allow_failure,
+        "goal": goal,
+        "dep_mode": dep_mode,
+        "ref_mode": ref_mode,
+        "ci_deps_report_json": lane_paths["deps_report_path"],
+        "upload_artifacts": upload_artifacts,
+        "build_tool": build_tool,
+        "platform_id": platform_id,
+        "variant": variant,
+        "artifact_arch": artifact_arch,
+        "lane_name": lane_name,
+        "artifact_family": artifact_family,
+        "ref_stage_root": ref_stage_root,
+        "ref_os": ref_os,
+        "ref_generate_artifact_name": lane_paths["ref_generate_artifact_name"],
+        "ref_generate_artifact_path": lane_paths["ref_generate_artifact_path"],
+        "ref_compare_artifact_path": lane_paths["ref_compare_artifact_path"],
+        "ref_compare_refs_path": lane_paths["ref_compare_refs_path"],
+    }
     output_lines = [
         "lane_env_json="
         + json.dumps(
             lane_env,
             separators=(",", ":"),
             sort_keys=True,
-        )
+        ),
+        "lane_post_json="
+        + json.dumps(
+            lane_post,
+            separators=(",", ":"),
+            sort_keys=True,
+        ),
     ]
     continue_on_error = (
         "true"
