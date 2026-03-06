@@ -1,6 +1,6 @@
 #!/usr/bin/env python3
 
-from __future__ import annotations
+from typing import Dict
 
 
 def normalize_allow_failure_mode(raw: str) -> str:
@@ -70,7 +70,7 @@ def resolve_execution_model(
     ref_mode: str,
     publish: str,
     allow_failure_mode_raw: str,
-) -> dict[str, str]:
+) -> Dict[str, str]:
     allow_failure_mode = normalize_allow_failure_mode(allow_failure_mode_raw)
 
     validate_goal_ref_publish(goal, ref_mode, publish)
