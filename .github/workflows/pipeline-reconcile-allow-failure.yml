@@ -1,0 +1,107 @@
+name: Pipeline - Reconcile Lane allow_failure
+
+on:
+  workflow_dispatch:
+    inputs:
+      run_id:
+        description: Optional selector workflow run ID to analyze
+        required: false
+        type: string
+      source_branch:
+        description: Optional branch used when run_id is empty
+        required: false
+        type: string
+      event_filter:
+        description: Event filter used when run_id is empty
+        required: true
+        default: workflow_dispatch
+        type: choice
+        options:
+          - workflow_dispatch
+          - workflow_call
+          - all
+      apply_changes:
+        description: Apply and push allow_failure updates on this branch
+        required: true
+        type: boolean
+        default: false
+
+permissions:
+  actions: read
+  contents: write
+
+jobs:
+  reconcile:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+
+      - name: Reconcile allow_failure flags
+        id: reconcile
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_RUN_ID: ${{ inputs.run_id }}
+          INPUT_SOURCE_BRANCH: ${{ inputs.source_branch }}
+          INPUT_EVENT_FILTER: ${{ inputs.event_filter }}
+          INPUT_APPLY_CHANGES: ${{ inputs.apply_changes }}
+        run: |
+          set -euo pipefail
+
+          markdown="${RUNNER_TEMP}/allow-failure-reconcile.md"
+          report_json="${RUNNER_TEMP}/allow-failure-reconcile.json"
+          args=(
+            --repo "${GITHUB_REPOSITORY}"
+            --workflow "pipeline-select-run-lanes.yml"
+            --markdown-output "${markdown}"
+            --json-output "${report_json}"
+            --github-output "${GITHUB_OUTPUT}"
+          )
+
+          if [[ -n "${INPUT_RUN_ID}" ]]; then
+            args+=(--run-id "${INPUT_RUN_ID}")
+          fi
+
+          if [[ -n "${INPUT_SOURCE_BRANCH}" ]]; then
+            args+=(--branch "${INPUT_SOURCE_BRANCH}")
+          fi
+
+          if [[ -n "${INPUT_EVENT_FILTER}" ]]; then
+            args+=(--event "${INPUT_EVENT_FILTER}")
+          fi
+
+          if [[ "${INPUT_APPLY_CHANGES}" == "true" ]]; then
+            args+=(--apply)
+          fi
+
+          python3 ci/run/ref/reconcile-allow-failure.py "${args[@]}"
+          cat "${markdown}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload reconciliation artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: allow_failure_reconcile_${{ steps.reconcile.outputs.run_id }}
+          path: |
+            ${{ runner.temp }}/allow-failure-reconcile.md
+            ${{ runner.temp }}/allow-failure-reconcile.json
+
+      - name: Commit and push lane updates
+        if: ${{ inputs.apply_changes && steps.reconcile.outputs.proposed_change_count != '0' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add ci/run/ref/lanes/*.yml ci/run/ref/make-lanes/*.yml
+
+          if git diff --cached --quiet; then
+            echo "No staged lane changes after reconciliation."
+            exit 0
+          fi
+
+          git commit -m "ci: reconcile allow_failure lanes from run ${{ steps.reconcile.outputs.run_id }}"
+          git push

@@ -51,3 +51,4 @@ Legacy references are generated via:
 - `.github/workflows/pipeline-select-run-lanes.yml`
 - `.github/workflows/pipeline-run-lane-reusable.yml`
 - `.github/workflows/pipeline-analyze-selector-run.yml` (run analysis/reporting)
+- `.github/workflows/pipeline-reconcile-allow-failure.yml` (maintain lane allow_failure flags)
