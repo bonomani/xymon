@@ -11,9 +11,6 @@ inputs:
   lane_outcome:
     description: Outcome of the lane execution step (success|failure|cancelled|...).
     required: true
-  dep_mode:
-    description: Dependency report mode (generate|compare).
-    required: true
   goal:
     description: Execution goal (verify|ref).
     required: true
@@ -82,10 +79,10 @@ runs:
         esac
 
     - name: Upload dependency report
-      if: ${{ inputs.upload_artifacts == '1' && (inputs.dep_mode == 'compare' || (inputs.dep_mode == 'generate' && inputs.lane_outcome == 'success')) }}
+      if: ${{ inputs.upload_artifacts == '1' && ((inputs.goal == 'ref' && inputs.ref_mode == 'compare') || inputs.lane_outcome == 'success') }}
       uses: ./.github/actions/upload-deps-report
       with:
-        dep_mode: ${{ inputs.dep_mode }}
+        dep_mode: ${{ inputs.goal == 'ref' && inputs.ref_mode == 'compare' && 'compare' || 'generate' }}
         build_tool: ${{ inputs.build_tool }}
         platform_id: ${{ inputs.platform_id }}
         variant: ${{ inputs.variant }}

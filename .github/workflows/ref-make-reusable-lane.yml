@@ -23,10 +23,6 @@ on:
         description: Publish channel (none|artifact)
         required: true
         type: string
-      dep_mode:
-        description: Dependency report mode (generate|compare), resolved upstream.
-        required: true
-        type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
         required: true
@@ -54,7 +50,6 @@ jobs:
           ref_mode: ${{ inputs.ref_mode }}
           publish: ${{ inputs.publish }}
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
-          dep_mode: ${{ inputs.dep_mode }}
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
@@ -71,7 +66,7 @@ jobs:
           GOAL: ${{ steps.lane_ctx.outputs.goal }}
           REF_MODE: ${{ steps.lane_ctx.outputs.ref_mode }}
           PUBLISH: ${{ steps.lane_ctx.outputs.publish }}
-          DEP_MODE: ${{ steps.lane_ctx.outputs.dep_mode }}
+          DEP_MODE: ${{ steps.lane_ctx.outputs.goal == 'ref' && steps.lane_ctx.outputs.ref_mode == 'compare' && 'compare' || 'generate' }}
           VARIANT: ${{ steps.lane_ctx.outputs.variant }}
           BASELINE_ROOT: ${{ steps.lane_ctx.outputs.baseline_root }}
           REF_OS: ${{ steps.lane_ctx.outputs.ref_os }}
@@ -113,7 +108,7 @@ jobs:
             export GOAL="${{ steps.lane_ctx.outputs.goal }}"
             export REF_MODE="${{ steps.lane_ctx.outputs.ref_mode }}"
             export PUBLISH="${{ steps.lane_ctx.outputs.publish }}"
-            export DEP_MODE="${{ steps.lane_ctx.outputs.dep_mode }}"
+            export DEP_MODE="${{ steps.lane_ctx.outputs.goal == 'ref' && steps.lane_ctx.outputs.ref_mode == 'compare' && 'compare' || 'generate' }}"
             export REF_OS="${{ steps.lane_ctx.outputs.ref_os }}"
             export PLATFORM_OS="${{ steps.lane_ctx.outputs.platform_os }}"
             export OS_VERSION="${{ steps.lane_ctx.outputs.os_version }}"
@@ -163,7 +158,6 @@ jobs:
           allow_failure_mode: ${{ steps.lane_ctx.outputs.allow_failure_mode }}
           lane_allow_failure: ${{ steps.lane_ctx.outputs.lane_allow_failure }}
           lane_outcome: ${{ steps.lane_outcome.outputs.value }}
-          dep_mode: ${{ steps.lane_ctx.outputs.dep_mode }}
           goal: ${{ steps.lane_ctx.outputs.goal }}
           ref_mode: ${{ steps.lane_ctx.outputs.ref_mode }}
           upload_artifacts: ${{ steps.lane_ctx.outputs.upload_artifacts }}

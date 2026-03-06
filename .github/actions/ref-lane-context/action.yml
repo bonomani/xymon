@@ -17,9 +17,6 @@ inputs:
   allow_failure_mode:
     description: Handling mode for lanes marked allow_failure (off|allow|expect_fail).
     required: true
-  dep_mode:
-    description: Dependency report mode (generate|compare), resolved upstream.
-    required: true
 
 outputs:
   goal:
@@ -34,9 +31,6 @@ outputs:
   allow_failure_mode:
     description: Normalized allow-failure mode.
     value: ${{ steps.resolve.outputs.allow_failure_mode }}
-  dep_mode:
-    description: Dependency report mode.
-    value: ${{ steps.resolve.outputs.dep_mode }}
   runtime:
     description: Lane runtime key.
     value: ${{ steps.resolve.outputs.runtime }}
@@ -119,16 +113,8 @@ runs:
         INPUT_REF_MODE: ${{ inputs.ref_mode }}
         INPUT_PUBLISH: ${{ inputs.publish }}
         INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
-        INPUT_DEP_MODE: ${{ inputs.dep_mode }}
       run: |
         set -euo pipefail
-
-        resolved_build_tool=""
-        resolved_goal=""
-        resolved_ref_mode=""
-        resolved_publish=""
-        resolved_allow_failure_mode=""
-        resolved_dep_mode=""
 
         lane_build_tool="$(python3 - <<'PY'
         import json
@@ -138,42 +124,74 @@ runs:
         PY
         )"
 
-        while IFS='=' read -r key value; do
-          case "${key}" in
-            build_tool)
-              resolved_build_tool="${value}"
-              ;;
-            goal)
-              resolved_goal="${value}"
-              ;;
-            ref_mode)
-              resolved_ref_mode="${value}"
-              ;;
-            publish)
-              resolved_publish="${value}"
-              ;;
-            allow_failure_mode)
-              resolved_allow_failure_mode="${value}"
-              ;;
-            dep_mode)
-              resolved_dep_mode="${value}"
-              ;;
-          esac
-        done < <(
-          bash ci/run/ref/resolve-execution-model.sh \
-            --requested-build-tool "${lane_build_tool}" \
-            --goal "${INPUT_GOAL}" \
-            --ref-mode "${INPUT_REF_MODE}" \
-            --publish "${INPUT_PUBLISH}" \
-            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}"
-        )
+        resolved_goal="${INPUT_GOAL}"
+        resolved_ref_mode="${INPUT_REF_MODE}"
+        resolved_publish="${INPUT_PUBLISH}"
+        resolved_build_tool="${lane_build_tool}"
 
-        if [[ -z "${resolved_dep_mode}" ]]; then
-          echo "Failed to resolve execution model output dep_mode" >&2
+        case "${INPUT_ALLOW_FAILURE_MODE}" in
+          false|0|no)
+            resolved_allow_failure_mode="off"
+            ;;
+          true|1|yes)
+            resolved_allow_failure_mode="allow"
+            ;;
+          *)
+            resolved_allow_failure_mode="${INPUT_ALLOW_FAILURE_MODE}"
+            ;;
+        esac
+
+        case "${resolved_goal}" in
+          verify|ref)
+            ;;
+          *)
+            echo "Unsupported goal: ${resolved_goal}" >&2
+            exit 2
+            ;;
+        esac
+        case "${resolved_ref_mode}" in
+          generate|compare)
+            ;;
+          *)
+            echo "Unsupported ref_mode: ${resolved_ref_mode}" >&2
+            exit 2
+            ;;
+        esac
+        case "${resolved_publish}" in
+          none|artifact)
+            ;;
+          *)
+            echo "Unsupported publish: ${resolved_publish}" >&2
+            exit 2
+            ;;
+        esac
+        case "${resolved_allow_failure_mode}" in
+          off|allow|expect_fail)
+            ;;
+          *)
+            echo "Unsupported allow_failure_mode: ${resolved_allow_failure_mode}" >&2
+            exit 2
+            ;;
+        esac
+        case "${resolved_build_tool}" in
+          make|cmake)
+            ;;
+          *)
+            echo "Unsupported lane build_tool: ${resolved_build_tool}" >&2
+            exit 2
+            ;;
+        esac
+
+        if [[ "${resolved_goal}" != "ref" && "${resolved_ref_mode}" == "compare" ]]; then
+          echo "ref_mode=compare is only valid when goal=ref" >&2
           exit 2
         fi
-        if [[ "${INPUT_DEP_MODE}" != "${resolved_dep_mode}" ]]; then
-          echo "dep_mode mismatch: input=${INPUT_DEP_MODE} expected=${resolved_dep_mode}" >&2
+        if [[ "${resolved_goal}" == "verify" && "${resolved_ref_mode}" != "generate" ]]; then
+          echo "goal=verify requires ref_mode=generate" >&2
+          exit 2
+        fi
+        if [[ "${resolved_goal}" == "verify" && "${resolved_publish}" != "none" ]]; then
+          echo "goal=verify requires publish=none" >&2
           exit 2
         fi
 
@@ -182,7 +200,6 @@ runs:
         export RESOLVED_REF_MODE="${resolved_ref_mode}"
         export RESOLVED_PUBLISH="${resolved_publish}"
         export RESOLVED_ALLOW_FAILURE_MODE="${resolved_allow_failure_mode}"
-        export RESOLVED_DEP_MODE="${resolved_dep_mode}"
 
         python3 - <<'PY'
         import json
@@ -214,7 +231,6 @@ runs:
         allow_failure_mode = as_text(
             os.environ.get("RESOLVED_ALLOW_FAILURE_MODE", "")
         )
-        dep_mode = as_text(os.environ.get("RESOLVED_DEP_MODE", ""))
         resolved_build_tool = as_text(os.environ.get("RESOLVED_BUILD_TOOL", ""))
 
         build_tool = as_text(lane.get("build_tool"))
@@ -268,7 +284,6 @@ runs:
             "ref_mode": ref_mode,
             "publish": publish,
             "allow_failure_mode": allow_failure_mode,
-            "dep_mode": dep_mode,
             "runtime": runtime,
             "build_tool": build_tool,
             "variant": variant,
