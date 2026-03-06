@@ -67,8 +67,6 @@ def resolve_build_tool(requested_build_tool: str, goal: str, ref_mode: str) -> s
 
 
 def resolve_compiler(requested_compiler: str) -> str:
-    if requested_compiler == "auto":
-        return "gcc"
     return requested_compiler
 
 
