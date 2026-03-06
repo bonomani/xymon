@@ -1715,7 +1715,10 @@ def main() -> int:
         if isinstance(entry, dict) and isinstance(entry.get("os"), str) and str(entry.get("os")).strip()
     }
     required_flags_cache: dict[Path, set[str]] = {}
-    workflow_files = list((ROOT / ".github" / "workflows").glob("*.yml"))
+    workflow_dir = ROOT / ".github" / "workflows"
+    workflow_files = sorted(
+        set(workflow_dir.glob("*.yml")) | set(workflow_dir.glob("*.yaml"))
+    )
     for wf in workflow_files:
         data = parse_workflow_yaml(wf)
         run_snippets = find_package_steps(data)
