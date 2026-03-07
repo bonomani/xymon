@@ -1,10 +1,5 @@
 include:
 - platform_id: oraclelinux-9
-  variants:
-  - server
-  - localclient
-  - variant: client
-    allow_failure: true
 - platform_id: oraclelinux-8
 - platform_id: oraclelinux-10
   defaults: arm64
