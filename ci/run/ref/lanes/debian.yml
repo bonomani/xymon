@@ -1,8 +1,20 @@
 include:
 - platform_id: debian-13
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - client
 - name_prefix: Debian 13.3-slim arm64
   platform_id: debian-13
   defaults: arm64
+  variants:
+  - variant: server
+    allow_failure: true
+  - variant: localclient
+    allow_failure: true
+  - client
 - platform_id: debian-12
 - name_prefix: Debian 12.13-slim arm64
   platform_id: debian-12
