@@ -149,6 +149,77 @@ stage_if_present() {
   fi
 }
 
+validate_ref_stage_layout() {
+  local root="$1"
+  local topdir="$2"
+  local variant_name="$3"
+  local required_rel=()
+  local missing=()
+  local rel=""
+
+  case "${variant_name}" in
+    server)
+      required_rel=(
+        "server/download"
+        "server/bin"
+        "server/etc"
+        "server/ext"
+        "server/tmp"
+        "server/web"
+        "server/www"
+        "client/bin"
+        "client/etc"
+        "client/ext"
+        "client/local"
+        "client/logs"
+        "client/tmp"
+        "data"
+        "cgi-bin"
+        "cgi-secure"
+      )
+      ;;
+    client)
+      required_rel=(
+        "bin"
+        "etc"
+        "ext"
+        "logs"
+        "tmp"
+      )
+      ;;
+    localclient)
+      required_rel=(
+        "bin"
+        "etc"
+        "ext"
+        "local"
+        "logs"
+        "tmp"
+      )
+      ;;
+    *)
+      echo "Unsupported variant for ref layout validation: ${variant_name}" >&2
+      exit 1
+      ;;
+  esac
+
+  for rel in "${required_rel[@]}"; do
+    if [[ ! -e "${root}/${rel}" ]]; then
+      missing+=("${topdir}/${rel}")
+    fi
+  done
+
+  if [[ "${#missing[@]}" -eq 0 ]]; then
+    return 0
+  fi
+
+  echo "Ref generation requires the staged tree to contain all required paths under XYMONTOPDIR=${topdir}; refusing to generate incomplete refs." >&2
+  printf 'Missing staged paths:\n' >&2
+  printf '  %s\n' "${missing[@]}" >&2
+  echo "This usually means one or more install paths were configured outside XYMONTOPDIR." >&2
+  exit 1
+}
+
 trap '
   stage_if_present /tmp/legacy.config.extract
   stage_if_present /tmp/cmake.config.extract
@@ -189,6 +260,8 @@ fi
 source /tmp/xymon-root-vars.sh
 : "${LEGACY_TOPDIR:?missing LEGACY_TOPDIR}"
 : "${LEGACY_ROOT:?missing LEGACY_ROOT}"
+
+validate_ref_stage_layout "${LEGACY_ROOT}" "${LEGACY_TOPDIR}" "${variant}"
 
 if [[ "${build_tool}" == "cmake" ]]; then
   bash ci/run/ref/validate-config-parity.sh \
