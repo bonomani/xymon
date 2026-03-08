@@ -1,0 +1,35 @@
+profiles:
+  default:
+    XYMONTOPDIR: /var/lib/xymon
+  debian:
+    XYMONTOPDIR: /usr/lib/xymon
+    XYMONVAR: /var/lib/xymon
+    XYMONHOSTURL: /xymon
+    CGIDIR: /usr/lib/xymon/cgi-bin
+    XYMONCGIURL: /xymon-cgi
+    SECURECGIDIR: /usr/lib/xymon/cgi-secure
+    SECUREXYMONCGIURL: /xymon-seccgi
+    XYMONLOGDIR: /var/log/xymon
+    MANROOT: /usr/share/man
+    INSTALLBINDIR: /usr/lib/xymon/server/bin
+    INSTALLETCDIR: /etc/xymon
+    INSTALLWEBDIR: /etc/xymon/web
+    INSTALLEXTDIR: /usr/lib/xymon/server/ext
+    INSTALLTMPDIR: /var/lib/xymon/tmp
+    INSTALLWWWDIR: /var/lib/xymon/www
+  packaging:
+    XYMONTOPDIR: /usr/lib/xymon
+    XYMONVAR: /var/lib/xymon
+    XYMONHOSTURL: /xymon
+    CGIDIR: /usr/lib/xymon/cgi-bin
+    XYMONCGIURL: /xymon-cgi
+    SECURECGIDIR: /usr/lib/xymon/cgi-secure
+    SECUREXYMONCGIURL: /xymon-seccgi
+    XYMONLOGDIR: /var/log/xymon
+    MANROOT: /usr/share/man
+    INSTALLBINDIR: /usr/lib/xymon/server/bin
+    INSTALLETCDIR: /etc/xymon
+    INSTALLWEBDIR: /etc/xymon/web
+    INSTALLEXTDIR: /usr/lib/xymon/server/ext
+    INSTALLTMPDIR: /var/lib/xymon/tmp
+    INSTALLWWWDIR: /var/lib/xymon/www

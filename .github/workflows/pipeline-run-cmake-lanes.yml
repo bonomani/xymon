@@ -33,8 +33,8 @@ on:
           - auto
           - gcc
           - clang
-      preset:
-        description: CMake preset selection
+      profile:
+        description: Layout/profile selection for CMake lanes
         required: true
         type: choice
         default: default
@@ -112,7 +112,7 @@ jobs:
                 family: '${{ inputs.family }}',
                 build_tool: 'cmake',
                 compiler: '${{ inputs.compiler }}',
-                preset: '${{ inputs.preset }}',
+                profile: '${{ inputs.profile }}',
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -127,7 +127,7 @@ jobs:
               .addRaw(`Build tool: cmake\n`, true)
               .addRaw(`Family: ${{ inputs.family }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
-              .addRaw(`Preset: ${{ inputs.preset }}\n`, true)
+              .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
               .addRaw(`Reference mode: ${{ inputs.ref_mode }}\n`, true)
               .addRaw(`Publish: ${{ inputs.publish }}\n`, true)
               .addRaw(`Allow-failure mode: ${{ inputs.allow_failure_mode }}\n`, true)

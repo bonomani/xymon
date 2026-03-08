@@ -173,7 +173,7 @@ add_service() {
   local os_name="$4"
   local version="$5"
   local variant="$6"
-  local preset="$7"
+  local profile="$7"
   local enable_ssl="$8"
   local enable_ldap="$9"
   local enable_snmp="${10}"
@@ -198,7 +198,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /src
 COPY . /src
 
-ENV PRESET=$preset
+ENV PROFILE=$profile
 ENV VARIANT=$variant
 ENV LOCALCLIENT=$localclient
 ENV ENABLE_SSL=$enable_ssl
@@ -250,37 +250,37 @@ services:
 EOF
 
 for service_name in "${service_order[@]}"; do
-  image_id="${service_registry["${service_name}:image"]:-}"
-  if [[ -z "$image_id" ]]; then
-    echo "Service $service_name missing image reference" >&2
+  platform_id="${service_registry["${service_name}:platform_id"]:-${service_registry["${service_name}:image"]:-}}"
+  if [[ -z "$platform_id" ]]; then
+    echo "Service $service_name missing platform_id" >&2
     exit 1
   fi
-  base_image="${platform_catalog["${image_id}:image"]:-}"
+  base_image="${platform_catalog["${platform_id}:image"]:-}"
   if [[ -z "$base_image" ]]; then
-    echo "Image id $image_id not found for service $service_name" >&2
+    echo "Platform $platform_id not found for service $service_name" >&2
     exit 1
   fi
-  runtime="${platform_catalog["${image_id}:runtime"]:-docker}"
+  runtime="${platform_catalog["${platform_id}:runtime"]:-docker}"
   if [[ "$runtime" != "docker" ]]; then
-    echo "Image id $image_id for service $service_name is runtime=$runtime (expected docker)" >&2
+    echo "Platform $platform_id for service $service_name is runtime=$runtime (expected docker)" >&2
     exit 1
   fi
-  family="${platform_deps["${image_id}:family"]:-}"
-  os_name="${platform_deps["${image_id}:os"]:-}"
-  version="${platform_deps["${image_id}:version"]:-}"
+  family="${platform_deps["${platform_id}:family"]:-}"
+  os_name="${platform_deps["${platform_id}:os"]:-}"
+  version="${platform_deps["${platform_id}:version"]:-}"
   if [[ -z "$family" || -z "$os_name" ]]; then
-    echo "Image id $image_id missing deps binding (family/os)" >&2
+    echo "Platform $platform_id missing deps binding (family/os)" >&2
     exit 1
   fi
   variant="${service_registry["${service_name}:variant"]:-server}"
-  preset="${service_registry["${service_name}:preset"]:-packaging}"
-  enable_ssl="${service_registry["${service_name}:enable_ssl"]:-${platform_catalog["${image_id}:enable_ssl"]:-ON}}"
-  enable_ldap="${service_registry["${service_name}:enable_ldap"]:-${platform_catalog["${image_id}:enable_ldap"]:-ON}}"
-  enable_snmp="${service_registry["${service_name}:enable_snmp"]:-${platform_catalog["${image_id}:enable_snmp"]:-ON}}"
-  localclient="${service_registry["${service_name}:localclient"]:-${platform_catalog["${image_id}:localclient"]:-OFF}}"
-  build_tool="${service_registry["${service_name}:build_tool"]:-${platform_catalog["${image_id}:build_tool"]:-cmake}}"
+  profile="${service_registry["${service_name}:profile"]:-packaging}"
+  enable_ssl="${service_registry["${service_name}:enable_ssl"]:-${platform_catalog["${platform_id}:enable_ssl"]:-ON}}"
+  enable_ldap="${service_registry["${service_name}:enable_ldap"]:-${platform_catalog["${platform_id}:enable_ldap"]:-ON}}"
+  enable_snmp="${service_registry["${service_name}:enable_snmp"]:-${platform_catalog["${platform_id}:enable_snmp"]:-ON}}"
+  localclient="${service_registry["${service_name}:localclient"]:-${platform_catalog["${platform_id}:localclient"]:-OFF}}"
+  build_tool="${service_registry["${service_name}:build_tool"]:-${platform_catalog["${platform_id}:build_tool"]:-cmake}}"
 
   add_service "$service_name" "$base_image" "$family" "$os_name" "$version" \
-    "$variant" "$preset" "$enable_ssl" "$enable_ldap" "$enable_snmp" \
+    "$variant" "$profile" "$enable_ssl" "$enable_ldap" "$enable_snmp" \
     "$localclient" "$build_tool"
 done

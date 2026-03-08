@@ -7,6 +7,7 @@ OS_NAME=""
 VARIANT="server"
 KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
+PROFILE="default"
 REF_STAGE_ROOT=""
 CONFIG_H_PATH=""
 INVENTORY_NAME="inventory.tsv"
@@ -16,7 +17,7 @@ KEYFILES_LIST_NAME="keyfiles.list"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: $0 --root ROOT --os OS [--build TOOL] [--variant VARIANT] [--topdir TOPDIR] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
+Usage: $0 --root ROOT --os OS [--build TOOL] [--profile PROFILE] [--variant VARIANT] [--topdir TOPDIR] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
 USAGE
   exit 1
 }
@@ -47,6 +48,10 @@ while [ $# -gt 0 ]; do
       BUILD_TOOL="${2:-}"
       shift 2
       ;;
+    --profile)
+      PROFILE="${2:-}"
+      shift 2
+      ;;
     --refs-root)
       REF_STAGE_ROOT="${2:-}"
       shift 2
@@ -65,6 +70,7 @@ done
 [ -n "$ROOT" ] || { echo "Missing --root" >&2; exit 1; }
 [ -n "$OS_NAME" ] || { echo "Missing --os" >&2; exit 1; }
 [ -n "$BUILD_TOOL" ] || BUILD_TOOL="make"
+[ -n "$PROFILE" ] || PROFILE="default"
 [ -n "$VARIANT" ] || VARIANT="server"
 TOPDIR="${TOPDIR%/}"
 [ -n "$TOPDIR" ] || TOPDIR="/"
@@ -73,7 +79,12 @@ TMPDIR="${TMPDIR:-/tmp}"
 TMPDIR="${TMPDIR%/}"
 [ -d "$ROOT" ] || { echo "Missing $ROOT" >&2; exit 1; }
 
-TEMP_PREFIX="${BUILD_TOOL}.${OS_NAME}.${VARIANT}"
+PROFILE_SUFFIX=""
+if [ "${PROFILE}" != "default" ]; then
+  PROFILE_SUFFIX=".${PROFILE}"
+fi
+
+TEMP_PREFIX="${BUILD_TOOL}${PROFILE_SUFFIX}.${OS_NAME}.${VARIANT}"
 BINLINKS_NAME="binlinks"
 NEEDED_NORM_NAME="needed.norm.tsv"
 EMBED_NAME="embedded.paths"

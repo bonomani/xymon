@@ -3,7 +3,7 @@ set -euo pipefail
 
 build_tool=""
 ci_compiler="gcc"
-preset="default"
+profile=""
 verify_depth="install"
 os_name=""
 os_version=""
@@ -17,7 +17,7 @@ DEP_MODE="${DEP_MODE:-}"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--preset PRESET] [--verify-depth DEPTH] [--version VERSION]
+Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--profile PROFILE] [--verify-depth DEPTH] [--version VERSION]
 USAGE
   exit 2
 }
@@ -32,8 +32,8 @@ while [[ $# -gt 0 ]]; do
       ci_compiler="${2:-}"
       shift 2
       ;;
-    --preset)
-      preset="${2:-}"
+    --profile)
+      profile="${2:-}"
       shift 2
       ;;
     --verify-depth)
@@ -96,14 +96,31 @@ case "${ci_compiler}" in
     ;;
 esac
 
-case "${preset}" in
-  default|gnuinstall|packaging)
+profile="${profile:-default}"
+
+case "${build_tool}" in
+  make)
+    case "${profile}" in
+      default|debian|packaging)
+        ;;
+      *)
+        echo "Unsupported --profile value for make: ${profile}" >&2
+        usage
+        ;;
+    esac
     ;;
-  *)
-    echo "Unsupported --preset value: ${preset}" >&2
-    usage
+  cmake)
+    case "${profile}" in
+      default|gnuinstall|packaging)
+        ;;
+      *)
+        echo "Unsupported --profile value for cmake: ${profile}" >&2
+        usage
+        ;;
+    esac
     ;;
 esac
+
 case "${verify_depth}" in
   configure|build|install)
     ;;
@@ -233,7 +250,7 @@ trap '
   stage_if_present /tmp/xymon-root-vars.sh
 ' EXIT
 
-echo "Running bootstrap-install (${build_tool} / compiler=${ci_compiler} / preset=${preset} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
+echo "Running bootstrap-install (${build_tool} / compiler=${ci_compiler} / profile=${profile} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
 bootstrap_args=(
   bash
   ci/bootstrap-install.sh
@@ -242,7 +259,7 @@ bootstrap_args=(
   --variant "${variant}"
   --build "${build_tool}"
   --compiler "${ci_compiler}"
-  --preset "${preset}"
+  --profile "${profile}"
   --verify-depth "${verify_depth}"
 )
 if [[ -n "${os_version}" ]]; then
@@ -272,6 +289,7 @@ bash ci/generate-refs.sh \
   --os "${os_name}" \
   --variant "${variant}" \
   --build "${build_tool}" \
+  --profile "${profile}" \
   --root "${LEGACY_ROOT}" \
   --topdir "${LEGACY_TOPDIR}" \
   --config-h "${XYMON_CONFIG_H:-}" \

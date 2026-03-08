@@ -23,11 +23,24 @@ def fail(msg: str) -> None:
     raise SystemExit(2)
 
 
+def profile_ref_suffix(profile: str) -> str:
+    if profile == "default":
+        return ""
+    return f".{profile}"
+
+
+def profile_artifact_suffix(profile: str) -> str:
+    if profile == "default":
+        return ""
+    return f"-{profile}"
+
+
 def derive_lane_paths(
     *,
     goal: str,
     dep_mode: str,
     build_tool: str,
+    profile: str,
     variant: str,
     ref_os: str,
     platform_id: str,
@@ -36,10 +49,12 @@ def derive_lane_paths(
     baseline_root: str,
     ref_stage_root: str,
 ) -> dict[str, str]:
-    lane_ref_key = f"{build_tool}.{ref_os}.{variant}"
+    ref_suffix = profile_ref_suffix(profile)
+    artifact_suffix = profile_artifact_suffix(profile)
+    lane_ref_key = f"{build_tool}{ref_suffix}.{ref_os}.{variant}"
     ref_valid_root = f".ci-artifacts/ref-valid-{artifact_family}"
     refs_root = f"{ref_valid_root}/refs"
-    artifact_root = f"{ref_valid_root}/{build_tool}-{platform_id}-{variant}"
+    artifact_root = f"{ref_valid_root}/{build_tool}{artifact_suffix}-{platform_id}-{variant}"
     candidate_dir = f"{refs_root}/{lane_ref_key}"
     baseline_prefix = ""
     legacy_hostname_config = ""
@@ -64,7 +79,7 @@ def derive_lane_paths(
         "legacy_hostname_config": legacy_hostname_config,
         "deps_report_path": deps_report_path,
         "ref_generate_artifact_name": (
-            f"ref_{build_tool}_{ref_os}-{variant}__{platform_id}__{artifact_arch}"
+            f"ref_{build_tool}{artifact_suffix}_{ref_os}-{variant}__{platform_id}__{artifact_arch}"
         ),
         "ref_generate_artifact_path": f"{candidate_dir}/**",
         "ref_compare_artifact_path": f"{artifact_root}/**",
@@ -119,7 +134,7 @@ def main():
 
     build_tool = as_text(lane.get("build_tool"))
     compiler = as_text(lane.get("compiler"))
-    preset = as_text(lane.get("preset"))
+    profile = as_text(lane.get("profile"))
     lane_name = as_text(lane.get("name"))
     variant = as_text(lane.get("variant"))
     runtime = as_text(lane.get("runtime"))
@@ -130,8 +145,12 @@ def main():
         fail(str(exc))
     if compiler not in {"gcc", "clang"}:
         fail(f"lane_json has unsupported compiler: {compiler}")
-    if preset not in {"default", "gnuinstall", "packaging"}:
-        fail(f"lane_json has unsupported preset: {preset}")
+    if profile not in {"default", "debian", "gnuinstall", "packaging"}:
+        fail(f"lane_json has unsupported profile: {profile}")
+    if build_tool == "make" and profile not in {"default", "debian", "packaging"}:
+        fail(f"lane_json has unsupported make profile: {profile}")
+    if build_tool == "cmake" and profile not in {"default", "gnuinstall", "packaging"}:
+        fail(f"lane_json has unsupported cmake profile: {profile}")
     if not lane_name:
         fail("lane_json missing name")
     if not variant:
@@ -179,6 +198,7 @@ def main():
         goal=goal,
         dep_mode=dep_mode,
         build_tool=build_tool,
+        profile=profile,
         variant=variant,
         ref_os=ref_os,
         platform_id=platform_id,
@@ -198,7 +218,7 @@ def main():
         "ENABLE_SNMP": enable,
         "BUILD_TOOL": build_tool,
         "CI_COMPILER": compiler,
-        "PRESET": preset,
+        "PROFILE": profile,
         "LANE_NAME": lane_name,
         "DEP_MODE": dep_mode,
         "GOAL": goal,

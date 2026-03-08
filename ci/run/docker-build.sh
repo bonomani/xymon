@@ -6,7 +6,7 @@ BUILD_TOOL="${BUILD_TOOL:-cmake}"
 BUILD_TOOL="$(printf '%s' "$BUILD_TOOL" | tr '[:upper:]' '[:lower:]')"
 VARIANT="${VARIANT:-server}"
 LOCALCLIENT="${LOCALCLIENT:-OFF}"
-PRESET="${PRESET:-packaging}"
+PROFILE="${PROFILE:-packaging}"
 
 normalize_yesno() {
   case "${1,,}" in
@@ -25,7 +25,7 @@ normalize_yesno() {
 echo "=== Docker build context ==="
 echo "BUILD_TOOL=${BUILD_TOOL}"
 echo "VARIANT=${VARIANT}"
-echo "PRESET=${PRESET}"
+echo "PROFILE=${PROFILE}"
 echo "LOCALCLIENT=${LOCALCLIENT}"
 echo "ENABLE_SSL=${ENABLE_SSL:-ON}"
 echo "ENABLE_LDAP=${ENABLE_LDAP:-ON}"
@@ -43,7 +43,8 @@ case "$BUILD_TOOL" in
       --os linux \
       --variant "$VARIANT" \
       --localclient "$localclient_flag" \
-      --build make
+      --build make \
+      --profile "$PROFILE"
     ;;
   *)
     echo "Unsupported BUILD_TOOL=${BUILD_TOOL}" >&2
