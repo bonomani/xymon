@@ -33,6 +33,15 @@ on:
           - auto
           - gcc
           - clang
+      profile:
+        description: Layout/profile selection for make lanes
+        required: true
+        type: choice
+        default: default
+        options:
+          - default
+          - debian
+          - packaging
       verify_depth:
         description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
@@ -102,7 +111,7 @@ jobs:
                 family: '${{ inputs.family }}',
                 build_tool: 'make',
                 compiler: '${{ inputs.compiler }}',
-                preset: 'default',
+                profile: '${{ inputs.profile }}',
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -117,6 +126,7 @@ jobs:
               .addRaw(`Build tool: make\n`, true)
               .addRaw(`Family: ${{ inputs.family }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
+              .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
               .addRaw(`Reference mode: ${{ inputs.ref_mode }}\n`, true)
               .addRaw(`Publish: ${{ inputs.publish }}\n`, true)
               .addRaw(`Allow-failure mode: ${{ inputs.allow_failure_mode }}\n`, true)

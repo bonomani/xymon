@@ -4,7 +4,7 @@ set -euo pipefail
 env_out=""
 build_tool=""
 ci_compiler="gcc"
-preset="default"
+profile=""
 goal="verify"
 verify_depth="install"
 ref_mode="off"
@@ -24,12 +24,28 @@ legacy_hostname_config=""
 baseline_prefix=""
 candidate_dir=""
 
+profile_ref_suffix() {
+  if [[ "$1" == "default" ]]; then
+    printf '%s' ""
+  else
+    printf '.%s' "$1"
+  fi
+}
+
+profile_artifact_suffix() {
+  if [[ "$1" == "default" ]]; then
+    printf '%s' ""
+  else
+    printf -- '-%s' "$1"
+  fi
+}
+
 usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --build make|cmake
   --compiler gcc|clang
-  --preset default|gnuinstall|packaging
+  --profile default|debian|packaging|gnuinstall
   --goal verify|ref
   --verify-depth configure|build|install
   --variant NAME
@@ -64,8 +80,8 @@ while [[ $# -gt 0 ]]; do
       ci_compiler="${2:-}"
       shift 2
       ;;
-    --preset)
-      preset="${2:-}"
+    --profile)
+      profile="${2:-}"
       shift 2
       ;;
     --goal)
@@ -158,14 +174,6 @@ case "${ci_compiler}" in
     usage
     ;;
 esac
-case "${preset}" in
-  default|gnuinstall|packaging)
-    ;;
-  *)
-    echo "Unsupported --preset value: ${preset}" >&2
-    usage
-    ;;
-esac
 case "${verify_depth}" in
   configure|build|install)
     ;;
@@ -180,6 +188,35 @@ if [[ -z "${variant}" ]]; then
   echo "Missing --variant" >&2
   usage
 fi
+
+profile="${profile:-default}"
+
+case "${build_tool}" in
+  make)
+    case "${profile}" in
+      default|debian|packaging)
+        ;;
+      *)
+        echo "Unsupported --profile value for make: ${profile}" >&2
+        usage
+        ;;
+    esac
+    ;;
+  cmake)
+    case "${profile}" in
+      default|gnuinstall|packaging)
+        ;;
+      *)
+        echo "Unsupported --profile value for cmake: ${profile}" >&2
+        usage
+        ;;
+    esac
+    ;;
+  *)
+    echo "Unsupported --build value: ${build_tool}" >&2
+    usage
+    ;;
+esac
 
 if [[ -z "${platform_os}" ]]; then
   platform_os="${ref_os}"
@@ -200,11 +237,13 @@ if [[ "${goal}" == "ref" ]]; then
 fi
 
 if [[ "${goal}" == "ref" ]]; then
+  profile_ref_tag="$(profile_ref_suffix "${profile}")"
+  profile_artifact_tag="$(profile_artifact_suffix "${profile}")"
   if [[ -z "${refs_root}" ]]; then
     refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
   fi
   if [[ -z "${artifact_root}" ]]; then
-    artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}-${platform_id}-${variant}"
+    artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}${profile_artifact_tag}-${platform_id}-${variant}"
   fi
   if [[ -z "${legacy_hostname_config}" ]]; then
     legacy_hostname_config="docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
@@ -213,7 +252,7 @@ if [[ "${goal}" == "ref" ]]; then
     baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
   fi
   if [[ -z "${candidate_dir}" ]]; then
-    candidate_dir="${refs_root}/${build_tool}.${ref_os}.${variant}"
+    candidate_dir="${refs_root}/${build_tool}${profile_ref_tag}.${ref_os}.${variant}"
   fi
 fi
 
@@ -221,7 +260,7 @@ mkdir -p "$(dirname "${env_out}")"
 {
   printf 'build_tool=%q\n' "${build_tool}"
   printf 'ci_compiler=%q\n' "${ci_compiler}"
-  printf 'preset=%q\n' "${preset}"
+  printf 'profile=%q\n' "${profile}"
   printf 'goal=%q\n' "${goal}"
   printf 'verify_depth=%q\n' "${verify_depth}"
   printf 'ref_mode=%q\n' "${ref_mode}"

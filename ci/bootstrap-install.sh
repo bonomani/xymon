@@ -1,6 +1,9 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAKE_PROFILE_EXPORTER="${SCRIPT_DIR}/run/export-make-profile-env.sh"
+
 OS_NAME=""
 PLATFORM_OS=""
 OS_VERSION=""
@@ -13,7 +16,8 @@ LOCALCLIENT=""
 HTTPDGID=""
 BUILD_TOOL="make"
 CI_COMPILER="${CI_COMPILER:-gcc}"
-CMAKE_PRESET="${PRESET:-default}"
+BUILD_PROFILE="${PROFILE:-default}"
+CMAKE_PRESET=""
 VERIFY_DEPTH="${VERIFY_DEPTH:-install}"
 XYMONUSER="${XYMONUSER:-xymon}"
 XYMONGROUP="${XYMONGROUP:-${XYMONUSER}}"
@@ -76,8 +80,8 @@ while [ $# -gt 0 ]; do
       CI_COMPILER="${2:-}"
       shift 2
       ;;
-    --preset)
-      CMAKE_PRESET="${2:-}"
+    --profile)
+      BUILD_PROFILE="${2:-}"
       shift 2
       ;;
     --verify-depth)
@@ -153,14 +157,38 @@ normalize_compiler() {
   esac
 }
 
-normalize_cmake_preset() {
-  CMAKE_PRESET="$(printf '%s' "${CMAKE_PRESET:-default}" | tr '[:upper:]' '[:lower:]')"
-  case "${CMAKE_PRESET}" in
-    default|gnuinstall|packaging)
+normalize_profile() {
+  BUILD_PROFILE="$(printf '%s' "${BUILD_PROFILE:-}" | tr '[:upper:]' '[:lower:]')"
+  if [ -z "${BUILD_PROFILE}" ]; then
+    BUILD_PROFILE="default"
+  fi
+
+  case "${BUILD_TOOL}" in
+    make)
+      case "${BUILD_PROFILE}" in
+        default|debian|packaging)
+          ;;
+        gnuinstall)
+          echo "Unsupported --profile value for make: ${BUILD_PROFILE}" >&2
+          exit 1
+          ;;
+        *)
+          echo "Unsupported --profile value: ${BUILD_PROFILE}" >&2
+          exit 1
+          ;;
+      esac
+      CMAKE_PRESET=""
       ;;
-    *)
-      echo "Unsupported --preset value: ${CMAKE_PRESET}" >&2
-      exit 1
+    cmake)
+      case "${BUILD_PROFILE}" in
+        default|gnuinstall|packaging)
+          ;;
+        *)
+          echo "Unsupported --profile value for cmake: ${BUILD_PROFILE}" >&2
+          exit 1
+          ;;
+      esac
+      CMAKE_PRESET="${BUILD_PROFILE}"
       ;;
   esac
 }
@@ -429,7 +457,11 @@ configure_build_make() {
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
   export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
-  export XYMONTOPDIR="${DEFAULT_TOP}"
+  if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
+    echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}" >&2
+    exit 1
+  fi
+  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${BUILD_PROFILE}")"
   export CC="${CC:-${CI_COMPILER}}"
   if [ -n "${LEGACY_CONFTYPE}" ]; then
     export CONFTYPE="${LEGACY_CONFTYPE}"
@@ -579,7 +611,7 @@ install_staged_make() {
       as_root "${MAKE_BIN}" install-man \
         DESTDIR="${LEGACY_STAGING}" \
         INSTALLROOT="${LEGACY_STAGING}" \
-        MANROOT="${DEFAULT_TOP}/server/man" \
+        MANROOT="${MANROOT:-${DEFAULT_TOP}/server/man}" \
         XYMONUSER="${XYMONUSER:-xymon}" \
         IDTOOL="${IDTOOL:-id}" \
         PKGBUILD="${PKGBUILD:-}"
@@ -602,21 +634,21 @@ install_staged_cmake() {
 
 detect_topdir_root_make() {
   local topdir
+  local expected_root
+  local root
   topdir=$(awk -F ' = ' '/^XYMONTOPDIR =/ {print $2; exit}' Makefile 2>/dev/null || true)
   if [ -z "${topdir}" ]; then
     topdir="${DEFAULT_TOP}"
   fi
 
-  local root="${LEGACY_DESTROOT}"
-  if [ ! -d "${root}" ]; then
+  expected_root="${LEGACY_STAGING}${topdir}"
+  root="${expected_root}"
+  if [ ! -d "${root}" ] && [ "${topdir}" = "${DEFAULT_TOP}" ] && [ -d "${LEGACY_DESTROOT_FALLBACK}" ]; then
     root="${LEGACY_DESTROOT_FALLBACK}"
-  fi
-  if [ ! -d "${root}" ]; then
-    root="${LEGACY_STAGING}${topdir}"
   fi
 
   if [ ! -d "${root}" ]; then
-    echo "Missing ${root}" >&2
+    echo "Missing ${expected_root}" >&2
     exit 1
   fi
 
@@ -687,7 +719,7 @@ EOF
 
 normalize_build_tool
 normalize_compiler
-normalize_cmake_preset
+normalize_profile
 normalize_verify_depth
 normalize_variant
 set_feature_flags

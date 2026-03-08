@@ -11,7 +11,7 @@ def parse_args():
     )
     parser.add_argument("--requested-build-tool", required=True)
     parser.add_argument("--requested-compiler", default="auto")
-    parser.add_argument("--requested-preset", default="auto")
+    parser.add_argument("--requested-profile", default="auto")
     parser.add_argument("--requested-verify-depth", default="install")
     parser.add_argument("--ref-mode", default="off")
     parser.add_argument("--publish", default="none")
@@ -27,7 +27,7 @@ def main() -> None:
         outputs = resolve_execution_model(
             requested_build_tool=args.requested_build_tool,
             requested_compiler=args.requested_compiler,
-            requested_preset=args.requested_preset,
+            requested_profile=args.requested_profile,
             requested_verify_depth=args.requested_verify_depth,
             ref_mode=args.ref_mode,
             publish=args.publish,

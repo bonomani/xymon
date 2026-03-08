@@ -3,7 +3,7 @@ set -euo pipefail
 
 build_tool="${build_tool:-}"
 ci_compiler="${ci_compiler:-}"
-preset="${preset:-}"
+profile="${profile:-}"
 goal="${goal:-}"
 verify_depth="${verify_depth:-}"
 ref_mode="${ref_mode:-}"
@@ -37,8 +37,8 @@ if [[ -z "${ci_compiler}" ]]; then
   echo "Missing prepared variable: ci_compiler" >&2
   exit 2
 fi
-if [[ -z "${preset}" ]]; then
-  echo "Missing prepared variable: preset" >&2
+if [[ -z "${profile}" ]]; then
+  echo "Missing prepared variable: profile" >&2
   exit 2
 fi
 if [[ -z "${variant}" ]]; then
@@ -84,11 +84,11 @@ case "${ci_compiler}" in
     ;;
 esac
 
-case "${preset}" in
+case "${profile}" in
   default|gnuinstall|packaging)
     ;;
   *)
-    echo "Unsupported prepared preset value: ${preset}" >&2
+    echo "Unsupported prepared profile value: ${profile}" >&2
     exit 2
     ;;
 esac
@@ -136,7 +136,7 @@ run_core_build_install() {
     --variant "${variant}"
     --build "${build_tool}"
     --compiler "${ci_compiler}"
-    --preset "${preset}"
+    --profile "${profile}"
     --verify-depth "${verify_depth}"
   )
   if [[ -n "${os_version}" ]]; then
@@ -151,7 +151,7 @@ run_ref_snapshot() {
     ci/run/ref/bootstrap-build-refs.sh
     --build "${build_tool}"
     --compiler "${ci_compiler}"
-    --preset "${preset}"
+    --profile "${profile}"
     --verify-depth "${verify_depth}"
     --os "${ref_os}"
     --platform-os "${platform_os}"
@@ -179,7 +179,7 @@ run_ref_compare() {
 
 echo "=== Lane execution ==="
 echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
-echo "build=${build_tool} compiler=${ci_compiler} preset=${preset} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
 
 case "${goal}" in
   verify)

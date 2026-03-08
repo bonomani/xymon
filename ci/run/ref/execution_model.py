@@ -3,6 +3,9 @@
 from typing import Dict
 
 
+SUPPORTED_LAYOUTS = {"auto", "default", "debian", "gnuinstall", "packaging"}
+
+
 def normalize_allow_failure_mode(raw: str) -> str:
     value = (raw or "").strip()
     if value in {"false", "0", "no"}:
@@ -48,9 +51,9 @@ def validate_requested_compiler(compiler: str) -> None:
         raise ValueError(f"Unsupported requested_compiler: {compiler}")
 
 
-def validate_requested_preset(preset: str) -> None:
-    if preset not in {"auto", "default", "gnuinstall", "packaging"}:
-        raise ValueError(f"Unsupported requested_preset: {preset}")
+def validate_requested_profile(profile: str) -> None:
+    if profile not in {"", *SUPPORTED_LAYOUTS}:
+        raise ValueError(f"Unsupported requested_profile: {profile}")
 
 
 def validate_requested_verify_depth(verify_depth: str) -> None:
@@ -63,27 +66,45 @@ def validate_lane_build_tool(build_tool: str) -> None:
         raise ValueError(f"Unsupported lane build_tool: {build_tool}")
 
 
-def resolve_build_tool(requested_build_tool: str, ref_mode: str) -> str:
-    if requested_build_tool == "auto":
-        if ref_mode == "compare":
-            return "cmake"
+def explicit_requested_profile(requested_profile: str) -> str:
+    explicit_profile = "" if requested_profile in {"", "auto"} else requested_profile
+    return explicit_profile
+
+
+def resolve_build_tool(
+    requested_build_tool: str,
+    requested_profile: str,
+    ref_mode: str,
+) -> str:
+    if requested_build_tool != "auto":
+        return requested_build_tool
+
+    explicit_profile = explicit_requested_profile(requested_profile)
+    if explicit_profile == "gnuinstall":
+        return "cmake"
+    if explicit_profile == "debian":
         return "make"
-    return requested_build_tool
+    if ref_mode == "compare":
+        return "cmake"
+    return "make"
 
 
 def resolve_compiler(requested_compiler: str) -> str:
     return requested_compiler
 
 
-def resolve_preset(requested_preset: str, build_tool: str) -> str:
-    if build_tool == "make":
-        if requested_preset in {"auto", "default"}:
-            return "default"
-        raise ValueError(f"preset={requested_preset} requires build_tool=cmake")
+def resolve_profile(requested_profile: str, build_tool: str) -> str:
+    explicit_profile = explicit_requested_profile(requested_profile)
+    if explicit_profile:
+        if build_tool == "make":
+            if explicit_profile in {"default", "debian", "packaging"}:
+                return explicit_profile
+            raise ValueError(f"profile={explicit_profile} requires build_tool=cmake")
+        if explicit_profile in {"default", "gnuinstall", "packaging"}:
+            return explicit_profile
+        raise ValueError(f"profile={explicit_profile} requires build_tool=make")
 
-    if requested_preset == "auto":
-        return "default"
-    return requested_preset
+    return "default"
 
 
 def resolve_verify_depth(ref_mode: str, requested_verify_depth: str) -> str:
@@ -102,7 +123,7 @@ def resolve_execution_model(
     *,
     requested_build_tool: str,
     requested_compiler: str,
-    requested_preset: str,
+    requested_profile: str,
     requested_verify_depth: str,
     ref_mode: str,
     publish: str,
@@ -115,15 +136,20 @@ def resolve_execution_model(
     validate_allow_failure_mode(allow_failure_mode)
     validate_requested_build_tool(requested_build_tool)
     validate_requested_compiler(requested_compiler)
-    validate_requested_preset(requested_preset)
+    validate_requested_profile(requested_profile)
     validate_requested_verify_depth(requested_verify_depth)
-    build_tool = resolve_build_tool(requested_build_tool, ref_mode)
+    build_tool = resolve_build_tool(
+        requested_build_tool,
+        requested_profile,
+        ref_mode,
+    )
     verify_depth = resolve_verify_depth(ref_mode, requested_verify_depth)
+    profile = resolve_profile(requested_profile, build_tool)
 
     return {
         "build_tool": build_tool,
         "compiler": resolve_compiler(requested_compiler),
-        "preset": resolve_preset(requested_preset, build_tool),
+        "profile": profile,
         "verify_depth": verify_depth,
         "goal": goal,
         "ref_mode": ref_mode,

@@ -2,12 +2,12 @@
 set -euo pipefail
 IFS=$' \t\n'
 
-if [[ -z "${PRESET:-}" ]]; then
-  echo "PRESET must be set"
+if [[ -z "${PROFILE:-}" ]]; then
+  echo "PROFILE must be set"
   exit 1
 fi
 
-case "${PRESET}" in
+case "${PROFILE}" in
   default)
     build_dir="build-cmake"
     ;;
@@ -18,7 +18,7 @@ case "${PRESET}" in
     build_dir="build-cmake-packaging"
     ;;
   *)
-    build_dir="build-cmake/${PRESET}"
+    build_dir="build-cmake/${PROFILE}"
     ;;
 esac
 
@@ -31,7 +31,7 @@ parallel_level="${PARALLEL_OVERRIDE:-${CMAKE_BUILD_PARALLEL_LEVEL:-1}}"
 export CMAKE_BUILD_PARALLEL_LEVEL="${parallel_level}"
 
 echo "=== CMake build ==="
-echo "PRESET=${PRESET}"
+echo "PROFILE=${PROFILE}"
 echo "BUILD_DIR=${build_dir}"
 echo "PARALLEL=${parallel_level}"
 echo "==================="

@@ -5,7 +5,7 @@ ENV DEBIAN_FRONTEND=noninteractive
 WORKDIR /src
 COPY . /src
 
-ENV PRESET=packaging
+ENV PROFILE=packaging
 ENV VARIANT=server
 ENV LOCALCLIENT=OFF
 ENV ENABLE_SSL=ON

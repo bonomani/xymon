@@ -21,7 +21,7 @@ from runtime_model import load_runtime_model
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
-SUPPORTED_PRESETS = {"default", "gnuinstall", "packaging"}
+SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
 
 
 def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
@@ -279,7 +279,7 @@ def normalize_lane(
     platform_catalog,
     build_tool,
     requested_compiler,
-    preset,
+    profile,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -296,7 +296,7 @@ def normalize_lane(
         else:
             compiler = "gcc"
     lane_obj["compiler"] = compiler
-    lane_obj["preset"] = preset
+    lane_obj["profile"] = profile
     runtime_execution = family_entry["runtime_execution"]
     runtime_default_ref_os = family_entry["runtime_default_ref_os"]
     runtime_requires_runs_on = family_entry["runtime_requires_runs_on"]
@@ -365,10 +365,10 @@ def parse_args():
         help="Compiler selection (auto, gcc, or clang)",
     )
     parser.add_argument(
-        "--preset",
+        "--profile",
         required=True,
-        choices=sorted(SUPPORTED_PRESETS),
-        help="CMake preset selection",
+        choices=sorted(SUPPORTED_PROFILES),
+        help="Layout/profile selection",
     )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
@@ -395,9 +395,13 @@ def main():
     compiler = args.compiler
     if compiler not in SUPPORTED_COMPILERS:
         die(f"Unsupported compiler: {compiler}")
-    preset = args.preset
-    if preset not in SUPPORTED_PRESETS:
-        die(f"Unsupported preset: {preset}")
+    profile = args.profile
+    if profile not in SUPPORTED_PROFILES:
+        die(f"Unsupported profile: {profile}")
+    if build_tool == "make" and profile == "gnuinstall":
+        die("profile=gnuinstall requires build_tool=cmake")
+    if build_tool == "cmake" and profile == "debian":
+        die("profile=debian requires build_tool=make")
 
     repo_root = Path(__file__).resolve().parents[3]
     runtime_model = load_runtime_model(repo_root / args.runtime_model)
@@ -446,7 +450,7 @@ def main():
                 platform_catalog,
                 build_tool,
                 compiler,
-                preset,
+                profile,
             )
             if normalized is None:
                 continue

@@ -2,32 +2,36 @@ services:
   - name: debian-11-server-cmake
     platform_id: debian-11
     variant: server
-    preset: packaging
+    profile: packaging
   - name: debian-11-server-make
     platform_id: debian-11
     variant: server
+    profile: packaging
     build_tool: make
   - name: debian-12-server-cmake
     platform_id: debian-12
     variant: server
-    preset: packaging
+    profile: packaging
   - name: debian-12-server-make
     platform_id: debian-12
     variant: server
+    profile: packaging
     build_tool: make
   - name: ubuntu-22-server-cmake
     platform_id: ubuntu-22
     variant: server
-    preset: packaging
+    profile: packaging
   - name: ubuntu-22-server-make
     platform_id: ubuntu-22
     variant: server
+    profile: packaging
     build_tool: make
   - name: ubuntu-24-server-cmake
     platform_id: ubuntu-24
     variant: server
-    preset: packaging
+    profile: packaging
   - name: ubuntu-24-server-make
     platform_id: ubuntu-24
     variant: server
+    profile: packaging
     build_tool: make

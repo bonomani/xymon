@@ -2,6 +2,9 @@
 set -euo pipefail
 IFS=$' \t\n'
 
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+MAKE_PROFILE_EXPORTER="${SCRIPT_DIR}/export-make-profile-env.sh"
+
 VARIANT="${1:-}"
 PROFILE="${2:-default}"
 
@@ -42,30 +45,24 @@ export ENABLELDAPSSL="${ENABLESSL_VALUE}"
 export ENABLELDAP="${ENABLELDAP:-y}"
 export USEXYMONPING="${USEXYMONPING:-y}"
 
-if [[ "${PROFILE}" == "debian" ]]; then
+if [[ "${PROFILE}" == "debian" || "${PROFILE}" == "packaging" ]]; then
+  httpdgid_value="${HTTPDGID:-nobody}"
+  if [[ "${PROFILE}" == "debian" && -z "${HTTPDGID:-}" ]]; then
+    httpdgid_value="www-data"
+  fi
+  if [[ ! -f "${MAKE_PROFILE_EXPORTER}" ]]; then
+    echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}"
+    exit 1
+  fi
+  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${PROFILE}")"
   USEXYMONPING=y \
   ENABLESSL="${ENABLESSL_VALUE}" \
   ENABLELDAP="${ENABLELDAP}" \
   ENABLELDAPSSL="${ENABLELDAPSSL}" \
   XYMONUSER=xymon \
-  XYMONTOPDIR=/usr/lib/xymon \
-  XYMONVAR=/var/lib/xymon \
-  XYMONHOSTURL=/xymon \
-  CGIDIR=/usr/lib/xymon/cgi-bin \
-  XYMONCGIURL=/xymon-cgi \
-  SECURECGIDIR=/usr/lib/xymon/cgi-secure \
-  SECUREXYMONCGIURL=/xymon-seccgi \
-  HTTPDGID=www-data \
-  XYMONLOGDIR=/var/log/xymon \
+  HTTPDGID="${httpdgid_value}" \
   XYMONHOSTNAME=localhost \
   XYMONHOSTIP=127.0.0.1 \
-  MANROOT=/usr/share/man \
-  INSTALLBINDIR=/usr/lib/xymon/server/bin \
-  INSTALLETCDIR=/etc/xymon \
-  INSTALLWEBDIR=/etc/xymon/web \
-  INSTALLEXTDIR=/usr/lib/xymon/server/ext \
-  INSTALLTMPDIR=/var/lib/xymon/tmp \
-  INSTALLWWWDIR=/usr/lib/xymon/www \
   ./configure --${VARIANT}
 else
   printf '\n%.0s' {1..50} | ./configure --${VARIANT}

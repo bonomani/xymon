@@ -81,7 +81,7 @@ args=(
   ci/run/ref/run-ref-lane.sh
   --build "${BUILD_TOOL}"
   --compiler "${CI_COMPILER}"
-  --preset "${PRESET}"
+  --profile "${PROFILE}"
   --goal "${GOAL}"
   --verify-depth "${VERIFY_DEPTH}"
   --ref-mode "${REF_MODE}"
