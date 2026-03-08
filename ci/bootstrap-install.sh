@@ -624,10 +624,27 @@ detect_topdir_root_make() {
 }
 
 detect_topdir_root_cmake() {
-  local topdir="${DEFAULT_TOP}"
-  local root="${CMAKE_LEGACY_DESTROOT}"
-  if [ ! -d "${root}" ]; then
-    root="${CMAKE_LEGACY_DESTDIR}${topdir}"
+  local topdir=""
+  local root=""
+  local config_h_path
+  config_h_path="$(detect_config_h_cmake)"
+  if [ -n "${config_h_path}" ] && [ -f "${config_h_path}" ]; then
+    topdir="$(awk '
+      $1 == "#define" && $2 == "XYMONTOPDIR" {
+        value = $0
+        sub(/^[^\"]*\"/, "", value)
+        sub(/\".*$/, "", value)
+        print value
+        exit
+      }
+    ' "${config_h_path}" 2>/dev/null || true)"
+  fi
+  if [ -z "${topdir}" ]; then
+    topdir="${DEFAULT_TOP}"
+  fi
+  root="${CMAKE_LEGACY_DESTDIR}${topdir}"
+  if [ ! -d "${root}" ] && [ -d "${CMAKE_LEGACY_DESTROOT}" ]; then
+    root="${CMAKE_LEGACY_DESTROOT}"
   fi
   if [ ! -d "${root}" ]; then
     echo "Missing ${root}" >&2
