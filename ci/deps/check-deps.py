@@ -941,9 +941,6 @@ def map_ref_lane_to_platform_requirement(
         if isinstance(runner, str) and runner.strip():
             return "platform_id", runner.strip()
         return "platform_id", ""
-    if family == "linux":
-        return "platform_id", "linux-host"
-
     return "unknown", family
 
 
