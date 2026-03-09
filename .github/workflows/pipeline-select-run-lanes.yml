@@ -66,9 +66,9 @@ on:
         description: Reference handling mode
         required: true
         type: choice
-        default: off
+        default: 'off'
         options:
-          - off
+          - 'off'
           - generate
           - compare
       publish:
@@ -85,7 +85,7 @@ on:
         type: choice
         default: allow
         options:
-          - off
+          - 'off'
           - allow
           - expect_fail
       source_ref:

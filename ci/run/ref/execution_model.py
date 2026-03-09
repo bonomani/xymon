@@ -15,6 +15,13 @@ def normalize_allow_failure_mode(raw: str) -> str:
     return value
 
 
+def normalize_ref_mode(raw: str) -> str:
+    value = (raw or "").strip()
+    if value in {"false", "0", "no"}:
+        return "off"
+    return value
+
+
 def derive_goal_from_ref_mode(ref_mode: str) -> str:
     if ref_mode == "off":
         return "verify"
@@ -130,6 +137,7 @@ def resolve_execution_model(
     allow_failure_mode_raw: str,
 ) -> Dict[str, str]:
     allow_failure_mode = normalize_allow_failure_mode(allow_failure_mode_raw)
+    ref_mode = normalize_ref_mode(ref_mode)
     goal = derive_goal_from_ref_mode(ref_mode)
 
     validate_goal_ref_publish(goal, ref_mode, publish)
