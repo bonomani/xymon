@@ -22,9 +22,9 @@ from matrix_common import (
     require_non_empty_string,
 )
 from runtime_model import load_runtime_model
-from ubuntu_container_catalog import (
-    load_ubuntu_container_catalog,
-    resolve_ubuntu_container_runtime,
+from container_catalog import (
+    load_container_catalog,
+    resolve_container_runtime,
 )
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
@@ -323,7 +323,7 @@ def apply_discovered_platform_overrides(
     lane_obj,
     platform_id,
     platform_entry,
-    ubuntu_container_catalog,
+    container_catalog,
 ):
     if platform_id is None or platform_entry is None:
         return None
@@ -332,15 +332,16 @@ def apply_discovered_platform_overrides(
     if not isinstance(deps, dict):
         return None
 
-    if str(deps.get("os") or "").strip().lower() != "ubuntu":
+    platform_os = str(deps.get("os") or "").strip()
+    if not platform_os:
         return None
-
     artifact_arch = infer_artifact_arch(lane_obj)
     try:
-        resolved = resolve_ubuntu_container_runtime(
+        resolved = resolve_container_runtime(
             platform_id=platform_id,
+            platform_os=str(deps.get("os") or "").strip(),
             artifact_arch=artifact_arch,
-            ubuntu_catalog=ubuntu_container_catalog,
+            container_catalog=container_catalog,
         )
     except ValueError as exc:
         die(f"{lane_context_label(family_entry, lane_obj)}: {exc}")
@@ -382,7 +383,7 @@ def normalize_lane(
     family_entry,
     lane,
     platform_catalog,
-    ubuntu_container_catalog,
+    container_catalog,
     build_tool,
     requested_compiler,
     profile,
@@ -439,7 +440,7 @@ def normalize_lane(
         lane_obj,
         platform_id,
         platform_entry,
-        ubuntu_container_catalog,
+        container_catalog,
     )
     effective_runtime, _ = resolve_preferred_runtime(
         family_entry,
@@ -509,8 +510,8 @@ def parse_args():
         default="ci/run/ref/runtime-model.json",
     )
     parser.add_argument(
-        "--ubuntu-container-catalog",
-        default=".github/data/ubuntu-container-catalog.yml",
+        "--container-catalog",
+        default=".github/data/container-catalog.yml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
@@ -571,12 +572,11 @@ def main():
             die(f"Unsupported family input: {selected_family}")
         selected_entries = [lookup[selected_family]]
 
-    ubuntu_container_catalog = {}
-    if any(entry["family"] == "ubuntu" for entry in selected_entries):
+    container_catalog = {}
+    container_catalog_path = repo_root / args.container_catalog
+    if container_catalog_path.exists():
         try:
-            ubuntu_container_catalog = load_ubuntu_container_catalog(
-                repo_root / args.ubuntu_container_catalog
-            )
+            container_catalog = load_container_catalog(container_catalog_path)
         except ValueError as exc:
             die(str(exc))
 
@@ -592,7 +592,7 @@ def main():
                 family_entry,
                 lane,
                 platform_catalog,
-                ubuntu_container_catalog,
+                container_catalog,
                 build_tool,
                 compiler,
                 profile,
