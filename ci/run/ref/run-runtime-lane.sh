@@ -84,41 +84,43 @@ read_contract_section() {
   ' "${contract_file}"
 }
 
-mapfile -t COMMON_KEYS < <(read_contract_section "lane_exec_required_common")
-mapfile -t HOST_KEYS < <(read_contract_section "lane_exec_required_host")
-mapfile -t CONTAINER_KEYS < <(read_contract_section "lane_exec_required_container")
-mapfile -t VM_KEYS < <(read_contract_section "lane_exec_required_vm")
-
 runtime_preference_string="${RUNTIME_PREFERENCE:-${runtime}}"
 IFS=',' read -r -a runtime_preferences <<< "${runtime_preference_string}"
 if [[ ${#runtime_preferences[@]} -eq 0 ]]; then
   runtime_preferences=("${runtime}")
 fi
 
+check_required_section_keys() {
+  local section="$1"
+  local key=""
+  while IFS= read -r key; do
+    [[ -n "${key}" ]] || continue
+    if [[ -z "${!key:-}" ]]; then
+      return 1
+    fi
+  done < <(read_contract_section "${section}")
+  return 0
+}
+
 check_env_keys() {
   local execution="$1"
-  local keys=("${COMMON_KEYS[@]}")
+  local section=""
   case "${execution}" in
     host)
-      keys+=("${HOST_KEYS[@]}")
+      section="lane_exec_required_host"
       ;;
     container)
-      keys+=("${CONTAINER_KEYS[@]}")
+      section="lane_exec_required_container"
       ;;
     vm)
-      keys+=("${VM_KEYS[@]}")
+      section="lane_exec_required_vm"
       ;;
     *)
       return 1
       ;;
   esac
-  for key in "${keys[@]}"; do
-    [[ -n "${key}" ]] || continue
-    if [[ -z "${!key:-}" ]]; then
-      return 1
-    fi
-  done
-  return 0
+  check_required_section_keys "lane_exec_required_common" || return 1
+  check_required_section_keys "${section}"
 }
 
 run_runtime() {
