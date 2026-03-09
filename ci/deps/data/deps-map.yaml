@@ -30,7 +30,7 @@ map:
         centos_7:
           yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
         netbsd:
-          pkg_add: [gmake, cmake, ninja-build]
+          pkg_add: [gmake, cmake, ninja-build, clang]
 
   BUILD_TOOLS_MAKE:
     defaults:
@@ -38,7 +38,7 @@ map:
     overrides:
       by_os:
         netbsd:
-          pkg_add: [gmake, ninja-build]
+          pkg_add: [gmake, ninja-build, clang]
 
   PCRE:
     defaults:
