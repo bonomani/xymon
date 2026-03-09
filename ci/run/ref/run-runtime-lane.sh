@@ -20,41 +20,47 @@ if [[ -z "${runtime}" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-runtime_model_path="${script_dir}/runtime-model.json"
-if [[ ! -f "${runtime_model_path}" ]]; then
-  echo "Missing runtime model: ${runtime_model_path}" >&2
-  exit 2
-fi
 
-python_cmd=""
-if command -v python3 >/dev/null 2>&1; then
-  python_cmd="python3"
-elif command -v python >/dev/null 2>&1; then
-  python_cmd="python"
-else
-  echo "python3 or python is required" >&2
-  exit 2
-fi
+runtime_execution_for_key() {
+  local runtime_key="$1"
+  if [[ "${runtime_key}" == "${RUNTIME:-}" && -n "${RUNTIME_EXECUTION:-}" ]]; then
+    printf '%s\n' "${RUNTIME_EXECUTION}"
+    return 0
+  fi
+  case "${runtime_key}" in
+    linux_host|macos_host)
+      printf '%s\n' "host"
+      ;;
+    linux_container)
+      printf '%s\n' "container"
+      ;;
+    bsd_vm)
+      printf '%s\n' "vm"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
-runtime_model_declare=$(
-  "${python_cmd}" - <<'PY' "${runtime_model_path}"
-import json
-import sys
-from pathlib import Path
-
-model_path = Path(sys.argv[1])
-model = json.loads(model_path.read_text(encoding='utf-8'))
-print('declare -A RUNTIME_EXECUTION_BY_KEY=()')
-print('declare -A RUNTIME_OUTCOME_CHANNEL_BY_KEY=()')
-for entry in model.get('runtimes', []):
-    key = entry['key']
-    execution = entry['execution']
-    outcome = entry['outcome_channel']
-    print(f"RUNTIME_EXECUTION_BY_KEY[{key}]={execution}")
-    print(f"RUNTIME_OUTCOME_CHANNEL_BY_KEY[{key}]={outcome}")
-PY
-)
-eval "${runtime_model_declare}"
+runtime_outcome_channel_for_key() {
+  local runtime_key="$1"
+  if [[ "${runtime_key}" == "${RUNTIME:-}" && -n "${RUNTIME_OUTCOME_CHANNEL:-}" ]]; then
+    printf '%s\n' "${RUNTIME_OUTCOME_CHANNEL}"
+    return 0
+  fi
+  case "${runtime_key}" in
+    linux_host|linux_container|macos_host)
+      printf '%s\n' "host_container"
+      ;;
+    bsd_vm)
+      printf '%s\n' "bsd_vm"
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
 
 contract_file="${script_dir}/lane-env-contract.txt"
 if [[ ! -f "${contract_file}" ]]; then
@@ -117,8 +123,9 @@ check_env_keys() {
 
 run_runtime() {
   local runtime_key="$1"
-  local execution="${RUNTIME_EXECUTION_BY_KEY[$runtime_key]:-}"
-  local outcome="${RUNTIME_OUTCOME_CHANNEL_BY_KEY[$runtime_key]:-}"
+  local execution outcome
+  execution="$(runtime_execution_for_key "${runtime_key}" || true)"
+  outcome="$(runtime_outcome_channel_for_key "${runtime_key}" || true)"
   if [[ -z "${execution}" ]]; then
     return 1
   fi
