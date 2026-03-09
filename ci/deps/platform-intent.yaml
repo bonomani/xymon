@@ -1,0 +1,38 @@
+families:
+  ubuntu:
+    repository: library/ubuntu
+    repository_url: https://hub.docker.com/_/ubuntu
+    runtime_preference:
+      - linux_host
+      - linux_container
+    releases:
+      - platform_id: ubuntu-20
+        tag: "20.04"
+        platform_version: "20.04"
+        deps:
+          family: ubuntu
+          os: ubuntu
+          version: "20"
+        arches:
+          - amd64
+          - arm64
+      - platform_id: ubuntu-22
+        tag: "22.04"
+        platform_version: "22.04"
+        deps:
+          family: ubuntu
+          os: ubuntu
+          version: local
+        arches:
+          - amd64
+          - arm64
+      - platform_id: ubuntu-24
+        tag: "24.04"
+        platform_version: "24.04"
+        deps:
+          family: ubuntu
+          os: ubuntu
+          version: latest
+        arches:
+          - amd64
+          - arm64

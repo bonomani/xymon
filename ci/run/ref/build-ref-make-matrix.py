@@ -28,6 +28,10 @@ from matrix_common import (
     require_non_empty_string,
 )
 from runtime_model import load_runtime_model
+from ubuntu_container_catalog import (
+    load_ubuntu_container_catalog,
+    resolve_ubuntu_container_runtime,
+)
 
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
@@ -335,18 +339,63 @@ def validate_lane_requirements(
         die(f"{lane_context_label(family_entry, lane_obj)} is missing 'runs_on'")
 
 
+def apply_discovered_platform_overrides(
+    family_entry,
+    lane_obj,
+    platform_id,
+    platform_entry,
+    ubuntu_container_catalog,
+):
+    if platform_id is None or platform_entry is None:
+        return None
+
+    deps = platform_entry.get("deps")
+    if not isinstance(deps, dict):
+        return None
+
+    if str(deps.get("os") or "").strip().lower() != "ubuntu":
+        return None
+
+    artifact_arch = infer_artifact_arch(lane_obj)
+    try:
+        resolved = resolve_ubuntu_container_runtime(
+            platform_id=platform_id,
+            artifact_arch=artifact_arch,
+            ubuntu_catalog=ubuntu_container_catalog,
+        )
+    except ValueError as exc:
+        die(f"{lane_context_label(family_entry, lane_obj)}: {exc}")
+
+    if resolved is None:
+        return None
+
+    lane_obj["container"] = resolved["image"]
+    return resolved
+
+
 def resolve_preferred_runtime(
     family_entry,
     lane_obj,
     platform_id,
     platform_entry,
     host_runner_index,
+    discovered_platform=None,
 ):
     runtime = family_entry["runtime"]
     preference_list = list(
         family_entry.get("runtime_preference", [family_entry["runtime"]])
     )
     host_runner = None
+
+    if discovered_platform is not None:
+        preference_list = list(discovered_platform["runtime_preference"])
+        host_runner = discovered_platform.get("host_runner")
+        if host_runner is not None and preference_list and preference_list[0] == "linux_host":
+            runtime = "linux_host"
+            lane_obj["runs_on"] = host_runner
+        lane_obj["runtime"] = runtime
+        lane_obj["runtime_preference"] = ",".join(preference_list)
+        return runtime, host_runner
 
     if platform_id and platform_entry is not None and host_runner_index:
         candidate_arch = infer_artifact_arch(lane_obj)
@@ -371,6 +420,7 @@ def normalize_lane(
     lane,
     platform_catalog,
     host_runner_index,
+    ubuntu_container_catalog,
     build_tool,
     requested_compiler,
     profile,
@@ -422,12 +472,20 @@ def normalize_lane(
     if supported_build_tools is not None and build_tool not in supported_build_tools:
         return None
 
+    discovered_platform = apply_discovered_platform_overrides(
+        family_entry,
+        lane_obj,
+        platform_id,
+        platform_entry,
+        ubuntu_container_catalog,
+    )
     effective_runtime, _ = resolve_preferred_runtime(
         family_entry,
         lane_obj,
         platform_id,
         platform_entry,
         host_runner_index,
+        discovered_platform=discovered_platform,
     )
     runtime_execution = family_entry["runtime_to_execution"][effective_runtime]
     runtime_default_ref_os = family_entry["runtime_to_default_ref_os"][effective_runtime]
@@ -494,6 +552,10 @@ def parse_args():
     parser.add_argument(
         "--github-host-runners",
         default=".github/data/github-host-runners.yml",
+    )
+    parser.add_argument(
+        "--ubuntu-container-catalog",
+        default=".github/data/ubuntu-container-catalog.yml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()
@@ -574,6 +636,15 @@ def main():
             die(f"Unsupported family input: {selected_family}")
         selected_entries = [lookup[selected_family]]
 
+    ubuntu_container_catalog = {}
+    if any(entry["family"] == "ubuntu" for entry in selected_entries):
+        try:
+            ubuntu_container_catalog = load_ubuntu_container_catalog(
+                repo_root / args.ubuntu_container_catalog
+            )
+        except ValueError as exc:
+            die(str(exc))
+
     matrices = {runtime: [] for runtime in runtime_order}
     selected_families = []
     for family_entry in selected_entries:
@@ -587,6 +658,7 @@ def main():
                 lane,
                 platform_catalog,
                 host_runner_index,
+                ubuntu_container_catalog,
                 build_tool,
                 compiler,
                 profile,
