@@ -6,6 +6,7 @@ from dataclasses import dataclass
 from pathlib import Path
 
 import yaml
+from github_host_runners import build_generated_host_lanes, load_github_host_runners
 from lane_utils import VARIANT_NAME_SUFFIX, extract_lane_include, expand_lane_variants
 from matrix_common import (
     load_purpose_manifest_common,
@@ -64,6 +65,10 @@ def _load_family_descriptors(manifest_path: Path, runtime_model_path: Path) -> d
                     "family": family,
                     "runtime": runtime,
                     "lane_file": lane_file,
+                    "lane_source": entry["raw"].get("lane_source"),
+                    "host_catalog_machine_family": entry["raw"].get(
+                        "host_catalog_machine_family"
+                    ),
                     "shared_defaults": {},
                 },
             )
@@ -150,42 +155,63 @@ def build_lane_registry(
         runtime_model_path = repo_root / "ci/run/ref/runtime-model.json"
     family_descriptors = _load_family_descriptors(manifest_path, runtime_model_path)
     platform_display_names = _load_platform_display_names(platform_catalog_path)
+    host_runners = load_github_host_runners(
+        repo_root / ".github/data/github-host-runners.yml"
+    )
 
     registry: dict[str, LaneRecord] = {}
     for family, descriptor in family_descriptors.items():
         lane_file_rel = descriptor["lane_file"]
         lane_file = repo_root / lane_file_rel
-        raw_doc = yaml.safe_load(lane_file.read_text(encoding="utf-8")) or {}
-        include = extract_lane_include(raw_doc, lane_file, require_include_key=isinstance(raw_doc, dict))
-        if not isinstance(include, list):
-            raise ValueError(f"Lane include section must be a list: {lane_file}")
-        defaults = _load_lane_defaults(raw_doc, lane_file, descriptor["shared_defaults"])
+        if descriptor["lane_source"] == "github_host_catalog":
+            machine_family = descriptor["host_catalog_machine_family"]
+            machine_family = require_non_empty_string(
+                machine_family,
+                f"host_catalog_machine_family for family '{family}'",
+            )
+            include = build_generated_host_lanes(
+                host_runners,
+                machine_family=machine_family,
+            )
+        else:
+            raw_doc = yaml.safe_load(lane_file.read_text(encoding="utf-8")) or {}
+            include = extract_lane_include(
+                raw_doc,
+                lane_file,
+                require_include_key=isinstance(raw_doc, dict),
+            )
+            if not isinstance(include, list):
+                raise ValueError(f"Lane include section must be a list: {lane_file}")
+            defaults = _load_lane_defaults(raw_doc, lane_file, descriptor["shared_defaults"])
+            resolved_include = []
+            for include_index, raw_entry in enumerate(include):
+                entry = require_mapping(raw_entry, f"Lane entry #{include_index} in {lane_file}")
+                resolved_entry = _resolve_entry_defaults(entry, defaults, lane_file, include_index)
+                expanded = expand_lane_variants(dict(resolved_entry), lane_file, include_index)
+                resolved_include.extend(expanded)
+            include = resolved_include
 
-        for include_index, raw_entry in enumerate(include):
-            entry = require_mapping(raw_entry, f"Lane entry #{include_index} in {lane_file}")
-            resolved_entry = _resolve_entry_defaults(entry, defaults, lane_file, include_index)
-            expanded = expand_lane_variants(dict(resolved_entry), lane_file, include_index)
-            for lane in expanded:
-                variant = str(lane.get("variant") or "").strip()
-                platform_id = str(lane.get("platform_id") or "").strip()
-                lane_name = _derive_lane_name(lane, platform_display_names)
-                allow_failure = bool(lane.get("allow_failure") is True)
+        for include_index, lane in enumerate(include):
+            variant = str(lane.get("variant") or "").strip()
+            platform_id = str(lane.get("platform_id") or "").strip()
+            lane_name = _derive_lane_name(lane, platform_display_names)
+            allow_failure = bool(lane.get("allow_failure") is True)
 
-                record = LaneRecord(
-                    name=lane_name,
-                    family=family,
-                    lane_file=lane_file_rel,
-                    include_index=include_index,
-                    variant=variant,
-                    platform_id=platform_id,
-                    allow_failure=allow_failure,
+            record = LaneRecord(
+                name=lane_name,
+                family=family,
+                lane_file=lane_file_rel,
+                include_index=include_index,
+                variant=variant,
+                platform_id=platform_id,
+                allow_failure=allow_failure,
+            )
+            if lane_name in registry:
+                other = registry[lane_name]
+                raise ValueError(
+                    "Duplicate lane name mapping detected: "
+                    f"'{lane_name}' -> {other.lane_file}#{other.include_index} and "
+                    f"{record.lane_file}#{record.include_index}"
                 )
-                if lane_name in registry:
-                    other = registry[lane_name]
-                    raise ValueError(
-                        "Duplicate lane name mapping detected: "
-                        f"'{lane_name}' -> {other.lane_file}#{other.include_index} and "
-                        f"{record.lane_file}#{record.include_index}"
-                    )
-                registry[lane_name] = record
+            registry[lane_name] = record
     return registry

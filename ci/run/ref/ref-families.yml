@@ -34,9 +34,8 @@ families:
   common:
     runtime: linux_host
     lane_file: ci/run/ref/make-lanes/linux.yml
-    runtime_preference:
-      - linux_host
-      - linux_container
+    lane_source: github_host_catalog
+    host_catalog_machine_family: linux
 
 - family: alpine
   common:

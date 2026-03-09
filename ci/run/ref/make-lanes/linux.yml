@@ -1,2 +1,5 @@
+# Placeholder entry for tools that still read the lane file directly.
+# Matrix generation now synthesizes the real Linux host lanes from
+# .github/data/github-host-runners.yml.
 include:
 - platform_id: linux-host
