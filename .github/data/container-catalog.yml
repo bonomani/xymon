@@ -123,6 +123,7 @@ platforms:
       version: "bullseye"
     intended_arches:
       - "amd64"
+      - "arm64"
     discovered:
       manifest_url: "https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim"
       content_type: "application/vnd.oci.image.index.v1+json"
@@ -133,6 +134,10 @@ platforms:
         - "arm64"
     host_support:
       amd64:
+        runner: null
+        runtime_preference:
+          - "linux_container"
+      arm64:
         runner: null
         runtime_preference:
           - "linux_container"
@@ -149,6 +154,7 @@ platforms:
       version: "bookworm"
     intended_arches:
       - "amd64"
+      - "arm64"
     discovered:
       manifest_url: "https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim"
       content_type: "application/vnd.oci.image.index.v1+json"
@@ -161,6 +167,10 @@ platforms:
         - "s390x"
     host_support:
       amd64:
+        runner: null
+        runtime_preference:
+          - "linux_container"
+      arm64:
         runner: null
         runtime_preference:
           - "linux_container"
@@ -177,6 +187,7 @@ platforms:
       version: "13"
     intended_arches:
       - "amd64"
+      - "arm64"
     discovered:
       manifest_url: "https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim"
       content_type: "application/vnd.oci.image.index.v1+json"
@@ -190,6 +201,10 @@ platforms:
         - "s390x"
     host_support:
       amd64:
+        runner: null
+        runtime_preference:
+          - "linux_container"
+      arm64:
         runner: null
         runtime_preference:
           - "linux_container"
