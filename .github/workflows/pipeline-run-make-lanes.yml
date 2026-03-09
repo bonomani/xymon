@@ -55,9 +55,9 @@ on:
         description: Reference handling mode for make lanes
         required: true
         type: choice
-        default: off
+        default: 'off'
         options:
-          - off
+          - 'off'
           - generate
       publish:
         description: Publish channel (artifact is only meaningful with ref_mode=generate)
@@ -73,7 +73,7 @@ on:
         type: choice
         default: allow
         options:
-          - off
+          - 'off'
           - allow
           - expect_fail
       source_ref:
