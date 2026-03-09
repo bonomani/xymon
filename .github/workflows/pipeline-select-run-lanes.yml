@@ -53,6 +53,15 @@ on:
           - debian
           - packaging
           - gnuinstall
+      install_mode:
+        description: Install semantics (auto follows current profile defaults; make debian/packaging currently require package)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - source
+          - package
       verify_depth:
         description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
@@ -110,6 +119,10 @@ on:
         description: Layout/profile selection (auto|default|debian|packaging|gnuinstall; debian requires make, gnuinstall requires cmake)
         required: true
         type: string
+      install_mode:
+        description: Install semantics (auto|source|package; make debian/packaging currently require package)
+        required: true
+        type: string
       verify_depth:
         description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
@@ -155,6 +168,7 @@ jobs:
                 build_tool: '${{ inputs.build_tool }}',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
+                install_mode: '${{ inputs.install_mode }}',
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -162,7 +176,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -172,6 +186,7 @@ jobs:
       build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
       compiler: ${{ steps.resolve_execution.outputs.compiler }}
       profile: ${{ steps.resolve_execution.outputs.profile }}
+      install_mode: ${{ steps.resolve_execution.outputs.install_mode }}
       verify_depth: ${{ steps.resolve_execution.outputs.verify_depth }}
       goal: ${{ steps.resolve_execution.outputs.goal }}
       ref_mode: ${{ steps.resolve_execution.outputs.ref_mode }}
@@ -193,6 +208,7 @@ jobs:
           INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
           INPUT_COMPILER: ${{ inputs.compiler }}
           INPUT_PROFILE: ${{ inputs.profile }}
+          INPUT_INSTALL_MODE: ${{ inputs.install_mode }}
           INPUT_VERIFY_DEPTH: ${{ inputs.verify_depth }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
@@ -204,6 +220,7 @@ jobs:
             --requested-build-tool "${INPUT_BUILD_TOOL}" \
             --requested-compiler "${INPUT_COMPILER}" \
             --requested-profile "${INPUT_PROFILE}" \
+            --requested-install-mode "${INPUT_INSTALL_MODE}" \
             --requested-verify-depth "${INPUT_VERIFY_DEPTH}" \
             --ref-mode "${INPUT_REF_MODE}" \
             --publish "${INPUT_PUBLISH}" \
@@ -229,6 +246,7 @@ jobs:
           SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
           SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
           SELECTED_PROFILE: ${{ steps.resolve_execution.outputs.profile }}
+          SELECTED_INSTALL_MODE: ${{ steps.resolve_execution.outputs.install_mode }}
         run: |
           set -euo pipefail
 
@@ -239,6 +257,7 @@ jobs:
             --build-tool "${SELECTED_BUILD_TOOL}"
             --compiler "${SELECTED_COMPILER}"
             --profile "${SELECTED_PROFILE}"
+            --install-mode "${SELECTED_INSTALL_MODE}"
             --manifest "ci/run/ref/ref-families.yml"
             --github-output "${GITHUB_OUTPUT}"
           )
@@ -252,6 +271,7 @@ jobs:
           echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
           echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
           echo "Profile: ${{ steps.resolve_execution.outputs.profile }}"
+          echo "Install mode: ${{ steps.resolve_execution.outputs.install_mode }}"
           echo "Verify depth: ${{ steps.resolve_execution.outputs.verify_depth }}"
           echo "Reference mode: ${{ steps.resolve_execution.outputs.ref_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"

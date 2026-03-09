@@ -82,6 +82,7 @@ args=(
   --build "${BUILD_TOOL}"
   --compiler "${CI_COMPILER}"
   --profile "${PROFILE}"
+  --install-mode "${INSTALL_MODE}"
   --goal "${GOAL}"
   --verify-depth "${VERIFY_DEPTH}"
   --ref-mode "${REF_MODE}"

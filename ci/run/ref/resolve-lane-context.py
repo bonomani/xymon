@@ -9,6 +9,7 @@ from pathlib import Path
 from execution_model import (
     derive_dep_mode,
     normalize_allow_failure_mode,
+    resolve_install_mode,
     validate_allow_failure_mode,
     validate_goal_ref_publish,
     validate_lane_build_tool,
@@ -35,12 +36,25 @@ def profile_artifact_suffix(profile: str) -> str:
     return f"-{profile}"
 
 
+def install_mode_ref_suffix(build_tool: str, profile: str, install_mode: str) -> str:
+    if install_mode == resolve_install_mode("", build_tool, profile):
+        return ""
+    return f".{install_mode}"
+
+
+def install_mode_artifact_suffix(build_tool: str, profile: str, install_mode: str) -> str:
+    if install_mode == resolve_install_mode("", build_tool, profile):
+        return ""
+    return f"-{install_mode}"
+
+
 def derive_lane_paths(
     *,
     goal: str,
     dep_mode: str,
     build_tool: str,
     profile: str,
+    install_mode: str,
     variant: str,
     ref_os: str,
     platform_id: str,
@@ -51,10 +65,15 @@ def derive_lane_paths(
 ) -> dict[str, str]:
     ref_suffix = profile_ref_suffix(profile)
     artifact_suffix = profile_artifact_suffix(profile)
-    lane_ref_key = f"{build_tool}{ref_suffix}.{ref_os}.{variant}"
+    install_mode_ref_tag = install_mode_ref_suffix(build_tool, profile, install_mode)
+    install_mode_artifact_tag = install_mode_artifact_suffix(build_tool, profile, install_mode)
+    lane_ref_key = f"{build_tool}{ref_suffix}{install_mode_ref_tag}.{ref_os}.{variant}"
     ref_valid_root = f".ci-artifacts/ref-valid-{artifact_family}"
     refs_root = f"{ref_valid_root}/refs"
-    artifact_root = f"{ref_valid_root}/{build_tool}{artifact_suffix}-{platform_id}-{variant}"
+    artifact_root = (
+        f"{ref_valid_root}/{build_tool}{artifact_suffix}{install_mode_artifact_tag}"
+        f"-{platform_id}-{variant}"
+    )
     candidate_dir = f"{refs_root}/{lane_ref_key}"
     baseline_prefix = ""
     legacy_hostname_config = ""
@@ -79,7 +98,9 @@ def derive_lane_paths(
         "legacy_hostname_config": legacy_hostname_config,
         "deps_report_path": deps_report_path,
         "ref_generate_artifact_name": (
-            f"ref_{build_tool}{artifact_suffix}_{ref_os}-{variant}__{platform_id}__{artifact_arch}"
+            "ref_"
+            f"{build_tool}{artifact_suffix}{install_mode_artifact_tag}_"
+            f"{ref_os}-{variant}__{platform_id}__{artifact_arch}"
         ),
         "ref_generate_artifact_path": f"{candidate_dir}/**",
         "ref_compare_artifact_path": f"{artifact_root}/**",
@@ -135,6 +156,7 @@ def main():
     build_tool = as_text(lane.get("build_tool"))
     compiler = as_text(lane.get("compiler"))
     profile = as_text(lane.get("profile"))
+    requested_install_mode = as_text(lane.get("install_mode"))
     lane_name = as_text(lane.get("name"))
     variant = as_text(lane.get("variant"))
     runtime = as_text(lane.get("runtime"))
@@ -151,6 +173,10 @@ def main():
         fail(f"lane_json has unsupported make profile: {profile}")
     if build_tool == "cmake" and profile not in {"default", "gnuinstall", "packaging"}:
         fail(f"lane_json has unsupported cmake profile: {profile}")
+    try:
+        install_mode = resolve_install_mode(requested_install_mode, build_tool, profile)
+    except ValueError as exc:
+        fail(str(exc))
     if not lane_name:
         fail("lane_json missing name")
     if not variant:
@@ -199,6 +225,7 @@ def main():
         dep_mode=dep_mode,
         build_tool=build_tool,
         profile=profile,
+        install_mode=install_mode,
         variant=variant,
         ref_os=ref_os,
         platform_id=platform_id,
@@ -209,7 +236,7 @@ def main():
     )
 
     lane_env = {
-        "LEGACY_APPLY_OWNERSHIP": "ON",
+        "LEGACY_APPLY_OWNERSHIP": "OFF" if install_mode == "package" else "ON",
         "XYMONUSER": "_www",
         "XYMONGROUP": "_www",
         "ALLOW_FAILURE_MODE": allow_failure_mode,
@@ -219,6 +246,7 @@ def main():
         "BUILD_TOOL": build_tool,
         "CI_COMPILER": compiler,
         "PROFILE": profile,
+        "INSTALL_MODE": install_mode,
         "LANE_NAME": lane_name,
         "DEP_MODE": dep_mode,
         "GOAL": goal,
@@ -265,6 +293,7 @@ def main():
         "ci_deps_report_json": lane_paths["deps_report_path"],
         "upload_artifacts": upload_artifacts,
         "build_tool": build_tool,
+        "install_mode": install_mode,
         "platform_id": platform_id,
         "variant": variant,
         "artifact_arch": artifact_arch,

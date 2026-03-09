@@ -8,6 +8,7 @@ VARIANT="server"
 KEYFILES_NAME="keyfiles.sha256"
 BUILD_TOOL=""
 PROFILE="default"
+INSTALL_MODE="auto"
 REF_STAGE_ROOT=""
 CONFIG_H_PATH=""
 INVENTORY_NAME="inventory.tsv"
@@ -17,7 +18,7 @@ KEYFILES_LIST_NAME="keyfiles.list"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: $0 --root ROOT --os OS [--build TOOL] [--profile PROFILE] [--variant VARIANT] [--topdir TOPDIR] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
+Usage: $0 --root ROOT --os OS [--build TOOL] [--profile PROFILE] [--install-mode MODE] [--variant VARIANT] [--topdir TOPDIR] [--keyfiles-name NAME] [--refs-root DIR] [--config-h PATH]
 USAGE
   exit 1
 }
@@ -52,6 +53,10 @@ while [ $# -gt 0 ]; do
       PROFILE="${2:-}"
       shift 2
       ;;
+    --install-mode)
+      INSTALL_MODE="${2:-}"
+      shift 2
+      ;;
     --refs-root)
       REF_STAGE_ROOT="${2:-}"
       shift 2
@@ -71,6 +76,7 @@ done
 [ -n "$OS_NAME" ] || { echo "Missing --os" >&2; exit 1; }
 [ -n "$BUILD_TOOL" ] || BUILD_TOOL="make"
 [ -n "$PROFILE" ] || PROFILE="default"
+[ -n "$INSTALL_MODE" ] || INSTALL_MODE="auto"
 [ -n "$VARIANT" ] || VARIANT="server"
 TOPDIR="${TOPDIR%/}"
 [ -n "$TOPDIR" ] || TOPDIR="/"
@@ -84,7 +90,32 @@ if [ "${PROFILE}" != "default" ]; then
   PROFILE_SUFFIX=".${PROFILE}"
 fi
 
-TEMP_PREFIX="${BUILD_TOOL}${PROFILE_SUFFIX}.${OS_NAME}.${VARIANT}"
+default_install_mode() {
+  if [ "${BUILD_TOOL}" = "make" ] && { [ "${PROFILE}" = "debian" ] || [ "${PROFILE}" = "packaging" ]; }; then
+    printf '%s' "package"
+  else
+    printf '%s' "source"
+  fi
+}
+
+case "${INSTALL_MODE}" in
+  auto|"")
+    INSTALL_MODE="$(default_install_mode)"
+    ;;
+  source|package)
+    ;;
+  *)
+    echo "Unsupported --install-mode value: ${INSTALL_MODE}" >&2
+    exit 1
+    ;;
+esac
+
+INSTALL_MODE_SUFFIX=""
+if [ "${INSTALL_MODE}" != "$(default_install_mode)" ]; then
+  INSTALL_MODE_SUFFIX=".${INSTALL_MODE}"
+fi
+
+TEMP_PREFIX="${BUILD_TOOL}${PROFILE_SUFFIX}${INSTALL_MODE_SUFFIX}.${OS_NAME}.${VARIANT}"
 BINLINKS_NAME="binlinks"
 NEEDED_NORM_NAME="needed.norm.tsv"
 EMBED_NAME="embedded.paths"

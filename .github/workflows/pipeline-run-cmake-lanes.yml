@@ -42,6 +42,15 @@ on:
           - default
           - gnuinstall
           - packaging
+      install_mode:
+        description: Install semantics for CMake lanes
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - source
+          - package
       verify_depth:
         description: Verification depth (configure|build|install, ref_mode!=off forces install)
         required: true
@@ -113,6 +122,7 @@ jobs:
                 build_tool: 'cmake',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
+                install_mode: '${{ inputs.install_mode }}',
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 publish: '${{ inputs.publish }}',
@@ -128,6 +138,7 @@ jobs:
               .addRaw(`Family: ${{ inputs.family }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
               .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
+              .addRaw(`Install mode: ${{ inputs.install_mode }}\n`, true)
               .addRaw(`Reference mode: ${{ inputs.ref_mode }}\n`, true)
               .addRaw(`Publish: ${{ inputs.publish }}\n`, true)
               .addRaw(`Allow-failure mode: ${{ inputs.allow_failure_mode }}\n`, true)

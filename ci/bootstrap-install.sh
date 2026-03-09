@@ -17,6 +17,7 @@ HTTPDGID=""
 BUILD_TOOL="make"
 CI_COMPILER="${CI_COMPILER:-gcc}"
 BUILD_PROFILE="${PROFILE:-default}"
+BUILD_INSTALL_MODE="${INSTALL_MODE:-auto}"
 CMAKE_PRESET=""
 VERIFY_DEPTH="${VERIFY_DEPTH:-install}"
 XYMONUSER="${XYMONUSER:-xymon}"
@@ -82,6 +83,10 @@ while [ $# -gt 0 ]; do
       ;;
     --profile)
       BUILD_PROFILE="${2:-}"
+      shift 2
+      ;;
+    --install-mode)
+      BUILD_INSTALL_MODE="${2:-}"
       shift 2
       ;;
     --verify-depth)
@@ -191,6 +196,44 @@ normalize_profile() {
       CMAKE_PRESET="${BUILD_PROFILE}"
       ;;
   esac
+}
+
+default_install_mode() {
+  case "${BUILD_TOOL}" in
+    make)
+      case "${BUILD_PROFILE}" in
+        debian|packaging)
+          echo "package"
+          ;;
+        *)
+          echo "source"
+          ;;
+      esac
+      ;;
+    *)
+      echo "source"
+      ;;
+  esac
+}
+
+normalize_install_mode() {
+  BUILD_INSTALL_MODE="$(printf '%s' "${BUILD_INSTALL_MODE:-}" | tr '[:upper:]' '[:lower:]')"
+  case "${BUILD_INSTALL_MODE}" in
+    ""|auto)
+      BUILD_INSTALL_MODE="$(default_install_mode)"
+      ;;
+    source|package)
+      ;;
+    *)
+      echo "Unsupported --install-mode value: ${BUILD_INSTALL_MODE}" >&2
+      exit 1
+      ;;
+  esac
+
+  if [ "${BUILD_TOOL}" = "make" ] && { [ "${BUILD_PROFILE}" = "debian" ] || [ "${BUILD_PROFILE}" = "packaging" ]; } && [ "${BUILD_INSTALL_MODE}" != "package" ]; then
+    echo "make profile=${BUILD_PROFILE} currently requires --install-mode package" >&2
+    exit 1
+  fi
 }
 
 normalize_verify_depth() {
@@ -491,7 +534,13 @@ configure_build_cmake() {
   local extra_args=()
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
-  cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
+  if [ -n "${LEGACY_APPLY_OWNERSHIP:-}" ]; then
+    cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP}" "OFF")"
+  elif [ "${BUILD_INSTALL_MODE}" = "package" ]; then
+    cmake_apply_ownership="OFF"
+  else
+    cmake_apply_ownership="ON"
+  fi
   case "${CMAKE_PRESET}" in
     default)
       cmake_use_gnuinstalldirs="OFF"
@@ -593,7 +642,7 @@ build_project_cmake() {
 
 install_staged_make() {
   local make_pkgbuild="${PKGBUILD:-}"
-  if [ -z "${make_pkgbuild}" ] && [ "${BUILD_PROFILE}" != "default" ]; then
+  if [ -z "${make_pkgbuild}" ] && [ "${BUILD_INSTALL_MODE}" = "package" ]; then
     make_pkgbuild="1"
   fi
 
@@ -628,7 +677,13 @@ install_staged_make() {
 
 install_staged_cmake() {
   local cmake_apply_ownership
-  cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP:-OFF}" "OFF")"
+  if [ -n "${LEGACY_APPLY_OWNERSHIP:-}" ]; then
+    cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP}" "OFF")"
+  elif [ "${BUILD_INSTALL_MODE}" = "package" ]; then
+    cmake_apply_ownership="OFF"
+  else
+    cmake_apply_ownership="ON"
+  fi
 
   if [ "${cmake_apply_ownership}" = "ON" ]; then
     as_root env LEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
@@ -727,6 +782,7 @@ EOF
 normalize_build_tool
 normalize_compiler
 normalize_profile
+normalize_install_mode
 normalize_verify_depth
 normalize_variant
 set_feature_flags

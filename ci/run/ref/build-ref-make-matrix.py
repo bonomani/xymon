@@ -6,6 +6,10 @@ import os
 from pathlib import Path
 
 import yaml
+from execution_model import (
+    resolve_install_mode,
+    validate_requested_install_mode,
+)
 from lane_utils import VARIANT_NAME_SUFFIX
 from matrix_common import (
     die,
@@ -22,6 +26,7 @@ from runtime_model import load_runtime_model
 SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
+SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 
 
 def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
@@ -280,6 +285,7 @@ def normalize_lane(
     build_tool,
     requested_compiler,
     profile,
+    install_mode,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -297,6 +303,7 @@ def normalize_lane(
             compiler = "gcc"
     lane_obj["compiler"] = compiler
     lane_obj["profile"] = profile
+    lane_obj["install_mode"] = install_mode
     runtime_execution = family_entry["runtime_execution"]
     runtime_default_ref_os = family_entry["runtime_default_ref_os"]
     runtime_requires_runs_on = family_entry["runtime_requires_runs_on"]
@@ -370,6 +377,12 @@ def parse_args():
         choices=sorted(SUPPORTED_PROFILES),
         help="Layout/profile selection",
     )
+    parser.add_argument(
+        "--install-mode",
+        required=True,
+        choices=sorted(SUPPORTED_INSTALL_MODES),
+        help="Install semantics selection",
+    )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
         "--platform-catalog",
@@ -402,6 +415,9 @@ def main():
         die("profile=gnuinstall requires build_tool=cmake")
     if build_tool == "cmake" and profile == "debian":
         die("profile=debian requires build_tool=make")
+    requested_install_mode = args.install_mode
+    validate_requested_install_mode(requested_install_mode)
+    install_mode = resolve_install_mode(requested_install_mode, build_tool, profile)
 
     repo_root = Path(__file__).resolve().parents[3]
     runtime_model = load_runtime_model(repo_root / args.runtime_model)
@@ -451,6 +467,7 @@ def main():
                 build_tool,
                 compiler,
                 profile,
+                install_mode,
             )
             if normalized is None:
                 continue
