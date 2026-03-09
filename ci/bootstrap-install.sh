@@ -535,7 +535,7 @@ configure_build_cmake() {
   local cmake_use_gnuinstalldirs
   local cmake_install_prefix
   local cmake_httpdgid_chgrp
-  local extra_args=()
+  local -a cmake_args
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
   if [ -n "${LEGACY_APPLY_OWNERSHIP:-}" ]; then
@@ -581,25 +581,27 @@ configure_build_cmake() {
       export CXX="${CXX:-clang++}"
       ;;
   esac
+  cmake_args=(
+    -G Ninja
+    -DUSE_GNUINSTALLDIRS="${cmake_use_gnuinstalldirs}"
+    -DCMAKE_INSTALL_PREFIX="${cmake_install_prefix}"
+    -DHTTPDGID_CHGRP="${cmake_httpdgid_chgrp}"
+    -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}"
+    -DXYMONUSER="${XYMONUSER}"
+    -DHTTPDGID="${HTTPDGID}"
+    -DLEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}"
+    -DXYMON_VARIANT="${CMAKE_VARIANT}"
+    -DLOCALCLIENT="${CMAKE_LOCALCLIENT}"
+    -DENABLE_LDAP="${cmake_enable_ldap}"
+    -DENABLE_SSL=ON
+  )
   if [ -n "${XYMONHOSTNAME:-}" ]; then
-    extra_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
+    cmake_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
   fi
 
   echo "configure: ${CMAKE_BIN} -S . -B ${CMAKE_BUILD_DIR}"
   "${CMAKE_BIN}" -S . -B "${CMAKE_BUILD_DIR}" \
-    -G Ninja \
-    -DUSE_GNUINSTALLDIRS="${cmake_use_gnuinstalldirs}" \
-    -DCMAKE_INSTALL_PREFIX="${cmake_install_prefix}" \
-    -DHTTPDGID_CHGRP="${cmake_httpdgid_chgrp}" \
-    -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}" \
-    -DXYMONUSER="${XYMONUSER}" \
-    -DHTTPDGID="${HTTPDGID}" \
-    -DLEGACY_DESTDIR="${CMAKE_LEGACY_DESTDIR}" \
-    -DXYMON_VARIANT="${CMAKE_VARIANT}" \
-    -DLOCALCLIENT="${CMAKE_LOCALCLIENT}" \
-    -DENABLE_LDAP="${cmake_enable_ldap}" \
-    -DENABLE_SSL=ON \
-    "${extra_args[@]}" 2>&1 | tee /tmp/cmake.configure.log
+    "${cmake_args[@]}" 2>&1 | tee /tmp/cmake.configure.log
 }
 
 build_project_make() {
