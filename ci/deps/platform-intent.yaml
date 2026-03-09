@@ -51,6 +51,7 @@ families:
           version: bullseye
         arches:
           - amd64
+          - arm64
       - platform_id: debian-12
         tag: "12.13-slim"
         platform_version: "12"
@@ -60,6 +61,7 @@ families:
           version: bookworm
         arches:
           - amd64
+          - arm64
       - platform_id: debian-13
         tag: "13.3-slim"
         platform_version: "13"
@@ -69,6 +71,7 @@ families:
           version: 13
         arches:
           - amd64
+          - arm64
   centos:
     repository: library/centos
     repository_url: https://hub.docker.com/_/centos
