@@ -4,6 +4,7 @@ set -euo pipefail
 build_tool="${build_tool:-}"
 ci_compiler="${ci_compiler:-}"
 profile="${profile:-}"
+install_mode="${install_mode:-}"
 goal="${goal:-}"
 verify_depth="${verify_depth:-}"
 ref_mode="${ref_mode:-}"
@@ -39,6 +40,10 @@ if [[ -z "${ci_compiler}" ]]; then
 fi
 if [[ -z "${profile}" ]]; then
   echo "Missing prepared variable: profile" >&2
+  exit 2
+fi
+if [[ -z "${install_mode}" ]]; then
+  echo "Missing prepared variable: install_mode" >&2
   exit 2
 fi
 if [[ -z "${variant}" ]]; then
@@ -111,6 +116,15 @@ case "${build_tool}" in
     ;;
 esac
 
+case "${install_mode}" in
+  source|package)
+    ;;
+  *)
+    echo "Unsupported prepared install_mode value: ${install_mode}" >&2
+    exit 2
+    ;;
+esac
+
 case "${verify_depth}" in
   configure|build|install)
     ;;
@@ -155,6 +169,7 @@ run_core_build_install() {
     --build "${build_tool}"
     --compiler "${ci_compiler}"
     --profile "${profile}"
+    --install-mode "${install_mode}"
     --verify-depth "${verify_depth}"
   )
   if [[ -n "${os_version}" ]]; then
@@ -170,6 +185,7 @@ run_ref_snapshot() {
     --build "${build_tool}"
     --compiler "${ci_compiler}"
     --profile "${profile}"
+    --install-mode "${install_mode}"
     --verify-depth "${verify_depth}"
     --os "${ref_os}"
     --platform-os "${platform_os}"
@@ -197,7 +213,7 @@ run_ref_compare() {
 
 echo "=== Lane execution ==="
 echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
-echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} install_mode=${install_mode} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
 
 case "${goal}" in
   verify)

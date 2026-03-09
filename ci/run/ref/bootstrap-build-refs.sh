@@ -4,6 +4,7 @@ set -euo pipefail
 build_tool=""
 ci_compiler="gcc"
 profile=""
+install_mode="auto"
 verify_depth="install"
 os_name=""
 os_version=""
@@ -17,7 +18,7 @@ DEP_MODE="${DEP_MODE:-}"
 
 usage() {
   cat <<'USAGE' >&2
-Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--profile PROFILE] [--verify-depth DEPTH] [--version VERSION]
+Usage: bootstrap-build-refs.sh --build TOOL --os NAME --variant NAME --ref-prefix PATH --refs-root DIR --artifact-root DIR [--compiler COMPILER] [--profile PROFILE] [--install-mode MODE] [--verify-depth DEPTH] [--version VERSION]
 USAGE
   exit 2
 }
@@ -34,6 +35,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --profile)
       profile="${2:-}"
+      shift 2
+      ;;
+    --install-mode)
+      install_mode="${2:-}"
       shift 2
       ;;
     --verify-depth)
@@ -97,6 +102,7 @@ case "${ci_compiler}" in
 esac
 
 profile="${profile:-default}"
+install_mode="${install_mode:-auto}"
 
 case "${build_tool}" in
   make)
@@ -120,6 +126,27 @@ case "${build_tool}" in
     esac
     ;;
 esac
+
+case "${install_mode}" in
+  auto|"")
+    if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) ]]; then
+      install_mode="package"
+    else
+      install_mode="source"
+    fi
+    ;;
+  source|package)
+    ;;
+  *)
+    echo "Unsupported --install-mode value: ${install_mode}" >&2
+    usage
+    ;;
+esac
+
+if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) && "${install_mode}" != "package" ]]; then
+  echo "make profile=${profile} currently requires --install-mode package" >&2
+  usage
+fi
 
 case "${verify_depth}" in
   configure|build|install)
@@ -250,7 +277,7 @@ trap '
   stage_if_present /tmp/xymon-root-vars.sh
 ' EXIT
 
-echo "Running bootstrap-install (${build_tool} / compiler=${ci_compiler} / profile=${profile} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
+echo "Running bootstrap-install (${build_tool} / compiler=${ci_compiler} / profile=${profile} / install_mode=${install_mode} / ref_os=${os_name} / platform_os=${platform_os} ${os_version:-unknown} / ${variant})"
 bootstrap_args=(
   bash
   ci/bootstrap-install.sh
@@ -260,6 +287,7 @@ bootstrap_args=(
   --build "${build_tool}"
   --compiler "${ci_compiler}"
   --profile "${profile}"
+  --install-mode "${install_mode}"
   --verify-depth "${verify_depth}"
 )
 if [[ -n "${os_version}" ]]; then
@@ -290,6 +318,7 @@ bash ci/generate-refs.sh \
   --variant "${variant}" \
   --build "${build_tool}" \
   --profile "${profile}" \
+  --install-mode "${install_mode}" \
   --root "${LEGACY_ROOT}" \
   --topdir "${LEGACY_TOPDIR}" \
   --config-h "${XYMON_CONFIG_H:-}" \

@@ -5,6 +5,7 @@ env_out=""
 build_tool=""
 ci_compiler="gcc"
 profile=""
+install_mode="auto"
 goal="verify"
 verify_depth="install"
 ref_mode="off"
@@ -40,12 +41,45 @@ profile_artifact_suffix() {
   fi
 }
 
+default_install_mode() {
+  local build="$1"
+  local layout="$2"
+  if [[ "${build}" == "make" && ( "${layout}" == "debian" || "${layout}" == "packaging" ) ]]; then
+    printf '%s' "package"
+  else
+    printf '%s' "source"
+  fi
+}
+
+install_mode_ref_suffix() {
+  local build="$1"
+  local layout="$2"
+  local mode="$3"
+  if [[ "${mode}" == "$(default_install_mode "${build}" "${layout}")" ]]; then
+    printf '%s' ""
+  else
+    printf '.%s' "${mode}"
+  fi
+}
+
+install_mode_artifact_suffix() {
+  local build="$1"
+  local layout="$2"
+  local mode="$3"
+  if [[ "${mode}" == "$(default_install_mode "${build}" "${layout}")" ]]; then
+    printf '%s' ""
+  else
+    printf -- '-%s' "${mode}"
+  fi
+}
+
 usage() {
   cat <<'USAGE' >&2
 Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --build make|cmake
   --compiler gcc|clang
   --profile default|debian|packaging|gnuinstall
+  --install-mode auto|source|package
   --goal verify|ref
   --verify-depth configure|build|install
   --variant NAME
@@ -82,6 +116,10 @@ while [[ $# -gt 0 ]]; do
       ;;
     --profile)
       profile="${2:-}"
+      shift 2
+      ;;
+    --install-mode)
+      install_mode="${2:-}"
       shift 2
       ;;
     --goal)
@@ -190,6 +228,7 @@ if [[ -z "${variant}" ]]; then
 fi
 
 profile="${profile:-default}"
+install_mode="${install_mode:-auto}"
 
 case "${build_tool}" in
   make)
@@ -218,6 +257,23 @@ case "${build_tool}" in
     ;;
 esac
 
+case "${install_mode}" in
+  auto|"")
+    install_mode="$(default_install_mode "${build_tool}" "${profile}")"
+    ;;
+  source|package)
+    ;;
+  *)
+    echo "Unsupported --install-mode value: ${install_mode}" >&2
+    usage
+    ;;
+esac
+
+if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) && "${install_mode}" != "package" ]]; then
+  echo "make profile=${profile} currently requires --install-mode package" >&2
+  usage
+fi
+
 if [[ -z "${platform_os}" ]]; then
   platform_os="${ref_os}"
 fi
@@ -239,11 +295,13 @@ fi
 if [[ "${goal}" == "ref" ]]; then
   profile_ref_tag="$(profile_ref_suffix "${profile}")"
   profile_artifact_tag="$(profile_artifact_suffix "${profile}")"
+  install_mode_ref_tag="$(install_mode_ref_suffix "${build_tool}" "${profile}" "${install_mode}")"
+  install_mode_artifact_tag="$(install_mode_artifact_suffix "${build_tool}" "${profile}" "${install_mode}")"
   if [[ -z "${refs_root}" ]]; then
     refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
   fi
   if [[ -z "${artifact_root}" ]]; then
-    artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}${profile_artifact_tag}-${platform_id}-${variant}"
+    artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}${profile_artifact_tag}${install_mode_artifact_tag}-${platform_id}-${variant}"
   fi
   if [[ -z "${legacy_hostname_config}" ]]; then
     legacy_hostname_config="docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
@@ -252,7 +310,7 @@ if [[ "${goal}" == "ref" ]]; then
     baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
   fi
   if [[ -z "${candidate_dir}" ]]; then
-    candidate_dir="${refs_root}/${build_tool}${profile_ref_tag}.${ref_os}.${variant}"
+    candidate_dir="${refs_root}/${build_tool}${profile_ref_tag}${install_mode_ref_tag}.${ref_os}.${variant}"
   fi
 fi
 
@@ -261,6 +319,7 @@ mkdir -p "$(dirname "${env_out}")"
   printf 'build_tool=%q\n' "${build_tool}"
   printf 'ci_compiler=%q\n' "${ci_compiler}"
   printf 'profile=%q\n' "${profile}"
+  printf 'install_mode=%q\n' "${install_mode}"
   printf 'goal=%q\n' "${goal}"
   printf 'verify_depth=%q\n' "${verify_depth}"
   printf 'ref_mode=%q\n' "${ref_mode}"

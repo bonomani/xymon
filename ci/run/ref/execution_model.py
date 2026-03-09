@@ -4,6 +4,7 @@ from typing import Dict
 
 
 SUPPORTED_LAYOUTS = {"auto", "default", "debian", "gnuinstall", "packaging"}
+SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 
 
 def normalize_allow_failure_mode(raw: str) -> str:
@@ -63,6 +64,11 @@ def validate_requested_profile(profile: str) -> None:
         raise ValueError(f"Unsupported requested_profile: {profile}")
 
 
+def validate_requested_install_mode(install_mode: str) -> None:
+    if install_mode not in {"", *SUPPORTED_INSTALL_MODES}:
+        raise ValueError(f"Unsupported requested_install_mode: {install_mode}")
+
+
 def validate_requested_verify_depth(verify_depth: str) -> None:
     if verify_depth not in {"configure", "build", "install"}:
         raise ValueError(f"Unsupported requested_verify_depth: {verify_depth}")
@@ -76,6 +82,13 @@ def validate_lane_build_tool(build_tool: str) -> None:
 def explicit_requested_profile(requested_profile: str) -> str:
     explicit_profile = "" if requested_profile in {"", "auto"} else requested_profile
     return explicit_profile
+
+
+def explicit_requested_install_mode(requested_install_mode: str) -> str:
+    explicit_install_mode = (
+        "" if requested_install_mode in {"", "auto"} else requested_install_mode
+    )
+    return explicit_install_mode
 
 
 def resolve_build_tool(
@@ -114,6 +127,40 @@ def resolve_profile(requested_profile: str, build_tool: str) -> str:
     return "default"
 
 
+def default_install_mode(build_tool: str, profile: str) -> str:
+    if build_tool == "make" and profile in {"debian", "packaging"}:
+        return "package"
+    return "source"
+
+
+def validate_install_mode_for_combo(
+    build_tool: str,
+    profile: str,
+    install_mode: str,
+) -> None:
+    if install_mode not in {"source", "package"}:
+        raise ValueError(f"Unsupported install_mode: {install_mode}")
+    if build_tool == "make" and profile in {"debian", "packaging"} and install_mode != "package":
+        raise ValueError(
+            f"make profile={profile} currently requires install_mode=package"
+        )
+
+
+def resolve_install_mode(
+    requested_install_mode: str,
+    build_tool: str,
+    profile: str,
+) -> str:
+    explicit_install_mode = explicit_requested_install_mode(requested_install_mode)
+    if explicit_install_mode:
+        validate_install_mode_for_combo(build_tool, profile, explicit_install_mode)
+        return explicit_install_mode
+
+    install_mode = default_install_mode(build_tool, profile)
+    validate_install_mode_for_combo(build_tool, profile, install_mode)
+    return install_mode
+
+
 def resolve_verify_depth(ref_mode: str, requested_verify_depth: str) -> str:
     if ref_mode != "off":
         return "install"
@@ -131,6 +178,7 @@ def resolve_execution_model(
     requested_build_tool: str,
     requested_compiler: str,
     requested_profile: str,
+    requested_install_mode: str,
     requested_verify_depth: str,
     ref_mode: str,
     publish: str,
@@ -145,6 +193,7 @@ def resolve_execution_model(
     validate_requested_build_tool(requested_build_tool)
     validate_requested_compiler(requested_compiler)
     validate_requested_profile(requested_profile)
+    validate_requested_install_mode(requested_install_mode)
     validate_requested_verify_depth(requested_verify_depth)
     build_tool = resolve_build_tool(
         requested_build_tool,
@@ -153,11 +202,13 @@ def resolve_execution_model(
     )
     verify_depth = resolve_verify_depth(ref_mode, requested_verify_depth)
     profile = resolve_profile(requested_profile, build_tool)
+    install_mode = resolve_install_mode(requested_install_mode, build_tool, profile)
 
     return {
         "build_tool": build_tool,
         "compiler": resolve_compiler(requested_compiler),
         "profile": profile,
+        "install_mode": install_mode,
         "verify_depth": verify_depth,
         "goal": goal,
         "ref_mode": ref_mode,
