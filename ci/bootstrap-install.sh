@@ -592,6 +592,11 @@ build_project_cmake() {
 }
 
 install_staged_make() {
+  local make_pkgbuild="${PKGBUILD:-}"
+  if [ -z "${make_pkgbuild}" ] && [ "${BUILD_PROFILE}" != "default" ]; then
+    make_pkgbuild="1"
+  fi
+
   if [ "${VARIANT}" = "client" ] || [ "${VARIANT}" = "localclient" ]; then
     local install_clienttargets="lib-client common-client"
     as_root "${MAKE_BIN}" -j2 -C build merge-lines merge-sects
@@ -600,11 +605,13 @@ install_staged_make() {
     fi
     as_root "${MAKE_BIN}" install-client install-clientmsg \
       CLIENTTARGETS="${install_clienttargets}" \
+      PKGBUILD="${make_pkgbuild}" \
       DESTDIR="${LEGACY_STAGING}" \
       INSTALLROOT="${LEGACY_STAGING}" 2>&1 | tee /tmp/install-make-legacy.log
   else
     {
       as_root "${MAKE_BIN}" install \
+        PKGBUILD="${make_pkgbuild}" \
         DESTDIR="${LEGACY_STAGING}" \
         INSTALLROOT="${LEGACY_STAGING}"
 
@@ -614,7 +621,7 @@ install_staged_make() {
         MANROOT="${MANROOT:-${DEFAULT_TOP}/server/man}" \
         XYMONUSER="${XYMONUSER:-xymon}" \
         IDTOOL="${IDTOOL:-id}" \
-        PKGBUILD="${PKGBUILD:-}"
+        PKGBUILD="${make_pkgbuild}"
     } 2>&1 | tee /tmp/install-make-legacy.log
   fi
 }
