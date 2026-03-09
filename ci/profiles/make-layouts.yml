@@ -10,6 +10,8 @@ profiles:
     SECURECGIDIR: /usr/lib/xymon/cgi-secure
     SECUREXYMONCGIURL: /xymon-seccgi
     XYMONLOGDIR: /var/log/xymon
+    XYMONHOSTNAME: localhost
+    XYMONHOSTIP: 127.0.0.1
     MANROOT: /usr/share/man
     INSTALLBINDIR: /usr/lib/xymon/server/bin
     INSTALLETCDIR: /etc/xymon
@@ -17,6 +19,12 @@ profiles:
     INSTALLEXTDIR: /usr/lib/xymon/server/ext
     INSTALLTMPDIR: /var/lib/xymon/tmp
     INSTALLWWWDIR: /var/lib/xymon/www
+    XYMONUSER: xymon
+    HTTPDGID: www-data
+    USEXYMONPING: y
+    ENABLESSL: y
+    ENABLELDAP: y
+    ENABLELDAPSSL: y
   packaging:
     XYMONTOPDIR: /usr/lib/xymon
     XYMONVAR: /var/lib/xymon
@@ -26,6 +34,8 @@ profiles:
     SECURECGIDIR: /usr/lib/xymon/cgi-secure
     SECUREXYMONCGIURL: /xymon-seccgi
     XYMONLOGDIR: /var/log/xymon
+    XYMONHOSTNAME: localhost
+    XYMONHOSTIP: 127.0.0.1
     MANROOT: /usr/share/man
     INSTALLBINDIR: /usr/lib/xymon/server/bin
     INSTALLETCDIR: /etc/xymon
@@ -33,3 +43,9 @@ profiles:
     INSTALLEXTDIR: /usr/lib/xymon/server/ext
     INSTALLTMPDIR: /var/lib/xymon/tmp
     INSTALLWWWDIR: /var/lib/xymon/www
+    XYMONUSER: xymon
+    HTTPDGID: www-data
+    USEXYMONPING: y
+    ENABLESSL: y
+    ENABLELDAP: y
+    ENABLELDAPSSL: y
