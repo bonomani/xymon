@@ -29,7 +29,36 @@ SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
 SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 
 
+def parse_runtime_preference(entry, runtime, supported_runtime_keys, family):
+    raw = entry.get("runtime_preference")
+    if raw is None:
+        return [runtime]
+    if not isinstance(raw, list) or not raw:
+        die(
+            f"Manifest entry {family}.runtime_preference must be a non-empty list"
+        )
+    normalized = []
+    for index, raw_key in enumerate(raw):
+        key = require_non_empty_string(
+            raw_key,
+            f"Manifest entry {family}.runtime_preference[{index}]",
+        )
+        if key not in supported_runtime_keys:
+            die(
+                f"Manifest entry {family}.runtime_preference[{index}] "
+                f"references unknown runtime '{key}'"
+            )
+        normalized.append(key)
+    if normalized[0] != runtime:
+        die(
+            f"Manifest entry {family}.runtime_preference must start with "
+            f"the primary runtime '{runtime}'"
+        )
+    return normalized
+
+
 def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
+    supported_runtime_keys = set(runtime_to_platform_runtime)
     manifest_data = load_purpose_manifest_common(
         path,
         purpose=purpose,
@@ -67,10 +96,15 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
                 default_architecture, f"Manifest entry {family}.default_architecture"
             )
 
+        runtime_preference = parse_runtime_preference(
+            entry, runtime, supported_runtime_keys, family
+        )
+
         families.append(
             {
                 "family": family,
                 "runtime": runtime,
+                "runtime_preference": runtime_preference,
                 "lane_file": lane_file,
                 "runtime_overrides": dict(runtime_defaults.get(runtime, {})),
                 "lane_defaults": dict(lane_defaults.get(runtime, {})),
@@ -291,6 +325,10 @@ def normalize_lane(
     lane_obj.update(lane)
     lane_obj.update(family_entry["lane_overrides"])
     lane_obj["runtime"] = family_entry["runtime"]
+    preference_list = family_entry.get(
+        "runtime_preference", [family_entry["runtime"]]
+    )
+    lane_obj["runtime_preference"] = ",".join(preference_list)
     lane_obj["build_tool"] = build_tool
     # Resolve compiler per lane so auto can follow runtime defaults.
     # BSD/macOS lanes default to clang; Linux lanes default to gcc.
