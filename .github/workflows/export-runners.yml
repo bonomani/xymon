@@ -1,9 +1,7 @@
-name: Export hosted runner list
+name: Export host runner catalog
 
 on:
   workflow_dispatch:
-  schedule:
-    - cron: '0 6 * * *'
 
 permissions:
   contents: write
@@ -15,17 +13,18 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
-      - name: Query hosted runner set
+      - name: Export normalized host runner catalog
         run: python .github/scripts/export-runners.py
 
-      - name: Commit and push runner list
+      - name: Commit and push runner catalog
         run: |
           git config user.name 'github-actions[bot]'
           git config user.email 'github-actions[bot]@users.noreply.github.com'
-          git add .github/data/runtime-runners.yml
+          git add .github/data/github-host-runners.yml
+          git rm -q --ignore-unmatch .github/data/runtime-runners.yml
           if git diff --staged --quiet; then
             echo 'No changes to commit'
             exit 0
           fi
-          git commit -m 'Update hosted runner list'
+          git commit -m 'Update host runner catalog'
           git push
