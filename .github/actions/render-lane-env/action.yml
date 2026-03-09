@@ -13,11 +13,13 @@ inputs:
 outputs:
   path:
     description: Path to the generated file (same as `output`).
+    value: ${{ steps.create_lane_env.outputs.path }}
 
 runs:
   using: composite
   steps:
-    - name: Create lane env script
+    - id: create_lane_env
+      name: Create lane env script
       shell: bash
       env:
         LANE_ENV_JSON: ${{ inputs.lane_env_json }}
