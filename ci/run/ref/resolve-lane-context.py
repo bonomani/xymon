@@ -277,6 +277,7 @@ def main():
         "RUNTIME": runtime,
         "RUNTIME_EXECUTION": runtime_execution,
         "RUNTIME_OUTCOME_CHANNEL": runtime_outcome_channel,
+        "RUNTIME_PREFERENCE": as_text(lane.get("runtime_preference")),
         "ARCHITECTURE": as_text(lane.get("architecture")),
         "VM_MEMORY": as_text(lane.get("vm_memory")),
         "VM_CPU_COUNT": as_text(lane.get("vm_cpu_count")),
@@ -336,6 +337,7 @@ def main():
             f"vm_cpu_count={as_text(lane.get('vm_cpu_count'))}",
             f"runtime={runtime}",
             f"runtime_outcome_channel={runtime_outcome_channel}",
+            f"runtime_preference={as_text(lane.get('runtime_preference'))}",
         ]
     )
 
