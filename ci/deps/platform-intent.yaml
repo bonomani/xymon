@@ -159,6 +159,7 @@ families:
           version: 10
         arches:
           - amd64
+          - arm64
       - platform_id: oraclelinux-9
         tag: "9"
         platform_version: "9"
@@ -168,6 +169,7 @@ families:
           version: 9
         arches:
           - amd64
+          - arm64
   opensuse-leap:
     repository: opensuse/leap
     repository_url: https://hub.docker.com/r/opensuse/leap
