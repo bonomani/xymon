@@ -1,4 +1,4 @@
-generated_at: 2026-03-09T15:39:38+00:00
+generated_at: 2026-03-09T15:45:03+00:00
 source: "https://docs.github.com/api/article/body?pathname=/en/actions/reference/runners/github-hosted-runners"
 runners:
   - label: "macos-14"
