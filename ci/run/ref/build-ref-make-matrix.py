@@ -10,12 +10,6 @@ from execution_model import (
     resolve_install_mode,
     validate_requested_install_mode,
 )
-from github_host_runners import (
-    build_generated_host_lanes,
-    build_host_runner_index,
-    load_github_host_runners,
-    resolve_linux_host_runner,
-)
 from lane_utils import VARIANT_NAME_SUFFIX
 from matrix_common import (
     die,
@@ -106,19 +100,6 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
                 default_architecture, f"Manifest entry {family}.default_architecture"
             )
 
-        lane_source = entry.get("lane_source")
-        if lane_source is not None:
-            lane_source = require_non_empty_string(
-                lane_source, f"Manifest entry {family}.lane_source"
-            )
-
-        host_catalog_machine_family = entry.get("host_catalog_machine_family")
-        if host_catalog_machine_family is not None:
-            host_catalog_machine_family = require_non_empty_string(
-                host_catalog_machine_family,
-                f"Manifest entry {family}.host_catalog_machine_family",
-            ).lower()
-
         runtime_preference = parse_runtime_preference(
             entry, runtime, supported_runtime_keys, family
         )
@@ -135,8 +116,6 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
                 "container_arm64_overrides": container_arm64_overrides,
                 "os_version_key": os_version_key,
                 "default_architecture": default_architecture,
-                "lane_source": lane_source,
-                "host_catalog_machine_family": host_catalog_machine_family,
             }
         )
 
@@ -376,9 +355,6 @@ def apply_discovered_platform_overrides(
 def resolve_preferred_runtime(
     family_entry,
     lane_obj,
-    platform_id,
-    platform_entry,
-    host_runner_index,
     discovered_platform=None,
 ):
     runtime = family_entry["runtime"]
@@ -397,19 +373,6 @@ def resolve_preferred_runtime(
         lane_obj["runtime_preference"] = ",".join(preference_list)
         return runtime, host_runner
 
-    if platform_id and platform_entry is not None and host_runner_index:
-        candidate_arch = infer_artifact_arch(lane_obj)
-        host_runner = resolve_linux_host_runner(
-            platform_id=platform_id,
-            platform_entry=platform_entry,
-            artifact_arch=candidate_arch,
-            host_runner_index=host_runner_index,
-        )
-        if host_runner is not None:
-            runtime = "linux_host"
-            preference_list = ["linux_host", "linux_container"]
-            lane_obj["runs_on"] = host_runner["label"]
-
     lane_obj["runtime"] = runtime
     lane_obj["runtime_preference"] = ",".join(preference_list)
     return runtime, host_runner
@@ -419,7 +382,6 @@ def normalize_lane(
     family_entry,
     lane,
     platform_catalog,
-    host_runner_index,
     ubuntu_container_catalog,
     build_tool,
     requested_compiler,
@@ -482,9 +444,6 @@ def normalize_lane(
     effective_runtime, _ = resolve_preferred_runtime(
         family_entry,
         lane_obj,
-        platform_id,
-        platform_entry,
-        host_runner_index,
         discovered_platform=discovered_platform,
     )
     runtime_execution = family_entry["runtime_to_execution"][effective_runtime]
@@ -550,10 +509,6 @@ def parse_args():
         default="ci/run/ref/runtime-model.json",
     )
     parser.add_argument(
-        "--github-host-runners",
-        default=".github/data/github-host-runners.yml",
-    )
-    parser.add_argument(
         "--ubuntu-container-catalog",
         default=".github/data/ubuntu-container-catalog.yml",
     )
@@ -561,28 +516,11 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_family_lanes(repo_root: Path, family_entry, host_runners):
-    lane_source = family_entry.get("lane_source")
-    if lane_source is None:
-        return load_lanes_from_file(
-            repo_root / family_entry["lane_file"],
-            shared_defaults=family_entry.get("lane_defaults", {}),
-            strict_lane_mapping=True,
-        )
-    if lane_source == "github_host_catalog":
-        machine_family = family_entry.get("host_catalog_machine_family")
-        if machine_family is None:
-            die(
-                f"Family '{family_entry['family']}' requires host_catalog_machine_family "
-                "when lane_source=github_host_catalog"
-            )
-        return build_generated_host_lanes(
-            host_runners,
-            machine_family=machine_family,
-        )
-    die(
-        f"Unsupported lane source '{lane_source}' for family "
-        f"'{family_entry['family']}'"
+def load_family_lanes(repo_root: Path, family_entry):
+    return load_lanes_from_file(
+        repo_root / family_entry["lane_file"],
+        shared_defaults=family_entry.get("lane_defaults", {}),
+        strict_lane_mapping=True,
     )
 
 
@@ -616,9 +554,6 @@ def main():
     runtime_to_default_ref_os = runtime_model["default_ref_os_by_key"]
     runtime_to_requires_runs_on = runtime_model["requires_runs_on_by_key"]
     runtime_order = runtime_model["ordered_keys"]
-    host_runners = load_github_host_runners(repo_root / args.github_host_runners)
-    host_runner_index = build_host_runner_index(host_runners)
-
     families = load_manifest(repo_root / args.manifest, purpose, runtime_to_platform_runtime)
     for family_entry in families:
         family_entry["runtime_to_platform_runtime"] = runtime_to_platform_runtime
@@ -649,7 +584,7 @@ def main():
     selected_families = []
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
-        lanes = load_family_lanes(repo_root, family_entry, host_runners)
+        lanes = load_family_lanes(repo_root, family_entry)
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue
@@ -657,7 +592,6 @@ def main():
                 family_entry,
                 lane,
                 platform_catalog,
-                host_runner_index,
                 ubuntu_container_catalog,
                 build_tool,
                 compiler,

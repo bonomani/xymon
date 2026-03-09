@@ -30,13 +30,6 @@ lane_defaults_shared:
       container_options: --platform linux/arm64/v8
 
 families:
-- family: linux
-  common:
-    runtime: linux_host
-    lane_file: ci/run/ref/make-lanes/linux.yml
-    lane_source: github_host_catalog
-    host_catalog_machine_family: linux
-
 - family: alpine
   common:
     runtime: linux_container
