@@ -219,3 +219,4 @@ families:
           version: 3.23
         arches:
           - amd64
+          - arm64

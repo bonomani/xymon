@@ -502,6 +502,7 @@ platforms:
       version: "3.23"
     intended_arches:
       - "amd64"
+      - "arm64"
     discovered:
       manifest_url: "https://registry-1.docker.io/v2/library/alpine/manifests/3.23"
       content_type: "application/vnd.oci.image.index.v1+json"
@@ -515,6 +516,10 @@ platforms:
         - "s390x"
     host_support:
       amd64:
+        runner: null
+        runtime_preference:
+          - "linux_container"
+      arm64:
         runner: null
         runtime_preference:
           - "linux_container"
