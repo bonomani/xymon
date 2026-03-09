@@ -84,11 +84,29 @@ case "${ci_compiler}" in
     ;;
 esac
 
-case "${profile}" in
-  default|gnuinstall|packaging)
+case "${build_tool}" in
+  make)
+    case "${profile}" in
+      default|debian|packaging)
+        ;;
+      *)
+        echo "Unsupported prepared profile value for make: ${profile}" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  cmake)
+    case "${profile}" in
+      default|gnuinstall|packaging)
+        ;;
+      *)
+        echo "Unsupported prepared profile value for cmake: ${profile}" >&2
+        exit 2
+        ;;
+    esac
     ;;
   *)
-    echo "Unsupported prepared profile value: ${profile}" >&2
+    echo "Unsupported prepared build_tool value: ${build_tool}" >&2
     exit 2
     ;;
 esac
