@@ -7,7 +7,6 @@ on:
 
 permissions:
   contents: write
-  actions: read
 
 jobs:
   export-runners:
@@ -15,13 +14,8 @@ jobs:
     steps:
       - name: Checkout repository
         uses: actions/checkout@v4
-      - name: Ensure data directory
-        run: mkdir -p .github/data
 
       - name: Query hosted runner set
-        env:
-          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
-          REPO: ${{ github.repository }}
         run: python .github/scripts/export-runners.py
 
       - name: Commit and push runner list
