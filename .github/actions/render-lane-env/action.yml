@@ -1,0 +1,37 @@
+name: Render lane environment
+
+inputs:
+  lane_env_json:
+    description: Lane environment JSON (same object produced by `.github/actions/ref-lane-context`).
+    required: true
+    type: string
+  output:
+    description: Path to the generated lane environment script (relative to workspace).
+    required: false
+    default: tmp/xymon-refs/lane.env.sh
+
+outputs:
+  path:
+    description: Path to the generated file (same as `output`).
+
+runs:
+  using: composite
+  steps:
+    - name: Create lane env script
+      shell: bash
+      env:
+        LANE_ENV_JSON: ${{ inputs.lane_env_json }}
+        OUTPUT: ${{ inputs.output }}
+        CI: ${{ env.CI }}
+        GITHUB_WORKSPACE: ${{ github.workspace }}
+        GITHUB_REPOSITORY: ${{ github.repository }}
+        GITHUB_SHA: ${{ github.sha }}
+        GITHUB_SERVER_URL: ${{ github.server_url }}
+      run: |
+        set -euo pipefail
+        out_file="${OUTPUT}"
+        mkdir -p "$(dirname "${out_file}")"
+        bash ci/run/ref/write-lane-env.sh \
+          --output "${out_file}" \
+          --lane-env-json "${LANE_ENV_JSON}"
+        echo "path=${out_file}" >> "$GITHUB_OUTPUT"

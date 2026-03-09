@@ -58,21 +58,10 @@ jobs:
 
       - name: Render lane environment
         id: lane_env
-        shell: bash
-        env:
-          LANE_ENV_JSON: ${{ steps.lane_ctx.outputs.lane_env_json }}
-          CI: ${{ env.CI }}
-          GITHUB_WORKSPACE: ${{ github.workspace }}
-          GITHUB_REPOSITORY: ${{ github.repository }}
-          GITHUB_SHA: ${{ github.sha }}
-          GITHUB_SERVER_URL: ${{ github.server_url }}
-        run: |
-          set -euo pipefail
-          out_file="tmp/xymon-refs/lane.env.sh"
-          bash ci/run/ref/write-lane-env.sh \
-            --output "${out_file}" \
-            --lane-env-json "${LANE_ENV_JSON}"
-          echo "path=${out_file}" >> "${GITHUB_OUTPUT}"
+        uses: ./.github/actions/render-lane-env
+        with:
+          lane_env_json: ${{ steps.lane_ctx.outputs.lane_env_json }}
+          output: tmp/xymon-refs/lane.env.sh
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
