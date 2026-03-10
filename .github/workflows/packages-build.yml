@@ -122,18 +122,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t packages < <(
+            python3 ci/deps/resolve-packaging-deps.py \
+              --package-kind deb \
+              --pkgmgr apt
+          )
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cpio \
-            debhelper \
-            dpkg-dev \
-            fakeroot \
-            libc-ares-dev \
-            libldap2-dev \
-            libpcre3-dev \
-            librrd-dev \
-            libssl-dev
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - name: Build deb packages
         shell: bash
@@ -167,16 +162,13 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
+          mapfile -t packages < <(
+            python3 ci/deps/resolve-packaging-deps.py \
+              --package-kind rpm \
+              --pkgmgr apt
+          )
           sudo apt-get update
-          sudo apt-get install -y --no-install-recommends \
-            build-essential \
-            cpio \
-            libc-ares-dev \
-            libldap2-dev \
-            libpcre3-dev \
-            librrd-dev \
-            libssl-dev \
-            rpm
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
       - name: Build rpm packages
         shell: bash

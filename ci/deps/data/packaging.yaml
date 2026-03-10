@@ -1,0 +1,27 @@
+packaging:
+  deb:
+    apt:
+      - build-essential
+      - cpio
+      - debhelper
+      - dpkg-dev
+      - fakeroot
+      - git
+      - tar
+      - libc-ares-dev
+      - libldap2-dev
+      - libpcre3-dev
+      - librrd-dev
+      - libssl-dev
+  rpm:
+    apt:
+      - build-essential
+      - cpio
+      - git
+      - tar
+      - rpm
+      - libc-ares-dev
+      - libldap2-dev
+      - libpcre3-dev
+      - librrd-dev
+      - libssl-dev
