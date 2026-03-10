@@ -42,48 +42,6 @@ on:
           - all
           - amd64
           - arm64
-      arch_policy:
-        description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
-        required: true
-        type: choice
-        default: non_primary_latest_only
-        options:
-          - non_primary_latest_only
-          - non_primary_all
-          - non_primary_none
-      alias_policy:
-        description: Alias platform selection policy
-        required: true
-        type: choice
-        default: exclude_aliases
-        options:
-          - exclude_aliases
-          - include_aliases
-      build_tool:
-        description: Build tool whose synced refs under docs/cmake-legacy-migration/refs/ref should be compared
-        required: true
-        type: choice
-        default: cmake
-        options:
-          - make
-          - cmake
-      publish:
-        description: Publish compare artifacts
-        required: true
-        type: choice
-        default: artifact
-        options:
-          - none
-          - artifact
-      allow_failure_mode:
-        description: Handling of lanes marked allow_failure
-        required: true
-        type: choice
-        default: allow
-        options:
-          - 'off'
-          - allow
-          - expect_fail
 
 permissions:
   contents: read
@@ -93,7 +51,6 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       matrix_all: ${{ steps.generate.outputs.matrix_all }}
-      build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
       compiler: ${{ steps.resolve_execution.outputs.compiler }}
       profile: ${{ steps.resolve_execution.outputs.profile }}
       install_mode: ${{ steps.resolve_execution.outputs.install_mode }}
@@ -111,22 +68,18 @@ jobs:
       - name: Resolve compare execution model
         id: resolve_execution
         shell: bash
-        env:
-          INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
-          INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
-          INPUT_PUBLISH: ${{ inputs.publish }}
         run: |
           set -euo pipefail
 
           python3 ci/run/ref/resolve-execution-model.py \
-            --requested-build-tool "${INPUT_BUILD_TOOL}" \
+            --requested-build-tool "cmake" \
             --requested-compiler "auto" \
             --requested-profile "auto" \
             --requested-install-mode "auto" \
             --requested-verify-depth "install" \
             --ref-mode "compare" \
-            --publish "${INPUT_PUBLISH}" \
-            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
+            --publish "artifact" \
+            --allow-failure-mode "allow" \
             --github-output "${GITHUB_OUTPUT}" > /dev/null
 
       - name: Validate ref models
@@ -146,9 +99,6 @@ jobs:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_VARIANT: ${{ inputs.variant }}
           SELECTED_ARCH: ${{ inputs.arch }}
-          SELECTED_ARCH_POLICY: ${{ inputs.arch_policy }}
-          SELECTED_ALIAS_POLICY: ${{ inputs.alias_policy }}
-          SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
           SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
           SELECTED_PROFILE: ${{ steps.resolve_execution.outputs.profile }}
           SELECTED_INSTALL_MODE: ${{ steps.resolve_execution.outputs.install_mode }}
@@ -159,10 +109,10 @@ jobs:
             --selected-family "${SELECTED_FAMILY}" \
             --selected-variant "${SELECTED_VARIANT}" \
             --selected-arch "${SELECTED_ARCH}" \
-            --selected-arch-policy "${SELECTED_ARCH_POLICY}" \
-            --selected-alias-policy "${SELECTED_ALIAS_POLICY}" \
+            --selected-arch-policy "non_primary_latest_only" \
+            --selected-alias-policy "exclude_aliases" \
             --ref-mode "compare" \
-            --build-tool "${SELECTED_BUILD_TOOL}" \
+            --build-tool "cmake" \
             --compiler "${SELECTED_COMPILER}" \
             --profile "${SELECTED_PROFILE}" \
             --install-mode "${SELECTED_INSTALL_MODE}" \
@@ -175,9 +125,9 @@ jobs:
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
-          echo "Arch policy: ${{ inputs.arch_policy }}"
-          echo "Alias policy: ${{ inputs.alias_policy }}"
-          echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
+          echo "Arch policy: non_primary_latest_only"
+          echo "Alias policy: exclude_aliases"
+          echo "Build tool: cmake"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
