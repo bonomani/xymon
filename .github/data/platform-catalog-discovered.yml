@@ -4,6 +4,7 @@ source:
   host_runner_catalog: ci/deps/platform-host-runners.yaml
   registry_base: https://registry-1.docker.io
   token_service: https://auth.docker.io/token
+  container_cache_mode: reuse
 platforms:
   containers:
   - family: almalinux
@@ -854,70 +855,12 @@ platforms:
         - linux_container
         direct_runner_labels: *id002
   vms:
-  - platform_id: netbsd-10_1
-    os: netbsd
-    version: '10.1'
-    arch: x86-64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.1-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
-    asset_size: 493617152
-    asset_updated_at: '2025-12-03T17:23:52Z'
-  - platform_id: netbsd-10_0
-    os: netbsd
-    version: '10.0'
-    arch: x86-64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.0-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
-    asset_size: 492634112
-    asset_updated_at: '2025-12-03T17:23:36Z'
-  - platform_id: netbsd-9_4
-    os: netbsd
-    version: '9.4'
-    arch: x86-64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.4-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
-    asset_size: 407240704
-    asset_updated_at: '2025-12-03T17:23:15Z'
-  - platform_id: netbsd-9_3
-    os: netbsd
-    version: '9.3'
-    arch: x86-64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.3-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
-    asset_size: 399114240
-    asset_updated_at: '2025-12-03T17:23:14Z'
-  - platform_id: netbsd-9_2
-    os: netbsd
-    version: '9.2'
-    arch: x86-64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.2-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
-    asset_size: 398655488
-    asset_updated_at: '2025-12-03T17:24:04Z'
   - platform_id: openbsd-7_8
     os: openbsd
     version: '7.8'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/openbsd-builder
     release_tag: v0.11.1
@@ -929,7 +872,9 @@ platforms:
   - platform_id: openbsd-7_7
     os: openbsd
     version: '7.7'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/openbsd-builder
     release_tag: v0.11.1
@@ -941,7 +886,9 @@ platforms:
   - platform_id: openbsd-7_6
     os: openbsd
     version: '7.6'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/openbsd-builder
     release_tag: v0.11.1
@@ -950,10 +897,116 @@ platforms:
     asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.6-x86-64.qcow2
     asset_size: 705101824
     asset_updated_at: '2025-12-12T19:20:55Z'
+  - platform_id: netbsd-10_1
+    os: netbsd
+    version: '10.1'
+    source_arch: x86-64
+    intended_arches:
+    - amd64
+    - arm64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.1-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
+    asset_size: 493617152
+    asset_updated_at: '2025-12-03T17:23:52Z'
+  - platform_id: netbsd-10_0
+    os: netbsd
+    version: '10.0'
+    source_arch: x86-64
+    intended_arches:
+    - amd64
+    - arm64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
+    asset_size: 492634112
+    asset_updated_at: '2025-12-03T17:23:36Z'
+  - platform_id: netbsd-9_4
+    os: netbsd
+    version: '9.4'
+    source_arch: x86-64
+    intended_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.4-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
+    asset_size: 407240704
+    asset_updated_at: '2025-12-03T17:23:15Z'
+  - platform_id: netbsd-9_3
+    os: netbsd
+    version: '9.3'
+    source_arch: x86-64
+    intended_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
+    asset_size: 399114240
+    asset_updated_at: '2025-12-03T17:23:14Z'
+  - platform_id: netbsd-9_2
+    os: netbsd
+    version: '9.2'
+    source_arch: x86-64
+    intended_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.2-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
+    asset_size: 398655488
+    asset_updated_at: '2025-12-03T17:24:04Z'
+  - platform_id: macos-26
+    os: macos
+    version: '26'
+    source_arch: arm64
+    intended_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-26
+  - platform_id: macos-15
+    os: macos
+    version: '15'
+    source_arch: arm64
+    intended_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-15
+  - platform_id: macos-14
+    os: macos
+    version: '14'
+    source_arch: arm64
+    intended_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-14
+  - platform_id: macos-latest
+    os: macos
+    version: latest
+    source_arch: arm64
+    intended_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-latest
   - platform_id: freebsd-15_0
     os: freebsd
     version: '15.0'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     release_tag: v0.13.1
@@ -965,7 +1018,9 @@ platforms:
   - platform_id: freebsd-14_3
     os: freebsd
     version: '14.3'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     release_tag: v0.13.1
@@ -977,7 +1032,9 @@ platforms:
   - platform_id: freebsd-13_5
     os: freebsd
     version: '13.5'
-    arch: x86-64
+    source_arch: x86-64
+    intended_arches:
+    - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     release_tag: v0.13.1
@@ -986,30 +1043,6 @@ platforms:
     asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-13.5-x86-64.qcow2
     asset_size: 524326400
     asset_updated_at: '2025-12-12T19:23:24Z'
-  - platform_id: macos-26
-    os: macos
-    version: '26'
-    arch: arm64
-    provider: github-actions
-    runner_label: macos-26
-  - platform_id: macos-15
-    os: macos
-    version: '15'
-    arch: arm64
-    provider: github-actions
-    runner_label: macos-15
-  - platform_id: macos-14
-    os: macos
-    version: '14'
-    arch: arm64
-    provider: github-actions
-    runner_label: macos-14
-  - platform_id: macos-latest
-    os: macos
-    version: latest
-    arch: arm64
-    provider: github-actions
-    runner_label: macos-latest
   runners:
   - label: ubuntu-22.04-arm
     machine_family: linux

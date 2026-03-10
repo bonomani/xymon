@@ -2,6 +2,12 @@ name: Export platform catalog
 
 on:
   workflow_dispatch:
+    inputs:
+      refresh_containers:
+        description: Refresh container manifest metadata from Docker Hub
+        required: false
+        default: false
+        type: boolean
 
 permissions:
   contents: write
@@ -14,7 +20,12 @@ jobs:
         uses: actions/checkout@v4
 
       - name: Export discovered platform catalog
-        run: python .github/scripts/export-platform-catalog.py
+        run: |
+          args=()
+          if [ "${{ inputs.refresh_containers }}" = "true" ]; then
+            args+=(--refresh-containers)
+          fi
+          python .github/scripts/export-platform-catalog.py "${args[@]}"
 
       - name: Commit catalog artifacts
         run: |

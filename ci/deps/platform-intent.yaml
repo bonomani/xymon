@@ -24,3 +24,10 @@ validation:
     - server
   architectures:
     mode: all_lane_arches
+
+vm_selection:
+  lanes_globs:
+    - ci/run/ref/lanes/freebsd.yml
+    - ci/run/ref/lanes/openbsd.yml
+    - ci/run/ref/lanes/netbsd.yml
+    - ci/run/ref/lanes/macos.yml
