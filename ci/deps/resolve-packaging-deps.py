@@ -10,8 +10,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(
         description="Resolve packaging dependencies from ci/deps/data/packaging.yaml"
     )
-    parser.add_argument("--package-kind", required=True, choices=("deb", "rpm"))
-    parser.add_argument("--pkgmgr", required=True, choices=("apt",))
+    parser.add_argument("--package-kind", required=True)
+    parser.add_argument("--pkgmgr", required=True)
     parser.add_argument(
         "--data-file",
         default="ci/deps/data/packaging.yaml",
