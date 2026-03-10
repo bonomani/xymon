@@ -1,6 +1,6 @@
-0a998084af21db3a4b356d5543bdcb527328576e8469a33ef0b4d79ae48ac1a6  /var/lib/xymon/server/etc/hosts.cfg
 0ad36a6dbbc1da9017688c887ea600e9200282fd01246a479adad81f1877b926  /var/lib/xymon/server/etc/alerts.cfg
 1d21ce4872aa77740cab3c1134e3b498980f10dfac1b6fe8fc61f669c169d255  /var/lib/xymon/server/etc/holidays.cfg
+276e63fbe175288e1997ff82f2fa521bdfc24b85687290e42ac0ea83dd07c4ff  /var/lib/xymon/server/etc/hosts.cfg
 2f2ebfb59c879da2ac61643a2a6b8137685b99476bc7ec247abe42953c80d5fd  /var/lib/xymon/server/etc/analysis.cfg
 43a8eaa565a57abbeb0c994f9b496f08901bc3ca07b9bba6d30c1bd039025320  /var/lib/xymon/server/etc/rrddefinitions.cfg
 5b09f603b9dbeb24d59f615e0bc5ff795b11554b64cbbc9060203a6e9245fdc7  /var/lib/xymon/server/etc/columndoc.csv
@@ -14,6 +14,6 @@ c30b8c934b13ee3b7be90106921f0fbaa2adb295fa764dc275271eb4c2853224  /var/lib/xymon
 c376516eecccb99a0fc9814a91a1e3c37007910c4c54fc5f1d1b9c6ad9427baf  /var/lib/xymon/server/etc/cgioptions.cfg
 c6879e3543ceba46335953e06cd56a8ab619bb0a1278e6f86dccc62e563de4be  /var/lib/xymon/client/etc/xymonclient.cfg
 e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855  /var/lib/xymon/server/etc/critical.cfg
+e3e2a3fbfe81eaf2a35eb49a77501e5be5ea3a58eadf2c661cae13c0d79d4e0b  /var/lib/xymon/server/etc/xymonserver.cfg
 e5c134d058c24e25326c704a7187b20da1dc9ff2d4d1b55ce7125a0fc84389fd  /var/lib/xymon/server/etc/graphs.cfg
-f70a39e0d62e7bc6878c9f98571823c5beaba088d45793db67205eeb4997d9dc  /var/lib/xymon/server/etc/xymonserver.cfg
 f77f9d168d42c37ea88eacb693dfdc86ad20366dadc9d060ff5537451dfc1977  /var/lib/xymon/client/etc/localclient.cfg

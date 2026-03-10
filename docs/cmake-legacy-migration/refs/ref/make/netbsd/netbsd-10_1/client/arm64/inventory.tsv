@@ -1,12 +1,12 @@
 /home/_www		d	755	1001	1001	336	
 /home/_www/bin	/bin	d	755	1001	1001	1152	
-/home/_www/bin/clientupdate	/bin/clientupdate	f	755	1001	1001	342488	
+/home/_www/bin/clientupdate	/bin/clientupdate	f	755	1001	1001	342504	
 /home/_www/bin/logfetch	/bin/logfetch	f	755	1001	1001	434552	
-/home/_www/bin/msgcache	/bin/msgcache	f	755	1001	1001	285648	
+/home/_www/bin/msgcache	/bin/msgcache	f	755	1001	1001	285664	
 /home/_www/bin/netbsd-meminfo	/bin/netbsd-meminfo	f	755	1001	1001	16792	
-/home/_www/bin/orcaxymon	/bin/orcaxymon	f	755	1001	1001	328824	
+/home/_www/bin/orcaxymon	/bin/orcaxymon	f	755	1001	1001	328840	
 /home/_www/bin/xymon	/bin/xymon	f	755	1001	1001	336008	
-/home/_www/bin/xymoncfg	/bin/xymoncfg	f	755	1001	1001	250496	
+/home/_www/bin/xymoncfg	/bin/xymoncfg	f	755	1001	1001	250512	
 /home/_www/bin/xymonclient-aix.sh	/bin/xymonclient-aix.sh	f	755	1001	1001	2169	
 /home/_www/bin/xymonclient-darwin.sh	/bin/xymonclient-darwin.sh	f	755	1001	1001	2265	
 /home/_www/bin/xymonclient-freebsd.sh	/bin/xymonclient-freebsd.sh	f	755	1001	1001	2434	
