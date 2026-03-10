@@ -158,7 +158,7 @@
 /var/lib/xymon/server/etc/critical.cfg.bak	/server/etc/critical.cfg.bak	f	664	1003	33	0	
 /var/lib/xymon/server/etc/graphs.cfg	/server/etc/graphs.cfg	f	644	1003	1003	69329	
 /var/lib/xymon/server/etc/holidays.cfg	/server/etc/holidays.cfg	f	644	1003	1003	3929	
-/var/lib/xymon/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	1003	1003	563	
+/var/lib/xymon/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	1003	1003	555	
 /var/lib/xymon/server/etc/protocols.cfg	/server/etc/protocols.cfg	f	644	1003	1003	5530	
 /var/lib/xymon/server/etc/rrddefinitions.cfg	/server/etc/rrddefinitions.cfg	f	644	1003	1003	1360	
 /var/lib/xymon/server/etc/snmpmibs.cfg	/server/etc/snmpmibs.cfg	f	644	1003	1003	16843	
@@ -166,7 +166,7 @@
 /var/lib/xymon/server/etc/tasks.d	/server/etc/tasks.d	d	755	1003	1003	4096	
 /var/lib/xymon/server/etc/xymon-apache.conf	/server/etc/xymon-apache.conf	f	644	1003	1003	5654	
 /var/lib/xymon/server/etc/xymonmenu.cfg	/server/etc/xymonmenu.cfg	f	644	1003	1003	3328	
-/var/lib/xymon/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	1003	1003	17581	
+/var/lib/xymon/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	1003	1003	17573	
 /var/lib/xymon/server/ext	/server/ext	d	755	1003	1003	4096	
 /var/lib/xymon/server/ext/xymonnet-again.sh	/server/ext/xymonnet-again.sh	f	755	1003	1003	320	
 /var/lib/xymon/server/man	/server/man	d	755	0	0	4096	

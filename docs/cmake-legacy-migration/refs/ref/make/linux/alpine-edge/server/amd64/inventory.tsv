@@ -108,7 +108,7 @@
 /var/lib/xymon/server/bin/hostlist.cgi	/server/bin/hostlist.cgi	f	755	100	101	634128	
 /var/lib/xymon/server/bin/moverrd.sh	/server/bin/moverrd.sh	f	755	100	101	1346	
 /var/lib/xymon/server/bin/notifications.cgi	/server/bin/notifications.cgi	f	755	100	101	645456	
-/var/lib/xymon/server/bin/perfdata.cgi	/server/bin/perfdata.cgi	f	755	100	101	652832	
+/var/lib/xymon/server/bin/perfdata.cgi	/server/bin/perfdata.cgi	f	755	100	101	648736	
 /var/lib/xymon/server/bin/report.cgi	/server/bin/report.cgi	f	755	100	101	637960	
 /var/lib/xymon/server/bin/reportlog.cgi	/server/bin/reportlog.cgi	f	755	100	101	694024	
 /var/lib/xymon/server/bin/rrdcachectl	/server/bin/rrdcachectl	f	755	100	101	25752	
@@ -158,7 +158,7 @@
 /var/lib/xymon/server/etc/critical.cfg.bak	/server/etc/critical.cfg.bak	f	664	100	82	0	
 /var/lib/xymon/server/etc/graphs.cfg	/server/etc/graphs.cfg	f	644	100	101	69329	
 /var/lib/xymon/server/etc/holidays.cfg	/server/etc/holidays.cfg	f	644	100	101	3929	
-/var/lib/xymon/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	100	101	561	
+/var/lib/xymon/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	100	101	555	
 /var/lib/xymon/server/etc/protocols.cfg	/server/etc/protocols.cfg	f	644	100	101	5530	
 /var/lib/xymon/server/etc/rrddefinitions.cfg	/server/etc/rrddefinitions.cfg	f	644	100	101	1360	
 /var/lib/xymon/server/etc/snmpmibs.cfg	/server/etc/snmpmibs.cfg	f	644	100	101	16843	
@@ -166,7 +166,7 @@
 /var/lib/xymon/server/etc/tasks.d	/server/etc/tasks.d	d	755	100	101	4096	
 /var/lib/xymon/server/etc/xymon-apache.conf	/server/etc/xymon-apache.conf	f	644	100	101	5654	
 /var/lib/xymon/server/etc/xymonmenu.cfg	/server/etc/xymonmenu.cfg	f	644	100	101	3328	
-/var/lib/xymon/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	100	101	17527	
+/var/lib/xymon/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	100	101	17521	
 /var/lib/xymon/server/ext	/server/ext	d	755	100	101	4096	
 /var/lib/xymon/server/ext/xymonnet-again.sh	/server/ext/xymonnet-again.sh	f	755	100	101	307	
 /var/lib/xymon/server/man	/server/man	d	755	0	0	4096	

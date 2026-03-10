@@ -1,12 +1,12 @@
 /home/_www		d	755	1002	1002	512	
 /home/_www/bin	/bin	d	755	1002	1002	1024	
-/home/_www/bin/clientupdate	/bin/clientupdate	f	755	1002	1002	299512	
+/home/_www/bin/clientupdate	/bin/clientupdate	f	755	1002	1002	299544	
 /home/_www/bin/freebsd-meminfo	/bin/freebsd-meminfo	f	755	1002	1002	15872	
-/home/_www/bin/logfetch	/bin/logfetch	f	755	1002	1002	397376	
-/home/_www/bin/msgcache	/bin/msgcache	f	755	1002	1002	256136	
-/home/_www/bin/orcaxymon	/bin/orcaxymon	f	755	1002	1002	287248	
-/home/_www/bin/xymon	/bin/xymon	f	755	1002	1002	292160	
-/home/_www/bin/xymoncfg	/bin/xymoncfg	f	755	1002	1002	228456	
+/home/_www/bin/logfetch	/bin/logfetch	f	755	1002	1002	397408	
+/home/_www/bin/msgcache	/bin/msgcache	f	755	1002	1002	256168	
+/home/_www/bin/orcaxymon	/bin/orcaxymon	f	755	1002	1002	287280	
+/home/_www/bin/xymon	/bin/xymon	f	755	1002	1002	292192	
+/home/_www/bin/xymoncfg	/bin/xymoncfg	f	755	1002	1002	228472	
 /home/_www/bin/xymonclient-aix.sh	/bin/xymonclient-aix.sh	f	755	1002	1002	2169	
 /home/_www/bin/xymonclient-darwin.sh	/bin/xymonclient-darwin.sh	f	755	1002	1002	2265	
 /home/_www/bin/xymonclient-freebsd.sh	/bin/xymonclient-freebsd.sh	f	755	1002	1002	2434	
@@ -20,10 +20,10 @@
 /home/_www/bin/xymonclient-sunos.sh	/bin/xymonclient-sunos.sh	f	755	1002	1002	6299	
 /home/_www/bin/xymonclient-unixware.sh	/bin/xymonclient-unixware.sh	f	755	1002	1002	1915	
 /home/_www/bin/xymonclient.sh	/bin/xymonclient.sh	f	755	1002	1002	3747	
-/home/_www/bin/xymoncmd	/bin/xymoncmd	f	755	1002	1002	234016	
-/home/_www/bin/xymondigest	/bin/xymondigest	f	755	1002	1002	329896	
-/home/_www/bin/xymongrep	/bin/xymongrep	f	755	1002	1002	462136	
-/home/_www/bin/xymonlaunch	/bin/xymonlaunch	f	755	1002	1002	283544	
+/home/_www/bin/xymoncmd	/bin/xymoncmd	f	755	1002	1002	234032	
+/home/_www/bin/xymondigest	/bin/xymondigest	f	755	1002	1002	329928	
+/home/_www/bin/xymongrep	/bin/xymongrep	f	755	1002	1002	462168	
+/home/_www/bin/xymonlaunch	/bin/xymonlaunch	f	755	1002	1002	283560	
 /home/_www/etc	/etc	d	755	1002	1002	512	
 /home/_www/etc/clientlaunch.cfg	/etc/clientlaunch.cfg	f	644	1002	1002	975	
 /home/_www/etc/localclient.cfg	/etc/localclient.cfg	f	644	1002	1002	21716	

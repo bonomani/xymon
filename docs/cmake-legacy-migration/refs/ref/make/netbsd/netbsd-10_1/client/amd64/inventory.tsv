@@ -22,7 +22,7 @@
 /home/_www/bin/xymonclient.sh	/bin/xymonclient.sh	f	755	1001	1001	3747	
 /home/_www/bin/xymoncmd	/bin/xymoncmd	f	755	1001	1001	253752	
 /home/_www/bin/xymondigest	/bin/xymondigest	f	755	1001	1001	360216	
-/home/_www/bin/xymongrep	/bin/xymongrep	f	755	1001	1001	517280	
+/home/_www/bin/xymongrep	/bin/xymongrep	f	755	1001	1001	517312	
 /home/_www/bin/xymonlaunch	/bin/xymonlaunch	f	755	1001	1001	315344	
 /home/_www/etc	/etc	d	755	1001	1001	144	
 /home/_www/etc/clientlaunch.cfg	/etc/clientlaunch.cfg	f	644	1001	1001	975	

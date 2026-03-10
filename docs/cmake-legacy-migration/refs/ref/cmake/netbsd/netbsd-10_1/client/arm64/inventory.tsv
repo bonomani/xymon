@@ -5,8 +5,8 @@
 /var/lib/xymon/bin/msgcache	/bin/msgcache	f	755	1001	1001	217608	
 /var/lib/xymon/bin/netbsd-meminfo	/bin/netbsd-meminfo	f	755	1001	1001	20648	
 /var/lib/xymon/bin/orcaxymon	/bin/orcaxymon	f	755	1001	1001	243472	
-/var/lib/xymon/bin/xymon	/bin/xymon	f	755	1001	1001	246408	
-/var/lib/xymon/bin/xymoncfg	/bin/xymoncfg	f	755	1001	1001	190184	
+/var/lib/xymon/bin/xymon	/bin/xymon	f	755	1001	1001	246392	
+/var/lib/xymon/bin/xymoncfg	/bin/xymoncfg	f	755	1001	1001	190176	
 /var/lib/xymon/bin/xymonclient-aix.sh	/bin/xymonclient-aix.sh	f	755	1001	1001	2169	
 /var/lib/xymon/bin/xymonclient-darwin.sh	/bin/xymonclient-darwin.sh	f	755	1001	1001	2265	
 /var/lib/xymon/bin/xymonclient-freebsd.sh	/bin/xymonclient-freebsd.sh	f	755	1001	1001	2434	
@@ -20,10 +20,10 @@
 /var/lib/xymon/bin/xymonclient-sunos.sh	/bin/xymonclient-sunos.sh	f	755	1001	1001	6299	
 /var/lib/xymon/bin/xymonclient-unixware.sh	/bin/xymonclient-unixware.sh	f	755	1001	1001	1915	
 /var/lib/xymon/bin/xymonclient.sh	/bin/xymonclient.sh	f	755	1001	1001	3747	
-/var/lib/xymon/bin/xymoncmd	/bin/xymoncmd	f	755	1001	1001	194232	
-/var/lib/xymon/bin/xymondigest	/bin/xymondigest	f	755	1001	1001	269584	
-/var/lib/xymon/bin/xymongrep	/bin/xymongrep	f	755	1001	1001	384448	
-/var/lib/xymon/bin/xymonlaunch	/bin/xymonlaunch	f	755	1001	1001	241032	
+/var/lib/xymon/bin/xymoncmd	/bin/xymoncmd	f	755	1001	1001	194208	
+/var/lib/xymon/bin/xymondigest	/bin/xymondigest	f	755	1001	1001	269568	
+/var/lib/xymon/bin/xymongrep	/bin/xymongrep	f	755	1001	1001	384432	
+/var/lib/xymon/bin/xymonlaunch	/bin/xymonlaunch	f	755	1001	1001	241008	
 /var/lib/xymon/etc	/etc	d	755	1001	1001	144	
 /var/lib/xymon/etc/clientlaunch.cfg	/etc/clientlaunch.cfg	f	644	1001	1001	975	
 /var/lib/xymon/etc/localclient.cfg	/etc/localclient.cfg	f	644	1001	1001	21716	
