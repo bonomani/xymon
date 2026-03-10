@@ -3,6 +3,7 @@
 
 from __future__ import annotations
 
+import re
 from pathlib import Path
 
 
@@ -30,9 +31,12 @@ def extract_lane_include(
     if isinstance(lane_doc, list):
         include = lane_doc
     elif isinstance(lane_doc, dict):
-        if require_include_key and "include" not in lane_doc and "lanes" not in lane_doc:
-            raise LaneSpecError(f"Lane file must define an 'include' list: {lane_file}")
-        include = lane_doc.get("include", lane_doc.get("lanes", []))
+        if "generated" in lane_doc:
+            include = expand_generated_lanes(lane_doc["generated"], lane_file)
+        else:
+            if require_include_key and "include" not in lane_doc and "lanes" not in lane_doc:
+                raise LaneSpecError(f"Lane file must define an 'include' list: {lane_file}")
+            include = lane_doc.get("include", lane_doc.get("lanes", []))
     else:
         raise LaneSpecError(f"Lane file must be a list or mapping: {lane_file}")
 
@@ -45,6 +49,111 @@ def _require_non_empty_string(value, context: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise LaneSpecError(f"{context} must be a non-empty string")
     return value.strip()
+
+
+def _require_mapping(value, context: str) -> dict:
+    if not isinstance(value, dict):
+        raise LaneSpecError(f"{context} must be a mapping")
+    return value
+
+
+def _require_string_list(value, context: str) -> list[str]:
+    if isinstance(value, str):
+        value = [value]
+    if not isinstance(value, list) or not value:
+        raise LaneSpecError(f"{context} must be a non-empty string or list")
+    return [_require_non_empty_string(item, f"{context}[{index}]") for index, item in enumerate(value)]
+
+
+def _version_key(value: str) -> tuple[int, tuple[int, ...], str]:
+    numbers = tuple(int(part) for part in re.findall(r"\d+", value))
+    return (1 if numbers else 0, numbers, value)
+
+
+def _infer_platform_version(platform_id: str) -> str:
+    parts = platform_id.split("-", 1)
+    if len(parts) != 2 or not parts[1]:
+        return ""
+    return parts[1].replace("_", ".")
+
+
+def expand_generated_lanes(generated_doc, lane_file: Path) -> list[dict]:
+    generated = _require_mapping(generated_doc, f"Lane file generated block: {lane_file}")
+    platforms = generated.get("platforms")
+    if not isinstance(platforms, list) or not platforms:
+        raise LaneSpecError(f"Lane file generated.platforms must be a non-empty list: {lane_file}")
+
+    policy = generated.get("policy", {})
+    policy = _require_mapping(policy, f"Lane file generated.policy: {lane_file}")
+    secondary_defaults = policy.get("secondary_defaults", [])
+    if secondary_defaults:
+        secondary_defaults = _require_string_list(
+            secondary_defaults, f"Lane file generated.policy.secondary_defaults: {lane_file}"
+        )
+    secondary_scope = policy.get("secondary_scope", "none")
+    secondary_scope = _require_non_empty_string(
+        secondary_scope, f"Lane file generated.policy.secondary_scope: {lane_file}"
+    )
+    if secondary_scope not in {"none", "all", "latest_only"}:
+        raise LaneSpecError(
+            f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only: {lane_file}"
+        )
+    rolling_platform_ids = {
+        value
+        for value in _require_string_list(
+            policy.get("rolling_platform_ids", []), f"Lane file generated.policy.rolling_platform_ids: {lane_file}"
+        )
+    } if policy.get("rolling_platform_ids") else set()
+
+    platform_entries = []
+    for index, raw_entry in enumerate(platforms):
+        entry = _require_mapping(raw_entry, f"Lane file generated.platforms[{index}] in {lane_file}")
+        platform_id = _require_non_empty_string(
+            entry.get("platform_id"), f"Lane file generated.platforms[{index}].platform_id"
+        )
+        platform_entries.append((platform_id, dict(entry)))
+
+    stable_entries = [
+        (platform_id, entry)
+        for platform_id, entry in platform_entries
+        if platform_id not in rolling_platform_ids
+    ]
+    latest_stable = None
+    if stable_entries:
+        latest_stable = max(
+            stable_entries,
+            key=lambda item: (_version_key(_infer_platform_version(item[0])), item[0]),
+        )[0]
+
+    expanded: list[dict] = []
+    for platform_id, entry in platform_entries:
+        base_entry = dict(entry)
+        secondary_name_prefix = base_entry.pop("name_prefix", None)
+        base_entry.pop("arches", None)
+        base_entry["platform_id"] = platform_id
+        expanded.append(base_entry)
+
+        include_secondary = False
+        if secondary_defaults:
+            if secondary_scope == "all":
+                include_secondary = True
+            elif secondary_scope == "latest_only":
+                include_secondary = platform_id == latest_stable or platform_id in rolling_platform_ids
+
+        if not include_secondary:
+            continue
+
+        secondary_entry = dict(base_entry)
+        secondary_entry["defaults"] = list(secondary_defaults)
+        if secondary_name_prefix is not None:
+            name_prefix = secondary_name_prefix
+            name_prefix = _require_non_empty_string(
+                name_prefix, f"Lane file generated.platforms name_prefix for {platform_id}"
+            )
+            secondary_entry["name_prefix"] = f"{name_prefix} {' '.join(secondary_defaults)}"
+        expanded.append(secondary_entry)
+
+    return expanded
 
 
 def expand_lane_variants(lane_obj, lane_file: Path, lane_index: int):
