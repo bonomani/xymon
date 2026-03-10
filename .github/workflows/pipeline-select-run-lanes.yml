@@ -60,12 +60,11 @@ on:
           - exclude_aliases
           - include_aliases
       build_tool:
-        description: Build tool selection (auto derives from ref_mode)
+        description: Build tool selection
         required: true
         type: choice
-        default: auto
+        default: make
         options:
-          - auto
           - make
           - cmake
       compiler:
@@ -150,7 +149,7 @@ on:
         required: true
         type: string
       build_tool:
-        description: Build tool selection (auto|make|cmake)
+        description: Build tool selection (make|cmake)
         required: true
         type: string
       compiler:
