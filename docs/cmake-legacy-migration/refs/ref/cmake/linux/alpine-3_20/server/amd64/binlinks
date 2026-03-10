@@ -69,10 +69,10 @@
 /usr/lib/libcares.so.2
 /usr/lib/libldap.so.2
 /usr/lib/liblber.so.2
-/usr/lib/libtirpc.so.3
 /usr/lib/libpcre.so.1
 /lib/libssl.so.3
 /lib/libcrypto.so.3
+/usr/lib/libtirpc.so.3
 /lib/ld-musl-x86_64.so.1
 /usr/lib/libsasl2.so.3
 /usr/lib/libgssapi_krb5.so.2

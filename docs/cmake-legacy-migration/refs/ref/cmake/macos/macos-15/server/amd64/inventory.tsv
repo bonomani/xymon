@@ -88,7 +88,7 @@
 /var/lib/xymon/server/bin/bbdigest	/server/bin/bbdigest	l					xymondigest
 /var/lib/xymon/server/bin/bbhostgrep	/server/bin/bbhostgrep	l					xymongrep
 /var/lib/xymon/server/bin/bbhostshow	/server/bin/bbhostshow	l					xymoncfg
-/var/lib/xymon/server/bin/beastat	/server/bin/beastat	f	755	70	70	197624	
+/var/lib/xymon/server/bin/beastat	/server/bin/beastat	f	755	70	70	197608	
 /var/lib/xymon/server/bin/boilerplate.cgi	/server/bin/boilerplate.cgi	f	755	70	70	221744	
 /var/lib/xymon/server/bin/cgiwrap	/server/bin/cgiwrap	f	755	70	70	125048	
 /var/lib/xymon/server/bin/chpasswd.cgi	/server/bin/chpasswd.cgi	f	755	70	70	222208	
@@ -141,7 +141,7 @@
 /var/lib/xymon/server/bin/xymongen	/server/bin/xymongen	f	755	70	70	370904	
 /var/lib/xymon/server/bin/xymongrep	/server/bin/xymongrep	f	755	70	70	178824	
 /var/lib/xymon/server/bin/xymonlaunch	/server/bin/xymonlaunch	f	755	70	70	129496	
-/var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	70	70	311256	
+/var/lib/xymon/server/bin/xymonnet	/server/bin/xymonnet	f	755	70	70	311240	
 /var/lib/xymon/server/bin/xymonpage	/server/bin/xymonpage	f	755	70	70	218328	
 /var/lib/xymon/server/bin/xymonping	/server/bin/xymonping	f	755	0	70	128952	
 /var/lib/xymon/server/bin/xymonproxy	/server/bin/xymonproxy	f	755	70	70	129032	
