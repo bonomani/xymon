@@ -200,17 +200,6 @@ run_ref_snapshot() {
   "${args[@]}"
 }
 
-run_ref_compare() {
-  # shellcheck disable=SC1091
-  # shellcheck source=ci/run/ref/load-staged-metadata.sh
-  source ci/run/ref/load-staged-metadata.sh
-
-  bash ci/compare-refs.sh \
-    --baseline-prefix "${baseline_prefix}" \
-    --candidate-dir "${candidate_dir}" \
-    --candidate-root "${LEGACY_ROOT}"
-}
-
 echo "=== Lane execution ==="
 echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
 echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} install_mode=${install_mode} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
@@ -220,16 +209,11 @@ case "${goal}" in
     run_core_build_install
     ;;
   ref)
-    if [[ "${ref_mode}" == "compare" ]]; then
-      load_legacy_hostname_in_process
-      bash ci/run/ref/seed-legacy-identities.sh \
-        --passwd "${baseline_prefix}/owners.passwd" \
-        --group "${baseline_prefix}/owners.group"
+    if [[ "${ref_mode}" != "generate" ]]; then
+      echo "Unsupported ref_mode for goal=ref in lane runtime: ${ref_mode}" >&2
+      exit 2
     fi
     run_ref_snapshot
-    if [[ "${ref_mode}" == "compare" ]]; then
-      run_ref_compare
-    fi
     ;;
   *)
     echo "Unsupported goal value: ${goal}" >&2
