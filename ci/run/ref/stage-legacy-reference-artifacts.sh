@@ -52,7 +52,19 @@ fi
 find "${artifacts_dir}" -type f -print0 \
   | while IFS= read -r -d '' f; do
       rel="${f#${artifacts_dir}/}"
+      artifact="${rel%%/*}"
       dst_rel="${rel}"
+      case "${artifact}" in
+        ref_*)
+          dst_rel="ref/${rel}"
+          ;;
+        deps_*)
+          dst_rel="deps/${rel}"
+          ;;
+        lane_outcome_*)
+          dst_rel="lane-outcome/${rel}"
+          ;;
+      esac
       dst="${ref_dir}/${dst_rel}"
       mkdir -p "$(dirname "${dst}")"
       install -m 0644 "$f" "${dst}"
