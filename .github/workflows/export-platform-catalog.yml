@@ -1,0 +1,29 @@
+name: Export platform catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Export discovered platform catalog
+        run: python .github/scripts/export-platform-catalog.py
+
+      - name: Commit catalog artifacts
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .github/scripts/export-platform-catalog.py ci/deps/platform-bsd-sources.yaml ci/deps/platform-host-runners.yaml .github/data/platform-catalog-discovered.yml
+          if git diff --staged --quiet; then
+            echo "No catalog updates"
+            exit 0
+          fi
+          git commit -m 'Refresh discovered platform catalog'
+          git push
