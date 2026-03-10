@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import argparse
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -92,6 +93,15 @@ def load_yaml(path: Path, context: str) -> dict[str, Any]:
         raise SystemExit(f"Missing {context}: {path}")
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     return as_map(data, context)
+
+
+def load_existing_catalog() -> dict[str, Any]:
+    if not OUTPUT.exists():
+        return {}
+    data = yaml.safe_load(OUTPUT.read_text(encoding="utf-8")) or {}
+    if not isinstance(data, dict):
+        return {}
+    return data
 
 
 def github_request(path: str) -> dict[str, Any]:
@@ -235,6 +245,17 @@ def load_active_lane_arches(lanes_glob: str) -> dict[str, list[str]]:
     return lane_arches
 
 
+def load_active_lane_arches_for_globs(lanes_globs: list[str]) -> dict[str, list[str]]:
+    merged: dict[str, list[str]] = {}
+    for lanes_glob in lanes_globs:
+        for platform_id, arches in load_active_lane_arches(lanes_glob).items():
+            merged.setdefault(platform_id, [])
+            for arch in arches:
+                if arch not in merged[platform_id]:
+                    merged[platform_id].append(arch)
+    return merged
+
+
 def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     data = load_yaml(PLATFORM_CATALOG, f"platform catalog in {PLATFORM_CATALOG}")
     platforms = field_map(data, "platforms", str(PLATFORM_CATALOG))
@@ -348,6 +369,54 @@ def load_bsd_sources() -> dict[str, dict[str, Any]]:
     return field_map(data, "sources", f"{BSD_SOURCES}")
 
 
+def load_vm_intent() -> list[dict[str, Any]]:
+    rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
+    selection = field_map(rules, "vm_selection", str(CONTAINER_INTENT))
+    lanes_globs = [str(value) for value in field_list(selection, "lanes_globs", str(CONTAINER_INTENT))]
+    active_lane_arches = load_active_lane_arches_for_globs(lanes_globs)
+    bsd_sources = load_bsd_sources()
+
+    selected: list[dict[str, Any]] = []
+    missing_sources: list[str] = []
+    for platform_id, arches in active_lane_arches.items():
+        entry = bsd_sources.get(platform_id)
+        if entry is None:
+            if platform_id.startswith(("freebsd-", "openbsd-", "netbsd-", "macos-")):
+                missing_sources.append(platform_id)
+            continue
+        source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
+        intended_arches = list(arches)
+        if entry.get("provider") == "github-actions" and entry.get("runner_label"):
+            intended_arches = [normalize_declared_architecture(source_arch)]
+        selected.append(
+            {
+                "platform_id": platform_id,
+                "os": field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"),
+                "version": field_str(entry, "version", f"{BSD_SOURCES}.{platform_id}"),
+                "provider": str(entry.get("provider", "cross-platform-actions")),
+                "source_arch": source_arch,
+                "intended_arches": intended_arches,
+                "repo": entry.get("repo"),
+                "runner_label": entry.get("runner_label"),
+            }
+        )
+
+    if missing_sources:
+        raise SystemExit(
+            "Missing VM source entries for active lanes: " + ", ".join(sorted(missing_sources))
+        )
+
+    return sorted(
+        selected,
+        key=lambda entry: (
+            entry["os"],
+            version_key(entry["version"]),
+            entry["platform_id"],
+        ),
+        reverse=True,
+    )
+
+
 def normalize_runner_architecture(runner: dict[str, Any]) -> str:
     arch = runner.get("arch")
     if not isinstance(arch, str):
@@ -441,11 +510,34 @@ def render_yaml(intent_meta: dict[str, Any], containers: list[dict[str, Any]], v
     return yaml.safe_dump(payload, sort_keys=False)
 
 
-def export_catalog():
+def build_cached_container_index(existing_catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    platforms = existing_catalog.get("platforms")
+    if not isinstance(platforms, dict):
+        return {}
+    containers = platforms.get("containers")
+    if not isinstance(containers, list):
+        return {}
+
+    cached: dict[str, dict[str, Any]] = {}
+    for index, raw_entry in enumerate(containers):
+        if not isinstance(raw_entry, dict):
+            continue
+        image = raw_entry.get("image")
+        if not isinstance(image, str) or not image:
+            continue
+        discovered_arches = raw_entry.get("discovered_arches")
+        if not isinstance(discovered_arches, list) or not discovered_arches:
+            continue
+        cached[image] = raw_entry
+    return cached
+
+
+def export_catalog(*, refresh_containers: bool = False):
     container_intent = load_container_intent()
-    bsd_sources = load_bsd_sources()
+    vm_intent = load_vm_intent()
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
+    cached_containers = build_cached_container_index(load_existing_catalog())
 
     intent_meta = {
         "container_intent": relative_to_root(CONTAINER_INTENT),
@@ -453,16 +545,27 @@ def export_catalog():
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
+        "container_cache_mode": "refresh" if refresh_containers else "reuse",
     }
 
     containers: list[dict[str, Any]] = []
     for family in container_intent:
-        token = fetch_registry_token(family["repository"])
+        token = ""
         for release in family["releases"]:
-            manifest_url, content_type, digest, payload = fetch_manifest_index(
-                family["repository"], release["tag"], token
-            )
-            discovered_arches = extract_architectures(payload)
+            image = f"{family['repository']}:{release['tag']}"
+            cached_entry = None if refresh_containers else cached_containers.get(image)
+            if cached_entry is None:
+                if not token:
+                    token = fetch_registry_token(family["repository"])
+                manifest_url, content_type, digest, payload = fetch_manifest_index(
+                    family["repository"], release["tag"], token
+                )
+                discovered_arches = extract_architectures(payload)
+            else:
+                manifest_url = str(cached_entry.get("manifest_url", ""))
+                content_type = str(cached_entry.get("content_type", ""))
+                digest = str(cached_entry.get("digest", ""))
+                discovered_arches = [str(arch) for arch in cached_entry.get("discovered_arches", [])]
             containers.append(
                 {
                     "family": family["family"],
@@ -471,7 +574,7 @@ def export_catalog():
                     "platform_id": release["platform_id"],
                     "platform_os": release["platform_os"],
                     "platform_version": release["platform_version"],
-                    "image": f"{family['repository']}:{release['tag']}",
+                    "image": image,
                     "deps": release["deps"],
                     "intended_arches": [arch for arch in release["arches"]],
                     "manifest_url": manifest_url,
@@ -488,18 +591,20 @@ def export_catalog():
             )
 
     vms: list[dict[str, Any]] = []
-    for platform_id, entry in bsd_sources.items():
+    for entry in vm_intent:
+        platform_id = entry["platform_id"]
         record = {
             "platform_id": platform_id,
             "os": entry["os"],
             "version": entry["version"],
-            "arch": entry["arch"],
-            "provider": entry.get("provider", "cross-platform-actions"),
+            "source_arch": entry["source_arch"],
+            "intended_arches": list(entry["intended_arches"]),
+            "provider": entry["provider"],
         }
-        if "repo" in entry:
+        if entry.get("repo"):
             repo = entry["repo"]
             release = fetch_latest_release(repo)
-            asset_name = f"{entry['os']}-{entry['version']}-{entry['arch']}.qcow2"
+            asset_name = f"{entry['os']}-{entry['version']}-{entry['source_arch']}.qcow2"
             assets = release.get("assets", [])
             asset = next(
                 (a for a in assets if a.get("name") == asset_name), None
@@ -519,7 +624,7 @@ def export_catalog():
                     "asset_updated_at": asset.get("updated_at"),
                 }
             )
-        if "runner_label" in entry:
+        if entry.get("runner_label"):
             record["runner_label"] = entry["runner_label"]
         vms.append(record)
 
@@ -529,5 +634,16 @@ def export_catalog():
     OUTPUT.write_text(render_yaml(intent_meta, containers, vms, runners), encoding="utf-8")
 
 
+def parse_args() -> argparse.Namespace:
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument(
+        "--refresh-containers",
+        action="store_true",
+        help="Refresh container manifest metadata from Docker Hub instead of reusing cached entries.",
+    )
+    return parser.parse_args()
+
+
 if __name__ == "__main__":
-    export_catalog()
+    args = parse_args()
+    export_catalog(refresh_containers=args.refresh_containers)
