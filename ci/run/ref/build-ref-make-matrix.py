@@ -511,7 +511,7 @@ def parse_args():
     )
     parser.add_argument(
         "--container-catalog",
-        default=".github/data/container-catalog.yml",
+        default=".github/data/platform-catalog-discovered.yml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     return parser.parse_args()

@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 
 from __future__ import annotations
+from typing import Any
 
 from pathlib import Path
 
@@ -34,12 +35,19 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
 
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     data = _require_mapping(data, f"container catalog root in {path}")
-    platforms = data.get("platforms")
-    if not isinstance(platforms, list) or not platforms:
-        raise ValueError(f"Container catalog has no platforms list: {path}")
+    raw_platforms = data.get("platforms")
+    entries: list[Any] = []
+    if isinstance(raw_platforms, list):
+        entries = raw_platforms
+    elif isinstance(raw_platforms, dict):
+        containers = raw_platforms.get("containers")
+        if isinstance(containers, list):
+            entries = containers
+    if not entries:
+        raise ValueError(f"Container catalog has no entries at {path}")
 
     catalog: dict[str, dict] = {}
-    for index, raw_entry in enumerate(platforms):
+    for index, raw_entry in enumerate(entries):
         entry = _require_mapping(
             raw_entry, f"container catalog entry #{index} in {path}"
         )
