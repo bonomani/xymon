@@ -1,5 +1,6 @@
-include:
-- platform_id: macos-latest
-- platform_id: macos-26
-- platform_id: macos-15
-- platform_id: macos-14
+generated:
+  platforms:
+    - platform_id: macos-latest
+    - platform_id: macos-26
+    - platform_id: macos-15
+    - platform_id: macos-14

@@ -1,17 +1,19 @@
-include:
-- platform_id: netbsd-10_1
-  architecture: x86-64
-- name_prefix: NetBSD 10.1 arm64
-  platform_id: netbsd-10_1
-  architecture: arm64
-- platform_id: netbsd-10_0
-  architecture: x86-64
-- name_prefix: NetBSD 10.0 arm64
-  platform_id: netbsd-10_0
-  architecture: arm64
-- platform_id: netbsd-9_4
-  architecture: x86-64
-- platform_id: netbsd-9_3
-  architecture: x86-64
-- platform_id: netbsd-9_2
-  architecture: x86-64
+generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_overrides:
+      architecture: arm64
+    secondary_name_suffix: arm64
+  platforms:
+    - platform_id: netbsd-10_1
+      name_prefix: NetBSD 10.1
+      architecture: x86-64
+    - platform_id: netbsd-10_0
+      name_prefix: NetBSD 10.0
+      architecture: x86-64
+    - platform_id: netbsd-9_4
+      architecture: x86-64
+    - platform_id: netbsd-9_3
+      architecture: x86-64
+    - platform_id: netbsd-9_2
+      architecture: x86-64

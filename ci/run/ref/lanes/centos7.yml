@@ -1,3 +1,4 @@
-include:
-- platform_id: centos-7
-  cmake_bin: cmake3
+generated:
+  platforms:
+    - platform_id: centos-7
+      cmake_bin: cmake3

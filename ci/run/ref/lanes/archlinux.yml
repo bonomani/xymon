@@ -1,3 +1,4 @@
-include:
-- platform_id: archlinux-latest
-- platform_id: archlinux-base
+generated:
+  platforms:
+    - platform_id: archlinux-latest
+    - platform_id: archlinux-base
