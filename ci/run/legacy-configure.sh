@@ -54,7 +54,11 @@ if [[ "${PROFILE}" == "debian" || "${PROFILE}" == "packaging" ]]; then
     echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}"
     exit 1
   fi
-  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${PROFILE}")"
+  legacy_layout_profile="${PROFILE}"
+  if [[ "${legacy_layout_profile}" == "packaging" ]]; then
+    legacy_layout_profile="debian"
+  fi
+  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${legacy_layout_profile}")"
   echo "Make profile '${PROFILE}' environment before configure:"
   for var in XYMONTOPDIR XYMONVAR XYMONHOSTURL CGIDIR XYMONCGIURL SECURECGIDIR SECUREXYMONCGIURL XYMONLOGDIR XYMONHOSTNAME XYMONHOSTIP MANROOT INSTALLBINDIR INSTALLETCDIR INSTALLWEBDIR INSTALLEXTDIR INSTALLTMPDIR INSTALLWWWDIR XYMONUSER HTTPDGID USEXYMONPING ENABLESSL ENABLELDAP ENABLELDAPSSL; do
     printf '  %s=%s\n' "$var" "${!var:-<unset>}"

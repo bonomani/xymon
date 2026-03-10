@@ -1,5 +1,3 @@
-version: "3.9"
-
 services:
   debian-11-server-cmake:
     build:
