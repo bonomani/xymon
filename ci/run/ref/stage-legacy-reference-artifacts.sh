@@ -63,7 +63,7 @@ find "${artifacts_dir}" -type f -print0 \
             variant="${BASH_REMATCH[3]}"
             platform_id="${BASH_REMATCH[4]}"
             artifact_arch="${BASH_REMATCH[5]}"
-            dst_rel="ref/${build_tool}/${runtime_os}/${platform_id}/${variant}/${artifact_arch}/${artifact}/${rest}"
+            dst_rel="ref/${build_tool}/${runtime_os}/${platform_id}/${variant}/${artifact_arch}/${rest}"
           else
             dst_rel="ref/unparsed/${rel}"
           fi
@@ -75,7 +75,7 @@ find "${artifacts_dir}" -type f -print0 \
             variant="${BASH_REMATCH[3]}"
             artifact_arch="${BASH_REMATCH[4]}"
             dep_mode="${BASH_REMATCH[5]}"
-            dst_rel="deps/${build_tool}/${platform_id}/${variant}/${artifact_arch}/${dep_mode}/${artifact}/${rest}"
+            dst_rel="deps/${build_tool}/${platform_id}/${variant}/${artifact_arch}/${dep_mode}/${rest}"
           else
             dst_rel="deps/unparsed/${rel}"
           fi
@@ -85,7 +85,7 @@ find "${artifacts_dir}" -type f -print0 \
             build_tool="${BASH_REMATCH[1]}"
             platform_id="${BASH_REMATCH[2]}"
             variant="${BASH_REMATCH[3]}"
-            dst_rel="lane-outcome/${build_tool}/${platform_id}/${variant}/${artifact}/${rest}"
+            dst_rel="lane-outcome/${build_tool}/${platform_id}/${variant}/${rest}"
           else
             dst_rel="lane-outcome/unparsed/${rel}"
           fi
