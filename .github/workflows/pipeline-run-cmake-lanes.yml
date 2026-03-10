@@ -96,14 +96,13 @@ on:
           - build
           - install
       ref_mode:
-        description: Reference handling mode for CMake lanes
+        description: Reference handling mode for CMake generation lanes
         required: true
         type: choice
         default: 'off'
         options:
           - 'off'
           - generate
-          - compare
       publish:
         description: Publish channel (artifact is only meaningful with ref_mode=generate)
         required: true
