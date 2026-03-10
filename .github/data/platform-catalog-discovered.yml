@@ -135,7 +135,6 @@ platforms:
       version: 3
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.22
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
@@ -151,10 +150,6 @@ platforms:
         runtime_preference:
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
@@ -168,7 +163,6 @@ platforms:
       version: 3
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.21
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
@@ -184,10 +178,6 @@ platforms:
         runtime_preference:
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
@@ -256,7 +246,6 @@ platforms:
       version: 3
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/edge
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
@@ -272,10 +261,6 @@ platforms:
         runtime_preference:
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
   - family: archlinux
     repository: library/archlinux
     repository_url: https://hub.docker.com/_/archlinux
@@ -394,7 +379,6 @@ platforms:
       version: bookworm
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
@@ -409,10 +393,6 @@ platforms:
         runtime_preference:
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
   - family: debian
     repository: library/debian
     repository_url: https://hub.docker.com/_/debian
@@ -426,7 +406,6 @@ platforms:
       version: bullseye
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
@@ -439,10 +418,6 @@ platforms:
         runtime_preference:
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
   - family: fedora
     repository: library/fedora
     repository_url: https://hub.docker.com/_/fedora
@@ -797,7 +772,6 @@ platforms:
       version: local
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/22.04
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
@@ -814,11 +788,6 @@ platforms:
         - linux_host
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id002
   - family: ubuntu
     repository: library/ubuntu
     repository_url: https://hub.docker.com/_/ubuntu
@@ -832,7 +801,6 @@ platforms:
       version: 20
     intended_arches:
     - amd64
-    - arm64
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/20.04
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
@@ -849,11 +817,6 @@ platforms:
         - linux_host
         - linux_container
         direct_runner_labels: *id001
-      arm64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id002
   vms:
   - platform_id: openbsd-7_8
     os: openbsd
@@ -918,7 +881,6 @@ platforms:
     source_arch: x86-64
     intended_arches:
     - amd64
-    - arm64
     provider: cross-platform-actions
     repo: cross-platform-actions/netbsd-builder
     release_tag: v0.5.1

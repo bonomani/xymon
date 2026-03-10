@@ -256,6 +256,42 @@ def load_active_lane_arches_for_globs(lanes_globs: list[str]) -> dict[str, list[
     return merged
 
 
+def resolve_architecture_policy(
+    architectures: dict[str, Any],
+    *,
+    selected_arches: list[str],
+    is_latest: bool,
+    provider: str | None = None,
+    source_arch: str | None = None,
+) -> list[str]:
+    mode = field_str(architectures, "mode", str(CONTAINER_INTENT))
+    if provider is not None:
+        provider_override = as_map(
+            architectures.get("provider_override", {}),
+            f"{CONTAINER_INTENT}.architectures.provider_override",
+        )
+        if provider_override.get(provider) == "source_arch_only":
+            if source_arch is None:
+                raise SystemExit(f"provider_override for '{provider}' requires source_arch")
+            return [normalize_declared_architecture(source_arch)]
+
+    if mode == "all_lane_arches":
+        return list(selected_arches)
+    if mode != "primary_plus_latest":
+        raise SystemExit(f"Unsupported architecture mode '{mode}' in {CONTAINER_INTENT}")
+
+    primary_arches = [
+        normalize_declared_architecture(str(value))
+        for value in field_list(architectures, "primary", str(CONTAINER_INTENT))
+    ]
+    filtered = [arch for arch in selected_arches if arch in primary_arches]
+    if is_latest:
+        for arch in selected_arches:
+            if arch not in filtered:
+                filtered.append(arch)
+    return filtered
+
+
 def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     data = load_yaml(PLATFORM_CATALOG, f"platform catalog in {PLATFORM_CATALOG}")
     platforms = field_map(data, "platforms", str(PLATFORM_CATALOG))
@@ -269,7 +305,8 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
 def runtime_preferences_for(
     rules: dict[str, Any], platform_os: str
 ) -> list[str]:
-    runtime_preferences = field_map(rules, "runtime_preference", str(CONTAINER_INTENT))
+    containers = field_map(rules, "containers", str(CONTAINER_INTENT))
+    runtime_preferences = field_map(containers, "runtime_preference", str(CONTAINER_INTENT))
     overrides = runtime_preferences.get("overrides")
     if isinstance(overrides, dict):
         override = overrides.get(platform_os)
@@ -280,12 +317,17 @@ def runtime_preferences_for(
 
 def load_container_intent() -> list[dict[str, Any]]:
     rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
-    selection = field_map(rules, "selection", str(CONTAINER_INTENT))
-    preferred_tokens = [str(value) for value in field_list(selection, "prefer_image_tokens", str(CONTAINER_INTENT))]
-    runtime = field_str(selection, "runtime", str(CONTAINER_INTENT))
+    containers = field_map(rules, "containers", str(CONTAINER_INTENT))
+    source = field_map(containers, "source", str(CONTAINER_INTENT))
+    selection = field_map(containers, "selection", str(CONTAINER_INTENT))
+    architectures = field_map(containers, "architectures", str(CONTAINER_INTENT))
+    preferred_tokens = [str(value) for value in field_list(selection, "prefer_tags", str(CONTAINER_INTENT))]
+    runtime = field_str(source, "runtime", str(CONTAINER_INTENT))
     group_by = field_str(selection, "group_by", str(CONTAINER_INTENT))
-    lanes_glob = field_str(selection, "lanes_glob", str(CONTAINER_INTENT))
-    platform_family = field_str(selection, "platform_family", str(CONTAINER_INTENT))
+    lanes_glob = field_str(source, "lanes_glob", str(CONTAINER_INTENT))
+    platform_family = field_str(source, "platform_family", str(CONTAINER_INTENT))
+    keep = field_str(selection, "keep", str(CONTAINER_INTENT))
+    dedupe_by = field_str(selection, "dedupe_by", str(CONTAINER_INTENT))
     active_lane_arches = load_active_lane_arches(lanes_glob)
     platform_catalog = load_static_platform_catalog()
 
@@ -298,6 +340,8 @@ def load_container_intent() -> list[dict[str, Any]]:
         deps = field_map(entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
         if group_by != "deps.os":
             raise SystemExit(f"Unsupported group_by rule '{group_by}' in {CONTAINER_INTENT}")
+        if dedupe_by != "normalized_tag":
+            raise SystemExit(f"Unsupported dedupe_by rule '{dedupe_by}' in {CONTAINER_INTENT}")
         group = field_str(deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps").lower()
         image = field_str(entry, "image", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
         repository, tag = image_repository_and_tag(image)
@@ -322,6 +366,8 @@ def load_container_intent() -> list[dict[str, Any]]:
 
     normalized_families: list[dict[str, Any]] = []
     for group, releases in grouped_candidates.items():
+        if keep != "all_active_versions":
+            raise SystemExit(f"Unsupported keep rule '{keep}' in {CONTAINER_INTENT}")
         selected_releases: list[dict[str, Any]] = []
         for candidates in releases.values():
             selected_releases.append(
@@ -341,6 +387,12 @@ def load_container_intent() -> list[dict[str, Any]]:
             ),
             reverse=True,
         )
+        for index, release in enumerate(selected_releases):
+            release["arches"] = resolve_architecture_policy(
+                architectures,
+                selected_arches=release["arches"],
+                is_latest=index == 0,
+            )
         normalized_families.append(
             {
                 "family": group,
@@ -371,12 +423,18 @@ def load_bsd_sources() -> dict[str, dict[str, Any]]:
 
 def load_vm_intent() -> list[dict[str, Any]]:
     rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
-    selection = field_map(rules, "vm_selection", str(CONTAINER_INTENT))
-    lanes_globs = [str(value) for value in field_list(selection, "lanes_globs", str(CONTAINER_INTENT))]
+    vms = field_map(rules, "vms", str(CONTAINER_INTENT))
+    source = field_map(vms, "source", str(CONTAINER_INTENT))
+    selection = field_map(vms, "selection", str(CONTAINER_INTENT))
+    architectures = field_map(vms, "architectures", str(CONTAINER_INTENT))
+    keep = field_str(selection, "keep", str(CONTAINER_INTENT))
+    if keep != "all_active_versions":
+        raise SystemExit(f"Unsupported keep rule '{keep}' in {CONTAINER_INTENT}")
+    lanes_globs = [str(value) for value in field_list(source, "lanes_globs", str(CONTAINER_INTENT))]
     active_lane_arches = load_active_lane_arches_for_globs(lanes_globs)
     bsd_sources = load_bsd_sources()
 
-    selected: list[dict[str, Any]] = []
+    selected_by_os: dict[str, list[dict[str, Any]]] = {}
     missing_sources: list[str] = []
     for platform_id, arches in active_lane_arches.items():
         entry = bsd_sources.get(platform_id)
@@ -385,17 +443,15 @@ def load_vm_intent() -> list[dict[str, Any]]:
                 missing_sources.append(platform_id)
             continue
         source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
-        intended_arches = list(arches)
-        if entry.get("provider") == "github-actions" and entry.get("runner_label"):
-            intended_arches = [normalize_declared_architecture(source_arch)]
-        selected.append(
+        provider = str(entry.get("provider", "cross-platform-actions"))
+        selected_by_os.setdefault(field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"), []).append(
             {
                 "platform_id": platform_id,
                 "os": field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"),
                 "version": field_str(entry, "version", f"{BSD_SOURCES}.{platform_id}"),
-                "provider": str(entry.get("provider", "cross-platform-actions")),
+                "provider": provider,
                 "source_arch": source_arch,
-                "intended_arches": intended_arches,
+                "selected_arches": list(arches),
                 "repo": entry.get("repo"),
                 "runner_label": entry.get("runner_label"),
             }
@@ -405,6 +461,25 @@ def load_vm_intent() -> list[dict[str, Any]]:
         raise SystemExit(
             "Missing VM source entries for active lanes: " + ", ".join(sorted(missing_sources))
         )
+
+    selected: list[dict[str, Any]] = []
+    for os_name, entries in selected_by_os.items():
+        entries.sort(
+            key=lambda entry: (
+                version_key(entry["version"]),
+                entry["platform_id"],
+            ),
+            reverse=True,
+        )
+        for index, entry in enumerate(entries):
+            entry["intended_arches"] = resolve_architecture_policy(
+                architectures,
+                selected_arches=entry.pop("selected_arches"),
+                is_latest=index == 0,
+                provider=entry["provider"],
+                source_arch=entry["source_arch"],
+            )
+            selected.append(entry)
 
     return sorted(
         selected,
