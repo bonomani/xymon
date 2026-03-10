@@ -240,6 +240,13 @@ def platform_version_for(entry: dict[str, Any], context: str, tag: str) -> str:
     return as_str(raw_value, f"{context}.platform_version")
 
 
+def optional_alias_of(entry: dict[str, Any], context: str) -> str | None:
+    raw_value = entry.get("alias_of")
+    if raw_value is None:
+        return None
+    return as_str(raw_value, f"{context}.alias_of")
+
+
 def version_key(value: str) -> tuple[int, tuple[int, ...], str]:
     numbers = tuple(int(part) for part in re.findall(r"\d+", value))
     return (1 if numbers else 0, numbers, value)
@@ -279,6 +286,7 @@ def load_container_catalog_entries() -> list[dict[str, Any]]:
                 "repository_url": repository_url(repository),
                 "tag": tag,
                 "deps": deps,
+                "alias_of": optional_alias_of(entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}"),
             }
         )
     return entries
@@ -291,9 +299,23 @@ def load_bsd_sources() -> dict[str, dict[str, Any]]:
 
 def load_vm_catalog_entries() -> list[dict[str, Any]]:
     bsd_sources = load_bsd_sources()
+    platform_catalog = load_static_platform_catalog()
     selected: list[dict[str, Any]] = []
     for platform_id, raw_entry in sorted(bsd_sources.items()):
         entry = as_map(raw_entry, f"{BSD_SOURCES}.{platform_id}")
+        platform_entry = platform_catalog.get(platform_id, {})
+        alias_of = None
+        resolved_version = None
+        if isinstance(platform_entry, dict):
+            alias_of = optional_alias_of(platform_entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+            if alias_of:
+                alias_entry = platform_catalog.get(alias_of, {})
+                if isinstance(alias_entry, dict):
+                    alias_deps = alias_entry.get("deps")
+                    if isinstance(alias_deps, dict):
+                        alias_version = alias_deps.get("version")
+                        if isinstance(alias_version, (str, int, float)):
+                            resolved_version = str(alias_version)
         source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
         selected.append(
             {
@@ -305,6 +327,8 @@ def load_vm_catalog_entries() -> list[dict[str, Any]]:
                 "discovered_arches": [normalize_declared_architecture(source_arch)],
                 "repo": entry.get("repo"),
                 "runner_label": entry.get("runner_label"),
+                "alias_of": alias_of,
+                "resolved_version": resolved_version,
             }
         )
     return selected
@@ -521,6 +545,7 @@ def export_catalog(*, refresh_containers: bool = False):
                     platform_os=release["platform_os"],
                     platform_version=release["platform_version"],
                 ),
+                **({"alias_of": release["alias_of"]} if release.get("alias_of") else {}),
             },
         )
 
@@ -560,6 +585,10 @@ def export_catalog(*, refresh_containers: bool = False):
             )
         if entry.get("runner_label"):
             record["runner_label"] = entry["runner_label"]
+        if entry.get("alias_of"):
+            record["alias_of"] = entry["alias_of"]
+        if entry.get("resolved_version"):
+            record["resolved_version"] = entry["resolved_version"]
         vms.append(record)
 
     runners = [dict(runner) for runner in host_runners]

@@ -51,6 +51,14 @@ on:
           - non_primary_latest_only
           - non_primary_all
           - non_primary_none
+      alias_policy:
+        description: Alias platform selection policy
+        required: true
+        type: choice
+        default: exclude_aliases
+        options:
+          - exclude_aliases
+          - include_aliases
       compiler:
         description: Compiler selection (auto|gcc|clang)
         required: true
@@ -148,6 +156,7 @@ jobs:
                 variant: '${{ inputs.variant }}',
                 arch: '${{ inputs.arch }}',
                 arch_policy: '${{ inputs.arch_policy }}',
+                alias_policy: '${{ inputs.alias_policy }}',
                 build_tool: 'make',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -168,6 +177,7 @@ jobs:
               .addRaw(`Variant: ${{ inputs.variant }}\n`, true)
               .addRaw(`Arch: ${{ inputs.arch }}\n`, true)
               .addRaw(`Arch policy: ${{ inputs.arch_policy }}\n`, true)
+              .addRaw(`Alias policy: ${{ inputs.alias_policy }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
               .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
               .addRaw(`Install mode: ${{ inputs.install_mode }}\n`, true)

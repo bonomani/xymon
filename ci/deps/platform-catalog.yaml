@@ -328,6 +328,7 @@ platforms:
     runtime: host
     provider: github-actions
     runner: macos-latest
+    alias_of: macos-15
     display_name: macOS latest
     deps:
       family: macos
@@ -341,7 +342,7 @@ platforms:
     deps:
       family: macos
       os: macos
-      version: latest
+      version: "26"
   macos-15:
     runtime: host
     provider: github-actions
@@ -350,7 +351,7 @@ platforms:
     deps:
       family: macos
       os: macos
-      version: latest
+      version: "15"
   macos-14:
     runtime: host
     provider: github-actions
@@ -359,4 +360,4 @@ platforms:
     deps:
       family: macos
       os: macos
-      version: latest
+      version: "14"
