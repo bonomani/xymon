@@ -118,6 +118,9 @@ include_directories(
     "${CMAKE_BINARY_DIR}"
 )
 
+set(XYMON_NET_LIBRARIES)
+set(XYMON_NET_INCLUDE_DIRS)
+
 unset(XYMON_PCRE_LIBRARY CACHE)
 unset(XYMON_PCRE_LIBRARY)
 if(XYMON_REQUIRE_PCRE)
@@ -138,6 +141,25 @@ if(XYMON_REQUIRE_PCRE)
     else()
         message(FATAL_ERROR "PCRE library not found (tried pcre, pcre2-8, pcre2)")
     endif()
+endif()
+
+# Match legacy build/Makefile.* NETLIBS handling for shared comm libraries.
+if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
+    find_library(XYMON_TIRPC_LIBRARY tirpc)
+    if(XYMON_TIRPC_LIBRARY)
+        list(APPEND XYMON_NET_LIBRARIES "${XYMON_TIRPC_LIBRARY}")
+    endif()
+
+    find_path(XYMON_TIRPC_INCLUDE_DIR rpc/rpc.h PATH_SUFFIXES tirpc)
+    if(XYMON_TIRPC_INCLUDE_DIR)
+        list(APPEND XYMON_NET_INCLUDE_DIRS "${XYMON_TIRPC_INCLUDE_DIR}")
+    endif()
+elseif(CMAKE_SYSTEM_NAME STREQUAL "SunOS")
+    list(APPEND XYMON_NET_LIBRARIES resolv socket nsl)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "HP-UX")
+    list(APPEND XYMON_NET_LIBRARIES nsl)
+elseif(CMAKE_SYSTEM_NAME STREQUAL "SCO_SV")
+    list(APPEND XYMON_NET_LIBRARIES socket nsl)
 endif()
 
 if(CMAKE_SYSTEM_NAME MATCHES "OpenBSD|FreeBSD")
