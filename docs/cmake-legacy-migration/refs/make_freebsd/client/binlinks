@@ -1,23 +1,18 @@
 === /bin/xymonlaunch ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymonlaunch:
+/tmp/xymon-stage/home/_www/bin/xymonlaunch:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/logfetch ===
-/tmp/xymon-stage/var/lib/xymon/bin/logfetch:
+/tmp/xymon-stage/home/_www/bin/logfetch:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/clientupdate ===
-/tmp/xymon-stage/var/lib/xymon/bin/clientupdate:
+/tmp/xymon-stage/home/_www/bin/clientupdate:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/orcaxymon ===
-/tmp/xymon-stage/var/lib/xymon/bin/orcaxymon:
+/tmp/xymon-stage/home/_www/bin/orcaxymon:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/msgcache ===
-/tmp/xymon-stage/var/lib/xymon/bin/msgcache:
+/tmp/xymon-stage/home/_www/bin/msgcache:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/xymonclient-aix.sh ===
 === /bin/xymonclient-darwin.sh ===
 === /bin/xymonclient-freebsd.sh ===
@@ -32,26 +27,20 @@
 === /bin/xymonclient-unixware.sh ===
 === /bin/xymonclient.sh ===
 === /bin/xymon ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymon:
+/tmp/xymon-stage/home/_www/bin/xymon:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/xymoncmd ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymoncmd:
+/tmp/xymon-stage/home/_www/bin/xymoncmd:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/xymongrep ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymongrep:
+/tmp/xymon-stage/home/_www/bin/xymongrep:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/xymoncfg ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymoncfg:
+/tmp/xymon-stage/home/_www/bin/xymoncfg:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/xymondigest ===
-/tmp/xymon-stage/var/lib/xymon/bin/xymondigest:
+/tmp/xymon-stage/home/_www/bin/xymondigest:
 /lib/libc.so.7
-/lib/libsys.so.7
 === /bin/freebsd-meminfo ===
-/tmp/xymon-stage/var/lib/xymon/bin/freebsd-meminfo:
+/tmp/xymon-stage/home/_www/bin/freebsd-meminfo:
 /lib/libc.so.7
-/lib/libsys.so.7

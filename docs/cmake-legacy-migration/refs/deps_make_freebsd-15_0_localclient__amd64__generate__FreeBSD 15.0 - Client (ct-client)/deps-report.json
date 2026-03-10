@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "bsd",
+  "os": "freebsd",
+  "version": "15.0",
+  "package_manager": "pkg",
+  "requested_packages": ["gmake", "ninja", "pcre"],
+  "requested_already_present": [],
+  "requested_missing_before": ["gmake", "ninja", "pcre"],
+  "requested_newly_installed": ["gmake", "ninja", "pcre"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["gmake", "libffi", "mpdecimal", "ninja", "pcre", "python311", "readline"],
+  "indirect_newly_installed": ["libffi", "mpdecimal", "python311", "readline"],
+  "counts": {
+    "requested_packages": 3,
+    "requested_already_present": 0,
+    "requested_missing_before": 3,
+    "requested_newly_installed": 3,
+    "requested_missing_after": 0,
+    "all_newly_installed": 7,
+    "indirect_newly_installed": 4
+  },
+  "unneeded_packages_status": "undetermined"
+}
