@@ -66,7 +66,7 @@ fi
 if [[ "${goal}" == "ref" ]]; then
   for var_name in \
     baseline_root artifact_family refs_root artifact_root \
-    baseline_prefix candidate_dir legacy_hostname_config; do
+    baseline_prefix candidate_dir; do
     if [[ -z "${!var_name:-}" ]]; then
       echo "Missing prepared variable for goal=ref: ${var_name}" >&2
       exit 2
@@ -137,28 +137,6 @@ if [[ "${goal}" == "ref" ]]; then
   verify_depth="install"
 fi
 
-load_legacy_hostname_in_process() {
-  local env_file=""
-  env_file="$(mktemp /tmp/xymon-legacy-hostname.XXXXXX)"
-
-  bash ci/run/ref/load-legacy-hostname.sh \
-    --config "${legacy_hostname_config}" \
-    --env-file "${env_file}"
-
-  if [[ -s "${env_file}" ]]; then
-    # shellcheck disable=SC1090
-    source "${env_file}"
-    if [[ -n "${XYMONHOSTNAME:-}" ]]; then
-      export XYMONHOSTNAME
-      echo "Using legacy hostname in-process: ${XYMONHOSTNAME}"
-    fi
-  else
-    echo "Legacy hostname: no in-process override loaded."
-  fi
-
-  rm -f "${env_file}"
-}
-
 run_core_build_install() {
   local args=(
     bash
@@ -203,6 +181,12 @@ run_ref_snapshot() {
 echo "=== Lane execution ==="
 echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
 echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} install_mode=${install_mode} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+
+if [[ "${goal}" == "ref" ]]; then
+  export XYMONHOSTNAME="localhost"
+  export XYMONHOSTIP="127.0.0.1"
+  echo "Using fixed ref identity: XYMONHOSTNAME=${XYMONHOSTNAME} XYMONHOSTIP=${XYMONHOSTIP}"
+fi
 
 case "${goal}" in
   verify)
