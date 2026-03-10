@@ -21,23 +21,22 @@ services:
       context: ..
       dockerfile: docker/debian-12-server-make/Dockerfile
 
-  ubuntu-22-server-cmake:
+  ubuntu-22.04-server-cmake:
     build:
       context: ..
-      dockerfile: docker/ubuntu-22-server-cmake/Dockerfile
+      dockerfile: docker/ubuntu-22.04-server-cmake/Dockerfile
 
-  ubuntu-22-server-make:
+  ubuntu-22.04-server-make:
     build:
       context: ..
-      dockerfile: docker/ubuntu-22-server-make/Dockerfile
+      dockerfile: docker/ubuntu-22.04-server-make/Dockerfile
 
-  ubuntu-24-server-cmake:
+  ubuntu-24.04-server-cmake:
     build:
       context: ..
-      dockerfile: docker/ubuntu-24-server-cmake/Dockerfile
+      dockerfile: docker/ubuntu-24.04-server-cmake/Dockerfile
 
-  ubuntu-24-server-make:
+  ubuntu-24.04-server-make:
     build:
       context: ..
-      dockerfile: docker/ubuntu-24-server-make/Dockerfile
-
+      dockerfile: docker/ubuntu-24.04-server-make/Dockerfile
