@@ -20,7 +20,7 @@
 #define XYMONHOME "/var/lib/xymon"
 #define XYMONCLIENTHOME "/var/lib/xymon"
 #define XYMONLOGDIR "/var/log/xymon"
-#define XYMONHOSTNAME "dc78f5201ff2"
+#define XYMONHOSTNAME "localhost"
 #define XYMONHOSTIP "127.0.0.1"
 #define XYMONHOSTOS "linux"
 

@@ -158,7 +158,7 @@
 /Library/WebServer/server/etc/critical.cfg.bak	/server/etc/critical.cfg.bak	f	664	70	70	0	
 /Library/WebServer/server/etc/graphs.cfg	/server/etc/graphs.cfg	f	644	70	70	69329	
 /Library/WebServer/server/etc/holidays.cfg	/server/etc/holidays.cfg	f	644	70	70	3929	
-/Library/WebServer/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	70	70	671	
+/Library/WebServer/server/etc/hosts.cfg	/server/etc/hosts.cfg	f	644	70	70	555	
 /Library/WebServer/server/etc/protocols.cfg	/server/etc/protocols.cfg	f	644	70	70	5530	
 /Library/WebServer/server/etc/rrddefinitions.cfg	/server/etc/rrddefinitions.cfg	f	644	70	70	1360	
 /Library/WebServer/server/etc/snmpmibs.cfg	/server/etc/snmpmibs.cfg	f	644	70	70	16843	
@@ -166,7 +166,7 @@
 /Library/WebServer/server/etc/tasks.d	/server/etc/tasks.d	d	755	70	70	64	
 /Library/WebServer/server/etc/xymon-apache.conf	/server/etc/xymon-apache.conf	f	644	70	70	5706	
 /Library/WebServer/server/etc/xymonmenu.cfg	/server/etc/xymonmenu.cfg	f	644	70	70	3328	
-/Library/WebServer/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	70	70	17675	
+/Library/WebServer/server/etc/xymonserver.cfg	/server/etc/xymonserver.cfg	f	644	70	70	17559	
 /Library/WebServer/server/ext	/server/ext	d	755	70	70	96	
 /Library/WebServer/server/ext/xymonnet-again.sh	/server/ext/xymonnet-again.sh	f	755	70	70	307	
 /Library/WebServer/server/tmp	/server/tmp	d	755	70	70	64	
