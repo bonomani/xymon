@@ -69,8 +69,7 @@ families:
     os_version_key: macos_version
   validation:
     lane_overrides:
-      # macOS compare currently uses FreeBSD legacy refs as the closest baseline.
-      baseline_root: make_freebsd
+      baseline_root: make_macos
 
 - family: netbsd
   common:
