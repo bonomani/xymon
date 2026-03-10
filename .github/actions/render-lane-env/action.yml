@@ -4,7 +4,6 @@ inputs:
   lane_env_json:
     description: Lane environment JSON (same object produced by `.github/actions/ref-lane-context`).
     required: true
-    type: string
   output:
     description: Path to the generated lane environment script (relative to workspace).
     required: false
