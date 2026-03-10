@@ -25,3 +25,17 @@ packaging:
       - libpcre3-dev
       - librrd-dev
       - libssl-dev
+  freebsd_pkg:
+    metadata:
+      source: ports
+      origin: net-mgmt/xymon-server
+      package_name: xymon-server
+      reference: https://www.freshports.org/net-mgmt/xymon-server/
+    pkg:
+      - gmake
+      - rrdtool
+      - fping
+      - mtr-nox11
+      - png
+      - pcre
+      - c-ares
