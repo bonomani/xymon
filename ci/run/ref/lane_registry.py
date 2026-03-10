@@ -168,30 +168,30 @@ def build_lane_registry(
             entry = require_mapping(raw_entry, f"Lane entry #{include_index} in {lane_file}")
             resolved_entry = _resolve_entry_defaults(entry, defaults, lane_file, include_index)
             expanded = expand_lane_variants(dict(resolved_entry), lane_file, include_index)
-            resolved_include.extend(expanded)
-        include = resolved_include
+            resolved_include.append((include_index, expanded))
 
-        for include_index, lane in enumerate(include):
-            variant = str(lane.get("variant") or "").strip()
-            platform_id = str(lane.get("platform_id") or "").strip()
-            lane_name = _derive_lane_name(lane, platform_display_names)
-            allow_failure = bool(lane.get("allow_failure") is True)
+        for include_index, expanded_lanes in resolved_include:
+            for lane in expanded_lanes:
+                variant = str(lane.get("variant") or "").strip()
+                platform_id = str(lane.get("platform_id") or "").strip()
+                lane_name = _derive_lane_name(lane, platform_display_names)
+                allow_failure = bool(lane.get("allow_failure") is True)
 
-            record = LaneRecord(
-                name=lane_name,
-                family=family,
-                lane_file=lane_file_rel,
-                include_index=include_index,
-                variant=variant,
-                platform_id=platform_id,
-                allow_failure=allow_failure,
-            )
-            if lane_name in registry:
-                other = registry[lane_name]
-                raise ValueError(
-                    "Duplicate lane name mapping detected: "
-                    f"'{lane_name}' -> {other.lane_file}#{other.include_index} and "
-                    f"{record.lane_file}#{record.include_index}"
+                record = LaneRecord(
+                    name=lane_name,
+                    family=family,
+                    lane_file=lane_file_rel,
+                    include_index=include_index,
+                    variant=variant,
+                    platform_id=platform_id,
+                    allow_failure=allow_failure,
                 )
-            registry[lane_name] = record
+                if lane_name in registry:
+                    other = registry[lane_name]
+                    raise ValueError(
+                        "Duplicate lane name mapping detected: "
+                        f"'{lane_name}' -> {other.lane_file}#{other.include_index} and "
+                        f"{record.lane_file}#{record.include_index}"
+                    )
+                registry[lane_name] = record
     return registry

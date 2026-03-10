@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import argparse
+import copy
 import json
 import os
 import sys
@@ -22,7 +23,7 @@ from lane_categories import (
     total_fail_count,
 )
 from lane_registry import build_lane_registry
-from lane_utils import DEFAULT_LANE_VARIANTS
+from lane_utils import DEFAULT_LANE_VARIANTS, LaneSpecError, expand_generated_lanes
 
 API_VERSION = "2022-11-28"
 DEFAULT_WORKFLOW = "pipeline-select-run-lanes.yml"
@@ -296,13 +297,76 @@ def load_lane_file_docs(repo_root: Path, lane_files: set[str]) -> dict[str, dict
     for lane_file_rel in sorted(lane_files):
         path = repo_root / lane_file_rel
         data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-        include = None
-        if isinstance(data, dict):
-            include = data.get("include", data.get("lanes"))
-        elif isinstance(data, list):
-            include = data
-        if not isinstance(include, list):
-            raise ValueError(f"Lane file include section must be a list: {lane_file_rel}")
+        if isinstance(data, dict) and "generated" in data:
+            generated = data.get("generated")
+            if not isinstance(generated, dict):
+                raise ValueError(f"Lane file generated section must be a mapping: {lane_file_rel}")
+
+            generated_copy = copy.deepcopy(generated)
+            platforms = generated_copy.get("platforms")
+            if not isinstance(platforms, list):
+                raise ValueError(f"Lane file generated.platforms must be a list: {lane_file_rel}")
+
+            for index, platform_entry in enumerate(platforms):
+                if not isinstance(platform_entry, dict):
+                    raise ValueError(
+                        f"Lane file generated.platforms[{index}] must be a mapping: {lane_file_rel}"
+                    )
+                platform_entry["__generated_platform_index"] = index
+                secondary_overrides = platform_entry.get("secondary_overrides")
+                if secondary_overrides is None:
+                    secondary_overrides = {}
+                    platform_entry["secondary_overrides"] = secondary_overrides
+                if not isinstance(secondary_overrides, dict):
+                    raise ValueError(
+                        f"Lane file generated.platforms[{index}].secondary_overrides must be a mapping: {lane_file_rel}"
+                    )
+                secondary_overrides["__generated_platform_index"] = index
+                secondary_overrides["__generated_secondary"] = True
+
+            try:
+                expanded = expand_generated_lanes(generated_copy, path, generated_overrides={})
+            except LaneSpecError as exc:
+                raise ValueError(str(exc)) from exc
+
+            include = []
+            original_platforms = data["generated"]["platforms"]
+            for expanded_entry in expanded:
+                if not isinstance(expanded_entry, dict):
+                    raise ValueError(f"Expanded lane entry must be a mapping: {lane_file_rel}")
+                platform_index = expanded_entry.pop("__generated_platform_index", None)
+                is_secondary = bool(expanded_entry.pop("__generated_secondary", False))
+                if not isinstance(platform_index, int):
+                    raise ValueError(
+                        f"Expanded generated lane entry missing platform index metadata: {lane_file_rel}"
+                    )
+                source_platform = original_platforms[platform_index]
+                target = source_platform
+                if is_secondary:
+                    target = source_platform.setdefault("secondary_overrides", {})
+                    if not isinstance(target, dict):
+                        raise ValueError(
+                            f"Lane file generated.platforms[{platform_index}].secondary_overrides "
+                            f"must be a mapping: {lane_file_rel}"
+                        )
+                include.append(
+                    {
+                        "entry": expanded_entry,
+                        "generated": True,
+                        "target": target,
+                        "platform": source_platform,
+                        "is_secondary": is_secondary,
+                    }
+                )
+        else:
+            include = None
+            if isinstance(data, dict):
+                include = data.get("include", data.get("lanes"))
+            elif isinstance(data, list):
+                include = data
+            if not isinstance(include, list):
+                raise ValueError(f"Lane file include section must be a list: {lane_file_rel}")
+            include = [{"entry": entry, "generated": False, "target": entry} for entry in include]
         docs[lane_file_rel] = {"path": path, "data": data, "include": include}
     return docs
 
@@ -480,7 +544,8 @@ def main() -> None:
     for entry_key, entry_lanes in sorted(lanes_by_entry.items()):
         lane_file, include_index = entry_key
         include = docs[lane_file]["include"]
-        entry = include[include_index]
+        include_record = include[include_index]
+        entry = include_record["entry"]
         if not isinstance(entry, dict):
             continue
 
@@ -535,7 +600,11 @@ def main() -> None:
         if not entry_changes["set"] and not entry_changes["reset"]:
             continue
 
-        apply_entry_lane_states(entry, variant_specs, desired_by_variant)
+        apply_entry_lane_states(include_record["target"], variant_specs, desired_by_variant)
+        if include_record["generated"] and include_record["is_secondary"]:
+            target = include_record["target"]
+            if isinstance(target, dict) and not target:
+                include_record["platform"].pop("secondary_overrides", None)
         touched_entries.add(entry_key)
         touched_files.add(lane_file)
         proposed_entry_changes.append(
