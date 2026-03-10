@@ -1,0 +1,149 @@
+name: Prepare reference matrix
+description: Resolve execution settings, validate ref models, and build a lane matrix.
+
+inputs:
+  family:
+    description: Family selector value.
+    required: true
+  variant:
+    description: Variant selector value.
+    required: true
+  arch:
+    description: Architecture selector value.
+    required: true
+  arch_policy:
+    description: Architecture selection policy.
+    required: true
+  alias_policy:
+    description: Alias selection policy.
+    required: true
+  requested_build_tool:
+    description: Requested build tool.
+    required: true
+  requested_compiler:
+    description: Requested compiler.
+    required: true
+  requested_profile:
+    description: Requested profile.
+    required: true
+  requested_install_mode:
+    description: Requested install mode.
+    required: true
+  requested_verify_depth:
+    description: Requested verify depth.
+    required: true
+  ref_mode:
+    description: Reference mode.
+    required: true
+  publish:
+    description: Publish mode.
+    required: true
+  allow_failure_mode:
+    description: Allow-failure mode.
+    required: true
+  selector_workflow:
+    description: Workflow file whose family dropdown should be validated.
+    required: true
+  selector_purpose:
+    description: Purpose-specific family dropdown to validate.
+    required: true
+  manifest:
+    description: Ref family manifest path.
+    required: false
+    default: ci/run/ref/ref-families.yml
+  runtime_model:
+    description: Runtime model path.
+    required: false
+    default: ci/run/ref/runtime-model.json
+
+outputs:
+  matrix_all:
+    description: JSON matrix for downstream jobs.
+    value: ${{ steps.generate.outputs.matrix_all }}
+  build_tool:
+    description: Resolved build tool.
+    value: ${{ steps.resolve_execution.outputs.build_tool }}
+  compiler:
+    description: Resolved compiler.
+    value: ${{ steps.resolve_execution.outputs.compiler }}
+  profile:
+    description: Resolved profile.
+    value: ${{ steps.resolve_execution.outputs.profile }}
+  install_mode:
+    description: Resolved install mode.
+    value: ${{ steps.resolve_execution.outputs.install_mode }}
+  verify_depth:
+    description: Resolved verify depth.
+    value: ${{ steps.resolve_execution.outputs.verify_depth }}
+  goal:
+    description: Resolved execution goal.
+    value: ${{ steps.resolve_execution.outputs.goal }}
+  ref_mode:
+    description: Normalized ref mode.
+    value: ${{ steps.resolve_execution.outputs.ref_mode }}
+  publish:
+    description: Normalized publish mode.
+    value: ${{ steps.resolve_execution.outputs.publish }}
+  allow_failure_mode:
+    description: Normalized allow-failure mode.
+    value: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
+  lane_count_total:
+    description: Total number of selected lanes.
+    value: ${{ steps.generate.outputs.lane_count_total }}
+  lane_counts_json:
+    description: Runtime bucket counts.
+    value: ${{ steps.generate.outputs.lane_counts_json }}
+  selected_families:
+    description: Comma-separated selected family list.
+    value: ${{ steps.generate.outputs.selected_families }}
+
+runs:
+  using: composite
+  steps:
+    - name: Resolve execution model
+      id: resolve_execution
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        python3 ci/run/ref/resolve-execution-model.py \
+          --requested-build-tool "${{ inputs.requested_build_tool }}" \
+          --requested-compiler "${{ inputs.requested_compiler }}" \
+          --requested-profile "${{ inputs.requested_profile }}" \
+          --requested-install-mode "${{ inputs.requested_install_mode }}" \
+          --requested-verify-depth "${{ inputs.requested_verify_depth }}" \
+          --ref-mode "${{ inputs.ref_mode }}" \
+          --publish "${{ inputs.publish }}" \
+          --allow-failure-mode "${{ inputs.allow_failure_mode }}" \
+          --github-output "${GITHUB_OUTPUT}" > /dev/null
+
+    - name: Validate ref models
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        python3 ci/run/ref/check-ref-models.py \
+          --manifest "${{ inputs.manifest }}" \
+          --runtime-model "${{ inputs.runtime_model }}" \
+          --selector-workflow "${{ inputs.selector_workflow }}" \
+          --selector-purpose "${{ inputs.selector_purpose }}"
+
+    - name: Build selected lanes matrix
+      id: generate
+      shell: bash
+      run: |
+        set -euo pipefail
+
+        python3 ci/run/ref/build-ref-make-matrix.py \
+          --selected-family "${{ inputs.family }}" \
+          --selected-variant "${{ inputs.variant }}" \
+          --selected-arch "${{ inputs.arch }}" \
+          --selected-arch-policy "${{ inputs.arch_policy }}" \
+          --selected-alias-policy "${{ inputs.alias_policy }}" \
+          --ref-mode "${{ steps.resolve_execution.outputs.ref_mode }}" \
+          --build-tool "${{ steps.resolve_execution.outputs.build_tool }}" \
+          --compiler "${{ steps.resolve_execution.outputs.compiler }}" \
+          --profile "${{ steps.resolve_execution.outputs.profile }}" \
+          --install-mode "${{ steps.resolve_execution.outputs.install_mode }}" \
+          --manifest "${{ inputs.manifest }}" \
+          --github-output "${GITHUB_OUTPUT}"

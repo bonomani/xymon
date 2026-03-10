@@ -102,6 +102,8 @@ def resolve_build_tool(
     explicit_profile = explicit_requested_profile(requested_profile)
     if explicit_profile == "gnuinstall":
         return "cmake"
+    if explicit_profile == "packaging":
+        return "cmake"
     if explicit_profile == "debian":
         return "make"
     if ref_mode == "compare":
@@ -117,7 +119,7 @@ def resolve_profile(requested_profile: str, build_tool: str) -> str:
     explicit_profile = explicit_requested_profile(requested_profile)
     if explicit_profile:
         if build_tool == "make":
-            if explicit_profile in {"default", "debian", "packaging"}:
+            if explicit_profile in {"default", "debian"}:
                 return explicit_profile
             raise ValueError(f"profile={explicit_profile} requires build_tool=cmake")
         if explicit_profile in {"default", "gnuinstall", "packaging"}:
@@ -128,7 +130,7 @@ def resolve_profile(requested_profile: str, build_tool: str) -> str:
 
 
 def default_install_mode(build_tool: str, profile: str) -> str:
-    if build_tool == "make" and profile in {"debian", "packaging"}:
+    if build_tool == "make" and profile == "debian":
         return "package"
     return "source"
 
@@ -140,7 +142,7 @@ def validate_install_mode_for_combo(
 ) -> None:
     if install_mode not in {"source", "package"}:
         raise ValueError(f"Unsupported install_mode: {install_mode}")
-    if build_tool == "make" and profile in {"debian", "packaging"} and install_mode != "package":
+    if build_tool == "make" and profile == "debian" and install_mode != "package":
         raise ValueError(
             f"make profile={profile} currently requires install_mode=package"
         )

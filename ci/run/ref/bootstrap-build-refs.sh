@@ -107,7 +107,7 @@ install_mode="${install_mode:-auto}"
 case "${build_tool}" in
   make)
     case "${profile}" in
-      default|debian|packaging)
+      default|debian)
         ;;
       *)
         echo "Unsupported --profile value for make: ${profile}" >&2
@@ -129,7 +129,7 @@ esac
 
 case "${install_mode}" in
   auto|"")
-    if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) ]]; then
+    if [[ "${build_tool}" == "make" && "${profile}" == "debian" ]]; then
       install_mode="package"
     else
       install_mode="source"
@@ -143,7 +143,7 @@ case "${install_mode}" in
     ;;
 esac
 
-if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) && "${install_mode}" != "package" ]]; then
+if [[ "${build_tool}" == "make" && "${profile}" == "debian" && "${install_mode}" != "package" ]]; then
   echo "make profile=${profile} currently requires --install-mode package" >&2
   usage
 fi
