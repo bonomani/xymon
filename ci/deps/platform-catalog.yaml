@@ -23,7 +23,7 @@ platforms:
       family: debian
       os: debian
       version: 13
-  ubuntu-20:
+  ubuntu-20.04:
     runtime: docker
     image: ubuntu:20.04
     display_name: Ubuntu 20.04 amd64
@@ -31,7 +31,7 @@ platforms:
       family: ubuntu
       os: ubuntu
       version: 20
-  ubuntu-22:
+  ubuntu-22.04:
     runtime: docker
     image: ubuntu:22.04
     display_name: Ubuntu 22.04 amd64
@@ -39,7 +39,7 @@ platforms:
       family: ubuntu
       os: ubuntu
       version: local
-  ubuntu-24:
+  ubuntu-24.04:
     runtime: docker
     image: ubuntu:24.04
     display_name: Ubuntu 24.04 amd64

@@ -1,5 +1,6 @@
 source:
   container_intent: ci/deps/platform-intent.yaml
+  platform_catalog: ci/deps/platform-catalog.yaml
   bsd_sources: ci/deps/platform-bsd-sources.yaml
   host_runner_catalog: ci/deps/platform-host-runners.yaml
   registry_base: https://registry-1.docker.io
@@ -13,15 +14,13 @@ platforms:
     platform_id: almalinux-10
     platform_os: almalinux
     platform_version: '10'
-    image: library/almalinux:10
+    image: almalinux:10
     deps:
       family: rpm
       os: almalinux
       version: 10
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/10
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/almalinux/tags/10
+    content_type: image
     digest: sha256:3ea6bed76e47c1a816ed7e1ed7be8661efcf6984bec90bcad5ec73b66b6754ce
     discovered_arches:
     - amd64
@@ -30,52 +29,32 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: &id001
+        direct_runner_labels: []
+        container_runner_labels: &id001
         - ubuntu-22.04
         - ubuntu-24.04
-  - family: almalinux
-    repository: library/almalinux
-    repository_url: https://hub.docker.com/_/almalinux
-    platform_id: almalinux-9
-    platform_os: almalinux
-    platform_version: '9'
-    image: library/almalinux:9
-    deps:
-      family: rpm
-      os: almalinux
-      version: 9
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/9
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4e5f333756e39943fe66e3b55ee4c303805eebd7c6da372f07f2418f79b23d87
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: &id002
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: almalinux
     repository: library/almalinux
     repository_url: https://hub.docker.com/_/almalinux
     platform_id: almalinux-8
     platform_os: almalinux
     platform_version: '8'
-    image: library/almalinux:8
+    image: almalinux:8
     deps:
       family: rpm
       os: almalinux
       version: 8
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/8
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/almalinux/tags/8
+    content_type: image
     digest: sha256:9cf50481aca02c0112131e589e9eac358fb43977bcf2350b542a6de1d2484178
     discovered_arches:
     - amd64
@@ -84,115 +63,91 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: alpine
-    repository: library/alpine
-    repository_url: https://hub.docker.com/_/alpine
-    platform_id: alpine-3_23
-    platform_os: alpine
-    platform_version: '3.23'
-    image: library/alpine:3.23
-    deps:
-      family: alpine
-      os: alpine
-      version: 3
-    intended_arches:
-    - amd64
-    - arm64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.23
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
       arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: &id002
-        - ubuntu-22.04-arm
-        - ubuntu-24.04-arm
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: almalinux
+    repository: library/almalinux
+    repository_url: https://hub.docker.com/_/almalinux
+    platform_id: almalinux-9
+    platform_os: almalinux
+    platform_version: '9'
+    image: almalinux:9
+    deps:
+      family: rpm
+      os: almalinux
+      version: 9
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/almalinux/tags/9
+    content_type: image
+    digest: sha256:4e5f333756e39943fe66e3b55ee4c303805eebd7c6da372f07f2418f79b23d87
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
-    platform_id: alpine-3_22
+    platform_id: alpine-3_19
     platform_os: alpine
-    platform_version: '3.22'
-    image: library/alpine:3.22
+    platform_version: '3.19'
+    image: alpine:3.19
     deps:
       family: alpine
       os: alpine
       version: 3
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.22
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/3.19
+    content_type: image
+    digest: sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
     - ppc64le
-    - riscv64
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: alpine
-    repository: library/alpine
-    repository_url: https://hub.docker.com/_/alpine
-    platform_id: alpine-3_21
-    platform_os: alpine
-    platform_version: '3.21'
-    image: library/alpine:3.21
-    deps:
-      family: alpine
-      os: alpine
-      version: 3
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.21
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
     platform_id: alpine-3_20
     platform_os: alpine
     platform_version: '3.20'
-    image: library/alpine:3.20
+    image: alpine:3.20
     deps:
       family: alpine
       os: alpine
       version: 3
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.20
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/3.20
+    content_type: image
     digest: sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
     discovered_arches:
     - amd64
@@ -203,51 +158,140 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
-    platform_id: alpine-3_19
+    platform_id: alpine-3_21
     platform_os: alpine
-    platform_version: '3.19'
-    image: library/alpine:3.19
+    platform_version: '3.21'
+    image: alpine:3.21
     deps:
       family: alpine
       os: alpine
       version: 3
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.19
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/3.21
+    content_type: image
+    digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
     - ppc64le
+    - riscv64
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: alpine
+    repository: library/alpine
+    repository_url: https://hub.docker.com/_/alpine
+    platform_id: alpine-3_22
+    platform_os: alpine
+    platform_version: '3.22'
+    image: alpine:3.22
+    deps:
+      family: alpine
+      os: alpine
+      version: 3
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/3.22
+    content_type: image
+    digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: alpine
+    repository: library/alpine
+    repository_url: https://hub.docker.com/_/alpine
+    platform_id: alpine-3_23
+    platform_os: alpine
+    platform_version: '3.23'
+    image: alpine:3.23
+    deps:
+      family: alpine
+      os: alpine
+      version: 3
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/3.23
+    content_type: image
+    digest: sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: alpine
     repository: library/alpine
     repository_url: https://hub.docker.com/_/alpine
     platform_id: alpine-edge
     platform_os: alpine
     platform_version: edge
-    image: library/alpine:edge
+    image: alpine:edge
     deps:
       family: alpine
       os: alpine
       version: 3
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/edge
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/alpine/tags/edge
+    content_type: image
     digest: sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
     discovered_arches:
     - amd64
@@ -258,97 +302,162 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: archlinux
-    repository: library/archlinux
-    repository_url: https://hub.docker.com/_/archlinux
-    platform_id: archlinux-latest
-    platform_os: archlinux
-    platform_version: latest
-    image: library/archlinux:latest
-    deps:
-      family: arch
-      os: archlinux
-      version: latest
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/latest
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
-    discovered_arches:
-    - amd64
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: archlinux
     repository: library/archlinux
     repository_url: https://hub.docker.com/_/archlinux
     platform_id: archlinux-base
     platform_os: archlinux
     platform_version: base
-    image: library/archlinux:base
+    image: archlinux:base
     deps:
       family: arch
       os: archlinux
       version: latest
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/base
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/archlinux/tags/base
+    content_type: image
     digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
     discovered_arches:
     - amd64
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+  - family: archlinux
+    repository: library/archlinux
+    repository_url: https://hub.docker.com/_/archlinux
+    platform_id: archlinux-latest
+    platform_os: archlinux
+    platform_version: latest
+    image: archlinux:latest
+    deps:
+      family: arch
+      os: archlinux
+      version: latest
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/archlinux/tags/latest
+    content_type: image
+    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
+    discovered_arches:
+    - amd64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
   - family: centos
     repository: library/centos
     repository_url: https://hub.docker.com/_/centos
     platform_id: centos-7
     platform_os: centos
     platform_version: '7'
-    image: library/centos:7
+    image: centos:7
     deps:
       family: rpm
       os: centos
       version: 7
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/centos/manifests/7
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/centos/tags/7
+    content_type: image
     digest: sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - ppc64le
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      ppc64le:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  - family: debian
+    repository: library/debian
+    repository_url: https://hub.docker.com/_/debian
+    platform_id: debian-11
+    platform_os: debian
+    platform_version: 11.11-slim
+    image: debian:11.11-slim
+    deps:
+      family: debian
+      os: debian
+      version: bullseye
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/debian/tags/11.11-slim
+    content_type: image
+    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  - family: debian
+    repository: library/debian
+    repository_url: https://hub.docker.com/_/debian
+    platform_id: debian-12
+    platform_os: debian
+    platform_version: 12.13-slim
+    image: debian:12.13-slim
+    deps:
+      family: debian
+      os: debian
+      version: bookworm
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/debian/tags/12.13-slim
+    content_type: image
+    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
     - ppc64le
+    - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: debian
     repository: library/debian
     repository_url: https://hub.docker.com/_/debian
     platform_id: debian-13
     platform_os: debian
     platform_version: 13.3-slim
-    image: library/debian:13.3-slim
+    image: debian:13.3-slim
     deps:
       family: debian
       os: debian
       version: 13
-    intended_arches:
-    - amd64
-    - arm64
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/debian/tags/13.3-slim
+    content_type: image
     digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
     discovered_arches:
     - amd64
@@ -359,132 +468,32 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
       arm64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id002
-  - family: debian
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    platform_id: debian-12
-    platform_os: debian
-    platform_version: 12.13-slim
-    image: library/debian:12.13-slim
-    deps:
-      family: debian
-      os: debian
-      version: bookworm
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: debian
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    platform_id: debian-11
-    platform_os: debian
-    platform_version: 11.11-slim
-    image: library/debian:11.11-slim
-    deps:
-      family: debian
-      os: debian
-      version: bullseye
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: fedora
-    repository: library/fedora
-    repository_url: https://hub.docker.com/_/fedora
-    platform_id: fedora-42
-    platform_os: fedora
-    platform_version: '42'
-    image: library/fedora:42
-    deps:
-      family: rpm
-      os: fedora
-      version: 42
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/42
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:eb167a7adffa1489a205c83a7b9324e4cb0fae5c54645f263e70ac13f661f0e8
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: fedora
-    repository: library/fedora
-    repository_url: https://hub.docker.com/_/fedora
-    platform_id: fedora-41
-    platform_os: fedora
-    platform_version: '41'
-    image: library/fedora:41
-    deps:
-      family: rpm
-      os: fedora
-      version: 41
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/41
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:f1a3fab47bcb3c3ddf3135d5ee7ba8b7b25f2e809a47440936212a3a50957f3d
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: fedora
     repository: library/fedora
     repository_url: https://hub.docker.com/_/fedora
     platform_id: fedora-40
     platform_os: fedora
     platform_version: '40'
-    image: library/fedora:40
+    image: fedora:40
     deps:
       family: rpm
       os: fedora
       version: 40
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/40
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/fedora/tags/40
+    content_type: image
     digest: sha256:3c86d25fef9d2001712bc3d9b091fc40cf04be4767e48f1aa3b785bf58d300ed
     discovered_arches:
     - amd64
@@ -493,50 +502,29 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: opensuse_leap
-    repository: opensuse/leap
-    repository_url: https://hub.docker.com/r/opensuse/leap
-    platform_id: opensuse-leap-16_0
-    platform_os: opensuse_leap
-    platform_version: '16.0'
-    image: opensuse/leap:16.0
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: fedora
+    repository: library/fedora
+    repository_url: https://hub.docker.com/_/fedora
+    platform_id: fedora-41
+    platform_os: fedora
+    platform_version: '41'
+    image: fedora:41
     deps:
-      family: suse
-      os: opensuse_leap
-      version: '16_0'
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/16.0
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:859560554b625c225fa767b76d61253d529b95d082c2d68579ad69168d5e3da7
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: opensuse_leap
-    repository: opensuse/leap
-    repository_url: https://hub.docker.com/r/opensuse/leap
-    platform_id: opensuse-leap-15_6
-    platform_os: opensuse_leap
-    platform_version: '15.6'
-    image: opensuse/leap:15.6
-    deps:
-      family: suse
-      os: opensuse_leap
-      version: '15_6'
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.6
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:ae1a07a1b5bd1735c557de4bf171832d27cdba02b8ea6969e9ba951ffe6c50a0
+      family: rpm
+      os: fedora
+      version: 41
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/fedora/tags/41
+    content_type: image
+    digest: sha256:f1a3fab47bcb3c3ddf3135d5ee7ba8b7b25f2e809a47440936212a3a50957f3d
     discovered_arches:
     - amd64
     - arm64
@@ -544,9 +532,45 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: fedora
+    repository: library/fedora
+    repository_url: https://hub.docker.com/_/fedora
+    platform_id: fedora-42
+    platform_os: fedora
+    platform_version: '42'
+    image: fedora:42
+    deps:
+      family: rpm
+      os: fedora
+      version: 42
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/fedora/tags/42
+    content_type: image
+    digest: sha256:eb167a7adffa1489a205c83a7b9324e4cb0fae5c54645f263e70ac13f661f0e8
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: opensuse_leap
     repository: opensuse/leap
     repository_url: https://hub.docker.com/r/opensuse/leap
@@ -558,8 +582,6 @@ platforms:
       family: suse
       os: opensuse_leap
       version: '15_5'
-    intended_arches:
-    - amd64
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.5
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:9bd49bd34edb6cc81a47133201f5e7720db3e95ad86eccc4b05afcd83e49dd89
@@ -571,9 +593,74 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      arm32v7:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: opensuse_leap
+    repository: opensuse/leap
+    repository_url: https://hub.docker.com/r/opensuse/leap
+    platform_id: opensuse-leap-15_6
+    platform_os: opensuse_leap
+    platform_version: '15.6'
+    image: opensuse/leap:15.6
+    deps:
+      family: suse
+      os: opensuse_leap
+      version: '15_6'
+    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.6
+    content_type: application/vnd.docker.distribution.manifest.list.v2+json
+    digest: sha256:ae1a07a1b5bd1735c557de4bf171832d27cdba02b8ea6969e9ba951ffe6c50a0
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: opensuse_leap
+    repository: opensuse/leap
+    repository_url: https://hub.docker.com/r/opensuse/leap
+    platform_id: opensuse-leap-16_0
+    platform_os: opensuse_leap
+    platform_version: '16.0'
+    image: opensuse/leap:16.0
+    deps:
+      family: suse
+      os: opensuse_leap
+      version: '16_0'
+    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/16.0
+    content_type: application/vnd.docker.distribution.manifest.list.v2+json
+    digest: sha256:859560554b625c225fa767b76d61253d529b95d082c2d68579ad69168d5e3da7
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
   - family: opensuse_tumbleweed
     repository: opensuse/tumbleweed
     repository_url: https://hub.docker.com/r/opensuse/tumbleweed
@@ -585,8 +672,6 @@ platforms:
       family: suse
       os: opensuse_tumbleweed
       version: latest
-    intended_arches:
-    - amd64
     manifest_url: https://registry-1.docker.io/v2/opensuse/tumbleweed/manifests/latest
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:6e90fbc5c80d92dd06b34e519e3d33a34b4b2ef0e7f28cdd849eb88379c510dc
@@ -598,97 +683,153 @@ platforms:
     - arm32v7
     - riscv64
     host_support:
+      s390x:
+        direct_runner_labels: []
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      ppc64le:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      arm32v7:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+  - family: oraclelinux
+    repository: library/oraclelinux
+    repository_url: https://hub.docker.com/_/oraclelinux
+    platform_id: oraclelinux-10
+    platform_os: oraclelinux
+    platform_version: '10'
+    image: oraclelinux:10
+    deps:
+      family: rpm
+      os: oraclelinux
+      version: 10
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/oraclelinux/tags/10
+    content_type: image
+    digest: sha256:52f0a59393f919916824ad4a2991263502e5c35de772a81c284e9bb0e2edc62e
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
   - family: oraclelinux
     repository: library/oraclelinux
     repository_url: https://hub.docker.com/_/oraclelinux
     platform_id: oraclelinux-10-slim
     platform_os: oraclelinux
     platform_version: 10-slim
-    image: library/oraclelinux:10-slim
+    image: oraclelinux:10-slim
     deps:
       family: rpm
       os: oraclelinux
       version: 10
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/10-slim
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/oraclelinux/tags/10-slim
+    content_type: image
     digest: sha256:5919fae396097046e16ce28cb4bf231cddcc40b3e5e45a7e8a97497e79985743
     discovered_arches:
     - amd64
     - arm64
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: oraclelinux
-    repository: library/oraclelinux
-    repository_url: https://hub.docker.com/_/oraclelinux
-    platform_id: oraclelinux-9
-    platform_os: oraclelinux
-    platform_version: '9'
-    image: library/oraclelinux:9
-    deps:
-      family: rpm
-      os: oraclelinux
-      version: 9
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/9
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:7e81b6915c94b0b9c3a75f6d950168a205f66007285e68551321462f3de78ea4
-    discovered_arches:
-    - amd64
-    - arm64
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
   - family: oraclelinux
     repository: library/oraclelinux
     repository_url: https://hub.docker.com/_/oraclelinux
     platform_id: oraclelinux-8
     platform_os: oraclelinux
     platform_version: '8'
-    image: library/oraclelinux:8
+    image: oraclelinux:8
     deps:
       family: rpm
       os: oraclelinux
       version: 8
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/8
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/oraclelinux/tags/8
+    content_type: image
     digest: sha256:64430839b73647a5fd3e91eb2b15196d3f2caa62d73ba2bac88aebb855e2c337
     discovered_arches:
     - amd64
     - arm64
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  - family: oraclelinux
+    repository: library/oraclelinux
+    repository_url: https://hub.docker.com/_/oraclelinux
+    platform_id: oraclelinux-9
+    platform_os: oraclelinux
+    platform_version: '9'
+    image: oraclelinux:9
+    deps:
+      family: rpm
+      os: oraclelinux
+      version: 9
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/oraclelinux/tags/9
+    content_type: image
+    digest: sha256:7e81b6915c94b0b9c3a75f6d950168a205f66007285e68551321462f3de78ea4
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  - family: rockylinux
+    repository: library/rockylinux
+    repository_url: https://hub.docker.com/_/rockylinux
+    platform_id: rockylinux-8
+    platform_os: rockylinux
+    platform_version: '8'
+    image: rockylinux:8
+    deps:
+      family: rpm
+      os: rockylinux
+      version: 8
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/rockylinux/tags/8
+    content_type: image
+    digest: sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
   - family: rockylinux
     repository: library/rockylinux
     repository_url: https://hub.docker.com/_/rockylinux
     platform_id: rockylinux-9
     platform_os: rockylinux
     platform_version: '9'
-    image: library/rockylinux:9
+    image: rockylinux:9
     deps:
       family: rpm
       os: rockylinux
       version: 9
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/9
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/rockylinux/tags/9
+    content_type: image
     digest: sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
     discovered_arches:
     - amd64
@@ -697,112 +838,28 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: rockylinux
-    repository: library/rockylinux
-    repository_url: https://hub.docker.com/_/rockylinux
-    platform_id: rockylinux-8
-    platform_os: rockylinux
-    platform_version: '8'
-    image: library/rockylinux:8
-    deps:
-      family: rpm
-      os: rockylinux
-      version: 8
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/8
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c
-    discovered_arches:
-    - amd64
-    - arm64
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_container
-        direct_runner_labels: *id001
-  - family: ubuntu
-    repository: library/ubuntu
-    repository_url: https://hub.docker.com/_/ubuntu
-    platform_id: ubuntu-24
-    platform_os: ubuntu
-    platform_version: '24.04'
-    image: library/ubuntu:24.04
-    deps:
-      family: ubuntu
-      os: ubuntu
-      version: latest
-    intended_arches:
-    - amd64
-    - arm64
-    manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/24.04
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
       arm64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id002
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   - family: ubuntu
     repository: library/ubuntu
     repository_url: https://hub.docker.com/_/ubuntu
-    platform_id: ubuntu-22
-    platform_os: ubuntu
-    platform_version: '22.04'
-    image: library/ubuntu:22.04
-    deps:
-      family: ubuntu
-      os: ubuntu
-      version: local
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/22.04
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-    host_support:
-      amd64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id001
-  - family: ubuntu
-    repository: library/ubuntu
-    repository_url: https://hub.docker.com/_/ubuntu
-    platform_id: ubuntu-20
+    platform_id: ubuntu-20.04
     platform_os: ubuntu
     platform_version: '20.04'
-    image: library/ubuntu:20.04
+    image: ubuntu:20.04
     deps:
       family: ubuntu
       os: ubuntu
       version: 20
-    intended_arches:
-    - amd64
-    manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/20.04
-    content_type: application/vnd.oci.image.index.v1+json
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/ubuntu/tags/20.04
+    content_type: image
     digest: sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
     discovered_arches:
     - amd64
@@ -813,189 +870,101 @@ platforms:
     - s390x
     host_support:
       amd64:
-        runtime_preference:
-        - linux_host
-        - linux_container
-        direct_runner_labels: *id001
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: ubuntu
+    repository: library/ubuntu
+    repository_url: https://hub.docker.com/_/ubuntu
+    platform_id: ubuntu-22.04
+    platform_os: ubuntu
+    platform_version: '22.04'
+    image: ubuntu:22.04
+    deps:
+      family: ubuntu
+      os: ubuntu
+      version: local
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/ubuntu/tags/22.04
+    content_type: image
+    digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-22.04
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels:
+        - ubuntu-22.04-arm
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  - family: ubuntu
+    repository: library/ubuntu
+    repository_url: https://hub.docker.com/_/ubuntu
+    platform_id: ubuntu-24.04
+    platform_os: ubuntu
+    platform_version: '24.04'
+    image: ubuntu:24.04
+    deps:
+      family: ubuntu
+      os: ubuntu
+      version: latest
+    manifest_url: https://hub.docker.com/v2/namespaces/library/repositories/ubuntu/tags/24.04
+    content_type: image
+    digest: sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-24.04
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels:
+        - ubuntu-24.04-arm
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
   vms:
-  - platform_id: openbsd-7_8
-    os: openbsd
-    version: '7.8'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
-    asset_name: openbsd-7.8-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.8-x86-64.qcow2
-    asset_size: 687276032
-    asset_updated_at: '2025-12-12T18:49:09Z'
-  - platform_id: openbsd-7_7
-    os: openbsd
-    version: '7.7'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
-    asset_name: openbsd-7.7-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.7-x86-64.qcow2
-    asset_size: 772931584
-    asset_updated_at: '2025-12-12T18:11:49Z'
-  - platform_id: openbsd-7_6
-    os: openbsd
-    version: '7.6'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
-    asset_name: openbsd-7.6-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.6-x86-64.qcow2
-    asset_size: 705101824
-    asset_updated_at: '2025-12-12T19:20:55Z'
-  - platform_id: netbsd-10_1
-    os: netbsd
-    version: '10.1'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    - arm64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.1-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
-    asset_size: 493617152
-    asset_updated_at: '2025-12-03T17:23:52Z'
-  - platform_id: netbsd-10_0
-    os: netbsd
-    version: '10.0'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.0-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
-    asset_size: 492634112
-    asset_updated_at: '2025-12-03T17:23:36Z'
-  - platform_id: netbsd-9_4
-    os: netbsd
-    version: '9.4'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.4-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
-    asset_size: 407240704
-    asset_updated_at: '2025-12-03T17:23:15Z'
-  - platform_id: netbsd-9_3
-    os: netbsd
-    version: '9.3'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.3-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
-    asset_size: 399114240
-    asset_updated_at: '2025-12-03T17:23:14Z'
-  - platform_id: netbsd-9_2
-    os: netbsd
-    version: '9.2'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.2-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
-    asset_size: 398655488
-    asset_updated_at: '2025-12-03T17:24:04Z'
-  - platform_id: macos-26
-    os: macos
-    version: '26'
-    source_arch: arm64
-    intended_arches:
-    - arm64
-    provider: github-actions
-    runner_label: macos-26
-  - platform_id: macos-15
-    os: macos
-    version: '15'
-    source_arch: arm64
-    intended_arches:
-    - arm64
-    provider: github-actions
-    runner_label: macos-15
-  - platform_id: macos-14
-    os: macos
-    version: '14'
-    source_arch: arm64
-    intended_arches:
-    - arm64
-    provider: github-actions
-    runner_label: macos-14
-  - platform_id: macos-latest
-    os: macos
-    version: latest
-    source_arch: arm64
-    intended_arches:
-    - arm64
-    provider: github-actions
-    runner_label: macos-latest
-  - platform_id: freebsd-15_0
-    os: freebsd
-    version: '15.0'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/freebsd-builder
-    release_tag: v0.13.1
-    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
-    asset_name: freebsd-15.0-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-15.0-x86-64.qcow2
-    asset_size: 397475840
-    asset_updated_at: '2025-12-12T18:26:22Z'
-  - platform_id: freebsd-14_3
-    os: freebsd
-    version: '14.3'
-    source_arch: x86-64
-    intended_arches:
-    - amd64
-    provider: cross-platform-actions
-    repo: cross-platform-actions/freebsd-builder
-    release_tag: v0.13.1
-    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
-    asset_name: freebsd-14.3-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-14.3-x86-64.qcow2
-    asset_size: 467093504
-    asset_updated_at: '2025-12-12T18:21:44Z'
   - platform_id: freebsd-13_5
     os: freebsd
     version: '13.5'
     source_arch: x86-64
-    intended_arches:
+    discovered_arches:
     - amd64
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
@@ -1005,6 +974,178 @@ platforms:
     asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-13.5-x86-64.qcow2
     asset_size: 524326400
     asset_updated_at: '2025-12-12T19:23:24Z'
+  - platform_id: freebsd-14_3
+    os: freebsd
+    version: '14.3'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.13.1
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    asset_name: freebsd-14.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-14.3-x86-64.qcow2
+    asset_size: 467093504
+    asset_updated_at: '2025-12-12T18:21:44Z'
+  - platform_id: freebsd-15_0
+    os: freebsd
+    version: '15.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.13.1
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    asset_name: freebsd-15.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-15.0-x86-64.qcow2
+    asset_size: 397475840
+    asset_updated_at: '2025-12-12T18:26:22Z'
+  - platform_id: macos-14
+    os: macos
+    version: '14'
+    source_arch: arm64
+    discovered_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-14
+  - platform_id: macos-15
+    os: macos
+    version: '15'
+    source_arch: arm64
+    discovered_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-15
+  - platform_id: macos-26
+    os: macos
+    version: '26'
+    source_arch: arm64
+    discovered_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-26
+  - platform_id: macos-latest
+    os: macos
+    version: latest
+    source_arch: arm64
+    discovered_arches:
+    - arm64
+    provider: github-actions
+    runner_label: macos-latest
+  - platform_id: netbsd-10_0
+    os: netbsd
+    version: '10.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
+    asset_size: 492634112
+    asset_updated_at: '2025-12-03T17:23:36Z'
+  - platform_id: netbsd-10_1
+    os: netbsd
+    version: '10.1'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.1-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
+    asset_size: 493617152
+    asset_updated_at: '2025-12-03T17:23:52Z'
+  - platform_id: netbsd-9_2
+    os: netbsd
+    version: '9.2'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.2-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
+    asset_size: 398655488
+    asset_updated_at: '2025-12-03T17:24:04Z'
+  - platform_id: netbsd-9_3
+    os: netbsd
+    version: '9.3'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
+    asset_size: 399114240
+    asset_updated_at: '2025-12-03T17:23:14Z'
+  - platform_id: netbsd-9_4
+    os: netbsd
+    version: '9.4'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.4-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
+    asset_size: 407240704
+    asset_updated_at: '2025-12-03T17:23:15Z'
+  - platform_id: openbsd-7_6
+    os: openbsd
+    version: '7.6'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.6-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.6-x86-64.qcow2
+    asset_size: 705101824
+    asset_updated_at: '2025-12-12T19:20:55Z'
+  - platform_id: openbsd-7_7
+    os: openbsd
+    version: '7.7'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.7-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.7-x86-64.qcow2
+    asset_size: 772931584
+    asset_updated_at: '2025-12-12T18:11:49Z'
+  - platform_id: openbsd-7_8
+    os: openbsd
+    version: '7.8'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.8-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.8-x86-64.qcow2
+    asset_size: 687276032
+    asset_updated_at: '2025-12-12T18:49:09Z'
   runners:
   - label: ubuntu-22.04-arm
     machine_family: linux

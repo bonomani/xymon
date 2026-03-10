@@ -31,6 +31,63 @@ SUPPORTED_BUILD_TOOLS = {"make", "cmake"}
 SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
 SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
+SUPPORTED_CONTAINER_RUNTIME_PREFERENCES = {"linux_host", "linux_container"}
+
+
+def parse_string_list(value, context: str, *, supported_values=None):
+    if value is None:
+        return None
+    if isinstance(value, str):
+        values = [value]
+    elif isinstance(value, list) and value:
+        values = value
+    else:
+        die(f"{context} must be a non-empty string or list")
+
+    normalized = []
+    for index, raw in enumerate(values):
+        item = require_non_empty_string(raw, f"{context} entry #{index}")
+        if supported_values is not None and item not in supported_values:
+            die(f"{context} entry #{index} has unsupported value '{item}'")
+        normalized.append(item)
+    return normalized
+
+
+def load_container_runtime_preferences(path: Path):
+    if not path.exists():
+        die(f"Missing platform intent: {path}")
+
+    data = yaml.safe_load(path.read_text()) or {}
+    data = require_mapping(data, f"Platform intent root in {path}")
+    containers = require_mapping(data.get("containers"), f"Platform intent containers in {path}")
+    runtime_preference = require_mapping(
+        containers.get("runtime_preference"),
+        f"Platform intent containers.runtime_preference in {path}",
+    )
+    default = parse_string_list(
+        runtime_preference.get("default"),
+        "Platform intent containers.runtime_preference.default",
+        supported_values=SUPPORTED_CONTAINER_RUNTIME_PREFERENCES,
+    )
+    if not default:
+        die("Platform intent containers.runtime_preference.default must be set")
+    overrides_raw = runtime_preference.get("overrides") or {}
+    overrides_raw = require_mapping(
+        overrides_raw,
+        f"Platform intent containers.runtime_preference.overrides in {path}",
+    )
+    overrides = {}
+    for platform_os, values in overrides_raw.items():
+        key = require_non_empty_string(platform_os, "Platform intent runtime override key")
+        parsed = parse_string_list(
+            values,
+            f"Platform intent runtime override for {key}",
+            supported_values=SUPPORTED_CONTAINER_RUNTIME_PREFERENCES,
+        )
+        if not parsed:
+            die(f"Platform intent runtime override for {key} must be non-empty")
+        overrides[key.lower()] = parsed
+    return default, overrides
 
 
 def parse_runtime_preference(entry, runtime, supported_runtime_keys, family):
@@ -348,6 +405,8 @@ def apply_discovered_platform_overrides(
 
     if resolved is None:
         return None
+    if not resolved.get("supported", True):
+        return resolved
 
     lane_obj["container"] = resolved["image"]
     return resolved
@@ -357,26 +416,31 @@ def resolve_preferred_runtime(
     family_entry,
     lane_obj,
     discovered_platform=None,
+    intent_runtime_preferences=None,
 ):
     runtime = family_entry["runtime"]
     preference_list = list(
-        family_entry.get("runtime_preference", [family_entry["runtime"]])
+        intent_runtime_preferences or family_entry.get("runtime_preference", [family_entry["runtime"]])
     )
-    host_runner = None
 
     if discovered_platform is not None:
-        preference_list = list(discovered_platform["runtime_preference"])
-        host_runner = discovered_platform.get("host_runner")
-        if host_runner is not None and preference_list and preference_list[0] == "linux_host":
+        if not discovered_platform.get("supported", True):
+            return None, None
+        host_runners = list(discovered_platform.get("direct_host_runners", []))
+        if "linux_host" in preference_list and host_runners:
             runtime = "linux_host"
-            lane_obj["runs_on"] = host_runner
+            lane_obj["runs_on"] = host_runners[0]
+        elif "linux_container" in preference_list and discovered_platform.get("supports_container"):
+            runtime = "linux_container"
+        else:
+            return None, None
         lane_obj["runtime"] = runtime
         lane_obj["runtime_preference"] = ",".join(preference_list)
-        return runtime, host_runner
+        return runtime, (host_runners[0] if host_runners else None)
 
     lane_obj["runtime"] = runtime
     lane_obj["runtime_preference"] = ",".join(preference_list)
-    return runtime, host_runner
+    return runtime, None
 
 
 def normalize_lane(
@@ -388,6 +452,7 @@ def normalize_lane(
     requested_compiler,
     profile,
     install_mode,
+    container_runtime_preferences,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -442,11 +507,26 @@ def normalize_lane(
         platform_entry,
         container_catalog,
     )
+    if discovered_platform is not None and not discovered_platform.get("supported", True):
+        return None
+    intent_runtime_preference = None
+    if platform_entry is not None and str(platform_entry.get("runtime", "")).lower() == "docker":
+        deps = platform_entry.get("deps")
+        if isinstance(deps, dict):
+            platform_os_key = str(deps.get("os") or "").strip().lower()
+            if platform_os_key:
+                default_preference, overrides = container_runtime_preferences
+                intent_runtime_preference = list(
+                    overrides.get(platform_os_key, default_preference)
+                )
     effective_runtime, _ = resolve_preferred_runtime(
         family_entry,
         lane_obj,
         discovered_platform=discovered_platform,
+        intent_runtime_preferences=intent_runtime_preference,
     )
+    if effective_runtime is None:
+        return None
     runtime_execution = family_entry["runtime_to_execution"][effective_runtime]
     runtime_default_ref_os = family_entry["runtime_to_default_ref_os"][effective_runtime]
     runtime_requires_runs_on = family_entry["runtime_to_requires_runs_on"][effective_runtime]
@@ -514,6 +594,10 @@ def parse_args():
         default=".github/data/platform-catalog-discovered.yml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
+    parser.add_argument(
+        "--platform-intent",
+        default="ci/deps/platform-intent.yaml",
+    )
     return parser.parse_args()
 
 
@@ -563,6 +647,9 @@ def main():
         family_entry["runtime_to_requires_runs_on"] = runtime_to_requires_runs_on
 
     platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
+    container_runtime_preferences = load_container_runtime_preferences(
+        repo_root / args.platform_intent
+    )
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
     if selected_family == "all":
@@ -597,6 +684,7 @@ def main():
                 compiler,
                 profile,
                 install_mode,
+                container_runtime_preferences,
             )
             if normalized is None:
                 continue
