@@ -24,29 +24,25 @@ def parse_args():
     parser.add_argument("--manifest", required=True)
     parser.add_argument("--runtime-model", required=True)
     parser.add_argument("--selector-workflow", required=True)
+    parser.add_argument(
+        "--selector-purpose",
+        required=True,
+        choices=("generation", "validation"),
+        help="Purpose-specific workflow family dropdown to validate.",
+    )
     return parser.parse_args()
 
 
-def expected_dropdown_families_union(manifest_path: Path, runtime_keys: set[str]) -> list[str]:
-    generation_families = {
+def expected_dropdown_families(manifest_path: Path, runtime_keys: set[str], purpose: str) -> list[str]:
+    enabled_families = {
         entry["family"]
         for entry in load_purpose_manifest_common(
             manifest_path,
-            purpose="generation",
+            purpose=purpose,
             supported_runtimes=runtime_keys,
             include_lane_defaults=False,
         )["entries"]
     }
-    validation_families = {
-        entry["family"]
-        for entry in load_purpose_manifest_common(
-            manifest_path,
-            purpose="validation",
-            supported_runtimes=runtime_keys,
-            include_lane_defaults=False,
-        )["entries"]
-    }
-    enabled_union = generation_families | validation_families
 
     data = yaml.safe_load(manifest_path.read_text(encoding="utf-8")) or {}
     data = require_mapping(data, f"Manifest root in {manifest_path}")
@@ -61,7 +57,7 @@ def expected_dropdown_families_union(manifest_path: Path, runtime_keys: set[str]
         family = require_non_empty_string(
             entry.get("family"), f"Manifest entry #{index}.family"
         )
-        if family in enabled_union and family not in seen:
+        if family in enabled_families and family not in seen:
             ordered.append(family)
             seen.add(family)
     return ordered
@@ -147,8 +143,8 @@ def main() -> None:
     validate_family_overlays(manifest_path, runtime_keys)
     validate_lane_files(manifest_path, runtime_keys, repo_root)
 
-    expected_options = ["all"] + expected_dropdown_families_union(
-        manifest_path, runtime_keys
+    expected_options = ["all"] + expected_dropdown_families(
+        manifest_path, runtime_keys, args.selector_purpose
     )
     validate_dropdown_parity(selector_workflow_path, expected_options)
 

@@ -1,4 +1,5 @@
 name: Render lane environment
+description: Render the normalized lane environment JSON into a shell env script.
 
 inputs:
   lane_env_json:
