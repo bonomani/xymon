@@ -50,6 +50,7 @@ jobs:
           import os
           import subprocess
           import sys
+          import urllib.error
           import urllib.request
 
           sys.path.insert(0, os.path.join(os.getcwd(), "ci", "run", "ref"))
@@ -91,13 +92,25 @@ jobs:
               return any(str(artifact.get("name", "")).startswith("ref_") for artifact in artifacts)
 
           if requested_run_selector:
-              run, _resolved_via = load_run_from_selector(
-                  api_get,
-                  repo,
-                  token,
-                  workflow,
-                  requested_run_selector,
-              )
+              selector = requested_run_selector
+              try:
+                  run, _resolved_via = load_run_from_selector(
+                      api_get,
+                      repo,
+                      token,
+                      workflow,
+                      selector,
+                  )
+              except urllib.error.HTTPError as exc:
+                  if exc.code != 404 or not selector.isdigit():
+                      raise
+                  run, _resolved_via = load_run_from_selector(
+                      api_get,
+                      repo,
+                      token,
+                      workflow,
+                      f"#{selector}",
+                  )
               run_id = str(run.get("id", "")).strip()
               if run_id and has_ref_artifacts(run_id):
                   print(run_id)
