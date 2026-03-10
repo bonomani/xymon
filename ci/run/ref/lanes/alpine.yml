@@ -12,6 +12,8 @@ generated:
     - platform_id: alpine-3_21
       name_prefix: Alpine 3.21
     - platform_id: alpine-3_20
+      name_prefix: Alpine 3.20
     - platform_id: alpine-3_19
+      name_prefix: Alpine 3.19
     - platform_id: alpine-edge
       name_prefix: Alpine edge

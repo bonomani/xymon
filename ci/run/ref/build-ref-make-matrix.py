@@ -35,6 +35,11 @@ SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 SUPPORTED_CONTAINER_RUNTIME_PREFERENCES = {"linux_host", "linux_container"}
 SUPPORTED_ARCH_FILTERS = {"all", "amd64", "arm64"}
 SUPPORTED_VARIANT_FILTERS = {"all", *SUPPORTED_LANE_VARIANTS}
+SUPPORTED_ARCH_POLICY_FILTERS = {
+    "non_primary_latest_only",
+    "non_primary_all",
+    "non_primary_none",
+}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -564,6 +569,11 @@ def parse_args():
         choices=sorted(SUPPORTED_ARCH_FILTERS),
     )
     parser.add_argument(
+        "--selected-arch-policy",
+        default="non_primary_latest_only",
+        choices=sorted(SUPPORTED_ARCH_POLICY_FILTERS),
+    )
+    parser.add_argument(
         "--ref-mode",
         required=True,
         choices=("off", "generate", "compare"),
@@ -614,11 +624,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_family_lanes(repo_root: Path, family_entry):
+def load_family_lanes(repo_root: Path, family_entry, *, selected_arch_policy: str):
     return load_lanes_from_file(
         repo_root / family_entry["lane_file"],
         shared_defaults=family_entry.get("lane_defaults", {}),
         strict_lane_mapping=True,
+        generated_overrides={"arch_policy": selected_arch_policy},
     )
 
 
@@ -667,6 +678,7 @@ def main():
     selected_family = args.selected_family
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
+    selected_arch_policy = args.selected_arch_policy
     if selected_family == "all":
         selected_entries = families
     else:
@@ -686,7 +698,11 @@ def main():
     selected_families = []
     for family_entry in selected_entries:
         selected_families.append(family_entry["family"])
-        lanes = load_family_lanes(repo_root, family_entry)
+        lanes = load_family_lanes(
+            repo_root,
+            family_entry,
+            selected_arch_policy=selected_arch_policy,
+        )
         for lane in lanes:
             if not isinstance(lane, dict):
                 continue

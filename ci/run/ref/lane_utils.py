@@ -26,13 +26,18 @@ def extract_lane_include(
     lane_file: Path,
     *,
     require_include_key: bool = False,
+    generated_overrides=None,
 ):
     """Return the list of lane entries from a lane YAML document."""
     if isinstance(lane_doc, list):
         include = lane_doc
     elif isinstance(lane_doc, dict):
         if "generated" in lane_doc:
-            include = expand_generated_lanes(lane_doc["generated"], lane_file)
+            include = expand_generated_lanes(
+                lane_doc["generated"],
+                lane_file,
+                generated_overrides=generated_overrides,
+            )
         else:
             if require_include_key and "include" not in lane_doc and "lanes" not in lane_doc:
                 raise LaneSpecError(f"Lane file must define an 'include' list: {lane_file}")
@@ -77,7 +82,7 @@ def _infer_platform_version(platform_id: str) -> str:
     return parts[1].replace("_", ".")
 
 
-def expand_generated_lanes(generated_doc, lane_file: Path) -> list[dict]:
+def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_overrides=None) -> list[dict]:
     generated = _require_mapping(generated_doc, f"Lane file generated block: {lane_file}")
     platforms = generated.get("platforms")
     if not isinstance(platforms, list) or not platforms:
@@ -94,6 +99,30 @@ def expand_generated_lanes(generated_doc, lane_file: Path) -> list[dict]:
     secondary_scope = _require_non_empty_string(
         secondary_scope, f"Lane file generated.policy.secondary_scope: {lane_file}"
     )
+    # Generated lane policy always keeps primary lanes for every listed platform.
+    # secondary_scope only controls whether secondary-arch lanes are added:
+    # none -> never, all -> every platform, latest_only -> latest stable + rolling ids.
+    generated_overrides = _require_mapping(
+        generated_overrides or {},
+        f"Lane file generated overrides: {lane_file}",
+    )
+    selected_arch_policy = generated_overrides.get("arch_policy")
+    if selected_arch_policy is not None:
+        selected_arch_policy = _require_non_empty_string(
+            selected_arch_policy,
+            f"Lane file generated overrides arch_policy: {lane_file}",
+        )
+        if selected_arch_policy == "non_primary_all":
+            secondary_scope = "all"
+        elif selected_arch_policy == "non_primary_none":
+            secondary_scope = "none"
+        elif selected_arch_policy == "non_primary_latest_only":
+            secondary_scope = "latest_only"
+        else:
+            raise LaneSpecError(
+                "Lane file generated overrides arch_policy must be one of "
+                f"non_primary_latest_only|non_primary_all|non_primary_none: {lane_file}"
+            )
     if secondary_scope not in {"none", "all", "latest_only"}:
         raise LaneSpecError(
             f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only: {lane_file}"
