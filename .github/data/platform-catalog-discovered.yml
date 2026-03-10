@@ -1,7 +1,7 @@
 source:
-  container_intent: /home/bc/repos/github/bonomani/xymon/ci/deps/platform-intent.yaml
-  bsd_sources: /home/bc/repos/github/bonomani/xymon/ci/deps/platform-bsd-sources.yaml
-  host_runner_catalog: /home/bc/repos/github/bonomani/xymon/ci/deps/platform-host-runners.yaml
+  container_intent: /home/runner/work/xymon/xymon/ci/deps/platform-intent.yaml
+  bsd_sources: /home/runner/work/xymon/xymon/ci/deps/platform-bsd-sources.yaml
+  host_runner_catalog: /home/runner/work/xymon/xymon/ci/deps/platform-host-runners.yaml
   registry_base: https://registry-1.docker.io
   token_service: https://auth.docker.io/token
 platforms:
