@@ -1,0 +1,89 @@
+=== /bin/xymon ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymon:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/xymonlaunch ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymonlaunch:
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/xymoncmd ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncmd:
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/xymongrep ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymongrep:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/xymoncfg ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncfg:
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/xymondigest ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymondigest:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/logfetch ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/logfetch:
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/clientupdate ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/clientupdate:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/orcaxymon ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/orcaxymon:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/msgcache ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/msgcache:
+/usr/lib/libssl.so.35
+/lib/libcrypto.so.35
+/usr/local/lib/libpcre.so.1
+/lib/libc.so.7
+/lib/libthr.so.3
+/lib/libsys.so.7
+=== /bin/freebsd-meminfo ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/freebsd-meminfo:
+/lib/libc.so.7
+/lib/libsys.so.7
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient.sh ===
