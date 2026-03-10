@@ -52,15 +52,7 @@ fi
 find "${artifacts_dir}" -type f -print0 \
   | while IFS= read -r -d '' f; do
       rel="${f#${artifacts_dir}/}"
-      artifact="${rel%%/*}"
-      rest="${rel#*/}"
       dst_rel="${rel}"
-      if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)(__[[:alnum:]_.-]+(__[[:alnum:]_.-]+)?)?$ ]]; then
-        tool="${BASH_REMATCH[1]}"
-        os="${BASH_REMATCH[2]}"
-        variant="${BASH_REMATCH[3]}"
-        dst_rel="${tool}_${os}/${variant}/${rest}"
-      fi
       dst="${ref_dir}/${dst_rel}"
       mkdir -p "$(dirname "${dst}")"
       install -m 0644 "$f" "${dst}"
