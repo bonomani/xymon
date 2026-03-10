@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "bsd",
+  "os": "freebsd",
+  "version": "15.0",
+  "package_manager": "pkg",
+  "requested_packages": ["c-ares", "gmake", "net-snmp", "ninja", "openldap26-client", "pcre", "rrdtool"],
+  "requested_already_present": [],
+  "requested_missing_before": ["c-ares", "gmake", "net-snmp", "ninja", "openldap26-client", "pcre", "rrdtool"],
+  "requested_newly_installed": ["c-ares", "gmake", "net-snmp", "ninja", "openldap26-client", "pcre", "rrdtool"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["c-ares", "cairo", "cyrus-sasl", "dejavu", "expat", "fontconfig", "freetype2", "fribidi", "glib", "gmake", "graphite2", "harfbuzz", "libX11", "libXau", "libXdmcp", "libXext", "libXft", "libXrender", "libdatrie", "libffi", "libfontenc", "libthai", "libxcb", "libxml2", "lzo2", "mkfontscale", "mpdecimal", "net-snmp", "ninja", "openldap26-client", "pango", "pcre", "pcre2", "perl5", "pixman", "png", "py311-packaging", "python311", "readline", "rrdtool", "xorgproto"],
+  "indirect_newly_installed": ["cairo", "cyrus-sasl", "dejavu", "expat", "fontconfig", "freetype2", "fribidi", "glib", "graphite2", "harfbuzz", "libX11", "libXau", "libXdmcp", "libXext", "libXft", "libXrender", "libdatrie", "libffi", "libfontenc", "libthai", "libxcb", "libxml2", "lzo2", "mkfontscale", "mpdecimal", "pango", "pcre2", "perl5", "pixman", "png", "py311-packaging", "python311", "readline", "xorgproto"],
+  "counts": {
+    "requested_packages": 7,
+    "requested_already_present": 0,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 7,
+    "requested_missing_after": 0,
+    "all_newly_installed": 41,
+    "indirect_newly_installed": 34
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "bsd",
+  "os": "openbsd",
+  "version": "7.8",
+  "package_manager": "pkg_add",
+  "requested_packages": ["gmake", "libcares", "net-snmp", "ninja", "openldap-client-2.6.10v0-gssapi", "pcre", "rrdtool"],
+  "requested_already_present": [],
+  "requested_missing_before": ["gmake", "libcares", "net-snmp", "ninja", "openldap-client-2.6.10v0-gssapi", "pcre", "rrdtool"],
+  "requested_newly_installed": ["openldap-client-2.6.10v0-gssapi"],
+  "requested_missing_after": ["gmake", "libcares", "net-snmp", "ninja", "pcre", "rrdtool"],
+  "all_newly_installed": ["bzip2", "cairo", "cyrus-sasl", "e2fsprogs", "fribidi", "glib2", "gmake", "graphite2", "harfbuzz", "heimdal-libs", "libb2", "libcares", "libffi", "libxml", "lzo2", "net-snmp", "ninja", "openldap-client", "pango", "pcre", "pcre2", "png", "py3-packaging", "python", "rrdtool", "rrdupdate", "sqlite3"],
+  "indirect_newly_installed": ["bzip2", "cairo", "cyrus-sasl", "e2fsprogs", "fribidi", "glib2", "gmake", "graphite2", "harfbuzz", "heimdal-libs", "libb2", "libcares", "libffi", "libxml", "lzo2", "net-snmp", "ninja", "openldap-client", "pango", "pcre", "pcre2", "png", "py3-packaging", "python", "rrdtool", "rrdupdate", "sqlite3"],
+  "counts": {
+    "requested_packages": 7,
+    "requested_already_present": 0,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 1,
+    "requested_missing_after": 6,
+    "all_newly_installed": 27,
+    "indirect_newly_installed": 27
+  },
+  "unneeded_packages_status": "undetermined"
+}

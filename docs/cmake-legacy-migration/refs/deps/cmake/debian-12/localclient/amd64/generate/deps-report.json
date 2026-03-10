@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "debian",
+  "os": "debian",
+  "version": "bookworm",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "cmake", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["findutils"],
+  "requested_missing_before": ["build-essential", "cmake", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_newly_installed": ["build-essential", "cmake", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "build-essential", "bzip2", "cmake", "cmake-data", "cpp", "cpp-12", "dpkg-dev", "g++", "g++-12", "gcc", "gcc-12", "git", "git-man", "libarchive13", "libasan8", "libatomic1", "libbinutils", "libbrotli1", "libc-dev-bin", "libc6-dev", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libcurl4", "libdpkg-perl", "liberror-perl", "libexpat1", "libgcc-12-dev", "libgdbm-compat4", "libgdbm6", "libgomp1", "libgprofng0", "libgssapi-krb5-2", "libicu72", "libisl23", "libitm1", "libjansson4", "libjsoncpp25", "libk5crypto3", "libkeyutils1", "libkrb5-3", "libkrb5support0", "libldap-2.5-0", "liblsan0", "libmpc3", "libncursesw6", "libnghttp2-14", "libnsl-dev", "libnsl2", "libpcre16-3", "libpcre3", "libpcre3-dev", "libpcre32-3", "libpcrecpp0v5", "libperl5.36", "libproc2-0", "libpsl5", "libquadmath0", "librhash0", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libssh2-1", "libssl-dev", "libstdc++-12-dev", "libtirpc-common", "libtirpc-dev", "libtirpc3", "libtsan2", "libubsan1", "libuv1", "libxml2", "linux-libc-dev", "make", "ninja-build", "patch", "perl", "perl-modules-5.36", "procps", "rpcsvc-proto", "xz-utils"],
+  "indirect_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "bzip2", "cmake-data", "cpp", "cpp-12", "dpkg-dev", "g++", "g++-12", "gcc", "gcc-12", "git-man", "libarchive13", "libasan8", "libatomic1", "libbinutils", "libbrotli1", "libc-dev-bin", "libc6-dev", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libcurl4", "libdpkg-perl", "liberror-perl", "libexpat1", "libgcc-12-dev", "libgdbm-compat4", "libgdbm6", "libgomp1", "libgprofng0", "libgssapi-krb5-2", "libicu72", "libisl23", "libitm1", "libjansson4", "libjsoncpp25", "libk5crypto3", "libkeyutils1", "libkrb5-3", "libkrb5support0", "libldap-2.5-0", "liblsan0", "libmpc3", "libncursesw6", "libnghttp2-14", "libnsl-dev", "libnsl2", "libpcre16-3", "libpcre3", "libpcre32-3", "libpcrecpp0v5", "libperl5.36", "libproc2-0", "libpsl5", "libquadmath0", "librhash0", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libssh2-1", "libstdc++-12-dev", "libtirpc-common", "libtirpc3", "libtsan2", "libubsan1", "libuv1", "libxml2", "linux-libc-dev", "make", "patch", "perl", "perl-modules-5.36", "procps", "rpcsvc-proto", "xz-utils"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 1,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 7,
+    "requested_missing_after": 0,
+    "all_newly_installed": 86,
+    "indirect_newly_installed": 79
+  },
+  "unneeded_packages_status": "undetermined"
+}

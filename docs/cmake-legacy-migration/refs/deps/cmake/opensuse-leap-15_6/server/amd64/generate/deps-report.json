@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "suse",
+  "os": "opensuse_leap",
+  "version": "15_6",
+  "package_manager": "zypper",
+  "requested_packages": ["c-ares-devel", "cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "net-snmp-devel", "ninja", "openldap2-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_already_present": ["diffutils", "findutils"],
+  "requested_missing_before": ["c-ares-devel", "cmake", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "net-snmp-devel", "ninja", "openldap2-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_newly_installed": ["c-ares-devel", "cmake", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "net-snmp-devel", "ninja", "openldap2-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "busybox", "busybox-less", "c-ares-devel", "cmake", "cmake-full", "cpp", "cpp7", "dbus-1", "fontconfig", "gcc", "gcc-c++", "gcc7", "gcc7-c++", "gio-branding-SLE", "git", "git-core", "glib2-tools", "glibc-devel", "jitterentropy-devel", "kbd", "kbd-legacy", "libX11-6", "libX11-data", "libXau6", "libXext6", "libXft2", "libXrender1", "libapparmor1", "libarchive13", "libasan4", "libatomic1", "libcairo2", "libcares2", "libcilkrts5", "libctf-nobfd0", "libctf0", "libdatrie1", "libdbi3", "libdbus-1-3", "libexpat1", "libfontconfig1", "libfreetype6", "libfribidi0", "libgdbm4", "libgio-2_0-0", "libgmodule-2_0-0", "libgobject-2_0-0", "libgomp1", "libgraphite2-3", "libharfbuzz0", "libip4tc2", "libisl15", "libitm1", "libjsoncpp19", "libkmod2", "liblsan0", "libmpc3", "libmpfr6", "libmpx2", "libmpxwrappers2", "libopenssl-3-devel", "libopenssl-devel", "libopenssl1_1", "libpango-1_0-0", "libpcre16-0", "libpcrecpp0", "libpcreposix0", "libpixman-1-0", "libpng16-16", "libpython3_6m1_0", "librhash0", "librrd8", "libseccomp2", "libsensors4", "libsensors4-devel", "libsepol1", "libsha1detectcoll1", "libsnmp40", "libstdc++-devel", "libstdc++6-devel-gcc7", "libthai-data", "libthai0", "libtirpc-devel", "libtsan0", "libubsan0", "libwrap0", "libxcb-render0", "libxcb-shm0", "libxcb1", "libxcrypt-devel", "libzstd-devel", "linux-glibc-devel", "logrotate", "make", "net-snmp", "net-snmp-devel", "ninja", "openldap2-devel", "pam-config", "pcre-devel", "perl", "perl-Error", "perl-Git", "perl-SNMP", "perl-Term-ReadKey", "pkg-config", "popt-devel", "python3-base", "rpm-devel", "rrdtool-devel", "shared-mime-info", "snmp-mibs", "systemd", "systemd-default-settings", "systemd-default-settings-branding-openSUSE", "systemd-presets-branding-MicroOS", "systemd-presets-common-SUSE", "tcpd-devel", "xz", "zlib-devel"],
+  "indirect_newly_installed": ["binutils", "busybox", "busybox-less", "cmake-full", "cpp", "cpp7", "dbus-1", "fontconfig", "gcc7", "gcc7-c++", "gio-branding-SLE", "git-core", "glib2-tools", "glibc-devel", "jitterentropy-devel", "kbd", "kbd-legacy", "libX11-6", "libX11-data", "libXau6", "libXext6", "libXft2", "libXrender1", "libapparmor1", "libarchive13", "libasan4", "libatomic1", "libcairo2", "libcares2", "libcilkrts5", "libctf-nobfd0", "libctf0", "libdatrie1", "libdbi3", "libdbus-1-3", "libexpat1", "libfontconfig1", "libfreetype6", "libfribidi0", "libgdbm4", "libgio-2_0-0", "libgmodule-2_0-0", "libgobject-2_0-0", "libgomp1", "libgraphite2-3", "libharfbuzz0", "libip4tc2", "libisl15", "libitm1", "libjsoncpp19", "libkmod2", "liblsan0", "libmpc3", "libmpfr6", "libmpx2", "libmpxwrappers2", "libopenssl-3-devel", "libopenssl1_1", "libpango-1_0-0", "libpcre16-0", "libpcrecpp0", "libpcreposix0", "libpixman-1-0", "libpng16-16", "libpython3_6m1_0", "librhash0", "librrd8", "libseccomp2", "libsensors4", "libsensors4-devel", "libsepol1", "libsha1detectcoll1", "libsnmp40", "libstdc++-devel", "libstdc++6-devel-gcc7", "libthai-data", "libthai0", "libtsan0", "libubsan0", "libwrap0", "libxcb-render0", "libxcb-shm0", "libxcb1", "libxcrypt-devel", "libzstd-devel", "linux-glibc-devel", "logrotate", "net-snmp", "pam-config", "perl", "perl-Error", "perl-Git", "perl-SNMP", "perl-Term-ReadKey", "pkg-config", "popt-devel", "python3-base", "rpm-devel", "shared-mime-info", "snmp-mibs", "systemd", "systemd-default-settings", "systemd-default-settings-branding-openSUSE", "systemd-presets-branding-MicroOS", "systemd-presets-common-SUSE", "tcpd-devel", "xz", "zlib-devel"],
+  "counts": {
+    "requested_packages": 15,
+    "requested_already_present": 2,
+    "requested_missing_before": 13,
+    "requested_newly_installed": 13,
+    "requested_missing_after": 0,
+    "all_newly_installed": 121,
+    "indirect_newly_installed": 108
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "alpine",
+  "os": "alpine",
+  "version": "3",
+  "package_manager": "apk",
+  "requested_packages": ["bash", "build-base", "cmake", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev", "pcre-dev"],
+  "requested_already_present": ["bash", "git"],
+  "requested_missing_before": ["build-base", "cmake", "diffutils", "findutils", "libtirpc-dev", "ninja", "openssl-dev", "pcre-dev"],
+  "requested_newly_installed": ["build-base", "cmake", "diffutils", "findutils", "libtirpc-dev", "ninja", "openssl-dev", "pcre-dev"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "bsd-compat-headers", "build-base", "cmake", "diffutils", "e2fsprogs-dev", "e2fsprogs-libs", "file", "findutils", "fortify-headers", "g++", "gcc", "gdbm", "glib", "gmp", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libarchive", "libatomic", "libblkid", "libbz2", "libcom_err", "libeconf", "libev", "libevent", "libfdisk", "libffi", "libgcc", "libgomp", "libintl", "liblastlog2", "libldap", "libmagic", "libmount", "libpcre16", "libpcre32", "libpcrecpp", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-dev", "libtirpc-nokrb", "libuuid", "libuv", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "lz4-libs", "make", "mpc1", "mpfr4", "musl-dev", "openssl-dev", "patch", "pcre", "pcre-dev", "pkgconf", "rhash-libs", "samurai", "sqlite", "sqlite-dev", "sqlite-libs", "util-linux-dev", "xz-libs"],
+  "indirect_newly_installed": ["binutils", "bsd-compat-headers", "e2fsprogs-dev", "e2fsprogs-libs", "file", "fortify-headers", "g++", "gcc", "gdbm", "glib", "gmp", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libarchive", "libatomic", "libblkid", "libbz2", "libcom_err", "libeconf", "libev", "libevent", "libfdisk", "libffi", "libgcc", "libgomp", "libintl", "liblastlog2", "libldap", "libmagic", "libmount", "libpcre16", "libpcre32", "libpcrecpp", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-nokrb", "libuuid", "libuv", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "lz4-libs", "make", "mpc1", "mpfr4", "musl-dev", "patch", "pcre", "pkgconf", "rhash-libs", "samurai", "sqlite", "sqlite-dev", "sqlite-libs", "util-linux-dev", "xz-libs"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 2,
+    "requested_missing_before": 8,
+    "requested_newly_installed": 8,
+    "requested_missing_after": 0,
+    "all_newly_installed": 74,
+    "indirect_newly_installed": 67
+  },
+  "unneeded_packages_status": "undetermined"
+}

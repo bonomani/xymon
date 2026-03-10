@@ -1,0 +1,53 @@
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonlaunch ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymoncmd ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/orcaxymon ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymondigest ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymon ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymoncfg ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/msgcache ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/logfetch ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-aix.sh ===
+=== /bin/clientupdate ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymongrep ===
+linux-vdso.so.1
+/lib/x86_64-linux-gnu/libc.so.6
+/lib64/ld-linux-x86-64.so.2

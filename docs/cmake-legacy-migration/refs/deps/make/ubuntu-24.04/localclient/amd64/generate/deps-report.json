@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "ubuntu",
+  "os": "ubuntu",
+  "version": "latest",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "findutils", "git", "libpcre2-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["findutils", "git", "libpcre2-dev", "libssl-dev"],
+  "requested_missing_before": ["build-essential", "libtirpc-dev", "ninja-build"],
+  "requested_newly_installed": ["build-essential", "libtirpc-dev", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["build-essential", "libpcre16-3", "libpcre3", "libpcre3-dev", "libpcre32-3", "libpcrecpp0v5", "libtirpc-dev", "ninja-build"],
+  "indirect_newly_installed": ["libpcre16-3", "libpcre3", "libpcre3-dev", "libpcre32-3", "libpcrecpp0v5"],
+  "counts": {
+    "requested_packages": 7,
+    "requested_already_present": 4,
+    "requested_missing_before": 3,
+    "requested_newly_installed": 3,
+    "requested_missing_after": 0,
+    "all_newly_installed": 8,
+    "indirect_newly_installed": 5
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "debian",
+  "os": "debian",
+  "version": "bullseye",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "findutils", "git", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["findutils"],
+  "requested_missing_before": ["build-essential", "git", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_newly_installed": ["build-essential", "git", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "build-essential", "bzip2", "cpp", "cpp-10", "dpkg-dev", "g++", "g++-10", "gcc", "gcc-10", "git", "git-man", "libasan6", "libatomic1", "libbinutils", "libbrotli1", "libc-dev-bin", "libc6-dev", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libdpkg-perl", "liberror-perl", "libexpat1", "libgcc-10-dev", "libgdbm-compat4", "libgdbm6", "libgomp1", "libisl23", "libitm1", "libldap-2.4-2", "liblsan0", "libmpc3", "libnghttp2-14", "libnsl-dev", "libperl5.32", "libpsl5", "libquadmath0", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libssh2-1", "libssl-dev", "libstdc++-10-dev", "libtirpc-dev", "libtsan0", "libubsan1", "linux-libc-dev", "make", "ninja-build", "patch", "perl", "perl-modules-5.32", "xz-utils"],
+  "indirect_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "bzip2", "cpp", "cpp-10", "dpkg-dev", "g++", "g++-10", "gcc", "gcc-10", "git-man", "libasan6", "libatomic1", "libbinutils", "libbrotli1", "libc-dev-bin", "libc6-dev", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libdpkg-perl", "liberror-perl", "libexpat1", "libgcc-10-dev", "libgdbm-compat4", "libgdbm6", "libgomp1", "libisl23", "libitm1", "libldap-2.4-2", "liblsan0", "libmpc3", "libnghttp2-14", "libnsl-dev", "libperl5.32", "libpsl5", "libquadmath0", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libssh2-1", "libstdc++-10-dev", "libtsan0", "libubsan1", "linux-libc-dev", "make", "patch", "perl", "perl-modules-5.32", "xz-utils"],
+  "counts": {
+    "requested_packages": 6,
+    "requested_already_present": 1,
+    "requested_missing_before": 5,
+    "requested_newly_installed": 5,
+    "requested_missing_after": 0,
+    "all_newly_installed": 58,
+    "indirect_newly_installed": 53
+  },
+  "unneeded_packages_status": "undetermined"
+}

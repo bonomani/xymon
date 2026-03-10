@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "macos",
+  "os": "macos",
+  "version": "latest",
+  "package_manager": "brew",
+  "requested_packages": ["c-ares", "clang", "libtirpc", "make", "net-snmp", "ninja", "openldap", "openssl@3", "pcre2", "rrdtool"],
+  "requested_already_present": ["c-ares", "ninja", "openssl@3", "pcre2"],
+  "requested_missing_before": ["clang", "libtirpc", "make", "net-snmp", "openldap", "rrdtool"],
+  "requested_newly_installed": ["libtirpc", "make", "net-snmp", "openldap", "rrdtool"],
+  "requested_missing_after": ["clang"],
+  "all_newly_installed": ["fribidi", "libdatrie", "libthai", "libtirpc", "make", "net-snmp", "openldap", "pango", "pcre", "rrdtool"],
+  "indirect_newly_installed": ["fribidi", "libdatrie", "libthai", "pango", "pcre"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 4,
+    "requested_missing_before": 6,
+    "requested_newly_installed": 5,
+    "requested_missing_after": 1,
+    "all_newly_installed": 10,
+    "indirect_newly_installed": 5
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,9 @@
+{
+  "allow_failure_mode": "off",
+  "build_tool": "cmake",
+  "lane_allow_failure": "1",
+  "lane_name": "Oracle Linux 10 arm64 - Client (ct-client)",
+  "lane_outcome": "failure",
+  "platform_id": "oraclelinux-10",
+  "variant": "localclient"
+}

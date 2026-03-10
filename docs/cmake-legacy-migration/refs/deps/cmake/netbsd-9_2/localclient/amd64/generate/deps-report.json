@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "bsd",
+  "os": "netbsd",
+  "version": "9.2",
+  "package_manager": "pkg_add",
+  "requested_packages": ["clang", "cmake", "gmake", "ninja-build", "pcre"],
+  "requested_already_present": [],
+  "requested_missing_before": ["clang", "cmake", "gmake", "ninja-build", "pcre"],
+  "requested_newly_installed": ["clang", "cmake", "gmake", "ninja-build", "pcre"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["clang", "cmake", "gcc14-libs", "gmake", "libffi", "libuuid", "libuv", "llvm", "mpdecimal", "ninja-build", "pcre", "perl", "python313", "readline", "rhash"],
+  "indirect_newly_installed": ["gcc14-libs", "libffi", "libuuid", "libuv", "llvm", "mpdecimal", "perl", "python313", "readline", "rhash"],
+  "counts": {
+    "requested_packages": 5,
+    "requested_already_present": 0,
+    "requested_missing_before": 5,
+    "requested_newly_installed": 5,
+    "requested_missing_after": 0,
+    "all_newly_installed": 15,
+    "indirect_newly_installed": 10
+  },
+  "unneeded_packages_status": "undetermined"
+}

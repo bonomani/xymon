@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "suse",
+  "os": "opensuse_leap",
+  "version": "16_0",
+  "package_manager": "zypper",
+  "requested_packages": ["diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_already_present": [],
+  "requested_missing_before": ["diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_newly_installed": ["diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "cpp", "cpp15", "diffutils", "findutils", "gcc", "gcc-c++", "gcc15", "gcc15-c++", "git", "git-core", "glibc-devel", "jitterentropy-devel", "krb5", "less", "libasan8", "libatomic1", "libcom_err2", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm6", "libgdbm_compat4", "libgomp1", "libhwasan0", "libisl23", "libitm1", "libkeyutils1", "liblsan0", "libmpc3", "libopenssl-3-devel", "libopenssl-devel", "libpkgconf5", "libsha1detectcoll1", "libstdc++6-devel-gcc15", "libtirpc-devel", "libtirpc-netconfig", "libtirpc3", "libtsan2", "libubsan1", "libverto1", "libxcrypt-devel", "libz-ng-compat1", "linux-glibc-devel", "make", "ninja", "perl", "perl-Error", "perl-Git", "perl-base", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "update-alternatives", "zlib-ng-compat-devel"],
+  "indirect_newly_installed": ["binutils", "cpp", "cpp15", "gcc15", "gcc15-c++", "git-core", "glibc-devel", "jitterentropy-devel", "krb5", "less", "libasan8", "libatomic1", "libcom_err2", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm6", "libgdbm_compat4", "libgomp1", "libhwasan0", "libisl23", "libitm1", "libkeyutils1", "liblsan0", "libmpc3", "libopenssl-3-devel", "libpkgconf5", "libsha1detectcoll1", "libstdc++6-devel-gcc15", "libtirpc-netconfig", "libtirpc3", "libtsan2", "libubsan1", "libverto1", "libxcrypt-devel", "libz-ng-compat1", "linux-glibc-devel", "perl", "perl-Error", "perl-Git", "perl-base", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "update-alternatives", "zlib-ng-compat-devel"],
+  "counts": {
+    "requested_packages": 9,
+    "requested_already_present": 0,
+    "requested_missing_before": 9,
+    "requested_newly_installed": 9,
+    "requested_missing_after": 0,
+    "all_newly_installed": 55,
+    "indirect_newly_installed": 46
+  },
+  "unneeded_packages_status": "undetermined"
+}
