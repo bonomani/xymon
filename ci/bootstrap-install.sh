@@ -785,6 +785,18 @@ export XYMON_CONFIG_H="${config_h_path}"
 EOF
 }
 
+print_generated_makefile() {
+  if [ "${BUILD_TOOL}" != "make" ]; then
+    return
+  fi
+  if [ ! -f Makefile ]; then
+    echo "Generated Makefile not found after configure" >&2
+    return
+  fi
+  echo "=== Generated Makefile ==="
+  cat Makefile
+}
+
 normalize_build_tool
 normalize_compiler
 normalize_profile
@@ -807,6 +819,7 @@ if [ "${VERIFY_DEPTH}" = "configure" ]; then
   echo "=== Skip build/install for verify depth: configure ==="
   exit 0
 fi
+print_generated_makefile
 echo "=== Build ==="
 "${RUN_BUILD_FN}"
 if [ "${VERIFY_DEPTH}" = "build" ]; then
