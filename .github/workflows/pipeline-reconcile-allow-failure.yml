@@ -129,7 +129,12 @@ jobs:
 
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
-          git add ci/run/ref/lanes/*.yml ci/run/ref/make-lanes/*.yml
+          mapfile -t lane_files < <(find ci/run/ref/lanes ci/run/ref/make-lanes -type f -name '*.yml' | sort)
+          if [[ "${#lane_files[@]}" -eq 0 ]]; then
+            echo "No lane files found to stage."
+            exit 0
+          fi
+          git add -- "${lane_files[@]}"
 
           if git diff --cached --quiet; then
             echo "No staged lane changes after reconciliation."
