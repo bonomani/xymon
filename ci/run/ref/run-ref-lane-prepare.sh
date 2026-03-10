@@ -44,7 +44,7 @@ profile_artifact_suffix() {
 default_install_mode() {
   local build="$1"
   local layout="$2"
-  if [[ "${build}" == "make" && ( "${layout}" == "debian" || "${layout}" == "packaging" ) ]]; then
+  if [[ "${build}" == "make" && "${layout}" == "debian" ]]; then
     printf '%s' "package"
   else
     printf '%s' "source"
@@ -78,7 +78,7 @@ usage() {
 Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --build make|cmake
   --compiler gcc|clang
-  --profile default|debian|packaging|gnuinstall
+  --profile default|debian|gnuinstall|packaging
   --install-mode auto|source|package
   --goal verify|ref
   --verify-depth configure|build|install
@@ -233,7 +233,7 @@ install_mode="${install_mode:-auto}"
 case "${build_tool}" in
   make)
     case "${profile}" in
-      default|debian|packaging)
+      default|debian)
         ;;
       *)
         echo "Unsupported --profile value for make: ${profile}" >&2
@@ -269,7 +269,7 @@ case "${install_mode}" in
     ;;
 esac
 
-if [[ "${build_tool}" == "make" && ( "${profile}" == "debian" || "${profile}" == "packaging" ) && "${install_mode}" != "package" ]]; then
+if [[ "${build_tool}" == "make" && "${profile}" == "debian" && "${install_mode}" != "package" ]]; then
   echo "make profile=${profile} currently requires --install-mode package" >&2
   usage
 fi

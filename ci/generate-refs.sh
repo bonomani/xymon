@@ -91,7 +91,7 @@ if [ "${PROFILE}" != "default" ]; then
 fi
 
 default_install_mode() {
-  if [ "${BUILD_TOOL}" = "make" ] && { [ "${PROFILE}" = "debian" ] || [ "${PROFILE}" = "packaging" ]; }; then
+  if [ "${BUILD_TOOL}" = "make" ] && [ "${PROFILE}" = "debian" ]; then
     printf '%s' "package"
   else
     printf '%s' "source"

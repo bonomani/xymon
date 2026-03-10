@@ -50,10 +50,10 @@ jobs:
   build-matrix:
     runs-on: ubuntu-22.04
     outputs:
-      matrix_all: ${{ steps.generate.outputs.matrix_all }}
-      publish: ${{ steps.resolve_execution.outputs.publish }}
-      allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
-      lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
+      matrix_all: ${{ steps.prepare_matrix.outputs.matrix_all }}
+      publish: ${{ steps.prepare_matrix.outputs.publish }}
+      allow_failure_mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}
+      lane_count_total: ${{ steps.prepare_matrix.outputs.lane_count_total }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -61,73 +61,38 @@ jobs:
           fetch-depth: 1
 
       - name: Resolve compare execution model
-        id: resolve_execution
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python3 ci/run/ref/resolve-execution-model.py \
-            --requested-build-tool "cmake" \
-            --requested-compiler "auto" \
-            --requested-profile "auto" \
-            --requested-install-mode "auto" \
-            --requested-verify-depth "install" \
-            --ref-mode "compare" \
-            --publish "artifact" \
-            --allow-failure-mode "allow" \
-            --github-output "${GITHUB_OUTPUT}" > /dev/null
-
-      - name: Validate ref models
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          python3 ci/run/ref/check-ref-models.py \
-            --manifest "ci/run/ref/ref-families.yml" \
-            --runtime-model "ci/run/ref/runtime-model.json" \
-            --selector-workflow ".github/workflows/pipeline-compare-ref-artifacts.yml" \
-            --selector-purpose "validation"
-
-      - name: Build selected comparison matrix
-        id: generate
-        shell: bash
-        env:
-          SELECTED_FAMILY: ${{ inputs.family }}
-          SELECTED_VARIANT: ${{ inputs.variant }}
-          SELECTED_ARCH: ${{ inputs.arch }}
-          SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
-          SELECTED_PROFILE: ${{ steps.resolve_execution.outputs.profile }}
-          SELECTED_INSTALL_MODE: ${{ steps.resolve_execution.outputs.install_mode }}
-        run: |
-          set -euo pipefail
-
-          python3 ci/run/ref/build-ref-make-matrix.py \
-            --selected-family "${SELECTED_FAMILY}" \
-            --selected-variant "${SELECTED_VARIANT}" \
-            --selected-arch "${SELECTED_ARCH}" \
-            --selected-arch-policy "non_primary_latest_only" \
-            --selected-alias-policy "exclude_aliases" \
-            --ref-mode "compare" \
-            --build-tool "cmake" \
-            --compiler "${SELECTED_COMPILER}" \
-            --profile "${SELECTED_PROFILE}" \
-            --install-mode "${SELECTED_INSTALL_MODE}" \
-            --manifest "ci/run/ref/ref-families.yml" \
-            --github-output "${GITHUB_OUTPUT}"
+        id: prepare_matrix
+        uses: ./.github/actions/prepare-ref-matrix
+        with:
+          family: ${{ inputs.family }}
+          variant: ${{ inputs.variant }}
+          arch: ${{ inputs.arch }}
+          arch_policy: non_primary_latest_only
+          alias_policy: exclude_aliases
+          requested_build_tool: cmake
+          requested_compiler: auto
+          requested_profile: auto
+          requested_install_mode: auto
+          requested_verify_depth: install
+          ref_mode: compare
+          publish: artifact
+          allow_failure_mode: allow
+          selector_workflow: .github/workflows/pipeline-compare-ref-artifacts.yml
+          selector_purpose: validation
 
       - name: Matrix summary
         shell: bash
         run: |
-          echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
+          echo "Selected families: ${{ steps.prepare_matrix.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
           echo "Arch policy: non_primary_latest_only"
           echo "Alias policy: exclude_aliases"
-          echo "Build tool: cmake"
-          echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
-          echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
-          echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
-          echo "Lane counts (by runtime): ${{ steps.generate.outputs.lane_counts_json }}"
+          echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
+          echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}"
+          echo "Lane count (total): ${{ steps.prepare_matrix.outputs.lane_count_total }}"
+          echo "Lane counts (by runtime): ${{ steps.prepare_matrix.outputs.lane_counts_json }}"
 
   compare-lanes:
     needs: build-matrix

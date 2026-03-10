@@ -176,7 +176,7 @@ def main():
         fail(f"lane_json has unsupported compiler: {compiler}")
     if profile not in {"default", "debian", "gnuinstall", "packaging"}:
         fail(f"lane_json has unsupported profile: {profile}")
-    if build_tool == "make" and profile not in {"default", "debian", "packaging"}:
+    if build_tool == "make" and profile not in {"default", "debian"}:
         fail(f"lane_json has unsupported make profile: {profile}")
     if build_tool == "cmake" and profile not in {"default", "gnuinstall", "packaging"}:
         fail(f"lane_json has unsupported cmake profile: {profile}")

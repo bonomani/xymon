@@ -92,7 +92,7 @@ esac
 case "${build_tool}" in
   make)
     case "${profile}" in
-      default|debian|packaging)
+      default|debian)
         ;;
       *)
         echo "Unsupported prepared profile value for make: ${profile}" >&2

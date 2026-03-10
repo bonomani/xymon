@@ -171,9 +171,9 @@ normalize_profile() {
   case "${BUILD_TOOL}" in
     make)
       case "${BUILD_PROFILE}" in
-        default|debian|packaging)
+        default|debian)
           ;;
-        gnuinstall)
+        gnuinstall|packaging)
           echo "Unsupported --profile value for make: ${BUILD_PROFILE}" >&2
           exit 1
           ;;
@@ -202,7 +202,7 @@ default_install_mode() {
   case "${BUILD_TOOL}" in
     make)
       case "${BUILD_PROFILE}" in
-        debian|packaging)
+        debian)
           echo "package"
           ;;
         *)
@@ -230,7 +230,7 @@ normalize_install_mode() {
       ;;
   esac
 
-  if [ "${BUILD_TOOL}" = "make" ] && { [ "${BUILD_PROFILE}" = "debian" ] || [ "${BUILD_PROFILE}" = "packaging" ]; } && [ "${BUILD_INSTALL_MODE}" != "package" ]; then
+  if [ "${BUILD_TOOL}" = "make" ] && [ "${BUILD_PROFILE}" = "debian" ] && [ "${BUILD_INSTALL_MODE}" != "package" ]; then
     echo "make profile=${BUILD_PROFILE} currently requires --install-mode package" >&2
     exit 1
   fi
@@ -500,15 +500,11 @@ configure_build_make() {
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
   export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
-if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
-  echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}" >&2
-  exit 1
-fi
-  legacy_layout_profile="${BUILD_PROFILE}"
-  if [ "${legacy_layout_profile}" = "packaging" ]; then
-    legacy_layout_profile="debian"
+  if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
+    echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}" >&2
+    exit 1
   fi
-  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${legacy_layout_profile}")"
+  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${BUILD_PROFILE}")"
   echo "Bootstrap make profile '${BUILD_PROFILE}' environment before configure:"
   for var in XYMONTOPDIR XYMONVAR XYMONHOSTURL CGIDIR XYMONCGIURL SECURECGIDIR SECUREXYMONCGIURL XYMONLOGDIR XYMONHOSTNAME XYMONHOSTIP MANROOT INSTALLBINDIR INSTALLETCDIR INSTALLWEBDIR INSTALLEXTDIR INSTALLTMPDIR INSTALLWWWDIR XYMONUSER HTTPDGID USEXYMONPING ENABLESSL ENABLELDAP ENABLELDAPSSL; do
     printf '  %s=%s\n' "$var" "${!var:-<unset>}"
