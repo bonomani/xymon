@@ -1,13 +1,13 @@
 include:
-- platform_id: ubuntu-24
+- platform_id: ubuntu-24.04
 - name_prefix: Ubuntu 24.04 arm64
-  platform_id: ubuntu-24
+  platform_id: ubuntu-24.04
   defaults: arm64
-- platform_id: ubuntu-22
+- platform_id: ubuntu-22.04
 - name_prefix: Ubuntu 22.04 arm64
-  platform_id: ubuntu-22
+  platform_id: ubuntu-22.04
   defaults: arm64
-- platform_id: ubuntu-20
+- platform_id: ubuntu-20.04
 - name_prefix: Ubuntu 20.04 arm64
-  platform_id: ubuntu-20
+  platform_id: ubuntu-20.04
   defaults: arm64

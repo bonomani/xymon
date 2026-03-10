@@ -23,6 +23,7 @@ HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 OUTPUT = ROOT / ".github" / "data" / "platform-catalog-discovered.yml"
 REGISTRY_BASE = "https://registry-1.docker.io"
 TOKEN_URL = "https://auth.docker.io/token"
+DOCKER_HUB_TAG_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags/{tag}"
 MANIFEST_ACCEPT = ", ".join(
     [
         "application/vnd.oci.image.index.v1+json",
@@ -154,6 +155,21 @@ def fetch_manifest_index(repository: str, tag: str, token: str) -> tuple[str, st
     return manifest_url, content_type, digest, payload
 
 
+def fetch_tag_metadata(repository: str, tag: str) -> tuple[str, str, str, dict[str, Any]]:
+    namespace, image = repository.split("/", 1)
+    tag_url = DOCKER_HUB_TAG_API.format(namespace=namespace, repository=image, tag=tag)
+    request = Request(tag_url, headers={"User-Agent": USER_AGENT})
+    with urlopen(request) as response:
+        payload = json.load(response)
+    digest = str(payload.get("digest") or "")
+    return (
+        tag_url,
+        str(payload.get("content_type") or ""),
+        digest,
+        payload,
+    )
+
+
 def normalize_manifest_architecture(platform: Any) -> str | None:
     if not isinstance(platform, dict):
         return None
@@ -170,6 +186,21 @@ def extract_architectures(payload: dict[str, Any]) -> list[str]:
     archs: list[str] = []
     for manifest in manifests:
         arch = normalize_manifest_architecture(manifest.get("platform"))
+        if arch is None or arch in archs:
+            continue
+        archs.append(arch)
+    return archs
+
+
+def extract_architectures_from_tag_metadata(payload: dict[str, Any]) -> list[str]:
+    images = payload.get("images")
+    if not isinstance(images, list):
+        return []
+    archs: list[str] = []
+    for image in images:
+        if not isinstance(image, dict):
+            continue
+        arch = normalize_manifest_architecture(image)
         if arch is None or arch in archs:
             continue
         archs.append(arch)
@@ -214,84 +245,6 @@ def version_key(value: str) -> tuple[int, tuple[int, ...], str]:
     return (1 if numbers else 0, numbers, value)
 
 
-def preference_key(image: str, preferred_tokens: list[str]) -> int:
-    lowered = image.lower()
-    for index, token in enumerate(preferred_tokens):
-        if token.lower() in lowered:
-            return len(preferred_tokens) - index
-    return 0
-
-
-def normalized_release_key(tag: str, preferred_tokens: list[str]) -> str:
-    value = tag
-    for token in preferred_tokens:
-        value = re.sub(rf"(?i)([-_.]){re.escape(token)}$", "", value)
-    return value
-
-
-def load_active_lane_arches(lanes_glob: str) -> dict[str, list[str]]:
-    lane_arches: dict[str, list[str]] = {}
-    for path in sorted(ROOT.glob(lanes_glob)):
-        data = load_yaml(path, f"lane definition in {path}")
-        include = field_list(data, "include", str(path))
-        for index, raw_entry in enumerate(include):
-            entry = as_map(raw_entry, f"{path}.include[{index}]")
-            platform_id = field_str(entry, "platform_id", f"{path}.include[{index}]")
-            raw_arch = str(entry.get("architecture") or entry.get("defaults") or "amd64")
-            arch = normalize_declared_architecture(raw_arch)
-            lane_arches.setdefault(platform_id, [])
-            if arch not in lane_arches[platform_id]:
-                lane_arches[platform_id].append(arch)
-    return lane_arches
-
-
-def load_active_lane_arches_for_globs(lanes_globs: list[str]) -> dict[str, list[str]]:
-    merged: dict[str, list[str]] = {}
-    for lanes_glob in lanes_globs:
-        for platform_id, arches in load_active_lane_arches(lanes_glob).items():
-            merged.setdefault(platform_id, [])
-            for arch in arches:
-                if arch not in merged[platform_id]:
-                    merged[platform_id].append(arch)
-    return merged
-
-
-def resolve_architecture_policy(
-    architectures: dict[str, Any],
-    *,
-    selected_arches: list[str],
-    is_latest: bool,
-    provider: str | None = None,
-    source_arch: str | None = None,
-) -> list[str]:
-    mode = field_str(architectures, "mode", str(CONTAINER_INTENT))
-    if provider is not None:
-        provider_override = as_map(
-            architectures.get("provider_override", {}),
-            f"{CONTAINER_INTENT}.architectures.provider_override",
-        )
-        if provider_override.get(provider) == "source_arch_only":
-            if source_arch is None:
-                raise SystemExit(f"provider_override for '{provider}' requires source_arch")
-            return [normalize_declared_architecture(source_arch)]
-
-    if mode == "all_lane_arches":
-        return list(selected_arches)
-    if mode != "primary_plus_latest":
-        raise SystemExit(f"Unsupported architecture mode '{mode}' in {CONTAINER_INTENT}")
-
-    primary_arches = [
-        normalize_declared_architecture(str(value))
-        for value in field_list(architectures, "primary", str(CONTAINER_INTENT))
-    ]
-    filtered = [arch for arch in selected_arches if arch in primary_arches]
-    if is_latest:
-        for arch in selected_arches:
-            if arch not in filtered:
-                filtered.append(arch)
-    return filtered
-
-
 def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     data = load_yaml(PLATFORM_CATALOG, f"platform catalog in {PLATFORM_CATALOG}")
     platforms = field_map(data, "platforms", str(PLATFORM_CATALOG))
@@ -302,55 +255,22 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     return normalized
 
 
-def runtime_preferences_for(
-    rules: dict[str, Any], platform_os: str
-) -> list[str]:
-    containers = field_map(rules, "containers", str(CONTAINER_INTENT))
-    runtime_preferences = field_map(containers, "runtime_preference", str(CONTAINER_INTENT))
-    overrides = runtime_preferences.get("overrides")
-    if isinstance(overrides, dict):
-        override = overrides.get(platform_os)
-        if isinstance(override, list):
-            return [str(value) for value in override]
-    return [str(value) for value in field_list(runtime_preferences, "default", str(CONTAINER_INTENT))]
-
-
-def load_container_intent() -> list[dict[str, Any]]:
-    rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
-    containers = field_map(rules, "containers", str(CONTAINER_INTENT))
-    source = field_map(containers, "source", str(CONTAINER_INTENT))
-    selection = field_map(containers, "selection", str(CONTAINER_INTENT))
-    architectures = field_map(containers, "architectures", str(CONTAINER_INTENT))
-    preferred_tokens = [str(value) for value in field_list(selection, "prefer_tags", str(CONTAINER_INTENT))]
-    runtime = field_str(source, "runtime", str(CONTAINER_INTENT))
-    group_by = field_str(selection, "group_by", str(CONTAINER_INTENT))
-    lanes_glob = field_str(source, "lanes_glob", str(CONTAINER_INTENT))
-    platform_family = field_str(source, "platform_family", str(CONTAINER_INTENT))
-    keep = field_str(selection, "keep", str(CONTAINER_INTENT))
-    dedupe_by = field_str(selection, "dedupe_by", str(CONTAINER_INTENT))
-    active_lane_arches = load_active_lane_arches(lanes_glob)
+def load_container_catalog_entries() -> list[dict[str, Any]]:
     platform_catalog = load_static_platform_catalog()
-
-    grouped_candidates: dict[str, dict[str, list[dict[str, Any]]]] = {}
-    for platform_id, entry in platform_catalog.items():
-        if str(entry.get("runtime", "")).lower() != runtime:
-            continue
-        if platform_id not in active_lane_arches:
+    entries: list[dict[str, Any]] = []
+    for platform_id, entry in sorted(platform_catalog.items()):
+        if str(entry.get("runtime", "")).lower() != "docker":
             continue
         deps = field_map(entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
-        if group_by != "deps.os":
-            raise SystemExit(f"Unsupported group_by rule '{group_by}' in {CONTAINER_INTENT}")
-        if dedupe_by != "normalized_tag":
-            raise SystemExit(f"Unsupported dedupe_by rule '{dedupe_by}' in {CONTAINER_INTENT}")
-        group = field_str(deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps").lower()
         image = field_str(entry, "image", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
         repository, tag = image_repository_and_tag(image)
-        release_key = normalized_release_key(tag, preferred_tokens)
-        grouped_candidates.setdefault(group, {}).setdefault(release_key, []).append(
+        entries.append(
             {
                 "platform_id": platform_id,
-                "platform_os": group,
-                "platform_family": platform_family,
+                "platform_os": field_str(
+                    deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps"
+                ).lower(),
+                "platform_family": "linux",
                 "platform_version": platform_version_for(
                     entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}", tag
                 ),
@@ -359,61 +279,9 @@ def load_container_intent() -> list[dict[str, Any]]:
                 "repository_url": repository_url(repository),
                 "tag": tag,
                 "deps": deps,
-                "arches": active_lane_arches[platform_id],
-                "runtime_preference": runtime_preferences_for(rules, group),
             }
         )
-
-    normalized_families: list[dict[str, Any]] = []
-    for group, releases in grouped_candidates.items():
-        if keep != "all_active_versions":
-            raise SystemExit(f"Unsupported keep rule '{keep}' in {CONTAINER_INTENT}")
-        selected_releases: list[dict[str, Any]] = []
-        for candidates in releases.values():
-            selected_releases.append(
-                max(
-                    candidates,
-                    key=lambda candidate: (
-                        preference_key(candidate["image"], preferred_tokens),
-                        version_key(candidate["platform_version"]),
-                        candidate["platform_id"],
-                    ),
-                )
-            )
-        selected_releases.sort(
-            key=lambda candidate: (
-                version_key(candidate["platform_version"]),
-                candidate["platform_id"],
-            ),
-            reverse=True,
-        )
-        for index, release in enumerate(selected_releases):
-            release["arches"] = resolve_architecture_policy(
-                architectures,
-                selected_arches=release["arches"],
-                is_latest=index == 0,
-            )
-        normalized_families.append(
-            {
-                "family": group,
-                "repository": selected_releases[0]["repository"],
-                "repository_url": selected_releases[0]["repository_url"],
-                "runtime_preference": selected_releases[0]["runtime_preference"],
-                "releases": [
-                    {
-                        "platform_id": release["platform_id"],
-                        "tag": release["tag"],
-                        "platform_version": release["platform_version"],
-                        "deps": release["deps"],
-                        "platform_os": release["platform_os"],
-                        "platform_family": release["platform_family"],
-                        "arches": release["arches"],
-                    }
-                    for release in selected_releases
-                ],
-            }
-        )
-    return sorted(normalized_families, key=lambda family: family["family"])
+    return entries
 
 
 def load_bsd_sources() -> dict[str, dict[str, Any]]:
@@ -421,75 +289,25 @@ def load_bsd_sources() -> dict[str, dict[str, Any]]:
     return field_map(data, "sources", f"{BSD_SOURCES}")
 
 
-def load_vm_intent() -> list[dict[str, Any]]:
-    rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
-    vms = field_map(rules, "vms", str(CONTAINER_INTENT))
-    source = field_map(vms, "source", str(CONTAINER_INTENT))
-    selection = field_map(vms, "selection", str(CONTAINER_INTENT))
-    architectures = field_map(vms, "architectures", str(CONTAINER_INTENT))
-    keep = field_str(selection, "keep", str(CONTAINER_INTENT))
-    if keep != "all_active_versions":
-        raise SystemExit(f"Unsupported keep rule '{keep}' in {CONTAINER_INTENT}")
-    lanes_globs = [str(value) for value in field_list(source, "lanes_globs", str(CONTAINER_INTENT))]
-    active_lane_arches = load_active_lane_arches_for_globs(lanes_globs)
+def load_vm_catalog_entries() -> list[dict[str, Any]]:
     bsd_sources = load_bsd_sources()
-
-    selected_by_os: dict[str, list[dict[str, Any]]] = {}
-    missing_sources: list[str] = []
-    for platform_id, arches in active_lane_arches.items():
-        entry = bsd_sources.get(platform_id)
-        if entry is None:
-            if platform_id.startswith(("freebsd-", "openbsd-", "netbsd-", "macos-")):
-                missing_sources.append(platform_id)
-            continue
+    selected: list[dict[str, Any]] = []
+    for platform_id, raw_entry in sorted(bsd_sources.items()):
+        entry = as_map(raw_entry, f"{BSD_SOURCES}.{platform_id}")
         source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
-        provider = str(entry.get("provider", "cross-platform-actions"))
-        selected_by_os.setdefault(field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"), []).append(
+        selected.append(
             {
                 "platform_id": platform_id,
                 "os": field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"),
                 "version": field_str(entry, "version", f"{BSD_SOURCES}.{platform_id}"),
-                "provider": provider,
+                "provider": str(entry.get("provider", "cross-platform-actions")),
                 "source_arch": source_arch,
-                "selected_arches": list(arches),
+                "discovered_arches": [normalize_declared_architecture(source_arch)],
                 "repo": entry.get("repo"),
                 "runner_label": entry.get("runner_label"),
             }
         )
-
-    if missing_sources:
-        raise SystemExit(
-            "Missing VM source entries for active lanes: " + ", ".join(sorted(missing_sources))
-        )
-
-    selected: list[dict[str, Any]] = []
-    for os_name, entries in selected_by_os.items():
-        entries.sort(
-            key=lambda entry: (
-                version_key(entry["version"]),
-                entry["platform_id"],
-            ),
-            reverse=True,
-        )
-        for index, entry in enumerate(entries):
-            entry["intended_arches"] = resolve_architecture_policy(
-                architectures,
-                selected_arches=entry.pop("selected_arches"),
-                is_latest=index == 0,
-                provider=entry["provider"],
-                source_arch=entry["source_arch"],
-            )
-            selected.append(entry)
-
-    return sorted(
-        selected,
-        key=lambda entry: (
-            entry["os"],
-            version_key(entry["version"]),
-            entry["platform_id"],
-        ),
-        reverse=True,
-    )
+    return selected
 
 
 def normalize_runner_architecture(runner: dict[str, Any]) -> str:
@@ -531,23 +349,52 @@ def build_runner_indexes(runners: list[dict[str, Any]]) -> dict[str, dict[str, d
     return indexes
 
 
+def exact_direct_runner_labels(
+    runners: list[dict[str, Any]],
+    *,
+    platform_family: str,
+    platform_os: str,
+    platform_version: str,
+    arch: str,
+) -> list[str]:
+    labels: list[str] = []
+    for runner in runners:
+        if normalize_runner_architecture(runner) != arch:
+            continue
+        if field_str(runner, "machine_family", f"runner {runner['label']}") != platform_family:
+            continue
+        if not runner_supports(runner, "native_platforms", platform_family):
+            continue
+        if field_str(runner, "platform_os", f"runner {runner['label']}") != platform_os:
+            continue
+        if field_str(runner, "platform_version", f"runner {runner['label']}") != platform_version:
+            continue
+        labels.append(runner["label"])
+    return labels
+
+
 def build_host_support(
-    runtime_preference: list[str],
     arches: list[str],
+    *,
+    runners: list[dict[str, Any]],
     runner_indexes: dict[str, dict[str, dict[str, list[str]]]],
     platform_family: str,
+    platform_os: str,
+    platform_version: str,
 ) -> dict[str, dict[str, Any]]:
     family_indexes = runner_indexes.get(platform_family, {})
-    direct_index = family_indexes.get("direct", {})
     container_index = family_indexes.get("container", {})
     host_support: dict[str, dict[str, Any]] = {}
     for arch in arches:
-        direct_labels = direct_index.get(arch, [])
+        direct_labels = exact_direct_runner_labels(
+            runners,
+            platform_family=platform_family,
+            platform_os=platform_os,
+            platform_version=platform_version,
+            arch=arch,
+        )
         container_labels = container_index.get(arch, [])
-        record: dict[str, Any] = {
-            "runtime_preference": list(runtime_preference),
-            "direct_runner_labels": direct_labels,
-        }
+        record: dict[str, Any] = {"direct_runner_labels": direct_labels}
         if container_labels != direct_labels:
             record["container_runner_labels"] = container_labels
         host_support[arch] = record
@@ -608,14 +455,15 @@ def build_cached_container_index(existing_catalog: dict[str, Any]) -> dict[str, 
 
 
 def export_catalog(*, refresh_containers: bool = False):
-    container_intent = load_container_intent()
-    vm_intent = load_vm_intent()
+    container_entries = load_container_catalog_entries()
+    vm_entries = load_vm_catalog_entries()
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
     cached_containers = build_cached_container_index(load_existing_catalog())
 
     intent_meta = {
         "container_intent": relative_to_root(CONTAINER_INTENT),
+        "platform_catalog": relative_to_root(PLATFORM_CATALOG),
         "bsd_sources": relative_to_root(BSD_SOURCES),
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
         "registry_base": REGISTRY_BASE,
@@ -624,56 +472,67 @@ def export_catalog(*, refresh_containers: bool = False):
     }
 
     containers: list[dict[str, Any]] = []
-    for family in container_intent:
-        token = ""
-        for release in family["releases"]:
-            image = f"{family['repository']}:{release['tag']}"
-            cached_entry = None if refresh_containers else cached_containers.get(image)
-            if cached_entry is None:
-                if not token:
-                    token = fetch_registry_token(family["repository"])
+    token_by_repository: dict[str, str] = {}
+    for release in container_entries:
+        image = release["image"]
+        repository = release["repository"]
+        cached_entry = None if refresh_containers else cached_containers.get(image)
+        if cached_entry is None:
+            token = token_by_repository.get(repository)
+            if not token:
+                token = fetch_registry_token(repository)
+                token_by_repository[repository] = token
+            try:
                 manifest_url, content_type, digest, payload = fetch_manifest_index(
-                    family["repository"], release["tag"], token
+                    repository, release["tag"], token
                 )
                 discovered_arches = extract_architectures(payload)
-            else:
-                manifest_url = str(cached_entry.get("manifest_url", ""))
-                content_type = str(cached_entry.get("content_type", ""))
-                digest = str(cached_entry.get("digest", ""))
-                discovered_arches = [str(arch) for arch in cached_entry.get("discovered_arches", [])]
-            containers.append(
-                {
-                    "family": family["family"],
-                    "repository": family["repository"],
-                    "repository_url": family["repository_url"],
-                    "platform_id": release["platform_id"],
-                    "platform_os": release["platform_os"],
-                    "platform_version": release["platform_version"],
-                    "image": image,
-                    "deps": release["deps"],
-                    "intended_arches": [arch for arch in release["arches"]],
-                    "manifest_url": manifest_url,
-                    "content_type": content_type,
-                    "digest": digest,
-                    "discovered_arches": discovered_arches,
-                    "host_support": build_host_support(
-                        family["runtime_preference"],
-                        release["arches"],
-                        runner_indexes,
-                        release["platform_family"],
-                    ),
-                },
-            )
+            except HTTPError as exc:
+                if exc.code != 429:
+                    raise
+                manifest_url, content_type, digest, payload = fetch_tag_metadata(
+                    repository, release["tag"]
+                )
+                discovered_arches = extract_architectures_from_tag_metadata(payload)
+        else:
+            manifest_url = str(cached_entry.get("manifest_url", ""))
+            content_type = str(cached_entry.get("content_type", ""))
+            digest = str(cached_entry.get("digest", ""))
+            discovered_arches = [str(arch) for arch in cached_entry.get("discovered_arches", [])]
+        containers.append(
+            {
+                "family": release["platform_os"],
+                "repository": release["repository"],
+                "repository_url": release["repository_url"],
+                "platform_id": release["platform_id"],
+                "platform_os": release["platform_os"],
+                "platform_version": release["platform_version"],
+                "image": image,
+                "deps": release["deps"],
+                "manifest_url": manifest_url,
+                "content_type": content_type,
+                "digest": digest,
+                "discovered_arches": discovered_arches,
+                "host_support": build_host_support(
+                    discovered_arches,
+                    runners=host_runners,
+                    runner_indexes=runner_indexes,
+                    platform_family=release["platform_family"],
+                    platform_os=release["platform_os"],
+                    platform_version=release["platform_version"],
+                ),
+            },
+        )
 
     vms: list[dict[str, Any]] = []
-    for entry in vm_intent:
+    for entry in vm_entries:
         platform_id = entry["platform_id"]
         record = {
             "platform_id": platform_id,
             "os": entry["os"],
             "version": entry["version"],
             "source_arch": entry["source_arch"],
-            "intended_arches": list(entry["intended_arches"]),
+            "discovered_arches": list(entry["discovered_arches"]),
             "provider": entry["provider"],
         }
         if entry.get("repo"):

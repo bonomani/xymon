@@ -17,21 +17,21 @@ services:
     variant: server
     profile: packaging
     build_tool: make
-  - name: ubuntu-22-server-cmake
-    platform_id: ubuntu-22
+  - name: ubuntu-22.04-server-cmake
+    platform_id: ubuntu-22.04
     variant: server
     profile: packaging
-  - name: ubuntu-22-server-make
-    platform_id: ubuntu-22
+  - name: ubuntu-22.04-server-make
+    platform_id: ubuntu-22.04
     variant: server
     profile: packaging
     build_tool: make
-  - name: ubuntu-24-server-cmake
-    platform_id: ubuntu-24
+  - name: ubuntu-24.04-server-cmake
+    platform_id: ubuntu-24.04
     variant: server
     profile: packaging
-  - name: ubuntu-24-server-make
-    platform_id: ubuntu-24
+  - name: ubuntu-24.04-server-make
+    platform_id: ubuntu-24.04
     variant: server
     profile: packaging
     build_tool: make

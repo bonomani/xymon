@@ -21,8 +21,8 @@ def _require_non_empty_string(value, context: str) -> str:
 
 
 def _require_string_list(value, context: str) -> list[str]:
-    if not isinstance(value, list) or not value:
-        raise ValueError(f"{context} must be a non-empty list")
+    if not isinstance(value, list):
+        raise ValueError(f"{context} must be a list")
     normalized: list[str] = []
     for index, raw in enumerate(value):
         normalized.append(_require_non_empty_string(raw, f"{context}[{index}]"))
@@ -109,14 +109,19 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
                 "runner": runner,
                 "direct_runner_labels": direct_runner_labels,
                 "container_runner_labels": container_runner_labels,
-                "runtime_preference": _require_string_list(
-                    support.get("runtime_preference"),
-                    f"container catalog entry {platform_id}.host_support.{arch_key}.runtime_preference",
-                ),
             }
 
         if platform_id in catalog:
             raise ValueError(f"Duplicate container catalog platform: {platform_id}")
+
+        discovered_arches = _require_string_list(
+            discovered_arches_raw,
+            f"container catalog entry {platform_id}.discovered_arches",
+        )
+        if not discovered_arches:
+            raise ValueError(
+                f"container catalog entry {platform_id}.discovered_arches must be non-empty"
+            )
 
         catalog[platform_id] = {
             "platform_id": platform_id,
@@ -133,14 +138,7 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
                 entry.get("deps"),
                 f"container catalog entry {platform_id}.deps",
             ),
-            "intended_arches": _require_string_list(
-                entry.get("intended_arches"),
-                f"container catalog entry {platform_id}.intended_arches",
-            ),
-            "discovered_arches": _require_string_list(
-                discovered_arches_raw,
-                f"container catalog entry {platform_id}.discovered_arches",
-            ),
+            "discovered_arches": discovered_arches,
             "host_support": host_support,
         }
 
@@ -158,20 +156,38 @@ def resolve_container_runtime(
     if entry["platform_os"] != normalized_os:
         return None
 
-    if artifact_arch not in entry["intended_arches"]:
-        return None
     if artifact_arch not in entry["discovered_arches"]:
-        raise ValueError(
-            f"Container catalog entry '{platform_id}' is missing discovered arch '{artifact_arch}'"
-        )
+        return {
+            "supported": False,
+            "reason": (
+                f"Container catalog entry '{platform_id}' does not discover arch "
+                f"'{artifact_arch}'"
+            ),
+        }
 
     host_support = entry["host_support"].get(artifact_arch)
     if host_support is None:
-        return None
+        return {
+            "supported": False,
+            "reason": (
+                f"Container catalog entry '{platform_id}' has no host/container support "
+                f"for arch '{artifact_arch}'"
+            ),
+        }
 
     return {
+        "supported": True,
         "image": entry["image"],
-        "runtime_preference": list(host_support["runtime_preference"]),
-        "host_runner": host_support["runner"]
-        or (host_support["direct_runner_labels"][0] if host_support["direct_runner_labels"] else None),
+        "platform_os": entry["platform_os"],
+        "platform_version": entry["platform_version"],
+        "direct_host_runners": list(host_support["direct_runner_labels"]),
+        "container_runners": list(
+            host_support["container_runner_labels"]
+            if host_support["container_runner_labels"]
+            else host_support["direct_runner_labels"]
+        ),
+        "supports_host": bool(host_support["direct_runner_labels"]),
+        "supports_container": bool(
+            host_support["container_runner_labels"] or host_support["direct_runner_labels"]
+        ),
     }
