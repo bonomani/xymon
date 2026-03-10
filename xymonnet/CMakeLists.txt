@@ -3,8 +3,6 @@
 option(ENABLE_CARES "Enable c-ares support" ON)
 option(ENABLE_SNMP "Enable SNMP collector" ON)
 
-find_library(TIRPC_LIBRARY tirpc)
-find_path(TIRPC_INCLUDE_DIR rpc/rpc.h PATH_SUFFIXES tirpc)
 find_library(CARES_LIBRARY cares)
 find_library(LDAP_LIBRARY ldap)
 find_library(LBER_LIBRARY lber)
@@ -28,12 +26,6 @@ endif()
 if(ENABLE_LDAP AND LDAP_LIBRARY AND LBER_LIBRARY)
     target_link_libraries(xymonnet ${LDAP_LIBRARY} ${LBER_LIBRARY})
 endif()
-if(TIRPC_LIBRARY)
-    target_link_libraries(xymonnet ${TIRPC_LIBRARY})
-    if(TIRPC_INCLUDE_DIR)
-        target_include_directories(xymonnet PRIVATE ${TIRPC_INCLUDE_DIR})
-    endif()
-endif()
 target_link_libraries(xymonnet
     xymontime
     xymoncomm
@@ -46,12 +38,6 @@ target_link_libraries(xymonnet
 add_executable(xymonping
     xymonping.c
 )
-if(TIRPC_LIBRARY)
-    target_link_libraries(xymonping ${TIRPC_LIBRARY})
-    if(TIRPC_INCLUDE_DIR)
-        target_include_directories(xymonping PRIVATE ${TIRPC_INCLUDE_DIR})
-    endif()
-endif()
 target_link_libraries(xymonping
     xymontime
     xymoncomm
@@ -62,12 +48,6 @@ target_link_libraries(xymonping
 add_executable(beastat
     beastat.c
 )
-if(TIRPC_LIBRARY)
-    target_link_libraries(beastat ${TIRPC_LIBRARY})
-    if(TIRPC_INCLUDE_DIR)
-        target_include_directories(beastat PRIVATE ${TIRPC_INCLUDE_DIR})
-    endif()
-endif()
 target_link_libraries(beastat
     xymoncomm
     xymontime
@@ -87,12 +67,6 @@ add_executable(contest
 target_compile_definitions(contest PRIVATE STANDALONE)
 if(ENABLE_CARES AND CARES_LIBRARY)
     target_link_libraries(contest ${CARES_LIBRARY})
-endif()
-if(TIRPC_LIBRARY)
-    target_link_libraries(contest ${TIRPC_LIBRARY})
-    if(TIRPC_INCLUDE_DIR)
-        target_include_directories(contest PRIVATE ${TIRPC_INCLUDE_DIR})
-    endif()
 endif()
 if(APPLE)
     target_link_libraries(contest

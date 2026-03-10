@@ -117,12 +117,17 @@ if(XYMON_BUILD_SERVER)
             "${XYMON_PCRE_LIBRARY}"
             ssl
             crypto
+            ${XYMON_NET_LIBRARIES}
         )
     else()
         target_link_libraries(xymoncomm
             ssl
             crypto
+            ${XYMON_NET_LIBRARIES}
         )
+    endif()
+    if(XYMON_NET_INCLUDE_DIRS)
+        target_include_directories(xymoncomm PUBLIC ${XYMON_NET_INCLUDE_DIRS})
     endif()
 endif()
 
@@ -231,6 +236,12 @@ set_target_properties(xymonclientcomm PROPERTIES
     OUTPUT_NAME xymonclientcomm
 )
 target_compile_definitions(xymonclientcomm PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
+if(XYMON_NET_LIBRARIES)
+    target_link_libraries(xymonclientcomm PUBLIC ${XYMON_NET_LIBRARIES})
+endif()
+if(XYMON_NET_INCLUDE_DIRS)
+    target_include_directories(xymonclientcomm PUBLIC ${XYMON_NET_INCLUDE_DIRS})
+endif()
 
 if(XYMON_BUILD_SERVER)
     # ----------------------------------------------------------------------
