@@ -1,0 +1,80 @@
+sources:
+  netbsd-10_1:
+    os: netbsd
+    version: "10.1"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
+  netbsd-10_0:
+    os: netbsd
+    version: "10.0"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
+  netbsd-9_4:
+    os: netbsd
+    version: "9.4"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
+  netbsd-9_3:
+    os: netbsd
+    version: "9.3"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
+  netbsd-9_2:
+    os: netbsd
+    version: "9.2"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
+  openbsd-7_8:
+    os: openbsd
+    version: "7.8"
+    repo: cross-platform-actions/openbsd-builder
+    arch: x86-64
+  openbsd-7_7:
+    os: openbsd
+    version: "7.7"
+    repo: cross-platform-actions/openbsd-builder
+    arch: x86-64
+  openbsd-7_6:
+    os: openbsd
+    version: "7.6"
+    repo: cross-platform-actions/openbsd-builder
+    arch: x86-64
+  freebsd-15_0:
+    os: freebsd
+    version: "15.0"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
+  freebsd-14_3:
+    os: freebsd
+    version: "14.3"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
+  freebsd-13_5:
+    os: freebsd
+    version: "13.5"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
+  macos-26:
+    os: macos
+    version: "26"
+    provider: github-actions
+    arch: arm64
+    runner_label: macos-26
+  macos-15:
+    os: macos
+    version: "15"
+    provider: github-actions
+    arch: arm64
+    runner_label: macos-15
+  macos-14:
+    os: macos
+    version: "14"
+    provider: github-actions
+    arch: arm64
+    runner_label: macos-14
+  macos-latest:
+    os: macos
+    version: latest
+    provider: github-actions
+    arch: arm64
+    runner_label: macos-latest
