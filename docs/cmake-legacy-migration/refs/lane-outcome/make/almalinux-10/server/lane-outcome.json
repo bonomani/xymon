@@ -1,0 +1,9 @@
+{
+  "allow_failure_mode": "off",
+  "build_tool": "make",
+  "lane_allow_failure": "1",
+  "lane_name": "AlmaLinux 10 - Server",
+  "lane_outcome": "failure",
+  "platform_id": "almalinux-10",
+  "variant": "server"
+}

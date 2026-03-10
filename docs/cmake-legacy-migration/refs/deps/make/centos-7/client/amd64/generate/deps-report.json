@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "rpm",
+  "os": "centos",
+  "version": "7",
+  "package_manager": "yum",
+  "requested_packages": ["diffutils", "findutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_already_present": ["diffutils", "findutils", "git"],
+  "requested_missing_before": ["gcc", "gcc-c++", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_newly_installed": ["gcc", "gcc-c++", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["cpp", "emacs-filesystem", "epel-release", "gcc", "gcc-c++", "glibc-devel", "glibc-headers", "gpg-pubkey", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libcom_err-devel", "libgomp", "libkadm5", "libmpc", "libpipeline", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libtirpc", "libtirpc-devel", "libverto-devel", "make", "man-db", "mpfr", "ninja-build", "openssl-devel", "pcre-devel", "vim-filesystem", "zlib-devel"],
+  "indirect_newly_installed": ["cpp", "emacs-filesystem", "epel-release", "glibc-devel", "glibc-headers", "gpg-pubkey", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libcom_err-devel", "libgomp", "libkadm5", "libmpc", "libpipeline", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libtirpc", "libverto-devel", "man-db", "mpfr", "pcre-devel", "vim-filesystem", "zlib-devel"],
+  "counts": {
+    "requested_packages": 9,
+    "requested_already_present": 3,
+    "requested_missing_before": 6,
+    "requested_newly_installed": 6,
+    "requested_missing_after": 0,
+    "all_newly_installed": 30,
+    "indirect_newly_installed": 24
+  },
+  "unneeded_packages_status": "undetermined"
+}

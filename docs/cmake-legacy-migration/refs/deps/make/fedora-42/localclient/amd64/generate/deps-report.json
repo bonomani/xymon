@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "rpm",
+  "os": "fedora",
+  "version": "42",
+  "package_manager": "dnf",
+  "requested_packages": ["diffutils", "findutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel", "pcre-devel"],
+  "requested_already_present": ["findutils"],
+  "requested_missing_before": ["diffutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel", "pcre-devel"],
+  "requested_newly_installed": ["diffutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel", "pcre-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "cpp", "dbus-libs", "diffutils", "dnf-data", "dnf-plugins-core", "elfutils-debuginfod-client", "emacs-filesystem", "expat", "gcc", "gcc-c++", "git", "git-core", "git-core-doc", "glibc-devel", "gnupg2", "gnupg2-smime", "groff-base", "hiredis", "ima-evm-utils-libs", "jansson", "kernel-headers", "less", "libassuan", "libb2", "libcbor", "libcomps", "libdnf", "libedit", "libfdisk", "libfido2", "libfsverity", "libgcrypt", "libgpg-error", "libksba", "libmpc", "libpkgconf", "libsecret", "libstdc++-devel", "libtirpc-devel", "libusb1", "libxcrypt-devel", "make", "mpdecimal", "ncurses", "ninja-build", "npth", "openssh", "openssh-clients", "openssl-devel", "pcre", "pcre-cpp", "pcre-devel", "pcre-utf16", "pcre-utf32", "perl-AutoLoader", "perl-B", "perl-Carp", "perl-Class-Struct", "perl-Data-Dumper", "perl-Digest", "perl-Digest-MD5", "perl-DynaLoader", "perl-Encode", "perl-Errno", "perl-Error", "perl-Exporter", "perl-Fcntl", "perl-File-Basename", "perl-File-Path", "perl-File-Temp", "perl-File-stat", "perl-FileHandle", "perl-Getopt-Long", "perl-Getopt-Std", "perl-Git", "perl-HTTP-Tiny", "perl-IO", "perl-IO-Socket-IP", "perl-IO-Socket-SSL", "perl-IPC-Open3", "perl-MIME-Base32", "perl-MIME-Base64", "perl-NDBM_File", "perl-Net-SSLeay", "perl-POSIX", "perl-PathTools", "perl-Pod-Escapes", "perl-Pod-Perldoc", "perl-Pod-Simple", "perl-Pod-Usage", "perl-Scalar-List-Utils", "perl-SelectSaver", "perl-Socket", "perl-Storable", "perl-Symbol", "perl-Term-ANSIColor", "perl-Term-Cap", "perl-TermReadKey", "perl-Text-ParseWords", "perl-Text-Tabs+Wrap", "perl-Time-Local", "perl-URI", "perl-base", "perl-constant", "perl-if", "perl-interpreter", "perl-lib", "perl-libnet", "perl-libs", "perl-locale", "perl-mro", "perl-overload", "perl-overloading", "perl-parent", "perl-podlators", "perl-vars", "pinentry", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "protobuf-c", "python-pip-wheel", "python-unversioned-command", "python3", "python3-dateutil", "python3-dbus", "python3-distro", "python3-dnf", "python3-dnf-plugins-core", "python3-hawkey", "python3-libcomps", "python3-libdnf", "python3-libs", "python3-rpm", "python3-six", "python3-systemd", "python3-unbound", "rpm-sign-libs", "tpm2-tss", "unbound-anchor", "unbound-libs", "util-linux", "vim-filesystem"],
+  "indirect_newly_installed": ["binutils", "cpp", "dbus-libs", "dnf-data", "dnf-plugins-core", "elfutils-debuginfod-client", "emacs-filesystem", "expat", "git-core", "git-core-doc", "glibc-devel", "gnupg2", "gnupg2-smime", "groff-base", "hiredis", "ima-evm-utils-libs", "jansson", "kernel-headers", "less", "libassuan", "libb2", "libcbor", "libcomps", "libdnf", "libedit", "libfdisk", "libfido2", "libfsverity", "libgcrypt", "libgpg-error", "libksba", "libmpc", "libpkgconf", "libsecret", "libstdc++-devel", "libusb1", "libxcrypt-devel", "mpdecimal", "ncurses", "npth", "openssh", "openssh-clients", "pcre", "pcre-cpp", "pcre-utf16", "pcre-utf32", "perl-AutoLoader", "perl-B", "perl-Carp", "perl-Class-Struct", "perl-Data-Dumper", "perl-Digest", "perl-Digest-MD5", "perl-DynaLoader", "perl-Encode", "perl-Errno", "perl-Error", "perl-Exporter", "perl-Fcntl", "perl-File-Basename", "perl-File-Path", "perl-File-Temp", "perl-File-stat", "perl-FileHandle", "perl-Getopt-Long", "perl-Getopt-Std", "perl-Git", "perl-HTTP-Tiny", "perl-IO", "perl-IO-Socket-IP", "perl-IO-Socket-SSL", "perl-IPC-Open3", "perl-MIME-Base32", "perl-MIME-Base64", "perl-NDBM_File", "perl-Net-SSLeay", "perl-POSIX", "perl-PathTools", "perl-Pod-Escapes", "perl-Pod-Perldoc", "perl-Pod-Simple", "perl-Pod-Usage", "perl-Scalar-List-Utils", "perl-SelectSaver", "perl-Socket", "perl-Storable", "perl-Symbol", "perl-Term-ANSIColor", "perl-Term-Cap", "perl-TermReadKey", "perl-Text-ParseWords", "perl-Text-Tabs+Wrap", "perl-Time-Local", "perl-URI", "perl-base", "perl-constant", "perl-if", "perl-interpreter", "perl-lib", "perl-libnet", "perl-libs", "perl-locale", "perl-mro", "perl-overload", "perl-overloading", "perl-parent", "perl-podlators", "perl-vars", "pinentry", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "protobuf-c", "python-pip-wheel", "python-unversioned-command", "python3", "python3-dateutil", "python3-dbus", "python3-distro", "python3-dnf", "python3-dnf-plugins-core", "python3-hawkey", "python3-libcomps", "python3-libdnf", "python3-libs", "python3-rpm", "python3-six", "python3-systemd", "python3-unbound", "rpm-sign-libs", "tpm2-tss", "unbound-anchor", "unbound-libs", "util-linux", "vim-filesystem"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 1,
+    "requested_missing_before": 9,
+    "requested_newly_installed": 9,
+    "requested_missing_after": 0,
+    "all_newly_installed": 144,
+    "indirect_newly_installed": 135
+  },
+  "unneeded_packages_status": "undetermined"
+}
