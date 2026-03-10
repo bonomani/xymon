@@ -500,11 +500,15 @@ configure_build_make() {
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
   export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
-  if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
-    echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}" >&2
-    exit 1
+if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
+  echo "Missing make profile exporter: ${MAKE_PROFILE_EXPORTER}" >&2
+  exit 1
+fi
+  legacy_layout_profile="${BUILD_PROFILE}"
+  if [ "${legacy_layout_profile}" = "packaging" ]; then
+    legacy_layout_profile="debian"
   fi
-  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${BUILD_PROFILE}")"
+  eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${legacy_layout_profile}")"
   echo "Bootstrap make profile '${BUILD_PROFILE}' environment before configure:"
   for var in XYMONTOPDIR XYMONVAR XYMONHOSTURL CGIDIR XYMONCGIURL SECURECGIDIR SECUREXYMONCGIURL XYMONLOGDIR XYMONHOSTNAME XYMONHOSTIP MANROOT INSTALLBINDIR INSTALLETCDIR INSTALLWEBDIR INSTALLEXTDIR INSTALLTMPDIR INSTALLWWWDIR XYMONUSER HTTPDGID USEXYMONPING ENABLESSL ENABLELDAP ENABLELDAPSSL; do
     printf '  %s=%s\n' "$var" "${!var:-<unset>}"
