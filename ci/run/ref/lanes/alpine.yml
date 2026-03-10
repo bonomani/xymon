@@ -1,19 +1,17 @@
-include:
-- platform_id: alpine-3_23
-- name_prefix: Alpine 3.23 arm64
-  platform_id: alpine-3_23
-  defaults: arm64
-- platform_id: alpine-3_22
-- name_prefix: Alpine 3.22 arm64
-  platform_id: alpine-3_22
-  defaults: arm64
-- platform_id: alpine-3_21
-- name_prefix: Alpine 3.21 arm64
-  platform_id: alpine-3_21
-  defaults: arm64
-- platform_id: alpine-3_20
-- platform_id: alpine-3_19
-- platform_id: alpine-edge
-- name_prefix: Alpine edge arm64
-  platform_id: alpine-edge
-  defaults: arm64
+generated:
+  policy:
+    secondary_defaults: arm64
+    secondary_scope: latest_only
+    rolling_platform_ids:
+      - alpine-edge
+  platforms:
+    - platform_id: alpine-3_23
+      name_prefix: Alpine 3.23
+    - platform_id: alpine-3_22
+      name_prefix: Alpine 3.22
+    - platform_id: alpine-3_21
+      name_prefix: Alpine 3.21
+    - platform_id: alpine-3_20
+    - platform_id: alpine-3_19
+    - platform_id: alpine-edge
+      name_prefix: Alpine edge
