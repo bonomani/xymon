@@ -20,6 +20,7 @@ linux-vdso.so.1
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -27,11 +28,12 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
 === /bin/xymonclient-linux.sh ===
@@ -40,6 +42,7 @@ linux-vdso.so.1
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -47,11 +50,12 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
 === /bin/xymonclient-netbsd.sh ===
@@ -64,6 +68,7 @@ linux-vdso.so.1
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -71,11 +76,12 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
 === /bin/xymoncfg ===
@@ -92,6 +98,7 @@ linux-vdso.so.1
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -99,11 +106,12 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
 === /bin/logfetch ===
@@ -116,6 +124,7 @@ linux-vdso.so.1
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -123,17 +132,19 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
 === /bin/xymongrep ===
 linux-vdso.so.1
 /lib64/libssl.so.10
 /lib64/libcrypto.so.10
+/lib64/libtirpc.so.1
 /lib64/libc.so.6
 /lib64/libgssapi_krb5.so.2
 /lib64/libkrb5.so.3
@@ -141,10 +152,11 @@ linux-vdso.so.1
 /lib64/libk5crypto.so.3
 /lib64/libdl.so.2
 /lib64/libz.so.1
+/lib64/libnsl.so.1
+/lib64/libpthread.so.0
 /lib64/ld-linux-x86-64.so.2
 /lib64/libkrb5support.so.0
 /lib64/libkeyutils.so.1
 /lib64/libresolv.so.2
-/lib64/libpthread.so.0
 /lib64/libselinux.so.1
 /lib64/libpcre.so.1
