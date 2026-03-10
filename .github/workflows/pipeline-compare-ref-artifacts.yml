@@ -67,35 +67,6 @@ on:
         options:
           - make
           - cmake
-      compiler:
-        description: Compiler selection (auto|gcc|clang)
-        required: true
-        type: choice
-        default: auto
-        options:
-          - auto
-          - gcc
-          - clang
-      profile:
-        description: Layout/profile selection (auto|default|debian|packaging|gnuinstall)
-        required: true
-        type: choice
-        default: auto
-        options:
-          - auto
-          - default
-          - debian
-          - packaging
-          - gnuinstall
-      install_mode:
-        description: Install semantics (auto|source|package)
-        required: true
-        type: choice
-        default: auto
-        options:
-          - auto
-          - source
-          - package
       publish:
         description: Publish compare artifacts
         required: true
@@ -142,9 +113,6 @@ jobs:
         shell: bash
         env:
           INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
-          INPUT_COMPILER: ${{ inputs.compiler }}
-          INPUT_PROFILE: ${{ inputs.profile }}
-          INPUT_INSTALL_MODE: ${{ inputs.install_mode }}
           INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
           INPUT_PUBLISH: ${{ inputs.publish }}
         run: |
@@ -152,9 +120,9 @@ jobs:
 
           python3 ci/run/ref/resolve-execution-model.py \
             --requested-build-tool "${INPUT_BUILD_TOOL}" \
-            --requested-compiler "${INPUT_COMPILER}" \
-            --requested-profile "${INPUT_PROFILE}" \
-            --requested-install-mode "${INPUT_INSTALL_MODE}" \
+            --requested-compiler "auto" \
+            --requested-profile "auto" \
+            --requested-install-mode "auto" \
             --requested-verify-depth "install" \
             --ref-mode "compare" \
             --publish "${INPUT_PUBLISH}" \
@@ -210,9 +178,6 @@ jobs:
           echo "Arch policy: ${{ inputs.arch_policy }}"
           echo "Alias policy: ${{ inputs.alias_policy }}"
           echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
-          echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
-          echo "Profile: ${{ steps.resolve_execution.outputs.profile }}"
-          echo "Install mode: ${{ steps.resolve_execution.outputs.install_mode }}"
           echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
           echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
