@@ -11,6 +11,7 @@ from execution_model import (
     validate_requested_install_mode,
 )
 from lane_utils import VARIANT_NAME_SUFFIX
+from lane_utils import SUPPORTED_LANE_VARIANTS
 from matrix_common import (
     die,
     infer_artifact_arch,
@@ -32,6 +33,8 @@ SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
 SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 SUPPORTED_CONTAINER_RUNTIME_PREFERENCES = {"linux_host", "linux_container"}
+SUPPORTED_ARCH_FILTERS = {"all", "amd64", "arm64"}
+SUPPORTED_VARIANT_FILTERS = {"all", *SUPPORTED_LANE_VARIANTS}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -551,6 +554,16 @@ def parse_args():
     )
     parser.add_argument("--selected-family", required=True)
     parser.add_argument(
+        "--selected-variant",
+        default="all",
+        choices=sorted(SUPPORTED_VARIANT_FILTERS),
+    )
+    parser.add_argument(
+        "--selected-arch",
+        default="all",
+        choices=sorted(SUPPORTED_ARCH_FILTERS),
+    )
+    parser.add_argument(
         "--ref-mode",
         required=True,
         choices=("off", "generate", "compare"),
@@ -652,6 +665,8 @@ def main():
     )
     lookup = {entry["family"]: entry for entry in families}
     selected_family = args.selected_family
+    selected_variant = args.selected_variant
+    selected_arch = args.selected_arch
     if selected_family == "all":
         selected_entries = families
     else:
@@ -687,6 +702,10 @@ def main():
                 container_runtime_preferences,
             )
             if normalized is None:
+                continue
+            if selected_variant != "all" and normalized.get("variant") != selected_variant:
+                continue
+            if selected_arch != "all" and normalized.get("artifact_arch") != selected_arch:
                 continue
             runtime = normalized.get("runtime")
             matrices[runtime].append(

@@ -23,6 +23,25 @@ on:
           - fedora
           - oraclelinux
           - ubuntu
+      variant:
+        description: Select which lane variant to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - server
+          - localclient
+          - client
+      arch:
+        description: Select which artifact architecture to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - amd64
+          - arm64
       compiler:
         description: Compiler selection (auto|gcc|clang)
         required: true
@@ -118,6 +137,8 @@ jobs:
               ref: targetRef,
               inputs: {
                 family: '${{ inputs.family }}',
+                variant: '${{ inputs.variant }}',
+                arch: '${{ inputs.arch }}',
                 build_tool: 'cmake',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -135,6 +156,8 @@ jobs:
               .addRaw(`Target ref: ${targetRef}\n`, true)
               .addRaw(`Build tool: cmake\n`, true)
               .addRaw(`Family: ${{ inputs.family }}\n`, true)
+              .addRaw(`Variant: ${{ inputs.variant }}\n`, true)
+              .addRaw(`Arch: ${{ inputs.arch }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
               .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
               .addRaw(`Install mode: ${{ inputs.install_mode }}\n`, true)
