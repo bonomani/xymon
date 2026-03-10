@@ -1,0 +1,29 @@
+name: Export BSD/macOS platform catalog
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  export:
+    runs-on: ubuntu-24.04
+    steps:
+      - name: Checkout repository
+        uses: actions/checkout@v4
+
+      - name: Export BSD/macOS catalog
+        run: python .github/scripts/export-bsd-platform-catalog.py
+
+      - name: Commit and push catalog
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add ci/deps/platform-bsd-sources.yaml .github/data/bsd-platform-catalog.yml
+          if git diff --staged --quiet; then
+            echo 'No updates to catalog'
+            exit 0
+          fi
+          git commit -m 'Update BSD/macOS platform catalog'
+          git push
