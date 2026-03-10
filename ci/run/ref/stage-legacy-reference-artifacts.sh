@@ -53,16 +53,42 @@ find "${artifacts_dir}" -type f -print0 \
   | while IFS= read -r -d '' f; do
       rel="${f#${artifacts_dir}/}"
       artifact="${rel%%/*}"
+      rest="${rel#*/}"
       dst_rel="${rel}"
       case "${artifact}" in
         ref_*)
-          dst_rel="ref/${rel}"
+          if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_.-]+)$ ]]; then
+            build_tool="${BASH_REMATCH[1]}"
+            runtime_os="${BASH_REMATCH[2]}"
+            variant="${BASH_REMATCH[3]}"
+            platform_id="${BASH_REMATCH[4]}"
+            artifact_arch="${BASH_REMATCH[5]}"
+            dst_rel="ref/${build_tool}/${runtime_os}/${platform_id}/${variant}/${artifact_arch}/${artifact}/${rest}"
+          else
+            dst_rel="ref/unparsed/${rel}"
+          fi
           ;;
         deps_*)
-          dst_rel="deps/${rel}"
+          if [[ "${artifact}" =~ ^deps_([[:alnum:]]+)_([[:alnum:]_.-]+)_([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_.-]+)__.*$ ]]; then
+            build_tool="${BASH_REMATCH[1]}"
+            platform_id="${BASH_REMATCH[2]}"
+            variant="${BASH_REMATCH[3]}"
+            artifact_arch="${BASH_REMATCH[4]}"
+            dep_mode="${BASH_REMATCH[5]}"
+            dst_rel="deps/${build_tool}/${platform_id}/${variant}/${artifact_arch}/${dep_mode}/${artifact}/${rest}"
+          else
+            dst_rel="deps/unparsed/${rel}"
+          fi
           ;;
         lane_outcome_*)
-          dst_rel="lane-outcome/${rel}"
+          if [[ "${artifact}" =~ ^lane_outcome_([[:alnum:]]+)_([[:alnum:]_.-]+)_([[:alnum:]_]+)__.*$ ]]; then
+            build_tool="${BASH_REMATCH[1]}"
+            platform_id="${BASH_REMATCH[2]}"
+            variant="${BASH_REMATCH[3]}"
+            dst_rel="lane-outcome/${build_tool}/${platform_id}/${variant}/${artifact}/${rest}"
+          else
+            dst_rel="lane-outcome/unparsed/${rel}"
+          fi
           ;;
       esac
       dst="${ref_dir}/${dst_rel}"
