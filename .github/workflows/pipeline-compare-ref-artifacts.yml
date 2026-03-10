@@ -1,0 +1,241 @@
+name: Pipeline - Compare Reference Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Workflow run id containing generated reference artifacts
+        required: true
+        type: string
+      family:
+        description: Select which reference-generation family to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - alpine
+          - archlinux
+          - centos7
+          - debian
+          - freebsd
+          - macos
+          - netbsd
+          - openbsd
+          - opensuse
+          - redhat
+          - fedora
+          - oraclelinux
+          - ubuntu
+      variant:
+        description: Select which lane variant to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - server
+          - localclient
+          - client
+      arch:
+        description: Select which artifact architecture to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - amd64
+          - arm64
+      arch_policy:
+        description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
+        required: true
+        type: choice
+        default: non_primary_latest_only
+        options:
+          - non_primary_latest_only
+          - non_primary_all
+          - non_primary_none
+      alias_policy:
+        description: Alias platform selection policy
+        required: true
+        type: choice
+        default: exclude_aliases
+        options:
+          - exclude_aliases
+          - include_aliases
+      build_tool:
+        description: Build tool whose generated refs should be compared
+        required: true
+        type: choice
+        default: cmake
+        options:
+          - make
+          - cmake
+      compiler:
+        description: Compiler selection (auto|gcc|clang)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - gcc
+          - clang
+      profile:
+        description: Layout/profile selection (auto|default|debian|packaging|gnuinstall)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - default
+          - debian
+          - packaging
+          - gnuinstall
+      install_mode:
+        description: Install semantics (auto|source|package)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - source
+          - package
+      publish:
+        description: Publish compare artifacts
+        required: true
+        type: choice
+        default: artifact
+        options:
+          - none
+          - artifact
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure
+        required: true
+        type: choice
+        default: allow
+        options:
+          - 'off'
+          - allow
+          - expect_fail
+
+permissions:
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix_all: ${{ steps.generate.outputs.matrix_all }}
+      build_tool: ${{ steps.resolve_execution.outputs.build_tool }}
+      compiler: ${{ steps.resolve_execution.outputs.compiler }}
+      profile: ${{ steps.resolve_execution.outputs.profile }}
+      install_mode: ${{ steps.resolve_execution.outputs.install_mode }}
+      publish: ${{ steps.resolve_execution.outputs.publish }}
+      allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
+      lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
+      lane_counts_json: ${{ steps.generate.outputs.lane_counts_json }}
+      selected_families: ${{ steps.generate.outputs.selected_families }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 1
+
+      - name: Resolve compare execution model
+        id: resolve_execution
+        shell: bash
+        env:
+          INPUT_BUILD_TOOL: ${{ inputs.build_tool }}
+          INPUT_COMPILER: ${{ inputs.compiler }}
+          INPUT_PROFILE: ${{ inputs.profile }}
+          INPUT_INSTALL_MODE: ${{ inputs.install_mode }}
+          INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
+          INPUT_PUBLISH: ${{ inputs.publish }}
+        run: |
+          set -euo pipefail
+
+          python3 ci/run/ref/resolve-execution-model.py \
+            --requested-build-tool "${INPUT_BUILD_TOOL}" \
+            --requested-compiler "${INPUT_COMPILER}" \
+            --requested-profile "${INPUT_PROFILE}" \
+            --requested-install-mode "${INPUT_INSTALL_MODE}" \
+            --requested-verify-depth "install" \
+            --ref-mode "compare" \
+            --publish "${INPUT_PUBLISH}" \
+            --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
+            --github-output "${GITHUB_OUTPUT}" > /dev/null
+
+      - name: Validate ref models
+        shell: bash
+        run: |
+          set -euo pipefail
+
+          python3 ci/run/ref/check-ref-models.py \
+            --manifest "ci/run/ref/ref-families.yml" \
+            --runtime-model "ci/run/ref/runtime-model.json" \
+            --selector-workflow ".github/workflows/pipeline-compare-ref-artifacts.yml"
+
+      - name: Build selected comparison matrix
+        id: generate
+        shell: bash
+        env:
+          SELECTED_FAMILY: ${{ inputs.family }}
+          SELECTED_VARIANT: ${{ inputs.variant }}
+          SELECTED_ARCH: ${{ inputs.arch }}
+          SELECTED_ARCH_POLICY: ${{ inputs.arch_policy }}
+          SELECTED_ALIAS_POLICY: ${{ inputs.alias_policy }}
+          SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
+          SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
+          SELECTED_PROFILE: ${{ steps.resolve_execution.outputs.profile }}
+          SELECTED_INSTALL_MODE: ${{ steps.resolve_execution.outputs.install_mode }}
+        run: |
+          set -euo pipefail
+
+          python3 ci/run/ref/build-ref-make-matrix.py \
+            --selected-family "${SELECTED_FAMILY}" \
+            --selected-variant "${SELECTED_VARIANT}" \
+            --selected-arch "${SELECTED_ARCH}" \
+            --selected-arch-policy "${SELECTED_ARCH_POLICY}" \
+            --selected-alias-policy "${SELECTED_ALIAS_POLICY}" \
+            --ref-mode "compare" \
+            --build-tool "${SELECTED_BUILD_TOOL}" \
+            --compiler "${SELECTED_COMPILER}" \
+            --profile "${SELECTED_PROFILE}" \
+            --install-mode "${SELECTED_INSTALL_MODE}" \
+            --manifest "ci/run/ref/ref-families.yml" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Matrix summary
+        shell: bash
+        run: |
+          echo "Source run id: ${{ inputs.source_run_id }}"
+          echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
+          echo "Variant filter: ${{ inputs.variant }}"
+          echo "Arch filter: ${{ inputs.arch }}"
+          echo "Arch policy: ${{ inputs.arch_policy }}"
+          echo "Alias policy: ${{ inputs.alias_policy }}"
+          echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
+          echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
+          echo "Profile: ${{ steps.resolve_execution.outputs.profile }}"
+          echo "Install mode: ${{ steps.resolve_execution.outputs.install_mode }}"
+          echo "Publish: ${{ steps.resolve_execution.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}"
+          echo "Lane count (total): ${{ steps.generate.outputs.lane_count_total }}"
+          echo "Lane counts (by runtime): ${{ steps.generate.outputs.lane_counts_json }}"
+
+  compare-lanes:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_total != '0' }}
+    name: ${{ matrix.lane.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_all) }}
+    uses: ./.github/workflows/pipeline-compare-ref-lane-reusable.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      source_run_id: ${{ inputs.source_run_id }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}

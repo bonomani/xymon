@@ -96,7 +96,7 @@ on:
           - build
           - install
       ref_mode:
-        description: Reference handling mode for make lanes
+        description: Reference handling mode for make generation lanes
         required: true
         type: choice
         default: 'off'
