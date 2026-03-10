@@ -59,10 +59,14 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
             entry.get("platform_os"),
             f"container catalog entry {platform_id}.platform_os",
         ).lower()
-        discovered = _require_mapping(
-            entry.get("discovered"),
-            f"container catalog entry {platform_id}.discovered",
-        )
+        discovered = entry.get("discovered")
+        discovered_arches_raw = entry.get("discovered_arches")
+        if discovered_arches_raw is None:
+            discovered = _require_mapping(
+                discovered,
+                f"container catalog entry {platform_id}.discovered",
+            )
+            discovered_arches_raw = discovered.get("arches")
         host_support_raw = _require_mapping(
             entry.get("host_support"),
             f"container catalog entry {platform_id}.host_support",
@@ -77,13 +81,34 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
                 f"container catalog entry {platform_id}.host_support.{arch_key}",
             )
             runner = support.get("runner")
+            direct_runner_labels: list[str] = []
+            container_runner_labels: list[str] = []
             if runner is not None:
                 runner = _require_non_empty_string(
                     runner,
                     f"container catalog entry {platform_id}.host_support.{arch_key}.runner",
                 )
+            else:
+                direct_runner_labels = support.get("direct_runner_labels")
+                if direct_runner_labels is not None:
+                    direct_runner_labels = _require_string_list(
+                        direct_runner_labels,
+                        f"container catalog entry {platform_id}.host_support.{arch_key}.direct_runner_labels",
+                    )
+                else:
+                    direct_runner_labels = []
+                container_runner_labels = support.get("container_runner_labels")
+                if container_runner_labels is not None:
+                    container_runner_labels = _require_string_list(
+                        container_runner_labels,
+                        f"container catalog entry {platform_id}.host_support.{arch_key}.container_runner_labels",
+                    )
+                else:
+                    container_runner_labels = list(direct_runner_labels)
             host_support[arch_key] = {
                 "runner": runner,
+                "direct_runner_labels": direct_runner_labels,
+                "container_runner_labels": container_runner_labels,
                 "runtime_preference": _require_string_list(
                     support.get("runtime_preference"),
                     f"container catalog entry {platform_id}.host_support.{arch_key}.runtime_preference",
@@ -113,8 +138,8 @@ def load_container_catalog(path: Path) -> dict[str, dict]:
                 f"container catalog entry {platform_id}.intended_arches",
             ),
             "discovered_arches": _require_string_list(
-                discovered.get("arches"),
-                f"container catalog entry {platform_id}.discovered.arches",
+                discovered_arches_raw,
+                f"container catalog entry {platform_id}.discovered_arches",
             ),
             "host_support": host_support,
         }
@@ -151,5 +176,6 @@ def resolve_container_runtime(
     return {
         "image": entry["image"],
         "runtime_preference": list(host_support["runtime_preference"]),
-        "host_runner": host_support["runner"],
+        "host_runner": host_support["runner"]
+        or (host_support["direct_runner_labels"][0] if host_support["direct_runner_labels"] else None),
     }
