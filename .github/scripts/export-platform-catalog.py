@@ -212,6 +212,13 @@ def preference_key(image: str, preferred_tokens: list[str]) -> int:
     return 0
 
 
+def normalized_release_key(tag: str, preferred_tokens: list[str]) -> str:
+    value = tag
+    for token in preferred_tokens:
+        value = re.sub(rf"(?i)([-_.]){re.escape(token)}$", "", value)
+    return value
+
+
 def load_active_lane_arches(lanes_glob: str) -> dict[str, list[str]]:
     lane_arches: dict[str, list[str]] = {}
     for path in sorted(ROOT.glob(lanes_glob)):
@@ -261,7 +268,7 @@ def load_container_intent() -> list[dict[str, Any]]:
     active_lane_arches = load_active_lane_arches(lanes_glob)
     platform_catalog = load_static_platform_catalog()
 
-    grouped_candidates: dict[str, list[dict[str, Any]]] = {}
+    grouped_candidates: dict[str, dict[str, list[dict[str, Any]]]] = {}
     for platform_id, entry in platform_catalog.items():
         if str(entry.get("runtime", "")).lower() != runtime:
             continue
@@ -273,7 +280,8 @@ def load_container_intent() -> list[dict[str, Any]]:
         group = field_str(deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps").lower()
         image = field_str(entry, "image", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
         repository, tag = image_repository_and_tag(image)
-        grouped_candidates.setdefault(group, []).append(
+        release_key = normalized_release_key(tag, preferred_tokens)
+        grouped_candidates.setdefault(group, {}).setdefault(release_key, []).append(
             {
                 "platform_id": platform_id,
                 "platform_os": group,
@@ -292,31 +300,43 @@ def load_container_intent() -> list[dict[str, Any]]:
         )
 
     normalized_families: list[dict[str, Any]] = []
-    for group, candidates in grouped_candidates.items():
-        selected = max(
-            candidates,
+    for group, releases in grouped_candidates.items():
+        selected_releases: list[dict[str, Any]] = []
+        for candidates in releases.values():
+            selected_releases.append(
+                max(
+                    candidates,
+                    key=lambda candidate: (
+                        preference_key(candidate["image"], preferred_tokens),
+                        version_key(candidate["platform_version"]),
+                        candidate["platform_id"],
+                    ),
+                )
+            )
+        selected_releases.sort(
             key=lambda candidate: (
                 version_key(candidate["platform_version"]),
-                preference_key(candidate["image"], preferred_tokens),
                 candidate["platform_id"],
             ),
+            reverse=True,
         )
         normalized_families.append(
             {
                 "family": group,
-                "repository": selected["repository"],
-                "repository_url": selected["repository_url"],
-                "runtime_preference": selected["runtime_preference"],
+                "repository": selected_releases[0]["repository"],
+                "repository_url": selected_releases[0]["repository_url"],
+                "runtime_preference": selected_releases[0]["runtime_preference"],
                 "releases": [
                     {
-                        "platform_id": selected["platform_id"],
-                        "tag": selected["tag"],
-                        "platform_version": selected["platform_version"],
-                        "deps": selected["deps"],
-                        "platform_os": selected["platform_os"],
-                        "platform_family": selected["platform_family"],
-                        "arches": selected["arches"],
+                        "platform_id": release["platform_id"],
+                        "tag": release["tag"],
+                        "platform_version": release["platform_version"],
+                        "deps": release["deps"],
+                        "platform_os": release["platform_os"],
+                        "platform_family": release["platform_family"],
+                        "arches": release["arches"],
                     }
+                    for release in selected_releases
                 ],
             }
         )
