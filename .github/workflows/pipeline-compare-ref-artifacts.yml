@@ -3,10 +3,6 @@ name: Pipeline - Compare Reference Artifacts
 on:
   workflow_dispatch:
     inputs:
-      source_run_id:
-        description: Workflow run id containing generated reference artifacts
-        required: true
-        type: string
       family:
         description: Select which reference-generation family to compare
         required: true
@@ -64,7 +60,7 @@ on:
           - exclude_aliases
           - include_aliases
       build_tool:
-        description: Build tool whose generated refs should be compared
+        description: Build tool whose synced refs under docs/cmake-legacy-migration/refs/ref should be compared
         required: true
         type: choice
         default: cmake
@@ -208,7 +204,6 @@ jobs:
       - name: Matrix summary
         shell: bash
         run: |
-          echo "Source run id: ${{ inputs.source_run_id }}"
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
@@ -236,6 +231,5 @@ jobs:
     with:
       lane_name: ${{ matrix.lane.name }}
       lane_json: ${{ toJSON(matrix.lane) }}
-      source_run_id: ${{ inputs.source_run_id }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
