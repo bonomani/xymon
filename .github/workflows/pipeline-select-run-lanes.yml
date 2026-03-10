@@ -114,14 +114,6 @@ on:
         options:
           - 'off'
           - generate
-      publish:
-        description: Publish channel
-        required: true
-        type: choice
-        default: none
-        options:
-          - none
-          - artifact
       allow_failure_mode:
         description: Handling of lanes marked allow_failure
         required: true
@@ -181,10 +173,6 @@ on:
         description: Reference handling mode (off|generate)
         required: true
         type: string
-      publish:
-        description: Publish channel (none|artifact)
-        required: true
-        type: string
       allow_failure_mode:
         description: Handling of lanes marked allow_failure (off|allow|expect_fail)
         required: true
@@ -225,12 +213,11 @@ jobs:
                 install_mode: '${{ inputs.install_mode }}',
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
-                publish: '${{ inputs.publish }}',
                 allow_failure_mode: '${{ inputs.allow_failure_mode }}',
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, arch_policy=${{ inputs.arch_policy }}, alias_policy=${{ inputs.alias_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, arch_policy=${{ inputs.arch_policy }}, alias_policy=${{ inputs.alias_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -265,10 +252,14 @@ jobs:
           INPUT_INSTALL_MODE: ${{ inputs.install_mode }}
           INPUT_VERIFY_DEPTH: ${{ inputs.verify_depth }}
           INPUT_REF_MODE: ${{ inputs.ref_mode }}
-          INPUT_PUBLISH: ${{ inputs.publish }}
           INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
         run: |
           set -euo pipefail
+
+          input_publish="none"
+          if [[ "${INPUT_REF_MODE}" == "generate" ]]; then
+            input_publish="artifact"
+          fi
 
           python3 ci/run/ref/resolve-execution-model.py \
             --requested-build-tool "${INPUT_BUILD_TOOL}" \
@@ -277,7 +268,7 @@ jobs:
             --requested-install-mode "${INPUT_INSTALL_MODE}" \
             --requested-verify-depth "${INPUT_VERIFY_DEPTH}" \
             --ref-mode "${INPUT_REF_MODE}" \
-            --publish "${INPUT_PUBLISH}" \
+            --publish "${input_publish}" \
             --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
             --github-output "${GITHUB_OUTPUT}" > /dev/null
 
