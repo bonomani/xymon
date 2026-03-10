@@ -1,12 +1,13 @@
-include:
-- platform_id: rockylinux-8
-- platform_id: rockylinux-9
-- platform_id: almalinux-8
-- platform_id: almalinux-9
-- platform_id: almalinux-10
-  variants:
-  - variant: server
-    allow_failure: true
-  - variant: localclient
-    allow_failure: true
-  - client
+generated:
+  platforms:
+    - platform_id: rockylinux-8
+    - platform_id: rockylinux-9
+    - platform_id: almalinux-8
+    - platform_id: almalinux-9
+    - platform_id: almalinux-10
+      variants:
+        - variant: server
+          allow_failure: true
+        - variant: localclient
+          allow_failure: true
+        - client

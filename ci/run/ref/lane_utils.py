@@ -70,6 +70,12 @@ def _require_string_list(value, context: str) -> list[str]:
     return [_require_non_empty_string(item, f"{context}[{index}]") for index, item in enumerate(value)]
 
 
+def _optional_string_list(value, context: str) -> list[str]:
+    if value in (None, []):
+        return []
+    return _require_string_list(value, context)
+
+
 def _version_key(value: str) -> tuple[int, tuple[int, ...], str]:
     numbers = tuple(int(part) for part in re.findall(r"\d+", value))
     return (1 if numbers else 0, numbers, value)
@@ -90,10 +96,24 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
 
     policy = generated.get("policy", {})
     policy = _require_mapping(policy, f"Lane file generated.policy: {lane_file}")
-    secondary_defaults = policy.get("secondary_defaults", [])
-    if secondary_defaults:
-        secondary_defaults = _require_string_list(
-            secondary_defaults, f"Lane file generated.policy.secondary_defaults: {lane_file}"
+    policy_base_defaults = _optional_string_list(
+        policy.get("base_defaults"),
+        f"Lane file generated.policy.base_defaults: {lane_file}",
+    )
+    secondary_defaults = _optional_string_list(
+        policy.get("secondary_defaults"),
+        f"Lane file generated.policy.secondary_defaults: {lane_file}",
+    )
+    secondary_overrides = policy.get("secondary_overrides", {})
+    secondary_overrides = _require_mapping(
+        secondary_overrides,
+        f"Lane file generated.policy.secondary_overrides: {lane_file}",
+    )
+    secondary_name_suffix = policy.get("secondary_name_suffix")
+    if secondary_name_suffix is not None:
+        secondary_name_suffix = _require_non_empty_string(
+            secondary_name_suffix,
+            f"Lane file generated.policy.secondary_name_suffix: {lane_file}",
         )
     secondary_scope = policy.get("secondary_scope", "none")
     secondary_scope = _require_non_empty_string(
@@ -158,12 +178,36 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
     for platform_id, entry in platform_entries:
         base_entry = dict(entry)
         secondary_name_prefix = base_entry.pop("name_prefix", None)
+        base_defaults = _optional_string_list(
+            base_entry.pop("base_defaults", []),
+            f"Lane file generated.platforms base_defaults for {platform_id}",
+        )
+        entry_secondary_defaults = _optional_string_list(
+            base_entry.pop("secondary_defaults", []),
+            f"Lane file generated.platforms secondary_defaults for {platform_id}",
+        )
+        entry_secondary_overrides = _require_mapping(
+            base_entry.pop("secondary_overrides", {}),
+            f"Lane file generated.platforms secondary_overrides for {platform_id}",
+        )
+        entry_secondary_name_suffix = base_entry.pop("secondary_name_suffix", secondary_name_suffix)
+        if entry_secondary_name_suffix is not None:
+            entry_secondary_name_suffix = _require_non_empty_string(
+                entry_secondary_name_suffix,
+                f"Lane file generated.platforms secondary_name_suffix for {platform_id}",
+            )
         base_entry.pop("arches", None)
         base_entry["platform_id"] = platform_id
+        merged_base_defaults = [*policy_base_defaults, *base_defaults]
+        if merged_base_defaults:
+            base_entry["defaults"] = merged_base_defaults
         expanded.append(base_entry)
 
         include_secondary = False
-        if secondary_defaults:
+        effective_secondary_defaults = entry_secondary_defaults or secondary_defaults
+        effective_secondary_overrides = dict(secondary_overrides)
+        effective_secondary_overrides.update(entry_secondary_overrides)
+        if effective_secondary_defaults or effective_secondary_overrides:
             if secondary_scope == "all":
                 include_secondary = True
             elif secondary_scope == "latest_only":
@@ -173,13 +217,22 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
             continue
 
         secondary_entry = dict(base_entry)
-        secondary_entry["defaults"] = list(secondary_defaults)
+        if effective_secondary_defaults:
+            secondary_entry["defaults"] = list(effective_secondary_defaults)
+        else:
+            secondary_entry.pop("defaults", None)
+        secondary_entry.update(effective_secondary_overrides)
         if secondary_name_prefix is not None:
             name_prefix = secondary_name_prefix
             name_prefix = _require_non_empty_string(
                 name_prefix, f"Lane file generated.platforms name_prefix for {platform_id}"
             )
-            secondary_entry["name_prefix"] = f"{name_prefix} {' '.join(secondary_defaults)}"
+            suffix = entry_secondary_name_suffix
+            if suffix is None and effective_secondary_defaults:
+                suffix = " ".join(effective_secondary_defaults)
+            if suffix is None:
+                suffix = str(effective_secondary_overrides.get("architecture") or "").strip()
+            secondary_entry["name_prefix"] = f"{name_prefix} {suffix}".strip()
         expanded.append(secondary_entry)
 
     return expanded
