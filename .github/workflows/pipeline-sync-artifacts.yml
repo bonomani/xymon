@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       source_run_id:
-        description: Optional selector run reference (database id, run URL, or "... #N") to download legacy reference artifacts from
+        description: Optional selector run references (comma/newline-separated database ids, run URLs, or "... #N") to download legacy reference artifacts from
         required: false
         default: ""
       source_branch:
@@ -40,7 +40,7 @@ jobs:
         run: |
           set -euo pipefail
           artifacts_dir="/tmp/legacy-reference-artifacts"
-          run_id_file="/tmp/pipeline-sync-source-run-id.txt"
+          run_id_file="/tmp/pipeline-sync-source-run-ids.txt"
           rm -rf "${artifacts_dir}"
           mkdir -p "${artifacts_dir}"
           rm -f "${run_id_file}"
@@ -91,8 +91,10 @@ jobs:
               artifacts = payload.get("artifacts", [])
               return any(str(artifact.get("name", "")).startswith("ref_") for artifact in artifacts)
 
-          if requested_run_selector:
-              selector = requested_run_selector
+          def resolve_selector(selector: str) -> str:
+              selector = " ".join((selector or "").strip().split())
+              if not selector:
+                  return ""
               try:
                   run, _resolved_via = load_run_from_selector(
                       api_get,
@@ -113,7 +115,21 @@ jobs:
                   )
               run_id = str(run.get("id", "")).strip()
               if run_id and has_ref_artifacts(run_id):
-                  print(run_id)
+                  return run_id
+              return ""
+
+          if requested_run_selector:
+              seen = set()
+              resolved = []
+              for raw_selector in requested_run_selector.replace(",", "\n").splitlines():
+                  run_id = resolve_selector(raw_selector)
+                  if not run_id:
+                      sys.exit(1)
+                  if run_id not in seen:
+                      seen.add(run_id)
+                      resolved.append(run_id)
+              if resolved:
+                  print("\n".join(resolved))
                   sys.exit(0)
               sys.exit(1)
 
@@ -148,11 +164,11 @@ jobs:
 
           sys.exit(1)
           PY
-          run_id="$(tr -d '\n\r' < "${run_id_file}" || true)"
+          mapfile -t run_ids < <(sed -e '/^[[:space:]]*$/d' "${run_id_file}")
 
-          if [ -z "${run_id}" ]; then
+          if [ "${#run_ids[@]}" -eq 0 ]; then
             if [ -n "${INPUT_SOURCE_RUN_ID}" ]; then
-              echo "Requested run ${INPUT_SOURCE_RUN_ID} has no downloadable ref_* artifacts" >&2
+              echo "Requested run selector(s) ${INPUT_SOURCE_RUN_ID} have no downloadable ref_* artifacts" >&2
             else
               echo "No successful run found for ${workflow} on branch ${{ inputs.source_branch }} with downloadable ref_* artifacts" >&2
             fi
@@ -161,7 +177,9 @@ jobs:
 
           # Download into a single root. gh creates one subdir per artifact name.
           # This avoids an extra workflow-name directory layer.
-          gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
+          for run_id in "${run_ids[@]}"; do
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
+          done
 
           stager_script="/tmp/stage-legacy-reference-artifacts.sh"
           install -m 0755 ci/run/ref/stage-legacy-reference-artifacts.sh "${stager_script}"
