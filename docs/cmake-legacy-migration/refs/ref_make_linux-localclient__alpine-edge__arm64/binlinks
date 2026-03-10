@@ -1,0 +1,43 @@
+=== /bin/xymoncmd ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymoncfg ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/logfetch ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/clientupdate ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/orcaxymon ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymon ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonlaunch ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymongrep ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/msgcache ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymondigest ===
+/lib/ld-musl-aarch64.so.1
+/lib/ld-musl-aarch64.so.1
