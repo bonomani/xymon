@@ -107,14 +107,13 @@ on:
           - build
           - install
       ref_mode:
-        description: Reference handling mode
+        description: Reference handling mode for generation lanes
         required: true
         type: choice
         default: 'off'
         options:
           - 'off'
           - generate
-          - compare
       publish:
         description: Publish channel
         required: true
@@ -179,7 +178,7 @@ on:
         required: true
         type: string
       ref_mode:
-        description: Reference handling mode (off|generate|compare)
+        description: Reference handling mode (off|generate)
         required: true
         type: string
       publish:
