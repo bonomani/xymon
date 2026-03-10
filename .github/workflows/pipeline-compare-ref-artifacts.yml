@@ -51,14 +51,9 @@ jobs:
     runs-on: ubuntu-22.04
     outputs:
       matrix_all: ${{ steps.generate.outputs.matrix_all }}
-      compiler: ${{ steps.resolve_execution.outputs.compiler }}
-      profile: ${{ steps.resolve_execution.outputs.profile }}
-      install_mode: ${{ steps.resolve_execution.outputs.install_mode }}
       publish: ${{ steps.resolve_execution.outputs.publish }}
       allow_failure_mode: ${{ steps.resolve_execution.outputs.allow_failure_mode }}
       lane_count_total: ${{ steps.generate.outputs.lane_count_total }}
-      lane_counts_json: ${{ steps.generate.outputs.lane_counts_json }}
-      selected_families: ${{ steps.generate.outputs.selected_families }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -90,7 +85,8 @@ jobs:
           python3 ci/run/ref/check-ref-models.py \
             --manifest "ci/run/ref/ref-families.yml" \
             --runtime-model "ci/run/ref/runtime-model.json" \
-            --selector-workflow ".github/workflows/pipeline-compare-ref-artifacts.yml"
+            --selector-workflow ".github/workflows/pipeline-compare-ref-artifacts.yml" \
+            --selector-purpose "validation"
 
       - name: Build selected comparison matrix
         id: generate
