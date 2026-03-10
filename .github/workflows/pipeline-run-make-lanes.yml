@@ -42,6 +42,15 @@ on:
           - all
           - amd64
           - arm64
+      arch_policy:
+        description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
+        required: true
+        type: choice
+        default: non_primary_latest_only
+        options:
+          - non_primary_latest_only
+          - non_primary_all
+          - non_primary_none
       compiler:
         description: Compiler selection (auto|gcc|clang)
         required: true
@@ -138,6 +147,7 @@ jobs:
                 family: '${{ inputs.family }}',
                 variant: '${{ inputs.variant }}',
                 arch: '${{ inputs.arch }}',
+                arch_policy: '${{ inputs.arch_policy }}',
                 build_tool: 'make',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -157,6 +167,7 @@ jobs:
               .addRaw(`Family: ${{ inputs.family }}\n`, true)
               .addRaw(`Variant: ${{ inputs.variant }}\n`, true)
               .addRaw(`Arch: ${{ inputs.arch }}\n`, true)
+              .addRaw(`Arch policy: ${{ inputs.arch_policy }}\n`, true)
               .addRaw(`Compiler: ${{ inputs.compiler }}\n`, true)
               .addRaw(`Profile: ${{ inputs.profile }}\n`, true)
               .addRaw(`Install mode: ${{ inputs.install_mode }}\n`, true)

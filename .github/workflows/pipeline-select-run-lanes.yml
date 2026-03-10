@@ -42,6 +42,15 @@ on:
           - all
           - amd64
           - arm64
+      arch_policy:
+        description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
+        required: true
+        type: choice
+        default: non_primary_latest_only
+        options:
+          - non_primary_latest_only
+          - non_primary_all
+          - non_primary_none
       build_tool:
         description: Build tool selection (auto derives from ref_mode)
         required: true
@@ -133,6 +142,10 @@ on:
         description: Artifact architecture filter (all|amd64|arm64)
         required: true
         type: string
+      arch_policy:
+        description: Generated-lane architecture policy (non_primary_latest_only|non_primary_all|non_primary_none)
+        required: true
+        type: string
       build_tool:
         description: Build tool selection (auto|make|cmake)
         required: true
@@ -193,6 +206,7 @@ jobs:
                 family: '${{ inputs.family }}',
                 variant: '${{ inputs.variant }}',
                 arch: '${{ inputs.arch }}',
+                arch_policy: '${{ inputs.arch_policy }}',
                 build_tool: '${{ inputs.build_tool }}',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -204,7 +218,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, arch_policy=${{ inputs.arch_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, publish=${{ inputs.publish }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -272,6 +286,7 @@ jobs:
           SELECTED_FAMILY: ${{ inputs.family }}
           SELECTED_VARIANT: ${{ inputs.variant }}
           SELECTED_ARCH: ${{ inputs.arch }}
+          SELECTED_ARCH_POLICY: ${{ inputs.arch_policy }}
           SELECTED_REF_MODE: ${{ steps.resolve_execution.outputs.ref_mode }}
           SELECTED_BUILD_TOOL: ${{ steps.resolve_execution.outputs.build_tool }}
           SELECTED_COMPILER: ${{ steps.resolve_execution.outputs.compiler }}
@@ -285,6 +300,7 @@ jobs:
             --selected-family "${SELECTED_FAMILY}"
             --selected-variant "${SELECTED_VARIANT}"
             --selected-arch "${SELECTED_ARCH}"
+            --selected-arch-policy "${SELECTED_ARCH_POLICY}"
             --ref-mode "${SELECTED_REF_MODE}"
             --build-tool "${SELECTED_BUILD_TOOL}"
             --compiler "${SELECTED_COMPILER}"
@@ -302,6 +318,7 @@ jobs:
           echo "Selected families: ${{ steps.generate.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
+          echo "Arch policy: ${{ inputs.arch_policy }}"
           echo "Build tool: ${{ steps.resolve_execution.outputs.build_tool }}"
           echo "Compiler: ${{ steps.resolve_execution.outputs.compiler }}"
           echo "Profile: ${{ steps.resolve_execution.outputs.profile }}"

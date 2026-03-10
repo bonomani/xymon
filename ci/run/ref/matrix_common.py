@@ -305,6 +305,7 @@ def load_lanes_from_file(
     *,
     shared_defaults=None,
     strict_lane_mapping=False,
+    generated_overrides=None,
 ):
     if not lane_file.exists():
         die(f"Missing lane file: {lane_file}")
@@ -324,7 +325,12 @@ def load_lanes_from_file(
         lane_defaults = require_mapping(lane_defaults, f"Lane file defaults: {lane_file}")
 
     try:
-        lanes = extract_lane_include(data, lane_file, require_include_key=isinstance(data, dict))
+        lanes = extract_lane_include(
+            data,
+            lane_file,
+            require_include_key=isinstance(data, dict),
+            generated_overrides=generated_overrides,
+        )
     except LaneSpecError as exc:
         die(str(exc))
 
