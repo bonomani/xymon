@@ -159,9 +159,7 @@ def resolve_container_runtime(
         return None
 
     if artifact_arch not in entry["intended_arches"]:
-        raise ValueError(
-            f"Container catalog entry '{platform_id}' does not intend arch '{artifact_arch}'"
-        )
+        return None
     if artifact_arch not in entry["discovered_arches"]:
         raise ValueError(
             f"Container catalog entry '{platform_id}' is missing discovered arch '{artifact_arch}'"
@@ -169,9 +167,7 @@ def resolve_container_runtime(
 
     host_support = entry["host_support"].get(artifact_arch)
     if host_support is None:
-        raise ValueError(
-            f"Container catalog entry '{platform_id}' has no host support record for arch '{artifact_arch}'"
-        )
+        return None
 
     return {
         "image": entry["image"],
