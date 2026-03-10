@@ -80,7 +80,7 @@
 /var/lib/xymon/server	/server	d	755	1000	1001	4096	
 /var/lib/xymon/server/bin	/server/bin	d	755	1000	1001	4096	
 /var/lib/xymon/server/bin/ackinfo.cgi	/server/bin/ackinfo.cgi	f	755	1000	1001	338456	
-/var/lib/xymon/server/bin/acknowledge.cgi	/server/bin/acknowledge.cgi	f	755	1000	1001	611384	
+/var/lib/xymon/server/bin/acknowledge.cgi	/server/bin/acknowledge.cgi	f	755	1000	1001	615480	
 /var/lib/xymon/server/bin/acknowledgements.cgi	/server/bin/acknowledgements.cgi	f	755	1000	1001	595984	
 /var/lib/xymon/server/bin/appfeed.cgi	/server/bin/appfeed.cgi	f	755	1000	1001	534376	
 /var/lib/xymon/server/bin/bb	/server/bin/bb	l					xymon
