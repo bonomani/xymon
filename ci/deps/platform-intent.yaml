@@ -1,33 +1,49 @@
-selection:
-  runtime: docker
-  platform_family: linux
-  group_by: deps.os
-  lanes_glob: ci/run/ref/lanes/*.yml
-  prefer_image_tokens:
-    - slim
-    - latest
+goal:
+  validate_builds:
+    build_tools:
+      - make
+      - cmake
+    variants:
+      - server
+      - localclient
+      - client
 
-runtime_preference:
-  default:
-    - linux_container
-  overrides:
-    ubuntu:
-      - linux_host
+containers:
+  source:
+    runtime: docker
+    platform_family: linux
+    lanes_glob: ci/run/ref/lanes/*.yml
+  selection:
+    keep: all_active_versions
+    group_by: deps.os
+    dedupe_by: normalized_tag
+    prefer_tags:
+      - slim
+      - latest
+  runtime_preference:
+    default:
       - linux_container
-
-validation:
-  build_tools:
-    - make
-    - cmake
-  variants:
-    - client
-    - server
+    overrides:
+      ubuntu:
+        - linux_host
+        - linux_container
   architectures:
-    mode: all_lane_arches
+    mode: primary_plus_latest
+    primary:
+      - amd64
 
-vm_selection:
-  lanes_globs:
-    - ci/run/ref/lanes/freebsd.yml
-    - ci/run/ref/lanes/openbsd.yml
-    - ci/run/ref/lanes/netbsd.yml
-    - ci/run/ref/lanes/macos.yml
+vms:
+  source:
+    lanes_globs:
+      - ci/run/ref/lanes/freebsd.yml
+      - ci/run/ref/lanes/openbsd.yml
+      - ci/run/ref/lanes/netbsd.yml
+      - ci/run/ref/lanes/macos.yml
+  selection:
+    keep: all_active_versions
+  architectures:
+    mode: primary_plus_latest
+    primary:
+      - amd64
+    provider_override:
+      github-actions: source_arch_only
