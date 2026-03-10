@@ -1034,6 +1034,8 @@ platforms:
     - arm64
     provider: github-actions
     runner_label: macos-latest
+    alias_of: macos-15
+    resolved_version: '15'
   - platform_id: netbsd-10_0
     os: netbsd
     version: '10.0'

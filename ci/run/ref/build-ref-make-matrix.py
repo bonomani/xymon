@@ -40,6 +40,7 @@ SUPPORTED_ARCH_POLICY_FILTERS = {
     "non_primary_all",
     "non_primary_none",
 }
+SUPPORTED_ALIAS_POLICY_FILTERS = {"exclude_aliases", "include_aliases"}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -461,6 +462,7 @@ def normalize_lane(
     profile,
     install_mode,
     container_runtime_preferences,
+    selected_alias_policy,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -493,6 +495,12 @@ def normalize_lane(
     platform_id, platform_entry, platform_runtime = resolve_platform_binding(
         family_entry, lane_obj, platform_catalog
     )
+    if (
+        selected_alias_policy == "exclude_aliases"
+        and platform_entry is not None
+        and platform_entry.get("alias_of") not in (None, "")
+    ):
+        return None
     supported_build_tools = resolve_supported_build_tools(
         family_entry, lane_obj, platform_entry, platform_id
     )
@@ -572,6 +580,11 @@ def parse_args():
         "--selected-arch-policy",
         default="non_primary_latest_only",
         choices=sorted(SUPPORTED_ARCH_POLICY_FILTERS),
+    )
+    parser.add_argument(
+        "--selected-alias-policy",
+        default="exclude_aliases",
+        choices=sorted(SUPPORTED_ALIAS_POLICY_FILTERS),
     )
     parser.add_argument(
         "--ref-mode",
@@ -679,6 +692,7 @@ def main():
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
     selected_arch_policy = args.selected_arch_policy
+    selected_alias_policy = args.selected_alias_policy
     if selected_family == "all":
         selected_entries = families
     else:
@@ -716,6 +730,7 @@ def main():
                 profile,
                 install_mode,
                 container_runtime_preferences,
+                selected_alias_policy,
             )
             if normalized is None:
                 continue
