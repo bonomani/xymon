@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import json
 import os
+import re
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -15,6 +16,7 @@ import yaml
 
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
+PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 OUTPUT = ROOT / ".github" / "data" / "platform-catalog-discovered.yml"
@@ -39,31 +41,57 @@ ARCH_NORMALIZATION = {
     ("s390x", None): "s390x",
 }
 HOST_ARCH_TO_ARCH = {"x64": "amd64", "amd64": "amd64", "arm64": "arm64"}
+DEFAULT_RUNNER_CAPABILITIES = {
+    "linux": {
+        "native_platforms": ["linux"],
+        "container_platforms": ["linux"],
+    },
+    "macos": {
+        "native_platforms": ["macos"],
+        "container_platforms": [],
+    },
+}
 
 
-def require_mapping(value: Any, context: str) -> dict[str, Any]:
+def as_map(value: Any, context: str) -> dict[str, Any]:
     if not isinstance(value, dict):
         raise SystemExit(f"{context} must be a mapping")
     return value
 
 
-def require_string(value: Any, context: str) -> str:
+def as_str(value: Any, context: str) -> str:
     if not isinstance(value, str) or not value.strip():
         raise SystemExit(f"{context} must be a non-empty string")
     return value.strip()
 
 
-def require_list(value: Any, context: str) -> list[Any]:
+def as_list(value: Any, context: str) -> list[Any]:
     if not isinstance(value, list):
         raise SystemExit(f"{context} must be a list")
     return value
+
+
+def field_map(parent: dict[str, Any], key: str, context: str) -> dict[str, Any]:
+    return as_map(parent.get(key), f"{context}.{key}")
+
+
+def field_str(parent: dict[str, Any], key: str, context: str) -> str:
+    return as_str(parent.get(key), f"{context}.{key}")
+
+
+def field_list(parent: dict[str, Any], key: str, context: str) -> list[Any]:
+    return as_list(parent.get(key), f"{context}.{key}")
+
+
+def relative_to_root(path: Path) -> str:
+    return str(path.relative_to(ROOT))
 
 
 def load_yaml(path: Path, context: str) -> dict[str, Any]:
     if not path.exists():
         raise SystemExit(f"Missing {context}: {path}")
     data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
-    return require_mapping(data, context)
+    return as_map(data, context)
 
 
 def github_request(path: str) -> dict[str, Any]:
@@ -138,93 +166,245 @@ def extract_architectures(payload: dict[str, Any]) -> list[str]:
     return archs
 
 
+def normalize_declared_architecture(value: str) -> str:
+    normalized = value.strip().lower()
+    aliases = {
+        "x64": "amd64",
+        "x86-64": "amd64",
+        "amd64": "amd64",
+        "arm64": "arm64",
+    }
+    return aliases.get(normalized, normalized)
+
+
+def image_repository_and_tag(image: str) -> tuple[str, str]:
+    repository, separator, tag = image.partition(":")
+    if not separator:
+        raise SystemExit(f"Container image '{image}' is missing a tag")
+    if "/" not in repository:
+        repository = f"library/{repository}"
+    return repository, tag
+
+
+def repository_url(repository: str) -> str:
+    if repository.startswith("library/"):
+        return f"https://hub.docker.com/_/{repository.split('/', 1)[1]}"
+    return f"https://hub.docker.com/r/{repository}"
+
+
+def platform_version_for(entry: dict[str, Any], context: str, tag: str) -> str:
+    raw_value = entry.get("platform_version")
+    if raw_value is None:
+        return tag
+    return as_str(raw_value, f"{context}.platform_version")
+
+
+def version_key(value: str) -> tuple[int, tuple[int, ...], str]:
+    numbers = tuple(int(part) for part in re.findall(r"\d+", value))
+    return (1 if numbers else 0, numbers, value)
+
+
+def preference_key(image: str, preferred_tokens: list[str]) -> int:
+    lowered = image.lower()
+    for index, token in enumerate(preferred_tokens):
+        if token.lower() in lowered:
+            return len(preferred_tokens) - index
+    return 0
+
+
+def load_active_lane_arches(lanes_glob: str) -> dict[str, list[str]]:
+    lane_arches: dict[str, list[str]] = {}
+    for path in sorted(ROOT.glob(lanes_glob)):
+        data = load_yaml(path, f"lane definition in {path}")
+        include = field_list(data, "include", str(path))
+        for index, raw_entry in enumerate(include):
+            entry = as_map(raw_entry, f"{path}.include[{index}]")
+            platform_id = field_str(entry, "platform_id", f"{path}.include[{index}]")
+            raw_arch = str(entry.get("architecture") or entry.get("defaults") or "amd64")
+            arch = normalize_declared_architecture(raw_arch)
+            lane_arches.setdefault(platform_id, [])
+            if arch not in lane_arches[platform_id]:
+                lane_arches[platform_id].append(arch)
+    return lane_arches
+
+
+def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
+    data = load_yaml(PLATFORM_CATALOG, f"platform catalog in {PLATFORM_CATALOG}")
+    platforms = field_map(data, "platforms", str(PLATFORM_CATALOG))
+    normalized: dict[str, dict[str, Any]] = {}
+    for platform_id, raw_entry in platforms.items():
+        entry = as_map(raw_entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        normalized[str(platform_id)] = entry
+    return normalized
+
+
+def runtime_preferences_for(
+    rules: dict[str, Any], platform_os: str
+) -> list[str]:
+    runtime_preferences = field_map(rules, "runtime_preference", str(CONTAINER_INTENT))
+    overrides = runtime_preferences.get("overrides")
+    if isinstance(overrides, dict):
+        override = overrides.get(platform_os)
+        if isinstance(override, list):
+            return [str(value) for value in override]
+    return [str(value) for value in field_list(runtime_preferences, "default", str(CONTAINER_INTENT))]
+
+
 def load_container_intent() -> list[dict[str, Any]]:
-    data = load_yaml(CONTAINER_INTENT, f"platform intent in {CONTAINER_INTENT}")
-    families = require_mapping(data.get("families"), f"{CONTAINER_INTENT} families")
-    normalized_families: list[dict[str, Any]] = []
-    for name, raw in families.items():
-        family = require_mapping(raw, f"{CONTAINER_INTENT} families.{name}")
-        repository = require_string(
-            family.get("repository"), f"{CONTAINER_INTENT} families.{name}.repository"
-        )
-        repository_url = require_string(
-            family.get("repository_url"),
-            f"{CONTAINER_INTENT} families.{name}.repository_url",
-        )
-        runtime_preference = require_list(
-            family.get("runtime_preference"),
-            f"{CONTAINER_INTENT} families.{name}.runtime_preference",
-        )
-        releases = require_list(
-            family.get("releases"),
-            f"{CONTAINER_INTENT} families.{name}.releases",
-        )
-        normalized_releases: list[dict[str, Any]] = []
-        for index, raw_release in enumerate(releases):
-            entry = require_mapping(
-                raw_release,
-                f"{CONTAINER_INTENT} families.{name}.releases[{index}]",
-            )
-            deps = require_mapping(
-                entry.get("deps"),
-                f"{CONTAINER_INTENT} families.{name}.releases[{index}].deps",
-            )
-            platform_os = require_string(
-                deps.get("os"),
-                f"{CONTAINER_INTENT} families.{name}.releases[{index}].deps.os",
-            ).lower()
-            normalized_releases.append(
-                {
-                    "platform_id": require_string(
-                        entry.get("platform_id"),
-                        f"{CONTAINER_INTENT} families.{name}.releases[{index}].platform_id",
-                    ),
-                    "tag": require_string(
-                        entry.get("tag"),
-                        f"{CONTAINER_INTENT} families.{name}.releases[{index}].tag",
-                    ),
-                    "platform_version": require_string(
-                        entry.get("platform_version"),
-                        f"{CONTAINER_INTENT} families.{name}.releases[{index}].platform_version",
-                    ),
-                    "deps": deps,
-                    "platform_os": platform_os,
-                    "arches": require_list(
-                        entry.get("arches"),
-                        f"{CONTAINER_INTENT} families.{name}.releases[{index}].arches",
-                    ),
-                }
-            )
-        normalized_families.append(
+    rules = load_yaml(CONTAINER_INTENT, f"platform intent rules in {CONTAINER_INTENT}")
+    selection = field_map(rules, "selection", str(CONTAINER_INTENT))
+    preferred_tokens = [str(value) for value in field_list(selection, "prefer_image_tokens", str(CONTAINER_INTENT))]
+    runtime = field_str(selection, "runtime", str(CONTAINER_INTENT))
+    group_by = field_str(selection, "group_by", str(CONTAINER_INTENT))
+    lanes_glob = field_str(selection, "lanes_glob", str(CONTAINER_INTENT))
+    platform_family = field_str(selection, "platform_family", str(CONTAINER_INTENT))
+    active_lane_arches = load_active_lane_arches(lanes_glob)
+    platform_catalog = load_static_platform_catalog()
+
+    grouped_candidates: dict[str, list[dict[str, Any]]] = {}
+    for platform_id, entry in platform_catalog.items():
+        if str(entry.get("runtime", "")).lower() != runtime:
+            continue
+        if platform_id not in active_lane_arches:
+            continue
+        deps = field_map(entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        if group_by != "deps.os":
+            raise SystemExit(f"Unsupported group_by rule '{group_by}' in {CONTAINER_INTENT}")
+        group = field_str(deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps").lower()
+        image = field_str(entry, "image", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        repository, tag = image_repository_and_tag(image)
+        grouped_candidates.setdefault(group, []).append(
             {
-                "family": name,
+                "platform_id": platform_id,
+                "platform_os": group,
+                "platform_family": platform_family,
+                "platform_version": platform_version_for(
+                    entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}", tag
+                ),
+                "image": image,
                 "repository": repository,
-                "repository_url": repository_url,
-                "runtime_preference": [str(v) for v in runtime_preference],
-                "releases": normalized_releases,
+                "repository_url": repository_url(repository),
+                "tag": tag,
+                "deps": deps,
+                "arches": active_lane_arches[platform_id],
+                "runtime_preference": runtime_preferences_for(rules, group),
             }
         )
-    return normalized_families
+
+    normalized_families: list[dict[str, Any]] = []
+    for group, candidates in grouped_candidates.items():
+        selected = max(
+            candidates,
+            key=lambda candidate: (
+                version_key(candidate["platform_version"]),
+                preference_key(candidate["image"], preferred_tokens),
+                candidate["platform_id"],
+            ),
+        )
+        normalized_families.append(
+            {
+                "family": group,
+                "repository": selected["repository"],
+                "repository_url": selected["repository_url"],
+                "runtime_preference": selected["runtime_preference"],
+                "releases": [
+                    {
+                        "platform_id": selected["platform_id"],
+                        "tag": selected["tag"],
+                        "platform_version": selected["platform_version"],
+                        "deps": selected["deps"],
+                        "platform_os": selected["platform_os"],
+                        "platform_family": selected["platform_family"],
+                        "arches": selected["arches"],
+                    }
+                ],
+            }
+        )
+    return sorted(normalized_families, key=lambda family: family["family"])
 
 
 def load_bsd_sources() -> dict[str, dict[str, Any]]:
     data = load_yaml(BSD_SOURCES, f"BSD sources in {BSD_SOURCES}")
-    return require_mapping(data.get("sources"), f"{BSD_SOURCES} sources")
+    return field_map(data, "sources", f"{BSD_SOURCES}")
+
+
+def normalize_runner_architecture(runner: dict[str, Any]) -> str:
+    arch = runner.get("arch")
+    if not isinstance(arch, str):
+        return ""
+    return HOST_ARCH_TO_ARCH.get(arch, arch)
+
+
+def runner_capabilities(runner: dict[str, Any]) -> dict[str, Any]:
+    machine_family = field_str(runner, "machine_family", f"runner {runner['label']}")
+    capabilities = runner.get("capabilities")
+    if capabilities is None:
+        default = DEFAULT_RUNNER_CAPABILITIES.get(machine_family)
+        if default is None:
+            raise SystemExit(f"Unsupported machine_family '{machine_family}' for runner {runner['label']}")
+        return default
+    return as_map(capabilities, f"runner {runner['label']}.capabilities")
+
+
+def runner_supports(runner: dict[str, Any], capability_key: str, platform_family: str) -> bool:
+    capabilities = runner_capabilities(runner)
+    values = [str(value) for value in field_list(capabilities, capability_key, "capabilities")]
+    return platform_family in values
+
+
+def build_runner_indexes(runners: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, list[str]]]]:
+    indexes: dict[str, dict[str, dict[str, list[str]]]] = {}
+    for runner in runners:
+        arch = normalize_runner_architecture(runner)
+        if not arch:
+            continue
+        capabilities = runner_capabilities(runner)
+        for mode, capability_key in (("direct", "native_platforms"), ("container", "container_platforms")):
+            for platform_family in [str(value) for value in field_list(capabilities, capability_key, "capabilities")]:
+                indexes.setdefault(platform_family, {}).setdefault(mode, {}).setdefault(arch, []).append(
+                    runner["label"]
+                )
+    return indexes
+
+
+def build_host_support(
+    runtime_preference: list[str],
+    arches: list[str],
+    runner_indexes: dict[str, dict[str, dict[str, list[str]]]],
+    platform_family: str,
+) -> dict[str, dict[str, Any]]:
+    family_indexes = runner_indexes.get(platform_family, {})
+    direct_index = family_indexes.get("direct", {})
+    container_index = family_indexes.get("container", {})
+    host_support: dict[str, dict[str, Any]] = {}
+    for arch in arches:
+        direct_labels = direct_index.get(arch, [])
+        container_labels = container_index.get(arch, [])
+        record: dict[str, Any] = {
+            "runtime_preference": list(runtime_preference),
+            "direct_runner_labels": direct_labels,
+        }
+        if container_labels != direct_labels:
+            record["container_runner_labels"] = container_labels
+        host_support[arch] = record
+    return host_support
 
 
 def load_host_runners() -> list[dict[str, Any]]:
     data = load_yaml(HOST_RUNNERS, f"host runner catalog in {HOST_RUNNERS}")
-    runners = require_list(data.get("runners"), f"{HOST_RUNNERS} runners")
+    runners = field_list(data, "runners", f"{HOST_RUNNERS}")
     normalized: list[dict[str, Any]] = []
     for idx, runner in enumerate(runners):
-        entry = require_mapping(runner, f"{HOST_RUNNERS} runners[{idx}]")
-        require_string(entry.get("label"), f"{HOST_RUNNERS} runners[{idx}].label")
-        require_string(entry.get("platform_os"), f"{HOST_RUNNERS} runners[{idx}].platform_os")
-        require_string(
-            entry.get("platform_version"),
-            f"{HOST_RUNNERS} runners[{idx}].platform_version",
-        )
-        require_string(entry.get("arch"), f"{HOST_RUNNERS} runners[{idx}].arch")
+        entry_ctx = f"{HOST_RUNNERS} runners[{idx}]"
+        entry = as_map(runner, entry_ctx)
+        field_str(entry, "label", entry_ctx)
+        field_str(entry, "machine_family", entry_ctx)
+        field_str(entry, "platform_os", entry_ctx)
+        field_str(entry, "platform_version", entry_ctx)
+        field_str(entry, "arch", entry_ctx)
+        capabilities = runner_capabilities(entry)
+        field_list(capabilities, "native_platforms", f"{entry_ctx}.capabilities")
+        field_list(capabilities, "container_platforms", f"{entry_ctx}.capabilities")
         normalized.append(entry.copy())
     return normalized
 
@@ -245,11 +425,12 @@ def export_catalog():
     container_intent = load_container_intent()
     bsd_sources = load_bsd_sources()
     host_runners = load_host_runners()
+    runner_indexes = build_runner_indexes(host_runners)
 
     intent_meta = {
-        "container_intent": str(CONTAINER_INTENT),
-        "bsd_sources": str(BSD_SOURCES),
-        "host_runner_catalog": str(HOST_RUNNERS),
+        "container_intent": relative_to_root(CONTAINER_INTENT),
+        "bsd_sources": relative_to_root(BSD_SOURCES),
+        "host_runner_catalog": relative_to_root(HOST_RUNNERS),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
     }
@@ -277,14 +458,13 @@ def export_catalog():
                     "content_type": content_type,
                     "digest": digest,
                     "discovered_arches": discovered_arches,
-                    "host_support": {
-                        arch: {
-                            "runtime_preference": list(family["runtime_preference"]),
-                            "runner": None,
-                        }
-                        for arch in release["arches"]
-                    },
-                }
+                    "host_support": build_host_support(
+                        family["runtime_preference"],
+                        release["arches"],
+                        runner_indexes,
+                        release["platform_family"],
+                    ),
+                },
             )
 
     vms: list[dict[str, Any]] = []
