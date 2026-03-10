@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "suse",
+  "os": "opensuse_leap",
+  "version": "15_5",
+  "package_manager": "zypper",
+  "requested_packages": ["cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_already_present": ["diffutils", "findutils"],
+  "requested_missing_before": ["cmake", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_newly_installed": ["cmake", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "cmake", "cmake-full", "cpp", "cpp7", "file", "gcc", "gcc-c++", "gcc7", "gcc7-c++", "git", "git-core", "glibc-devel", "jitterentropy-devel", "less", "libarchive13", "libasan4", "libatomic1", "libcilkrts5", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm4", "libgomp1", "libisl15", "libitm1", "libjsoncpp19", "liblsan0", "liblz4-1", "libmpc3", "libmpfr6", "libmpx2", "libmpxwrappers2", "libopenssl-1_1-devel", "libopenssl-devel", "libpcre2-8-0", "libpython3_6m1_0", "librhash0", "libsha1detectcoll1", "libstdc++6-devel-gcc7", "libtirpc-devel", "libtsan0", "libubsan0", "libuv1", "libxcrypt-devel", "linux-glibc-devel", "make", "ninja", "openssl", "perl", "perl-Error", "perl-Git", "pkg-config", "python3-base", "which", "zlib-devel"],
+  "indirect_newly_installed": ["binutils", "cmake-full", "cpp", "cpp7", "file", "gcc7", "gcc7-c++", "git-core", "glibc-devel", "jitterentropy-devel", "less", "libarchive13", "libasan4", "libatomic1", "libcilkrts5", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm4", "libgomp1", "libisl15", "libitm1", "libjsoncpp19", "liblsan0", "liblz4-1", "libmpc3", "libmpfr6", "libmpx2", "libmpxwrappers2", "libopenssl-1_1-devel", "libpcre2-8-0", "libpython3_6m1_0", "librhash0", "libsha1detectcoll1", "libstdc++6-devel-gcc7", "libtsan0", "libubsan0", "libuv1", "libxcrypt-devel", "linux-glibc-devel", "openssl", "perl", "perl-Error", "perl-Git", "pkg-config", "python3-base", "which", "zlib-devel"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 2,
+    "requested_missing_before": 8,
+    "requested_newly_installed": 8,
+    "requested_missing_after": 0,
+    "all_newly_installed": 56,
+    "indirect_newly_installed": 48
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,10 @@
+/bin/clientupdate	libc.so
+/bin/logfetch	libc.so
+/bin/msgcache	libc.so
+/bin/orcaxymon	libc.so
+/bin/xymon	libc.so
+/bin/xymoncfg	libc.so
+/bin/xymoncmd	libc.so
+/bin/xymondigest	libc.so
+/bin/xymongrep	libc.so
+/bin/xymonlaunch	libc.so

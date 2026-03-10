@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "bsd",
+  "os": "netbsd",
+  "version": "9.4",
+  "package_manager": "pkg_add",
+  "requested_packages": ["clang", "cmake", "gmake", "libcares", "net-snmp", "ninja-build", "pcre", "rrdtool"],
+  "requested_already_present": [],
+  "requested_missing_before": ["clang", "cmake", "gmake", "libcares", "net-snmp", "ninja-build", "pcre", "rrdtool"],
+  "requested_newly_installed": ["clang", "cmake", "gmake", "libcares", "net-snmp", "ninja-build", "pcre", "rrdtool"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["brotli", "cairo", "clang", "cmake", "dejavu-ttf", "fontconfig", "freetype2", "fribidi", "gcc14-libs", "glib2", "gmake", "graphite2", "harfbuzz", "libXft", "libcares", "libffi", "libuuid", "libuv", "llvm", "lua54", "lzo", "mpdecimal", "net-snmp", "ninja-build", "osabi-NetBSD", "pango", "pcre", "pcre2", "perl", "pixman", "png", "python313", "readline", "rhash", "rrdtool", "tcl", "ttmkfdir2"],
+  "indirect_newly_installed": ["brotli", "cairo", "dejavu-ttf", "fontconfig", "freetype2", "fribidi", "gcc14-libs", "glib2", "graphite2", "harfbuzz", "libXft", "libffi", "libuuid", "libuv", "llvm", "lua54", "lzo", "mpdecimal", "osabi-NetBSD", "pango", "pcre2", "perl", "pixman", "png", "python313", "readline", "rhash", "tcl", "ttmkfdir2"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 0,
+    "requested_missing_before": 8,
+    "requested_newly_installed": 8,
+    "requested_missing_after": 0,
+    "all_newly_installed": 37,
+    "indirect_newly_installed": 29
+  },
+  "unneeded_packages_status": "undetermined"
+}

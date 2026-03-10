@@ -1,0 +1,110 @@
+=== /bin/xymonclient-openbsd.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-hp-ux.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-irix.sh ===
+	not a dynamic executable
+=== /bin/xymonlaunch ===
+linux-vdso.so.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-freebsd.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-sco_sv.sh ===
+	not a dynamic executable
+=== /bin/xymoncmd ===
+linux-vdso.so.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/orcaxymon ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-linux.sh ===
+	not a dynamic executable
+=== /bin/xymondigest ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-netbsd.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-sunos.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-darwin.sh ===
+	not a dynamic executable
+=== /bin/xymon ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymoncfg ===
+linux-vdso.so.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-osf1.sh ===
+	not a dynamic executable
+=== /bin/xymonclient-unixware.sh ===
+	not a dynamic executable
+=== /bin/msgcache ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/logfetch ===
+linux-vdso.so.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymonclient-aix.sh ===
+	not a dynamic executable
+=== /bin/clientupdate ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2
+=== /bin/xymongrep ===
+linux-vdso.so.1
+/lib64/libssl.so.1.1
+/lib64/libcrypto.so.1.1
+/lib64/libpcre.so.1
+/lib64/libc.so.6
+/lib64/libz.so.1
+/lib64/libdl.so.2
+/lib64/libpthread.so.0
+/lib64/ld-linux-x86-64.so.2

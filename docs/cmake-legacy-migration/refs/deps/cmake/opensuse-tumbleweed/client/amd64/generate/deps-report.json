@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "suse",
+  "os": "opensuse_tumbleweed",
+  "version": "latest",
+  "package_manager": "zypper",
+  "requested_packages": ["cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_already_present": [],
+  "requested_missing_before": ["cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_newly_installed": ["cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libopenssl-devel", "libtirpc-devel", "make", "ninja"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "busybox", "busybox-less", "cmake", "cmake-full", "cpp", "cpp15", "diffutils", "findutils", "gcc", "gcc-c++", "gcc15", "gcc15-c++", "git", "git-core", "glibc-devel", "jitterentropy-devel", "krb5", "libarchive13", "libasan8", "libatomic1", "libcom_err2", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm6", "libgdbm_compat4", "libgomp1", "libhwasan0", "libisl23", "libitm1", "libjsoncpp26", "libkeyutils1", "liblsan0", "liblz4-1", "libmpc3", "libmpdec4", "libopenssl-3-devel", "libopenssl-devel", "libpkgconf7", "libpython3_13-1_0", "librhash1", "libsha1detectcoll1", "libstdc++6-devel-gcc15", "libtirpc-devel", "libtirpc-netconfig", "libtirpc3", "libtsan2", "libubsan1", "libuv1", "libverto1", "libxcrypt-devel", "libz-ng-compat1", "linux-glibc-devel", "make", "ninja", "perl", "perl-Error", "perl-Git", "perl-base", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "python313-base", "update-alternatives", "zlib-ng-compat-devel"],
+  "indirect_newly_installed": ["binutils", "busybox", "busybox-less", "cmake-full", "cpp", "cpp15", "gcc15", "gcc15-c++", "git-core", "glibc-devel", "jitterentropy-devel", "krb5", "libarchive13", "libasan8", "libatomic1", "libcom_err2", "libctf-nobfd0", "libctf0", "libexpat1", "libgdbm6", "libgdbm_compat4", "libgomp1", "libhwasan0", "libisl23", "libitm1", "libjsoncpp26", "libkeyutils1", "liblsan0", "liblz4-1", "libmpc3", "libmpdec4", "libopenssl-3-devel", "libpkgconf7", "libpython3_13-1_0", "librhash1", "libsha1detectcoll1", "libstdc++6-devel-gcc15", "libtirpc-netconfig", "libtirpc3", "libtsan2", "libubsan1", "libuv1", "libverto1", "libxcrypt-devel", "libz-ng-compat1", "linux-glibc-devel", "perl", "perl-Error", "perl-Git", "perl-base", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "python313-base", "update-alternatives", "zlib-ng-compat-devel"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 0,
+    "requested_missing_before": 10,
+    "requested_newly_installed": 10,
+    "requested_missing_after": 0,
+    "all_newly_installed": 66,
+    "indirect_newly_installed": 56
+  },
+  "unneeded_packages_status": "undetermined"
+}
