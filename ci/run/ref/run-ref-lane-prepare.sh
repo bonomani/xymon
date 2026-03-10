@@ -297,6 +297,12 @@ if [[ "${goal}" == "ref" ]]; then
   profile_artifact_tag="$(profile_artifact_suffix "${profile}")"
   install_mode_ref_tag="$(install_mode_ref_suffix "${build_tool}" "${profile}" "${install_mode}")"
   install_mode_artifact_tag="$(install_mode_artifact_suffix "${build_tool}" "${profile}" "${install_mode}")"
+  baseline_build_tool="${baseline_root%%_*}"
+  baseline_runtime_os="${baseline_root#*_}"
+  if [[ -z "${baseline_build_tool}" || -z "${baseline_runtime_os}" || "${baseline_runtime_os}" == "${baseline_root}" ]]; then
+    echo "Unsupported --baseline-root format: ${baseline_root}" >&2
+    usage
+  fi
   if [[ -z "${refs_root}" ]]; then
     refs_root=".ci-artifacts/ref-valid-${artifact_family}/refs"
   fi
@@ -304,10 +310,10 @@ if [[ "${goal}" == "ref" ]]; then
     artifact_root=".ci-artifacts/ref-valid-${artifact_family}/${build_tool}${profile_artifact_tag}${install_mode_artifact_tag}-${platform_id}-${variant}"
   fi
   if [[ -z "${legacy_hostname_config}" ]]; then
-    legacy_hostname_config="docs/cmake-legacy-migration/refs/${baseline_root}/server/var/lib/xymon/server/etc/xymonserver.cfg"
+    legacy_hostname_config="docs/cmake-legacy-migration/refs/ref/${baseline_build_tool}/${baseline_runtime_os}/${platform_id}/server/${artifact_arch}/var/lib/xymon/server/etc/xymonserver.cfg"
   fi
   if [[ -z "${baseline_prefix}" ]]; then
-    baseline_prefix="docs/cmake-legacy-migration/refs/${baseline_root}/${variant}"
+    baseline_prefix="docs/cmake-legacy-migration/refs/ref/${baseline_build_tool}/${baseline_runtime_os}/${platform_id}/${variant}/${artifact_arch}"
   fi
   if [[ -z "${candidate_dir}" ]]; then
     candidate_dir="${refs_root}/${build_tool}${profile_ref_tag}${install_mode_ref_tag}.${ref_os}.${variant}"
