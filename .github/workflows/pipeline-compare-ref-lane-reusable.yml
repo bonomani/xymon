@@ -11,10 +11,6 @@ on:
         description: JSON-encoded lane object
         required: true
         type: string
-      source_run_id:
-        description: Workflow run id containing generated ref artifacts
-        required: true
-        type: string
       publish:
         description: Publish channel (none|artifact)
         required: true
@@ -49,14 +45,25 @@ jobs:
           publish: ${{ inputs.publish }}
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
 
-      - name: Download generated reference artifact
-        uses: actions/download-artifact@v4
-        with:
-          name: ${{ fromJSON(steps.lane_ctx.outputs.lane_post_json).ref_generate_artifact_name }}
-          repository: ${{ github.repository }}
-          run-id: ${{ inputs.source_run_id }}
-          github-token: ${{ github.token }}
-          path: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CANDIDATE_DIR }}
+      - name: Stage generated references from synced docs tree
+        shell: bash
+        env:
+          BUILD_TOOL: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).BUILD_TOOL }}
+          REF_OS: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}
+          PLATFORM_ID: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).PLATFORM_ID }}
+          VARIANT: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VARIANT }}
+          ARTIFACT_ARCH: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_ARCH }}
+          CANDIDATE_DIR: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CANDIDATE_DIR }}
+        run: |
+          set -euo pipefail
+          source_dir="docs/cmake-legacy-migration/refs/ref/${BUILD_TOOL}/${REF_OS}/${PLATFORM_ID}/${VARIANT}/${ARTIFACT_ARCH}"
+          if [ ! -d "${source_dir}" ]; then
+            echo "Missing synced candidate refs: ${source_dir}" >&2
+            exit 1
+          fi
+          rm -rf "${CANDIDATE_DIR}"
+          mkdir -p "${CANDIDATE_DIR}"
+          cp -a "${source_dir}/." "${CANDIDATE_DIR}/"
 
       - name: Compare downloaded references
         id: compare
