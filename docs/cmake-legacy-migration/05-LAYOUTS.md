@@ -39,6 +39,23 @@ Layout Names
     - `/var/lib/xymon/tmp`
     - `/var/lib/xymon/www`
 
+- `bsd_local`
+  - Split layout following BSD localbase conventions for third-party software.
+  - Example paths:
+    - `/usr/local/etc/xymon`
+    - `/usr/local/libexec/xymon/server/bin`
+    - `/usr/local/libexec/xymon/server/ext`
+    - `/usr/local/share/xymon/www`
+    - `/var/xymon`
+
+- `macos_tree`
+  - Historical macOS layout rooted under `/Library/WebServer`.
+  - Example paths:
+    - `/Library/WebServer/server/bin`
+    - `/Library/WebServer/client/bin`
+    - `/Library/WebServer/cgi-bin`
+    - `/Library/WebServer/cgi-secure`
+
 What These Names Do Not Mean
 ----------------------------
 
@@ -55,27 +72,56 @@ Use separate terms for those:
 Current Knob Mapping
 --------------------
 
-The repo currently expresses these layouts indirectly through several older
-knobs. This is the current mapping without changing code yet.
+The repo now has an explicit CMake layout selector and still supports the older
+knobs that map onto it.
 
 ### CMake
 
+- `XYMON_LAYOUT=home_tree|var_tree|bsd_local|macos_tree|fhs`
+  - first-class layout selector
+  - source: [CMakeLists.txt](/home/bc/repos/github/bonomani/xymon/CMakeLists.txt#L77)
+
 - `USE_GNUINSTALLDIRS=ON`
-  - means `fhs`
+  - maps to `fhs`
 
 - `USE_GNUINSTALLDIRS=OFF`
-  - currently means `var_tree`
-  - source: [CMakeLists.txt](/home/bc/repos/github/bonomani/xymon/CMakeLists.txt#L78)
-  - current hardcoded defaults:
+  - now maps by platform default:
+    - Linux -> `var_tree`
+    - FreeBSD/NetBSD -> `home_tree`
+
+- current default path sets:
+  - `var_tree`
     - `XYMONTOPDIR=/var/lib/xymon`
     - `XYMONHOME=/var/lib/xymon/server`
     - `XYMONCLIENTHOME=/var/lib/xymon/client`
     - `CGIDIR=/var/lib/xymon/cgi-bin`
     - `SECURECGIDIR=/var/lib/xymon/cgi-secure`
-
-- current gap
-  - there is no first-class `home_tree` selector in CMake today
-  - FreeBSD parity lanes need this
+  - `home_tree`
+    - `XYMONTOPDIR=/home/_www`
+    - `XYMONHOME=/home/_www/server`
+    - `XYMONCLIENTHOME=/home/_www/client`
+    - `CGIDIR=/home/_www/cgi-bin`
+    - `SECURECGIDIR=/home/_www/cgi-secure`
+  - `fhs`
+    - `XYMONTOPDIR=/usr/lib/xymon`
+    - `XYMONHOME=/usr/lib/xymon/server`
+    - `XYMONCLIENTHOME=/usr/lib/xymon/client`
+    - `INSTALLETCDIR=/etc/xymon`
+    - `INSTALLWWWDIR=/var/lib/xymon/www`
+  - `bsd_local`
+    - `XYMONTOPDIR=/usr/local/libexec/xymon`
+    - `XYMONHOME=/usr/local/libexec/xymon/server`
+    - `XYMONCLIENTHOME=/usr/local/libexec/xymon/client`
+    - `INSTALLETCDIR=/usr/local/etc/xymon`
+    - `INSTALLWWWDIR=/usr/local/share/xymon/www`
+    - `XYMONVAR=/var/xymon`
+  - `macos_tree`
+    - `XYMONTOPDIR=/Library/WebServer`
+    - `XYMONHOME=/Library/WebServer/server`
+    - `XYMONCLIENTHOME=/Library/WebServer/client`
+    - `INSTALLETCDIR=/Library/WebServer/server/etc`
+    - `INSTALLWWWDIR=/Library/WebServer/server/www`
+    - `XYMONVAR=/Library/WebServer/data`
 
 ### Legacy configure + make
 
@@ -97,9 +143,22 @@ knobs. This is the current mapping without changing code yet.
   - `default` profile maps to `var_tree`
   - `debian` profile maps to `fhs`
 
-- current FreeBSD checked-in make refs
+- CI CMake configure helpers
+  - `default` preset maps explicitly to:
+    - FreeBSD/NetBSD -> `home_tree`
+    - other current platforms -> `var_tree`
+  - `gnuinstall` and `packaging` map to `fhs`
+  - `bsdlocal` and `macostree` are available as explicit opt-in presets and are
+    not selected by current defaults
+
+- current FreeBSD and NetBSD checked-in make refs
   - use `home_tree`
-  - example baseline root in CI compare logs: `/home/_www`
+  - example baseline root in CI compare logs and refs: `/home/_www`
+
+- current macOS checked-in make refs
+  - use the historical `/Library/WebServer` layout
+  - terminology target for that shape: `macos_tree`
+  - current macOS CMake refs do not model this yet; they currently use `var_tree`
 
 Recommended Terminology
 -----------------------
@@ -123,11 +182,10 @@ made more precise.
 Next Step for Code
 ------------------
 
-Before renaming variables, stabilize behavior around an explicit internal model:
+The layout model is now explicit. The next cleanup step is naming:
 
-- `home_tree`
-- `var_tree`
-- `fhs`
-
-Then map old knobs onto that model and rename the old `legacy` terminology in a
-separate cleanup.
+- keep `home_tree`, `var_tree`, and `fhs` as the filesystem-shape terms
+- gradually replace vague `legacy` wording where it actually means one of:
+  - `make` parity
+  - `ref` staging/compare
+  - a specific layout

@@ -60,24 +60,33 @@ else
   cmake_use_gnuinstalldirs=""
   cmake_install_prefix=""
   cmake_httpdgid_chgrp=""
+  cmake_layout=""
+  system_name="$(uname -s)"
   case "${PROFILE}" in
     default)
       build_dir="build-cmake"
       cmake_use_gnuinstalldirs="OFF"
       cmake_install_prefix="/"
       cmake_httpdgid_chgrp="ON"
+      if [[ "$system_name" == "FreeBSD" || "$system_name" == "NetBSD" ]]; then
+        cmake_layout="home_tree"
+      else
+        cmake_layout="var_tree"
+      fi
       ;;
     gnuinstall)
       build_dir="build-cmake-gnu"
       cmake_use_gnuinstalldirs="ON"
       cmake_install_prefix="/"
       cmake_httpdgid_chgrp="ON"
+      cmake_layout="fhs"
       ;;
     packaging)
       build_dir="build-cmake-packaging"
       cmake_use_gnuinstalldirs="ON"
       cmake_install_prefix="/usr"
       cmake_httpdgid_chgrp="OFF"
+      cmake_layout="fhs"
       ;;
     *)
       echo "Unsupported PROFILE=${PROFILE}" >&2
@@ -87,6 +96,7 @@ else
   cmake -S . -B "$build_dir" \
     -G "Unix Makefiles" \
     -DUSE_GNUINSTALLDIRS="$cmake_use_gnuinstalldirs" \
+    -DXYMON_LAYOUT="$cmake_layout" \
     -DCMAKE_INSTALL_PREFIX="$cmake_install_prefix" \
     -DHTTPDGID_CHGRP="$cmake_httpdgid_chgrp" \
     -DENABLE_SSL="$ENABLE_SSL" \

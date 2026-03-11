@@ -8,7 +8,7 @@
   "configurePresets": [
     {
       "name": "default",
-      "displayName": "Default (Makefile parity)",
+      "displayName": "Default (platform non-FHS layout)",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build-cmake",
       "cacheVariables": {
@@ -21,7 +21,28 @@
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build-cmake-gnu",
       "cacheVariables": {
-        "USE_GNUINSTALLDIRS": "ON"
+        "USE_GNUINSTALLDIRS": "ON",
+        "XYMON_LAYOUT": "fhs"
+      }
+    },
+    {
+      "name": "bsdlocal",
+      "displayName": "BSD local split layout",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-bsdlocal",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF",
+        "XYMON_LAYOUT": "bsd_local"
+      }
+    },
+    {
+      "name": "macostree",
+      "displayName": "macOS historical tree layout",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-macostree",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF",
+        "XYMON_LAYOUT": "macos_tree"
       }
     },
     {
@@ -31,6 +52,7 @@
       "binaryDir": "${sourceDir}/build-cmake-packaging",
       "cacheVariables": {
         "USE_GNUINSTALLDIRS": "ON",
+        "XYMON_LAYOUT": "fhs",
         "CMAKE_INSTALL_PREFIX": "/usr",
         "HTTPDGID_CHGRP": "OFF"
       }
@@ -44,6 +66,14 @@
     {
       "name": "gnuinstall",
       "configurePreset": "gnuinstall"
+    },
+    {
+      "name": "bsdlocal",
+      "configurePreset": "bsdlocal"
+    },
+    {
+      "name": "macostree",
+      "configurePreset": "macostree"
     },
     {
       "name": "packaging",
