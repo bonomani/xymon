@@ -16,6 +16,7 @@ Decision Tree
 
 Quick Start
 -----------
+- Layout naming and terminology: `05-LAYOUTS.md`
 - Plan/checklist: `10-PLAN.md`
 - Run steps: `20-RUNBOOK.md`
 - Reference install contract: `30-REFERENCE.md`
@@ -35,6 +36,7 @@ sudo DESTDIR=/tmp/xymon-stage make install
 Contents
 --------
 - README.md: naming convention and usage
+- 05-LAYOUTS.md: layout taxonomy (`home_tree`, `var_tree`, `fhs`) and current knob mapping
 - 10-PLAN.md: validation checklist and acceptance criteria
 - 20-RUNBOOK.md: step-by-step commands and validation procedure
 - 30-REFERENCE.md: canonical reference install layout and constraints
