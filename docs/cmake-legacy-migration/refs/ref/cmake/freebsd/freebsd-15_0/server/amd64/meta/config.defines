@@ -9,11 +9,11 @@
 #define HAVE_VSNPRINTF 1
 #define PACKAGE_NAME "xymon"
 #define PACKAGE_VERSION "cmake"
-#define XYMONCLIENTHOME "/var/lib/xymon/client"
-#define XYMONHOME "/var/lib/xymon/server"
+#define XYMONCLIENTHOME "/home/_www/client"
+#define XYMONHOME "/home/_www/server"
 #define XYMONHOSTIP "127.0.0.1"
 #define XYMONHOSTNAME "localhost"
 #define XYMONHOSTOS "freebsd"
 #define XYMONLOGDIR "/var/log/xymon"
-#define XYMONTOPDIR "/var/lib/xymon"
+#define XYMONTOPDIR "/home/_www"
 #define __CONFIG_H__ 1
