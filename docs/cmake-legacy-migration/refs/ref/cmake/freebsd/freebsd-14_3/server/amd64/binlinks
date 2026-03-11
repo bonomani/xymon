@@ -1,173 +1,173 @@
 === /server/bin/xymongen ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymongen:
+/tmp/cmake-ref-root/home/_www/server/bin/xymongen:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymongrep ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymongrep:
+/tmp/cmake-ref-root/home/_www/server/bin/xymongrep:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymondigest ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymondigest:
+/tmp/cmake-ref-root/home/_www/server/bin/xymondigest:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymon ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymon:
+/tmp/cmake-ref-root/home/_www/server/bin/xymon:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymoncmd ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymoncmd:
+/tmp/cmake-ref-root/home/_www/server/bin/xymoncmd:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymonlaunch ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonlaunch:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonlaunch:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymoncfg ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymoncfg:
+/tmp/cmake-ref-root/home/_www/server/bin/xymoncfg:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_channel ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_channel:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_channel:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_locator ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_locator:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_locator:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_filestore ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_filestore:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_filestore:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_history ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_history:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_history:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_alert ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_alert:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_alert:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_sample ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_sample:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_sample:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_client ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_client:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_client:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_hostdata ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_hostdata:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_hostdata:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_capture ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_capture:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_capture:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_distribute ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_distribute:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_distribute:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/combostatus ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/combostatus:
+/tmp/cmake-ref-root/home/_www/server/bin/combostatus:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymonfetch ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonfetch:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonfetch:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymon-mailack ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymon-mailack:
+/tmp/cmake-ref-root/home/_www/server/bin/xymon-mailack:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/trimhistory ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/trimhistory:
+/tmp/cmake-ref-root/home/_www/server/bin/trimhistory:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/convertnk ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/convertnk:
+/tmp/cmake-ref-root/home/_www/server/bin/convertnk:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/rrdcachectl ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/rrdcachectl:
+/tmp/cmake-ref-root/home/_www/server/bin/rrdcachectl:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymond_rrd ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymond_rrd:
+/tmp/cmake-ref-root/home/_www/server/bin/xymond_rrd:
 /usr/local/lib/librrd.so.8
 /usr/local/lib/libpng16.so.16
 /usr/local/lib/libpcre.so.1
@@ -219,7 +219,7 @@
 === /server/bin/xymonreports.sh ===
 === /server/bin/moverrd.sh ===
 === /server/bin/xymonnet ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonnet:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonnet:
 /usr/local/lib/libcares.so.2
 /usr/local/lib/libldap.so.2
 /usr/local/lib/liblber.so.2
@@ -231,210 +231,210 @@
 /usr/local/lib/libsasl2.so.3
 /usr/lib/libdl.so.1
 === /server/bin/xymonping ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonping:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonping:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/beastat ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/beastat:
+/tmp/cmake-ref-root/home/_www/server/bin/beastat:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/history.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/history.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/history.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/eventlog.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/eventlog.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/eventlog.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/report.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/report.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/report.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/reportlog.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/reportlog.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/reportlog.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/snapshot.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/snapshot.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/snapshot.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/findhost.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/findhost.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/findhost.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/csvinfo.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/csvinfo.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/csvinfo.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/acknowledge.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/acknowledge.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/acknowledge.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymonpage ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonpage:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonpage:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/datepage.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/datepage.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/datepage.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/svcstatus.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/svcstatus.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/svcstatus.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/enadis.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/enadis.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/enadis.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/confreport.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/confreport.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/confreport.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/criticalview.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/criticalview.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/criticalview.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/criticaleditor.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/criticaleditor.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/criticaleditor.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/ackinfo.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/ackinfo.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/ackinfo.cgi:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/statusreport.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/statusreport.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/statusreport.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/boilerplate.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/boilerplate.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/boilerplate.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/hostgraphs.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/hostgraphs.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/hostgraphs.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/ghostlist.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/ghostlist.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/ghostlist.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/notifications.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/notifications.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/notifications.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/acknowledgements.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/acknowledgements.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/acknowledgements.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/hostlist.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/hostlist.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/hostlist.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/useradm.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/useradm.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/useradm.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/chpasswd.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/chpasswd.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/chpasswd.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/appfeed.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/appfeed.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/appfeed.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/cgiwrap ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/cgiwrap:
+/tmp/cmake-ref-root/home/_www/server/bin/cgiwrap:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/showgraph.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/showgraph.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/showgraph.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
@@ -483,7 +483,7 @@
 /usr/local/lib/libdatrie.so.1
 /usr/local/lib/libbrotlicommon.so.1
 === /server/bin/perfdata.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/perfdata.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/perfdata.cgi:
 /usr/local/lib/libpcre.so.1
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
@@ -532,14 +532,14 @@
 /usr/local/lib/libdatrie.so.1
 /usr/local/lib/libbrotlicommon.so.1
 === /server/bin/xymonproxy ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymonproxy:
+/tmp/cmake-ref-root/home/_www/server/bin/xymonproxy:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
 /lib/libc.so.7
 /lib/libthr.so.3
 === /server/bin/xymoncgimsg.cgi ===
-/tmp/cmake-ref-root/var/lib/xymon/server/bin/xymoncgimsg.cgi:
+/tmp/cmake-ref-root/home/_www/server/bin/xymoncgimsg.cgi:
 /usr/lib/libssl.so.30
 /lib/libcrypto.so.30
 /usr/local/lib/libpcre.so.1
