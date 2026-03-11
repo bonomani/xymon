@@ -97,6 +97,14 @@ else()
     set(USE_GNUINSTALLDIRS OFF CACHE BOOL "Use GNUInstallDirs layout (FHS-style)" FORCE)
 endif()
 
+if(NOT DEFINED XYMON_INSTALL_MANPAGES)
+    if(XYMON_LAYOUT MATCHES "^(home_tree|macos_tree)$")
+        set(XYMON_INSTALL_MANPAGES OFF CACHE BOOL "Install Xymon manpages" FORCE)
+    else()
+        set(XYMON_INSTALL_MANPAGES ON CACHE BOOL "Install Xymon manpages" FORCE)
+    endif()
+endif()
+
 if(XYMON_LAYOUT STREQUAL "var_tree")
     set(XYMONTOPDIR "/var/lib/xymon")
     set(XYMONHOME "/var/lib/xymon/server")
@@ -180,6 +188,7 @@ elseif(XYMON_LAYOUT STREQUAL "fhs")
 endif()
 
 message(STATUS "Xymon layout: ${XYMON_LAYOUT}")
+message(STATUS "Install manpages: ${XYMON_INSTALL_MANPAGES}")
 
 # ----------------------------------------------------------------------
 # config.h
@@ -593,12 +602,20 @@ if(LEGACY_APPLY_OWNERSHIP)
         )
 
         # Legacy make keeps these top-level directories owned by root.
-        add_custom_command(
-            TARGET install-legacy-files POST_BUILD
-            COMMAND chown root:0 "${LEGACY_DESTDIR}${CGIDIR}"
-            COMMAND chown root:0 "${LEGACY_DESTDIR}${SECURECGIDIR}"
-            COMMAND chown root:0 "${LEGACY_DESTDIR}${XYMONHOME}/man"
-        )
+        if(XYMON_INSTALL_MANPAGES)
+            add_custom_command(
+                TARGET install-legacy-files POST_BUILD
+                COMMAND chown root:0 "${LEGACY_DESTDIR}${CGIDIR}"
+                COMMAND chown root:0 "${LEGACY_DESTDIR}${SECURECGIDIR}"
+                COMMAND chown root:0 "${LEGACY_DESTDIR}${XYMONHOME}/man"
+            )
+        else()
+            add_custom_command(
+                TARGET install-legacy-files POST_BUILD
+                COMMAND chown root:0 "${LEGACY_DESTDIR}${CGIDIR}"
+                COMMAND chown root:0 "${LEGACY_DESTDIR}${SECURECGIDIR}"
+            )
+        endif()
     endif()
 endif()
 

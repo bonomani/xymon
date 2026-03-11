@@ -83,18 +83,20 @@ file(GLOB _COMMON_MAN5 "${CMAKE_CURRENT_SOURCE_DIR}/*.5")
 file(GLOB _COMMON_MAN7 "${CMAKE_CURRENT_SOURCE_DIR}/*.7")
 file(GLOB _COMMON_MAN8 "${CMAKE_CURRENT_SOURCE_DIR}/*.8")
 
-install(FILES ${_COMMON_MAN1}
-    DESTINATION ${XYMONHOME}/man/man1
-)
-install(FILES ${_COMMON_MAN5}
-    DESTINATION ${XYMONHOME}/man/man5
-)
-install(FILES ${_COMMON_MAN7}
-    DESTINATION ${XYMONHOME}/man/man7
-)
-install(FILES ${_COMMON_MAN8}
-    DESTINATION ${XYMONHOME}/man/man8
-)
+if(XYMON_INSTALL_MANPAGES)
+    install(FILES ${_COMMON_MAN1}
+        DESTINATION ${XYMONHOME}/man/man1
+    )
+    install(FILES ${_COMMON_MAN5}
+        DESTINATION ${XYMONHOME}/man/man5
+    )
+    install(FILES ${_COMMON_MAN7}
+        DESTINATION ${XYMONHOME}/man/man7
+    )
+    install(FILES ${_COMMON_MAN8}
+        DESTINATION ${XYMONHOME}/man/man8
+    )
+endif()
 
 install(CODE [[
     set(_dest "$ENV{DESTDIR}")

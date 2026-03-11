@@ -172,13 +172,15 @@ install(PROGRAMS
     DESTINATION ${INSTALLEXTDIR}
 )
 
-install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet.1
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonping.1
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh.1
-    DESTINATION ${XYMONHOME}/man/man1
-)
-install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg.5
-    DESTINATION ${XYMONHOME}/man/man5
-)
+if(XYMON_INSTALL_MANPAGES)
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet.1
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymonping.1
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh.1
+        DESTINATION ${XYMONHOME}/man/man1
+    )
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg.5
+        DESTINATION ${XYMONHOME}/man/man5
+    )
+endif()
