@@ -16,9 +16,9 @@
 #define HAVE_STRTOLL_H 1
 #define HAVE_BINARY_TREE 0
 
-#define XYMONTOPDIR "/var/lib/xymon"
-#define XYMONHOME "/var/lib/xymon"
-#define XYMONCLIENTHOME "/var/lib/xymon"
+#define XYMONTOPDIR "/home/_www"
+#define XYMONHOME "/home/_www"
+#define XYMONCLIENTHOME "/home/_www"
 #define XYMONLOGDIR "/var/log/xymon"
 #define XYMONHOSTNAME "localhost"
 #define XYMONHOSTIP "127.0.0.1"

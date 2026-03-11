@@ -1,63 +1,63 @@
 === /bin/xymon ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymon:
+/tmp/cmake-ref-root/home/_www/bin/xymon:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/xymonlaunch ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymonlaunch:
+/tmp/cmake-ref-root/home/_www/bin/xymonlaunch:
 /lib/libc.so.7
 /lib/libsys.so.7
 === /bin/xymoncmd ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncmd:
+/tmp/cmake-ref-root/home/_www/bin/xymoncmd:
 /lib/libc.so.7
 /lib/libsys.so.7
 === /bin/xymongrep ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymongrep:
+/tmp/cmake-ref-root/home/_www/bin/xymongrep:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/xymoncfg ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncfg:
+/tmp/cmake-ref-root/home/_www/bin/xymoncfg:
 /lib/libc.so.7
 /lib/libsys.so.7
 === /bin/xymondigest ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymondigest:
+/tmp/cmake-ref-root/home/_www/bin/xymondigest:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/logfetch ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/logfetch:
+/tmp/cmake-ref-root/home/_www/bin/logfetch:
 /lib/libc.so.7
 /lib/libsys.so.7
 === /bin/clientupdate ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/clientupdate:
+/tmp/cmake-ref-root/home/_www/bin/clientupdate:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/orcaxymon ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/orcaxymon:
+/tmp/cmake-ref-root/home/_www/bin/orcaxymon:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/msgcache ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/msgcache:
+/tmp/cmake-ref-root/home/_www/bin/msgcache:
 /usr/lib/libssl.so.35
 /lib/libcrypto.so.35
 /lib/libc.so.7
 /lib/libthr.so.3
 /lib/libsys.so.7
 === /bin/freebsd-meminfo ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/freebsd-meminfo:
+/tmp/cmake-ref-root/home/_www/bin/freebsd-meminfo:
 /lib/libc.so.7
 /lib/libsys.so.7
 === /bin/xymonclient-aix.sh ===
