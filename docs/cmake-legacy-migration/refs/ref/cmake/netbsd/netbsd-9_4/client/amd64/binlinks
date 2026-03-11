@@ -1,53 +1,53 @@
 === /bin/xymon ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymon:
+/tmp/cmake-ref-root/home/_www/bin/xymon:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/xymonlaunch ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymonlaunch:
+/tmp/cmake-ref-root/home/_www/bin/xymonlaunch:
 /usr/lib/libc.so.12
 === /bin/xymoncmd ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncmd:
+/tmp/cmake-ref-root/home/_www/bin/xymoncmd:
 /usr/lib/libc.so.12
 === /bin/xymongrep ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymongrep:
+/tmp/cmake-ref-root/home/_www/bin/xymongrep:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/xymoncfg ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncfg:
+/tmp/cmake-ref-root/home/_www/bin/xymoncfg:
 /usr/lib/libc.so.12
 === /bin/xymondigest ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/xymondigest:
+/tmp/cmake-ref-root/home/_www/bin/xymondigest:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/logfetch ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/logfetch:
+/tmp/cmake-ref-root/home/_www/bin/logfetch:
 /usr/lib/libc.so.12
 === /bin/clientupdate ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/clientupdate:
+/tmp/cmake-ref-root/home/_www/bin/clientupdate:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/orcaxymon ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/orcaxymon:
+/tmp/cmake-ref-root/home/_www/bin/orcaxymon:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/msgcache ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/msgcache:
+/tmp/cmake-ref-root/home/_www/bin/msgcache:
 /usr/lib/libssl.so.14
 /usr/lib/libcrypto.so.14
 /lib/libcrypt.so.1
 /usr/lib/libc.so.12
 === /bin/netbsd-meminfo ===
-/tmp/cmake-ref-root/var/lib/xymon/bin/netbsd-meminfo:
+/tmp/cmake-ref-root/home/_www/bin/netbsd-meminfo:
 /usr/lib/libc.so.12
 === /bin/xymonclient-aix.sh ===
 === /bin/xymonclient-darwin.sh ===
