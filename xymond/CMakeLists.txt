@@ -411,15 +411,17 @@ install(PROGRAMS
 file(GLOB _XYMOND_MAN1 "${CMAKE_CURRENT_SOURCE_DIR}/*.1")
 file(GLOB _XYMOND_MAN5 "${CMAKE_CURRENT_SOURCE_DIR}/*.5")
 file(GLOB _XYMOND_MAN8 "${CMAKE_CURRENT_SOURCE_DIR}/*.8")
-install(FILES ${_XYMOND_MAN1}
-    DESTINATION ${XYMONHOME}/man/man1
-)
-install(FILES ${_XYMOND_MAN5}
-    DESTINATION ${XYMONHOME}/man/man5
-)
-install(FILES ${_XYMOND_MAN8}
-    DESTINATION ${XYMONHOME}/man/man8
-)
+if(XYMON_INSTALL_MANPAGES)
+    install(FILES ${_XYMOND_MAN1}
+        DESTINATION ${XYMONHOME}/man/man1
+    )
+    install(FILES ${_XYMOND_MAN5}
+        DESTINATION ${XYMONHOME}/man/man5
+    )
+    install(FILES ${_XYMOND_MAN8}
+        DESTINATION ${XYMONHOME}/man/man8
+    )
+endif()
 
 install(CODE "
 set(_dest \"\$ENV{DESTDIR}\")

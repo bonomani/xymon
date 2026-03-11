@@ -33,7 +33,9 @@ install(TARGETS xymongen
     RUNTIME DESTINATION ${INSTALLBINDIR}
 )
 
-install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/xymongen.1
-    DESTINATION ${XYMONHOME}/man/man1
-)
+if(XYMON_INSTALL_MANPAGES)
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymongen.1
+        DESTINATION ${XYMONHOME}/man/man1
+    )
+endif()
