@@ -6,7 +6,10 @@ This file documents the CMake-based configuration flow.
 Quick start (Makefile parity)
 ----------------------------
 
-This is the default layout and matches the legacy Makefile install paths.
+This uses the platform default non-FHS layout.
+
+- Linux defaults to `var_tree` (`/var/lib/xymon/...`)
+- FreeBSD and NetBSD default to `home_tree` (`/home/_www/...`)
 
   cmake --preset default
   cmake --build --preset default
@@ -15,13 +18,37 @@ This is the default layout and matches the legacy Makefile install paths.
 GNUInstallDirs layout (optional)
 --------------------------------
 
-Use a standard FHS layout via GNUInstallDirs.
+Use a standard FHS layout via GNUInstallDirs (`XYMON_LAYOUT=fhs`).
 
   cmake --preset gnuinstall
   cmake --build --preset gnuinstall
   cmake --install build-cmake-gnu
 
 Note: When USE_GNUINSTALLDIRS=ON, legacy path defaults are not used.
+
+BSD local split layout (optional)
+---------------------------------
+
+Use an OpenBSD-style third-party layout via `XYMON_LAYOUT=bsd_local`.
+
+  cmake --preset bsdlocal
+  cmake --build --preset bsdlocal
+  cmake --install build-cmake-bsdlocal
+
+This is available for future BSD-native packaging or local installs, but it is
+not used by current parity/reference lanes.
+
+macOS historical tree layout (optional)
+---------------------------------------
+
+Use the historical macOS `/Library/WebServer` layout via `XYMON_LAYOUT=macos_tree`.
+
+  cmake --preset macostree
+  cmake --build --preset macostree
+  cmake --install build-cmake-macostree
+
+This is available to model the checked-in macOS make reference layout, but it
+is not selected by current defaults.
 
 Source installs (recommended commands)
 -------------------------------------
@@ -74,8 +101,12 @@ Local --use-ci-packages on Linux skips sudo if all required packages are already
 Notes
 -----
 
-- Default (USE_GNUINSTALLDIRS=OFF) preserves legacy paths under /var/lib/xymon.
-- Setting USE_GNUINSTALLDIRS=ON switches to GNUInstallDirs mapping.
+- CMake now models layout explicitly with `XYMON_LAYOUT`.
+- Supported values are `home_tree`, `var_tree`, `bsd_local`, `macos_tree`, and `fhs`.
+- Default behavior when `XYMON_LAYOUT` is not set:
+  - `USE_GNUINSTALLDIRS=ON` -> `fhs`
+  - `USE_GNUINSTALLDIRS=OFF` on Linux -> `var_tree`
+  - `USE_GNUINSTALLDIRS=OFF` on FreeBSD/NetBSD -> `home_tree`
 - All values can still be overridden with -D options when invoking CMake.
 
 Packaging notes

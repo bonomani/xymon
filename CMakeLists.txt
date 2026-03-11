@@ -19,6 +19,8 @@ endif()
 
 option(USE_GNUINSTALLDIRS "Use GNUInstallDirs layout (FHS-style)" OFF)
 option(LEGACY_APPLY_OWNERSHIP "Apply chown/chgrp in legacy install" OFF)
+set(XYMON_LAYOUT "" CACHE STRING "Install layout: home_tree, var_tree, bsd_local, macos_tree, or fhs")
+set_property(CACHE XYMON_LAYOUT PROPERTY STRINGS home_tree var_tree bsd_local macos_tree fhs)
 
 if(NOT DEFINED XYMONHOSTNAME OR XYMONHOSTNAME STREQUAL "")
     execute_process(
@@ -72,10 +74,30 @@ set(MAILPROGRAM "${_DEFAULT_MAILPROGRAM}" CACHE STRING "")
 set(FPING "xymonping" CACHE STRING "")
 
 # ----------------------------------------------------------------------
-# Legacy layout
+# Install layout
 # ----------------------------------------------------------------------
 
-if(NOT USE_GNUINSTALLDIRS)
+if(XYMON_LAYOUT STREQUAL "")
+    if(USE_GNUINSTALLDIRS)
+        set(XYMON_LAYOUT "fhs")
+    elseif(CMAKE_SYSTEM_NAME MATCHES "FreeBSD|NetBSD")
+        set(XYMON_LAYOUT "home_tree")
+    else()
+        set(XYMON_LAYOUT "var_tree")
+    endif()
+endif()
+
+if(NOT XYMON_LAYOUT MATCHES "^(home_tree|var_tree|bsd_local|macos_tree|fhs)$")
+    message(FATAL_ERROR "XYMON_LAYOUT must be one of: home_tree, var_tree, bsd_local, macos_tree, fhs")
+endif()
+
+if(XYMON_LAYOUT STREQUAL "fhs")
+    set(USE_GNUINSTALLDIRS ON CACHE BOOL "Use GNUInstallDirs layout (FHS-style)" FORCE)
+else()
+    set(USE_GNUINSTALLDIRS OFF CACHE BOOL "Use GNUInstallDirs layout (FHS-style)" FORCE)
+endif()
+
+if(XYMON_LAYOUT STREQUAL "var_tree")
     set(XYMONTOPDIR "/var/lib/xymon")
     set(XYMONHOME "/var/lib/xymon/server")
     set(XYMONCLIENTHOME "/var/lib/xymon/client")
@@ -91,7 +113,73 @@ if(NOT USE_GNUINSTALLDIRS)
 
     set(CGIDIR "/var/lib/xymon/cgi-bin")
     set(SECURECGIDIR "/var/lib/xymon/cgi-secure")
+elseif(XYMON_LAYOUT STREQUAL "home_tree")
+    set(XYMONTOPDIR "/home/_www")
+    set(XYMONHOME "/home/_www/server")
+    set(XYMONCLIENTHOME "/home/_www/client")
+    set(XYMONVAR "/home/_www/data")
+    set(XYMONLOGDIR "/var/log/xymon")
+
+    set(INSTALLBINDIR "/home/_www/server/bin")
+    set(INSTALLETCDIR "/home/_www/server/etc")
+    set(INSTALLEXTDIR "/home/_www/server/ext")
+    set(INSTALLTMPDIR "/home/_www/server/tmp")
+    set(INSTALLWEBDIR "/home/_www/server/web")
+    set(INSTALLWWWDIR "/home/_www/server/www")
+
+    set(CGIDIR "/home/_www/cgi-bin")
+    set(SECURECGIDIR "/home/_www/cgi-secure")
+elseif(XYMON_LAYOUT STREQUAL "bsd_local")
+    set(XYMONTOPDIR "/usr/local/libexec/xymon")
+    set(XYMONHOME "/usr/local/libexec/xymon/server")
+    set(XYMONCLIENTHOME "/usr/local/libexec/xymon/client")
+    set(XYMONVAR "/var/xymon")
+    set(XYMONLOGDIR "/var/log/xymon")
+
+    set(INSTALLBINDIR "/usr/local/libexec/xymon/server/bin")
+    set(INSTALLETCDIR "/usr/local/etc/xymon")
+    set(INSTALLEXTDIR "/usr/local/libexec/xymon/server/ext")
+    set(INSTALLTMPDIR "/var/xymon/tmp")
+    set(INSTALLWEBDIR "/usr/local/share/xymon/web")
+    set(INSTALLWWWDIR "/usr/local/share/xymon/www")
+
+    set(CGIDIR "/usr/local/www/cgi-bin/xymon")
+    set(SECURECGIDIR "/usr/local/www/cgi-secure/xymon")
+elseif(XYMON_LAYOUT STREQUAL "macos_tree")
+    set(XYMONTOPDIR "/Library/WebServer")
+    set(XYMONHOME "/Library/WebServer/server")
+    set(XYMONCLIENTHOME "/Library/WebServer/client")
+    set(XYMONVAR "/Library/WebServer/data")
+    set(XYMONLOGDIR "/var/log/xymon")
+
+    set(INSTALLBINDIR "/Library/WebServer/server/bin")
+    set(INSTALLETCDIR "/Library/WebServer/server/etc")
+    set(INSTALLEXTDIR "/Library/WebServer/server/ext")
+    set(INSTALLTMPDIR "/Library/WebServer/server/tmp")
+    set(INSTALLWEBDIR "/Library/WebServer/server/web")
+    set(INSTALLWWWDIR "/Library/WebServer/server/www")
+
+    set(CGIDIR "/Library/WebServer/cgi-bin")
+    set(SECURECGIDIR "/Library/WebServer/cgi-secure")
+elseif(XYMON_LAYOUT STREQUAL "fhs")
+    set(XYMONTOPDIR "/usr/lib/xymon")
+    set(XYMONHOME "/usr/lib/xymon/server")
+    set(XYMONCLIENTHOME "/usr/lib/xymon/client")
+    set(XYMONVAR "/var/lib/xymon")
+    set(XYMONLOGDIR "/var/log/xymon")
+
+    set(INSTALLBINDIR "/usr/lib/xymon/server/bin")
+    set(INSTALLETCDIR "/etc/xymon")
+    set(INSTALLEXTDIR "/usr/lib/xymon/server/ext")
+    set(INSTALLTMPDIR "/var/lib/xymon/tmp")
+    set(INSTALLWEBDIR "/etc/xymon/web")
+    set(INSTALLWWWDIR "/var/lib/xymon/www")
+
+    set(CGIDIR "/usr/lib/xymon/cgi-bin")
+    set(SECURECGIDIR "/usr/lib/xymon/cgi-secure")
 endif()
+
+message(STATUS "Xymon layout: ${XYMON_LAYOUT}")
 
 # ----------------------------------------------------------------------
 # config.h
@@ -249,7 +337,7 @@ endif()
 
 # Legacy Makefile client-only layout installs directly under XYMONTOPDIR
 # (bin/, etc/, ...), while server builds use the split server/client tree.
-if(NOT USE_GNUINSTALLDIRS AND XYMON_BUILD_CLIENT AND NOT XYMON_BUILD_SERVER)
+if(NOT XYMON_LAYOUT STREQUAL "fhs" AND XYMON_BUILD_CLIENT AND NOT XYMON_BUILD_SERVER)
     set(XYMONHOME "${XYMONTOPDIR}")
     set(XYMONCLIENTHOME "${XYMONTOPDIR}")
     set(INSTALLBINDIR "${XYMONTOPDIR}/bin")

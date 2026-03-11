@@ -535,6 +535,7 @@ configure_build_cmake() {
   local cmake_use_gnuinstalldirs
   local cmake_install_prefix
   local cmake_httpdgid_chgrp
+  local cmake_layout
   local -a cmake_args
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
@@ -550,6 +551,11 @@ configure_build_cmake() {
       cmake_use_gnuinstalldirs="OFF"
       cmake_install_prefix="/"
       cmake_httpdgid_chgrp="ON"
+      if [ "${PLATFORM_OS}" = "freebsd" ] || [ "${PLATFORM_OS}" = "netbsd" ]; then
+        cmake_layout="home_tree"
+      else
+        cmake_layout="var_tree"
+      fi
       if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
         CMAKE_BUILD_DIR="build-cmake"
       fi
@@ -558,6 +564,7 @@ configure_build_cmake() {
       cmake_use_gnuinstalldirs="ON"
       cmake_install_prefix="/"
       cmake_httpdgid_chgrp="ON"
+      cmake_layout="fhs"
       if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
         CMAKE_BUILD_DIR="build-cmake-gnu"
       fi
@@ -566,6 +573,7 @@ configure_build_cmake() {
       cmake_use_gnuinstalldirs="ON"
       cmake_install_prefix="/usr"
       cmake_httpdgid_chgrp="OFF"
+      cmake_layout="fhs"
       if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
         CMAKE_BUILD_DIR="build-cmake-packaging"
       fi
@@ -584,6 +592,7 @@ configure_build_cmake() {
   cmake_args=(
     -G Ninja
     -DUSE_GNUINSTALLDIRS="${cmake_use_gnuinstalldirs}"
+    -DXYMON_LAYOUT="${cmake_layout}"
     -DCMAKE_INSTALL_PREFIX="${cmake_install_prefix}"
     -DHTTPDGID_CHGRP="${cmake_httpdgid_chgrp}"
     -DLEGACY_APPLY_OWNERSHIP="${cmake_apply_ownership}"
