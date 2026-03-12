@@ -41,7 +41,7 @@ jobs:
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 
