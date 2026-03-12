@@ -1,5 +1,6 @@
 platforms:
   debian-11:
+    docker_build: true
     runtime: docker
     image: debian:11.11-slim
     display_name: Debian 11.11-slim amd64
@@ -8,6 +9,7 @@ platforms:
       os: debian
       version: bullseye
   debian-12:
+    docker_build: true
     runtime: docker
     image: debian:12.13-slim
     display_name: Debian 12.13-slim amd64
@@ -16,6 +18,7 @@ platforms:
       os: debian
       version: bookworm
   debian-13:
+    docker_build: true
     runtime: docker
     image: debian:13.3-slim
     display_name: Debian 13.3-slim amd64
@@ -24,6 +27,7 @@ platforms:
       os: debian
       version: 13
   ubuntu-20.04:
+    docker_build: true
     runtime: docker
     image: ubuntu:20.04
     display_name: Ubuntu 20.04 amd64
@@ -32,6 +36,7 @@ platforms:
       os: ubuntu
       version: 20
   ubuntu-22.04:
+    docker_build: true
     runtime: docker
     image: ubuntu:22.04
     display_name: Ubuntu 22.04 amd64
@@ -40,6 +45,7 @@ platforms:
       os: ubuntu
       version: local
   ubuntu-24.04:
+    docker_build: true
     runtime: docker
     image: ubuntu:24.04
     display_name: Ubuntu 24.04 amd64
@@ -48,6 +54,7 @@ platforms:
       os: ubuntu
       version: latest
   rockylinux-8:
+    docker_build: true
     runtime: docker
     image: rockylinux:8
     display_name: Rocky Linux 8
@@ -56,6 +63,7 @@ platforms:
       os: rockylinux
       version: 8
   rockylinux-9:
+    docker_build: true
     runtime: docker
     image: rockylinux:9
     display_name: Rocky Linux 9
@@ -80,6 +88,7 @@ platforms:
       os: oraclelinux
       version: 10
   oraclelinux-9:
+    docker_build: true
     runtime: docker
     image: oraclelinux:9
     display_name: Oracle Linux 9 amd64
@@ -88,6 +97,7 @@ platforms:
       os: oraclelinux
       version: 9
   oraclelinux-8:
+    docker_build: true
     runtime: docker
     image: oraclelinux:8
     display_name: Oracle Linux 8 amd64
@@ -96,6 +106,7 @@ platforms:
       os: oraclelinux
       version: 8
   almalinux-8:
+    docker_build: true
     runtime: docker
     image: almalinux:8
     display_name: AlmaLinux 8
@@ -104,6 +115,7 @@ platforms:
       os: almalinux
       version: 8
   almalinux-9:
+    docker_build: true
     runtime: docker
     image: almalinux:9
     display_name: AlmaLinux 9
@@ -120,6 +132,7 @@ platforms:
       os: almalinux
       version: 10
   centos-7:
+    docker_build: true
     runtime: docker
     image: centos:7
     display_name: CentOS 7
@@ -152,6 +165,7 @@ platforms:
       os: fedora
       version: 42
   opensuse-tumbleweed:
+    docker_build: true
     runtime: docker
     image: opensuse/tumbleweed:latest
     display_name: openSUSE Tumbleweed
@@ -160,6 +174,7 @@ platforms:
       os: opensuse_tumbleweed
       version: latest
   opensuse-leap-16_0:
+    docker_build: true
     runtime: docker
     image: opensuse/leap:16.0
     display_name: openSUSE Leap 16.0
@@ -168,6 +183,7 @@ platforms:
       os: opensuse_leap
       version: '16_0'
   opensuse-leap-15_6:
+    docker_build: true
     runtime: docker
     image: opensuse/leap:15.6
     display_name: openSUSE Leap 15.6
@@ -176,6 +192,7 @@ platforms:
       os: opensuse_leap
       version: '15_6'
   opensuse-leap-15_5:
+    docker_build: true
     runtime: docker
     image: opensuse/leap:15.5
     display_name: openSUSE Leap 15.5
@@ -184,6 +201,7 @@ platforms:
       os: opensuse_leap
       version: '15_5'
   alpine-3_23:
+    docker_build: true
     runtime: docker
     image: alpine:3.23
     display_name: Alpine 3.23 amd64
@@ -192,6 +210,7 @@ platforms:
       os: alpine
       version: 3
   alpine-3_22:
+    docker_build: true
     runtime: docker
     image: alpine:3.22
     display_name: Alpine 3.22 amd64
@@ -200,6 +219,7 @@ platforms:
       os: alpine
       version: 3
   alpine-3_21:
+    docker_build: true
     runtime: docker
     image: alpine:3.21
     display_name: Alpine 3.21 amd64
@@ -208,6 +228,7 @@ platforms:
       os: alpine
       version: 3
   alpine-3_20:
+    docker_build: true
     runtime: docker
     image: alpine:3.20
     display_name: Alpine 3.20 amd64
@@ -216,6 +237,7 @@ platforms:
       os: alpine
       version: 3
   alpine-3_19:
+    docker_build: true
     runtime: docker
     image: alpine:3.19
     display_name: Alpine 3.19 amd64
@@ -224,6 +246,7 @@ platforms:
       os: alpine
       version: 3
   alpine-edge:
+    docker_build: true
     runtime: docker
     image: alpine:edge
     display_name: Alpine edge amd64
@@ -232,6 +255,7 @@ platforms:
       os: alpine
       version: 3
   archlinux-latest:
+    docker_build: true
     runtime: docker
     image: archlinux:latest
     display_name: Arch Linux amd64
@@ -240,6 +264,7 @@ platforms:
       os: archlinux
       version: latest
   archlinux-base:
+    docker_build: true
     runtime: docker
     image: archlinux:base
     display_name: Arch Linux base amd64

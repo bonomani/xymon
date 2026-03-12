@@ -20,47 +20,16 @@ if [[ -z "${runtime}" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-
-runtime_execution_for_key() {
-  local runtime_key="$1"
-  if [[ "${runtime_key}" == "${RUNTIME:-}" && -n "${RUNTIME_EXECUTION:-}" ]]; then
-    printf '%s\n' "${RUNTIME_EXECUTION}"
-    return 0
-  fi
-  case "${runtime_key}" in
-    linux_host|macos_host)
-      printf '%s\n' "host"
-      ;;
-    linux_container)
-      printf '%s\n' "container"
-      ;;
-    bsd_vm)
-      printf '%s\n' "vm"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
-
-runtime_outcome_channel_for_key() {
-  local runtime_key="$1"
-  if [[ "${runtime_key}" == "${RUNTIME:-}" && -n "${RUNTIME_OUTCOME_CHANNEL:-}" ]]; then
-    printf '%s\n' "${RUNTIME_OUTCOME_CHANNEL}"
-    return 0
-  fi
-  case "${runtime_key}" in
-    linux_host|linux_container|macos_host)
-      printf '%s\n' "host_container"
-      ;;
-    bsd_vm)
-      printf '%s\n' "bsd_vm"
-      ;;
-    *)
-      return 1
-      ;;
-  esac
-}
+runtime_resolver="${script_dir}/runtime_resolution.py"
+runtime_model="${script_dir}/runtime-model.json"
+if [[ ! -f "${runtime_resolver}" ]]; then
+  echo "Missing runtime resolver: ${runtime_resolver}" >&2
+  exit 2
+fi
+if [[ ! -f "${runtime_model}" ]]; then
+  echo "Missing runtime model: ${runtime_model}" >&2
+  exit 2
+fi
 
 contract_file="${script_dir}/lane-env-contract.txt"
 if [[ ! -f "${contract_file}" ]]; then
@@ -125,9 +94,26 @@ check_env_keys() {
 
 run_runtime() {
   local runtime_key="$1"
-  local execution outcome
-  execution="$(runtime_execution_for_key "${runtime_key}" || true)"
-  outcome="$(runtime_outcome_channel_for_key "${runtime_key}" || true)"
+  local execution outcome key value
+  execution=""
+  outcome=""
+  while IFS='=' read -r key value; do
+    case "${key}" in
+      execution)
+        execution="${value}"
+        ;;
+      outcome_channel)
+        outcome="${value}"
+        ;;
+    esac
+  done < <(
+    python3 "${runtime_resolver}" metadata \
+      --runtime "${runtime_key}" \
+      --current-runtime "${RUNTIME:-}" \
+      --runtime-execution "${RUNTIME_EXECUTION:-}" \
+      --runtime-outcome-channel "${RUNTIME_OUTCOME_CHANNEL:-}" \
+      --runtime-model "${runtime_model}"
+  )
   if [[ -z "${execution}" ]]; then
     return 1
   fi

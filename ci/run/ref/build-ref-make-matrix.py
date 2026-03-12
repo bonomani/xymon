@@ -23,8 +23,8 @@ from matrix_common import (
     require_non_empty_string,
 )
 from runtime_model import load_runtime_model
-from container_catalog import (
-    load_container_catalog,
+from platform_availability import (
+    load_platform_availability,
     resolve_container_runtime,
 )
 
@@ -384,12 +384,12 @@ def validate_lane_requirements(
         die(f"{lane_context_label(family_entry, lane_obj)} is missing 'runs_on'")
 
 
-def apply_discovered_platform_overrides(
+def apply_platform_availability_overrides(
     family_entry,
     lane_obj,
     platform_id,
     platform_entry,
-    container_catalog,
+    platform_availability,
 ):
     if platform_id is None or platform_entry is None:
         return None
@@ -407,7 +407,7 @@ def apply_discovered_platform_overrides(
             platform_id=platform_id,
             platform_os=str(deps.get("os") or "").strip(),
             artifact_arch=artifact_arch,
-            container_catalog=container_catalog,
+            platform_availability=platform_availability,
         )
     except ValueError as exc:
         die(f"{lane_context_label(family_entry, lane_obj)}: {exc}")
@@ -456,7 +456,7 @@ def normalize_lane(
     family_entry,
     lane,
     platform_catalog,
-    container_catalog,
+    platform_availability,
     build_tool,
     requested_compiler,
     profile,
@@ -516,12 +516,12 @@ def normalize_lane(
     if supported_build_tools is not None and build_tool not in supported_build_tools:
         return None
 
-    discovered_platform = apply_discovered_platform_overrides(
+    discovered_platform = apply_platform_availability_overrides(
         family_entry,
         lane_obj,
         platform_id,
         platform_entry,
-        container_catalog,
+        platform_availability,
     )
     if discovered_platform is not None and not discovered_platform.get("supported", True):
         return None
@@ -626,8 +626,8 @@ def parse_args():
         default="ci/run/ref/runtime-model.json",
     )
     parser.add_argument(
-        "--container-catalog",
-        default=".github/data/platform-catalog-discovered.yml",
+        "--platform-availability",
+        default=".github/data/platform-availability.yml",
     )
     parser.add_argument("--github-output", default=os.environ.get("GITHUB_OUTPUT", ""))
     parser.add_argument(
@@ -700,13 +700,11 @@ def main():
             die(f"Unsupported family input: {selected_family}")
         selected_entries = [lookup[selected_family]]
 
-    container_catalog = {}
-    container_catalog_path = repo_root / args.container_catalog
-    if container_catalog_path.exists():
-        try:
-            container_catalog = load_container_catalog(container_catalog_path)
-        except ValueError as exc:
-            die(str(exc))
+    platform_availability_path = repo_root / args.platform_availability
+    try:
+        platform_availability = load_platform_availability(platform_availability_path)
+    except ValueError as exc:
+        die(str(exc))
 
     matrices = {runtime: [] for runtime in runtime_order}
     selected_families = []
@@ -724,7 +722,7 @@ def main():
                 family_entry,
                 lane,
                 platform_catalog,
-                container_catalog,
+                platform_availability,
                 build_tool,
                 compiler,
                 profile,

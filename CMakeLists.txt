@@ -652,54 +652,67 @@ endif()
 # ----------------------------------------------------------------------
 # Docker build helper targets (Debian family)
 # ----------------------------------------------------------------------
-set(XYMON_DOCKER_COMPOSE_FILE "${CMAKE_SOURCE_DIR}/docker/docker-compose.yml")
-set(XYMON_DOCKER_MATRIX_FILE "${CMAKE_SOURCE_DIR}/ci/deps/docker-matrix.yaml")
+set(XYMON_DOCKER_COMPOSE_FILE "${CMAKE_BINARY_DIR}/docker-compose.yml")
 set(XYMON_PLATFORM_CATALOG_FILE "${CMAKE_SOURCE_DIR}/ci/deps/platform-catalog.yaml")
-set(XYMON_DOCKER_GENERATOR_SCRIPT "${CMAKE_SOURCE_DIR}/create-docker-debian-family.sh")
+set(XYMON_DOCKER_MATRIX_RESOLVER "${CMAKE_SOURCE_DIR}/ci/run/docker/resolve-matrix.py")
+find_program(XYMON_DOCKER_PYTHON_EXECUTABLE NAMES python3 python)
 
-if(EXISTS "${XYMON_DOCKER_GENERATOR_SCRIPT}"
-        AND EXISTS "${XYMON_DOCKER_MATRIX_FILE}"
+if(XYMON_DOCKER_PYTHON_EXECUTABLE
+        AND EXISTS "${XYMON_DOCKER_MATRIX_RESOLVER}"
         AND EXISTS "${XYMON_PLATFORM_CATALOG_FILE}")
-    file(READ "${XYMON_DOCKER_MATRIX_FILE}" _xy_mon_matrix_text)
-    string(REGEX MATCHALL "-[ \t]*name:[ \t]*([^ \t\n\r]+)" _xy_mon_matches "${_xy_mon_matrix_text}")
+    execute_process(
+        COMMAND "${XYMON_DOCKER_PYTHON_EXECUTABLE}" "${XYMON_DOCKER_MATRIX_RESOLVER}"
+                --platform-catalog "${XYMON_PLATFORM_CATALOG_FILE}"
+                --list-targets
+        WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+        RESULT_VARIABLE XYMON_DOCKER_SERVICE_RESULT
+        OUTPUT_VARIABLE XYMON_DOCKER_SERVICE_OUTPUT
+        ERROR_VARIABLE XYMON_DOCKER_SERVICE_ERROR
+        OUTPUT_STRIP_TRAILING_WHITESPACE
+    )
 
-    if(NOT _xy_mon_matches)
-        message(WARNING "Docker helper targets disabled: no services found in ${XYMON_DOCKER_MATRIX_FILE}")
+    if(NOT XYMON_DOCKER_SERVICE_RESULT EQUAL 0)
+        string(STRIP "${XYMON_DOCKER_SERVICE_ERROR}" XYMON_DOCKER_SERVICE_ERROR)
+        if(XYMON_DOCKER_SERVICE_ERROR STREQUAL "")
+            set(XYMON_DOCKER_SERVICE_ERROR "resolver returned ${XYMON_DOCKER_SERVICE_RESULT}")
+        endif()
+        message(WARNING "Docker helper targets disabled: ${XYMON_DOCKER_SERVICE_ERROR}")
     else()
-        set(XYMON_DOCKER_SERVICE_LIST)
-        foreach(_xy_mon_match ${_xy_mon_matches})
-            string(REGEX REPLACE "-[ \t]*name:[ \t]*([^ \t\n\r]+)" "\\1" _xy_mon_name "${_xy_mon_match}")
-            if(NOT _xy_mon_name STREQUAL "")
-                list(APPEND XYMON_DOCKER_SERVICE_LIST "${_xy_mon_name}")
-            endif()
-        endforeach()
+        set(XYMON_DOCKER_SERVICE_LIST "${XYMON_DOCKER_SERVICE_OUTPUT}")
+        if(XYMON_DOCKER_SERVICE_LIST STREQUAL "")
+            message(WARNING "Docker helper targets disabled: no docker_build entries found in ${XYMON_PLATFORM_CATALOG_FILE}")
+        else()
+            string(REPLACE "\n" ";" XYMON_DOCKER_SERVICE_LIST "${XYMON_DOCKER_SERVICE_LIST}")
 
-        add_custom_target(docker-generate
-            COMMAND "${XYMON_DOCKER_GENERATOR_SCRIPT}"
-            DEPENDS "${XYMON_DOCKER_MATRIX_FILE}" "${XYMON_PLATFORM_CATALOG_FILE}"
-            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-            COMMENT "Regenerate Docker definitions from the CI registry"
-        )
-
-        set(XYMON_DOCKER_TARGETS)
-        foreach(_xy_mon_service ${XYMON_DOCKER_SERVICE_LIST})
-            string(STRIP _xy_mon_service "${_xy_mon_service}")
-            if(_xy_mon_service STREQUAL "")
-                continue()
-            endif()
-            set(_xy_mon_target "docker-${_xy_mon_service}")
-            add_custom_target(${_xy_mon_target}
-                COMMAND docker compose -f "${XYMON_DOCKER_COMPOSE_FILE}" build "${_xy_mon_service}"
+            add_custom_target(docker-generate
+                COMMAND "${XYMON_DOCKER_PYTHON_EXECUTABLE}" "${XYMON_DOCKER_MATRIX_RESOLVER}"
+                        --platform-catalog "${XYMON_PLATFORM_CATALOG_FILE}"
+                        --compose-output "${XYMON_DOCKER_COMPOSE_FILE}"
+                DEPENDS "${XYMON_PLATFORM_CATALOG_FILE}" "${XYMON_DOCKER_MATRIX_RESOLVER}"
                 WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
-                USES_TERMINAL
-                COMMENT "Build Docker image: ${_xy_mon_service}"
+                COMMENT "Regenerate Docker definitions from the platform catalog"
             )
-            add_dependencies(${_xy_mon_target} docker-generate)
-            list(APPEND XYMON_DOCKER_TARGETS ${_xy_mon_target})
-        endforeach()
 
-        if(XYMON_DOCKER_TARGETS)
-            add_custom_target(docker-debian-family DEPENDS ${XYMON_DOCKER_TARGETS})
+            set(XYMON_DOCKER_TARGETS)
+            foreach(_xy_mon_service ${XYMON_DOCKER_SERVICE_LIST})
+                string(STRIP _xy_mon_service "${_xy_mon_service}")
+                if(_xy_mon_service STREQUAL "")
+                    continue()
+                endif()
+                set(_xy_mon_target "docker-${_xy_mon_service}")
+                add_custom_target(${_xy_mon_target}
+                    COMMAND docker compose -f "${XYMON_DOCKER_COMPOSE_FILE}" build "${_xy_mon_service}"
+                    WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+                    USES_TERMINAL
+                    COMMENT "Build Docker image: ${_xy_mon_service}"
+                )
+                add_dependencies(${_xy_mon_target} docker-generate)
+                list(APPEND XYMON_DOCKER_TARGETS ${_xy_mon_target})
+            endforeach()
+
+            if(XYMON_DOCKER_TARGETS)
+                add_custom_target(docker-debian-family DEPENDS ${XYMON_DOCKER_TARGETS})
+            endif()
         endif()
     endif()
 endif()

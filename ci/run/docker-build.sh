@@ -2,11 +2,27 @@
 set -euo pipefail
 IFS=$' \t\n'
 
-BUILD_TOOL="${BUILD_TOOL:-cmake}"
+BUILD_TOOL="${BUILD_TOOL:?BUILD_TOOL is required}"
 BUILD_TOOL="$(printf '%s' "$BUILD_TOOL" | tr '[:upper:]' '[:lower:]')"
-VARIANT="${VARIANT:-server}"
-LOCALCLIENT="${LOCALCLIENT:-OFF}"
-PROFILE="${PROFILE:-packaging}"
+VARIANT="server"
+LOCALCLIENT="OFF"
+ENABLE_SSL="ON"
+ENABLE_LDAP="ON"
+ENABLE_SNMP="ON"
+case "$BUILD_TOOL" in
+  cmake)
+    PROFILE="packaging"
+    ;;
+  make)
+    PROFILE="default"
+    ;;
+  *)
+    echo "Unsupported BUILD_TOOL=${BUILD_TOOL}" >&2
+    exit 1
+    ;;
+esac
+
+export PROFILE VARIANT LOCALCLIENT ENABLE_SSL ENABLE_LDAP ENABLE_SNMP
 
 normalize_yesno() {
   case "${1,,}" in
@@ -27,9 +43,9 @@ echo "BUILD_TOOL=${BUILD_TOOL}"
 echo "VARIANT=${VARIANT}"
 echo "PROFILE=${PROFILE}"
 echo "LOCALCLIENT=${LOCALCLIENT}"
-echo "ENABLE_SSL=${ENABLE_SSL:-ON}"
-echo "ENABLE_LDAP=${ENABLE_LDAP:-ON}"
-echo "ENABLE_SNMP=${ENABLE_SNMP:-ON}"
+echo "ENABLE_SSL=${ENABLE_SSL}"
+echo "ENABLE_LDAP=${ENABLE_LDAP}"
+echo "ENABLE_SNMP=${ENABLE_SNMP}"
 echo "==========================="
 
 case "$BUILD_TOOL" in
@@ -45,9 +61,5 @@ case "$BUILD_TOOL" in
       --localclient "$localclient_flag" \
       --build make \
       --profile "$PROFILE"
-    ;;
-  *)
-    echo "Unsupported BUILD_TOOL=${BUILD_TOOL}" >&2
-    exit 1
     ;;
 esac

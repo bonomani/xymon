@@ -17,18 +17,6 @@ on:
           - all
           - deb
           - rpm
-  workflow_call:
-    inputs:
-      release_version:
-        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag."
-        required: false
-        type: string
-        default: ""
-      package_set:
-        description: Package formats to build (all|deb|rpm).
-        required: false
-        type: string
-        default: all
   push:
     tags:
       - 'rel-*'
@@ -37,80 +25,42 @@ permissions:
   contents: read
 
 jobs:
-  resolve:
+  prepare:
     runs-on: ubuntu-22.04
     outputs:
-      release_version: ${{ steps.resolve.outputs.release_version }}
-      package_set: ${{ steps.resolve.outputs.package_set }}
-      build_deb: ${{ steps.resolve.outputs.build_deb }}
-      build_rpm: ${{ steps.resolve.outputs.build_rpm }}
+      release_version: ${{ steps.prepare.outputs.release_version }}
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      matrix_count: ${{ steps.prepare.outputs.matrix_count }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
         with:
           fetch-depth: 1
 
-      - name: Resolve package build inputs
-        id: resolve
+      - name: Resolve package execution model
+        id: prepare
         shell: bash
-        env:
-          INPUT_RELEASE_VERSION: ${{ inputs.release_version }}
-          INPUT_PACKAGE_SET: ${{ inputs.package_set }}
         run: |
           set -euo pipefail
-
-          package_set="${INPUT_PACKAGE_SET:-all}"
-          case "${package_set}" in
-            all|deb|rpm)
-              ;;
-            *)
-              echo "Unsupported package_set: ${package_set}" >&2
-              exit 2
-              ;;
-          esac
-
-          release_version="${INPUT_RELEASE_VERSION:-}"
-          if [[ -z "${release_version}" && "${GITHUB_REF_TYPE:-}" == "tag" && "${GITHUB_REF_NAME:-}" == rel-* ]]; then
-            release_version="${GITHUB_REF_NAME#rel-}"
-          fi
-          if [[ -z "${release_version}" ]]; then
-            echo "Missing release version. Provide inputs.release_version or run on tag rel-*." >&2
-            exit 2
-          fi
-
-          build_deb=0
-          build_rpm=0
-          case "${package_set}" in
-            all)
-              build_deb=1
-              build_rpm=1
-              ;;
-            deb)
-              build_deb=1
-              ;;
-            rpm)
-              build_rpm=1
-              ;;
-          esac
-
-          {
-            echo "release_version=${release_version}"
-            echo "package_set=${package_set}"
-            echo "build_deb=${build_deb}"
-            echo "build_rpm=${build_rpm}"
-          } >> "${GITHUB_OUTPUT}"
+          python3 ci/run/package/resolve-package-build.py \
+            --release-version "${{ inputs.release_version }}" \
+            --package-set "${{ inputs.package_set }}" \
+            --github-output "${GITHUB_OUTPUT}"
 
       - name: Summary
         shell: bash
         run: |
-          echo "Release version: ${{ steps.resolve.outputs.release_version }}"
-          echo "Package set: ${{ steps.resolve.outputs.package_set }}"
-          echo "Build deb: ${{ steps.resolve.outputs.build_deb }}"
-          echo "Build rpm: ${{ steps.resolve.outputs.build_rpm }}"
+          echo "Release version: ${{ steps.prepare.outputs.release_version }}"
+          echo "Package jobs selected: ${{ steps.prepare.outputs.matrix_count }}"
 
-  build-deb:
-    needs: resolve
-    if: ${{ needs.resolve.outputs.build_deb == '1' }}
+  build:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.matrix_count != '0' }}
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -118,69 +68,25 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Install Debian packaging dependencies
+      - name: Install packaging dependencies
         shell: bash
+        env:
+          HOST_PACKAGES: ${{ matrix.host_packages }}
         run: |
           set -euo pipefail
-          mapfile -t packages < <(
-            python3 ci/deps/resolve-packaging-deps.py \
-              --package-kind deb \
-              --pkgmgr apt
-          )
+          mapfile -t packages <<< "${HOST_PACKAGES}"
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
-      - name: Build deb packages
+      - name: Build package artifacts
         shell: bash
         run: |
           set -euo pipefail
-          bash ci/run/package/build-deb.sh --release "${{ needs.resolve.outputs.release_version }}"
+          bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"
 
-      - name: Upload deb artifacts
+      - name: Upload package artifacts
         uses: actions/upload-artifact@v4
         with:
-          name: deb_${{ needs.resolve.outputs.release_version }}
-          path: |
-            debbuild/*.deb
-            debbuild/*.dsc
-            debbuild/*.changes
-            debbuild/*.buildinfo
-            debbuild/*.tar.*
-          if-no-files-found: error
-
-  build-rpm:
-    needs: resolve
-    if: ${{ needs.resolve.outputs.build_rpm == '1' }}
-    runs-on: ubuntu-22.04
-    steps:
-      - name: Checkout
-        uses: actions/checkout@v4
-        with:
-          fetch-depth: 1
-
-      - name: Install RPM packaging dependencies
-        shell: bash
-        run: |
-          set -euo pipefail
-          mapfile -t packages < <(
-            python3 ci/deps/resolve-packaging-deps.py \
-              --package-kind rpm \
-              --pkgmgr apt
-          )
-          sudo apt-get update
-          sudo apt-get install -y --no-install-recommends "${packages[@]}"
-
-      - name: Build rpm packages
-        shell: bash
-        run: |
-          set -euo pipefail
-          bash ci/run/package/build-rpm.sh --release "${{ needs.resolve.outputs.release_version }}"
-
-      - name: Upload rpm artifacts
-        uses: actions/upload-artifact@v4
-        with:
-          name: rpm_${{ needs.resolve.outputs.release_version }}
-          path: |
-            rpmbuild/RPMS/**/*.rpm
-            rpmbuild/SRPMS/*.rpm
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_paths }}
           if-no-files-found: error

@@ -4,6 +4,12 @@ from __future__ import annotations
 
 from typing import Tuple
 
+from platform_normalization import (  # type: ignore
+    compose_os_key,
+    find_matching_rule,
+    normalize_rule_version,
+)
+
 
 def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
     if not path.exists():
@@ -28,7 +34,10 @@ def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
     return normalized
 
 
-def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, dict]:
+def load_platform_deps_bindings(
+    platform_catalog: dict[str, dict],
+    normalization_rules: dict[str, dict] | None = None,
+) -> dict[str, dict]:
     bindings: dict[str, dict] = {}
     for platform_id, entry in platform_catalog.items():
         deps = entry.get("deps")
@@ -46,14 +55,17 @@ def load_platform_deps_bindings(platform_catalog: dict[str, dict]) -> dict[str, 
                 f"ERROR: platform catalog entry '{platform_id}' deps must include family and os"
             )
         if version_raw is None:
+            normalized_version = None
             os_key = os_name
         else:
             version = str(version_raw).strip()
-            os_key = os_name if not version else f"{os_name}_{version}"
+            matching_rule = find_matching_rule(normalization_rules, family, os_name)
+            normalized_version = normalize_rule_version(matching_rule, version)
+            os_key = compose_os_key(os_name, normalized_version)
         bindings[platform_id] = {
             "family": family,
             "os": os_name,
-            "version": None if version_raw is None else str(version_raw).strip(),
+            "version": normalized_version,
             "os_key": os_key,
         }
     return bindings

@@ -48,6 +48,10 @@ except Exception as exc:  # pragma: no cover
 
 try:
     from workflow_io import find_package_steps, parse_workflow_yaml  # type: ignore
+    from platform_normalization import (  # type: ignore
+        candidate_os_keys_for_rule,
+        compose_os_key,
+    )
     from platform_catalog import (  # type: ignore
         build_docker_image_index,
         load_platform_catalog,
@@ -1056,13 +1060,6 @@ def build_family_os_index(data: dict) -> dict[str, set[str]]:
     return index
 
 
-def compose_os_key(os_name: str, version: str | int | None) -> str:
-    version_text = "" if version is None else str(version).strip()
-    if not version_text:
-        return os_name
-    return f"{os_name}_{version_text.replace('.', '_')}"
-
-
 def check_platform_normalization_against_topology(topology: dict, normalization_rules: dict[str, dict]) -> bool:
     build = topology.get("build", {})
     if not isinstance(build, dict):
@@ -1098,37 +1095,14 @@ def check_platform_normalization_against_topology(topology: dict, normalization_
             )
             continue
 
-        candidate_keys: set[str] = set()
-        strict_keys = False
-
-        if mode == "fixed":
-            strict_keys = True
-            version = version_fixed if isinstance(version_fixed, str) else ""
-            if not version and isinstance(version_default, str):
-                version = version_default
-            candidate_keys.add(compose_os_key(os_name, version))
-        elif mode in {"exact_map", "prefix_map"}:
-            strict_keys = True
-            if versions is None:
-                versions = {}
-            if not isinstance(versions, dict):
-                ok = False
-                print(f"   ERROR: normalization rule '{os_id}' versions must be a mapping")
-                continue
-            for value in versions.values():
-                if isinstance(value, (str, int, float)):
-                    text = str(value).strip()
-                    if text:
-                        candidate_keys.add(compose_os_key(os_name, text))
-            if isinstance(version_default, str) and version_default.strip():
-                candidate_keys.add(compose_os_key(os_name, version_default.strip()))
-            if not candidate_keys:
-                strict_keys = False
-        elif mode in {"major", "dot_to_underscore"}:
-            strict_keys = False
-        else:
+        try:
+            strict_keys, candidate_keys = candidate_os_keys_for_rule(rule)
+        except ValueError as exc:
             ok = False
-            print(f"   ERROR: normalization rule '{os_id}' has unknown version_mode '{mode}'")
+            if "versions must be a mapping" in str(exc):
+                print(f"   ERROR: normalization rule '{os_id}' versions must be a mapping")
+            else:
+                print(f"   ERROR: normalization rule '{os_id}' has {exc}")
             continue
 
         if strict_keys:
@@ -1477,7 +1451,7 @@ def main() -> int:
         "server": build_family_os_index(server),
     }
     platform_catalog = load_platform_catalog(PLATFORM_CATALOG_FILE, load_yaml, require)
-    platform_bindings = load_platform_deps_bindings(platform_catalog)
+    platform_bindings = load_platform_deps_bindings(platform_catalog, normalization_rules)
 
     # --- normalization -> topology coverage ---
     ok = True
