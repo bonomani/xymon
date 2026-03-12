@@ -107,6 +107,7 @@ Notes
   - `USE_GNUINSTALLDIRS=ON` -> `fhs`
   - `USE_GNUINSTALLDIRS=OFF` on Linux -> `var_tree`
   - `USE_GNUINSTALLDIRS=OFF` on FreeBSD/NetBSD -> `home_tree`
+  - `USE_GNUINSTALLDIRS=OFF` on macOS -> `macos_tree`
 - All values can still be overridden with -D options when invoking CMake.
 
 Packaging notes
