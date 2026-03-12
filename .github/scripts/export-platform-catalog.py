@@ -48,10 +48,12 @@ DEFAULT_RUNNER_CAPABILITIES = {
     "linux": {
         "native_platforms": ["linux"],
         "container_platforms": ["linux"],
+        "container_emulated_arches": [],
     },
     "macos": {
         "native_platforms": ["macos"],
         "container_platforms": [],
+        "container_emulated_arches": [],
     },
 }
 
@@ -84,6 +86,12 @@ def field_str(parent: dict[str, Any], key: str, context: str) -> str:
 
 def field_list(parent: dict[str, Any], key: str, context: str) -> list[Any]:
     return as_list(parent.get(key), f"{context}.{key}")
+
+
+def optional_field_str_list(parent: dict[str, Any], key: str, context: str) -> list[str]:
+    raw_value = parent.get(key, [])
+    values = as_list(raw_value, f"{context}.{key}")
+    return [as_str(value, f"{context}.{key}[]") for value in values]
 
 
 def relative_to_root(path: Path) -> str:
@@ -359,6 +367,15 @@ def runner_supports(runner: dict[str, Any], capability_key: str, platform_family
     return platform_family in values
 
 
+def runner_container_emulated_arches(runner: dict[str, Any]) -> list[str]:
+    capabilities = runner_capabilities(runner)
+    return optional_field_str_list(
+        capabilities,
+        "container_emulated_arches",
+        "capabilities",
+    )
+
+
 def build_runner_indexes(runners: list[dict[str, Any]]) -> dict[str, dict[str, dict[str, list[str]]]]:
     indexes: dict[str, dict[str, dict[str, list[str]]]] = {}
     for runner in runners:
@@ -372,6 +389,17 @@ def build_runner_indexes(runners: list[dict[str, Any]]) -> dict[str, dict[str, d
                     runner["label"]
                 )
     return indexes
+
+
+def unique_preserving_order(values: list[str]) -> list[str]:
+    seen: set[str] = set()
+    ordered: list[str] = []
+    for value in values:
+        if value in seen:
+            continue
+        seen.add(value)
+        ordered.append(value)
+    return ordered
 
 
 def exact_direct_runner_labels(
@@ -418,7 +446,17 @@ def build_host_support(
             platform_version=platform_version,
             arch=arch,
         )
-        container_labels = container_index.get(arch, [])
+        emulated_container_labels = [
+            runner["label"]
+            for runner in runners
+            if field_str(runner, "machine_family", f"runner {runner['label']}")
+            == platform_family
+            and runner_supports(runner, "container_platforms", platform_family)
+            and arch in runner_container_emulated_arches(runner)
+        ]
+        container_labels = unique_preserving_order(
+            list(container_index.get(arch, [])) + emulated_container_labels
+        )
         record: dict[str, Any] = {"direct_runner_labels": direct_labels}
         if container_labels != direct_labels:
             record["container_runner_labels"] = container_labels
@@ -441,6 +479,11 @@ def load_host_runners() -> list[dict[str, Any]]:
         capabilities = runner_capabilities(entry)
         field_list(capabilities, "native_platforms", f"{entry_ctx}.capabilities")
         field_list(capabilities, "container_platforms", f"{entry_ctx}.capabilities")
+        optional_field_str_list(
+            capabilities,
+            "container_emulated_arches",
+            f"{entry_ctx}.capabilities",
+        )
         normalized.append(entry.copy())
     return normalized
 

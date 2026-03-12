@@ -59,11 +59,23 @@ def infer_artifact_arch(lane_obj) -> str:
             return "amd64"
         if normalized in {"arm64", "aarch64"}:
             return "arm64"
+        if normalized in {"arm32v7", "arm-v7", "arm/v7", "armv7"}:
+            return "arm32v7"
+        if normalized in {"ppc64le", "riscv64", "s390x"}:
+            return normalized
         return normalized
 
     container_options = str(lane_obj.get("container_options") or "").strip().lower()
     if "linux/arm64" in container_options:
         return "arm64"
+    if "linux/arm/v7" in container_options:
+        return "arm32v7"
+    if "linux/ppc64le" in container_options:
+        return "ppc64le"
+    if "linux/riscv64" in container_options:
+        return "riscv64"
+    if "linux/s390x" in container_options:
+        return "s390x"
 
     runner = str(lane_obj.get("runs_on") or "").strip().lower()
     if "-arm" in runner or "arm64" in runner or "aarch64" in runner:
@@ -72,6 +84,14 @@ def infer_artifact_arch(lane_obj) -> str:
     lane_name = str(lane_obj.get("name") or "").strip().lower()
     if " arm64" in lane_name or lane_name.endswith("arm64") or " aarch64" in lane_name:
         return "arm64"
+    if " arm32v7" in lane_name or lane_name.endswith("arm32v7") or " arm/v7" in lane_name:
+        return "arm32v7"
+    if " ppc64le" in lane_name or lane_name.endswith("ppc64le"):
+        return "ppc64le"
+    if " riscv64" in lane_name or lane_name.endswith("riscv64"):
+        return "riscv64"
+    if " s390x" in lane_name or lane_name.endswith("s390x"):
+        return "s390x"
     if " x86-64" in lane_name or lane_name.endswith("x86-64") or " amd64" in lane_name:
         return "amd64"
 

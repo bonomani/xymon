@@ -35,6 +35,9 @@ on:
 permissions:
   contents: read
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   lane:
     name: ${{ inputs.lane_name }}
@@ -62,6 +65,12 @@ jobs:
         with:
           lane_env_json: ${{ steps.lane_ctx.outputs.lane_env_json }}
           output: tmp/xymon-refs/lane.env.sh
+
+      - name: Set up QEMU for emulated container lanes
+        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'container' && (contains(inputs.lane_json, 'linux/arm/v7') || contains(inputs.lane_json, 'linux/ppc64le') || contains(inputs.lane_json, 'linux/riscv64') || contains(inputs.lane_json, 'linux/s390x')) }}
+        uses: docker/setup-qemu-action@v3
+        with:
+          platforms: arm,ppc64le,riscv64,s390x
 
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container

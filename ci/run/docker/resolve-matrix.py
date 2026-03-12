@@ -10,6 +10,14 @@ from pathlib import Path
 import yaml
 
 BUILD_TOOLS = ("cmake", "make")
+ARCH_TO_DOCKER_PLATFORM = (
+    ("amd64", "linux/amd64"),
+    ("arm64", "linux/arm64"),
+    ("arm32v7", "linux/arm/v7"),
+    ("ppc64le", "linux/ppc64le"),
+    ("riscv64", "linux/riscv64"),
+    ("s390x", "linux/s390x"),
+)
 
 
 def die(message: str) -> None:
@@ -73,6 +81,21 @@ def require_string_list(value, context: str) -> list[str]:
     return [require_non_empty_string(item, f"{context}[]") for item in value]
 
 
+def resolve_supported_docker_platforms(platform_id: str, discovered_arches: list[str]) -> list[str]:
+    discovered = {arch.strip().lower() for arch in discovered_arches if arch.strip()}
+    platforms = [
+        docker_platform
+        for arch_name, docker_platform in ARCH_TO_DOCKER_PLATFORM
+        if arch_name in discovered
+    ]
+    if not platforms:
+        die(
+            f"platform '{platform_id}' has no supported multi-arch docker targets in availability: "
+            + ", ".join(sorted(discovered))
+        )
+    return platforms
+
+
 def load_docker_platform_availability(
     path: Path,
 ) -> dict[str, dict[str, str | list[str]]]:
@@ -109,7 +132,7 @@ def load_docker_platform_availability(
 def load_docker_build_platforms(
     platform_catalog_path: Path,
     platform_availability_path: Path,
-) -> dict[str, str]:
+) -> dict[str, dict[str, str]]:
     if not platform_catalog_path.exists():
         die(f"Missing platform catalog file: {platform_catalog_path}")
 
@@ -120,7 +143,7 @@ def load_docker_build_platforms(
     if not isinstance(platforms, dict) or not platforms:
         die(f"{platform_catalog_path} has no platforms mapping")
 
-    docker_platforms: dict[str, str] = {}
+    docker_platforms: dict[str, dict[str, str]] = {}
     for platform_id, raw_entry in platforms.items():
         if not isinstance(raw_entry, dict):
             continue
@@ -147,14 +170,17 @@ def load_docker_build_platforms(
                 f"platform '{platform_id}' image mismatch between static catalog "
                 f"('{image}') and availability ('{available_image}')"
             )
-        discovered_arches = availability_entry["discovered_arches"]
-        if "amd64" not in discovered_arches:
-            die(
-                f"platform '{platform_id}' does not advertise amd64 support in platform availability"
-            )
+        discovered_arches = require_string_list(
+            availability_entry["discovered_arches"],
+            f"{platform_availability_path} platforms.{platform_id}.discovered_arches",
+        )
         digest = str(availability_entry["digest"])
+        supported_platforms = resolve_supported_docker_platforms(platform_id, discovered_arches)
 
-        docker_platforms[str(platform_id)] = f"{image}@{digest}"
+        docker_platforms[str(platform_id)] = {
+            "base_image": f"{image}@{digest}",
+            "platforms": ",".join(supported_platforms),
+        }
 
     if not docker_platforms:
         die(
@@ -188,7 +214,9 @@ def main() -> None:
 
     known_names: set[str] = set()
     include: list[dict[str, str]] = []
-    for platform_id, base_image in docker_platforms.items():
+    for platform_id, platform_info in docker_platforms.items():
+        base_image = platform_info["base_image"]
+        target_platforms = platform_info["platforms"]
         for build_tool in BUILD_TOOLS:
             name = derive_service_name(platform_id, build_tool)
             known_names.add(name)
@@ -199,6 +227,7 @@ def main() -> None:
                 "name": name,
                 "base_image": base_image,
                 "build_tool": build_tool,
+                "platforms": target_platforms,
             }
             include.append(entry)
 

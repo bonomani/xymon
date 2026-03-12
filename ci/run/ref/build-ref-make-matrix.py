@@ -33,7 +33,15 @@ SUPPORTED_COMPILERS = {"auto", "gcc", "clang"}
 SUPPORTED_PROFILES = {"default", "debian", "gnuinstall", "packaging"}
 SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 SUPPORTED_CONTAINER_RUNTIME_PREFERENCES = {"linux_host", "linux_container"}
-SUPPORTED_ARCH_FILTERS = {"all", "amd64", "arm64"}
+SUPPORTED_ARCH_FILTERS = {
+    "all",
+    "amd64",
+    "arm64",
+    "arm32v7",
+    "ppc64le",
+    "riscv64",
+    "s390x",
+}
 SUPPORTED_VARIANT_FILTERS = {"all", *SUPPORTED_LANE_VARIANTS}
 SUPPORTED_ARCH_POLICY_FILTERS = {
     "non_primary_latest_only",
@@ -330,7 +338,9 @@ def auto_name_lane(family_entry, lane_obj, platform_entry, platform_id):
             f"Lane for family '{family_entry['family']}' has unsupported "
             f"variant '{variant}' for auto naming"
         )
-    lane_obj["name"] = f"{display_name} - {suffix}"
+    artifact_arch = infer_artifact_arch(lane_obj)
+    arch_suffix = "" if artifact_arch == "amd64" else f" {artifact_arch}"
+    lane_obj["name"] = f"{display_name}{arch_suffix} - {suffix}"
 
 
 def apply_container_arm64_overrides(family_entry, lane_obj, runtime_execution):
