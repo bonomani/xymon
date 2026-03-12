@@ -9,7 +9,7 @@ on:
         type: string
         default: ""
       package_set:
-        description: Package formats to build.
+        description: Package formats to build. On rel-* tags, built package files are also uploaded to the GitHub Release.
         required: true
         type: choice
         default: all
@@ -22,7 +22,10 @@ on:
       - 'rel-*'
 
 permissions:
-  contents: read
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
 
 jobs:
   prepare:
@@ -90,3 +93,32 @@ jobs:
           name: ${{ matrix.artifact_name }}
           path: ${{ matrix.artifact_paths }}
           if-no-files-found: error
+
+  publish-release-assets:
+    needs: [prepare, build]
+    if: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'rel-') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v6
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+          tmp_checksums="$(mktemp)"
+          find . -type f ! -name SHA256SUMS -printf '%P\n' \
+            | LC_ALL=C sort \
+            | xargs -r sha256sum > "${tmp_checksums}"
+          mv "${tmp_checksums}" SHA256SUMS
+
+      - name: Upload package files to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            release-assets/**
