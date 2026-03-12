@@ -3,6 +3,9 @@ set -euo pipefail
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 MAKE_PROFILE_EXPORTER="${SCRIPT_DIR}/run/export-make-profile-env.sh"
+CMAKE_PROFILE_HELPERS="${SCRIPT_DIR}/run/cmake-profile-helpers.sh"
+# shellcheck source=ci/run/cmake-profile-helpers.sh
+source "${CMAKE_PROFILE_HELPERS}"
 
 OS_NAME=""
 PLATFORM_OS=""
@@ -193,7 +196,7 @@ normalize_profile() {
           exit 1
           ;;
       esac
-      CMAKE_PRESET="${BUILD_PROFILE}"
+      CMAKE_PRESET="$(resolve_cmake_effective_profile "${BUILD_PROFILE}" "${PLATFORM_OS}")"
       ;;
   esac
 }
@@ -536,6 +539,7 @@ configure_build_cmake() {
   local cmake_install_prefix
   local cmake_httpdgid_chgrp
   local cmake_layout
+  local cmake_effective_profile
   local -a cmake_args
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
@@ -546,39 +550,14 @@ configure_build_cmake() {
   else
     cmake_apply_ownership="ON"
   fi
-  case "${CMAKE_PRESET}" in
-    default)
-      cmake_use_gnuinstalldirs="OFF"
-      cmake_install_prefix="/"
-      cmake_httpdgid_chgrp="ON"
-      if [ "${PLATFORM_OS}" = "freebsd" ] || [ "${PLATFORM_OS}" = "netbsd" ]; then
-        cmake_layout="home_tree"
-      else
-        cmake_layout="var_tree"
-      fi
-      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
-        CMAKE_BUILD_DIR="build-cmake"
-      fi
-      ;;
-    gnuinstall)
-      cmake_use_gnuinstalldirs="ON"
-      cmake_install_prefix="/"
-      cmake_httpdgid_chgrp="ON"
-      cmake_layout="fhs"
-      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
-        CMAKE_BUILD_DIR="build-cmake-gnu"
-      fi
-      ;;
-    packaging)
-      cmake_use_gnuinstalldirs="ON"
-      cmake_install_prefix="/usr"
-      cmake_httpdgid_chgrp="OFF"
-      cmake_layout="fhs"
-      if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
-        CMAKE_BUILD_DIR="build-cmake-packaging"
-      fi
-      ;;
-  esac
+  cmake_effective_profile="${CMAKE_PRESET}"
+  cmake_use_gnuinstalldirs="$(resolve_cmake_use_gnuinstalldirs "${cmake_effective_profile}")"
+  cmake_install_prefix="$(resolve_cmake_install_prefix "${cmake_effective_profile}")"
+  cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_effective_profile}")"
+  cmake_layout="$(resolve_cmake_layout "${cmake_effective_profile}" "${PLATFORM_OS}")"
+  if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
+    CMAKE_BUILD_DIR="$(resolve_cmake_build_dir "${cmake_effective_profile}")"
+  fi
   case "${CI_COMPILER}" in
     gcc)
       export CC="${CC:-gcc}"

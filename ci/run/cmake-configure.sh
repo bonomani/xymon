@@ -2,6 +2,10 @@
 set -euo pipefail
 IFS=$' \t\n'
 
+script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ci/run/cmake-profile-helpers.sh
+source "${script_dir}/cmake-profile-helpers.sh"
+
 sanitize() {
   printf '%s' "$1"
 }
@@ -11,10 +15,13 @@ ENABLE_SSL="$(sanitize "${ENABLE_SSL:-}")"
 ENABLE_LDAP="$(sanitize "${ENABLE_LDAP:-}")"
 VARIANT="$(sanitize "${VARIANT:-}")"
 LOCALCLIENT="$(sanitize "${LOCALCLIENT:-}")"
-cmake_preset="${PROFILE}"
+platform_os="$(resolve_cmake_platform_os "${PLATFORM_OS:-}")"
+cmake_preset="$(resolve_cmake_effective_profile "${PROFILE}" "${platform_os}")"
 
 echo "=== CMake configure context ==="
 echo "PROFILE=$PROFILE"
+echo "PLATFORM_OS=$platform_os"
+echo "CMAKE_PRESET=$cmake_preset"
 echo "ENABLE_SSL=$ENABLE_SSL"
 echo "ENABLE_LDAP=$ENABLE_LDAP"
 echo "VARIANT=$VARIANT"
@@ -61,35 +68,16 @@ else
   cmake_install_prefix=""
   cmake_httpdgid_chgrp=""
   cmake_layout=""
-  system_name="$(uname -s)"
-  case "${PROFILE}" in
-    default)
-      build_dir="build-cmake"
-      cmake_use_gnuinstalldirs="OFF"
-      cmake_install_prefix="/"
-      cmake_httpdgid_chgrp="ON"
-      if [[ "$system_name" == "FreeBSD" || "$system_name" == "NetBSD" ]]; then
-        cmake_layout="home_tree"
-      else
-        cmake_layout="var_tree"
-      fi
-      ;;
-    gnuinstall)
-      build_dir="build-cmake-gnu"
-      cmake_use_gnuinstalldirs="ON"
-      cmake_install_prefix="/"
-      cmake_httpdgid_chgrp="ON"
-      cmake_layout="fhs"
-      ;;
-    packaging)
-      build_dir="build-cmake-packaging"
-      cmake_use_gnuinstalldirs="ON"
-      cmake_install_prefix="/usr"
-      cmake_httpdgid_chgrp="OFF"
-      cmake_layout="fhs"
+  case "${cmake_preset}" in
+    default|macostree|gnuinstall|packaging)
+      build_dir="$(resolve_cmake_build_dir "${cmake_preset}")"
+      cmake_use_gnuinstalldirs="$(resolve_cmake_use_gnuinstalldirs "${cmake_preset}")"
+      cmake_install_prefix="$(resolve_cmake_install_prefix "${cmake_preset}")"
+      cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_preset}")"
+      cmake_layout="$(resolve_cmake_layout "${cmake_preset}" "${platform_os}")"
       ;;
     *)
-      echo "Unsupported PROFILE=${PROFILE}" >&2
+      echo "Unsupported PROFILE=${PROFILE} (effective preset=${cmake_preset})" >&2
       exit 1
       ;;
   esac
