@@ -146,10 +146,10 @@ knobs that map onto it.
 - CI CMake configure helpers
   - `default` preset maps explicitly to:
     - FreeBSD/NetBSD -> `home_tree`
+    - macOS -> `macos_tree`
     - other current platforms -> `var_tree`
   - `gnuinstall` and `packaging` map to `fhs`
-  - `bsdlocal` and `macostree` are available as explicit opt-in presets and are
-    not selected by current defaults
+  - `bsdlocal` and `macostree` remain available as explicit opt-in presets
 
 - current FreeBSD and NetBSD checked-in make refs
   - use `home_tree`
@@ -158,7 +158,7 @@ knobs that map onto it.
 - current macOS checked-in make refs
   - use the historical `/Library/WebServer` layout
   - terminology target for that shape: `macos_tree`
-  - current macOS CMake refs do not model this yet; they currently use `var_tree`
+  - current macOS CMake default selection must also model this as `macos_tree`
 
 Recommended Terminology
 -----------------------

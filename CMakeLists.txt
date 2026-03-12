@@ -71,7 +71,22 @@ else()
     set(_DEFAULT_MAILPROGRAM "mail")
 endif()
 set(MAILPROGRAM "${_DEFAULT_MAILPROGRAM}" CACHE STRING "")
-set(FPING "xymonping" CACHE STRING "")
+if(NOT DEFINED FPING)
+    set(_DEFAULT_FPING "xymonping")
+    if(CMAKE_SYSTEM_NAME STREQUAL "Darwin")
+        find_program(
+            _LEGACY_FPING
+            NAMES fping
+            PATHS / /usr /usr/local /opt /usr/pkg /opt/csw
+            PATH_SUFFIXES bin sbin
+            NO_DEFAULT_PATH
+        )
+        if(_LEGACY_FPING)
+            set(_DEFAULT_FPING "${_LEGACY_FPING}")
+        endif()
+    endif()
+    set(FPING "${_DEFAULT_FPING}" CACHE STRING "")
+endif()
 
 # ----------------------------------------------------------------------
 # Install layout
