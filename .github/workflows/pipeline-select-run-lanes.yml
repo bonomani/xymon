@@ -180,7 +180,7 @@ jobs:
       lane_count_total: ${{ steps.prepare_matrix.outputs.lane_count_total }}
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 1
 

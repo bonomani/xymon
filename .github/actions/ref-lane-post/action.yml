@@ -60,7 +60,7 @@ runs:
 
     - name: Upload masked lane outcome metadata
       if: ${{ fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ format('lane_outcome_{0}_{1}_{2}__{3}', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant, fromJSON(inputs.lane_post_json).lane_name) }}
         path: ${{ steps.lane_outcome_metadata.outputs.path }}
@@ -99,7 +99,7 @@ runs:
 
     - name: Upload legacy references
       if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).dep_mode == 'generate' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_name }}
         path: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_path }}

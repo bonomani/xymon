@@ -81,7 +81,7 @@ runs:
         } >> "${GITHUB_OUTPUT}"
 
     - name: Upload artifact bundle
-      uses: actions/upload-artifact@v4
+      uses: actions/upload-artifact@v6
       with:
         name: ref-valid-${{ inputs.lane_name }}
         if-no-files-found: ${{ inputs.if_no_files_found }}

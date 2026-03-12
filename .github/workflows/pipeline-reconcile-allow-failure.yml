@@ -47,7 +47,7 @@ jobs:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
-        uses: actions/checkout@v4
+        uses: actions/checkout@v6
         with:
           fetch-depth: 0
 
@@ -113,7 +113,7 @@ jobs:
           cat "${markdown}" >> "${GITHUB_STEP_SUMMARY}"
 
       - name: Upload reconciliation artifact
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v6
         with:
           name: allow_failure_reconcile_${{ steps.reconcile.outputs.run_id }}
           path: |
