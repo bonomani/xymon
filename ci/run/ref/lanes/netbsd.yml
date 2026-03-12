@@ -1,9 +1,10 @@
 generated:
   policy:
     secondary_scope: latest_only
-    secondary_overrides:
-      architecture: arm64
-    secondary_name_suffix: arm64
+    secondary_entries:
+      - overrides:
+          architecture: arm64
+        name_suffix: arm64
   platforms:
     - platform_id: netbsd-10_1
       name_prefix: NetBSD 10.1

@@ -42,6 +42,10 @@ on:
           - all
           - amd64
           - arm64
+          - arm32v7
+          - ppc64le
+          - riscv64
+          - s390x
       arch_policy:
         description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
         required: true

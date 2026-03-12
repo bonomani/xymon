@@ -54,6 +54,14 @@ CONCLUSION_LABELS = {
     "unknown": "Unknown",
 }
 DEPENDENCY_ARTIFACT_PREFIXES = ("deps_",)
+SUPPORTED_ARTIFACT_ARCHES = {
+    "amd64",
+    "arm64",
+    "arm32v7",
+    "ppc64le",
+    "riscv64",
+    "s390x",
+}
 DEPENDENCY_ARTIFACT_TOP_N = 20
 
 
@@ -254,7 +262,7 @@ def parse_dependency_artifact_name(name: str) -> dict[str, str]:
         body, *suffix_parts = body.split("__")
         if suffix_parts:
             first_suffix = suffix_parts[0].strip()
-            if first_suffix in {"amd64", "arm64"}:
+            if first_suffix in SUPPORTED_ARTIFACT_ARCHES:
                 artifact_arch = first_suffix
                 suffix_parts = suffix_parts[1:]
             first_suffix = (suffix_parts[0].strip().lower() if suffix_parts else "")

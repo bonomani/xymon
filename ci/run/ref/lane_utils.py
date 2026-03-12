@@ -76,6 +76,56 @@ def _optional_string_list(value, context: str) -> list[str]:
     return _require_string_list(value, context)
 
 
+def _parse_secondary_entries(value, context: str) -> list[dict]:
+    if value in (None, []):
+        return []
+    if not isinstance(value, list):
+        raise LaneSpecError(f"{context} must be a list")
+
+    entries: list[dict] = []
+    for index, raw_entry in enumerate(value):
+        entry_context = f"{context}[{index}]"
+        defaults: list[str] = []
+        overrides: dict = {}
+        name_suffix = None
+        if isinstance(raw_entry, str):
+            defaults = _require_string_list(raw_entry, entry_context)
+        elif isinstance(raw_entry, dict):
+            raw_defaults = raw_entry.get("defaults")
+            if raw_defaults is not None:
+                defaults = _require_string_list(
+                    raw_defaults,
+                    f"{entry_context}.defaults",
+                )
+            raw_overrides = raw_entry.get("overrides", {})
+            overrides = _require_mapping(
+                raw_overrides,
+                f"{entry_context}.overrides",
+            )
+            raw_name_suffix = raw_entry.get("name_suffix")
+            if raw_name_suffix is not None:
+                name_suffix = _require_non_empty_string(
+                    raw_name_suffix,
+                    f"{entry_context}.name_suffix",
+                )
+        else:
+            raise LaneSpecError(f"{entry_context} must be a string or mapping")
+
+        if not defaults and not overrides:
+            raise LaneSpecError(
+                f"{entry_context} must define defaults and/or overrides"
+            )
+        entries.append(
+            {
+                "defaults": defaults,
+                "overrides": overrides,
+                "name_suffix": name_suffix,
+            }
+        )
+
+    return entries
+
+
 def _version_key(value: str) -> tuple[int, tuple[int, ...], str]:
     numbers = tuple(int(part) for part in re.findall(r"\d+", value))
     return (1 if numbers else 0, numbers, value)
@@ -100,21 +150,10 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         policy.get("base_defaults"),
         f"Lane file generated.policy.base_defaults: {lane_file}",
     )
-    secondary_defaults = _optional_string_list(
-        policy.get("secondary_defaults"),
-        f"Lane file generated.policy.secondary_defaults: {lane_file}",
+    secondary_entries = _parse_secondary_entries(
+        policy.get("secondary_entries"),
+        f"Lane file generated.policy.secondary_entries: {lane_file}",
     )
-    secondary_overrides = policy.get("secondary_overrides", {})
-    secondary_overrides = _require_mapping(
-        secondary_overrides,
-        f"Lane file generated.policy.secondary_overrides: {lane_file}",
-    )
-    secondary_name_suffix = policy.get("secondary_name_suffix")
-    if secondary_name_suffix is not None:
-        secondary_name_suffix = _require_non_empty_string(
-            secondary_name_suffix,
-            f"Lane file generated.policy.secondary_name_suffix: {lane_file}",
-        )
     secondary_scope = policy.get("secondary_scope", "none")
     secondary_scope = _require_non_empty_string(
         secondary_scope, f"Lane file generated.policy.secondary_scope: {lane_file}"
@@ -182,20 +221,6 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
             base_entry.pop("base_defaults", []),
             f"Lane file generated.platforms base_defaults for {platform_id}",
         )
-        entry_secondary_defaults = _optional_string_list(
-            base_entry.pop("secondary_defaults", []),
-            f"Lane file generated.platforms secondary_defaults for {platform_id}",
-        )
-        entry_secondary_overrides = _require_mapping(
-            base_entry.pop("secondary_overrides", {}),
-            f"Lane file generated.platforms secondary_overrides for {platform_id}",
-        )
-        entry_secondary_name_suffix = base_entry.pop("secondary_name_suffix", secondary_name_suffix)
-        if entry_secondary_name_suffix is not None:
-            entry_secondary_name_suffix = _require_non_empty_string(
-                entry_secondary_name_suffix,
-                f"Lane file generated.platforms secondary_name_suffix for {platform_id}",
-            )
         base_entry.pop("arches", None)
         base_entry["platform_id"] = platform_id
         merged_base_defaults = [*policy_base_defaults, *base_defaults]
@@ -204,10 +229,7 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         expanded.append(base_entry)
 
         include_secondary = False
-        effective_secondary_defaults = entry_secondary_defaults or secondary_defaults
-        effective_secondary_overrides = dict(secondary_overrides)
-        effective_secondary_overrides.update(entry_secondary_overrides)
-        if effective_secondary_defaults or effective_secondary_overrides:
+        if secondary_entries:
             if secondary_scope == "all":
                 include_secondary = True
             elif secondary_scope == "latest_only":
@@ -216,24 +238,30 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         if not include_secondary:
             continue
 
-        secondary_entry = dict(base_entry)
-        if effective_secondary_defaults:
-            secondary_entry["defaults"] = list(effective_secondary_defaults)
-        else:
-            secondary_entry.pop("defaults", None)
-        secondary_entry.update(effective_secondary_overrides)
-        if secondary_name_prefix is not None:
-            name_prefix = secondary_name_prefix
-            name_prefix = _require_non_empty_string(
-                name_prefix, f"Lane file generated.platforms name_prefix for {platform_id}"
-            )
-            suffix = entry_secondary_name_suffix
-            if suffix is None and effective_secondary_defaults:
-                suffix = " ".join(effective_secondary_defaults)
-            if suffix is None:
-                suffix = str(effective_secondary_overrides.get("architecture") or "").strip()
-            secondary_entry["name_prefix"] = f"{name_prefix} {suffix}".strip()
-        expanded.append(secondary_entry)
+        for secondary_spec in secondary_entries:
+            secondary_entry = dict(base_entry)
+            effective_secondary_defaults = list(secondary_spec["defaults"])
+            if effective_secondary_defaults:
+                secondary_entry["defaults"] = effective_secondary_defaults
+            else:
+                secondary_entry.pop("defaults", None)
+            secondary_entry.update(secondary_spec["overrides"])
+            if secondary_entry == base_entry:
+                continue
+            if secondary_name_prefix is not None:
+                name_prefix = secondary_name_prefix
+                name_prefix = _require_non_empty_string(
+                    name_prefix, f"Lane file generated.platforms name_prefix for {platform_id}"
+                )
+                suffix = secondary_spec["name_suffix"]
+                if suffix is None and effective_secondary_defaults:
+                    suffix = " ".join(effective_secondary_defaults)
+                if suffix is None:
+                    suffix = str(
+                        secondary_spec["overrides"].get("architecture") or ""
+                    ).strip()
+                secondary_entry["name_prefix"] = f"{name_prefix} {suffix}".strip()
+            expanded.append(secondary_entry)
 
     return expanded
 

@@ -1,4 +1,12 @@
 generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+      - defaults: arm32v7
+      - defaults: ppc64le
+      - defaults: riscv64
+      - defaults: s390x
   platforms:
     - platform_id: centos-7
       cmake_bin: cmake3

@@ -23,6 +23,16 @@ runners:
     platform_os: "ubuntu"
     platform_version: "22.04"
     arch: "x64"
+    capabilities:
+      native_platforms:
+        - "linux"
+      container_platforms:
+        - "linux"
+      container_emulated_arches:
+        - "arm32v7"
+        - "ppc64le"
+        - "riscv64"
+        - "s390x"
     source: "https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2204-Readme.md"
     availability:
       - "private"
@@ -61,6 +71,16 @@ runners:
     arch: "x64"
     aliases:
       - "ubuntu-latest"
+    capabilities:
+      native_platforms:
+        - "linux"
+      container_platforms:
+        - "linux"
+      container_emulated_arches:
+        - "arm32v7"
+        - "ppc64le"
+        - "riscv64"
+        - "s390x"
     source: "https://github.com/actions/runner-images/blob/main/images/ubuntu/Ubuntu2404-Readme.md"
     availability:
       - "private"

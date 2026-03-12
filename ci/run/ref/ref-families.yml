@@ -27,7 +27,24 @@ lane_defaults_shared:
       container_options: --platform linux/amd64
     arm64:
       runs_on: ubuntu-24.04-arm
+      architecture: arm64
       container_options: --platform linux/arm64/v8
+    arm32v7:
+      runs_on: ubuntu-22.04
+      architecture: arm32v7
+      container_options: --platform linux/arm/v7
+    ppc64le:
+      runs_on: ubuntu-22.04
+      architecture: ppc64le
+      container_options: --platform linux/ppc64le
+    riscv64:
+      runs_on: ubuntu-22.04
+      architecture: riscv64
+      container_options: --platform linux/riscv64
+    s390x:
+      runs_on: ubuntu-22.04
+      architecture: s390x
+      container_options: --platform linux/s390x
 
 families:
 - family: alpine

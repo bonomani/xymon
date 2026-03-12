@@ -18,18 +18,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: &id001
+        container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: &id002
+        container_runner_labels:
         - ubuntu-22.04-arm
         - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   almalinux-8:
     runtime: docker
     platform_os: almalinux
@@ -44,14 +50,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   almalinux-9:
     runtime: docker
     platform_os: almalinux
@@ -66,14 +82,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-3_19:
     runtime: docker
     platform_os: alpine
@@ -89,16 +115,29 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-3_20:
     runtime: docker
     platform_os: alpine
@@ -115,18 +154,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-3_21:
     runtime: docker
     platform_os: alpine
@@ -143,18 +198,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-3_22:
     runtime: docker
     platform_os: alpine
@@ -171,18 +242,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-3_23:
     runtime: docker
     platform_os: alpine
@@ -199,18 +286,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   alpine-edge:
     runtime: docker
     platform_os: alpine
@@ -227,18 +330,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   archlinux-base:
     runtime: docker
     platform_os: archlinux
@@ -250,7 +369,9 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   archlinux-latest:
     runtime: docker
     platform_os: archlinux
@@ -262,7 +383,9 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   centos-7:
     runtime: docker
     platform_os: centos
@@ -277,14 +400,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   debian-11:
     runtime: docker
     platform_os: debian
@@ -298,12 +431,19 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   debian-12:
     runtime: docker
     platform_os: debian
@@ -319,16 +459,29 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   debian-13:
     runtime: docker
     platform_os: debian
@@ -345,18 +498,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   fedora-40:
     runtime: docker
     platform_os: fedora
@@ -371,14 +540,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   fedora-41:
     runtime: docker
     platform_os: fedora
@@ -393,14 +572,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   fedora-42:
     runtime: docker
     platform_os: fedora
@@ -415,14 +604,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   freebsd-13_5:
     runtime: vm
     provider: cross-platform-actions
@@ -499,10 +698,10 @@ platforms:
     platform_version: '15'
     discovered_arches:
     - arm64
-    availability: &id003
+    availability: &id001
     - private
     - public
-    resources: &id004
+    resources: &id002
       private:
         cpu: 3 (M1)
         memory: 7 GB
@@ -543,8 +742,8 @@ platforms:
     platform_version: '15'
     discovered_arches:
     - arm64
-    availability: *id003
-    resources: *id004
+    availability: *id001
+    resources: *id002
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
     alias_of: macos-15
   netbsd-10_0:
@@ -682,16 +881,29 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   opensuse-leap-15_6:
     runtime: docker
     platform_os: opensuse_leap
@@ -706,14 +918,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   opensuse-leap-16_0:
     runtime: docker
     platform_os: opensuse_leap
@@ -727,12 +949,19 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   opensuse-tumbleweed:
     runtime: docker
     platform_os: opensuse_tumbleweed
@@ -749,18 +978,34 @@ platforms:
     host_support:
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   oraclelinux-10:
     runtime: docker
     platform_os: oraclelinux
@@ -773,10 +1018,14 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   oraclelinux-10-slim:
     runtime: docker
     platform_os: oraclelinux
@@ -789,10 +1038,14 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   oraclelinux-8:
     runtime: docker
     platform_os: oraclelinux
@@ -805,10 +1058,14 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   oraclelinux-9:
     runtime: docker
     platform_os: oraclelinux
@@ -821,10 +1078,14 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   rockylinux-8:
     runtime: docker
     platform_os: rockylinux
@@ -837,10 +1098,14 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   rockylinux-9:
     runtime: docker
     platform_os: rockylinux
@@ -855,14 +1120,24 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   ubuntu-20.04:
     runtime: docker
     platform_os: ubuntu
@@ -879,18 +1154,34 @@ platforms:
     host_support:
       amd64:
         direct_runner_labels: []
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels: []
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   ubuntu-22.04:
     runtime: docker
     platform_os: ubuntu
@@ -908,19 +1199,35 @@ platforms:
       amd64:
         direct_runner_labels:
         - ubuntu-22.04
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels:
         - ubuntu-22.04-arm
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
   ubuntu-24.04:
     runtime: docker
     platform_os: ubuntu
@@ -938,16 +1245,32 @@ platforms:
       amd64:
         direct_runner_labels:
         - ubuntu-24.04
-        container_runner_labels: *id001
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm32v7:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       arm64:
         direct_runner_labels:
         - ubuntu-24.04-arm
-        container_runner_labels: *id002
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
       ppc64le:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       riscv64:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
       s390x:
         direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04

@@ -1,7 +1,12 @@
 generated:
   policy:
-    secondary_defaults: arm64
     secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+      - defaults: arm32v7
+      - defaults: ppc64le
+      - defaults: riscv64
+      - defaults: s390x
   platforms:
     - platform_id: debian-13
       name_prefix: Debian 13.3-slim
