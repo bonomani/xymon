@@ -4,7 +4,7 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Service name from ci/deps/docker-matrix.yaml (platform_id resolved via platform-catalog), or all (comma-separated accepted).
+        description: Derived service name (<platform>-server-<build_tool>) from docker_build entries in ci/deps/platform-catalog.yaml, or all (comma-separated accepted).
         required: true
         type: string
         default: all
@@ -21,23 +21,6 @@ on:
         options:
           - "no"
           - "yes"
-  workflow_call:
-    inputs:
-      target:
-        description: Service name from ci/deps/docker-matrix.yaml (platform_id resolved via platform-catalog), or all (comma-separated accepted).
-        required: false
-        type: string
-        default: all
-      image_tag:
-        description: Image tag to publish/use. Empty = sha-<short>.
-        required: false
-        type: string
-        default: ""
-      push:
-        description: Push images to GHCR (no|yes).
-        required: false
-        type: string
-        default: "no"
 
 permissions:
   contents: read
@@ -57,33 +40,40 @@ jobs:
         with:
           fetch-depth: 1
 
-      - name: Ensure workflow parser dependency
-        shell: bash
-        run: |
-          set -euo pipefail
-          if python3 -c "import yaml" >/dev/null 2>&1; then
-            exit 0
-          fi
-          python3 -m pip install --user pyyaml
-
-      - name: Resolve docker build matrix
+      - name: Resolve docker execution model
         id: prepare
         shell: bash
-        env:
-          INPUT_TARGET: ${{ inputs.target }}
-          INPUT_IMAGE_TAG: ${{ inputs.image_tag }}
-          INPUT_PUSH: ${{ inputs.push }}
-          REPOSITORY_OWNER: ${{ github.repository_owner }}
         run: |
           set -euo pipefail
+          push_enabled=0
+          case "${{ inputs.push }}" in
+            yes)
+              push_enabled=1
+              ;;
+            no)
+              ;;
+            *)
+              echo "Unsupported push mode: ${{ inputs.push }}" >&2
+              exit 2
+              ;;
+          esac
+
+          image_tag="${{ inputs.image_tag }}"
+          if [[ -z "${image_tag}" ]]; then
+            if [[ -n "${GITHUB_SHA:-}" ]]; then
+              image_tag="sha-${GITHUB_SHA:0:12}"
+            else
+              image_tag="manual"
+            fi
+          fi
+
           python3 ci/run/docker/resolve-matrix.py \
-            --matrix-file ci/deps/docker-matrix.yaml \
-            --platform-catalog ci/deps/platform-catalog.yaml \
-            --target "${INPUT_TARGET}" \
-            --image-tag "${INPUT_IMAGE_TAG}" \
-            --push "${INPUT_PUSH}" \
-            --repo-owner "${REPOSITORY_OWNER}" \
+            --target "${{ inputs.target }}" \
             --github-output "${GITHUB_OUTPUT}"
+          {
+            echo "image_tag=${image_tag}"
+            echo "push_enabled=${push_enabled}"
+          } >> "${GITHUB_OUTPUT}"
 
       - name: Summary
         shell: bash
@@ -95,10 +85,12 @@ jobs:
   build:
     needs: prepare
     if: ${{ needs.prepare.outputs.matrix_count != '0' }}
-    runs-on: ubuntu-22.04
+    name: ${{ matrix.name }}
     strategy:
       fail-fast: false
+      max-parallel: 8
       matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    runs-on: ubuntu-22.04
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -120,7 +112,10 @@ jobs:
         uses: docker/build-push-action@v6
         with:
           context: .
-          file: ${{ matrix.dockerfile }}
+          file: docker/Dockerfile
           push: ${{ needs.prepare.outputs.push_enabled == '1' }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            BUILD_TOOL=${{ matrix.build_tool }}
           tags: |
-            ${{ matrix.image }}:${{ needs.prepare.outputs.image_tag }}
+            ghcr.io/${{ github.repository_owner }}/xymon-${{ matrix.name }}:${{ needs.prepare.outputs.image_tag }}

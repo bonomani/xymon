@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Discover Docker container images and BSD/macOS VM artifacts in one catalog."""
+"""Export raw Docker availability and repo-scoped platform availability."""
 
 from __future__ import annotations
 
@@ -20,7 +20,8 @@ CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
 PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
-OUTPUT = ROOT / ".github" / "data" / "platform-catalog-discovered.yml"
+DOCKER_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "docker-availability-raw.yml"
+PLATFORM_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "platform-availability.yml"
 REGISTRY_BASE = "https://registry-1.docker.io"
 TOKEN_URL = "https://auth.docker.io/token"
 DOCKER_HUB_TAG_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags/{tag}"
@@ -96,10 +97,10 @@ def load_yaml(path: Path, context: str) -> dict[str, Any]:
     return as_map(data, context)
 
 
-def load_existing_catalog() -> dict[str, Any]:
-    if not OUTPUT.exists():
+def load_existing_yaml(path: Path) -> dict[str, Any]:
+    if not path.exists():
         return {}
-    data = yaml.safe_load(OUTPUT.read_text(encoding="utf-8")) or {}
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
     if not isinstance(data, dict):
         return {}
     return data
@@ -262,7 +263,7 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     return normalized
 
 
-def load_container_catalog_entries() -> list[dict[str, Any]]:
+def load_docker_platform_entries() -> list[dict[str, Any]]:
     platform_catalog = load_static_platform_catalog()
     entries: list[dict[str, Any]] = []
     for platform_id, entry in sorted(platform_catalog.items()):
@@ -444,14 +445,10 @@ def load_host_runners() -> list[dict[str, Any]]:
     return normalized
 
 
-def render_yaml(intent_meta: dict[str, Any], containers: list[dict[str, Any]], vms: list[dict[str, Any]], runners: list[dict[str, Any]]) -> str:
+def render_mapping_yaml(intent_meta: dict[str, Any], platforms: dict[str, Any]) -> str:
     payload = {
         "source": intent_meta,
-        "platforms": {
-            "containers": containers,
-            "vms": vms,
-            "runners": runners,
-        },
+        "platforms": platforms,
     }
     return yaml.safe_dump(payload, sort_keys=False)
 
@@ -460,12 +457,9 @@ def build_cached_container_index(existing_catalog: dict[str, Any]) -> dict[str, 
     platforms = existing_catalog.get("platforms")
     if not isinstance(platforms, dict):
         return {}
-    containers = platforms.get("containers")
-    if not isinstance(containers, list):
-        return {}
 
     cached: dict[str, dict[str, Any]] = {}
-    for index, raw_entry in enumerate(containers):
+    for raw_entry in platforms.values():
         if not isinstance(raw_entry, dict):
             continue
         image = raw_entry.get("image")
@@ -478,26 +472,149 @@ def build_cached_container_index(existing_catalog: dict[str, Any]) -> dict[str, 
     return cached
 
 
+def build_host_runner_lookup(runners: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    lookup: dict[str, dict[str, Any]] = {}
+    for runner in runners:
+        label = field_str(runner, "label", f"runner {runner}")
+        lookup[label] = runner
+        raw_aliases = runner.get("aliases", [])
+        if raw_aliases is None:
+            continue
+        aliases = as_list(raw_aliases, f"runner {label}.aliases")
+        for alias in aliases:
+            alias_label = as_str(alias, f"runner {label}.aliases[]")
+            lookup.setdefault(alias_label, runner)
+    return lookup
+
+
+def build_platform_availability(
+    platform_catalog: dict[str, dict[str, Any]],
+    docker_platforms: dict[str, dict[str, Any]],
+    vm_entries: list[dict[str, Any]],
+    host_runners: list[dict[str, Any]],
+    runner_indexes: dict[str, dict[str, dict[str, list[str]]]],
+) -> dict[str, dict[str, Any]]:
+    vm_by_platform_id = {entry["platform_id"]: entry for entry in vm_entries}
+    host_runner_lookup = build_host_runner_lookup(host_runners)
+    availability: dict[str, dict[str, Any]] = {}
+
+    for platform_id, entry in sorted(platform_catalog.items()):
+        runtime = str(entry.get("runtime", "")).strip().lower()
+        if runtime == "docker":
+            docker_entry = docker_platforms.get(platform_id)
+            if docker_entry is None:
+                raise SystemExit(
+                    f"Missing docker availability entry for platform '{platform_id}'"
+                )
+            availability[platform_id] = {
+                "runtime": "docker",
+                "platform_os": docker_entry["platform_os"],
+                "platform_version": docker_entry["platform_version"],
+                "image": docker_entry["image"],
+                "digest": docker_entry["digest"],
+                "discovered_arches": list(docker_entry["discovered_arches"]),
+                "host_support": build_host_support(
+                    list(docker_entry["discovered_arches"]),
+                    runners=host_runners,
+                    runner_indexes=runner_indexes,
+                    platform_family="linux",
+                    platform_os=docker_entry["platform_os"],
+                    platform_version=docker_entry["platform_version"],
+                ),
+                **(
+                    {"alias_of": docker_entry["alias_of"]}
+                    if docker_entry.get("alias_of")
+                    else {}
+                ),
+            }
+            continue
+
+        if runtime == "vm":
+            vm_entry = vm_by_platform_id.get(platform_id)
+            if vm_entry is None:
+                raise SystemExit(
+                    f"Missing VM availability entry for platform '{platform_id}'"
+                )
+            record = {
+                "runtime": "vm",
+                "provider": vm_entry["provider"],
+                "os": vm_entry["os"],
+                "version": vm_entry["version"],
+                "source_arch": vm_entry["source_arch"],
+                "discovered_arches": list(vm_entry["discovered_arches"]),
+            }
+            for key in (
+                "repo",
+                "release_tag",
+                "release_url",
+                "asset_name",
+                "asset_url",
+                "asset_size",
+                "asset_updated_at",
+                "runner_label",
+                "alias_of",
+                "resolved_version",
+            ):
+                if vm_entry.get(key) not in (None, ""):
+                    record[key] = vm_entry[key]
+            availability[platform_id] = record
+            continue
+
+        if runtime == "host":
+            provider = field_str(entry, "provider", f"platform '{platform_id}'")
+            runner_label = field_str(entry, "runner", f"platform '{platform_id}'")
+            runner = host_runner_lookup.get(runner_label)
+            if runner is None:
+                raise SystemExit(
+                    f"Missing host runner metadata for platform '{platform_id}' runner '{runner_label}'"
+                )
+            record = {
+                "runtime": "host",
+                "provider": provider,
+                "runner_label": runner_label,
+                "resolved_runner_label": field_str(
+                    runner, "label", f"runner {runner_label}"
+                ),
+                "platform_os": field_str(runner, "platform_os", f"runner {runner_label}"),
+                "platform_version": field_str(
+                    runner, "platform_version", f"runner {runner_label}"
+                ),
+                "discovered_arches": [normalize_runner_architecture(runner)],
+            }
+            for key in ("availability", "resources", "source"):
+                if runner.get(key) is not None:
+                    record[key] = runner.get(key)
+            alias_of = optional_alias_of(entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+            if alias_of:
+                record["alias_of"] = alias_of
+            availability[platform_id] = record
+            continue
+
+        raise SystemExit(f"Unsupported runtime '{runtime}' for platform '{platform_id}'")
+
+    return availability
+
+
 def export_catalog(*, refresh_containers: bool = False):
-    container_entries = load_container_catalog_entries()
+    platform_catalog = load_static_platform_catalog()
+    docker_entries = load_docker_platform_entries()
     vm_entries = load_vm_catalog_entries()
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
-    cached_containers = build_cached_container_index(load_existing_catalog())
+    cached_containers = build_cached_container_index(
+        load_existing_yaml(DOCKER_AVAILABILITY_OUTPUT)
+    )
 
-    intent_meta = {
-        "container_intent": relative_to_root(CONTAINER_INTENT),
+    docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
-        "bsd_sources": relative_to_root(BSD_SOURCES),
-        "host_runner_catalog": relative_to_root(HOST_RUNNERS),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
         "container_cache_mode": "refresh" if refresh_containers else "reuse",
     }
 
-    containers: list[dict[str, Any]] = []
+    docker_platforms: dict[str, dict[str, Any]] = {}
     token_by_repository: dict[str, str] = {}
-    for release in container_entries:
+    for release in docker_entries:
         image = release["image"]
         repository = release["repository"]
         cached_entry = None if refresh_containers else cached_containers.get(image)
@@ -523,33 +640,22 @@ def export_catalog(*, refresh_containers: bool = False):
             content_type = str(cached_entry.get("content_type", ""))
             digest = str(cached_entry.get("digest", ""))
             discovered_arches = [str(arch) for arch in cached_entry.get("discovered_arches", [])]
-        containers.append(
-            {
-                "family": release["platform_os"],
-                "repository": release["repository"],
-                "repository_url": release["repository_url"],
-                "platform_id": release["platform_id"],
-                "platform_os": release["platform_os"],
-                "platform_version": release["platform_version"],
-                "image": image,
-                "deps": release["deps"],
-                "manifest_url": manifest_url,
-                "content_type": content_type,
-                "digest": digest,
-                "discovered_arches": discovered_arches,
-                "host_support": build_host_support(
-                    discovered_arches,
-                    runners=host_runners,
-                    runner_indexes=runner_indexes,
-                    platform_family=release["platform_family"],
-                    platform_os=release["platform_os"],
-                    platform_version=release["platform_version"],
-                ),
-                **({"alias_of": release["alias_of"]} if release.get("alias_of") else {}),
-            },
-        )
+        docker_platforms[release["platform_id"]] = {
+            "image": image,
+            "repository": release["repository"],
+            "repository_url": release["repository_url"],
+            "tag": release["tag"],
+            "platform_os": release["platform_os"],
+            "platform_version": release["platform_version"],
+            "deps": release["deps"],
+            "manifest_url": manifest_url,
+            "content_type": content_type,
+            "digest": digest,
+            "discovered_arches": discovered_arches,
+            **({"alias_of": release["alias_of"]} if release.get("alias_of") else {}),
+        }
 
-    vms: list[dict[str, Any]] = []
+    resolved_vm_platforms: list[dict[str, Any]] = []
     for entry in vm_entries:
         platform_id = entry["platform_id"]
         record = {
@@ -589,12 +695,31 @@ def export_catalog(*, refresh_containers: bool = False):
             record["alias_of"] = entry["alias_of"]
         if entry.get("resolved_version"):
             record["resolved_version"] = entry["resolved_version"]
-        vms.append(record)
+        resolved_vm_platforms.append(record)
 
-    runners = [dict(runner) for runner in host_runners]
+    platform_availability_meta = {
+        "platform_catalog": relative_to_root(PLATFORM_CATALOG),
+        "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
+        "bsd_sources": relative_to_root(BSD_SOURCES),
+        "host_runner_catalog": relative_to_root(HOST_RUNNERS),
+    }
+    platform_availability = build_platform_availability(
+        platform_catalog,
+        docker_platforms,
+        resolved_vm_platforms,
+        host_runners,
+        runner_indexes,
+    )
 
-    OUTPUT.parent.mkdir(parents=True, exist_ok=True)
-    OUTPUT.write_text(render_yaml(intent_meta, containers, vms, runners), encoding="utf-8")
+    DOCKER_AVAILABILITY_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    DOCKER_AVAILABILITY_OUTPUT.write_text(
+        render_mapping_yaml(docker_availability_meta, docker_platforms),
+        encoding="utf-8",
+    )
+    PLATFORM_AVAILABILITY_OUTPUT.write_text(
+        render_mapping_yaml(platform_availability_meta, platform_availability),
+        encoding="utf-8",
+    )
 
 
 def parse_args() -> argparse.Namespace:

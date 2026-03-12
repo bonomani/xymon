@@ -99,14 +99,12 @@ jobs:
         shell: bash
         env:
           RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
-          OUTCOME_CHANNEL: ${{ steps.lane_ctx.outputs.runtime_outcome_channel }}
           OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
         run: |
           set -euo pipefail
-          bash ci/run/ref/resolve-lane-outcome.sh \
+          python3 ci/run/ref/runtime_resolution.py outcome \
             --runtime "${RUNTIME}" \
-            --outcome-channel "${OUTCOME_CHANNEL}" \
             --outcome-host-container "${OUTCOME_HOST_CONTAINER}" \
             --outcome-bsd-vm "${OUTCOME_BSD_VM}" \
             --github-output "${GITHUB_OUTPUT}"

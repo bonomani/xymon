@@ -1,0 +1,953 @@
+source:
+  platform_catalog: ci/deps/platform-catalog.yaml
+  docker_availability_raw: .github/data/docker-availability-raw.yml
+  bsd_sources: ci/deps/platform-bsd-sources.yaml
+  host_runner_catalog: ci/deps/platform-host-runners.yaml
+platforms:
+  almalinux-10:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '10'
+    image: almalinux:10
+    digest: sha256:3ea6bed76e47c1a816ed7e1ed7be8661efcf6984bec90bcad5ec73b66b6754ce
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: &id001
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: &id002
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  almalinux-8:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '8'
+    image: almalinux:8
+    digest: sha256:9cf50481aca02c0112131e589e9eac358fb43977bcf2350b542a6de1d2484178
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  almalinux-9:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '9'
+    image: almalinux:9
+    digest: sha256:4e5f333756e39943fe66e3b55ee4c303805eebd7c6da372f07f2418f79b23d87
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-3_19:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.19'
+    image: alpine:3.19
+    digest: sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-3_20:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.20'
+    image: alpine:3.20
+    digest: sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-3_21:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.21'
+    image: alpine:3.21
+    digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-3_22:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.22'
+    image: alpine:3.22
+    digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-3_23:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.23'
+    image: alpine:3.23
+    digest: sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  alpine-edge:
+    runtime: docker
+    platform_os: alpine
+    platform_version: edge
+    image: alpine:edge
+    digest: sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  archlinux-base:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: base
+    image: archlinux:base
+    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
+    discovered_arches:
+    - amd64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+  archlinux-latest:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: latest
+    image: archlinux:latest
+    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
+    discovered_arches:
+    - amd64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+  centos-7:
+    runtime: docker
+    platform_os: centos
+    platform_version: '7'
+    image: centos:7
+    digest: sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+  debian-11:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.11-slim
+    image: debian:11.11-slim
+    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  debian-12:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.13-slim
+    image: debian:12.13-slim
+    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  debian-13:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.3-slim
+    image: debian:13.3-slim
+    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  fedora-40:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '40'
+    image: fedora:40
+    digest: sha256:3c86d25fef9d2001712bc3d9b091fc40cf04be4767e48f1aa3b785bf58d300ed
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  fedora-41:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '41'
+    image: fedora:41
+    digest: sha256:f1a3fab47bcb3c3ddf3135d5ee7ba8b7b25f2e809a47440936212a3a50957f3d
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  fedora-42:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '42'
+    image: fedora:42
+    digest: sha256:eb167a7adffa1489a205c83a7b9324e4cb0fae5c54645f263e70ac13f661f0e8
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  freebsd-13_5:
+    runtime: vm
+    provider: cross-platform-actions
+    os: freebsd
+    version: '13.5'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.13.1
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    asset_name: freebsd-13.5-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-13.5-x86-64.qcow2
+    asset_size: 524326400
+    asset_updated_at: '2025-12-12T19:23:24Z'
+  freebsd-14_3:
+    runtime: vm
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.3'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.13.1
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    asset_name: freebsd-14.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-14.3-x86-64.qcow2
+    asset_size: 467093504
+    asset_updated_at: '2025-12-12T18:21:44Z'
+  freebsd-15_0:
+    runtime: vm
+    provider: cross-platform-actions
+    os: freebsd
+    version: '15.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.13.1
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    asset_name: freebsd-15.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-15.0-x86-64.qcow2
+    asset_size: 397475840
+    asset_updated_at: '2025-12-12T18:26:22Z'
+  macos-14:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-14
+    resolved_runner_label: macos-14
+    platform_os: macos
+    platform_version: '14'
+    discovered_arches:
+    - arm64
+    availability:
+    - private
+    - public
+    resources:
+      private:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+  macos-15:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-15
+    resolved_runner_label: macos-15
+    platform_os: macos
+    platform_version: '15'
+    discovered_arches:
+    - arm64
+    availability: &id003
+    - private
+    - public
+    resources: &id004
+      private:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+  macos-26:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-26
+    resolved_runner_label: macos-26
+    platform_os: macos
+    platform_version: '26'
+    discovered_arches:
+    - arm64
+    availability:
+    - private
+    - public
+    resources:
+      private:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+  macos-latest:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-latest
+    resolved_runner_label: macos-15
+    platform_os: macos
+    platform_version: '15'
+    discovered_arches:
+    - arm64
+    availability: *id003
+    resources: *id004
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+    alias_of: macos-15
+  netbsd-10_0:
+    runtime: vm
+    provider: cross-platform-actions
+    os: netbsd
+    version: '10.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
+    asset_size: 492634112
+    asset_updated_at: '2025-12-03T17:23:36Z'
+  netbsd-10_1:
+    runtime: vm
+    provider: cross-platform-actions
+    os: netbsd
+    version: '10.1'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-10.1-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
+    asset_size: 493617152
+    asset_updated_at: '2025-12-03T17:23:52Z'
+  netbsd-9_2:
+    runtime: vm
+    provider: cross-platform-actions
+    os: netbsd
+    version: '9.2'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.2-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
+    asset_size: 398655488
+    asset_updated_at: '2025-12-03T17:24:04Z'
+  netbsd-9_3:
+    runtime: vm
+    provider: cross-platform-actions
+    os: netbsd
+    version: '9.3'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
+    asset_size: 399114240
+    asset_updated_at: '2025-12-03T17:23:14Z'
+  netbsd-9_4:
+    runtime: vm
+    provider: cross-platform-actions
+    os: netbsd
+    version: '9.4'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v0.5.1
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
+    asset_name: netbsd-9.4-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
+    asset_size: 407240704
+    asset_updated_at: '2025-12-03T17:23:15Z'
+  openbsd-7_6:
+    runtime: vm
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.6'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.6-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.6-x86-64.qcow2
+    asset_size: 705101824
+    asset_updated_at: '2025-12-12T19:20:55Z'
+  openbsd-7_7:
+    runtime: vm
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.7'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.7-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.7-x86-64.qcow2
+    asset_size: 772931584
+    asset_updated_at: '2025-12-12T18:11:49Z'
+  openbsd-7_8:
+    runtime: vm
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.8'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.11.1
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    asset_name: openbsd-7.8-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.8-x86-64.qcow2
+    asset_size: 687276032
+    asset_updated_at: '2025-12-12T18:49:09Z'
+  opensuse-leap-15_5:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '15.5'
+    image: opensuse/leap:15.5
+    digest: sha256:9bd49bd34edb6cc81a47133201f5e7720db3e95ad86eccc4b05afcd83e49dd89
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - arm32v7
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      arm32v7:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  opensuse-leap-15_6:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '15.6'
+    image: opensuse/leap:15.6
+    digest: sha256:b084d6e29d975ce9123fd52bd201ac020628797f2772e9171ef76f33cc92d591
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  opensuse-leap-16_0:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '16.0'
+    image: opensuse/leap:16.0
+    digest: sha256:859560554b625c225fa767b76d61253d529b95d082c2d68579ad69168d5e3da7
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+  opensuse-tumbleweed:
+    runtime: docker
+    platform_os: opensuse_tumbleweed
+    platform_version: latest
+    image: opensuse/tumbleweed:latest
+    digest: sha256:9a72a269bb951bff5437c532bf635b2b16213753033ba8dcc79649ee59a55b9b
+    discovered_arches:
+    - s390x
+    - amd64
+    - ppc64le
+    - arm64
+    - arm32v7
+    - riscv64
+    host_support:
+      s390x:
+        direct_runner_labels: []
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      ppc64le:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      arm32v7:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+  oraclelinux-10:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '10'
+    image: oraclelinux:10
+    digest: sha256:52f0a59393f919916824ad4a2991263502e5c35de772a81c284e9bb0e2edc62e
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  oraclelinux-10-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 10-slim
+    image: oraclelinux:10-slim
+    digest: sha256:5919fae396097046e16ce28cb4bf231cddcc40b3e5e45a7e8a97497e79985743
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  oraclelinux-8:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '8'
+    image: oraclelinux:8
+    digest: sha256:64430839b73647a5fd3e91eb2b15196d3f2caa62d73ba2bac88aebb855e2c337
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  oraclelinux-9:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '9'
+    image: oraclelinux:9
+    digest: sha256:16d4ad141e163e32693801932e07abd0981dcd815953be135bbd6e3d78fd10d6
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  rockylinux-8:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '8'
+    image: rockylinux:8
+    digest: sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+  rockylinux-9:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '9'
+    image: rockylinux:9
+    digest: sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  ubuntu-20.04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '20.04'
+    image: ubuntu:20.04
+    digest: sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  ubuntu-22.04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '22.04'
+    image: ubuntu:22.04
+    digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-22.04
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels:
+        - ubuntu-22.04-arm
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
+  ubuntu-24.04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '24.04'
+    image: ubuntu:24.04
+    digest: sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-24.04
+        container_runner_labels: *id001
+      arm32v7:
+        direct_runner_labels: []
+      arm64:
+        direct_runner_labels:
+        - ubuntu-24.04-arm
+        container_runner_labels: *id002
+      ppc64le:
+        direct_runner_labels: []
+      riscv64:
+        direct_runner_labels: []
+      s390x:
+        direct_runner_labels: []
