@@ -17,6 +17,9 @@ on:
           - all
           - deb
           - rpm
+          - arch
+          - apk
+          - pkg
   push:
     tags:
       - 'rel-*'
@@ -72,6 +75,7 @@ jobs:
           fetch-depth: 1
 
       - name: Install packaging dependencies
+        if: ${{ matrix.execution == 'host' && matrix.host_packages != '' }}
         shell: bash
         env:
           HOST_PACKAGES: ${{ matrix.host_packages }}
@@ -81,11 +85,28 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends "${packages[@]}"
 
-      - name: Build package artifacts
+      - name: Build package artifacts on host runner
+        if: ${{ matrix.execution == 'host' }}
         shell: bash
         run: |
           set -euo pipefail
           bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"
+
+      - name: Build package artifacts on BSD VM
+        if: ${{ matrix.execution == 'bsd_vm' }}
+        uses: ./.github/actions/run-bsd-vm-with-retry
+        with:
+          operating_system: ${{ matrix.vm_operating_system }}
+          architecture: ${{ matrix.vm_architecture }}
+          version: ${{ matrix.vm_version }}
+          shell: ${{ matrix.vm_shell }}
+          memory: ${{ matrix.vm_memory }}
+          cpu_count: ${{ matrix.vm_cpu_count }}
+          sync_files: true
+          shutdown_vm: true
+          run_script: |
+            set -euo pipefail
+            bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"
 
       - name: Upload package artifacts
         uses: actions/upload-artifact@v6

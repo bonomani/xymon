@@ -1,47 +1,18 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-release_version=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ci/run/package/common.sh
+source "${SCRIPT_DIR}/common.sh"
 
-usage() {
-  cat <<'USAGE' >&2
-Usage: build-rpm.sh --release VERSION
-USAGE
-  exit 2
-}
+package_parse_release_args "$@"
+package_require_tools git rpmbuild sed tar
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --release)
-      release_version="${2:-}"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      usage
-      ;;
-  esac
-done
-
-if [[ -z "${release_version}" ]]; then
-  echo "Missing --release" >&2
-  usage
-fi
-
-for tool in git rpmbuild sed tar; do
-  if ! command -v "${tool}" >/dev/null 2>&1; then
-    echo "Required tool not found: ${tool}" >&2
-    exit 1
-  fi
-done
-
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+release_version="${PACKAGE_RELEASE_VERSION}"
+repo_root="$(package_repo_root)"
 rpm_root="${repo_root}/rpmbuild"
 
-rm -rf "${rpm_root}"
+package_prepare_clean_dir "${rpm_root}"
 mkdir -p \
   "${rpm_root}/BUILD" \
   "${rpm_root}/BUILDROOT" \

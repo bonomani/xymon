@@ -1,49 +1,19 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
-release_version=""
+SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
+# shellcheck source=ci/run/package/common.sh
+source "${SCRIPT_DIR}/common.sh"
 
-usage() {
-  cat <<'USAGE' >&2
-Usage: build-deb.sh --release VERSION
-USAGE
-  exit 2
-}
+package_parse_release_args "$@"
+package_require_tools git dpkg-buildpackage fakeroot tar make awk
 
-while [[ $# -gt 0 ]]; do
-  case "$1" in
-    --release)
-      release_version="${2:-}"
-      shift 2
-      ;;
-    -h|--help)
-      usage
-      ;;
-    *)
-      echo "Unknown argument: $1" >&2
-      usage
-      ;;
-  esac
-done
-
-if [[ -z "${release_version}" ]]; then
-  echo "Missing --release" >&2
-  usage
-fi
-
-for tool in git dpkg-buildpackage fakeroot tar; do
-  if ! command -v "${tool}" >/dev/null 2>&1; then
-    echo "Required tool not found: ${tool}" >&2
-    exit 1
-  fi
-done
-
-repo_root="$(cd "$(dirname "${BASH_SOURCE[0]}")/../../.." && pwd)"
+release_version="${PACKAGE_RELEASE_VERSION}"
+repo_root="$(package_repo_root)"
 stage_root="${repo_root}/debbuild"
 source_dir="${stage_root}/xymon-${release_version}"
 
-rm -rf "${stage_root}"
-mkdir -p "${stage_root}"
+package_prepare_clean_dir "${stage_root}"
 
 git -C "${repo_root}" archive --format=tar --prefix="xymon-${release_version}/" HEAD | tar -xf - -C "${stage_root}"
 

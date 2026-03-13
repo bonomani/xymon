@@ -35,7 +35,7 @@ def parse_args() -> argparse.Namespace:
 
 def normalize_package_set(raw_value: str) -> str:
     value = str(raw_value or "all").strip().lower()
-    if value not in {"all", "deb", "rpm"}:
+    if value not in {"all", "deb", "rpm", "arch", "apk", "pkg"}:
         die(f"Unsupported package_set: {value}")
     return value
 
@@ -65,8 +65,12 @@ def load_packaging_config() -> dict[str, dict]:
 
 def resolve_host_packages(workflow: dict, package_kind: str) -> str:
     packages = workflow.get("host_packages")
-    if not isinstance(packages, list) or not packages:
-        die(f"Missing workflow.host_packages for package kind: {package_kind}")
+    if packages is None:
+        return ""
+    if not isinstance(packages, list):
+        die(f"Invalid workflow.host_packages for package kind: {package_kind}")
+    if not packages:
+        return ""
 
     normalized: list[str] = []
     seen: set[str] = set()
@@ -86,7 +90,7 @@ def build_matrix(
     package_set: str,
     release_version: str,
 ) -> dict[str, list[dict[str, str]]]:
-    selected = ["deb", "rpm"] if package_set == "all" else [package_set]
+    selected = ["deb", "rpm", "arch", "apk", "pkg"] if package_set == "all" else [package_set]
     include: list[dict[str, str]] = []
     for kind in selected:
         raw_entry = packaging_config.get(kind)
@@ -99,20 +103,39 @@ def build_matrix(
         build_script = str(workflow.get("build_script") or "").strip()
         artifact_prefix = str(workflow.get("artifact_name_prefix") or "").strip()
         artifact_paths = workflow.get("artifact_paths")
+        execution = str(workflow.get("execution") or "host").strip().lower()
         if not build_script or not artifact_prefix:
             die(f"Incomplete workflow metadata for package kind: {kind}")
         if not isinstance(artifact_paths, list):
             die(f"Invalid artifact paths for package kind: {kind}")
+        if execution not in {"host", "bsd_vm"}:
+            die(f"Unsupported workflow.execution for package kind '{kind}': {execution}")
         host_packages = resolve_host_packages(workflow, kind)
-        include.append(
-            {
-                "name": kind,
-                "build_script": build_script,
-                "artifact_name": f"{artifact_prefix}_{release_version}",
-                "artifact_paths": "\n".join(str(path) for path in artifact_paths),
-                "host_packages": host_packages,
-            }
-        )
+        entry = {
+            "name": kind,
+            "execution": execution,
+            "build_script": build_script,
+            "artifact_name": f"{artifact_prefix}_{release_version}",
+            "artifact_paths": "\n".join(str(path) for path in artifact_paths),
+            "host_packages": host_packages,
+        }
+        if execution == "bsd_vm":
+            vm = workflow.get("vm")
+            if not isinstance(vm, dict):
+                die(f"Missing workflow.vm metadata for package kind: {kind}")
+            for field_name, output_name in (
+                ("operating_system", "vm_operating_system"),
+                ("version", "vm_version"),
+                ("architecture", "vm_architecture"),
+                ("shell", "vm_shell"),
+                ("memory", "vm_memory"),
+                ("cpu_count", "vm_cpu_count"),
+            ):
+                value = str(vm.get(field_name) or "").strip()
+                if not value:
+                    die(f"Missing workflow.vm.{field_name} for package kind: {kind}")
+                entry[output_name] = value
+        include.append(entry)
     return {"include": include}
 
 
