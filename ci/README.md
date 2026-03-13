@@ -74,6 +74,10 @@ bash ci/run/tests/test-cmake-bsdlocal.sh
 This covers the local-only `bsdlocal` preset and the fallback path used when
 the host CMake version is older than 3.23.
 
+If you need to override the BSD local roots through the local wrappers, export
+`XYMON_BSD_LOCALBASE` and `XYMON_BSD_LOCALSTATEDIR` before running the CMake
+configure helpers.
+
 ## Legacy Makefile variants
 
 Legacy builds use three variants that map to Makefile variables as follows:

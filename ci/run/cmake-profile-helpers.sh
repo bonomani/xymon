@@ -143,3 +143,16 @@ resolve_cmake_httpdgid_chgrp() {
       ;;
   esac
 }
+
+emit_local_cmake_profile_cache_args() {
+  case "$1" in
+    bsdlocal)
+      if [[ -n "${XYMON_BSD_LOCALBASE:-}" ]]; then
+        printf '%s\n' "-DXYMON_BSD_LOCALBASE=${XYMON_BSD_LOCALBASE}"
+      fi
+      if [[ -n "${XYMON_BSD_LOCALSTATEDIR:-}" ]]; then
+        printf '%s\n' "-DXYMON_BSD_LOCALSTATEDIR=${XYMON_BSD_LOCALSTATEDIR}"
+      fi
+      ;;
+  esac
+}
