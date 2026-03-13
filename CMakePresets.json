@@ -33,7 +33,8 @@
       "binaryDir": "${sourceDir}/build-cmake-bsdlocal",
       "cacheVariables": {
         "USE_GNUINSTALLDIRS": "OFF",
-        "XYMON_LAYOUT": "bsd_local"
+        "XYMON_LAYOUT": "bsd_local",
+        "CMAKE_INSTALL_PREFIX": "/usr/local"
       }
     },
     {

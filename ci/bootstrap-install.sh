@@ -188,15 +188,11 @@ normalize_profile() {
       CMAKE_PRESET=""
       ;;
     cmake)
-      case "${BUILD_PROFILE}" in
-        default|gnuinstall|packaging)
-          ;;
-        *)
-          echo "Unsupported --profile value for cmake: ${BUILD_PROFILE}" >&2
-          exit 1
-          ;;
-      esac
       CMAKE_PRESET="$(resolve_cmake_effective_profile "${BUILD_PROFILE}" "${PLATFORM_OS}")"
+      if ! is_supported_local_cmake_profile "${CMAKE_PRESET}"; then
+        echo "Unsupported --profile value for cmake: ${BUILD_PROFILE}" >&2
+        exit 1
+      fi
       ;;
   esac
 }

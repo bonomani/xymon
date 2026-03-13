@@ -65,6 +65,15 @@ Use `bash ci/run/lint.sh --changed [BASE_REF]` to lint only changed shell script
 Set `LINT_ACTIONLINT_WITH_SHELLCHECK=1` to also lint workflow `run:` blocks via actionlint's shellcheck integration.
 By default it runs shellcheck at severity `error`; set `LINT_SHELLCHECK_SEVERITY=warning` for stricter local cleanup.
 
+For targeted script regression checks, run:
+
+```
+bash ci/run/tests/test-cmake-bsdlocal.sh
+```
+
+This covers the local-only `bsdlocal` preset and the fallback path used when
+the host CMake version is older than 3.23.
+
 ## Legacy Makefile variants
 
 Legacy builds use three variants that map to Makefile variables as follows:
