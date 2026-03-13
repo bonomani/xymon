@@ -282,8 +282,11 @@ execute_process(
     OUTPUT_VARIABLE _BB_COMMANDS
     RESULT_VARIABLE _BB_COMMANDS_RESULT
 )
+set(_XYMOND_BB_COMMANDS_FILE "${CMAKE_CURRENT_BINARY_DIR}/bb-commands.txt")
+file(WRITE "${_XYMOND_BB_COMMANDS_FILE}" "")
 if(_BB_COMMANDS_RESULT EQUAL 0)
     file(APPEND ${XYMOND_CFGDIR}/xymonserver.cfg "${_BB_COMMANDS}")
+    file(APPEND "${_XYMOND_BB_COMMANDS_FILE}" "${_BB_COMMANDS}")
 endif()
 
 configure_file(
@@ -366,24 +369,14 @@ install(TARGETS
     trimhistory
     convertnk
     rrdcachectl
-    RUNTIME DESTINATION ${INSTALLBINDIR}
+    RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
 )
 
 if(TARGET xymond_rrd)
     install(TARGETS xymond_rrd
-        RUNTIME DESTINATION ${INSTALLBINDIR}
+        RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
     )
 endif()
-
-install(FILES
-    ${XYMOND_CFGDIR}/xymon-apache.conf
-    ${XYMOND_CFGDIR}/xymonserver.cfg
-    ${XYMOND_CFGDIR}/hosts.cfg
-    ${XYMOND_CFGDIR}/alerts.cfg
-    ${XYMOND_CFGDIR}/tasks.cfg
-    ${XYMOND_CFGDIR}/cgioptions.cfg
-    DESTINATION ${INSTALLETCDIR}
-)
 
 set(_LEGACY_ETC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/analysis.cfg
@@ -397,38 +390,109 @@ set(_LEGACY_ETC_FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/client-local.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/columndoc.csv
 )
-install(FILES ${_LEGACY_ETC_FILES}
-    DESTINATION ${INSTALLETCDIR}
-)
 
-install(PROGRAMS
-    ${CMAKE_CURRENT_BINARY_DIR}/xymon.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/xymonreports.sh
-    ${CMAKE_CURRENT_BINARY_DIR}/moverrd.sh
-    DESTINATION ${INSTALLBINDIR}
-)
+if(XYMON_LAYOUT STREQUAL "fhs")
+    set(_XYMOND_FHS_INSTALL_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/install-fhs-generated.cmake")
+    set(_XYMOND_LEGACY_ETC_FILES "${_LEGACY_ETC_FILES}")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/XymondInstallFhs.cmake.in"
+        "${_XYMOND_FHS_INSTALL_SCRIPT}"
+        @ONLY
+    )
+    install(SCRIPT "${_XYMOND_FHS_INSTALL_SCRIPT}")
+else()
+    install(FILES
+        ${XYMOND_CFGDIR}/xymon-apache.conf
+        ${XYMOND_CFGDIR}/xymonserver.cfg
+        ${XYMOND_CFGDIR}/hosts.cfg
+        ${XYMOND_CFGDIR}/alerts.cfg
+        ${XYMOND_CFGDIR}/tasks.cfg
+        ${XYMOND_CFGDIR}/cgioptions.cfg
+        DESTINATION ${INSTALLETCDIR_DEST}
+    )
+endif()
+
+if(NOT XYMON_LAYOUT STREQUAL "fhs")
+    install(FILES ${_LEGACY_ETC_FILES}
+        DESTINATION ${INSTALLETCDIR_DEST}
+    )
+endif()
+
+if(NOT XYMON_LAYOUT STREQUAL "fhs")
+    install(PROGRAMS
+        ${CMAKE_CURRENT_BINARY_DIR}/xymon.sh
+        ${CMAKE_CURRENT_BINARY_DIR}/xymonreports.sh
+        ${CMAKE_CURRENT_BINARY_DIR}/moverrd.sh
+        DESTINATION ${INSTALLBINDIR_DEST}
+    )
+endif()
+
+if(NOT XYMON_LAYOUT STREQUAL "fhs")
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/webfiles/
+        DESTINATION ${INSTALLWEBDIR_DEST}
+        USE_SOURCE_PERMISSIONS
+        PATTERN "RCS" EXCLUDE
+        PATTERN ".svn" EXCLUDE
+        PATTERN "*.DIST" EXCLUDE
+    )
+
+    install(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/wwwfiles/
+        DESTINATION ${INSTALLWWWDIR_DEST}
+        USE_SOURCE_PERMISSIONS
+        PATTERN "RCS" EXCLUDE
+        PATTERN ".svn" EXCLUDE
+        PATTERN "*.DIST" EXCLUDE
+    )
+endif()
 
 file(GLOB _XYMOND_MAN1 "${CMAKE_CURRENT_SOURCE_DIR}/*.1")
 file(GLOB _XYMOND_MAN5 "${CMAKE_CURRENT_SOURCE_DIR}/*.5")
 file(GLOB _XYMOND_MAN8 "${CMAKE_CURRENT_SOURCE_DIR}/*.8")
 if(XYMON_INSTALL_MANPAGES)
     install(FILES ${_XYMOND_MAN1}
-        DESTINATION ${XYMONHOME}/man/man1
+        DESTINATION ${INSTALLMAN1DIR_DEST}
     )
     install(FILES ${_XYMOND_MAN5}
-        DESTINATION ${XYMONHOME}/man/man5
+        DESTINATION ${INSTALLMAN5DIR_DEST}
     )
     install(FILES ${_XYMOND_MAN8}
-        DESTINATION ${XYMONHOME}/man/man8
+        DESTINATION ${INSTALLMAN8DIR_DEST}
     )
 endif()
 
 install(CODE "
-set(_dest \"\$ENV{DESTDIR}\")
-if(_dest STREQUAL \"\")
-  set(_dest \"\")
-endif()
-set(_etc \"\${_dest}${INSTALLETCDIR}\")
+include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
+xymon_resolve_install_path(_server_root \"${XYMONHOME_INSTALL_DEST}\")
+xymon_resolve_install_path(_xymonvar \"${XYMONVAR_INSTALL_DEST}\")
+xymon_resolve_install_path(_xymonlogdir \"${XYMONLOGDIR_INSTALL_DEST}\")
+xymon_resolve_install_path(_installtmpdir \"${INSTALLTMPDIR_DEST}\")
+xymon_resolve_install_path(_installwebdir \"${INSTALLWEBDIR_DEST}\")
+xymon_resolve_install_path(_installwwwdir \"${INSTALLWWWDIR_DEST}\")
+xymon_resolve_install_path(_etc \"${INSTALLETCDIR_DEST}\")
+file(MAKE_DIRECTORY
+  \"\${_server_root}/download\"
+  \"\${_xymonvar}\"
+  \"\${_xymonvar}/acks\"
+  \"\${_xymonvar}/data\"
+  \"\${_xymonvar}/disabled\"
+  \"\${_xymonvar}/hist\"
+  \"\${_xymonvar}/histlogs\"
+  \"\${_xymonvar}/hostdata\"
+  \"\${_xymonvar}/logs\"
+  \"\${_xymonvar}/rrd\"
+  \"\${_xymonlogdir}\"
+  \"\${_installtmpdir}\"
+  \"\${_installwebdir}\"
+  \"\${_installwwwdir}\"
+  \"\${_installwwwdir}/gifs\"
+  \"\${_installwwwdir}/help\"
+  \"\${_installwwwdir}/html\"
+  \"\${_installwwwdir}/menu\"
+  \"\${_installwwwdir}/notes\"
+  \"\${_installwwwdir}/rep\"
+  \"\${_installwwwdir}/snap\"
+  \"\${_installwwwdir}/wml\"
+)
 set(_critical_cfg \"\${_etc}/critical.cfg\")
 set(_critical_cfg_bak \"\${_etc}/critical.cfg.bak\")
 if(EXISTS \"\${_critical_cfg}\")
@@ -440,15 +504,16 @@ endif()
 execute_process(COMMAND chmod 664 \"\${_critical_cfg}\")
 execute_process(COMMAND chmod 664 \"\${_critical_cfg_bak}\")
 file(MAKE_DIRECTORY \"\${_etc}/tasks.d\")
-set(_server_root \"\${_dest}${XYMONHOME}\")
 if(EXISTS \"\${_server_root}/bin/xymon.sh\")
   execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"bin/xymon.sh\" \"\${_server_root}/xymon.sh\")
 endif()
 ")
 
 install(CODE "
+include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
+xymon_resolve_runtime_path(_installwwwdir \"${INSTALLWWWDIR_DEST}\")
 if(HTTPDGID_CHGRP AND NOT \"${HTTPDGID}\" STREQUAL \"\")
-  foreach(_dir \"${INSTALLWWWDIR}/rep\" \"${INSTALLWWWDIR}/snap\")
+  foreach(_dir \"\${_installwwwdir}/rep\" \"\${_installwwwdir}/snap\")
     if(EXISTS \"\$ENV{DESTDIR}\${_dir}\")
       execute_process(
         COMMAND chgrp \"${HTTPDGID}\" \"\$ENV{DESTDIR}\${_dir}\"

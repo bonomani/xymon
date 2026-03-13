@@ -174,7 +174,7 @@ endforeach()
 
 install(TARGETS
     ${_CLIENT_PROGRAM_TARGETS}
-    RUNTIME DESTINATION ${XYMONCLIENTHOME}/bin
+    RUNTIME DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/bin
 )
 
 file(GLOB _CLIENT_SCRIPTS
@@ -184,11 +184,11 @@ file(GLOB _CLIENT_SCRIPTS
 
 install(PROGRAMS
     ${_CLIENT_SCRIPTS}
-    DESTINATION ${XYMONCLIENTHOME}/bin
+    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/bin
 )
 install(PROGRAMS
     ${CMAKE_CURRENT_SOURCE_DIR}/runclient.sh
-    DESTINATION ${XYMONCLIENTHOME}
+    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}
 )
 
 # Keep client cfg generation aligned with legacy Make:
@@ -226,20 +226,17 @@ install(FILES
     ${_clientlaunch_src}
     ${_xymonclient_src}
     ${CMAKE_CURRENT_SOURCE_DIR}/localclient.cfg
-    DESTINATION ${XYMONCLIENTHOME}/etc
+    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/etc
 )
 install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/README-local
-    DESTINATION ${XYMONCLIENTHOME}/local
+    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/local
     RENAME README
 )
 
 install(CODE "
-    set(_dest \"\$ENV{DESTDIR}\")
-    if(_dest STREQUAL \"\")
-        set(_dest \"\")
-    endif()
-    set(_clientroot \"\${_dest}${XYMONCLIENTHOME}\")
+    include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
+    xymon_resolve_install_path(_clientroot \"${XYMONCLIENTHOME_INSTALL_DEST}\")
     file(MAKE_DIRECTORY
         \"\${_clientroot}\"
         \"\${_clientroot}/etc\"

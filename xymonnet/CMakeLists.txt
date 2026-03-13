@@ -132,7 +132,7 @@ if(ENABLE_SNMP)
         )
         if(INSTALL_EXTRA)
             install(TARGETS xymon-snmpcollect
-                RUNTIME DESTINATION ${INSTALLBINDIR}
+                RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
             )
         endif()
     else()
@@ -141,18 +141,28 @@ if(ENABLE_SNMP)
 endif()
 
 install(TARGETS xymonnet xymonping beastat
-    RUNTIME DESTINATION ${INSTALLBINDIR}
+    RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
 )
 if(INSTALL_EXTRA)
     install(TARGETS contest
-        RUNTIME DESTINATION ${INSTALLBINDIR}
+        RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
     )
 endif()
 
-install(FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg
-    DESTINATION ${INSTALLETCDIR}
-)
+if(XYMON_LAYOUT STREQUAL "fhs")
+    set(_XYMONNET_FHS_INSTALL_SCRIPT "${CMAKE_CURRENT_BINARY_DIR}/install-fhs-protocols.cmake")
+    configure_file(
+        "${CMAKE_SOURCE_DIR}/cmake/XymonnetInstallFhs.cmake.in"
+        "${_XYMONNET_FHS_INSTALL_SCRIPT}"
+        @ONLY
+    )
+    install(SCRIPT "${_XYMONNET_FHS_INSTALL_SCRIPT}")
+else()
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg
+        DESTINATION ${INSTALLETCDIR_DEST}
+    )
+endif()
 set(_xymonnet_again_src "${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh")
 if(NOT EXISTS "${_xymonnet_again_src}")
     set(_xymonnet_again_src "${CMAKE_CURRENT_BINARY_DIR}/xymonnet-again.sh")
@@ -169,7 +179,7 @@ endif()
 
 install(PROGRAMS
     ${_xymonnet_again_src}
-    DESTINATION ${INSTALLEXTDIR}
+    DESTINATION ${INSTALLEXTDIR_DEST}
 )
 
 if(XYMON_INSTALL_MANPAGES)
@@ -177,10 +187,10 @@ if(XYMON_INSTALL_MANPAGES)
         ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet.1
         ${CMAKE_CURRENT_SOURCE_DIR}/xymonping.1
         ${CMAKE_CURRENT_SOURCE_DIR}/xymonnet-again.sh.1
-        DESTINATION ${XYMONHOME}/man/man1
+        DESTINATION ${INSTALLMAN1DIR_DEST}
     )
     install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/protocols.cfg.5
-        DESTINATION ${XYMONHOME}/man/man5
+        DESTINATION ${INSTALLMAN5DIR_DEST}
     )
 endif()

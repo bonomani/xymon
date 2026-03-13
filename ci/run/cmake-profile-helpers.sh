@@ -98,10 +98,10 @@ resolve_cmake_use_gnuinstalldirs() {
 
 resolve_cmake_install_prefix() {
   case "$1" in
-    packaging)
+    gnuinstall|packaging)
       printf '%s' "/usr"
       ;;
-    default|macostree|gnuinstall)
+    default|macostree)
       printf '%s' "/"
       ;;
     *)

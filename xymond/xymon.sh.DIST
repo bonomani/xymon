@@ -34,7 +34,7 @@ case "$1" in
 		fi
 	fi
 
-	@RUNTIMEDEFS@ @XYMONHOME@/bin/xymonlaunch --config=@XYMONHOME@/etc/tasks.cfg --env=@XYMONHOME@/etc/xymonserver.cfg --log=@XYMONLOGDIR@/xymonlaunch.log --pidfile=@XYMONLOGDIR@/xymonlaunch.pid
+		@RUNTIMEDEFS@ @XYMONHOME@/bin/xymonlaunch --config=@INSTALLETCDIR@/tasks.cfg --env=@INSTALLETCDIR@/xymonserver.cfg --log=@XYMONLOGDIR@/xymonlaunch.log --pidfile=@XYMONLOGDIR@/xymonlaunch.pid
 	echo "Xymon started"
 	;;
 
@@ -102,4 +102,3 @@ case "$1" in
 esac
 
 exit 0
-

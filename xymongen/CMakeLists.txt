@@ -30,12 +30,12 @@ target_link_libraries(xymongen
 )
 
 install(TARGETS xymongen
-    RUNTIME DESTINATION ${INSTALLBINDIR}
+    RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
 )
 
 if(XYMON_INSTALL_MANPAGES)
     install(FILES
         ${CMAKE_CURRENT_SOURCE_DIR}/xymongen.1
-        DESTINATION ${XYMONHOME}/man/man1
+        DESTINATION ${INSTALLMAN1DIR_DEST}
     )
 endif()
