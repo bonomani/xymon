@@ -58,6 +58,8 @@ EOF
     PATH="${tmpdir}:${PATH}" \
       PROFILE=bsdlocal \
       PLATFORM_OS=linux \
+      XYMON_BSD_LOCALBASE=/opt/local \
+      XYMON_BSD_LOCALSTATEDIR=/var/db \
       ENABLE_SSL=ON \
       ENABLE_LDAP=ON \
       VARIANT=server \
@@ -72,10 +74,58 @@ EOF
   assert_file_contains_line "${log}" "-DUSE_GNUINSTALLDIRS=OFF"
   assert_file_contains_line "${log}" "-DXYMON_LAYOUT=bsd_local"
   assert_file_contains_line "${log}" "-DCMAKE_INSTALL_PREFIX=/usr/local"
+  assert_file_contains_line "${log}" "-DXYMON_BSD_LOCALBASE=/opt/local"
+  assert_file_contains_line "${log}" "-DXYMON_BSD_LOCALSTATEDIR=/var/db"
 
   if grep -Fx -- "--preset" "${log}" >/dev/null 2>&1; then
     fail "fallback path unexpectedly used --preset"
   fi
+
+  trap - RETURN
+  rm -rf "${tmpdir}"
+}
+
+test_cmake_configure_preset_bsdlocal_overrides() {
+  local tmpdir
+  local log
+  local wrapper
+
+  tmpdir="$(mktemp -d)"
+  trap 'rm -rf "${tmpdir}"' RETURN
+  log="${tmpdir}/cmake.log"
+  wrapper="${tmpdir}/cmake"
+
+  cat >"${wrapper}" <<EOF
+#!/usr/bin/env bash
+if [ "\${1:-}" = "--version" ]; then
+  echo "cmake version 3.23.0"
+  exit 0
+fi
+for arg in "\$@"; do
+  printf '%s\n' "\$arg"
+done >"${log}"
+exit 0
+EOF
+  chmod +x "${wrapper}"
+
+  (
+    cd "${repo_root}"
+    PATH="${tmpdir}:${PATH}" \
+      PROFILE=bsdlocal \
+      PLATFORM_OS=linux \
+      XYMON_BSD_LOCALBASE=/opt/local \
+      XYMON_BSD_LOCALSTATEDIR=/var/db \
+      ENABLE_SSL=ON \
+      ENABLE_LDAP=ON \
+      VARIANT=server \
+      LOCALCLIENT=OFF \
+      bash ci/run/cmake-configure.sh
+  )
+
+  assert_file_contains_line "${log}" "--preset"
+  assert_file_contains_line "${log}" "bsdlocal"
+  assert_file_contains_line "${log}" "-DXYMON_BSD_LOCALBASE=/opt/local"
+  assert_file_contains_line "${log}" "-DXYMON_BSD_LOCALSTATEDIR=/var/db"
 
   trap - RETURN
   rm -rf "${tmpdir}"
@@ -113,4 +163,5 @@ test_bsdlocal_configurable_roots() {
 }
 
 test_cmake_configure_fallback_bsdlocal
+test_cmake_configure_preset_bsdlocal_overrides
 test_bsdlocal_configurable_roots

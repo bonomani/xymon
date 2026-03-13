@@ -54,6 +54,10 @@ You can override the layout roots explicitly with:
   -DXYMON_BSD_LOCALBASE=/opt/local
   -DXYMON_BSD_LOCALSTATEDIR=/var
 
+For the local CI wrapper scripts, export the same variable names in the
+environment before invoking `ci/run/cmake-configure.sh` or
+`ci/bootstrap-install.sh`.
+
 macOS historical tree layout (optional)
 ---------------------------------------
 

@@ -50,6 +50,13 @@ cmake_minor="${cmake_minor_tmp%%.*}"
 
 echo "CMAKE_VERSION=$cmake_version_raw"
 
+cmake_profile_cache_args=()
+while IFS= read -r arg; do
+  if [[ -n "${arg}" ]]; then
+    cmake_profile_cache_args+=("${arg}")
+  fi
+done < <(emit_local_cmake_profile_cache_args "${cmake_preset}")
+
 use_presets=1
 if (( cmake_major < 3 )) || (( cmake_major == 3 && cmake_minor < 23 )); then
   use_presets=0
@@ -62,7 +69,8 @@ if (( use_presets )); then
     -DENABLE_SSL="$ENABLE_SSL" \
     -DENABLE_LDAP="$ENABLE_LDAP" \
     -DXYMON_VARIANT="$VARIANT" \
-    -DLOCALCLIENT="$LOCALCLIENT"
+    -DLOCALCLIENT="$LOCALCLIENT" \
+    "${cmake_profile_cache_args[@]}"
 else
   if ! is_supported_local_cmake_profile "${cmake_preset}"; then
     echo "Unsupported PROFILE=${PROFILE} (effective preset=${cmake_preset})" >&2
@@ -86,5 +94,6 @@ else
     -DENABLE_SSL="$ENABLE_SSL" \
     -DENABLE_LDAP="$ENABLE_LDAP" \
     -DXYMON_VARIANT="$VARIANT" \
-    -DLOCALCLIENT="$LOCALCLIENT"
+    -DLOCALCLIENT="$LOCALCLIENT" \
+    "${cmake_profile_cache_args[@]}"
 fi

@@ -537,6 +537,7 @@ configure_build_cmake() {
   local cmake_layout
   local cmake_effective_profile
   local -a cmake_args
+  local -a cmake_profile_cache_args
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
   if [ -n "${LEGACY_APPLY_OWNERSHIP:-}" ]; then
@@ -554,6 +555,12 @@ configure_build_cmake() {
   if [ "${CMAKE_BUILD_DIR_USER_SET}" != "1" ]; then
     CMAKE_BUILD_DIR="$(resolve_cmake_build_dir "${cmake_effective_profile}")"
   fi
+  cmake_profile_cache_args=()
+  while IFS= read -r arg; do
+    if [ -n "${arg}" ]; then
+      cmake_profile_cache_args+=("${arg}")
+    fi
+  done < <(emit_local_cmake_profile_cache_args "${cmake_effective_profile}")
   case "${CI_COMPILER}" in
     gcc)
       export CC="${CC:-gcc}"
@@ -582,6 +589,7 @@ configure_build_cmake() {
   if [ -n "${XYMONHOSTNAME:-}" ]; then
     cmake_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
   fi
+  cmake_args+=("${cmake_profile_cache_args[@]}")
 
   echo "configure: ${CMAKE_BIN} -S . -B ${CMAKE_BUILD_DIR}"
   "${CMAKE_BIN}" -S . -B "${CMAKE_BUILD_DIR}" \
