@@ -76,3 +76,5 @@ build/*
 !build/Makefile.Darwin
 artifacts/
 /pkgbuild/
+/.ci-artifacts/
+/tmp/xymon-refs/
