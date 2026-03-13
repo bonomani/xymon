@@ -20,16 +20,6 @@ if [[ -z "${runtime}" ]]; then
 fi
 
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-runtime_resolver="${script_dir}/runtime_resolution.py"
-runtime_model="${script_dir}/runtime-model.json"
-if [[ ! -f "${runtime_resolver}" ]]; then
-  echo "Missing runtime resolver: ${runtime_resolver}" >&2
-  exit 2
-fi
-if [[ ! -f "${runtime_model}" ]]; then
-  echo "Missing runtime model: ${runtime_model}" >&2
-  exit 2
-fi
 
 contract_file="${script_dir}/lane-env-contract.txt"
 if [[ ! -f "${contract_file}" ]]; then
@@ -92,6 +82,47 @@ check_env_keys() {
   check_required_section_keys "${section}"
 }
 
+resolve_runtime_metadata() {
+  local runtime_key="$1"
+  local execution=""
+  local outcome=""
+
+  case "${runtime_key}" in
+    linux_host)
+      execution="host"
+      outcome="host_container"
+      ;;
+    linux_container)
+      execution="container"
+      outcome="host_container"
+      ;;
+    bsd_vm)
+      execution="vm"
+      outcome="bsd_vm"
+      ;;
+    macos_host)
+      execution="host"
+      outcome="host_container"
+      ;;
+    *)
+      echo "Unsupported runtime: ${runtime_key}" >&2
+      return 1
+      ;;
+  esac
+
+  if [[ "${runtime_key}" == "${RUNTIME:-}" ]]; then
+    if [[ -n "${RUNTIME_EXECUTION:-}" ]]; then
+      execution="${RUNTIME_EXECUTION}"
+    fi
+    if [[ -n "${RUNTIME_OUTCOME_CHANNEL:-}" ]]; then
+      outcome="${RUNTIME_OUTCOME_CHANNEL}"
+    fi
+  fi
+
+  printf 'execution=%s\n' "${execution}"
+  printf 'outcome_channel=%s\n' "${outcome}"
+}
+
 run_runtime() {
   local runtime_key="$1"
   local execution outcome key value
@@ -106,14 +137,7 @@ run_runtime() {
         outcome="${value}"
         ;;
     esac
-  done < <(
-    python3 "${runtime_resolver}" metadata \
-      --runtime "${runtime_key}" \
-      --current-runtime "${RUNTIME:-}" \
-      --runtime-execution "${RUNTIME_EXECUTION:-}" \
-      --runtime-outcome-channel "${RUNTIME_OUTCOME_CHANNEL:-}" \
-      --runtime-model "${runtime_model}"
-  )
+  done < <(resolve_runtime_metadata "${runtime_key}")
   if [[ -z "${execution}" ]]; then
     return 1
   fi
