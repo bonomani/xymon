@@ -42,6 +42,8 @@ Layout Names
 
 - `bsd_local`
   - Split layout following BSD localbase conventions for third-party software.
+  - The localbase defaults to `CMAKE_INSTALL_PREFIX` (`/usr/local` in the
+    checked-in preset) and the state root defaults to `/var`.
   - Example paths:
     - `/usr/local/etc/xymon`
     - `/usr/local/libexec/xymon/server/bin`
@@ -114,12 +116,14 @@ knobs that map onto it.
     - install-time relocation with `cmake --install --prefix /opt/xymon`
       resolves runtime paths under `/opt/xymon/...`
   - `bsd_local`
-    - `XYMONTOPDIR=/usr/local/libexec/xymon`
-    - `XYMONHOME=/usr/local/libexec/xymon/server`
-    - `XYMONCLIENTHOME=/usr/local/libexec/xymon/client`
-    - `INSTALLETCDIR=/usr/local/etc/xymon`
-    - `INSTALLWWWDIR=/usr/local/share/xymon/www`
-    - `XYMONVAR=/var/xymon`
+    - `XYMON_BSD_LOCALBASE=<prefix>` (default from `CMAKE_INSTALL_PREFIX`)
+    - `XYMON_BSD_LOCALSTATEDIR=/var` by default
+    - `XYMONTOPDIR=<prefix>/libexec/xymon`
+    - `XYMONHOME=<prefix>/libexec/xymon/server`
+    - `XYMONCLIENTHOME=<prefix>/libexec/xymon/client`
+    - `INSTALLETCDIR=<prefix>/etc/xymon`
+    - `INSTALLWWWDIR=<prefix>/share/xymon/www`
+    - `XYMONVAR=<state-root>/xymon`
   - `macos_tree`
     - `XYMONTOPDIR=/Library/WebServer`
     - `XYMONHOME=/Library/WebServer/server`

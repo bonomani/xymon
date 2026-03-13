@@ -38,10 +38,24 @@ resolve_cmake_effective_profile() {
   printf '%s' "${profile}"
 }
 
+is_supported_local_cmake_profile() {
+  case "$1" in
+    default|bsdlocal|macostree|gnuinstall|packaging)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
+}
+
 resolve_cmake_build_dir() {
   case "$1" in
     default)
       printf '%s' "build-cmake"
+      ;;
+    bsdlocal)
+      printf '%s' "build-cmake-bsdlocal"
       ;;
     macostree)
       printf '%s' "build-cmake-macostree"
@@ -70,6 +84,9 @@ resolve_cmake_layout() {
         printf '%s' "var_tree"
       fi
       ;;
+    bsdlocal)
+      printf '%s' "bsd_local"
+      ;;
     macostree)
       printf '%s' "macos_tree"
       ;;
@@ -84,7 +101,7 @@ resolve_cmake_layout() {
 
 resolve_cmake_use_gnuinstalldirs() {
   case "$1" in
-    default|macostree)
+    default|bsdlocal|macostree)
       printf '%s' "OFF"
       ;;
     gnuinstall|packaging)
@@ -98,6 +115,9 @@ resolve_cmake_use_gnuinstalldirs() {
 
 resolve_cmake_install_prefix() {
   case "$1" in
+    bsdlocal)
+      printf '%s' "/usr/local"
+      ;;
     gnuinstall|packaging)
       printf '%s' "/usr"
       ;;
@@ -115,7 +135,7 @@ resolve_cmake_httpdgid_chgrp() {
     packaging)
       printf '%s' "OFF"
       ;;
-    default|macostree|gnuinstall)
+    default|bsdlocal|macostree|gnuinstall)
       printf '%s' "ON"
       ;;
     *)

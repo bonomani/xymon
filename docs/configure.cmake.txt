@@ -37,13 +37,22 @@ BSD local split layout (optional)
 ---------------------------------
 
 Use an OpenBSD-style third-party layout via `XYMON_LAYOUT=bsd_local`.
+By default this follows `CMAKE_INSTALL_PREFIX=/usr/local` for the localbase and
+uses `/var` as the state root.
 
   cmake --preset bsdlocal
   cmake --build --preset bsdlocal
   cmake --install build-cmake-bsdlocal
 
 This is available for future BSD-native packaging or local installs, but it is
-not used by current parity/reference lanes.
+not used by current parity/reference lanes. The local helper scripts also
+support this preset when falling back to direct `cmake -S/-B` invocation on
+CMake versions older than 3.23.
+
+You can override the layout roots explicitly with:
+
+  -DXYMON_BSD_LOCALBASE=/opt/local
+  -DXYMON_BSD_LOCALSTATEDIR=/var
 
 macOS historical tree layout (optional)
 ---------------------------------------

@@ -64,23 +64,19 @@ if (( use_presets )); then
     -DXYMON_VARIANT="$VARIANT" \
     -DLOCALCLIENT="$LOCALCLIENT"
 else
+  if ! is_supported_local_cmake_profile "${cmake_preset}"; then
+    echo "Unsupported PROFILE=${PROFILE} (effective preset=${cmake_preset})" >&2
+    exit 1
+  fi
   cmake_use_gnuinstalldirs=""
   cmake_install_prefix=""
   cmake_httpdgid_chgrp=""
   cmake_layout=""
-  case "${cmake_preset}" in
-    default|macostree|gnuinstall|packaging)
-      build_dir="$(resolve_cmake_build_dir "${cmake_preset}")"
-      cmake_use_gnuinstalldirs="$(resolve_cmake_use_gnuinstalldirs "${cmake_preset}")"
-      cmake_install_prefix="$(resolve_cmake_install_prefix "${cmake_preset}")"
-      cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_preset}")"
-      cmake_layout="$(resolve_cmake_layout "${cmake_preset}" "${platform_os}")"
-      ;;
-    *)
-      echo "Unsupported PROFILE=${PROFILE} (effective preset=${cmake_preset})" >&2
-      exit 1
-      ;;
-  esac
+  build_dir="$(resolve_cmake_build_dir "${cmake_preset}")"
+  cmake_use_gnuinstalldirs="$(resolve_cmake_use_gnuinstalldirs "${cmake_preset}")"
+  cmake_install_prefix="$(resolve_cmake_install_prefix "${cmake_preset}")"
+  cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_preset}")"
+  cmake_layout="$(resolve_cmake_layout "${cmake_preset}" "${platform_os}")"
   cmake -S . -B "$build_dir" \
     -G "Unix Makefiles" \
     -DUSE_GNUINSTALLDIRS="$cmake_use_gnuinstalldirs" \
