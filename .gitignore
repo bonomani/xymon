@@ -19,6 +19,7 @@
 # Local build artifacts
 /Makefile
 /build-cmake/
+/build-cmake-*/
 /lib/build-cmake/
 /build.log
 /build_analysis.log
@@ -71,7 +72,6 @@
 cmake-local.conf
 CMakePresets.user.json
 .vscode/
-build-cmake-gnu/
 build/*
 !build/Makefile.Darwin
 artifacts/
