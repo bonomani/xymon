@@ -21,6 +21,41 @@ Environment:
 Details:
 - Link to logs or diffs if stored elsewhere
 
+Entry: 2026-03-13
+-----------------
+
+Summary:
+- Documented the current migration scope versus the wider legacy OS matrix
+  present on `origin/main`.
+- Marked `AIX` and `SunOS` / `Solaris` as technically feasible later, but
+  deferred for now.
+- Marked obsolete or currently non-actionable legacy targets as unimplemented
+  for the migration.
+
+Environment:
+- Analysis only; no code or runtime changes.
+- Inputs reviewed: `origin/main` legacy `configure + make` OS files and the
+  current `cmake/bootstrap` CI/runtime model.
+- Notable files: `build/Makefile.*`, `configure.server`, `configure.client`,
+  `ci/run/ref/ref-families.yml`, `ci/run/ref/runtime-model.json`.
+
+Details:
+- Current migration families remain Linux, FreeBSD, NetBSD, OpenBSD, and
+  macOS.
+- Deferred but technically feasible with external infrastructure:
+  - `AIX`
+  - `SunOS` / `Oracle Solaris`
+- Not feasible in the current GitHub Actions execution model used by this repo,
+  so not planned for now:
+  - `HP-UX`
+  - `GNU` / Hurd
+- Obsolete legacy-only targets kept out of scope:
+  - `IRIX`
+  - `OSF1` / Tru64
+  - `SCO_SV`
+  - `GNU_kFreeBSD`
+  - `OSX` alias makefile
+
 Entry: 2026-02-12
 -----------------
 

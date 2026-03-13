@@ -12,6 +12,29 @@ Scope
 - Reference mode only (`USE_GNUINSTALLDIRS=OFF`).
 - Absolute paths must match the reference Makefile contract.
 - No behavior changes, refactors, or modernizations.
+- Current implemented reference-validation scope is limited to the families
+  already modeled by the migration runtime: Linux, FreeBSD, NetBSD, OpenBSD,
+  and macOS.
+- This scope decision applies to migration validation only. It does not change
+  the historical source-level compatibility claims of the legacy `configure +
+  make` tree on `origin/main`.
+
+Legacy OS Families Kept Out of Scope For Now
+--------------------------------------------
+- Deferred but technically feasible with dedicated external infrastructure:
+  - `AIX`
+  - `SunOS` / `Oracle Solaris`
+- Not feasible in the current GitHub Actions execution model used by this repo
+  (`linux_container`, `bsd_vm`, `macos_host`), so not planned for now:
+  - `HP-UX`
+  - `GNU` / Hurd
+- Obsolete legacy targets kept only as historical build metadata in
+  `origin/main`, with no migration implementation planned:
+  - `IRIX`
+  - `OSF1` / Tru64
+  - `SCO_SV`
+  - `GNU_kFreeBSD`
+  - `OSX` legacy alias makefile
 
 Acceptance Criteria
 -------------------
