@@ -75,3 +75,4 @@ build-cmake-gnu/
 build/*
 !build/Makefile.Darwin
 artifacts/
+/pkgbuild/
