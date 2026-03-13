@@ -589,7 +589,9 @@ configure_build_cmake() {
   if [ -n "${XYMONHOSTNAME:-}" ]; then
     cmake_args+=("-DXYMONHOSTNAME=${XYMONHOSTNAME}")
   fi
-  cmake_args+=("${cmake_profile_cache_args[@]}")
+  if [ "${#cmake_profile_cache_args[@]}" -gt 0 ]; then
+    cmake_args+=("${cmake_profile_cache_args[@]}")
+  fi
 
   echo "configure: ${CMAKE_BIN} -S . -B ${CMAKE_BUILD_DIR}"
   "${CMAKE_BIN}" -S . -B "${CMAKE_BUILD_DIR}" \

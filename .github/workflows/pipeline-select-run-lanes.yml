@@ -142,7 +142,7 @@ jobs:
       contents: read
     steps:
       - name: Dispatch this workflow on selected ref
-        uses: actions/github-script@v7
+        uses: actions/github-script@v8
         with:
           retries: 5
           # Keep caller/config errors non-retriable while retrying transient 5xx/network faults.
