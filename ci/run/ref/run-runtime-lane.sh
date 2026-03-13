@@ -48,6 +48,7 @@ IFS=',' read -r -a runtime_preferences <<< "${runtime_preference_string}"
 if [[ ${#runtime_preferences[@]} -eq 0 ]]; then
   runtime_preferences=("${runtime}")
 fi
+runtime_not_viable_status=125
 
 check_required_section_keys() {
   local section="$1"
@@ -125,9 +126,10 @@ resolve_runtime_metadata() {
 
 run_runtime() {
   local runtime_key="$1"
-  local execution outcome key value
+  local execution outcome key value metadata
   execution=""
   outcome=""
+  metadata="$(resolve_runtime_metadata "${runtime_key}")" || return $?
   while IFS='=' read -r key value; do
     case "${key}" in
       execution)
@@ -137,12 +139,12 @@ run_runtime() {
         outcome="${value}"
         ;;
     esac
-  done < <(resolve_runtime_metadata "${runtime_key}")
+  done <<< "${metadata}"
   if [[ -z "${execution}" ]]; then
-    return 1
+    return "${runtime_not_viable_status}"
   fi
   if ! check_env_keys "${execution}"; then
-    return 1
+    return "${runtime_not_viable_status}"
   fi
   export RUNTIME="${runtime_key}"
   export RUNTIME_EXECUTION="${execution}"
@@ -165,10 +167,16 @@ run_runtime() {
 }
 
 for runtime_key in "${runtime_preferences[@]}"; do
+  status=0
   runtime_key="${runtime_key//[[:space:]]/}"
   [[ -n "${runtime_key}" ]] || continue
   if run_runtime "${runtime_key}"; then
     exit 0
+  else
+    status=$?
+  fi
+  if [[ "${status}" -ne "${runtime_not_viable_status}" ]]; then
+    exit "${status}"
   fi
 done
 

@@ -50,12 +50,15 @@ cmake_minor="${cmake_minor_tmp%%.*}"
 
 echo "CMAKE_VERSION=$cmake_version_raw"
 
-cmake_profile_cache_args=()
-while IFS= read -r arg; do
-  if [[ -n "${arg}" ]]; then
-    cmake_profile_cache_args+=("${arg}")
-  fi
-done < <(emit_local_cmake_profile_cache_args "${cmake_preset}")
+append_local_profile_cache_args() {
+  local profile="$1"
+  local arg=""
+  while IFS= read -r arg; do
+    if [[ -n "${arg}" ]]; then
+      cmake_cmd+=("${arg}")
+    fi
+  done < <(emit_local_cmake_profile_cache_args "${profile}")
+}
 
 use_presets=1
 if (( cmake_major < 3 )) || (( cmake_major == 3 && cmake_minor < 23 )); then
@@ -65,20 +68,16 @@ fi
 echo "USE_PRESETS=$use_presets"
 
 if (( use_presets )); then
-  if (( ${#cmake_profile_cache_args[@]} > 0 )); then
-    cmake --preset "$cmake_preset" \
-      -DENABLE_SSL="$ENABLE_SSL" \
-      -DENABLE_LDAP="$ENABLE_LDAP" \
-      -DXYMON_VARIANT="$VARIANT" \
-      -DLOCALCLIENT="$LOCALCLIENT" \
-      "${cmake_profile_cache_args[@]}"
-  else
-    cmake --preset "$cmake_preset" \
-      -DENABLE_SSL="$ENABLE_SSL" \
-      -DENABLE_LDAP="$ENABLE_LDAP" \
-      -DXYMON_VARIANT="$VARIANT" \
-      -DLOCALCLIENT="$LOCALCLIENT"
-  fi
+  cmake_cmd=(
+    cmake
+    --preset "$cmake_preset"
+    -DENABLE_SSL="$ENABLE_SSL"
+    -DENABLE_LDAP="$ENABLE_LDAP"
+    -DXYMON_VARIANT="$VARIANT"
+    -DLOCALCLIENT="$LOCALCLIENT"
+  )
+  append_local_profile_cache_args "${cmake_preset}"
+  "${cmake_cmd[@]}"
 else
   if ! is_supported_local_cmake_profile "${cmake_preset}"; then
     echo "Unsupported PROFILE=${PROFILE} (effective preset=${cmake_preset})" >&2
@@ -93,28 +92,20 @@ else
   cmake_install_prefix="$(resolve_cmake_install_prefix "${cmake_preset}")"
   cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_preset}")"
   cmake_layout="$(resolve_cmake_layout "${cmake_preset}" "${platform_os}")"
-  if (( ${#cmake_profile_cache_args[@]} > 0 )); then
-    cmake -S . -B "$build_dir" \
-      -G "Unix Makefiles" \
-      -DUSE_GNUINSTALLDIRS="$cmake_use_gnuinstalldirs" \
-      -DXYMON_LAYOUT="$cmake_layout" \
-      -DCMAKE_INSTALL_PREFIX="$cmake_install_prefix" \
-      -DHTTPDGID_CHGRP="$cmake_httpdgid_chgrp" \
-      -DENABLE_SSL="$ENABLE_SSL" \
-      -DENABLE_LDAP="$ENABLE_LDAP" \
-      -DXYMON_VARIANT="$VARIANT" \
-      -DLOCALCLIENT="$LOCALCLIENT" \
-      "${cmake_profile_cache_args[@]}"
-  else
-    cmake -S . -B "$build_dir" \
-      -G "Unix Makefiles" \
-      -DUSE_GNUINSTALLDIRS="$cmake_use_gnuinstalldirs" \
-      -DXYMON_LAYOUT="$cmake_layout" \
-      -DCMAKE_INSTALL_PREFIX="$cmake_install_prefix" \
-      -DHTTPDGID_CHGRP="$cmake_httpdgid_chgrp" \
-      -DENABLE_SSL="$ENABLE_SSL" \
-      -DENABLE_LDAP="$ENABLE_LDAP" \
-      -DXYMON_VARIANT="$VARIANT" \
-      -DLOCALCLIENT="$LOCALCLIENT"
-  fi
+  cmake_cmd=(
+    cmake
+    -S .
+    -B "$build_dir"
+    -G "Unix Makefiles"
+    -DUSE_GNUINSTALLDIRS="$cmake_use_gnuinstalldirs"
+    -DXYMON_LAYOUT="$cmake_layout"
+    -DCMAKE_INSTALL_PREFIX="$cmake_install_prefix"
+    -DHTTPDGID_CHGRP="$cmake_httpdgid_chgrp"
+    -DENABLE_SSL="$ENABLE_SSL"
+    -DENABLE_LDAP="$ENABLE_LDAP"
+    -DXYMON_VARIANT="$VARIANT"
+    -DLOCALCLIENT="$LOCALCLIENT"
+  )
+  append_local_profile_cache_args "${cmake_preset}"
+  "${cmake_cmd[@]}"
 fi
