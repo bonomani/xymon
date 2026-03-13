@@ -986,7 +986,15 @@ ci_deps_detect_rpm_basearch() {
   local basearch="${1:-}"
 
   if [[ -z "${basearch}" ]]; then
-    if command -v rpm >/dev/null 2>&1; then
+    if [[ -n "${ARCHITECTURE:-}" ]]; then
+      basearch="${ARCHITECTURE}"
+    fi
+
+    if [[ -z "${basearch}" && -n "${ARTIFACT_ARCH:-}" ]]; then
+      basearch="${ARTIFACT_ARCH}"
+    fi
+
+    if [[ -z "${basearch}" ]] && command -v rpm >/dev/null 2>&1; then
       basearch="$(rpm --eval '%{_host_cpu}' 2>/dev/null || true)"
       if [[ "${basearch}" == "%{_host_cpu}" ]]; then
         basearch=""
@@ -999,7 +1007,16 @@ ci_deps_detect_rpm_basearch() {
   fi
 
   case "${basearch}" in
-    armv7l|armv7hl)
+    amd64|x86-64)
+      basearch="x86_64"
+      ;;
+    arm64)
+      basearch="aarch64"
+      ;;
+    powerpc64le)
+      basearch="ppc64le"
+      ;;
+    arm32v7|arm/v7|armv7|armv7l|armv7hl)
       basearch="armhfp"
       ;;
   esac
