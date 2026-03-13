@@ -980,31 +980,114 @@ ci_deps_configure_rocky_fallback_repos() {
   ci_deps_install_rocky_fallback_repo "${rocky_major}" "${rocky_gpgkey}" "${repo_dest}"
 }
 
+ci_deps_detect_rpm_basearch() {
+  local basearch="${1:-}"
+
+  if [[ -z "${basearch}" ]]; then
+    if command -v rpm >/dev/null 2>&1; then
+      basearch="$(rpm --eval '%{_host_cpu}' 2>/dev/null || true)"
+      if [[ "${basearch}" == "%{_host_cpu}" ]]; then
+        basearch=""
+      fi
+    fi
+
+    if [[ -z "${basearch}" ]] && command -v uname >/dev/null 2>&1; then
+      basearch="$(uname -m 2>/dev/null || true)"
+    fi
+  fi
+
+  case "${basearch}" in
+    armv7l|armv7hl)
+      basearch="armhfp"
+      ;;
+  esac
+
+  if [[ -n "${basearch}" ]]; then
+    printf '%s\n' "${basearch}"
+    return 0
+  fi
+
+  return 1
+}
+
+ci_deps_centos7_vault_root() {
+  local basearch="${1:-}"
+
+  basearch="$(ci_deps_detect_rpm_basearch "${basearch}" || true)"
+
+  case "${basearch}" in
+    aarch64|armhfp|ppc64le)
+      printf '%s\n' "http://vault.centos.org/altarch/7.9.2009"
+      ;;
+    *)
+      printf '%s\n' "http://vault.centos.org/7.9.2009"
+      ;;
+  esac
+}
+
 ci_deps_install_centos7_vault_repo() {
   local repo_dest="${1:-/etc/yum.repos.d/centos7-vault.repo}"
+  local repo_basearch="${2:-}"
   local repo_file=""
+  local vault_root=""
+
+  vault_root="$(ci_deps_centos7_vault_root "${repo_basearch}")"
 
   repo_file="$(mktemp)"
   cat > "${repo_file}" <<'EOF'
 [centos7-vault-base]
 name=CentOS 7 Vault Base
-baseurl=http://vault.centos.org/7.9.2009/os/$basearch/
+baseurl=__CI_DEPS_CENTOS7_VAULT_ROOT__/os/$basearch/
 enabled=1
 gpgcheck=0
 
 [centos7-vault-updates]
 name=CentOS 7 Vault Updates
-baseurl=http://vault.centos.org/7.9.2009/updates/$basearch/
+baseurl=__CI_DEPS_CENTOS7_VAULT_ROOT__/updates/$basearch/
 enabled=1
 gpgcheck=0
 
 [centos7-vault-extras]
 name=CentOS 7 Vault Extras
-baseurl=http://vault.centos.org/7.9.2009/extras/$basearch/
+baseurl=__CI_DEPS_CENTOS7_VAULT_ROOT__/extras/$basearch/
+enabled=1
+gpgcheck=0
+EOF
+
+  sed -i "s|__CI_DEPS_CENTOS7_VAULT_ROOT__|${vault_root}|g" "${repo_file}"
+
+  ci_deps_as_root install -m 0644 "${repo_file}" "${repo_dest}"
+  rm -f "${repo_file}"
+}
+
+ci_deps_install_epel7_archive_repo() {
+  local repo_dest="${1:-/etc/yum.repos.d/epel7-archive.repo}"
+  local repo_file=""
+
+  repo_file="$(mktemp)"
+  cat > "${repo_file}" <<'EOF'
+[ci-epel7-archive]
+name=EPEL 7 Archive
+baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/$basearch/
 enabled=1
 gpgcheck=0
 EOF
 
   ci_deps_as_root install -m 0644 "${repo_file}" "${repo_dest}"
   rm -f "${repo_file}"
+}
+
+ci_deps_centos7_has_epel_archive() {
+  local basearch="${1:-}"
+
+  basearch="$(ci_deps_detect_rpm_basearch "${basearch}" || true)"
+
+  case "${basearch}" in
+    x86_64|aarch64|ppc64le)
+      return 0
+      ;;
+    *)
+      return 1
+      ;;
+  esac
 }

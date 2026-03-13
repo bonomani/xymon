@@ -41,6 +41,30 @@ yum_install_one() {
 
 yum_pre_install() {
   echo "=== Install (Linux packages) ==="
+  if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
+    local needs_epel=0
+    local pkg=""
+
+    for pkg in "${PKGS[@]}"; do
+      case "${pkg}" in
+        cmake3|ninja-build)
+          needs_epel=1
+          break
+          ;;
+      esac
+    done
+
+    if [[ "${needs_epel}" == "1" ]]; then
+      if ! ci_deps_centos7_has_epel_archive; then
+        echo "CentOS 7 EPEL archive is unavailable for basearch $(ci_deps_detect_rpm_basearch || echo unknown)" >&2
+        return 1
+      fi
+      ci_deps_install_epel7_archive_repo
+      YUM_OPTS+=(--enablerepo=ci-epel7-archive)
+    fi
+    return 0
+  fi
+
   if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
     if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
       YUM_OPTS+=(--enablerepo=epel)
@@ -49,7 +73,7 @@ yum_pre_install() {
 }
 
 YUM_OPTS=()
-if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
+if [[ "${os_name}" == "centos" && "${version}" == "7" && "${mode}" != "print" ]]; then
   ci_deps_install_centos7_vault_repo
   YUM_OPTS=(
     --disablerepo=*

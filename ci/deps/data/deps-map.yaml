@@ -11,15 +11,15 @@ package_templates:
     pkg: [gmake, cmake, ninja]
     pkg_add: [gmake, cmake, ninja]
   build_tools_make:
-    apt: [build-essential, ninja-build, git, findutils]
-    dnf: [gcc, gcc-c++, make, ninja-build, git, findutils, diffutils]
-    yum: [gcc, gcc-c++, make, ninja-build, git, findutils, diffutils]
-    zypper: [gcc, gcc-c++, make, ninja, git, findutils, diffutils]
-    apk: [bash, build-base, ninja, git, findutils, diffutils]
-    pacman: [base-devel, ninja, git, findutils, diffutils]
-    brew: [make, ninja]
-    pkg: [gmake, ninja]
-    pkg_add: [gmake, ninja]
+    apt: [build-essential, git, findutils]
+    dnf: [gcc, gcc-c++, make, git, findutils, diffutils]
+    yum: [gcc, gcc-c++, make, git, findutils, diffutils]
+    zypper: [gcc, gcc-c++, make, git, findutils, diffutils]
+    apk: [bash, build-base, git, findutils, diffutils]
+    pacman: [base-devel, git, findutils, diffutils]
+    brew: [make]
+    pkg: [gmake]
+    pkg_add: [gmake]
 
 map:
   BUILD_TOOLS:
@@ -38,7 +38,7 @@ map:
     overrides:
       by_os:
         netbsd:
-          pkg_add: [gmake, ninja-build, clang]
+          pkg_add: [gmake, clang]
 
   PCRE:
     defaults:
