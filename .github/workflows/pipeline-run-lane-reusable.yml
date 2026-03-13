@@ -68,7 +68,7 @@ jobs:
 
       - name: Set up QEMU for emulated container lanes
         if: ${{ steps.lane_ctx.outputs.runtime_execution == 'container' && (contains(inputs.lane_json, 'linux/arm/v7') || contains(inputs.lane_json, 'linux/ppc64le') || contains(inputs.lane_json, 'linux/riscv64') || contains(inputs.lane_json, 'linux/s390x')) }}
-        uses: docker/setup-qemu-action@v3
+        uses: docker/setup-qemu-action@v4
         with:
           platforms: arm,ppc64le,riscv64,s390x
 
