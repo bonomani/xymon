@@ -53,6 +53,16 @@ test_centos7_vault_root_selection() {
     "$(ci_deps_detect_rpm_basearch armv7l)" \
     "armv7l should normalize to armhfp"
 
+  assert_equals \
+    "http://vault.centos.org/altarch/7.9.2009" \
+    "$(ARCHITECTURE=ppc64le ci_deps_centos7_vault_root)" \
+    "ARCHITECTURE=ppc64le should use the CentOS 7 altarch vault even without rpm/uname detection"
+
+  assert_equals \
+    "armhfp" \
+    "$(ARCHITECTURE=arm32v7 ci_deps_detect_rpm_basearch)" \
+    "ARCHITECTURE=arm32v7 should normalize to the RPM armhfp basearch"
+
   if ! ci_deps_centos7_has_epel_archive x86_64; then
     fail "x86_64 should have a CentOS 7 EPEL archive"
   fi
