@@ -1,0 +1,48 @@
+function(xymon_normalize_path out path_value)
+    set(_path "${path_value}")
+    if(_path STREQUAL "")
+        set(_path "/")
+    endif()
+
+    string(REPLACE "\\" "/" _path "${_path}")
+    string(REGEX REPLACE "/+" "/" _path "${_path}")
+    string(REGEX REPLACE "/\\./" "/" _path "${_path}")
+
+    while(_path MATCHES "/[^/]+/\\.\\./")
+        string(REGEX REPLACE "/[^/]+/\\.\\./" "/" _path "${_path}")
+    endwhile()
+
+    if(_path STREQUAL "")
+        set(_path "/")
+    endif()
+
+    set(${out} "${_path}" PARENT_SCOPE)
+endfunction()
+
+function(xymon_resolve_runtime_path out dest)
+    if(IS_ABSOLUTE "${dest}")
+        set(_path "${dest}")
+    else()
+        if(CMAKE_INSTALL_PREFIX STREQUAL "")
+            set(_prefix "/")
+        else()
+            set(_prefix "${CMAKE_INSTALL_PREFIX}")
+        endif()
+
+        if(_prefix STREQUAL "/" OR (_prefix STREQUAL "/usr" AND "${dest}" MATCHES "^(etc|var)(/|$)"))
+            set(_path "/${dest}")
+        else()
+            set(_path "${_prefix}/${dest}")
+        endif()
+    endif()
+
+    xymon_normalize_path(_path "${_path}")
+    set(${out} "${_path}" PARENT_SCOPE)
+endfunction()
+
+function(xymon_resolve_install_path out dest)
+    xymon_resolve_runtime_path(_runtime_path "${dest}")
+    set(_path "$ENV{DESTDIR}${_runtime_path}")
+    xymon_normalize_path(_path "${_path}")
+    set(${out} "${_path}" PARENT_SCOPE)
+endfunction()

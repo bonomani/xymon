@@ -17,7 +17,7 @@
 # you also need to remove the "NEEDS xymond" lines for the tasks
 # you want to run).
 [xymond]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	CMD xymond --pidfile=$XYMONSERVERLOGS/xymond.pid \
 		--restart=$XYMONTMP/xymond.chk --checkpoint-file=$XYMONTMP/xymond.chk --checkpoint-interval=600 \
 		--log=$XYMONSERVERLOGS/xymond.log \
@@ -26,31 +26,31 @@
 
 # "history" keeps track of the status changes that happen.
 [history]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=stachg --log=$XYMONSERVERLOGS/history.log xymond_history --pidfile=$XYMONSERVERLOGS/xymond_history.pid
 
 # "alert" sends out alerts.
 [alert]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=page  --log=$XYMONSERVERLOGS/alert.log xymond_alert --checkpoint-file=$XYMONTMP/alert.chk --checkpoint-interval=600
 
 # The client back-end module. You need this if you are running the Xymon client on any system.
 [clientdata]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=client --log=$XYMONSERVERLOGS/clientdata.log xymond_client
 
 # "rrdstatus" updates RRD files with information that arrives as "status" messages.
 [rrdstatus]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=status --log=$XYMONSERVERLOGS/rrd-status.log xymond_rrd --rrddir=$XYMONVAR/rrd
 
 # "rrddata" updates RRD files with information that arrives as "data" messages.
 [rrddata]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=data   --log=$XYMONSERVERLOGS/rrd-data.log xymond_rrd --rrddir=$XYMONVAR/rrd
 
@@ -61,7 +61,7 @@
 # Note: The --store-clientlogs option for the [xymond] provides control over
 #       which status-changes will cause a client message to be stored.
 [hostdata]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=clichg --log=$XYMONSERVERLOGS/hostdata.log xymond_hostdata
 
@@ -75,7 +75,7 @@
 # forward to each other. So take care not to create forwarding loops.
 [distribute]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=enadis --log=$XYMONSERVERLOGS/distribute.log xymond_distribute --peer=IP.OF.SLAVE.SERVER
 
@@ -99,7 +99,7 @@
 # status messages.
 [xymonproxy]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	CMD $XYMONHOME/bin/xymonproxy --server=YOUR.XYMON.SERVER.IP --report=$MACHINE.xymonproxy --no-daemon --pidfile=$XYMONSERVERLOGS/xymonproxy.pid
 	LOGFILE $XYMONSERVERLOGS/xymonproxy.log
 
@@ -114,7 +114,7 @@
 #       xymonfetch is talking to.
 [xymonfetch]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	CMD $XYMONHOME/bin/xymonfetch --server=YOUR.XYMON.SERVER.IP --no-daemon --pidfile=$XYMONSERVERLOGS/xymonfetch.pid
 	LOGFILE $XYMONSERVERLOGS/xymonfetch.log
 
@@ -128,7 +128,7 @@
 # "xymongen" runs the xymongen tool to generate the Xymon webpages from the status information that
 # has been received.
 [xymongen]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	GROUP generators
 	CMD xymongen $XYMONGENOPTS --report
@@ -145,7 +145,7 @@
 # "xymonnet" runs the xymonnet tool to perform the network based tests - i.e. http, smtp, ssh, dns and
 # all of the various network protocols we need to test.
 [xymonnet]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymonnet --report --ping --checkresponse
 	LOGFILE $XYMONSERVERLOGS/xymonnet.log
@@ -157,7 +157,7 @@
 # servers with very high availability guarantees, running this task will make your availability
 # reports look much better.
 [xymonnetagain]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD $XYMONHOME/ext/xymonnet-again.sh
 	LOGFILE $XYMONSERVERLOGS/xymonnetagain.log
@@ -175,7 +175,7 @@
 # status messages that are combined from the status of one or more normal statuses.
 # It is controlled via the combo.cfg file.
 [combostatus]
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD $XYMONHOME/bin/combostatus
 	LOGFILE $XYMONSERVERLOGS/combostatus.log
@@ -214,7 +214,7 @@
 # since storing the raw logs on disk can cause a significant load on your server.
 [storestatus]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=status --log=$XYMONSERVERLOGS/status.log xymond_filestore --status --html
 
@@ -226,7 +226,7 @@
 # not need to run the "storedata" module to get RRD graphs.
 [storedata]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=data   --log=$XYMONSERVERLOGS/data.log xymond_filestore --data
 
@@ -234,7 +234,7 @@
 # Unless you are running server side scripts that look at these files, you do not need this.
 [storeenadis]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=enadis --log=$XYMONSERVERLOGS/enadis.log xymond_filestore --enadis
 
@@ -242,12 +242,11 @@
 # disabled by default; if you use the Big Brother "notes" protocol, then you should enable this.
 [storenotes]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymond_channel --channel=notes  --log=$XYMONSERVERLOGS/notes.log xymond_filestore --notes
 
 
 
 # Include add-on modules.
-directory @XYMONHOME@/etc/tasks.d
-
+directory @INSTALLETCDIR@/tasks.d

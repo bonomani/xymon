@@ -1,0 +1,33 @@
+include("@CMAKE_BINARY_DIR@/XymonInstallHelpers.cmake")
+
+xymon_resolve_runtime_path(_runtime_help "@INSTALLWWWDIR_DEST@/help")
+xymon_resolve_runtime_path(_runtime_help_manpages "@INSTALLWWWDIR_DEST@/help/manpages")
+xymon_resolve_install_path(_install_help "@INSTALLWWWDIR_DEST@/help")
+xymon_resolve_install_path(_install_help_manpages "@INSTALLWWWDIR_DEST@/help/manpages")
+file(MAKE_DIRECTORY "${_install_help}" "${_install_help_manpages}")
+
+set(_doc_help_files [==[@_DOC_HELP_FILES_FHS@]==])
+
+file(INSTALL
+    DESTINATION "${_runtime_help}"
+    TYPE FILE
+    FILES "@CMAKE_CURRENT_BINARY_DIR@/xymon-tips.html"
+)
+
+file(INSTALL
+    DESTINATION "${_runtime_help}"
+    TYPE FILE
+    FILES ${_doc_help_files}
+)
+
+file(INSTALL
+    DESTINATION "${_runtime_help_manpages}"
+    TYPE DIRECTORY
+    FILES "@CMAKE_CURRENT_SOURCE_DIR@/manpages/"
+)
+
+configure_file(
+    "@CMAKE_CURRENT_SOURCE_DIR@/man-index.html"
+    "${_install_help_manpages}/index.html"
+    COPYONLY
+)

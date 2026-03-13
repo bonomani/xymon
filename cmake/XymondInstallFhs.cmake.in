@@ -1,0 +1,79 @@
+include("@CMAKE_BINARY_DIR@/XymonInstallHelpers.cmake")
+
+xymon_resolve_runtime_path(XYMONTOPDIR "@CMAKE_INSTALL_LIBEXECDIR@/xymon")
+xymon_resolve_runtime_path(XYMONHOME "@XYMONHOME_INSTALL_DEST@")
+xymon_resolve_runtime_path(XYMONCLIENTHOME "@XYMONCLIENTHOME_INSTALL_DEST@")
+xymon_resolve_runtime_path(XYMONVAR "@CMAKE_INSTALL_LOCALSTATEDIR@/lib/xymon")
+xymon_resolve_runtime_path(XYMONLOGDIR "@CMAKE_INSTALL_LOCALSTATEDIR@/log/xymon")
+xymon_resolve_runtime_path(INSTALLBINDIR "@INSTALLBINDIR_DEST@")
+xymon_resolve_runtime_path(INSTALLETCDIR "@INSTALLETCDIR_DEST@")
+xymon_resolve_runtime_path(INSTALLEXTDIR "@INSTALLEXTDIR_DEST@")
+xymon_resolve_runtime_path(INSTALLTMPDIR "@INSTALLTMPDIR_DEST@")
+xymon_resolve_runtime_path(INSTALLWEBDIR "@INSTALLWEBDIR_DEST@")
+xymon_resolve_runtime_path(INSTALLWWWDIR "@INSTALLWWWDIR_DEST@")
+xymon_resolve_runtime_path(CGIDIR "@CGIDIR_DEST@")
+xymon_resolve_runtime_path(SECURECGIDIR "@SECURECGIDIR_DEST@")
+
+xymon_resolve_install_path(_install_etc "@INSTALLETCDIR_DEST@")
+xymon_resolve_install_path(_install_bindir "@INSTALLBINDIR_DEST@")
+
+set(XYMONUSER [==[@XYMONUSER@]==])
+set(XYMONHOSTNAME [==[@XYMONHOSTNAME@]==])
+set(XYMONHOSTIP [==[@XYMONHOSTIP@]==])
+set(XYMONHOSTOS [==[@XYMONHOSTOS@]==])
+set(XYMONHOSTURL [==[@XYMONHOSTURL@]==])
+set(XYMONCGIURL [==[@XYMONCGIURL@]==])
+set(SECUREXYMONCGIURL [==[@SECUREXYMONCGIURL@]==])
+set(MAILPROGRAM [==[@MAILPROGRAM@]==])
+set(FPING [==[@FPING@]==])
+set(RUNTIMEDEFS [==[@RUNTIMEDEFS@]==])
+
+file(MAKE_DIRECTORY "${_install_etc}" "${_install_bindir}")
+
+configure_file("@_XYMON_APACHE_TEMPLATE@" "${_install_etc}/xymon-apache.conf" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/xymonserver.cfg.DIST" "${_install_etc}/xymonserver.cfg" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/hosts.cfg.DIST" "${_install_etc}/hosts.cfg" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/alerts.cfg.DIST" "${_install_etc}/alerts.cfg" COPYONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/tasks.cfg.DIST" "${_install_etc}/tasks.cfg" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/cgioptions.cfg.DIST" "${_install_etc}/cgioptions.cfg" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/xymon.sh.DIST" "${_install_bindir}/xymon.sh" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/xymonreports.sh.DIST" "${_install_bindir}/xymonreports.sh" @ONLY)
+configure_file("@CMAKE_CURRENT_SOURCE_DIR@/moverrd.sh.DIST" "${_install_bindir}/moverrd.sh" @ONLY)
+
+set(_legacy_etc_files [==[@_XYMOND_LEGACY_ETC_FILES@]==])
+file(INSTALL
+    DESTINATION "${INSTALLETCDIR}"
+    TYPE FILE
+    FILES ${_legacy_etc_files}
+)
+
+file(INSTALL
+    DESTINATION "${INSTALLWEBDIR}"
+    TYPE DIRECTORY
+    FILES "@CMAKE_CURRENT_SOURCE_DIR@/webfiles/"
+    USE_SOURCE_PERMISSIONS
+    PATTERN "RCS" EXCLUDE
+    PATTERN ".svn" EXCLUDE
+    PATTERN "*.DIST" EXCLUDE
+)
+
+file(INSTALL
+    DESTINATION "${INSTALLWWWDIR}"
+    TYPE DIRECTORY
+    FILES "@CMAKE_CURRENT_SOURCE_DIR@/wwwfiles/"
+    USE_SOURCE_PERMISSIONS
+    PATTERN "RCS" EXCLUDE
+    PATTERN ".svn" EXCLUDE
+    PATTERN "*.DIST" EXCLUDE
+)
+
+if(EXISTS "@CMAKE_CURRENT_BINARY_DIR@/bb-commands.txt")
+    file(READ "@CMAKE_CURRENT_BINARY_DIR@/bb-commands.txt" _bb_commands)
+    file(APPEND "${_install_etc}/xymonserver.cfg" "${_bb_commands}")
+endif()
+
+execute_process(COMMAND chmod 755
+    "${_install_bindir}/xymon.sh"
+    "${_install_bindir}/xymonreports.sh"
+    "${_install_bindir}/moverrd.sh"
+)

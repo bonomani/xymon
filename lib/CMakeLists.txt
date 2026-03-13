@@ -363,7 +363,7 @@ if(XYMON_BUILD_SERVER)
     endif()
     if(INSTALL_EXTRA)
         install(TARGETS ${_helper_targets}
-            RUNTIME DESTINATION ${INSTALLBINDIR}
+            RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
         )
     endif()
 endif()

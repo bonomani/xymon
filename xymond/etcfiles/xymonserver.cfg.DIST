@@ -95,8 +95,8 @@ SECURECGIBINURL="$XYMONSERVERSECURECGIURL"	# URL prefix for the secured Xymon CG
 
 # Locations of system-wide files and directories
 XYMONHOME="@XYMONHOME@"				# The Xymon server directory, where programs and configurations go. 
-XYMONTMP="$XYMONHOME/tmp"			# Directory used for temporary files.
-HOSTSCFG="$XYMONHOME/etc/hosts.cfg"		# The hosts.cfg file
+XYMONTMP="@INSTALLTMPDIR@"			# Directory used for temporary files.
+HOSTSCFG="@INSTALLETCDIR@/hosts.cfg"		# The hosts.cfg file
 XYMON="$XYMONHOME/bin/xymon"			# The 'xymon' client program
 XYMONGEN="$XYMONHOME/bin/xymongen"		# The xymongen program
 
@@ -108,7 +108,7 @@ XYMONDISABLEDDIR="$XYMONVAR/disabled"		# Enabled/disabled flags are stored here 
 XYMONHISTDIR="$XYMONVAR/hist"			# History logs are stored here (xymond_history)
 XYMONHISTLOGS="$XYMONVAR/histlogs"		# Historical detail status-loge are stored here (xymond_history)
 XYMONRAWSTATUSDIR="$XYMONVAR/logs"		# Status logs go here (xymond_filestore --status). Not needed by Xymon.
-XYMONWWWDIR="$XYMONHOME/www"			# The directory for Xymon webpage files.
+XYMONWWWDIR="@INSTALLWWWDIR@"			# The directory for Xymon webpage files.
 XYMONHTMLSTATUSDIR="$XYMONWWWDIR/html"		# HTML status logs go here (xymond_filestore --status --html)
 XYMONNOTESDIR="$XYMONWWWDIR/notes"		# For notes-files (xymond_filestore --notes)
 XYMONREPDIR="$XYMONWWWDIR/rep"			# Top-level directory for Xymon reports.
@@ -218,7 +218,7 @@ XYMONALLOKTEXT="<FONT SIZE=+2 FACE=\"Arial, Helvetica\"><BR><BR><I>All Monitored
 # Stylesheet and menu control stuff
 XYMONBODYCSS="$XYMONSKIN/xymonbody.css"			# Stylesheet used for the Xymon webpage body
 XYMONBODYMENUCSS="$XYMONMENUSKIN/xymonmenu-blue.css"	# Stylesheet used for the Xymon webpage menu
-XYMONBODYHEADER="file:$XYMONHOME/etc/xymonmenu.cfg"	# File containing the HTML code snippet that defines the menu
+XYMONBODYHEADER="file:@INSTALLETCDIR@/xymonmenu.cfg"	# File containing the HTML code snippet that defines the menu
 XYMONBODYFOOTER=""					# HTML inserted at the bottom of all webpages.
 
 # For WML output
@@ -320,4 +320,3 @@ HOBBITLOGO="$XYMONLOGO"
 
 HOBBITCLIENTHOME="$XYMONCLIENTHOME"
 BBCLIENTLOGS="$XYMONSERVERLOGS"
-

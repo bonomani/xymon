@@ -34,10 +34,11 @@ Layout Names
   - Split layout following filesystem hierarchy style packaging.
   - Example paths:
     - `/etc/xymon`
-    - `/usr/lib/xymon/server/bin`
-    - `/usr/lib/xymon/server/ext`
+    - `/usr/libexec/xymon/server/bin`
+    - `/usr/libexec/xymon/server/ext`
     - `/var/lib/xymon/tmp`
     - `/var/lib/xymon/www`
+    - `/usr/share/man`
 
 - `bsd_local`
   - Split layout following BSD localbase conventions for third-party software.
@@ -103,11 +104,15 @@ knobs that map onto it.
     - `CGIDIR=/home/_www/cgi-bin`
     - `SECURECGIDIR=/home/_www/cgi-secure`
   - `fhs`
-    - `XYMONTOPDIR=/usr/lib/xymon`
-    - `XYMONHOME=/usr/lib/xymon/server`
-    - `XYMONCLIENTHOME=/usr/lib/xymon/client`
+    - default configured prefix: `/usr`
+    - `XYMONTOPDIR=<prefix>/libexec/xymon`
+    - `XYMONHOME=<prefix>/libexec/xymon/server`
+    - `XYMONCLIENTHOME=<prefix>/libexec/xymon/client`
     - `INSTALLETCDIR=/etc/xymon`
     - `INSTALLWWWDIR=/var/lib/xymon/www`
+    - `MANDIR=<prefix>/share/man`
+    - install-time relocation with `cmake --install --prefix /opt/xymon`
+      resolves runtime paths under `/opt/xymon/...`
   - `bsd_local`
     - `XYMONTOPDIR=/usr/local/libexec/xymon`
     - `XYMONHOME=/usr/local/libexec/xymon/server`

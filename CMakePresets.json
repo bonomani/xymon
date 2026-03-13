@@ -17,12 +17,13 @@
     },
     {
       "name": "gnuinstall",
-      "displayName": "GNUInstallDirs layout",
+      "displayName": "GNUInstallDirs layout (/usr default)",
       "generator": "Unix Makefiles",
       "binaryDir": "${sourceDir}/build-cmake-gnu",
       "cacheVariables": {
         "USE_GNUINSTALLDIRS": "ON",
-        "XYMON_LAYOUT": "fhs"
+        "XYMON_LAYOUT": "fhs",
+        "CMAKE_INSTALL_PREFIX": "/usr"
       }
     },
     {
