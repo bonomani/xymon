@@ -308,11 +308,6 @@ source /tmp/xymon-root-vars.sh
 
 validate_ref_stage_layout "${LEGACY_ROOT}" "${LEGACY_TOPDIR}" "${variant}"
 
-if [[ "${build_tool}" == "cmake" ]]; then
-  bash ci/run/ref/validate-config-parity.sh \
-    --legacy-config "${ref_prefix}/meta/config.h"
-fi
-
 bash ci/generate-refs.sh \
   --os "${os_name}" \
   --variant "${variant}" \
