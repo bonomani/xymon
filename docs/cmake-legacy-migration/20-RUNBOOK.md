@@ -153,7 +153,7 @@ cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ \
   -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
   -DXYMON_VARIANT=server
 LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
-  --target install-legacy-dirs install-legacy-files
+  --target install-legacy-files
 ```
 
 Legacy make install must also be staged under `/tmp`:
@@ -262,7 +262,7 @@ Record:
 
 Suggested test flow:
 1) `cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ -DLEGACY_APPLY_OWNERSHIP=OFF`
-2) `LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake --target install-legacy-dirs install-legacy-files`
+2) `LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake --target install-legacy-files`
 3) `find /tmp/cmake-ref-root/var/lib/xymon -printf '/var/lib/xymon/%P\n' | sort > /tmp/cmake.list`
 4) `diff -u /tmp/legacy.list /tmp/cmake.list`
 
