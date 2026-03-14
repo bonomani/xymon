@@ -74,7 +74,8 @@ jobs:
           requested_profile: auto
           requested_install_mode: auto
           requested_verify_depth: install
-          ref_mode: compare
+          goal: compare
+          ref_mode: off
           publish: artifact
           allow_failure_mode: allow
           selector_workflow: .github/workflows/pipeline-compare-ref-artifacts.yml

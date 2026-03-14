@@ -14,6 +14,7 @@ def parse_args():
     parser.add_argument("--requested-profile", default="auto")
     parser.add_argument("--requested-install-mode", default="auto")
     parser.add_argument("--requested-verify-depth", default="install")
+    parser.add_argument("--goal", default="")
     parser.add_argument("--ref-mode", default="off")
     parser.add_argument("--publish", default="none")
     parser.add_argument("--allow-failure-mode", default="allow")
@@ -31,6 +32,7 @@ def main() -> None:
             requested_profile=args.requested_profile,
             requested_install_mode=args.requested_install_mode,
             requested_verify_depth=args.requested_verify_depth,
+            requested_goal=args.goal,
             ref_mode=args.ref_mode,
             publish=args.publish,
             allow_failure_mode_raw=args.allow_failure_mode,

@@ -18,30 +18,48 @@ def normalize_allow_failure_mode(raw: str) -> str:
 
 def normalize_ref_mode(raw: str) -> str:
     value = (raw or "").strip()
-    if value in {"false", "0", "no"}:
+    if value in {"", "false", "0", "no"}:
         return "off"
     return value
 
 
-def derive_goal_from_ref_mode(ref_mode: str) -> str:
+def normalize_goal(raw: str) -> str:
+    value = (raw or "").strip()
+    if value in {"", "auto"}:
+        return ""
+    return value
+
+
+def derive_goal(requested_goal: str, ref_mode: str) -> str:
+    if requested_goal:
+        return requested_goal
     if ref_mode == "off":
         return "verify"
     return "ref"
 
 
 def validate_goal_ref_publish(goal: str, ref_mode: str, publish: str) -> None:
-    if goal not in {"verify", "ref"}:
+    if goal not in {"verify", "ref", "compare"}:
         raise ValueError(f"Unsupported goal: {goal}")
-    if ref_mode not in {"off", "generate", "compare"}:
+    if ref_mode not in {"off", "generate"}:
         raise ValueError(f"Unsupported ref_mode: {ref_mode}")
     if publish not in {"none", "artifact"}:
         raise ValueError(f"Unsupported publish: {publish}")
 
-    expected_goal = derive_goal_from_ref_mode(ref_mode)
-    if goal != expected_goal:
-        raise ValueError(f"goal={goal} is inconsistent with ref_mode={ref_mode}")
-    if ref_mode == "off" and publish != "none":
-        raise ValueError("ref_mode=off requires publish=none")
+    if goal == "verify":
+        if ref_mode != "off":
+            raise ValueError("goal=verify requires ref_mode=off")
+        if publish != "none":
+            raise ValueError("goal=verify requires publish=none")
+        return
+
+    if goal == "ref":
+        if ref_mode != "generate":
+            raise ValueError("goal=ref requires ref_mode=generate")
+        return
+
+    if ref_mode != "off":
+        raise ValueError("goal=compare requires ref_mode=off")
 
 
 def validate_allow_failure_mode(mode: str) -> None:
@@ -94,7 +112,7 @@ def explicit_requested_install_mode(requested_install_mode: str) -> str:
 def resolve_build_tool(
     requested_build_tool: str,
     requested_profile: str,
-    ref_mode: str,
+    goal: str,
 ) -> str:
     if requested_build_tool != "auto":
         return requested_build_tool
@@ -106,7 +124,7 @@ def resolve_build_tool(
         return "cmake"
     if explicit_profile == "debian":
         return "make"
-    if ref_mode == "compare":
+    if goal == "compare":
         return "cmake"
     return "make"
 
@@ -163,14 +181,14 @@ def resolve_install_mode(
     return install_mode
 
 
-def resolve_verify_depth(ref_mode: str, requested_verify_depth: str) -> str:
-    if ref_mode != "off":
+def resolve_verify_depth(goal: str, requested_verify_depth: str) -> str:
+    if goal in {"ref", "compare"}:
         return "install"
     return requested_verify_depth
 
 
-def derive_dep_mode(ref_mode: str) -> str:
-    if ref_mode == "compare":
+def derive_dep_mode(goal: str) -> str:
+    if goal == "compare":
         return "compare"
     return "generate"
 
@@ -182,13 +200,15 @@ def resolve_execution_model(
     requested_profile: str,
     requested_install_mode: str,
     requested_verify_depth: str,
+    requested_goal: str,
     ref_mode: str,
     publish: str,
     allow_failure_mode_raw: str,
 ) -> Dict[str, str]:
     allow_failure_mode = normalize_allow_failure_mode(allow_failure_mode_raw)
+    goal = normalize_goal(requested_goal)
     ref_mode = normalize_ref_mode(ref_mode)
-    goal = derive_goal_from_ref_mode(ref_mode)
+    goal = derive_goal(goal, ref_mode)
 
     validate_goal_ref_publish(goal, ref_mode, publish)
     validate_allow_failure_mode(allow_failure_mode)
@@ -200,9 +220,9 @@ def resolve_execution_model(
     build_tool = resolve_build_tool(
         requested_build_tool,
         requested_profile,
-        ref_mode,
+        goal,
     )
-    verify_depth = resolve_verify_depth(ref_mode, requested_verify_depth)
+    verify_depth = resolve_verify_depth(goal, requested_verify_depth)
     profile = resolve_profile(requested_profile, build_tool)
     install_mode = resolve_install_mode(requested_install_mode, build_tool, profile)
 
@@ -216,5 +236,5 @@ def resolve_execution_model(
         "ref_mode": ref_mode,
         "publish": publish,
         "allow_failure_mode": allow_failure_mode,
-        "dep_mode": derive_dep_mode(ref_mode),
+        "dep_mode": derive_dep_mode(goal),
     }

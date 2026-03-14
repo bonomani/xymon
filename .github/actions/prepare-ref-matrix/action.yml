@@ -32,6 +32,10 @@ inputs:
   requested_verify_depth:
     description: Requested verify depth.
     required: true
+  goal:
+    description: Explicit execution goal override.
+    required: false
+    default: ""
   ref_mode:
     description: Reference mode.
     required: true
@@ -112,6 +116,7 @@ runs:
           --requested-profile "${{ inputs.requested_profile }}" \
           --requested-install-mode "${{ inputs.requested_install_mode }}" \
           --requested-verify-depth "${{ inputs.requested_verify_depth }}" \
+          --goal "${{ inputs.goal }}" \
           --ref-mode "${{ inputs.ref_mode }}" \
           --publish "${{ inputs.publish }}" \
           --allow-failure-mode "${{ inputs.allow_failure_mode }}" \
@@ -140,7 +145,7 @@ runs:
           --selected-arch "${{ inputs.arch }}" \
           --selected-arch-policy "${{ inputs.arch_policy }}" \
           --selected-alias-policy "${{ inputs.alias_policy }}" \
-          --ref-mode "${{ steps.resolve_execution.outputs.ref_mode }}" \
+          --goal "${{ steps.resolve_execution.outputs.goal }}" \
           --build-tool "${{ steps.resolve_execution.outputs.build_tool }}" \
           --compiler "${{ steps.resolve_execution.outputs.compiler }}" \
           --profile "${{ steps.resolve_execution.outputs.profile }}" \

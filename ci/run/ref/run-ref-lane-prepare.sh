@@ -83,7 +83,7 @@ Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --goal verify|ref
   --verify-depth configure|build|install
   --variant NAME
-  [--ref-mode off|generate|compare]
+  [--ref-mode off|generate]
   [--publish none|artifact]
   [--baseline-root ROOT]
   [--ref-os OS]

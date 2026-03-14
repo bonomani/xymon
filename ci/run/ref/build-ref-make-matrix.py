@@ -196,8 +196,8 @@ def load_manifest(path: Path, purpose: str, runtime_to_platform_runtime):
     return families
 
 
-def derive_manifest_purpose(ref_mode: str) -> str:
-    if ref_mode == "compare":
+def derive_manifest_purpose(goal: str) -> str:
+    if goal == "compare":
         return "validation"
     return "generation"
 
@@ -597,10 +597,10 @@ def parse_args():
         choices=sorted(SUPPORTED_ALIAS_POLICY_FILTERS),
     )
     parser.add_argument(
-        "--ref-mode",
+        "--goal",
         required=True,
-        choices=("off", "generate", "compare"),
-        help="Reference handling mode selection",
+        choices=("verify", "ref", "compare"),
+        help="Execution goal selection",
     )
     parser.add_argument(
         "--build-tool",
@@ -658,7 +658,7 @@ def load_family_lanes(repo_root: Path, family_entry, *, selected_arch_policy: st
 
 def main():
     args = parse_args()
-    purpose = derive_manifest_purpose(args.ref_mode)
+    purpose = derive_manifest_purpose(args.goal)
     github_output = args.github_output
     if not github_output:
         die("GITHUB_OUTPUT is not set and --github-output was not provided")
