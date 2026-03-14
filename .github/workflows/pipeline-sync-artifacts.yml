@@ -19,19 +19,12 @@ on:
         description: Refs-only archival branch
         required: false
         default: ci/references-update-archive
-  workflow_run:
-    workflows:
-      - Pipeline - Select and Run Lanes (Advanced)
-    types:
-      - completed
 
 permissions:
-  actions: read
   contents: write
 
 jobs:
   sync-legacy-references:
-    if: ${{ github.event_name != 'workflow_run' || github.event.workflow_run.conclusion == 'success' }}
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -39,36 +32,13 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Resolve sync source
-        id: sync_source
-        shell: bash
-        run: |
-          set -euo pipefail
-
-          if [[ "${GITHUB_EVENT_NAME}" == "workflow_run" ]]; then
-            printf 'run_selector=%s\n' "${{ github.event.workflow_run.id }}" >> "${GITHUB_OUTPUT}"
-            printf 'source_branch=%s\n' "${{ github.event.workflow_run.head_branch }}" >> "${GITHUB_OUTPUT}"
-            printf 'target_branch=%s\n' "ci/references-update" >> "${GITHUB_OUTPUT}"
-            printf 'archive_branch=%s\n' "ci/references-update-archive" >> "${GITHUB_OUTPUT}"
-            printf 'if_not_found=%s\n' "empty" >> "${GITHUB_OUTPUT}"
-          else
-            printf 'run_selector=%s\n' "${{ inputs.source_run_id }}" >> "${GITHUB_OUTPUT}"
-            printf 'source_branch=%s\n' "${{ inputs.source_branch }}" >> "${GITHUB_OUTPUT}"
-            printf 'target_branch=%s\n' "${{ inputs.target_branch }}" >> "${GITHUB_OUTPUT}"
-            printf 'archive_branch=%s\n' "${{ inputs.archive_branch }}" >> "${GITHUB_OUTPUT}"
-            printf 'if_not_found=%s\n' "error" >> "${GITHUB_OUTPUT}"
-          fi
-
       - name: Download legacy reference artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
-          INPUT_SOURCE_RUN_ID: ${{ steps.sync_source.outputs.run_selector }}
-          INPUT_SOURCE_BRANCH: ${{ steps.sync_source.outputs.source_branch }}
-          INPUT_IF_NOT_FOUND: ${{ steps.sync_source.outputs.if_not_found }}
+          INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
-          echo "SHOULD_SYNC=0" >> "${GITHUB_ENV}"
           artifacts_dir="/tmp/legacy-reference-artifacts"
           run_id_file="/tmp/pipeline-sync-source-run-ids.txt"
           rm -rf "${artifacts_dir}"
@@ -78,25 +48,19 @@ jobs:
           python3 ci/run/ref/resolve-sync-artifact-runs.py \
             --repo "${GITHUB_REPOSITORY}" \
             --workflow "${workflow}" \
-            --branch "${INPUT_SOURCE_BRANCH}" \
+            --branch "${{ inputs.source_branch }}" \
             --run-selector "${INPUT_SOURCE_RUN_ID}" \
-            --if-not-found "${INPUT_IF_NOT_FOUND}" \
             > "${run_id_file}"
           mapfile -t run_ids < <(sed -e '/^[[:space:]]*$/d' "${run_id_file}")
 
           if [ "${#run_ids[@]}" -eq 0 ]; then
-            if [ "${INPUT_IF_NOT_FOUND}" = "empty" ]; then
-              echo "No downloadable ref_* artifacts found for selector run ${INPUT_SOURCE_RUN_ID}; skipping sync."
-              exit 0
-            fi
             if [ -n "${INPUT_SOURCE_RUN_ID}" ]; then
               echo "Requested run selector(s) ${INPUT_SOURCE_RUN_ID} have no downloadable ref_* artifacts" >&2
             else
-              echo "No successful run found for ${workflow} on branch ${INPUT_SOURCE_BRANCH} with downloadable ref_* artifacts" >&2
+              echo "No successful run found for ${workflow} on branch ${{ inputs.source_branch }} with downloadable ref_* artifacts" >&2
             fi
             exit 1
           fi
-          echo "SHOULD_SYNC=1" >> "${GITHUB_ENV}"
 
           # Download into a single root. gh creates one subdir per artifact name.
           # This avoids an extra workflow-name directory layer.
@@ -109,13 +73,12 @@ jobs:
           printf 'REF_STAGE_SCRIPT=%s\n' "${stager_script}" >> "${GITHUB_ENV}"
 
       - name: Sync archive branch
-        if: env.SHOULD_SYNC == '1'
         shell: bash
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration/refs"
           artifacts_dir="/tmp/legacy-reference-artifacts"
-          archive_branch="${{ steps.sync_source.outputs.archive_branch }}"
+          archive_branch="${{ inputs.archive_branch }}"
 
           if git fetch origin "${archive_branch}"; then
             git checkout -B "${archive_branch}" "origin/${archive_branch}"
@@ -143,14 +106,13 @@ jobs:
           fi
 
       - name: Sync merge-friendly branch
-        if: env.SHOULD_SYNC == '1'
         shell: bash
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration/refs"
           artifacts_dir="/tmp/legacy-reference-artifacts"
-          source_branch="${{ steps.sync_source.outputs.source_branch }}"
-          target_branch="${{ steps.sync_source.outputs.target_branch }}"
+          source_branch="${{ inputs.source_branch }}"
+          target_branch="${{ inputs.target_branch }}"
 
           git clean -fd "${ref_dir}"
           git checkout -- "${ref_dir}" || true

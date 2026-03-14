@@ -29,12 +29,6 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--branch", default="")
     parser.add_argument("--run-selector", default="")
     parser.add_argument("--limit", type=int, default=20)
-    parser.add_argument(
-        "--if-not-found",
-        choices=("error", "empty"),
-        default="error",
-        help="Whether to fail or emit no output when no downloadable ref_* artifacts are found.",
-    )
     return parser.parse_args()
 
 
@@ -153,15 +147,11 @@ def main() -> None:
         for raw_selector in requested.replace(",", "\n").splitlines():
             run_id = resolve_selector(args.repo, token, args.workflow, raw_selector)
             if not run_id:
-                if args.if_not_found == "empty":
-                    return
                 die(f"Requested run selector has no downloadable ref_* artifacts: {raw_selector.strip()}")
             if run_id not in seen:
                 seen.add(run_id)
                 resolved.append(run_id)
         if not resolved:
-            if args.if_not_found == "empty":
-                return
             die("No requested runs resolved to downloadable ref_* artifacts")
         print("\n".join(resolved))
         return
@@ -178,9 +168,6 @@ def main() -> None:
             return
 
     branch_suffix = f" on branch {args.branch}" if args.branch else ""
-    if args.if_not_found == "empty":
-        return
-
     die(
         f"No successful run found for {args.workflow}{branch_suffix} "
         "with downloadable ref_* artifacts"
