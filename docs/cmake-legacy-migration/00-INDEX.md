@@ -29,7 +29,7 @@ cmake -S . -B build-cmake -DUSE_GNUINSTALLDIRS=OFF -DCMAKE_INSTALL_PREFIX=/ \
   -DLEGACY_DESTDIR=/tmp/cmake-ref-root \
   -DXYMON_VARIANT=server
 LEGACY_DESTDIR=/tmp/cmake-ref-root cmake --build build-cmake \
-  --target install-legacy-dirs install-legacy-files
+  --target install-legacy-files
 sudo DESTDIR=/tmp/xymon-stage make install
 ```
 
