@@ -9,10 +9,10 @@ inputs:
     description: Verification depth (configure|build|install).
     required: true
   goal:
-    description: Execution goal (verify|ref).
+    description: Execution goal (verify|ref|compare).
     required: true
   ref_mode:
-    description: Reference handling mode (off|generate|compare).
+    description: Reference handling mode (off|generate).
     required: true
   publish:
     description: Publish channel (none|artifact).

@@ -85,7 +85,7 @@ runs:
         esac
 
     - name: Upload dependency report
-      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts == '1' && (fromJSON(inputs.lane_post_json).dep_mode == 'compare' || inputs.lane_outcome == 'success') }}
+      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts == '1' && (fromJSON(inputs.lane_post_json).goal == 'compare' || inputs.lane_outcome == 'success') }}
       uses: ./.github/actions/upload-deps-report
       with:
         dep_mode: ${{ fromJSON(inputs.lane_post_json).dep_mode }}
@@ -98,7 +98,7 @@ runs:
         if_no_files_found: ${{ inputs.dep_if_no_files_found }}
 
     - name: Upload legacy references
-      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).dep_mode == 'generate' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
       uses: actions/upload-artifact@v6
       with:
         name: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_name }}
@@ -106,7 +106,7 @@ runs:
         if-no-files-found: error
 
     - name: Upload artifacts
-      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).dep_mode == 'compare' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' }}
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'compare' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' }}
       uses: ./.github/actions/upload-ref-valid-artifacts
       with:
         lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}

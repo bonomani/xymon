@@ -39,8 +39,8 @@ jobs:
         with:
           lane_json: ${{ inputs.lane_json }}
           verify_depth: install
-          goal: ref
-          ref_mode: compare
+          goal: compare
+          ref_mode: off
           publish: ${{ inputs.publish }}
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
 

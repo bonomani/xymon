@@ -77,7 +77,7 @@ def derive_lane_paths(
     candidate_dir = f"{refs_root}/{lane_ref_key}"
     baseline_prefix = ""
     legacy_hostname_config = ""
-    if goal == "ref":
+    if goal in {"ref", "compare"}:
         baseline_build_tool, _, baseline_runtime_os = baseline_root.partition("_")
         if not baseline_build_tool or not baseline_runtime_os:
             fail(f"Unsupported baseline_root format: {baseline_root}")
@@ -147,7 +147,7 @@ def main():
         validate_requested_verify_depth(verify_depth)
     except ValueError as exc:
         fail(str(exc))
-    if goal == "ref":
+    if goal in {"ref", "compare"}:
         verify_depth = "install"
 
     try:
@@ -209,7 +209,7 @@ def main():
     os_version = as_text(lane.get("os_version"))
 
     baseline_root = as_text(lane.get("baseline_root"))
-    if goal == "ref" and not baseline_root:
+    if goal in {"ref", "compare"} and not baseline_root:
         fail("lane_json missing baseline_root")
 
     # Normalize to avoid empty artifact namespaces in logs/artifact names.
@@ -226,7 +226,7 @@ def main():
     else:
         ref_stage_root = "tmp/xymon-refs"
 
-    dep_mode = derive_dep_mode(ref_mode)
+    dep_mode = derive_dep_mode(goal)
     lane_paths = derive_lane_paths(
         goal=goal,
         dep_mode=dep_mode,
