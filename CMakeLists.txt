@@ -578,8 +578,8 @@ add_custom_command(
     TARGET install-legacy-files POST_BUILD
     COMMAND env DESTDIR="${LEGACY_DESTDIR}"
             "${CMAKE_COMMAND}"
-            --install "${CMAKE_BINARY_DIR}"
-            --prefix "${XYMONTOPDIR}"
+            -DCMAKE_INSTALL_PREFIX="${XYMONTOPDIR}"
+            -P "${CMAKE_BINARY_DIR}/cmake_install.cmake"
 )
 
 set(SETUP_NEWFILES_SCRIPT "${CMAKE_BINARY_DIR}/run-setup-newfiles.cmake")
