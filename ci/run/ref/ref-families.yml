@@ -72,6 +72,13 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/debian.yml
 
+- family: amazonlinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/amazonlinux.yml
+    lane_overrides:
+      prepare_profile: redhat
+
 - family: freebsd
   common:
     runtime: bsd_vm

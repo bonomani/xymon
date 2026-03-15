@@ -19,6 +19,11 @@ normalization:
         "20": "20"
         "22": local
         "24": latest
+    amazonlinux:
+      family: rpm
+      os: amazonlinux
+      pkgmgr: dnf
+      version_mode: major
 
     rocky:
       family: rpm

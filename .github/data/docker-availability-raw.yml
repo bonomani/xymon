@@ -171,6 +171,36 @@ platforms:
     - ppc64le
     - riscv64
     - s390x
+  amazonlinux-2:
+    image: amazonlinux:2
+    repository: library/amazonlinux
+    repository_url: https://hub.docker.com/_/amazonlinux
+    tag: '2'
+    platform_os: amazonlinux
+    platform_version: '2'
+    deps:
+      package_family: rpm
+    manifest_url: https://registry-1.docker.io/v2/library/amazonlinux/manifests/2
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:a9e1e216e0461552dd0dc6521d2712ba180dcabd4c9b43c47c3b21b857f755a1
+    discovered_arches:
+    - amd64
+    - arm64
+  amazonlinux-2023:
+    image: amazonlinux:2023
+    repository: library/amazonlinux
+    repository_url: https://hub.docker.com/_/amazonlinux
+    tag: '2023'
+    platform_os: amazonlinux
+    platform_version: '2023'
+    deps:
+      package_family: rpm
+    manifest_url: https://registry-1.docker.io/v2/library/amazonlinux/manifests/2023
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:162fc5b69e11e81023f83a1ab618b184927ff3002d0852432af3b6ae4a1b5304
+    discovered_arches:
+    - amd64
+    - arm64
   archlinux-base:
     image: archlinux:base
     repository: library/archlinux

@@ -35,6 +35,14 @@ targets:
       packagers:
         apt: {}
   rpm:
+    amazonlinux_2:
+      profile: linux_default
+      packagers:
+        dnf: {}
+    amazonlinux_2023:
+      profile: linux_default
+      packagers:
+        dnf: {}
     rockylinux_8:
       profile: linux_default
       packagers:

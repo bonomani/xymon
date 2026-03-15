@@ -25,6 +25,10 @@ families:
       - direct_runner
       - container_runner
 
+  amazonlinux:
+    preferred_capabilities:
+      - container_runner
+
   debian:
     preferred_capabilities:
       - direct_runner
