@@ -19,8 +19,8 @@ on:
           - netbsd
           - openbsd
           - opensuse
-          - almalinux
           - rockylinux
+          - almalinux
           - fedora
           - oraclelinux
           - ubuntu
