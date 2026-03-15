@@ -374,10 +374,50 @@ def load_selection_policy() -> dict[str, dict[str, set[str]]]:
                     )
                 ]
                 tag_patterns[os_key] = compiled
+        rules = {}
+        raw_rules = selection.get("rules", {})
+        if raw_rules not in (None, {}):
+            raw_rules = as_map(raw_rules, f"{CONTAINER_INTENT}.{section}.selection.rules")
+            for platform_os, raw_rule in raw_rules.items():
+                os_key = as_str(platform_os, f"{CONTAINER_INTENT}.{section}.selection.rules key")
+                rule = as_map(raw_rule, f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}")
+                keep_versions = rule.get("keep_versions", [])
+                keep_major_versions = rule.get("keep_major_versions", [])
+                keep_latest_n_stable = rule.get("keep_latest_n_stable")
+                include_moving_targets = bool(rule.get("include_moving_targets", False))
+                rules[os_key] = {
+                    "keep_versions": {
+                        as_str(
+                            value,
+                            f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}.keep_versions[]",
+                        )
+                        for value in as_list(
+                            keep_versions,
+                            f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}.keep_versions",
+                        )
+                    } if keep_versions != [] else set(),
+                    "keep_major_versions": {
+                        as_str(
+                            value,
+                            f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}.keep_major_versions[]",
+                        )
+                        for value in as_list(
+                            keep_major_versions,
+                            f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}.keep_major_versions",
+                        )
+                    } if keep_major_versions != [] else set(),
+                    "keep_latest_n_stable": (
+                        int(keep_latest_n_stable)
+                        if keep_latest_n_stable not in (None, "")
+                        else None
+                    ),
+                    "include_moving_targets": include_moving_targets,
+                }
         policy[section] = {
             "include": include_set,
             "exclude": exclude_set,
             "tag_patterns": tag_patterns,
+            "rules": rules,
         }
     return policy
 
@@ -386,6 +426,7 @@ def selection_allows(
     policy: dict[str, dict[str, set[str]]],
     section: str,
     platform_id: str,
+    entry: dict[str, Any] | None = None,
 ) -> bool:
     section_policy = policy.get(section, {})
     include_ids = section_policy.get("include", set())
@@ -394,7 +435,48 @@ def selection_allows(
         return False
     if include_ids and platform_id not in include_ids:
         return False
+    if entry is None:
+        return True
+    platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).strip()
+    rules = section_policy.get("rules", {})
+    rule = rules.get(platform_os, {})
+    if not isinstance(rule, dict) or not rule:
+        return True
+    version_token = selection_version_token(platform_id, entry)
+    if is_moving_target_token(version_token) and not rule.get("include_moving_targets", False):
+        return False
+    keep_versions = rule.get("keep_versions", set())
+    major_versions = rule.get("keep_major_versions", set())
+    if keep_versions or major_versions:
+        version_match = bool(keep_versions) and version_token in keep_versions
+        major = selection_major_version(version_token)
+        major_match = bool(major_versions) and major in major_versions
+        if not version_match and not major_match:
+            return False
     return True
+
+
+def selection_version_token(platform_id: str, entry: dict[str, Any]) -> str:
+    platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).strip()
+    if platform_os == "opensuse_tumbleweed":
+        return "latest"
+    if platform_os == "opensuse_leap" and platform_id.startswith("opensuse-leap-"):
+        return platform_id.removeprefix("opensuse-leap-").replace("_", ".")
+    if "-" in platform_id:
+        return platform_id.split("-", 1)[1].replace("_", ".")
+    return str(entry.get("platform_version") or "").strip()
+
+
+def selection_major_version(version_token: str) -> str:
+    match = re.search(r"\d+(?:\.\d+)?", version_token)
+    if not match:
+        return ""
+    return match.group(0).split(".", 1)[0]
+
+
+def is_moving_target_token(version_token: str) -> bool:
+    token = version_token.strip().lower()
+    return token in {"latest", "rolling", "tumbleweed", "edge", "current"}
 
 
 def selection_section_for_runtime(runtime: str) -> str | None:
@@ -533,9 +615,45 @@ def select_platform_releases(
     selected: dict[str, dict[str, Any]] = {}
     for platform_id, entry in sorted(platform_releases.items()):
         section = selection_section_for_runtime(entry.get("runtime", ""))
-        if section and not selection_allows(selection_policy, section, platform_id):
+        if section and not selection_allows(selection_policy, section, platform_id, entry):
             continue
         selected[platform_id] = entry
+    for section, section_policy in selection_policy.items():
+        rules = section_policy.get("rules", {})
+        if not isinstance(rules, dict):
+            continue
+        for platform_os, rule in rules.items():
+            if not isinstance(rule, dict):
+                continue
+            keep_latest_n_stable = rule.get("keep_latest_n_stable")
+            if keep_latest_n_stable in (None, 0):
+                continue
+            matching = [
+                (platform_id, entry)
+                for platform_id, entry in selected.items()
+                if selection_section_for_runtime(entry.get("runtime", "")) == section
+                and str(entry.get("platform_os") or infer_platform_os(platform_id)).strip() == platform_os
+            ]
+            stable = [
+                (platform_id, entry)
+                for platform_id, entry in matching
+                if not is_moving_target_token(selection_version_token(platform_id, entry))
+            ]
+            stable_sorted = sorted(
+                stable,
+                key=lambda item: (
+                    tuple(int(part) for part in re.findall(r"\d+", selection_version_token(item[0], item[1]))),
+                    item[0],
+                ),
+                reverse=True,
+            )
+            keep_ids = {platform_id for platform_id, _ in stable_sorted[: int(keep_latest_n_stable)]}
+            for platform_id, entry in matching:
+                if (
+                    platform_id not in keep_ids
+                    and not is_moving_target_token(selection_version_token(platform_id, entry))
+                ):
+                    del selected[platform_id]
     return selected
 
 

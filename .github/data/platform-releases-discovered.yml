@@ -80,6 +80,66 @@ platforms:
     image: debian:11.11-slim
     deps:
       key: bullseye
+  debian-11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11-slim
+    image: debian:11-slim
+  debian-11_0-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.0-slim
+    image: debian:11.0-slim
+  debian-11_1-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.1-slim
+    image: debian:11.1-slim
+  debian-11_10-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.10-slim
+    image: debian:11.10-slim
+  debian-11_2-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.2-slim
+    image: debian:11.2-slim
+  debian-11_3-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.3-slim
+    image: debian:11.3-slim
+  debian-11_4-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.4-slim
+    image: debian:11.4-slim
+  debian-11_5-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.5-slim
+    image: debian:11.5-slim
+  debian-11_6-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.6-slim
+    image: debian:11.6-slim
+  debian-11_7-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.7-slim
+    image: debian:11.7-slim
+  debian-11_8-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.8-slim
+    image: debian:11.8-slim
+  debian-11_9-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.9-slim
+    image: debian:11.9-slim
   debian-12:
     runtime: docker
     platform_os: debian
@@ -87,11 +147,96 @@ platforms:
     image: debian:12.13-slim
     deps:
       key: bookworm
+  debian-12-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12-slim
+    image: debian:12-slim
+  debian-12_0-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.0-slim
+    image: debian:12.0-slim
+  debian-12_1-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.1-slim
+    image: debian:12.1-slim
+  debian-12_10-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.10-slim
+    image: debian:12.10-slim
+  debian-12_11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.11-slim
+    image: debian:12.11-slim
+  debian-12_12-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.12-slim
+    image: debian:12.12-slim
+  debian-12_2-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.2-slim
+    image: debian:12.2-slim
+  debian-12_4-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.4-slim
+    image: debian:12.4-slim
+  debian-12_5-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.5-slim
+    image: debian:12.5-slim
+  debian-12_6-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.6-slim
+    image: debian:12.6-slim
+  debian-12_7-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.7-slim
+    image: debian:12.7-slim
+  debian-12_8-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.8-slim
+    image: debian:12.8-slim
+  debian-12_9-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.9-slim
+    image: debian:12.9-slim
   debian-13:
     runtime: docker
     platform_os: debian
     platform_version: 13.3-slim
     image: debian:13.3-slim
+  debian-13-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13-slim
+    image: debian:13-slim
+  debian-13_0-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.0-slim
+    image: debian:13.0-slim
+  debian-13_1-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.1-slim
+    image: debian:13.1-slim
+  debian-13_2-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.2-slim
+    image: debian:13.2-slim
   fedora-40:
     runtime: docker
     platform_os: fedora
@@ -252,11 +397,21 @@ platforms:
     platform_os: oraclelinux
     platform_version: '8'
     image: oraclelinux:8
+  oraclelinux-8-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 8-slim
+    image: oraclelinux:8-slim
   oraclelinux-9:
     runtime: docker
     platform_os: oraclelinux
     platform_version: '9'
     image: oraclelinux:9
+  oraclelinux-9-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 9-slim
+    image: oraclelinux:9-slim
   rockylinux-8:
     runtime: docker
     platform_os: rockylinux
