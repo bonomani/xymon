@@ -39,6 +39,10 @@ For example, Linux container lanes may run on `platform_os=alpine` or
 `platform_os=oraclelinux` while still generating or validating the shared
 `ref_os=linux` reference set.
 
+## Preferred-platform generator
+
+To keep a single primary platform per family without touching `platform-catalog.yaml`, we generate a derived table (`ci/run/ref/preferred-platforms.yml`) that records the preferred `platform_id` based on the slim/latest/architecture rules. Run `python ci/run/ref/generate_preferred_platforms.py` to rebuild that table and to validate that each `ci/run/ref/lanes/*.yml` file already lists the computed preference first; any mismatch surfaces as a failure so the lane file can be reordered. The generated YAML is also consumed by the ref matrix tools so they only iterate the canonical platform for each OS/version. This keeps alias logic separate from the extracted catalog while enforcing consistent defaults.
+
 ## Oracle Linux validation family
 
 Reference validation keeps Oracle Linux as its own Linux-container family even

@@ -580,6 +580,7 @@ def build_platform_availability(
                 )
             record = {
                 "runtime": "vm",
+                "platform_os": vm_entry["os"],
                 "provider": vm_entry["provider"],
                 "os": vm_entry["os"],
                 "version": vm_entry["version"],
