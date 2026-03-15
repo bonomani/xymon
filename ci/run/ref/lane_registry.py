@@ -8,6 +8,7 @@ from pathlib import Path
 import yaml
 from lane_utils import VARIANT_NAME_SUFFIX, extract_lane_include, expand_lane_variants
 from matrix_common import (
+    derive_platform_display_name,
     load_purpose_manifest_common,
     require_mapping,
     require_non_empty_string,
@@ -35,9 +36,7 @@ def _load_platform_display_names(platform_catalog_path: Path) -> dict[str, str]:
     for platform_id, raw_entry in platforms.items():
         platform_key = require_non_empty_string(platform_id, "Platform ID")
         entry = require_mapping(raw_entry, f"Platform '{platform_key}'")
-        display_names[platform_key] = require_non_empty_string(
-            entry.get("display_name"), f"Platform '{platform_key}'.display_name"
-        )
+        display_names[platform_key] = derive_platform_display_name(platform_key, entry)
     return display_names
 
 

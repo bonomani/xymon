@@ -47,25 +47,25 @@ def load_platform_deps_bindings(
             raise SystemExit(
                 f"ERROR: platform catalog entry '{platform_id}' deps must be a mapping"
             )
-        family = str(deps.get("family", "")).strip()
-        os_name = str(deps.get("os", "")).strip()
-        version_raw = deps.get("version")
-        if not family or not os_name:
+        package_family = str(deps.get("package_family", "")).strip()
+        platform_os = str(entry.get("platform_os", "")).strip()
+        key_raw = deps.get("key")
+        if not package_family or not platform_os:
             raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' deps must include family and os"
+                f"ERROR: platform catalog entry '{platform_id}' must include platform_os and deps.package_family"
             )
-        if version_raw is None:
-            normalized_version = None
-            os_key = os_name
+        if key_raw is None:
+            normalized_key = None
+            os_key = platform_os
         else:
-            version = str(version_raw).strip()
-            matching_rule = find_matching_rule(normalization_rules, family, os_name)
-            normalized_version = normalize_rule_version(matching_rule, version)
-            os_key = compose_os_key(os_name, normalized_version)
+            key = str(key_raw).strip()
+            matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)
+            normalized_key = normalize_rule_version(matching_rule, key)
+            os_key = compose_os_key(platform_os, normalized_key)
         bindings[platform_id] = {
-            "family": family,
-            "os": os_name,
-            "version": normalized_version,
+            "package_family": package_family,
+            "platform_os": platform_os,
+            "deps_key": normalized_key,
             "os_key": os_key,
         }
     return bindings

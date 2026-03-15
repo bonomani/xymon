@@ -284,7 +284,7 @@ def load_docker_platform_entries() -> list[dict[str, Any]]:
             {
                 "platform_id": platform_id,
                 "platform_os": field_str(
-                    deps, "os", f"{PLATFORM_CATALOG}.platforms.{platform_id}.deps"
+                    entry, "platform_os", f"{PLATFORM_CATALOG}.platforms.{platform_id}"
                 ).lower(),
                 "platform_family": "linux",
                 "platform_version": platform_version_for(
@@ -322,7 +322,7 @@ def load_vm_catalog_entries() -> list[dict[str, Any]]:
                 if isinstance(alias_entry, dict):
                     alias_deps = alias_entry.get("deps")
                     if isinstance(alias_deps, dict):
-                        alias_version = alias_deps.get("version")
+                        alias_version = alias_deps.get("key")
                         if isinstance(alias_version, (str, int, float)):
                             resolved_version = str(alias_version)
         source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
