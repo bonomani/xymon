@@ -20,6 +20,32 @@ containers:
     prefer_tags:
       - slim
       - latest
+    tag_patterns:
+      debian:
+        - '^\d+(\.\d+)?-slim$'
+      ubuntu:
+        - '^\d+\.\d+$'
+      rockylinux:
+        - '^\d+$'
+      oraclelinux:
+        - '^\d+$'
+        - '^\d+-slim$'
+      almalinux:
+        - '^\d+$'
+      centos:
+        - '^\d+$'
+      fedora:
+        - '^\d+$'
+      opensuse_tumbleweed:
+        - '^latest$'
+      opensuse_leap:
+        - '^\d+\.\d+$'
+      alpine:
+        - '^\d+\.\d+$'
+        - '^edge$'
+      archlinux:
+        - '^latest$'
+        - '^base$'
     include_platform_ids:
       - debian-11
       - debian-12

@@ -26,7 +26,10 @@ def die(message: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Resolve docker build matrix")
-    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
+    parser.add_argument(
+        "--platform-releases",
+        default=".github/data/platform-releases-discovered.yml",
+    )
     parser.add_argument(
         "--platform-availability", default=".github/data/platform-availability.yml"
     )

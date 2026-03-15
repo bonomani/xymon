@@ -649,7 +649,7 @@ def parse_args():
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
         "--platform-releases",
-        default="ci/deps/platform-releases.yaml",
+        default=".github/data/platform-releases-discovered.yml",
     )
     parser.add_argument(
         "--runtime-model",

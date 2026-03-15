@@ -933,7 +933,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-json", default="")
     parser.add_argument("--jobs-json", default="")
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
-    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
+    parser.add_argument(
+        "--platform-releases",
+        default=".github/data/platform-releases-discovered.yml",
+    )
     return parser.parse_args()
 
 

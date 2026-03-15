@@ -1,46 +1,57 @@
 platforms:
   debian:
     runtime: docker
+    repository: library/debian
     deps:
       package_family: debian
   ubuntu:
     runtime: docker
+    repository: library/ubuntu
     deps:
       package_family: ubuntu
   rockylinux:
     runtime: docker
+    repository: library/rockylinux
     deps:
       package_family: rpm
   oraclelinux:
     runtime: docker
+    repository: library/oraclelinux
     deps:
       package_family: rpm
   almalinux:
     runtime: docker
+    repository: library/almalinux
     deps:
       package_family: rpm
   centos:
     runtime: docker
+    repository: library/centos
     deps:
       package_family: rpm
   fedora:
     runtime: docker
+    repository: library/fedora
     deps:
       package_family: rpm
   opensuse_tumbleweed:
     runtime: docker
+    repository: opensuse/tumbleweed
     deps:
       package_family: suse
   opensuse_leap:
     runtime: docker
+    repository: opensuse/leap
     deps:
       package_family: suse
   alpine:
     runtime: docker
+    repository: library/alpine
     deps:
       package_family: alpine
   archlinux:
     runtime: docker
+    repository: library/archlinux
     deps:
       package_family: arch
   freebsd:
