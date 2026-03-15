@@ -284,11 +284,6 @@ def optional_alias_of(entry: dict[str, Any], context: str) -> str | None:
     return as_str(raw_value, f"{context}.alias_of")
 
 
-def version_key(value: str) -> tuple[int, tuple[int, ...], str]:
-    numbers = tuple(int(part) for part in re.findall(r"\d+", value))
-    return (1 if numbers else 0, numbers, value)
-
-
 def infer_platform_os(platform_id: str) -> str:
     platform_id = str(platform_id).strip()
     if platform_id.startswith("opensuse-tumbleweed"):
@@ -547,13 +542,11 @@ def select_platform_releases(
 def load_docker_platform_entries(
     platform_releases: dict[str, dict[str, Any]],
     platform_catalog: dict[str, dict[str, Any]],
-    selection_policy: dict[str, dict[str, set[str]]],
+    _selection_policy: dict[str, dict[str, set[str]]],
 ) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "docker":
-            continue
-        if not selection_allows(selection_policy, "containers", platform_id):
             continue
         platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).lower()
         catalog_entry = as_map(
@@ -597,14 +590,12 @@ def load_docker_platform_entries(
 def load_vm_release_entries(
     platform_releases: dict[str, dict[str, Any]],
     _platform_catalog: dict[str, dict[str, Any]],
-    selection_policy: dict[str, dict[str, set[str]]],
+    _selection_policy: dict[str, dict[str, set[str]]],
 ) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
     release_lookup = platform_releases
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "vm":
-            continue
-        if not selection_allows(selection_policy, "vms", platform_id):
             continue
         alias_of = None
         resolved_version = None
@@ -649,13 +640,11 @@ def load_vm_release_entries(
 
 def load_host_release_entries(
     platform_releases: dict[str, dict[str, Any]],
-    selection_policy: dict[str, dict[str, set[str]]],
+    _selection_policy: dict[str, dict[str, set[str]]],
 ) -> dict[str, dict[str, Any]]:
     selected: dict[str, dict[str, Any]] = {}
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "host":
-            continue
-        if not selection_allows(selection_policy, "hosts", platform_id):
             continue
         selected[platform_id] = {
             "provider": field_str(
@@ -1074,7 +1063,7 @@ def export_catalog(*, refresh_container_manifests: bool = False):
         and str(entry.get("image"))
     }
     for platform_id, entry in static_platform_releases.items():
-        if str(entry.get("runtime", "")).lower() != "docker":
+        if str(entry.get("runtime", "docker")).lower() != "docker":
             continue
         if platform_id in all_platform_releases:
             merged_entry = dict(all_platform_releases[platform_id])
