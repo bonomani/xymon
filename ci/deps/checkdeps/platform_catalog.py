@@ -20,6 +20,18 @@ def infer_platform_os(platform_id: str) -> str:
     return platform_id.split("-", 1)[0]
 
 
+def infer_release_version(platform_id: str, entry: dict) -> str | None:
+    platform_version = str(entry.get("platform_version", "")).strip()
+    if platform_version:
+        return platform_version
+    image = str(entry.get("image", "")).strip()
+    if ":" in image:
+        return image.rsplit(":", 1)[1].strip() or None
+    if "-" in platform_id:
+        return platform_id.split("-", 1)[1].replace("_", ".")
+    return None
+
+
 def validate_platform_catalog_fields(platform_os: str, entry: dict) -> None:
     runtime = str(entry.get("runtime", "")).strip().lower()
     if runtime not in {"docker", "vm", "host"}:
@@ -163,8 +175,14 @@ def load_platform_deps_bindings(
                 f"ERROR: platform release entry '{platform_id}' must resolve package_family and platform_os"
             )
         if key_raw is None:
-            normalized_key = None
-            os_key = platform_os
+            matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)
+            if matching_rule is None:
+                normalized_key = None
+                os_key = platform_os
+            else:
+                inferred_version = infer_release_version(platform_id, entry)
+                normalized_key = normalize_rule_version(matching_rule, inferred_version)
+                os_key = compose_os_key(platform_os, normalized_key)
         else:
             key = str(key_raw).strip()
             matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)

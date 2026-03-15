@@ -15,14 +15,10 @@ platforms:
     runtime: docker
     platform_os: debian
     image: debian:13.3-slim
-    deps:
-      key: 13
   ubuntu-20.04:
     runtime: docker
     platform_os: ubuntu
     image: ubuntu:20.04
-    deps:
-      key: 20
   ubuntu-22.04:
     runtime: docker
     platform_os: ubuntu
@@ -39,149 +35,99 @@ platforms:
     runtime: docker
     platform_os: rockylinux
     image: rockylinux:8
-    deps:
-      key: 8
   rockylinux-9:
     runtime: docker
     platform_os: rockylinux
     image: rockylinux:9
-    deps:
-      key: 9
   oraclelinux-10:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:10
-    deps:
-      key: 10
   oraclelinux-10-slim:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:10-slim
-    deps:
-      key: 10
   oraclelinux-9:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:9
-    deps:
-      key: 9
   oraclelinux-8:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:8
-    deps:
-      key: 8
   almalinux-8:
     runtime: docker
     platform_os: almalinux
     image: almalinux:8
-    deps:
-      key: 8
   almalinux-9:
     runtime: docker
     platform_os: almalinux
     image: almalinux:9
-    deps:
-      key: 9
   almalinux-10:
     runtime: docker
     platform_os: almalinux
     image: almalinux:10
-    deps:
-      key: 10
   centos-7:
     runtime: docker
     platform_os: centos
     image: centos:7
-    deps:
-      key: 7
   fedora-40:
     runtime: docker
     platform_os: fedora
     image: fedora:40
-    deps:
-      key: 40
   fedora-41:
     runtime: docker
     platform_os: fedora
     image: fedora:41
-    deps:
-      key: 41
   fedora-42:
     runtime: docker
     platform_os: fedora
     image: fedora:42
-    deps:
-      key: 42
   opensuse-tumbleweed:
     runtime: docker
     platform_os: opensuse_tumbleweed
     image: opensuse/tumbleweed:latest
-    deps:
-      key: latest
   opensuse-leap-16_0:
     runtime: docker
     platform_os: opensuse_leap
     image: opensuse/leap:16.0
-    deps:
-      key: "16_0"
   opensuse-leap-15_6:
     runtime: docker
     platform_os: opensuse_leap
     image: opensuse/leap:15.6
-    deps:
-      key: "15_6"
   opensuse-leap-15_5:
     runtime: docker
     platform_os: opensuse_leap
     image: opensuse/leap:15.5
-    deps:
-      key: "15_5"
   alpine-3_23:
     runtime: docker
     platform_os: alpine
     image: alpine:3.23
-    deps:
-      key: 3
   alpine-3_22:
     runtime: docker
     platform_os: alpine
     image: alpine:3.22
-    deps:
-      key: 3
   alpine-3_21:
     runtime: docker
     platform_os: alpine
     image: alpine:3.21
-    deps:
-      key: 3
   alpine-3_20:
     runtime: docker
     platform_os: alpine
     image: alpine:3.20
-    deps:
-      key: 3
   alpine-3_19:
     runtime: docker
     platform_os: alpine
     image: alpine:3.19
-    deps:
-      key: 3
   alpine-edge:
     runtime: docker
     platform_os: alpine
     image: alpine:edge
-    deps:
-      key: 3
   archlinux-latest:
     runtime: docker
     platform_os: archlinux
     image: archlinux:latest
-    deps:
-      key: latest
   archlinux-base:
     runtime: docker
     platform_os: archlinux
     image: archlinux:base
-    deps:
-      key: latest
