@@ -50,6 +50,20 @@ def infer_platform_os(family: str, platform_id=None) -> str:
     return require_non_empty_string(family, "Lane family")
 
 
+ORACLE_DISPLAY_NAME_MAP = {
+    "10": "Oracle Linux 10 arm64",
+    "10-slim": "Oracle Linux 10-slim amd64",
+    "9": "Oracle Linux 9 amd64",
+    "8": "Oracle Linux 8 amd64",
+}
+
+DOCKER_DISPLAY_NAME_OVERRIDES = {"oraclelinux": ORACLE_DISPLAY_NAME_MAP}
+
+
+def _lookup_docker_display_name_override(platform_os: str, tag: str) -> str | None:
+    return DOCKER_DISPLAY_NAME_OVERRIDES.get(platform_os, {}).get(tag)
+
+
 def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
     display_name = str(platform_entry.get("display_name") or "").strip()
     if display_name:
@@ -61,6 +75,9 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
     tag = image.partition(":")[2].strip()
 
     if runtime == "docker":
+        override = _lookup_docker_display_name_override(platform_os, tag)
+        if override:
+            return override
         docker_os_names = {
             "debian": "Debian",
             "ubuntu": "Ubuntu",
