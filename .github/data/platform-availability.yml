@@ -1,6 +1,7 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
   platform_releases: ci/deps/platform-releases.yaml
+  platform_intent: ci/deps/platform-intent.yaml
   docker_availability_raw: .github/data/docker-availability-raw.yml
   host_runner_catalog: ci/deps/platform-host-runners.yaml
 platforms:

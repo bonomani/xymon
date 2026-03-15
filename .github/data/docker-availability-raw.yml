@@ -1,6 +1,7 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
   platform_releases: ci/deps/platform-releases.yaml
+  platform_intent: ci/deps/platform-intent.yaml
   registry_base: https://registry-1.docker.io
   token_service: https://auth.docker.io/token
   container_cache_mode: reuse
