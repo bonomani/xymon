@@ -46,6 +46,13 @@ class PlatformCandidate:
         text = self.text()
         return any(keyword in text for keyword in LATEST_KEYWORDS)
 
+    def is_alias(self) -> bool:
+        alias_of = str(self.entry.get("alias_of", "") or "").strip()
+        return bool(alias_of)
+
+    def excluded_from_primary(self) -> bool:
+        return self.is_latest_variant() or self.is_alias()
+
     def version_tuple(self) -> tuple[int, ...]:
         candidates = []
         platform_version = str(self.entry.get("platform_version", "")) or ""
@@ -70,6 +77,13 @@ class PlatformCandidate:
             if arch in arches:
                 return index
         return len(ARCH_PRIORITY)
+
+    def primary_arch(self) -> str:
+        arches = self.entry.get("discovered_arches", []) or []
+        for arch in ARCH_PRIORITY:
+            if arch in arches:
+                return arch
+        return ""
 
 
 def load_lane_platform_ids(lane_file: Path) -> list[str]:
@@ -110,6 +124,19 @@ def best_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | N
     return min(candidates, key=candidate_sort_key)
 
 
+def ordered_candidates(candidates: list[PlatformCandidate]) -> list[PlatformCandidate]:
+    eligible = [candidate for candidate in candidates if not candidate.excluded_from_primary()]
+    excluded = [candidate for candidate in candidates if candidate.excluded_from_primary()]
+    return sorted(eligible, key=candidate_sort_key) + sorted(excluded, key=candidate_sort_key)
+
+
+def primary_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | None:
+    ordered = ordered_candidates(candidates)
+    if not ordered:
+        return None
+    return ordered[0]
+
+
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compute preferred platform per lane family.")
     parser.add_argument("--lanes-dir", default=LANES_DIR, type=Path)
@@ -128,21 +155,25 @@ def main() -> int:
         family = lane_file.stem
         platform_ids = load_lane_platform_ids(lane_file)
         candidates = build_candidates(availability, platform_ids)
-        best = best_candidate(candidates)
-        if best is None:
+        primary = primary_candidate(candidates)
+        ordered = ordered_candidates(candidates)
+        if primary is None:
             print(f"{family}: no matching catalog entries for {platform_ids}")
             all_ok = False
             continue
         first_entry = platform_ids[0] if platform_ids else "<none>"
-        preferred_note = "preferred" if best.platform_id != first_entry else "default"
+        preferred_note = "preferred" if primary.platform_id != first_entry else "default"
+        excluded = [candidate.platform_id for candidate in ordered if candidate.excluded_from_primary()]
         results.append(
             {
                 "family": family,
-                "preferred": best.platform_id,
+                "primary_platform_id": primary.platform_id,
+                "ordered_platform_ids": [candidate.platform_id for candidate in ordered],
+                "primary_arch": primary.primary_arch(),
+                "excluded_from_primary": excluded,
                 "first": first_entry,
                 "status": preferred_note,
                 "platforms": platform_ids,
-                "reason": best_reason(best),
             }
         )
 
@@ -150,7 +181,10 @@ def main() -> int:
         family = record["family"]
         status_tag = "(preferred)" if record["status"] == "preferred" else "(first)"
         note = "" if status_tag == "(first)" else "preferred differs"
-        print(f"{family}: {record['preferred']} {status_tag} | lane entries: {record['platforms']} {note}")
+        print(
+            f"{family}: {record['primary_platform_id']} {status_tag} | "
+            f"lane entries: {record['platforms']} {note}"
+        )
         if status_tag != "(first)":
             all_ok = False
     print()
@@ -162,23 +196,16 @@ def main() -> int:
     return 0 if all_ok else 1
 
 
-def best_reason(candidate: PlatformCandidate) -> str:
-    if candidate.is_slim_variant():
-        return "slim-preferred"
-    if candidate.is_latest_variant():
-        return "latest-keyword"
-    return "version/arch"
-
-
 def dump_output(output_path: Path, results: list[dict]) -> None:
     payload = {"preferred_platforms": []}
     for record in results:
         payload["preferred_platforms"].append(
             {
                 "family": record["family"],
-                "platform_id": record["preferred"],
-                "available": record["platforms"],
-                "reason": record["reason"],
+                "primary_platform_id": record["primary_platform_id"],
+                "ordered_platform_ids": record["ordered_platform_ids"],
+                "primary_arch": record["primary_arch"],
+                "excluded_from_primary": record["excluded_from_primary"],
             }
         )
     output_path.parent.mkdir(parents=True, exist_ok=True)

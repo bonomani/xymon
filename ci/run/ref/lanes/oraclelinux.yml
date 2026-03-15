@@ -1,7 +1,12 @@
 generated:
   platforms:
-  - platform_id: oraclelinux-9
-  - platform_id: oraclelinux-8
+  - platform_id: oraclelinux-10-slim
+    variants:
+    - variant: server
+      allow_failure: true
+    - variant: localclient
+      allow_failure: true
+    - client
   - platform_id: oraclelinux-10
     base_defaults: arm64
     variants:
@@ -10,10 +15,5 @@ generated:
     - variant: localclient
       allow_failure: true
     - client
-  - platform_id: oraclelinux-10-slim
-    variants:
-    - variant: server
-      allow_failure: true
-    - variant: localclient
-      allow_failure: true
-    - client
+  - platform_id: oraclelinux-9
+  - platform_id: oraclelinux-8

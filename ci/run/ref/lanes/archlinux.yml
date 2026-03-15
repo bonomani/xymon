@@ -8,5 +8,5 @@ generated:
       - defaults: riscv64
       - defaults: s390x
   platforms:
-    - platform_id: archlinux-latest
     - platform_id: archlinux-base
+    - platform_id: archlinux-latest
