@@ -150,11 +150,6 @@ def load_docker_build_platforms(
         runtime = str(raw_entry.get("runtime") or "").strip().lower()
         if runtime != "docker":
             continue
-        docker_build = raw_entry.get("docker_build", False)
-        if not isinstance(docker_build, bool):
-            die(f"platform '{platform_id}' has non-boolean docker_build")
-        if not docker_build:
-            continue
         image = str(raw_entry.get("image") or "").strip()
         if not image:
             die(f"platform '{platform_id}' is runtime=docker but has no image")
@@ -184,7 +179,7 @@ def load_docker_build_platforms(
 
     if not docker_platforms:
         die(
-            f"{platform_catalog_path} has no docker_build=true runtime=docker platforms"
+            f"{platform_catalog_path} has no runtime=docker platforms"
         )
     return docker_platforms
 
