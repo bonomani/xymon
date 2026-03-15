@@ -11,8 +11,8 @@ inputs:
   arch:
     description: Architecture selector value.
     required: true
-  arch_policy:
-    description: Architecture selection policy.
+  coverage_policy:
+    description: Coverage policy.
     required: true
   alias_policy:
     description: Alias selection policy.
@@ -143,7 +143,7 @@ runs:
           --selected-family "${{ inputs.family }}" \
           --selected-variant "${{ inputs.variant }}" \
           --selected-arch "${{ inputs.arch }}" \
-          --selected-arch-policy "${{ inputs.arch_policy }}" \
+          --selected-coverage-policy "${{ inputs.coverage_policy }}" \
           --selected-alias-policy "${{ inputs.alias_policy }}" \
           --goal "${{ steps.resolve_execution.outputs.goal }}" \
           --build-tool "${{ steps.resolve_execution.outputs.build_tool }}" \

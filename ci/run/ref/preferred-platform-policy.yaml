@@ -1,0 +1,39 @@
+families:
+  default:
+    prefer_slim: false
+    allow_alias_as_primary: false
+    allow_latest_as_primary: false
+    allow_rolling_as_primary: false
+    required_capabilities: []
+    preferred_capabilities: []
+
+  oraclelinux:
+    prefer_slim: true
+
+  alpine:
+    allow_rolling_as_primary: false
+
+  opensuse:
+    allow_rolling_as_primary: false
+
+  macos:
+    preferred_capabilities:
+      - container_runtime_available
+
+  ubuntu:
+    preferred_capabilities:
+      - direct_runner
+      - container_runner
+
+  debian:
+    preferred_capabilities:
+      - direct_runner
+      - container_runner
+
+  rockylinux:
+    preferred_capabilities:
+      - container_runner
+
+  almalinux:
+    preferred_capabilities:
+      - container_runner
