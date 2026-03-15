@@ -59,7 +59,6 @@ platforms:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:10
-    display_name: Oracle Linux 10 arm64
     deps:
       package_family: rpm
       key: 10
@@ -67,7 +66,6 @@ platforms:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:10-slim
-    display_name: Oracle Linux 10-slim amd64
     deps:
       package_family: rpm
       key: 10
@@ -75,7 +73,6 @@ platforms:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:9
-    display_name: Oracle Linux 9 amd64
     deps:
       package_family: rpm
       key: 9
@@ -83,7 +80,6 @@ platforms:
     runtime: docker
     platform_os: oraclelinux
     image: oraclelinux:8
-    display_name: Oracle Linux 8 amd64
     deps:
       package_family: rpm
       key: 8
