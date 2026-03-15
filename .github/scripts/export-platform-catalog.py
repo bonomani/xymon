@@ -298,19 +298,21 @@ def load_docker_platform_entries(
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "docker":
             continue
+        platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).lower()
         catalog_entry = as_map(
-            platform_catalog.get(platform_id),
-            f"{PLATFORM_CATALOG}.platforms.{platform_id}",
+            platform_catalog.get(platform_os),
+            f"{PLATFORM_CATALOG}.platforms.{platform_os}",
         )
-        deps = field_map(catalog_entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        deps = dict(field_map(catalog_entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_os}"))
+        release_deps = entry.get("deps")
+        if release_deps is not None:
+            deps.update(as_map(release_deps, f"{PLATFORM_RELEASES}.platforms.{platform_id}.deps"))
         image = field_str(entry, "image", f"{PLATFORM_RELEASES}.platforms.{platform_id}")
         repository, tag = image_repository_and_tag(image)
         entries.append(
             {
                 "platform_id": platform_id,
-                "platform_os": str(
-                    entry.get("platform_os") or infer_platform_os(platform_id)
-                ).lower(),
+                "platform_os": platform_os,
                 "platform_family": "linux",
                 "platform_version": platform_version_for(
                     entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}", tag
@@ -330,25 +332,24 @@ def load_docker_platform_entries(
 
 def load_vm_release_entries(
     platform_releases: dict[str, dict[str, Any]],
-    platform_catalog: dict[str, dict[str, Any]],
+    _platform_catalog: dict[str, dict[str, Any]],
 ) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
+    release_lookup = platform_releases
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "vm":
             continue
-        platform_entry = platform_catalog.get(platform_id, {})
         alias_of = None
         resolved_version = None
-        if isinstance(platform_entry, dict):
-            alias_of = optional_alias_of(platform_entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}")
-            if alias_of:
-                alias_entry = platform_catalog.get(alias_of, {})
-                if isinstance(alias_entry, dict):
-                    alias_deps = alias_entry.get("deps")
-                    if isinstance(alias_deps, dict):
-                        alias_version = alias_deps.get("key")
-                        if isinstance(alias_version, (str, int, float)):
-                            resolved_version = str(alias_version)
+        alias_of = optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+        if alias_of:
+            alias_entry = release_lookup.get(alias_of, {})
+            if isinstance(alias_entry, dict):
+                alias_deps = alias_entry.get("deps")
+                if isinstance(alias_deps, dict):
+                    alias_version = alias_deps.get("key")
+                    if isinstance(alias_version, (str, int, float)):
+                        resolved_version = str(alias_version)
         source_arch = field_str(
             entry, "source_arch", f"{PLATFORM_RELEASES}.platforms.{platform_id}"
         )
@@ -578,7 +579,7 @@ def build_host_runner_lookup(runners: list[dict[str, Any]]) -> dict[str, dict[st
 
 
 def build_platform_availability(
-    platform_catalog: dict[str, dict[str, Any]],
+    platform_releases: dict[str, dict[str, Any]],
     docker_platforms: dict[str, dict[str, Any]],
     vm_entries: list[dict[str, Any]],
     host_entries: dict[str, dict[str, Any]],
@@ -589,7 +590,7 @@ def build_platform_availability(
     host_runner_lookup = build_host_runner_lookup(host_runners)
     availability: dict[str, dict[str, Any]] = {}
 
-    for platform_id, entry in sorted(platform_catalog.items()):
+    for platform_id, entry in sorted(platform_releases.items()):
         runtime = str(entry.get("runtime", "")).strip().lower()
         if runtime == "docker":
             docker_entry = docker_platforms.get(platform_id)
@@ -804,7 +805,7 @@ def export_catalog(*, refresh_containers: bool = False):
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
     }
     platform_availability = build_platform_availability(
-        platform_catalog,
+        platform_releases,
         docker_platforms,
         resolved_vm_platforms,
         host_entries,

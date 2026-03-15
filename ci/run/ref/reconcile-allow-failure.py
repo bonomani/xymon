@@ -282,7 +282,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--event", default="workflow_dispatch")
     parser.add_argument("--token-env", default="GH_TOKEN")
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
-    parser.add_argument("--platform-catalog", default="ci/deps/platform-catalog.yaml")
+    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--markdown-output", default="")
     parser.add_argument("--json-output", default="")
@@ -416,7 +416,7 @@ def main() -> None:
     repo_root = Path(__file__).resolve().parents[3]
     registry = build_lane_registry(
         repo_root / args.manifest,
-        repo_root / args.platform_catalog,
+        repo_root / args.platform_releases,
     )
     normalized_lane_outcomes = {
         normalize_job_name(name): payload

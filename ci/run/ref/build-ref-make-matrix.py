@@ -203,20 +203,20 @@ def derive_manifest_purpose(goal: str) -> str:
     return "generation"
 
 
-def load_platform_catalog(path: Path):
+def load_platform_releases(path: Path):
     if not path.exists():
-        die(f"Missing platform catalog: {path}")
+        die(f"Missing platform releases: {path}")
 
     data = yaml.safe_load(path.read_text()) or {}
     platforms = data.get("platforms")
     if not isinstance(platforms, dict) or not platforms:
-        die(f"Platform catalog has no platforms mapping: {path}")
+        die(f"Platform releases has no platforms mapping: {path}")
 
     normalized = {}
     for platform_id, entry in platforms.items():
-        platform_id = require_non_empty_string(platform_id, "Platform catalog platform id")
+        platform_id = require_non_empty_string(platform_id, "Platform releases platform id")
         normalized_entry = require_mapping(
-            entry, f"Platform catalog entry '{platform_id}'"
+            entry, f"Platform release entry '{platform_id}'"
         )
         runtime = require_non_empty_string(
             normalized_entry.get("runtime"), f"Platform '{platform_id}'.runtime"
@@ -648,8 +648,8 @@ def parse_args():
     )
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
     parser.add_argument(
-        "--platform-catalog",
-        default="ci/deps/platform-catalog.yaml",
+        "--platform-releases",
+        default="ci/deps/platform-releases.yaml",
     )
     parser.add_argument(
         "--runtime-model",
@@ -713,7 +713,7 @@ def main():
         family_entry["runtime_to_default_ref_os"] = runtime_to_default_ref_os
         family_entry["runtime_to_requires_runs_on"] = runtime_to_requires_runs_on
 
-    platform_catalog = load_platform_catalog(repo_root / args.platform_catalog)
+    platform_catalog = load_platform_releases(repo_root / args.platform_releases)
     container_runtime_preferences = load_container_runtime_preferences(
         repo_root / args.platform_intent
     )

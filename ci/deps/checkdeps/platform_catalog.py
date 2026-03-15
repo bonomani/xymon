@@ -1,4 +1,4 @@
-"""Platform catalog helpers for dependency checks."""
+"""Platform catalog and platform release helpers for dependency checks."""
 
 from __future__ import annotations
 
@@ -20,46 +20,92 @@ def infer_platform_os(platform_id: str) -> str:
     return platform_id.split("-", 1)[0]
 
 
-def validate_platform_runtime_fields(platform_id: str, entry: dict) -> None:
+def validate_platform_catalog_fields(platform_os: str, entry: dict) -> None:
     runtime = str(entry.get("runtime", "")).strip().lower()
     if runtime not in {"docker", "vm", "host"}:
         raise SystemExit(
-            f"ERROR: platform catalog entry '{platform_id}' has unsupported runtime '{runtime}'"
+            f"ERROR: platform catalog entry '{platform_os}' has unsupported runtime '{runtime}'"
         )
 
     image = str(entry.get("image", "")).strip()
     runner = str(entry.get("runner", "")).strip()
-    provider = str(entry.get("provider", "")).strip()
 
-    if runtime == "docker":
-        if not image:
-            raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' (runtime=docker) must include image"
-            )
-        if runner:
-            raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' (runtime=docker) must not include runner"
-            )
-        return
-
-    if runtime == "vm":
-        if image or runner:
-            raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' (runtime=vm) must not include image/runner"
-            )
-        return
-
-    if not runner:
+    if runtime == "docker" and (image or runner):
         raise SystemExit(
-            f"ERROR: platform catalog entry '{platform_id}' (runtime=host) must include runner"
+            f"ERROR: platform catalog entry '{platform_os}' (runtime=docker) must not include image/runner"
         )
-    if image:
+        return
+
+    if runtime == "vm" and (image or runner):
         raise SystemExit(
-            f"ERROR: platform catalog entry '{platform_id}' (runtime=host) must not include image"
+            f"ERROR: platform catalog entry '{platform_os}' (runtime=vm) must not include image/runner"
+        )
+        return
+
+    if image or runner:
+        raise SystemExit(
+            f"ERROR: platform catalog entry '{platform_os}' (runtime=host) must not include image/runner"
         )
 
 
 def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
+    if not path.exists():
+        return {}
+
+    data = load_yaml(path)
+    platforms = data.get("platforms")
+    if not isinstance(platforms, dict):
+        return {}
+
+    normalized = {}
+    for platform_os, raw_entry in platforms.items():
+        require(
+            isinstance(platform_os, str) and platform_os.strip(),
+            f"{path} platform os must be a non-empty string",
+        )
+        require(
+            isinstance(raw_entry, dict),
+            f"{path} platforms.{platform_os} must be a mapping",
+        )
+        validate_platform_catalog_fields(platform_os, raw_entry)
+        normalized[platform_os] = raw_entry
+    return normalized
+
+
+def validate_platform_release_fields(platform_id: str, entry: dict) -> None:
+    runtime = str(entry.get("runtime", "")).strip().lower()
+    if runtime not in {"docker", "vm", "host"}:
+        raise SystemExit(
+            f"ERROR: platform release entry '{platform_id}' has unsupported runtime '{runtime}'"
+        )
+
+    platform_os = str(entry.get("platform_os", "")).strip()
+    if not platform_os:
+        raise SystemExit(
+            f"ERROR: platform release entry '{platform_id}' must include platform_os"
+        )
+
+    image = str(entry.get("image", "")).strip()
+    runner = str(entry.get("runner", "")).strip()
+    if runtime == "docker":
+        if not image or runner:
+            raise SystemExit(
+                f"ERROR: platform release entry '{platform_id}' (runtime=docker) must include image and must not include runner"
+            )
+        return
+    if runtime == "vm":
+        if image or runner:
+            raise SystemExit(
+                f"ERROR: platform release entry '{platform_id}' (runtime=vm) must not include image/runner"
+            )
+        return
+    if not runner or image:
+        raise SystemExit(
+            f"ERROR: platform release entry '{platform_id}' (runtime=host) must include runner and must not include image"
+        )
+
+
+def load_platform_releases(path, load_yaml, require) -> dict[str, dict]:
     if not path.exists():
         return {}
 
@@ -78,30 +124,43 @@ def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
             isinstance(raw_entry, dict),
             f"{path} platforms.{platform_id} must be a mapping",
         )
-        validate_platform_runtime_fields(platform_id, raw_entry)
+        validate_platform_release_fields(platform_id, raw_entry)
         normalized[platform_id] = raw_entry
     return normalized
 
 
 def load_platform_deps_bindings(
     platform_catalog: dict[str, dict],
+    platform_releases: dict[str, dict],
     normalization_rules: dict[str, dict] | None = None,
 ) -> dict[str, dict]:
     bindings: dict[str, dict] = {}
-    for platform_id, entry in platform_catalog.items():
-        deps = entry.get("deps")
+    for platform_id, entry in platform_releases.items():
+        platform_os = str(entry.get("platform_os", "")).strip() or infer_platform_os(platform_id)
+        catalog_entry = platform_catalog.get(platform_os)
+        if not isinstance(catalog_entry, dict):
+            raise SystemExit(
+                f"ERROR: platform release entry '{platform_id}' references unknown platform_os '{platform_os}'"
+            )
+        deps = catalog_entry.get("deps")
+        release_deps = entry.get("deps")
+        if release_deps is None:
+            release_deps = {}
         if deps is None:
             continue
         if not isinstance(deps, dict):
             raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' deps must be a mapping"
+                f"ERROR: platform catalog entry '{platform_os}' deps must be a mapping"
+            )
+        if not isinstance(release_deps, dict):
+            raise SystemExit(
+                f"ERROR: platform release entry '{platform_id}' deps must be a mapping"
             )
         package_family = str(deps.get("package_family", "")).strip()
-        platform_os = str(entry.get("platform_os", "")).strip() or infer_platform_os(platform_id)
-        key_raw = deps.get("key")
+        key_raw = release_deps.get("key")
         if not package_family or not platform_os:
             raise SystemExit(
-                f"ERROR: platform catalog entry '{platform_id}' must include platform_os and deps.package_family"
+                f"ERROR: platform release entry '{platform_id}' must resolve package_family and platform_os"
             )
         if key_raw is None:
             normalized_key = None
@@ -121,11 +180,11 @@ def load_platform_deps_bindings(
 
 
 def build_docker_image_index(
-    platform_catalog: dict[str, dict],
+    platform_releases: dict[str, dict],
 ) -> Tuple[dict[str, str], dict[str, set[str]]]:
     image_to_platform: dict[str, str] = {}
     duplicate_images: dict[str, set[str]] = {}
-    for platform_id, entry in platform_catalog.items():
+    for platform_id, entry in platform_releases.items():
         runtime = str(entry.get("runtime", "")).strip().lower()
         if runtime != "docker":
             continue
