@@ -2,6 +2,8 @@
 
 from __future__ import annotations
 
+import re
+
 
 def compose_os_key(os_name: str, version: str | int | None) -> str:
     version_text = "" if version is None else str(version).strip()
@@ -52,7 +54,9 @@ def normalize_rule_version(rule: dict | None, version: str | None) -> str | None
         return resolved or None
     if mode == "major":
         if version_text:
-            return version_text.split(".", 1)[0]
+            match = re.search(r"\d+(?:\.\d+)?", version_text)
+            if match:
+                return match.group(0).split(".", 1)[0]
         return version_default or None
     if mode == "dot_to_underscore":
         if version_text:
@@ -63,12 +67,19 @@ def normalize_rule_version(rule: dict | None, version: str | None) -> str | None
             mapped = versions.get(version_text)
             if mapped is None and "." in version_text:
                 mapped = versions.get(version_text.split(".", 1)[0])
+            if mapped is None:
+                digit_match = re.match(r"(\d+)", version_text)
+                if digit_match:
+                    mapped = versions.get(digit_match.group(1))
             if mapped is not None:
                 resolved = str(mapped).strip()
                 return resolved or None
         if version_fallback == "default" and version_default:
             return version_default
         if version_fallback == "passthrough":
+            digit_match = re.match(r"(\d+)", version_text)
+            if digit_match:
+                return digit_match.group(1)
             return version_text or None
         return version_default or version_text or None
     if mode == "prefix_map":

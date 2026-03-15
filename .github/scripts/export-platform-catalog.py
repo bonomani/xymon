@@ -450,6 +450,7 @@ def discover_docker_releases(
             record = {
                 "runtime": "docker",
                 "platform_os": platform_os,
+                "platform_version": tag,
                 "image": f"{repository.split('/', 1)[1] if repository.startswith('library/') else repository}:{tag}",
             }
             discovered[platform_id] = record

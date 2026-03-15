@@ -16,7 +16,6 @@ platforms:
     platform_version: '10'
     deps:
       package_family: rpm
-      key: 10
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/10
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:3ea6bed76e47c1a816ed7e1ed7be8661efcf6984bec90bcad5ec73b66b6754ce
@@ -34,7 +33,6 @@ platforms:
     platform_version: '8'
     deps:
       package_family: rpm
-      key: 8
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:9cf50481aca02c0112131e589e9eac358fb43977bcf2350b542a6de1d2484178
@@ -52,7 +50,6 @@ platforms:
     platform_version: '9'
     deps:
       package_family: rpm
-      key: 9
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/9
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:4e5f333756e39943fe66e3b55ee4c303805eebd7c6da372f07f2418f79b23d87
@@ -70,7 +67,6 @@ platforms:
     platform_version: '3.19'
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.19
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
@@ -89,7 +85,6 @@ platforms:
     platform_version: '3.20'
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.20
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
@@ -109,7 +104,6 @@ platforms:
     platform_version: '3.21'
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.21
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
@@ -129,7 +123,6 @@ platforms:
     platform_version: '3.22'
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.22
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
@@ -149,7 +142,6 @@ platforms:
     platform_version: '3.23'
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.23
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
@@ -169,7 +161,6 @@ platforms:
     platform_version: edge
     deps:
       package_family: alpine
-      key: 3
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/edge
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
@@ -189,7 +180,6 @@ platforms:
     platform_version: base
     deps:
       package_family: arch
-      key: latest
     manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/base
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
@@ -204,7 +194,6 @@ platforms:
     platform_version: latest
     deps:
       package_family: arch
-      key: latest
     manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/latest
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
@@ -219,7 +208,6 @@ platforms:
     platform_version: '7'
     deps:
       package_family: rpm
-      key: 7
     manifest_url: https://registry-1.docker.io/v2/library/centos/manifests/7
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4
@@ -273,7 +261,6 @@ platforms:
     platform_version: 13.3-slim
     deps:
       package_family: debian
-      key: 13
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
@@ -293,7 +280,6 @@ platforms:
     platform_version: '40'
     deps:
       package_family: rpm
-      key: 40
     manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/40
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:3c86d25fef9d2001712bc3d9b091fc40cf04be4767e48f1aa3b785bf58d300ed
@@ -311,7 +297,6 @@ platforms:
     platform_version: '41'
     deps:
       package_family: rpm
-      key: 41
     manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/41
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:f1a3fab47bcb3c3ddf3135d5ee7ba8b7b25f2e809a47440936212a3a50957f3d
@@ -329,7 +314,6 @@ platforms:
     platform_version: '42'
     deps:
       package_family: rpm
-      key: 42
     manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/42
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:eb167a7adffa1489a205c83a7b9324e4cb0fae5c54645f263e70ac13f661f0e8
@@ -347,7 +331,6 @@ platforms:
     platform_version: '15.5'
     deps:
       package_family: suse
-      key: '15_5'
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.5
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:9bd49bd34edb6cc81a47133201f5e7720db3e95ad86eccc4b05afcd83e49dd89
@@ -366,7 +349,6 @@ platforms:
     platform_version: '15.6'
     deps:
       package_family: suse
-      key: '15_6'
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.6
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:b084d6e29d975ce9123fd52bd201ac020628797f2772e9171ef76f33cc92d591
@@ -384,7 +366,6 @@ platforms:
     platform_version: '16.0'
     deps:
       package_family: suse
-      key: '16_0'
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/16.0
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:859560554b625c225fa767b76d61253d529b95d082c2d68579ad69168d5e3da7
@@ -401,7 +382,6 @@ platforms:
     platform_version: latest
     deps:
       package_family: suse
-      key: latest
     manifest_url: https://registry-1.docker.io/v2/opensuse/tumbleweed/manifests/latest
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
     digest: sha256:9a72a269bb951bff5437c532bf635b2b16213753033ba8dcc79649ee59a55b9b
@@ -421,7 +401,6 @@ platforms:
     platform_version: '10'
     deps:
       package_family: rpm
-      key: 10
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/10
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:52f0a59393f919916824ad4a2991263502e5c35de772a81c284e9bb0e2edc62e
@@ -437,7 +416,6 @@ platforms:
     platform_version: 10-slim
     deps:
       package_family: rpm
-      key: 10
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/10-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:5919fae396097046e16ce28cb4bf231cddcc40b3e5e45a7e8a97497e79985743
@@ -453,7 +431,6 @@ platforms:
     platform_version: '8'
     deps:
       package_family: rpm
-      key: 8
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:64430839b73647a5fd3e91eb2b15196d3f2caa62d73ba2bac88aebb855e2c337
@@ -469,7 +446,6 @@ platforms:
     platform_version: '9'
     deps:
       package_family: rpm
-      key: 9
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/9
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:16d4ad141e163e32693801932e07abd0981dcd815953be135bbd6e3d78fd10d6
@@ -485,7 +461,6 @@ platforms:
     platform_version: '8'
     deps:
       package_family: rpm
-      key: 8
     manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c
@@ -501,7 +476,6 @@ platforms:
     platform_version: '9'
     deps:
       package_family: rpm
-      key: 9
     manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/9
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
@@ -519,7 +493,6 @@ platforms:
     platform_version: '20.04'
     deps:
       package_family: ubuntu
-      key: 20
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/20.04
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
