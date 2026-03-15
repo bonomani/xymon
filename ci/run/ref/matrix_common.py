@@ -87,6 +87,7 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
         docker_os_names = {
             "debian": "Debian",
             "ubuntu": "Ubuntu",
+            "amazonlinux": "Amazon Linux",
             "rockylinux": "Rocky Linux",
             "almalinux": "AlmaLinux",
             "centos": "CentOS",
@@ -95,7 +96,7 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
         }
         if platform_os in {"debian", "ubuntu", "alpine"} and tag:
             return f"{docker_os_names[platform_os]} {tag} amd64"
-        if platform_os in {"rockylinux", "almalinux", "centos", "fedora"} and tag:
+        if platform_os in {"amazonlinux", "rockylinux", "almalinux", "centos", "fedora"} and tag:
             return f"{docker_os_names[platform_os]} {tag}"
         if platform_os == "opensuse_tumbleweed":
             return "openSUSE Tumbleweed"

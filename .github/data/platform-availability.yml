@@ -361,6 +361,46 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
+  amazonlinux-2:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2'
+    image: amazonlinux:2
+    digest: sha256:a9e1e216e0461552dd0dc6521d2712ba180dcabd4c9b43c47c3b21b857f755a1
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  amazonlinux-2023:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2023'
+    image: amazonlinux:2023
+    digest: sha256:162fc5b69e11e81023f83a1ab618b184927ff3002d0852432af3b6ae4a1b5304
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   archlinux-base:
     runtime: docker
     platform_os: archlinux

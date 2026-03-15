@@ -19,6 +19,13 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary:
   - alpine-edge
+- family: amazonlinux
+  primary_platform_id: amazonlinux-2023
+  ordered_platform_ids:
+  - amazonlinux-2023
+  - amazonlinux-2
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: archlinux
   primary_platform_id: archlinux-base
   ordered_platform_ids:

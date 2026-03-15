@@ -9,6 +9,11 @@ platforms:
     repository: library/ubuntu
     deps:
       package_family: ubuntu
+  amazonlinux:
+    runtime: docker
+    repository: library/amazonlinux
+    deps:
+      package_family: rpm
   rockylinux:
     runtime: docker
     repository: library/rockylinux

@@ -1,0 +1,8 @@
+generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+  platforms:
+    - platform_id: amazonlinux-2023
+    - platform_id: amazonlinux-2

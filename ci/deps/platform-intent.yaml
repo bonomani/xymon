@@ -25,6 +25,9 @@ containers:
         - '^\d+(\.\d+)?-slim$'
       ubuntu:
         - '^\d+\.\d+$'
+      amazonlinux:
+        - '^2$'
+        - '^2023$'
       rockylinux:
         - '^\d+$'
       oraclelinux:
@@ -53,6 +56,8 @@ containers:
       - ubuntu-20.04
       - ubuntu-22.04
       - ubuntu-24.04
+      - amazonlinux-2
+      - amazonlinux-2023
       - rockylinux-8
       - rockylinux-9
       - oraclelinux-8
