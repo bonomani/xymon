@@ -1,103 +1,121 @@
 preferred_platforms:
 - family: almalinux
-  platform_id: almalinux-10
-  available:
+  primary_platform_id: almalinux-10
+  ordered_platform_ids:
   - almalinux-10
   - almalinux-9
   - almalinux-8
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: alpine
-  platform_id: alpine-edge
-  available:
+  primary_platform_id: alpine-3_23
+  ordered_platform_ids:
   - alpine-3_23
   - alpine-3_22
   - alpine-3_21
   - alpine-3_20
   - alpine-3_19
   - alpine-edge
-  reason: latest-keyword
+  primary_arch: amd64
+  excluded_from_primary:
+  - alpine-edge
 - family: archlinux
-  platform_id: archlinux-latest
-  available:
-  - archlinux-latest
+  primary_platform_id: archlinux-base
+  ordered_platform_ids:
   - archlinux-base
-  reason: latest-keyword
+  - archlinux-latest
+  primary_arch: amd64
+  excluded_from_primary:
+  - archlinux-latest
 - family: centos7
-  platform_id: centos-7
-  available:
+  primary_platform_id: centos-7
+  ordered_platform_ids:
   - centos-7
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: debian
-  platform_id: debian-13
-  available:
+  primary_platform_id: debian-13
+  ordered_platform_ids:
   - debian-13
   - debian-12
   - debian-11
-  reason: slim-preferred
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: fedora
-  platform_id: fedora-42
-  available:
-  - fedora-40
-  - fedora-41
+  primary_platform_id: fedora-42
+  ordered_platform_ids:
   - fedora-42
-  reason: version/arch
+  - fedora-41
+  - fedora-40
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: freebsd
-  platform_id: freebsd-15_0
-  available:
+  primary_platform_id: freebsd-15_0
+  ordered_platform_ids:
   - freebsd-15_0
   - freebsd-14_3
   - freebsd-13_5
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: macos
-  platform_id: macos-latest
-  available:
-  - macos-latest
+  primary_platform_id: macos-26
+  ordered_platform_ids:
   - macos-26
   - macos-15
   - macos-14
-  reason: latest-keyword
+  - macos-latest
+  primary_arch: arm64
+  excluded_from_primary:
+  - macos-latest
 - family: netbsd
-  platform_id: netbsd-10_1
-  available:
+  primary_platform_id: netbsd-10_1
+  ordered_platform_ids:
   - netbsd-10_1
   - netbsd-10_0
   - netbsd-9_4
   - netbsd-9_3
   - netbsd-9_2
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: openbsd
-  platform_id: openbsd-7_8
-  available:
+  primary_platform_id: openbsd-7_8
+  ordered_platform_ids:
   - openbsd-7_8
   - openbsd-7_7
   - openbsd-7_6
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: opensuse
-  platform_id: opensuse-tumbleweed
-  available:
-  - opensuse-tumbleweed
+  primary_platform_id: opensuse-leap-16_0
+  ordered_platform_ids:
   - opensuse-leap-16_0
   - opensuse-leap-15_6
   - opensuse-leap-15_5
-  reason: latest-keyword
+  - opensuse-tumbleweed
+  primary_arch: amd64
+  excluded_from_primary:
+  - opensuse-tumbleweed
 - family: oraclelinux
-  platform_id: oraclelinux-10-slim
-  available:
+  primary_platform_id: oraclelinux-10-slim
+  ordered_platform_ids:
+  - oraclelinux-10-slim
+  - oraclelinux-10
   - oraclelinux-9
   - oraclelinux-8
-  - oraclelinux-10
-  - oraclelinux-10-slim
-  reason: slim-preferred
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: rockylinux
-  platform_id: rockylinux-9
-  available:
+  primary_platform_id: rockylinux-9
+  ordered_platform_ids:
   - rockylinux-9
   - rockylinux-8
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []
 - family: ubuntu
-  platform_id: ubuntu-24.04
-  available:
+  primary_platform_id: ubuntu-24.04
+  ordered_platform_ids:
   - ubuntu-24.04
   - ubuntu-22.04
   - ubuntu-20.04
-  reason: version/arch
+  primary_arch: amd64
+  excluded_from_primary: []

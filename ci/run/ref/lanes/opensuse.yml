@@ -10,6 +10,9 @@ generated:
     rolling_platform_ids:
       - opensuse-tumbleweed
   platforms:
+    - platform_id: opensuse-leap-16_0
+    - platform_id: opensuse-leap-15_6
+    - platform_id: opensuse-leap-15_5
     - platform_id: opensuse-tumbleweed
       variants:
         - variant: server
@@ -17,6 +20,3 @@ generated:
         - variant: localclient
           allow_failure: true
         - client
-    - platform_id: opensuse-leap-16_0
-    - platform_id: opensuse-leap-15_6
-    - platform_id: opensuse-leap-15_5
