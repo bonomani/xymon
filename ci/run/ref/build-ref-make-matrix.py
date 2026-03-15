@@ -430,7 +430,7 @@ def apply_platform_availability_overrides(
 
     platform_os = str(platform_entry.get("platform_os") or "").strip()
     if not platform_os:
-        return None
+        platform_os = infer_platform_os(family_entry["family"], platform_id)
     artifact_arch = infer_artifact_arch(lane_obj)
     try:
         resolved = resolve_container_runtime(
@@ -558,6 +558,8 @@ def normalize_lane(
     intent_runtime_preference = None
     if platform_entry is not None and str(platform_entry.get("runtime", "")).lower() == "docker":
         platform_os_key = str(platform_entry.get("platform_os") or "").strip().lower()
+        if not platform_os_key and platform_id:
+            platform_os_key = infer_platform_os(family_entry["family"], platform_id).lower()
         if platform_os_key:
             default_preference, overrides = container_runtime_preferences
             intent_runtime_preference = list(
