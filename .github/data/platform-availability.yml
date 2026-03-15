@@ -695,6 +695,34 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-03-15T15:28:15.458493+00:00'
+      runner_label: macos-14
+      system:
+        machine: arm64
+        platform: Darwin
+        release: 23.6.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
   macos-15:
     runtime: host
     provider: github-actions
@@ -717,6 +745,34 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-03-15T15:28:15.805039+00:00'
+      runner_label: macos-15
+      system:
+        machine: arm64
+        platform: Darwin
+        release: 24.6.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
   macos-26:
     runtime: host
     provider: github-actions
@@ -739,6 +795,34 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-03-15T15:28:14.214366+00:00'
+      runner_label: macos-26
+      system:
+        machine: arm64
+        platform: Darwin
+        release: 25.3.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
   macos-latest:
     runtime: host
     provider: github-actions
