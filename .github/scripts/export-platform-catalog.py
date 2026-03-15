@@ -1050,7 +1050,7 @@ def build_platform_availability(
     return availability
 
 
-def export_catalog(*, refresh_containers: bool = False):
+def export_catalog(*, refresh_container_manifests: bool = False):
     platform_catalog = load_static_platform_catalog()
     selection_policy = load_selection_policy()
     static_platform_releases = load_platform_releases()
@@ -1114,7 +1114,7 @@ def export_catalog(*, refresh_containers: bool = False):
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
-        "container_cache_mode": "refresh" if refresh_containers else "reuse",
+        "container_cache_mode": "refresh" if refresh_container_manifests else "reuse",
     }
 
     docker_platforms: dict[str, dict[str, Any]] = {}
@@ -1122,7 +1122,7 @@ def export_catalog(*, refresh_containers: bool = False):
     for release in docker_entries:
         image = release["image"]
         repository = release["repository"]
-        cached_entry = None if refresh_containers else cached_containers.get(image)
+        cached_entry = None if refresh_container_manifests else cached_containers.get(image)
         if cached_entry is None:
             token = token_by_repository.get(repository)
             if not token:
@@ -1262,13 +1262,15 @@ def export_catalog(*, refresh_containers: bool = False):
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
-        "--refresh-containers",
+        "--refresh-container-manifests",
         action="store_true",
-        help="Refresh container manifest metadata from Docker Hub instead of reusing cached entries.",
+        help="Refresh cached container manifest metadata from Docker Hub instead of reusing cached entries.",
     )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
-    export_catalog(refresh_containers=args.refresh_containers)
+    export_catalog(
+        refresh_container_manifests=args.refresh_container_manifests
+    )

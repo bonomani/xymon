@@ -3,8 +3,8 @@ name: Export platform catalog
 on:
   workflow_dispatch:
     inputs:
-      refresh_containers:
-        description: Refresh container manifest metadata from Docker Hub
+      refresh_container_manifests:
+        description: Refresh cached container manifest metadata from Docker Hub
         required: false
         default: false
         type: boolean
@@ -22,8 +22,8 @@ jobs:
       - name: Export discovered platform catalog
         run: |
           args=()
-          if [ "${{ inputs.refresh_containers }}" = "true" ]; then
-            args+=(--refresh-containers)
+          if [ "${{ inputs.refresh_container_manifests }}" = "true" ]; then
+            args+=(--refresh-container-manifests)
           fi
           python .github/scripts/export-platform-catalog.py "${args[@]}"
 
