@@ -107,10 +107,17 @@ families:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/opensuse.yml
 
-- family: redhat
+- family: rockylinux
   common:
     runtime: linux_container
-    lane_file: ci/run/ref/lanes/redhat.yml
+    lane_file: ci/run/ref/lanes/rockylinux.yml
+    lane_overrides:
+      prepare_profile: redhat
+
+- family: almalinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/almalinux.yml
     lane_overrides:
       prepare_profile: redhat
 
