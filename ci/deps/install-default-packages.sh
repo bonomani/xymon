@@ -17,6 +17,7 @@ os_name=""
 version=""
 pkgmgr=""
 target_script=""
+target_pkgmgr=""
 
 declare -a target_base_args=()
 declare -a target_args=()
@@ -184,26 +185,9 @@ resolve_target_script() {
   target_base_args=(--family "${family}" --os "${os_name}" --version "${version}")
 
   case "${pkgmgr}" in
-    apt)
-      target_script="${script_dir}/install-apt-packages.sh"
-      ;;
-    dnf)
-      target_script="${script_dir}/install-dnf-packages.sh"
-      ;;
-    yum)
-      target_script="${script_dir}/install-yum-packages.sh"
-      ;;
-    zypper)
-      target_script="${script_dir}/install-zypper-packages.sh"
-      ;;
-    apk)
-      target_script="${script_dir}/install-apk-packages.sh"
-      ;;
-    pacman)
-      target_script="${script_dir}/install-pacman-packages.sh"
-      ;;
-    brew)
-      target_script="${script_dir}/install-brew-packages.sh"
+    apt|dnf|yum|zypper|apk|pacman|brew)
+      target_script="${script_dir}/install-packages.sh"
+      target_pkgmgr="${pkgmgr}"
       ;;
     *)
       echo "Unsupported package manager: ${pkgmgr}" >&2
@@ -214,6 +198,10 @@ resolve_target_script() {
 
 build_target_args() {
   target_args=()
+
+  if [[ -n "${target_pkgmgr}" ]]; then
+    target_args+=(--pkgmgr "${target_pkgmgr}")
+  fi
 
   case "${mode}" in
     print)

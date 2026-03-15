@@ -17,7 +17,7 @@ output="$(
   ENABLE_SNMP=ON \
   CI_COMPILER=clang \
   CI_DEPS_BUILD_TOOL=cmake \
-    bash ci/deps/install-brew-packages.sh --print --family macos --os macos --version latest
+    bash ci/deps/install-packages.sh --pkgmgr brew --print --family macos --os macos --version latest
 )"
 
 if printf '%s\n' "${output}" | grep -Fx -- "clang" >/dev/null 2>&1; then
