@@ -1,6 +1,6 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
-  platform_releases: ci/deps/platform-releases.yaml
+  platform_release_overrides: ci/deps/platform-release-overrides.yaml
   platform_releases_discovered: .github/data/platform-releases-discovered.yml
   platform_intent: ci/deps/platform-intent.yaml
   registry_base: https://registry-1.docker.io
