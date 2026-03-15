@@ -290,13 +290,59 @@ def load_platform_releases() -> dict[str, dict[str, Any]]:
     return normalized
 
 
+def load_selection_policy() -> dict[str, dict[str, set[str]]]:
+    data = load_yaml(CONTAINER_INTENT, f"platform intent in {CONTAINER_INTENT}")
+    policy: dict[str, dict[str, set[str]]] = {}
+    for section in ("containers", "vms", "hosts"):
+        raw_section = data.get(section, {})
+        if not isinstance(raw_section, dict):
+            continue
+        selection = raw_section.get("selection", {})
+        if not isinstance(selection, dict):
+            continue
+        include_ids = selection.get("include_platform_ids", [])
+        exclude_ids = selection.get("exclude_platform_ids", [])
+        if include_ids is None:
+            include_ids = []
+        if exclude_ids is None:
+            exclude_ids = []
+        include_set = {
+            as_str(value, f"{CONTAINER_INTENT}.{section}.selection.include_platform_ids[]")
+            for value in as_list(include_ids, f"{CONTAINER_INTENT}.{section}.selection.include_platform_ids")
+        } if include_ids != [] else set()
+        exclude_set = {
+            as_str(value, f"{CONTAINER_INTENT}.{section}.selection.exclude_platform_ids[]")
+            for value in as_list(exclude_ids, f"{CONTAINER_INTENT}.{section}.selection.exclude_platform_ids")
+        } if exclude_ids != [] else set()
+        policy[section] = {"include": include_set, "exclude": exclude_set}
+    return policy
+
+
+def selection_allows(
+    policy: dict[str, dict[str, set[str]]],
+    section: str,
+    platform_id: str,
+) -> bool:
+    section_policy = policy.get(section, {})
+    include_ids = section_policy.get("include", set())
+    exclude_ids = section_policy.get("exclude", set())
+    if platform_id in exclude_ids:
+        return False
+    if include_ids and platform_id not in include_ids:
+        return False
+    return True
+
+
 def load_docker_platform_entries(
     platform_releases: dict[str, dict[str, Any]],
     platform_catalog: dict[str, dict[str, Any]],
+    selection_policy: dict[str, dict[str, set[str]]],
 ) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "docker":
+            continue
+        if not selection_allows(selection_policy, "containers", platform_id):
             continue
         platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).lower()
         catalog_entry = as_map(
@@ -333,11 +379,14 @@ def load_docker_platform_entries(
 def load_vm_release_entries(
     platform_releases: dict[str, dict[str, Any]],
     _platform_catalog: dict[str, dict[str, Any]],
+    selection_policy: dict[str, dict[str, set[str]]],
 ) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
     release_lookup = platform_releases
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "vm":
+            continue
+        if not selection_allows(selection_policy, "vms", platform_id):
             continue
         alias_of = None
         resolved_version = None
@@ -374,10 +423,13 @@ def load_vm_release_entries(
 
 def load_host_release_entries(
     platform_releases: dict[str, dict[str, Any]],
+    selection_policy: dict[str, dict[str, set[str]]],
 ) -> dict[str, dict[str, Any]]:
     selected: dict[str, dict[str, Any]] = {}
     for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "host":
+            continue
+        if not selection_allows(selection_policy, "hosts", platform_id):
             continue
         selected[platform_id] = {
             "provider": field_str(entry, "provider", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
@@ -696,9 +748,14 @@ def build_platform_availability(
 def export_catalog(*, refresh_containers: bool = False):
     platform_catalog = load_static_platform_catalog()
     platform_releases = load_platform_releases()
-    docker_entries = load_docker_platform_entries(platform_releases, platform_catalog)
-    vm_entries = load_vm_release_entries(platform_releases, platform_catalog)
-    host_entries = load_host_release_entries(platform_releases)
+    selection_policy = load_selection_policy()
+    docker_entries = load_docker_platform_entries(
+        platform_releases, platform_catalog, selection_policy
+    )
+    vm_entries = load_vm_release_entries(
+        platform_releases, platform_catalog, selection_policy
+    )
+    host_entries = load_host_release_entries(platform_releases, selection_policy)
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
     cached_containers = build_cached_container_index(
@@ -708,6 +765,7 @@ def export_catalog(*, refresh_containers: bool = False):
     docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
         "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_intent": relative_to_root(CONTAINER_INTENT),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
         "container_cache_mode": "refresh" if refresh_containers else "reuse",
@@ -801,6 +859,7 @@ def export_catalog(*, refresh_containers: bool = False):
     platform_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
         "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_intent": relative_to_root(CONTAINER_INTENT),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
     }

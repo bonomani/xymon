@@ -20,6 +20,39 @@ containers:
     prefer_tags:
       - slim
       - latest
+    include_platform_ids:
+      - debian-11
+      - debian-12
+      - debian-13
+      - ubuntu-20.04
+      - ubuntu-22.04
+      - ubuntu-24.04
+      - rockylinux-8
+      - rockylinux-9
+      - oraclelinux-8
+      - oraclelinux-9
+      - oraclelinux-10
+      - oraclelinux-10-slim
+      - almalinux-8
+      - almalinux-9
+      - almalinux-10
+      - centos-7
+      - fedora-40
+      - fedora-41
+      - fedora-42
+      - opensuse-tumbleweed
+      - opensuse-leap-15_5
+      - opensuse-leap-15_6
+      - opensuse-leap-16_0
+      - alpine-3_19
+      - alpine-3_20
+      - alpine-3_21
+      - alpine-3_22
+      - alpine-3_23
+      - alpine-edge
+      - archlinux-base
+      - archlinux-latest
+    exclude_platform_ids: []
   runtime_preference:
     default:
       - linux_container
@@ -41,9 +74,32 @@ vms:
       - ci/run/ref/lanes/macos.yml
   selection:
     keep: all_active_versions
+    include_platform_ids:
+      - freebsd-13_5
+      - freebsd-14_3
+      - freebsd-15_0
+      - netbsd-9_2
+      - netbsd-9_3
+      - netbsd-9_4
+      - netbsd-10_0
+      - netbsd-10_1
+      - openbsd-7_6
+      - openbsd-7_7
+      - openbsd-7_8
+    exclude_platform_ids: []
   architectures:
     mode: primary_plus_latest
     primary:
       - amd64
     provider_override:
       github-actions: source_arch_only
+
+hosts:
+  selection:
+    keep: all_active_versions
+    include_platform_ids:
+      - macos-14
+      - macos-15
+      - macos-26
+      - macos-latest
+    exclude_platform_ids: []
