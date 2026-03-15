@@ -160,7 +160,10 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
     )
     # Generated lane policy always keeps primary lanes for every listed platform.
     # secondary_scope only controls whether secondary-arch lanes are added:
-    # none -> never, all -> every platform, latest_only -> latest stable + rolling ids.
+    # none -> never
+    # latest_only -> latest stable + rolling ids
+    # stable_only -> every stable platform, excluding rolling ids
+    # all -> every platform, including rolling ids
     generated_overrides = _require_mapping(
         generated_overrides or {},
         f"Lane file generated overrides: {lane_file}",
@@ -178,15 +181,15 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         elif selected_coverage_policy == "balanced":
             secondary_scope = "latest_only"
         elif selected_coverage_policy == "broad":
-            secondary_scope = "all"
+            secondary_scope = "stable_only"
         else:
             raise LaneSpecError(
                 "Lane file generated overrides coverage_policy must be one of "
                 f"minimal|balanced|broad|full: {lane_file}"
             )
-    if secondary_scope not in {"none", "all", "latest_only"}:
+    if secondary_scope not in {"none", "all", "latest_only", "stable_only"}:
         raise LaneSpecError(
-            f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only: {lane_file}"
+            f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only|stable_only: {lane_file}"
         )
     rolling_platform_ids = {
         value
@@ -234,6 +237,8 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         if secondary_entries:
             if secondary_scope == "all":
                 include_secondary = True
+            elif secondary_scope == "stable_only":
+                include_secondary = platform_id not in rolling_platform_ids
             elif secondary_scope == "latest_only":
                 include_secondary = platform_id == latest_stable or platform_id in rolling_platform_ids
 
