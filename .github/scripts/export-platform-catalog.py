@@ -18,7 +18,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
 PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
-BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
+PLATFORM_RELEASES = ROOT / "ci" / "deps" / "platform-releases.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 DOCKER_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "docker-availability-raw.yml"
 PLATFORM_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "platform-availability.yml"
@@ -280,45 +280,62 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     return normalized
 
 
-def load_docker_platform_entries() -> list[dict[str, Any]]:
-    platform_catalog = load_static_platform_catalog()
+def load_platform_releases() -> dict[str, dict[str, Any]]:
+    data = load_yaml(PLATFORM_RELEASES, f"platform releases in {PLATFORM_RELEASES}")
+    platforms = field_map(data, "platforms", str(PLATFORM_RELEASES))
+    normalized: dict[str, dict[str, Any]] = {}
+    for platform_id, raw_entry in platforms.items():
+        entry = as_map(raw_entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+        normalized[str(platform_id)] = entry
+    return normalized
+
+
+def load_docker_platform_entries(
+    platform_releases: dict[str, dict[str, Any]],
+    platform_catalog: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     entries: list[dict[str, Any]] = []
-    for platform_id, entry in sorted(platform_catalog.items()):
+    for platform_id, entry in sorted(platform_releases.items()):
         if str(entry.get("runtime", "")).lower() != "docker":
             continue
-        deps = field_map(entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
-        image = field_str(entry, "image", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        catalog_entry = as_map(
+            platform_catalog.get(platform_id),
+            f"{PLATFORM_CATALOG}.platforms.{platform_id}",
+        )
+        deps = field_map(catalog_entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+        image = field_str(entry, "image", f"{PLATFORM_RELEASES}.platforms.{platform_id}")
         repository, tag = image_repository_and_tag(image)
         entries.append(
             {
                 "platform_id": platform_id,
-                "platform_os": str(entry.get("platform_os") or infer_platform_os(platform_id)).lower(),
+                "platform_os": str(
+                    entry.get("platform_os") or infer_platform_os(platform_id)
+                ).lower(),
                 "platform_family": "linux",
                 "platform_version": platform_version_for(
-                    entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}", tag
+                    entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}", tag
                 ),
                 "image": image,
                 "repository": repository,
                 "repository_url": repository_url(repository),
                 "tag": tag,
                 "deps": deps,
-                "alias_of": optional_alias_of(entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}"),
+                "alias_of": optional_alias_of(
+                    entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+                ),
             }
         )
     return entries
 
 
-def load_bsd_sources() -> dict[str, dict[str, Any]]:
-    data = load_yaml(BSD_SOURCES, f"BSD sources in {BSD_SOURCES}")
-    return field_map(data, "sources", f"{BSD_SOURCES}")
-
-
-def load_vm_catalog_entries() -> list[dict[str, Any]]:
-    bsd_sources = load_bsd_sources()
-    platform_catalog = load_static_platform_catalog()
+def load_vm_release_entries(
+    platform_releases: dict[str, dict[str, Any]],
+    platform_catalog: dict[str, dict[str, Any]],
+) -> list[dict[str, Any]]:
     selected: list[dict[str, Any]] = []
-    for platform_id, raw_entry in sorted(bsd_sources.items()):
-        entry = as_map(raw_entry, f"{BSD_SOURCES}.{platform_id}")
+    for platform_id, entry in sorted(platform_releases.items()):
+        if str(entry.get("runtime", "")).lower() != "vm":
+            continue
         platform_entry = platform_catalog.get(platform_id, {})
         alias_of = None
         resolved_version = None
@@ -332,12 +349,16 @@ def load_vm_catalog_entries() -> list[dict[str, Any]]:
                         alias_version = alias_deps.get("key")
                         if isinstance(alias_version, (str, int, float)):
                             resolved_version = str(alias_version)
-        source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.{platform_id}")
+        source_arch = field_str(
+            entry, "source_arch", f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+        )
         selected.append(
             {
                 "platform_id": platform_id,
-                "os": field_str(entry, "os", f"{BSD_SOURCES}.{platform_id}"),
-                "version": field_str(entry, "version", f"{BSD_SOURCES}.{platform_id}"),
+                "os": field_str(entry, "platform_os", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
+                "version": field_str(
+                    entry, "platform_version", f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+                ),
                 "provider": str(entry.get("provider", "cross-platform-actions")),
                 "source_arch": source_arch,
                 "discovered_arches": [normalize_declared_architecture(source_arch)],
@@ -347,6 +368,25 @@ def load_vm_catalog_entries() -> list[dict[str, Any]]:
                 "resolved_version": resolved_version,
             }
         )
+    return selected
+
+
+def load_host_release_entries(
+    platform_releases: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    selected: dict[str, dict[str, Any]] = {}
+    for platform_id, entry in sorted(platform_releases.items()):
+        if str(entry.get("runtime", "")).lower() != "host":
+            continue
+        selected[platform_id] = {
+            "provider": field_str(entry, "provider", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
+            "runner": field_str(entry, "runner", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
+            **(
+                {"alias_of": optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")}
+                if optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+                else {}
+            ),
+        }
     return selected
 
 
@@ -541,6 +581,7 @@ def build_platform_availability(
     platform_catalog: dict[str, dict[str, Any]],
     docker_platforms: dict[str, dict[str, Any]],
     vm_entries: list[dict[str, Any]],
+    host_entries: dict[str, dict[str, Any]],
     host_runners: list[dict[str, Any]],
     runner_indexes: dict[str, dict[str, dict[str, list[str]]]],
 ) -> dict[str, dict[str, Any]]:
@@ -612,8 +653,13 @@ def build_platform_availability(
             continue
 
         if runtime == "host":
-            provider = field_str(entry, "provider", f"platform '{platform_id}'")
-            runner_label = field_str(entry, "runner", f"platform '{platform_id}'")
+            host_entry = host_entries.get(platform_id)
+            if host_entry is None:
+                raise SystemExit(
+                    f"Missing host release entry for platform '{platform_id}'"
+                )
+            provider = field_str(host_entry, "provider", f"platform releases '{platform_id}'")
+            runner_label = field_str(host_entry, "runner", f"platform releases '{platform_id}'")
             runner = host_runner_lookup.get(runner_label)
             if runner is None:
                 raise SystemExit(
@@ -635,7 +681,7 @@ def build_platform_availability(
             for key in ("availability", "resources", "source"):
                 if runner.get(key) is not None:
                     record[key] = runner.get(key)
-            alias_of = optional_alias_of(entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}")
+            alias_of = optional_alias_of(host_entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
             if alias_of:
                 record["alias_of"] = alias_of
             availability[platform_id] = record
@@ -648,8 +694,10 @@ def build_platform_availability(
 
 def export_catalog(*, refresh_containers: bool = False):
     platform_catalog = load_static_platform_catalog()
-    docker_entries = load_docker_platform_entries()
-    vm_entries = load_vm_catalog_entries()
+    platform_releases = load_platform_releases()
+    docker_entries = load_docker_platform_entries(platform_releases, platform_catalog)
+    vm_entries = load_vm_release_entries(platform_releases, platform_catalog)
+    host_entries = load_host_release_entries(platform_releases)
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
     cached_containers = build_cached_container_index(
@@ -658,6 +706,7 @@ def export_catalog(*, refresh_containers: bool = False):
 
     docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
+        "platform_releases": relative_to_root(PLATFORM_RELEASES),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
         "container_cache_mode": "refresh" if refresh_containers else "reuse",
@@ -750,14 +799,15 @@ def export_catalog(*, refresh_containers: bool = False):
 
     platform_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
+        "platform_releases": relative_to_root(PLATFORM_RELEASES),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
-        "bsd_sources": relative_to_root(BSD_SOURCES),
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
     }
     platform_availability = build_platform_availability(
         platform_catalog,
         docker_platforms,
         resolved_vm_platforms,
+        host_entries,
         host_runners,
         runner_indexes,
     )
