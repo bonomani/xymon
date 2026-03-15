@@ -3,7 +3,7 @@ runners:
     container:
       binfmt_misc_mounted: false
       docker_socket: false
-    probed_at: '2026-03-15T15:30:02.240963+00:00'
+    probed_at: '2026-03-15T15:37:37.287569+00:00'
     runner_label: macos-14
     system:
       machine: arm64
@@ -27,11 +27,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   macos-15-intel:
     container:
       binfmt_misc_mounted: false
       docker_socket: false
-    probed_at: '2026-03-15T15:30:03.282723+00:00'
+    probed_at: '2026-03-15T15:37:40.698402+00:00'
     runner_label: macos-15-intel
     system:
       machine: x86_64
@@ -55,11 +69,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   macos-15:
     container:
       binfmt_misc_mounted: false
       docker_socket: false
-    probed_at: '2026-03-15T15:30:04.090715+00:00'
+    probed_at: '2026-03-15T15:37:38.185691+00:00'
     runner_label: macos-15
     system:
       machine: arm64
@@ -83,11 +111,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   macos-26-intel:
     container:
       binfmt_misc_mounted: false
       docker_socket: false
-    probed_at: '2026-03-15T15:30:05.056059+00:00'
+    probed_at: '2026-03-15T15:37:45.286425+00:00'
     runner_label: macos-26-intel
     system:
       machine: x86_64
@@ -111,11 +153,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   macos-26:
     container:
       binfmt_misc_mounted: false
       docker_socket: false
-    probed_at: '2026-03-15T15:30:01.880195+00:00'
+    probed_at: '2026-03-15T15:37:36.814569+00:00'
     runner_label: macos-26
     system:
       machine: arm64
@@ -139,11 +195,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   ubuntu-22.04-arm:
     container:
       binfmt_misc_mounted: true
       docker_socket: true
-    probed_at: '2026-03-15T15:30:01.311750+00:00'
+    probed_at: '2026-03-15T15:37:35.963585+00:00'
     runner_label: ubuntu-22.04-arm
     system:
       machine: aarch64
@@ -169,11 +239,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: true
+      binfmt_misc_available: true
+      container_tooling:
+        docker: true
+        podman: true
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   ubuntu-22.04:
     container:
       binfmt_misc_mounted: true
       docker_socket: true
-    probed_at: '2026-03-15T15:30:02.641487+00:00'
+    probed_at: '2026-03-15T15:37:36.146517+00:00'
     runner_label: ubuntu-22.04
     system:
       machine: x86_64
@@ -199,11 +283,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: enabled
+    capabilities:
+      container_runtime_available: true
+      binfmt_misc_available: true
+      container_tooling:
+        docker: true
+        podman: true
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: true
+        kvm_accessible: false
+        nested_state: enabled
+        nested_enabled: true
   ubuntu-24.04-arm:
     container:
       binfmt_misc_mounted: true
       docker_socket: true
-    probed_at: '2026-03-15T15:30:01.623241+00:00'
+    probed_at: '2026-03-15T15:37:35.989659+00:00'
     runner_label: ubuntu-24.04-arm
     system:
       machine: aarch64
@@ -229,11 +327,25 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: unknown
+    capabilities:
+      container_runtime_available: true
+      binfmt_misc_available: true
+      container_tooling:
+        docker: true
+        podman: true
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
   ubuntu-24.04:
     container:
       binfmt_misc_mounted: true
       docker_socket: true
-    probed_at: '2026-03-15T15:30:01.180574+00:00'
+    probed_at: '2026-03-15T15:37:35.219293+00:00'
     runner_label: ubuntu-24.04
     system:
       machine: x86_64
@@ -259,3 +371,17 @@ runners:
       dev_kvm_readable: false
       dev_kvm_writable: false
       nested: enabled
+    capabilities:
+      container_runtime_available: true
+      binfmt_misc_available: true
+      container_tooling:
+        docker: true
+        podman: true
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: true
+        kvm_accessible: false
+        nested_state: enabled
+        nested_enabled: true
