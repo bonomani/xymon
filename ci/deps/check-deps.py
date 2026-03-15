@@ -26,6 +26,7 @@ DEFAULT_TOPOLOGY_FILE = DATA_DIR / "deps-targets.yaml"
 MAP_RESOLVER_AWK = ROOT / "ci" / "deps" / "lib" / "resolve-map.awk"
 PLATFORM_NORMALIZATION_FILE = ROOT / "ci" / "deps" / "platform-normalization.yaml"
 PLATFORM_CATALOG_FILE = ROOT / "ci" / "deps" / "platform-catalog.yaml"
+PLATFORM_RELEASES_FILE = ROOT / "ci" / "deps" / "platform-releases.yaml"
 REF_FAMILIES_MANIFEST = ROOT / "ci" / "run" / "ref" / "ref-families.yml"
 REF_LANE_UTILS_DIR = ROOT / "ci" / "run" / "ref"
 CHECKDEPS_DIR = ROOT / "ci" / "deps" / "checkdeps"
@@ -56,6 +57,7 @@ try:
         build_docker_image_index,
         load_platform_catalog,
         load_platform_deps_bindings,
+        load_platform_releases,
     )
     from shell_lint import check_shell_scripts  # type: ignore
 except Exception as exc:  # pragma: no cover
@@ -706,11 +708,11 @@ def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
 
 def check_ref_workflow_deps_coverage(
     variant_index: dict[str, dict[str, set[str]]],
-    platform_catalog: dict[str, dict],
+    platform_releases: dict[str, dict],
     platform_bindings: dict[str, dict],
 ) -> bool:
-    if not platform_catalog:
-        print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
+    if not platform_releases:
+        print(f"   ERROR: platform releases missing or invalid: {PLATFORM_RELEASES_FILE}")
         return False
     if not platform_bindings:
         print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
@@ -718,13 +720,13 @@ def check_ref_workflow_deps_coverage(
 
     ok = True
     lanes = iter_ref_validation_lanes()
-    image_to_platform, duplicate_images = build_docker_image_index(platform_catalog)
+    image_to_platform, duplicate_images = build_docker_image_index(platform_releases)
 
     if duplicate_images:
         ok = False
         for image_ref, platform_ids in sorted(duplicate_images.items()):
             print(
-                f"   ERROR: duplicate runtime=docker image '{image_ref}' in platform catalog: "
+                f"   ERROR: duplicate runtime=docker image '{image_ref}' in platform releases: "
                 f"{', '.join(sorted(platform_ids))}"
             )
 
@@ -743,7 +745,7 @@ def check_ref_workflow_deps_coverage(
                 ok = False
                 print(
                     f"   ERROR: {lane_ref} requires docker image '{req_value}' "
-                    "missing from platform catalog"
+                    "missing from platform releases"
                 )
                 continue
         elif req_type == "platform_id":
@@ -752,11 +754,11 @@ def check_ref_workflow_deps_coverage(
                 ok = False
                 print(f"   ERROR: {lane_ref} could not derive a platform id")
                 continue
-            if platform_id not in platform_catalog:
+            if platform_id not in platform_releases:
                 ok = False
                 print(
                     f"   ERROR: {lane_ref} requires platform '{platform_id}' "
-                    "missing from platform catalog"
+                    "missing from platform releases"
                 )
                 continue
         else:
@@ -815,17 +817,21 @@ def check_ref_workflow_deps_coverage(
 
 def check_platform_catalog_bindings_consistency(
     platform_catalog: dict[str, dict],
+    platform_releases: dict[str, dict],
     platform_bindings: dict[str, dict],
 ) -> bool:
     if not platform_catalog:
         print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
+        return False
+    if not platform_releases:
+        print(f"   ERROR: platform releases missing or invalid: {PLATFORM_RELEASES_FILE}")
         return False
     if not platform_bindings:
         print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
         return False
 
     ok = True
-    catalog_ids = set(platform_catalog.keys())
+    catalog_ids = set(platform_releases.keys())
     binding_ids = set(platform_bindings.keys())
 
     missing_bindings = sorted(catalog_ids - binding_ids)
@@ -849,17 +855,17 @@ def check_platform_catalog_bindings_consistency(
             )
 
     if ok:
-        print("   OK: platform catalog deps mappings are aligned")
+        print("   OK: platform catalog and releases deps mappings are aligned")
     return ok
 
 
 def check_docker_platforms_map_to_deps(
     variant_index: dict[str, dict[str, set[str]]],
-    platform_catalog: dict[str, dict],
+    platform_releases: dict[str, dict],
     platform_bindings: dict[str, dict],
 ) -> bool:
-    if not platform_catalog:
-        print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
+    if not platform_releases:
+        print(f"   ERROR: platform releases missing or invalid: {PLATFORM_RELEASES_FILE}")
         return False
     if not platform_bindings:
         print(f"   ERROR: platform deps bindings missing or invalid in {PLATFORM_CATALOG_FILE}")
@@ -867,7 +873,7 @@ def check_docker_platforms_map_to_deps(
 
     ok = True
     found_docker = False
-    for platform_id, entry in platform_catalog.items():
+    for platform_id, entry in platform_releases.items():
         runtime = str(entry.get("runtime", "docker")).strip().lower()
         if runtime != "docker":
             continue
@@ -908,7 +914,7 @@ def check_docker_platforms_map_to_deps(
                 )
 
     if not found_docker:
-        print("   ERROR: platform catalog has no runtime=docker entries")
+        print("   ERROR: platform releases have no runtime=docker entries")
         return False
 
     if ok:
@@ -948,20 +954,20 @@ def map_ref_lane_to_platform_requirement(
     return "unknown", family
 
 
-def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dict]) -> bool:
-    if not platform_catalog:
-        print(f"   ERROR: platform catalog missing or invalid: {PLATFORM_CATALOG_FILE}")
+def check_ref_workflow_platform_catalog_coverage(platform_releases: dict[str, dict]) -> bool:
+    if not platform_releases:
+        print(f"   ERROR: platform releases missing or invalid: {PLATFORM_RELEASES_FILE}")
         return False
 
-    image_to_platform, duplicate_images = build_docker_image_index(platform_catalog)
-    platform_ids = set(platform_catalog.keys())
+    image_to_platform, duplicate_images = build_docker_image_index(platform_releases)
+    platform_ids = set(platform_releases.keys())
 
     ok = True
     if duplicate_images:
         ok = False
         for image_ref, platform_id_set in sorted(duplicate_images.items()):
             print(
-                f"   ERROR: duplicate runtime=docker image '{image_ref}' in platform catalog: "
+                f"   ERROR: duplicate runtime=docker image '{image_ref}' in platform releases: "
                 f"{', '.join(sorted(platform_id_set))}"
             )
 
@@ -984,7 +990,7 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
                 ok = False
                 print(
                     f"   ERROR: {lane_ref} requires docker image '{req_value}' "
-                    "missing from platform catalog"
+                    "missing from platform releases"
                 )
             continue
 
@@ -998,11 +1004,11 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
                 ok = False
                 print(
                     f"   ERROR: {lane_ref} requires platform '{platform_id}' "
-                    "missing from platform catalog"
+                    "missing from platform releases"
                 )
                 continue
 
-            runtime = str(platform_catalog[platform_id].get("runtime", "")).strip().lower()
+            runtime = str(platform_releases[platform_id].get("runtime", "")).strip().lower()
             if platform_id.startswith(("freebsd-", "netbsd-", "openbsd-")) and runtime != "vm":
                 ok = False
                 print(
@@ -1017,7 +1023,7 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
                         f"to use runtime=host (found runtime={runtime})"
                     )
                 lane_runner = lane.get("runner")
-                catalog_runner = platform_catalog[platform_id].get("runner")
+                catalog_runner = platform_releases[platform_id].get("runner")
                 if (
                     isinstance(lane_runner, str)
                     and lane_runner.strip()
@@ -1039,7 +1045,7 @@ def check_ref_workflow_platform_catalog_coverage(platform_catalog: dict[str, dic
         )
 
     if ok:
-        print("   OK: ref-validation lanes are declared in platform catalog")
+        print("   OK: ref-validation lanes are declared in platform releases")
     return ok
 
 
@@ -1451,7 +1457,10 @@ def main() -> int:
         "server": build_family_os_index(server),
     }
     platform_catalog = load_platform_catalog(PLATFORM_CATALOG_FILE, load_yaml, require)
-    platform_bindings = load_platform_deps_bindings(platform_catalog, normalization_rules)
+    platform_releases = load_platform_releases(PLATFORM_RELEASES_FILE, load_yaml, require)
+    platform_bindings = load_platform_deps_bindings(
+        platform_catalog, platform_releases, normalization_rules
+    )
 
     # --- normalization -> topology coverage ---
     ok = True
@@ -1735,23 +1744,29 @@ def main() -> int:
                         ok = False
                         print(
                             f"   ERROR: {wf} runs {script_path.name} with unknown --os '{os_name}' "
-                            "for current platform catalog deps mappings"
+                            "for current platform catalog/releases deps mappings"
                         )
 
     print("-- platforms: catalog deps consistency")
-    if not check_platform_catalog_bindings_consistency(platform_catalog, platform_bindings):
+    if not check_platform_catalog_bindings_consistency(
+        platform_catalog, platform_releases, platform_bindings
+    ):
         ok = False
 
     print("-- workflows: ref-validation deps coverage")
-    if not check_ref_workflow_deps_coverage(variant_index, platform_catalog, platform_bindings):
+    if not check_ref_workflow_deps_coverage(
+        variant_index, platform_releases, platform_bindings
+    ):
         ok = False
 
     print("-- platforms: catalog coverage for ref-validation lanes")
-    if not check_ref_workflow_platform_catalog_coverage(platform_catalog):
+    if not check_ref_workflow_platform_catalog_coverage(platform_releases):
         ok = False
 
     print("-- platforms: runtime=docker entries -> deps coverage")
-    if not check_docker_platforms_map_to_deps(variant_index, platform_catalog, platform_bindings):
+    if not check_docker_platforms_map_to_deps(
+        variant_index, platform_releases, platform_bindings
+    ):
         ok = False
 
     # --- packager keys sanity ---

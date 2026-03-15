@@ -933,7 +933,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--run-json", default="")
     parser.add_argument("--jobs-json", default="")
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
-    parser.add_argument("--platform-catalog", default="ci/deps/platform-catalog.yaml")
+    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
     return parser.parse_args()
 
 
@@ -963,7 +963,7 @@ def main() -> None:
     try:
         lane_registry = build_lane_registry(
             repo_root / args.manifest,
-            repo_root / args.platform_catalog,
+            repo_root / args.platform_releases,
         )
     except Exception as exc:
         lane_registry_error = str(exc)

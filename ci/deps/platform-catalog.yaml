@@ -1,271 +1,65 @@
 platforms:
-  debian-11:
+  debian:
     runtime: docker
-    image: debian:11.11-slim
     deps:
       package_family: debian
-      key: bullseye
-  debian-12:
+  ubuntu:
     runtime: docker
-    image: debian:12.13-slim
-    deps:
-      package_family: debian
-      key: bookworm
-  debian-13:
-    runtime: docker
-    image: debian:13.3-slim
-    deps:
-      package_family: debian
-      key: 13
-  ubuntu-20.04:
-    runtime: docker
-    image: ubuntu:20.04
     deps:
       package_family: ubuntu
-      key: 20
-  ubuntu-22.04:
+  rockylinux:
     runtime: docker
-    image: ubuntu:22.04
-    deps:
-      package_family: ubuntu
-      key: local
-  ubuntu-24.04:
-    runtime: docker
-    image: ubuntu:24.04
-    deps:
-      package_family: ubuntu
-      key: latest
-  rockylinux-8:
-    runtime: docker
-    image: rockylinux:8
     deps:
       package_family: rpm
-      key: 8
-  rockylinux-9:
+  oraclelinux:
     runtime: docker
-    image: rockylinux:9
     deps:
       package_family: rpm
-      key: 9
-  oraclelinux-10:
+  almalinux:
     runtime: docker
-    image: oraclelinux:10
     deps:
       package_family: rpm
-      key: 10
-  oraclelinux-10-slim:
+  centos:
     runtime: docker
-    image: oraclelinux:10-slim
     deps:
       package_family: rpm
-      key: 10
-  oraclelinux-9:
+  fedora:
     runtime: docker
-    image: oraclelinux:9
     deps:
       package_family: rpm
-      key: 9
-  oraclelinux-8:
+  opensuse_tumbleweed:
     runtime: docker
-    image: oraclelinux:8
-    deps:
-      package_family: rpm
-      key: 8
-  almalinux-8:
-    runtime: docker
-    image: almalinux:8
-    deps:
-      package_family: rpm
-      key: 8
-  almalinux-9:
-    runtime: docker
-    image: almalinux:9
-    deps:
-      package_family: rpm
-      key: 9
-  almalinux-10:
-    runtime: docker
-    image: almalinux:10
-    deps:
-      package_family: rpm
-      key: 10
-  centos-7:
-    runtime: docker
-    image: centos:7
-    deps:
-      package_family: rpm
-      key: 7
-  fedora-40:
-    runtime: docker
-    image: fedora:40
-    deps:
-      package_family: rpm
-      key: 40
-  fedora-41:
-    runtime: docker
-    image: fedora:41
-    deps:
-      package_family: rpm
-      key: 41
-  fedora-42:
-    runtime: docker
-    image: fedora:42
-    deps:
-      package_family: rpm
-      key: 42
-  opensuse-tumbleweed:
-    runtime: docker
-    image: opensuse/tumbleweed:latest
     deps:
       package_family: suse
-      key: latest
-  opensuse-leap-16_0:
+  opensuse_leap:
     runtime: docker
-    image: opensuse/leap:16.0
     deps:
       package_family: suse
-      key: '16_0'
-  opensuse-leap-15_6:
+  alpine:
     runtime: docker
-    image: opensuse/leap:15.6
-    deps:
-      package_family: suse
-      key: '15_6'
-  opensuse-leap-15_5:
-    runtime: docker
-    image: opensuse/leap:15.5
-    deps:
-      package_family: suse
-      key: '15_5'
-  alpine-3_23:
-    runtime: docker
-    image: alpine:3.23
     deps:
       package_family: alpine
-      key: 3
-  alpine-3_22:
+  archlinux:
     runtime: docker
-    image: alpine:3.22
-    deps:
-      package_family: alpine
-      key: 3
-  alpine-3_21:
-    runtime: docker
-    image: alpine:3.21
-    deps:
-      package_family: alpine
-      key: 3
-  alpine-3_20:
-    runtime: docker
-    image: alpine:3.20
-    deps:
-      package_family: alpine
-      key: 3
-  alpine-3_19:
-    runtime: docker
-    image: alpine:3.19
-    deps:
-      package_family: alpine
-      key: 3
-  alpine-edge:
-    runtime: docker
-    image: alpine:edge
-    deps:
-      package_family: alpine
-      key: 3
-  archlinux-latest:
-    runtime: docker
-    image: archlinux:latest
     deps:
       package_family: arch
-      key: latest
-  archlinux-base:
-    runtime: docker
-    image: archlinux:base
-    deps:
-      package_family: arch
-      key: latest
-  freebsd-15_0:
+  freebsd:
     runtime: vm
     provider: cross-platform-actions
     deps:
       package_family: bsd
-  freebsd-14_3:
+  netbsd:
     runtime: vm
     provider: cross-platform-actions
     deps:
       package_family: bsd
-  freebsd-13_5:
+  openbsd:
     runtime: vm
     provider: cross-platform-actions
     deps:
       package_family: bsd
-  netbsd-10_1:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  netbsd-10_0:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  netbsd-9_4:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  netbsd-9_3:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  netbsd-9_2:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  openbsd-7_8:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  openbsd-7_7:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  openbsd-7_6:
-    runtime: vm
-    provider: cross-platform-actions
-    deps:
-      package_family: bsd
-  macos-latest:
+  macos:
     runtime: host
     provider: github-actions
-    runner: macos-latest
-    alias_of: macos-15
     deps:
       package_family: macos
-      key: latest
-  macos-26:
-    runtime: host
-    provider: github-actions
-    runner: macos-26
-    deps:
-      package_family: macos
-      key: '26'
-  macos-15:
-    runtime: host
-    provider: github-actions
-    runner: macos-15
-    deps:
-      package_family: macos
-      key: '15'
-  macos-14:
-    runtime: host
-    provider: github-actions
-    runner: macos-14
-    deps:
-      package_family: macos
-      key: '14'

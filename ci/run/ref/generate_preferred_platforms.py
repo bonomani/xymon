@@ -10,7 +10,6 @@ from pathlib import Path
 import yaml
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
-CATALOG_PATH = ROOT_DIR / "ci" / "deps" / "platform-catalog.yaml"
 AVAILABILITY_PATH = ROOT_DIR / ".github" / "data" / "platform-availability.yml"
 LANES_DIR = ROOT_DIR / "ci" / "run" / "ref" / "lanes"
 PREFERRED_OUTPUT = ROOT_DIR / "ci" / "run" / "ref" / "preferred-platforms.yml"

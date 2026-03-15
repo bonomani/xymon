@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Resolve docker build data from the platform catalog."""
+"""Resolve docker build data from the platform releases inventory."""
 
 from __future__ import annotations
 
@@ -26,7 +26,7 @@ def die(message: str) -> None:
 
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Resolve docker build matrix")
-    parser.add_argument("--platform-catalog", default="ci/deps/platform-catalog.yaml")
+    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
     parser.add_argument(
         "--platform-availability", default=".github/data/platform-availability.yml"
     )
@@ -130,18 +130,18 @@ def load_docker_platform_availability(
 
 
 def load_docker_build_platforms(
-    platform_catalog_path: Path,
+    platform_releases_path: Path,
     platform_availability_path: Path,
 ) -> dict[str, dict[str, str]]:
-    if not platform_catalog_path.exists():
-        die(f"Missing platform catalog file: {platform_catalog_path}")
+    if not platform_releases_path.exists():
+        die(f"Missing platform releases file: {platform_releases_path}")
 
     platform_availability = load_docker_platform_availability(platform_availability_path)
 
-    data = load_yaml(platform_catalog_path)
+    data = load_yaml(platform_releases_path)
     platforms = data.get("platforms", {})
     if not isinstance(platforms, dict) or not platforms:
-        die(f"{platform_catalog_path} has no platforms mapping")
+        die(f"{platform_releases_path} has no platforms mapping")
 
     docker_platforms: dict[str, dict[str, str]] = {}
     for platform_id, raw_entry in platforms.items():
@@ -157,12 +157,12 @@ def load_docker_build_platforms(
         availability_entry = platform_availability.get(str(platform_id))
         if availability_entry is None:
             die(
-                f"platform '{platform_id}' is docker_build=true but has no platform availability entry"
+                f"platform '{platform_id}' has no platform availability entry"
             )
         available_image = str(availability_entry["image"])
         if available_image != image:
             die(
-                f"platform '{platform_id}' image mismatch between static catalog "
+                f"platform '{platform_id}' image mismatch between platform releases "
                 f"('{image}') and availability ('{available_image}')"
             )
         discovered_arches = require_string_list(
@@ -179,7 +179,7 @@ def load_docker_build_platforms(
 
     if not docker_platforms:
         die(
-            f"{platform_catalog_path} has no runtime=docker platforms"
+                f"{platform_releases_path} has no runtime=docker platforms"
         )
     return docker_platforms
 
@@ -190,14 +190,14 @@ def main() -> None:
     compose_output = str(args.compose_output or "").strip()
     if not github_output and not compose_output and not args.list_targets:
         die("One of --github-output / GITHUB_OUTPUT, --compose-output, or --list-targets must be provided")
-    platform_catalog_path = Path(args.platform_catalog)
+    platform_releases_path = Path(args.platform_releases)
     platform_availability_path = Path(args.platform_availability)
     dockerfile = Path("docker") / "Dockerfile"
     if not dockerfile.exists():
         die(f"Missing shared Dockerfile: {dockerfile}")
 
     docker_platforms = load_docker_build_platforms(
-        platform_catalog_path, platform_availability_path
+        platform_releases_path, platform_availability_path
     )
 
     target_raw = str(args.target).strip()
