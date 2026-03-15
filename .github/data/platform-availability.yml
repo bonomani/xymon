@@ -695,11 +695,25 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
     discovery:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:28:15.458493+00:00'
+      probed_at: '2026-03-15T15:30:02.240963+00:00'
       runner_label: macos-14
       system:
         machine: arm64
@@ -745,11 +759,25 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
     discovery:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:28:15.805039+00:00'
+      probed_at: '2026-03-15T15:30:04.090715+00:00'
       runner_label: macos-15
       system:
         machine: arm64
@@ -795,11 +823,25 @@ platforms:
         memory: 7 GB
         storage: 14 GB
     source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
     discovery:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:28:14.214366+00:00'
+      probed_at: '2026-03-15T15:30:01.880195+00:00'
       runner_label: macos-26
       system:
         machine: arm64

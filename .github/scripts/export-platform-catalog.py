@@ -877,6 +877,40 @@ def build_host_discovery_index(existing_catalog: dict[str, Any]) -> dict[str, di
     }
 
 
+def normalize_host_discovery_capabilities(discovery: dict[str, Any]) -> dict[str, Any]:
+    container = discovery.get("container", {})
+    virtualization = discovery.get("virtualization", {})
+    tools = discovery.get("tools", {})
+
+    def tool_present(name: str) -> bool:
+        entry = tools.get(name, {})
+        return isinstance(entry, dict) and bool(entry.get("present"))
+
+    dev_kvm_exists = bool(virtualization.get("dev_kvm_exists"))
+    dev_kvm_readable = bool(virtualization.get("dev_kvm_readable"))
+    dev_kvm_writable = bool(virtualization.get("dev_kvm_writable"))
+    nested_state = str(virtualization.get("nested", "")).strip().lower()
+
+    return {
+        "container_runtime_available": bool(container.get("docker_socket")),
+        "binfmt_misc_available": bool(container.get("binfmt_misc_mounted")),
+        "container_tooling": {
+            "docker": tool_present("docker"),
+            "podman": tool_present("podman"),
+        },
+        "emulation_tooling": {
+            "qemu_system_x86_64": tool_present("qemu-system-x86_64"),
+            "qemu_aarch64_static": tool_present("qemu-aarch64-static"),
+        },
+        "virtualization": {
+            "kvm_device_present": dev_kvm_exists,
+            "kvm_accessible": dev_kvm_exists and dev_kvm_readable and dev_kvm_writable,
+            "nested_state": nested_state or "unknown",
+            "nested_enabled": nested_state == "enabled",
+        },
+    }
+
+
 def build_host_runner_lookup(runners: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     lookup: dict[str, dict[str, Any]] = {}
     for runner in runners:
@@ -999,6 +1033,9 @@ def build_platform_availability(
                     record[key] = runner.get(key)
             discovered_runner = host_runner_discovery.get(runner_label, {})
             if discovered_runner:
+                record["capabilities"] = normalize_host_discovery_capabilities(
+                    discovered_runner
+                )
                 record["discovery"] = discovered_runner
             alias_of = optional_alias_of(
                 host_entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
