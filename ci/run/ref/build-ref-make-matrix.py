@@ -50,7 +50,8 @@ SUPPORTED_COVERAGE_POLICY_FILTERS = {
     "broad",
     "full",
 }
-SUPPORTED_ALIAS_POLICY_FILTERS = {"exclude_aliases", "include_aliases"}
+SUPPORTED_SYMBOLIC_ALIAS_POLICY_FILTERS = {"exclude", "include"}
+SUPPORTED_MOVING_TARGET_POLICY_FILTERS = {"exclude", "ordered_only", "include"}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -493,7 +494,8 @@ def normalize_lane(
     profile,
     install_mode,
     container_runtime_preferences,
-    selected_alias_policy,
+    selected_symbolic_alias_policy,
+    selected_moving_target_policy,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -526,12 +528,27 @@ def normalize_lane(
     platform_id, platform_entry, platform_runtime = resolve_platform_binding(
         family_entry, lane_obj, platform_catalog
     )
-    if (
-        selected_alias_policy == "exclude_aliases"
-        and platform_entry is not None
-        and platform_entry.get("alias_of") not in (None, "")
-    ):
-        return None
+    if platform_entry is not None:
+        if (
+            selected_symbolic_alias_policy == "exclude"
+            and platform_entry.get("alias_of") not in (None, "")
+        ):
+            return None
+        moving_text = " ".join(
+            str(value)
+            for value in (
+                platform_id or "",
+                platform_entry.get("platform_version", ""),
+                platform_entry.get("image", ""),
+            )
+        ).lower()
+        is_moving_target = any(
+            keyword in moving_text for keyword in ("edge", "tumbleweed", "rolling")
+        ) or (
+            "latest" in moving_text and platform_entry.get("alias_of") in (None, "")
+        )
+        if selected_moving_target_policy == "exclude" and is_moving_target:
+            return None
     supported_build_tools = resolve_supported_build_tools(
         family_entry, lane_obj, platform_entry, platform_id
     )
@@ -613,9 +630,14 @@ def parse_args():
         choices=sorted(SUPPORTED_COVERAGE_POLICY_FILTERS),
     )
     parser.add_argument(
-        "--selected-alias-policy",
-        default="exclude_aliases",
-        choices=sorted(SUPPORTED_ALIAS_POLICY_FILTERS),
+        "--selected-symbolic-alias-policy",
+        default="exclude",
+        choices=sorted(SUPPORTED_SYMBOLIC_ALIAS_POLICY_FILTERS),
+    )
+    parser.add_argument(
+        "--selected-moving-target-policy",
+        default="ordered_only",
+        choices=sorted(SUPPORTED_MOVING_TARGET_POLICY_FILTERS),
     )
     parser.add_argument(
         "--goal",
@@ -723,7 +745,8 @@ def main():
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
     selected_coverage_policy = args.selected_coverage_policy
-    selected_alias_policy = args.selected_alias_policy
+    selected_symbolic_alias_policy = args.selected_symbolic_alias_policy
+    selected_moving_target_policy = args.selected_moving_target_policy
     if selected_family == "all":
         selected_entries = families
     else:
@@ -759,7 +782,8 @@ def main():
                 profile,
                 install_mode,
                 container_runtime_preferences,
-                selected_alias_policy,
+                selected_symbolic_alias_policy,
+                selected_moving_target_policy,
             )
             if normalized is None:
                 continue

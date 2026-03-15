@@ -57,14 +57,23 @@ on:
           - balanced
           - broad
           - full
-      alias_policy:
-        description: Alias platform selection policy
+      symbolic_alias_policy:
+        description: Symbolic alias platform selection policy
         required: true
         type: choice
-        default: exclude_aliases
+        default: exclude
         options:
-          - exclude_aliases
-          - include_aliases
+          - exclude
+          - include
+      moving_target_policy:
+        description: Moving-target platform selection policy
+        required: true
+        type: choice
+        default: ordered_only
+        options:
+          - exclude
+          - ordered_only
+          - include
       build_tool:
         description: Build tool selection
         required: true
@@ -160,7 +169,8 @@ jobs:
                 variant: '${{ inputs.variant }}',
                 arch: '${{ inputs.arch }}',
                 coverage_policy: '${{ inputs.coverage_policy }}',
-                alias_policy: '${{ inputs.alias_policy }}',
+                symbolic_alias_policy: '${{ inputs.symbolic_alias_policy }}',
+                moving_target_policy: '${{ inputs.moving_target_policy }}',
                 build_tool: '${{ inputs.build_tool }}',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -171,7 +181,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, coverage_policy=${{ inputs.coverage_policy }}, alias_policy=${{ inputs.alias_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, coverage_policy=${{ inputs.coverage_policy }}, symbolic_alias_policy=${{ inputs.symbolic_alias_policy }}, moving_target_policy=${{ inputs.moving_target_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -198,7 +208,8 @@ jobs:
           variant: ${{ inputs.variant }}
           arch: ${{ inputs.arch }}
           coverage_policy: ${{ inputs.coverage_policy }}
-          alias_policy: ${{ inputs.alias_policy }}
+          symbolic_alias_policy: ${{ inputs.symbolic_alias_policy }}
+          moving_target_policy: ${{ inputs.moving_target_policy }}
           requested_build_tool: ${{ inputs.build_tool }}
           requested_compiler: ${{ inputs.compiler }}
           requested_profile: ${{ inputs.profile }}
@@ -217,7 +228,8 @@ jobs:
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
           echo "Coverage policy: ${{ inputs.coverage_policy }}"
-          echo "Alias policy: ${{ inputs.alias_policy }}"
+          echo "Symbolic alias policy: ${{ inputs.symbolic_alias_policy }}"
+          echo "Moving-target policy: ${{ inputs.moving_target_policy }}"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Compiler: ${{ steps.prepare_matrix.outputs.compiler }}"
           echo "Profile: ${{ steps.prepare_matrix.outputs.profile }}"
