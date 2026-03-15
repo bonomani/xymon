@@ -22,6 +22,7 @@ PLATFORM_RELEASE_OVERRIDES = ROOT / "ci" / "deps" / "platform-release-overrides.
 BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 DISCOVERED_RELEASES_OUTPUT = ROOT / ".github" / "data" / "platform-releases-discovered.yml"
+HOST_RUNNERS_DISCOVERED = ROOT / ".github" / "data" / "host-runners-discovered.yml"
 DOCKER_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "docker-availability-raw.yml"
 PLATFORM_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "platform-availability.yml"
 REGISTRY_BASE = "https://registry-1.docker.io"
@@ -865,6 +866,17 @@ def build_cached_vm_index(existing_catalog: dict[str, Any]) -> dict[str, dict[st
     return cached
 
 
+def build_host_discovery_index(existing_catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    runners = existing_catalog.get("runners")
+    if not isinstance(runners, dict):
+        return {}
+    return {
+        str(label): entry
+        for label, entry in runners.items()
+        if isinstance(label, str) and isinstance(entry, dict)
+    }
+
+
 def build_host_runner_lookup(runners: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     lookup: dict[str, dict[str, Any]] = {}
     for runner in runners:
@@ -886,6 +898,7 @@ def build_platform_availability(
     vm_entries: list[dict[str, Any]],
     host_entries: dict[str, dict[str, Any]],
     host_runners: list[dict[str, Any]],
+    host_runner_discovery: dict[str, dict[str, Any]],
     runner_indexes: dict[str, dict[str, dict[str, list[str]]]],
 ) -> dict[str, dict[str, Any]]:
     vm_by_platform_id = {entry["platform_id"]: entry for entry in vm_entries}
@@ -984,6 +997,9 @@ def build_platform_availability(
             for key in ("availability", "resources", "source"):
                 if runner.get(key) is not None:
                     record[key] = runner.get(key)
+            discovered_runner = host_runner_discovery.get(runner_label, {})
+            if discovered_runner:
+                record["discovery"] = discovered_runner
             alias_of = optional_alias_of(
                 host_entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
             )
@@ -1046,6 +1062,9 @@ def export_catalog(*, refresh_containers: bool = False):
     host_entries = load_host_release_entries(platform_releases, selection_policy)
     runner_indexes = build_runner_indexes(host_runners)
     existing_platform_availability = load_existing_yaml(PLATFORM_AVAILABILITY_OUTPUT)
+    host_runner_discovery = build_host_discovery_index(
+        load_existing_yaml(HOST_RUNNERS_DISCOVERED)
+    )
     cached_containers = build_cached_container_index(
         load_existing_yaml(DOCKER_AVAILABILITY_OUTPUT)
     )
@@ -1169,6 +1188,7 @@ def export_catalog(*, refresh_containers: bool = False):
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
+        "host_runner_discovery": relative_to_root(HOST_RUNNERS_DISCOVERED),
     }
     platform_availability = build_platform_availability(
         platform_releases,
@@ -1176,6 +1196,7 @@ def export_catalog(*, refresh_containers: bool = False):
         resolved_vm_platforms,
         host_entries,
         host_runners,
+        host_runner_discovery,
         runner_indexes,
     )
 
