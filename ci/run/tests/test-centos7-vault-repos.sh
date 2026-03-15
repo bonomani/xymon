@@ -71,8 +71,8 @@ test_centos7_vault_root_selection() {
     fail "aarch64 should have a CentOS 7 EPEL archive"
   fi
 
-  if ci_deps_centos7_has_epel_archive armhfp; then
-    fail "armhfp should not claim a CentOS 7 EPEL archive"
+  if ! ci_deps_centos7_has_epel_archive armhfp; then
+    fail "armhfp should claim a CentOS 7 EPEL archive"
   fi
 }
 
@@ -103,6 +103,11 @@ test_centos7_vault_repo_generation() {
   ci_deps_install_epel7_archive_repo "${epel_repo_file}"
   assert_file_contains_text "${epel_repo_file}" "[ci-epel7-archive]"
   assert_file_contains_text "${epel_repo_file}" "baseurl=https://archives.fedoraproject.org/pub/archive/epel/7/\$basearch/"
+
+  local epel_altarch_repo_file="${tmpdir}/epel7-altarch.repo"
+  ci_deps_install_epel7_altarch_repo "${epel_altarch_repo_file}"
+  assert_file_contains_text "${epel_altarch_repo_file}" "[ci-epel7-altarch]"
+  assert_file_contains_text "${epel_altarch_repo_file}" "baseurl=https://vault.centos.org/altarch/7/epel/\$basearch/"
 
   trap - RETURN
   rm -rf "${tmpdir}"

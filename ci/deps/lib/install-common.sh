@@ -1079,6 +1079,24 @@ EOF
   rm -f "${repo_file}"
 }
 
+ci_deps_install_epel7_altarch_repo() {
+  local repo_dest="${1:-/etc/yum.repos.d/epel7-altarch.repo}"
+  local repo_file=""
+
+  repo_file="$(mktemp)"
+  cat > "${repo_file}" <<'EOF'
+[ci-epel7-altarch]
+name=EPEL 7 AltArch armhfp rebuild
+baseurl=https://vault.centos.org/altarch/7/epel/$basearch/
+enabled=1
+gpgcheck=0
+skip_if_unavailable=1
+EOF
+
+  ci_deps_as_root install -m 0644 "${repo_file}" "${repo_dest}"
+  rm -f "${repo_file}"
+}
+
 ci_deps_install_epel7_archive_repo() {
   local repo_dest="${1:-/etc/yum.repos.d/epel7-archive.repo}"
   local repo_file=""
@@ -1102,7 +1120,7 @@ ci_deps_centos7_has_epel_archive() {
   basearch="$(ci_deps_detect_rpm_basearch "${basearch}" || true)"
 
   case "${basearch}" in
-    x86_64|aarch64|ppc64le)
+    x86_64|aarch64|ppc64le|armhfp)
       return 0
       ;;
     *)
