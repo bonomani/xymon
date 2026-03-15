@@ -20,11 +20,13 @@ CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
 PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 PLATFORM_RELEASES = ROOT / "ci" / "deps" / "platform-releases.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
+DISCOVERED_RELEASES_OUTPUT = ROOT / ".github" / "data" / "platform-releases-discovered.yml"
 DOCKER_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "docker-availability-raw.yml"
 PLATFORM_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "platform-availability.yml"
 REGISTRY_BASE = "https://registry-1.docker.io"
 TOKEN_URL = "https://auth.docker.io/token"
 DOCKER_HUB_TAG_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags/{tag}"
+DOCKER_HUB_TAGS_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags?page_size=100&page={page}"
 MANIFEST_ACCEPT = ", ".join(
     [
         "application/vnd.oci.image.index.v1+json",
@@ -179,6 +181,30 @@ def fetch_tag_metadata(repository: str, tag: str) -> tuple[str, str, str, dict[s
     )
 
 
+def fetch_repository_tags(repository: str) -> list[dict[str, Any]]:
+    namespace, image = repository.split("/", 1)
+    page = 1
+    results: list[dict[str, Any]] = []
+    while True:
+        tags_url = DOCKER_HUB_TAGS_API.format(
+            namespace=namespace, repository=image, page=page
+        )
+        request = Request(tags_url, headers={"User-Agent": USER_AGENT})
+        with urlopen(request) as response:
+            payload = json.load(response)
+        page_results = payload.get("results")
+        if not isinstance(page_results, list) or not page_results:
+            break
+        for entry in page_results:
+            if isinstance(entry, dict):
+                results.append(entry)
+        next_url = payload.get("next")
+        if not next_url:
+            break
+        page += 1
+    return results
+
+
 def normalize_manifest_architecture(platform: Any) -> str | None:
     if not isinstance(platform, dict):
         return None
@@ -314,7 +340,35 @@ def load_selection_policy() -> dict[str, dict[str, set[str]]]:
             as_str(value, f"{CONTAINER_INTENT}.{section}.selection.exclude_platform_ids[]")
             for value in as_list(exclude_ids, f"{CONTAINER_INTENT}.{section}.selection.exclude_platform_ids")
         } if exclude_ids != [] else set()
-        policy[section] = {"include": include_set, "exclude": exclude_set}
+        tag_patterns = {}
+        raw_patterns = selection.get("tag_patterns", {})
+        if raw_patterns not in (None, {}):
+            raw_patterns = as_map(
+                raw_patterns, f"{CONTAINER_INTENT}.{section}.selection.tag_patterns"
+            )
+            for platform_os, patterns in raw_patterns.items():
+                os_key = as_str(
+                    platform_os,
+                    f"{CONTAINER_INTENT}.{section}.selection.tag_patterns key",
+                )
+                compiled = [
+                    re.compile(
+                        as_str(
+                            pattern,
+                            f"{CONTAINER_INTENT}.{section}.selection.tag_patterns.{os_key}[]",
+                        )
+                    )
+                    for pattern in as_list(
+                        patterns,
+                        f"{CONTAINER_INTENT}.{section}.selection.tag_patterns.{os_key}",
+                    )
+                ]
+                tag_patterns[os_key] = compiled
+        policy[section] = {
+            "include": include_set,
+            "exclude": exclude_set,
+            "tag_patterns": tag_patterns,
+        }
     return policy
 
 
@@ -331,6 +385,77 @@ def selection_allows(
     if include_ids and platform_id not in include_ids:
         return False
     return True
+
+
+def selection_section_for_runtime(runtime: str) -> str | None:
+    normalized = str(runtime).strip().lower()
+    if normalized == "docker":
+        return "containers"
+    if normalized == "vm":
+        return "vms"
+    if normalized == "host":
+        return "hosts"
+    return None
+
+
+def tag_allowed(
+    policy: dict[str, dict[str, set[str]]],
+    section: str,
+    platform_os: str,
+    tag: str,
+) -> bool:
+    section_policy = policy.get(section, {})
+    tag_patterns = section_policy.get("tag_patterns", {})
+    patterns = tag_patterns.get(platform_os, [])
+    if not patterns:
+        return True
+    return any(pattern.match(tag) for pattern in patterns)
+
+
+def derive_platform_id(platform_os: str, tag: str) -> str:
+    if platform_os == "opensuse_tumbleweed" and tag == "latest":
+        return "opensuse-tumbleweed"
+    if platform_os == "opensuse_leap":
+        return f"opensuse-leap-{tag.replace('.', '_')}"
+    return f"{platform_os}-{tag.replace('.', '_')}"
+
+
+def discover_docker_releases(
+    platform_catalog: dict[str, dict[str, Any]],
+    selection_policy: dict[str, dict[str, set[str]]],
+) -> dict[str, dict[str, Any]]:
+    discovered: dict[str, dict[str, Any]] = {}
+    for platform_os, entry in sorted(platform_catalog.items()):
+        if str(entry.get("runtime", "")).lower() != "docker":
+            continue
+        repository = field_str(entry, "repository", f"{PLATFORM_CATALOG}.platforms.{platform_os}")
+        for raw_tag_entry in fetch_repository_tags(repository):
+            tag = str(raw_tag_entry.get("name") or "").strip()
+            if not tag:
+                continue
+            if not tag_allowed(selection_policy, "containers", platform_os, tag):
+                continue
+            platform_id = derive_platform_id(platform_os, tag)
+            record = {
+                "runtime": "docker",
+                "platform_os": platform_os,
+                "image": f"{repository.split('/', 1)[1] if repository.startswith('library/') else repository}:{tag}",
+            }
+            discovered[platform_id] = record
+    return discovered
+
+
+def select_platform_releases(
+    platform_releases: dict[str, dict[str, Any]],
+    selection_policy: dict[str, dict[str, set[str]]],
+) -> dict[str, dict[str, Any]]:
+    selected: dict[str, dict[str, Any]] = {}
+    for platform_id, entry in sorted(platform_releases.items()):
+        section = selection_section_for_runtime(entry.get("runtime", ""))
+        if section and not selection_allows(selection_policy, section, platform_id):
+            continue
+        selected[platform_id] = entry
+    return selected
 
 
 def load_docker_platform_entries(
@@ -615,6 +740,21 @@ def build_cached_container_index(existing_catalog: dict[str, Any]) -> dict[str, 
     return cached
 
 
+def build_cached_vm_index(existing_catalog: dict[str, Any]) -> dict[str, dict[str, Any]]:
+    platforms = existing_catalog.get("platforms")
+    if not isinstance(platforms, dict):
+        return {}
+
+    cached: dict[str, dict[str, Any]] = {}
+    for platform_id, raw_entry in platforms.items():
+        if not isinstance(raw_entry, dict):
+            continue
+        if str(raw_entry.get("runtime", "")).strip().lower() != "vm":
+            continue
+        cached[str(platform_id)] = raw_entry
+    return cached
+
+
 def build_host_runner_lookup(runners: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
     lookup: dict[str, dict[str, Any]] = {}
     for runner in runners:
@@ -747,8 +887,39 @@ def build_platform_availability(
 
 def export_catalog(*, refresh_containers: bool = False):
     platform_catalog = load_static_platform_catalog()
-    platform_releases = load_platform_releases()
     selection_policy = load_selection_policy()
+    static_platform_releases = load_platform_releases()
+    discovered_docker_releases = discover_docker_releases(platform_catalog, selection_policy)
+    all_platform_releases = {
+        **{k: v for k, v in static_platform_releases.items() if str(v.get("runtime", "")).lower() != "docker"},
+        **discovered_docker_releases,
+    }
+    discovered_docker_by_image = {
+        str(entry.get("image")): platform_id
+        for platform_id, entry in all_platform_releases.items()
+        if str(entry.get("runtime", "")).lower() == "docker"
+        and isinstance(entry.get("image"), str)
+        and str(entry.get("image"))
+    }
+    for platform_id, entry in static_platform_releases.items():
+        if str(entry.get("runtime", "")).lower() != "docker":
+            continue
+        if platform_id in all_platform_releases:
+            merged_entry = dict(all_platform_releases[platform_id])
+            merged_entry.update(entry)
+            all_platform_releases[platform_id] = merged_entry
+            continue
+        image = entry.get("image")
+        if not isinstance(image, str) or not image:
+            continue
+        discovered_platform_id = discovered_docker_by_image.get(image)
+        if discovered_platform_id is None:
+            continue
+        merged_entry = dict(all_platform_releases[discovered_platform_id])
+        merged_entry.update(entry)
+        all_platform_releases[platform_id] = merged_entry
+        del all_platform_releases[discovered_platform_id]
+    platform_releases = select_platform_releases(all_platform_releases, selection_policy)
     docker_entries = load_docker_platform_entries(
         platform_releases, platform_catalog, selection_policy
     )
@@ -758,13 +929,16 @@ def export_catalog(*, refresh_containers: bool = False):
     host_entries = load_host_release_entries(platform_releases, selection_policy)
     host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
+    existing_platform_availability = load_existing_yaml(PLATFORM_AVAILABILITY_OUTPUT)
     cached_containers = build_cached_container_index(
         load_existing_yaml(DOCKER_AVAILABILITY_OUTPUT)
     )
+    cached_vm_platforms = build_cached_vm_index(existing_platform_availability)
 
     docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
         "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "registry_base": REGISTRY_BASE,
         "token_service": TOKEN_URL,
@@ -827,27 +1001,43 @@ def export_catalog(*, refresh_containers: bool = False):
         }
         if entry.get("repo"):
             repo = entry["repo"]
-            release = fetch_latest_release(repo)
             asset_name = f"{entry['os']}-{entry['version']}-{entry['source_arch']}.qcow2"
-            assets = release.get("assets", [])
-            asset = next(
-                (a for a in assets if a.get("name") == asset_name), None
-            )
-            if not asset:
-                raise SystemExit(
-                    f"No asset named '{asset_name}' in release {release.get('tag_name')} for {repo}"
+            cached_vm_entry = cached_vm_platforms.get(platform_id, {})
+            try:
+                release = fetch_latest_release(repo)
+                assets = release.get("assets", [])
+                asset = next(
+                    (a for a in assets if a.get("name") == asset_name), None
                 )
-            record.update(
-                {
-                    "repo": repo,
-                    "release_tag": release.get("tag_name"),
-                    "release_url": release.get("html_url"),
-                    "asset_name": asset.get("name"),
-                    "asset_url": asset.get("browser_download_url"),
-                    "asset_size": asset.get("size"),
-                    "asset_updated_at": asset.get("updated_at"),
-                }
-            )
+                if not asset:
+                    raise SystemExit(
+                        f"No asset named '{asset_name}' in release {release.get('tag_name')} for {repo}"
+                    )
+                record.update(
+                    {
+                        "repo": repo,
+                        "release_tag": release.get("tag_name"),
+                        "release_url": release.get("html_url"),
+                        "asset_name": asset.get("name"),
+                        "asset_url": asset.get("browser_download_url"),
+                        "asset_size": asset.get("size"),
+                        "asset_updated_at": asset.get("updated_at"),
+                    }
+                )
+            except SystemExit as exc:
+                if "HTTP Error 403" not in str(exc) or not isinstance(cached_vm_entry, dict):
+                    raise
+                record.update(
+                    {
+                        "repo": repo,
+                        "release_tag": cached_vm_entry.get("release_tag"),
+                        "release_url": cached_vm_entry.get("release_url"),
+                        "asset_name": cached_vm_entry.get("asset_name", asset_name),
+                        "asset_url": cached_vm_entry.get("asset_url"),
+                        "asset_size": cached_vm_entry.get("asset_size"),
+                        "asset_updated_at": cached_vm_entry.get("asset_updated_at"),
+                    }
+                )
         if entry.get("runner_label"):
             record["runner_label"] = entry["runner_label"]
         if entry.get("alias_of"):
@@ -859,6 +1049,7 @@ def export_catalog(*, refresh_containers: bool = False):
     platform_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
         "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
         "host_runner_catalog": relative_to_root(HOST_RUNNERS),
@@ -873,6 +1064,17 @@ def export_catalog(*, refresh_containers: bool = False):
     )
 
     DOCKER_AVAILABILITY_OUTPUT.parent.mkdir(parents=True, exist_ok=True)
+    DISCOVERED_RELEASES_OUTPUT.write_text(
+        render_mapping_yaml(
+            {
+                "platform_catalog": relative_to_root(PLATFORM_CATALOG),
+                "platform_intent": relative_to_root(CONTAINER_INTENT),
+                "platform_releases_static": relative_to_root(PLATFORM_RELEASES),
+            },
+            platform_releases,
+        ),
+        encoding="utf-8",
+    )
     DOCKER_AVAILABILITY_OUTPUT.write_text(
         render_mapping_yaml(docker_availability_meta, docker_platforms),
         encoding="utf-8",

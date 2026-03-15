@@ -282,7 +282,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--event", default="workflow_dispatch")
     parser.add_argument("--token-env", default="GH_TOKEN")
     parser.add_argument("--manifest", default="ci/run/ref/ref-families.yml")
-    parser.add_argument("--platform-releases", default="ci/deps/platform-releases.yaml")
+    parser.add_argument(
+        "--platform-releases",
+        default=".github/data/platform-releases-discovered.yml",
+    )
     parser.add_argument("--apply", action="store_true")
     parser.add_argument("--markdown-output", default="")
     parser.add_argument("--json-output", default="")

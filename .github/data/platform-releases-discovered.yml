@@ -1,0 +1,301 @@
+source:
+  platform_catalog: ci/deps/platform-catalog.yaml
+  platform_intent: ci/deps/platform-intent.yaml
+  platform_releases_static: ci/deps/platform-releases.yaml
+platforms:
+  almalinux-10:
+    runtime: docker
+    platform_os: almalinux
+    image: almalinux:10
+    deps:
+      key: 10
+  almalinux-8:
+    runtime: docker
+    platform_os: almalinux
+    image: almalinux:8
+    deps:
+      key: 8
+  almalinux-9:
+    runtime: docker
+    platform_os: almalinux
+    image: almalinux:9
+    deps:
+      key: 9
+  alpine-3_19:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:3.19
+    deps:
+      key: 3
+  alpine-3_20:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:3.20
+    deps:
+      key: 3
+  alpine-3_21:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:3.21
+    deps:
+      key: 3
+  alpine-3_22:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:3.22
+    deps:
+      key: 3
+  alpine-3_23:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:3.23
+    deps:
+      key: 3
+  alpine-edge:
+    runtime: docker
+    platform_os: alpine
+    image: alpine:edge
+    deps:
+      key: 3
+  archlinux-base:
+    runtime: docker
+    platform_os: archlinux
+    image: archlinux:base
+    deps:
+      key: latest
+  archlinux-latest:
+    runtime: docker
+    platform_os: archlinux
+    image: archlinux:latest
+    deps:
+      key: latest
+  centos-7:
+    runtime: docker
+    platform_os: centos
+    image: centos:7
+    deps:
+      key: 7
+  debian-11:
+    runtime: docker
+    platform_os: debian
+    image: debian:11.11-slim
+    deps:
+      key: bullseye
+  debian-12:
+    runtime: docker
+    platform_os: debian
+    image: debian:12.13-slim
+    deps:
+      key: bookworm
+  debian-13:
+    runtime: docker
+    platform_os: debian
+    image: debian:13.3-slim
+    deps:
+      key: 13
+  fedora-40:
+    runtime: docker
+    platform_os: fedora
+    image: fedora:40
+    deps:
+      key: 40
+  fedora-41:
+    runtime: docker
+    platform_os: fedora
+    image: fedora:41
+    deps:
+      key: 41
+  fedora-42:
+    runtime: docker
+    platform_os: fedora
+    image: fedora:42
+    deps:
+      key: 42
+  freebsd-13_5:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '13.5'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-14_3:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.3'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-15_0:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '15.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  macos-14:
+    runtime: host
+    platform_os: macos
+    platform_version: '14'
+    provider: github-actions
+    runner: macos-14
+    deps:
+      key: '14'
+  macos-15:
+    runtime: host
+    platform_os: macos
+    platform_version: '15'
+    provider: github-actions
+    runner: macos-15
+    deps:
+      key: '15'
+  macos-26:
+    runtime: host
+    platform_os: macos
+    platform_version: '26'
+    provider: github-actions
+    runner: macos-26
+    deps:
+      key: '26'
+  macos-latest:
+    runtime: host
+    platform_os: macos
+    platform_version: latest
+    provider: github-actions
+    runner: macos-latest
+    alias_of: macos-15
+    deps:
+      key: latest
+  netbsd-10_0:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '10.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-10_1:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '10.1'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-9_2:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '9.2'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-9_3:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '9.3'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-9_4:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '9.4'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  openbsd-7_6:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.6'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_7:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.7'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_8:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.8'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  opensuse-leap-15_5:
+    runtime: docker
+    platform_os: opensuse_leap
+    image: opensuse/leap:15.5
+    deps:
+      key: '15_5'
+  opensuse-leap-15_6:
+    runtime: docker
+    platform_os: opensuse_leap
+    image: opensuse/leap:15.6
+    deps:
+      key: '15_6'
+  opensuse-leap-16_0:
+    runtime: docker
+    platform_os: opensuse_leap
+    image: opensuse/leap:16.0
+    deps:
+      key: '16_0'
+  opensuse-tumbleweed:
+    runtime: docker
+    platform_os: opensuse_tumbleweed
+    image: opensuse/tumbleweed:latest
+    deps:
+      key: latest
+  oraclelinux-10:
+    runtime: docker
+    platform_os: oraclelinux
+    image: oraclelinux:10
+    deps:
+      key: 10
+  oraclelinux-10-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    image: oraclelinux:10-slim
+    deps:
+      key: 10
+  oraclelinux-8:
+    runtime: docker
+    platform_os: oraclelinux
+    image: oraclelinux:8
+    deps:
+      key: 8
+  oraclelinux-9:
+    runtime: docker
+    platform_os: oraclelinux
+    image: oraclelinux:9
+    deps:
+      key: 9
+  rockylinux-8:
+    runtime: docker
+    platform_os: rockylinux
+    image: rockylinux:8
+    deps:
+      key: 8
+  rockylinux-9:
+    runtime: docker
+    platform_os: rockylinux
+    image: rockylinux:9
+    deps:
+      key: 9
+  ubuntu-20.04:
+    runtime: docker
+    platform_os: ubuntu
+    image: ubuntu:20.04
+    deps:
+      key: 20
+  ubuntu-22.04:
+    runtime: docker
+    platform_os: ubuntu
+    image: ubuntu:22.04
+    deps:
+      key: local
+  ubuntu-24.04:
+    runtime: docker
+    platform_os: ubuntu
+    image: ubuntu:24.04
+    deps:
+      key: latest
