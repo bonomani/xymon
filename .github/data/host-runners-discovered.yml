@@ -1,0 +1,261 @@
+runners:
+  macos-14:
+    container:
+      binfmt_misc_mounted: false
+      docker_socket: false
+    probed_at: '2026-03-15T15:26:06.140513+00:00'
+    runner_label: macos-14
+    system:
+      machine: arm64
+      platform: Darwin
+      release: 23.6.0
+    tools:
+      docker:
+        path: ''
+        present: false
+      podman:
+        path: ''
+        present: false
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  macos-15-intel:
+    container:
+      binfmt_misc_mounted: false
+      docker_socket: false
+    probed_at: '2026-03-15T15:26:07.597907+00:00'
+    runner_label: macos-15-intel
+    system:
+      machine: x86_64
+      platform: Darwin
+      release: 24.6.0
+    tools:
+      docker:
+        path: ''
+        present: false
+      podman:
+        path: ''
+        present: false
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  macos-15:
+    container:
+      binfmt_misc_mounted: false
+      docker_socket: false
+    probed_at: '2026-03-15T15:26:02.558596+00:00'
+    runner_label: macos-15
+    system:
+      machine: arm64
+      platform: Darwin
+      release: 24.6.0
+    tools:
+      docker:
+        path: ''
+        present: false
+      podman:
+        path: ''
+        present: false
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  macos-26-intel:
+    container:
+      binfmt_misc_mounted: false
+      docker_socket: false
+    probed_at: '2026-03-15T15:26:05.932444+00:00'
+    runner_label: macos-26-intel
+    system:
+      machine: x86_64
+      platform: Darwin
+      release: 25.3.0
+    tools:
+      docker:
+        path: ''
+        present: false
+      podman:
+        path: ''
+        present: false
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  macos-26:
+    container:
+      binfmt_misc_mounted: false
+      docker_socket: false
+    probed_at: '2026-03-15T15:26:02.869397+00:00'
+    runner_label: macos-26
+    system:
+      machine: arm64
+      platform: Darwin
+      release: 25.3.0
+    tools:
+      docker:
+        path: ''
+        present: false
+      podman:
+        path: ''
+        present: false
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  ubuntu-22.04-arm:
+    container:
+      binfmt_misc_mounted: true
+      docker_socket: true
+    probed_at: '2026-03-15T15:26:01.272178+00:00'
+    runner_label: ubuntu-22.04-arm
+    system:
+      machine: aarch64
+      platform: Linux
+      release: 6.8.0-1044-azure
+    tools:
+      docker:
+        path: /usr/bin/docker
+        present: true
+        version: 28.0.4
+      podman:
+        path: /usr/bin/podman
+        present: true
+        version: podman version 3.4.4
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  ubuntu-22.04:
+    container:
+      binfmt_misc_mounted: true
+      docker_socket: true
+    probed_at: '2026-03-15T15:26:01.235401+00:00'
+    runner_label: ubuntu-22.04
+    system:
+      machine: x86_64
+      platform: Linux
+      release: 6.8.0-1044-azure
+    tools:
+      docker:
+        path: /usr/bin/docker
+        present: true
+        version: 28.0.4
+      podman:
+        path: /usr/bin/podman
+        present: true
+        version: podman version 3.4.4
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: true
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: enabled
+  ubuntu-24.04-arm:
+    container:
+      binfmt_misc_mounted: true
+      docker_socket: true
+    probed_at: '2026-03-15T15:26:02.092461+00:00'
+    runner_label: ubuntu-24.04-arm
+    system:
+      machine: aarch64
+      platform: Linux
+      release: 6.14.0-1017-azure
+    tools:
+      docker:
+        path: /usr/bin/docker
+        present: true
+        version: 28.0.4
+      podman:
+        path: /usr/bin/podman
+        present: true
+        version: podman version 4.9.3
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: false
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: unknown
+  ubuntu-24.04:
+    container:
+      binfmt_misc_mounted: true
+      docker_socket: true
+    probed_at: '2026-03-15T15:26:01.267451+00:00'
+    runner_label: ubuntu-24.04
+    system:
+      machine: x86_64
+      platform: Linux
+      release: 6.14.0-1017-azure
+    tools:
+      docker:
+        path: /usr/bin/docker
+        present: true
+        version: 28.0.4
+      podman:
+        path: /usr/bin/podman
+        present: true
+        version: podman version 4.9.3
+      qemu-aarch64-static:
+        path: ''
+        present: false
+      qemu-system-x86_64:
+        path: ''
+        present: false
+    virtualization:
+      dev_kvm_exists: true
+      dev_kvm_readable: false
+      dev_kvm_writable: false
+      nested: enabled
