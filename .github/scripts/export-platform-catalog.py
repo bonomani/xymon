@@ -1033,10 +1033,12 @@ def build_platform_availability(
                     record[key] = runner.get(key)
             discovered_runner = host_runner_discovery.get(runner_label, {})
             if discovered_runner:
+                raw_discovery = dict(discovered_runner)
+                raw_discovery.pop("capabilities", None)
                 record["capabilities"] = normalize_host_discovery_capabilities(
                     discovered_runner
                 )
-                record["discovery"] = discovered_runner
+                record["discovery"] = raw_discovery
             alias_of = optional_alias_of(
                 host_entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
             )
