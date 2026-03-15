@@ -215,9 +215,31 @@ def load_platform_catalog(path: Path):
     normalized = {}
     for platform_id, entry in platforms.items():
         platform_id = require_non_empty_string(platform_id, "Platform catalog platform id")
-        normalized[platform_id] = require_mapping(
+        normalized_entry = require_mapping(
             entry, f"Platform catalog entry '{platform_id}'"
         )
+        runtime = require_non_empty_string(
+            normalized_entry.get("runtime"), f"Platform '{platform_id}'.runtime"
+        ).lower()
+        if runtime not in {"docker", "vm", "host"}:
+            die(f"Platform '{platform_id}' has unsupported runtime '{runtime}'")
+        image = str(normalized_entry.get("image") or "").strip()
+        runner = str(normalized_entry.get("runner") or "").strip()
+        provider = str(normalized_entry.get("provider") or "").strip()
+        if runtime == "docker":
+            if not image:
+                die(f"Platform '{platform_id}' (runtime=docker) must include image")
+            if runner:
+                die(f"Platform '{platform_id}' (runtime=docker) must not include runner")
+        elif runtime == "vm":
+            if image or runner:
+                die(f"Platform '{platform_id}' (runtime=vm) must not include image/runner")
+        else:
+            if not runner:
+                die(f"Platform '{platform_id}' (runtime=host) must include runner")
+            if image:
+                die(f"Platform '{platform_id}' (runtime=host) must not include image")
+        normalized[platform_id] = normalized_entry
 
     return normalized
 

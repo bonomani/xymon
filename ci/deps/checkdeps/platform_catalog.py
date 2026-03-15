@@ -11,6 +11,45 @@ from platform_normalization import (  # type: ignore
 )
 
 
+def validate_platform_runtime_fields(platform_id: str, entry: dict) -> None:
+    runtime = str(entry.get("runtime", "")).strip().lower()
+    if runtime not in {"docker", "vm", "host"}:
+        raise SystemExit(
+            f"ERROR: platform catalog entry '{platform_id}' has unsupported runtime '{runtime}'"
+        )
+
+    image = str(entry.get("image", "")).strip()
+    runner = str(entry.get("runner", "")).strip()
+    provider = str(entry.get("provider", "")).strip()
+
+    if runtime == "docker":
+        if not image:
+            raise SystemExit(
+                f"ERROR: platform catalog entry '{platform_id}' (runtime=docker) must include image"
+            )
+        if runner:
+            raise SystemExit(
+                f"ERROR: platform catalog entry '{platform_id}' (runtime=docker) must not include runner"
+            )
+        return
+
+    if runtime == "vm":
+        if image or runner:
+            raise SystemExit(
+                f"ERROR: platform catalog entry '{platform_id}' (runtime=vm) must not include image/runner"
+            )
+        return
+
+    if not runner:
+        raise SystemExit(
+            f"ERROR: platform catalog entry '{platform_id}' (runtime=host) must include runner"
+        )
+    if image:
+        raise SystemExit(
+            f"ERROR: platform catalog entry '{platform_id}' (runtime=host) must not include image"
+        )
+
+
 def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
     if not path.exists():
         return {}
@@ -30,6 +69,7 @@ def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
             isinstance(raw_entry, dict),
             f"{path} platforms.{platform_id} must be a mapping",
         )
+        validate_platform_runtime_fields(platform_id, raw_entry)
         normalized[platform_id] = raw_entry
     return normalized
 
