@@ -18,7 +18,7 @@ import yaml
 ROOT = Path(__file__).resolve().parent.parent.parent
 CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
 PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
-PLATFORM_RELEASES = ROOT / "ci" / "deps" / "platform-releases.yaml"
+PLATFORM_RELEASE_OVERRIDES = ROOT / "ci" / "deps" / "platform-release-overrides.yaml"
 BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 DISCOVERED_RELEASES_OUTPUT = ROOT / ".github" / "data" / "platform-releases-discovered.yml"
@@ -308,11 +308,14 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
 
 
 def load_platform_releases() -> dict[str, dict[str, Any]]:
-    data = load_yaml(PLATFORM_RELEASES, f"platform releases in {PLATFORM_RELEASES}")
-    platforms = field_map(data, "platforms", str(PLATFORM_RELEASES))
+    data = load_yaml(
+        PLATFORM_RELEASE_OVERRIDES,
+        f"platform release overrides in {PLATFORM_RELEASE_OVERRIDES}",
+    )
+    platforms = field_map(data, "platforms", str(PLATFORM_RELEASE_OVERRIDES))
     normalized: dict[str, dict[str, Any]] = {}
     for platform_id, raw_entry in platforms.items():
-        entry = as_map(raw_entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+        entry = as_map(raw_entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}")
         normalized[str(platform_id)] = entry
     return normalized
 
@@ -559,8 +562,15 @@ def load_docker_platform_entries(
         deps = dict(field_map(catalog_entry, "deps", f"{PLATFORM_CATALOG}.platforms.{platform_os}"))
         release_deps = entry.get("deps")
         if release_deps is not None:
-            deps.update(as_map(release_deps, f"{PLATFORM_RELEASES}.platforms.{platform_id}.deps"))
-        image = field_str(entry, "image", f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+            deps.update(
+                as_map(
+                    release_deps,
+                    f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}.deps",
+                )
+            )
+        image = field_str(
+            entry, "image", f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+        )
         repository, tag = image_repository_and_tag(image)
         entries.append(
             {
@@ -568,7 +578,7 @@ def load_docker_platform_entries(
                 "platform_os": platform_os,
                 "platform_family": "linux",
                 "platform_version": platform_version_for(
-                    entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}", tag
+                    entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}", tag
                 ),
                 "image": image,
                 "repository": repository,
@@ -576,7 +586,7 @@ def load_docker_platform_entries(
                 "tag": tag,
                 "deps": deps,
                 "alias_of": optional_alias_of(
-                    entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+                    entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
                 ),
             }
         )
@@ -597,7 +607,9 @@ def load_vm_release_entries(
             continue
         alias_of = None
         resolved_version = None
-        alias_of = optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+        alias_of = optional_alias_of(
+            entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+        )
         if alias_of:
             alias_entry = release_lookup.get(alias_of, {})
             if isinstance(alias_entry, dict):
@@ -607,14 +619,20 @@ def load_vm_release_entries(
                     if isinstance(alias_version, (str, int, float)):
                         resolved_version = str(alias_version)
         source_arch = field_str(
-            entry, "source_arch", f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+            entry, "source_arch", f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
         )
         selected.append(
             {
                 "platform_id": platform_id,
-                "os": field_str(entry, "platform_os", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
+                "os": field_str(
+                    entry,
+                    "platform_os",
+                    f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}",
+                ),
                 "version": field_str(
-                    entry, "platform_version", f"{PLATFORM_RELEASES}.platforms.{platform_id}"
+                    entry,
+                    "platform_version",
+                    f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}",
                 ),
                 "provider": str(entry.get("provider", "cross-platform-actions")),
                 "source_arch": source_arch,
@@ -639,11 +657,21 @@ def load_host_release_entries(
         if not selection_allows(selection_policy, "hosts", platform_id):
             continue
         selected[platform_id] = {
-            "provider": field_str(entry, "provider", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
-            "runner": field_str(entry, "runner", f"{PLATFORM_RELEASES}.platforms.{platform_id}"),
+            "provider": field_str(
+                entry, "provider", f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+            ),
+            "runner": field_str(
+                entry, "runner", f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+            ),
             **(
-                {"alias_of": optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")}
-                if optional_alias_of(entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+                {
+                    "alias_of": optional_alias_of(
+                        entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+                    )
+                }
+                if optional_alias_of(
+                    entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+                )
                 else {}
             ),
         }
@@ -956,7 +984,9 @@ def build_platform_availability(
             for key in ("availability", "resources", "source"):
                 if runner.get(key) is not None:
                     record[key] = runner.get(key)
-            alias_of = optional_alias_of(host_entry, f"{PLATFORM_RELEASES}.platforms.{platform_id}")
+            alias_of = optional_alias_of(
+                host_entry, f"{PLATFORM_RELEASE_OVERRIDES}.platforms.{platform_id}"
+            )
             if alias_of:
                 record["alias_of"] = alias_of
             availability[platform_id] = record
@@ -1023,7 +1053,7 @@ def export_catalog(*, refresh_containers: bool = False):
 
     docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
-        "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
         "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "registry_base": REGISTRY_BASE,
@@ -1134,7 +1164,7 @@ def export_catalog(*, refresh_containers: bool = False):
 
     platform_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
-        "platform_releases": relative_to_root(PLATFORM_RELEASES),
+        "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
         "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
@@ -1155,7 +1185,7 @@ def export_catalog(*, refresh_containers: bool = False):
             {
                 "platform_catalog": relative_to_root(PLATFORM_CATALOG),
                 "platform_intent": relative_to_root(CONTAINER_INTENT),
-                "platform_releases_static": relative_to_root(PLATFORM_RELEASES),
+                "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
             },
             platform_releases,
         ),

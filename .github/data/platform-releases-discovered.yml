@@ -1,7 +1,7 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
   platform_intent: ci/deps/platform-intent.yaml
-  platform_releases_static: ci/deps/platform-releases.yaml
+  platform_release_overrides: ci/deps/platform-release-overrides.yaml
 platforms:
   almalinux-10:
     runtime: docker
