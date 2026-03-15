@@ -11,6 +11,7 @@ import yaml
 
 ROOT_DIR = Path(__file__).resolve().parents[3]
 CATALOG_PATH = ROOT_DIR / "ci" / "deps" / "platform-catalog.yaml"
+AVAILABILITY_PATH = ROOT_DIR / ".github" / "data" / "platform-availability.yml"
 LANES_DIR = ROOT_DIR / "ci" / "run" / "ref" / "lanes"
 PREFERRED_OUTPUT = ROOT_DIR / "ci" / "run" / "ref" / "preferred-platforms.yml"
 STYLE_KEYWORDS = {"slim", "minimal", "lite", "micro", "core"}
@@ -18,9 +19,12 @@ LATEST_KEYWORDS = {"latest", "rolling", "tumbleweed", "edge", "current"}
 ARCH_PRIORITY = ["amd64", "x86-64", "x86_64", "arm64", "aarch64", "arm32v7", "armhf", "arm/v7", "arm", "ppc64le", "ppc64", "riscv64", "s390x"]
 
 
-def load_catalog(path: Path) -> dict[str, dict]:
-    data = yaml.safe_load(path.read_text()) or {}
-    return data.get("platforms", {})
+def load_availability(path: Path) -> dict[str, dict]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    platforms = data.get("platforms")
+    if not isinstance(platforms, dict):
+        raise SystemExit(f"platform availability missing 'platforms' mapping: {path}")
+    return platforms
 
 
 @dataclasses.dataclass
@@ -29,7 +33,7 @@ class PlatformCandidate:
     entry: dict
 
     def display_name(self) -> str:
-        return str(self.entry.get("display_name", ""))
+        return str(self.entry.get("display_name", "")) or str(self.entry.get("image", ""))
 
     def text(self) -> str:
         return f"{self.platform_id} {self.display_name()}".lower()
@@ -43,11 +47,17 @@ class PlatformCandidate:
         return any(keyword in text for keyword in LATEST_KEYWORDS)
 
     def version_tuple(self) -> tuple[int, ...]:
-        extracted = tuple(int(value) for value in re.findall(r"\d+", self.platform_id))
-        if extracted:
-            return extracted
-        extracted = tuple(int(value) for value in re.findall(r"\d+", self.display_name()))
-        return extracted
+        candidates = []
+        platform_version = str(self.entry.get("platform_version", "")) or ""
+        candidates.append(platform_version)
+        candidates.append(self.platform_id)
+        candidates.append(self.display_name())
+        for value in candidates:
+            digits = tuple(int(num) for num in re.findall(r"\\d+", str(value)))
+            if digits:
+                print("debug digits", self.platform_id, value, digits)
+                return digits
+        return ()
 
     def version_sort_key(self) -> tuple[int, ...]:
         version = self.version_tuple()
@@ -56,9 +66,9 @@ class PlatformCandidate:
         return tuple(-component for component in version)
 
     def arch_priority(self) -> int:
-        text = self.text()
+        arches = self.entry.get("discovered_arches", []) or []
         for index, arch in enumerate(ARCH_PRIORITY):
-            if arch in text:
+            if arch in arches:
                 return index
         return len(ARCH_PRIORITY)
 
@@ -75,40 +85,40 @@ def load_lane_platform_ids(lane_file: Path) -> list[str]:
     return ids
 
 
-def build_candidates(catalog: dict[str, dict], platform_ids: list[str]) -> list[PlatformCandidate]:
+def build_candidates(availability: dict[str, dict], platform_ids: list[str]) -> list[PlatformCandidate]:
     candidates = []
     for platform_id in platform_ids:
-        entry = catalog.get(platform_id)
+        entry = availability.get(platform_id)
         if entry is None:
             continue
         candidates.append(PlatformCandidate(platform_id=platform_id, entry=entry))
     return candidates
 
 
+def candidate_sort_key(candidate: PlatformCandidate) -> tuple[int, int, tuple[int, ...], int, str]:
+    return (
+        0 if candidate.is_slim_variant() else 1,
+        0 if candidate.is_latest_variant() else 1,
+        candidate.version_sort_key(),
+        candidate.arch_priority(),
+        candidate.platform_id,
+    )
+
+
 def best_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | None:
     if not candidates:
         return None
-
-    def sort_key(candidate: PlatformCandidate) -> tuple[int, int, tuple[int, ...], int, str]:
-        return (
-            0 if candidate.is_slim_variant() else 1,
-            0 if candidate.is_latest_variant() else 1,
-            candidate.version_sort_key(),
-            candidate.arch_priority(),
-            candidate.platform_id,
-        )
-
-    return min(candidates, key=sort_key)
+    return min(candidates, key=candidate_sort_key)
 
 
 def main() -> int:
     parser = argparse.ArgumentParser(description="Compute preferred platform per lane family.")
     parser.add_argument("--lanes-dir", default=LANES_DIR, type=Path)
-    parser.add_argument("--catalog", default=CATALOG_PATH, type=Path)
+    parser.add_argument("--availability", default=AVAILABILITY_PATH, type=Path)
     parser.add_argument("--output", default=PREFERRED_OUTPUT, type=Path)
     args = parser.parse_args()
 
-    catalog = load_catalog(args.catalog)
+    availability = load_availability(args.availability)
     lanes_dir = args.lanes_dir
     if not lanes_dir.is_dir():
         raise SystemExit(f"Missing lanes directory: {lanes_dir}")
@@ -118,7 +128,11 @@ def main() -> int:
     for lane_file in sorted(lanes_dir.glob("*.yml")):
         family = lane_file.stem
         platform_ids = load_lane_platform_ids(lane_file)
-        candidates = build_candidates(catalog, platform_ids)
+        candidates = build_candidates(availability, platform_ids)
+        if family == "debian":
+            print("debug keys (len)", len(candidates))
+            for candidate in candidates:
+                print("key", candidate.platform_id, candidate_sort_key(candidate))
         best = best_candidate(candidates)
         platform_list = ", ".join(platform_ids)
         if best is None:
