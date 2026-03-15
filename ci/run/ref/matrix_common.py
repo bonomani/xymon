@@ -46,6 +46,10 @@ def infer_platform_os(family: str, platform_id=None) -> str:
     if isinstance(platform_id, str):
         platform_id = platform_id.strip()
     if platform_id:
+        if platform_id.startswith("opensuse-tumbleweed"):
+            return "opensuse_tumbleweed"
+        if platform_id.startswith("opensuse-leap-"):
+            return "opensuse_leap"
         return platform_id.split("-", 1)[0]
     return require_non_empty_string(family, "Lane family")
 
@@ -71,6 +75,8 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
 
     runtime = str(platform_entry.get("runtime") or "").strip().lower()
     platform_os = str(platform_entry.get("platform_os") or "").strip().lower()
+    if not platform_os:
+        platform_os = infer_platform_os("", platform_id).lower()
     image = str(platform_entry.get("image") or "").strip()
     tag = image.partition(":")[2].strip()
 

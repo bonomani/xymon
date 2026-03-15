@@ -261,6 +261,15 @@ def version_key(value: str) -> tuple[int, tuple[int, ...], str]:
     return (1 if numbers else 0, numbers, value)
 
 
+def infer_platform_os(platform_id: str) -> str:
+    platform_id = str(platform_id).strip()
+    if platform_id.startswith("opensuse-tumbleweed"):
+        return "opensuse_tumbleweed"
+    if platform_id.startswith("opensuse-leap-"):
+        return "opensuse_leap"
+    return platform_id.split("-", 1)[0]
+
+
 def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
     data = load_yaml(PLATFORM_CATALOG, f"platform catalog in {PLATFORM_CATALOG}")
     platforms = field_map(data, "platforms", str(PLATFORM_CATALOG))
@@ -283,9 +292,7 @@ def load_docker_platform_entries() -> list[dict[str, Any]]:
         entries.append(
             {
                 "platform_id": platform_id,
-                "platform_os": field_str(
-                    entry, "platform_os", f"{PLATFORM_CATALOG}.platforms.{platform_id}"
-                ).lower(),
+                "platform_os": str(entry.get("platform_os") or infer_platform_os(platform_id)).lower(),
                 "platform_family": "linux",
                 "platform_version": platform_version_for(
                     entry, f"{PLATFORM_CATALOG}.platforms.{platform_id}", tag

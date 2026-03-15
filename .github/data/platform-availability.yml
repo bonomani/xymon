@@ -624,6 +624,7 @@ platforms:
         - ubuntu-24.04
   freebsd-13_5:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
     os: freebsd
     version: '13.5'
@@ -639,6 +640,7 @@ platforms:
     asset_updated_at: '2025-12-12T19:23:24Z'
   freebsd-14_3:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
     os: freebsd
     version: '14.3'
@@ -654,6 +656,7 @@ platforms:
     asset_updated_at: '2025-12-12T18:21:44Z'
   freebsd-15_0:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
     os: freebsd
     version: '15.0'
@@ -748,6 +751,7 @@ platforms:
     alias_of: macos-15
   netbsd-10_0:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
     version: '10.0'
@@ -763,6 +767,7 @@ platforms:
     asset_updated_at: '2025-12-03T17:23:36Z'
   netbsd-10_1:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
     version: '10.1'
@@ -778,6 +783,7 @@ platforms:
     asset_updated_at: '2025-12-03T17:23:52Z'
   netbsd-9_2:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
     version: '9.2'
@@ -793,6 +799,7 @@ platforms:
     asset_updated_at: '2025-12-03T17:24:04Z'
   netbsd-9_3:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
     version: '9.3'
@@ -808,6 +815,7 @@ platforms:
     asset_updated_at: '2025-12-03T17:23:14Z'
   netbsd-9_4:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
     version: '9.4'
@@ -823,6 +831,7 @@ platforms:
     asset_updated_at: '2025-12-03T17:23:15Z'
   openbsd-7_6:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
     os: openbsd
     version: '7.6'
@@ -838,6 +847,7 @@ platforms:
     asset_updated_at: '2025-12-12T19:20:55Z'
   openbsd-7_7:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
     os: openbsd
     version: '7.7'
@@ -853,6 +863,7 @@ platforms:
     asset_updated_at: '2025-12-12T18:11:49Z'
   openbsd-7_8:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
     os: openbsd
     version: '7.8'

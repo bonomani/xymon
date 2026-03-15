@@ -11,6 +11,15 @@ from platform_normalization import (  # type: ignore
 )
 
 
+def infer_platform_os(platform_id: str) -> str:
+    platform_id = platform_id.strip()
+    if platform_id.startswith("opensuse-tumbleweed"):
+        return "opensuse_tumbleweed"
+    if platform_id.startswith("opensuse-leap-"):
+        return "opensuse_leap"
+    return platform_id.split("-", 1)[0]
+
+
 def validate_platform_runtime_fields(platform_id: str, entry: dict) -> None:
     runtime = str(entry.get("runtime", "")).strip().lower()
     if runtime not in {"docker", "vm", "host"}:
@@ -88,7 +97,7 @@ def load_platform_deps_bindings(
                 f"ERROR: platform catalog entry '{platform_id}' deps must be a mapping"
             )
         package_family = str(deps.get("package_family", "")).strip()
-        platform_os = str(entry.get("platform_os", "")).strip()
+        platform_os = str(entry.get("platform_os", "")).strip() or infer_platform_os(platform_id)
         key_raw = deps.get("key")
         if not package_family or not platform_os:
             raise SystemExit(
