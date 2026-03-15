@@ -50,6 +50,55 @@ def infer_platform_os(family: str, platform_id=None) -> str:
     return require_non_empty_string(family, "Lane family")
 
 
+def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
+    display_name = str(platform_entry.get("display_name") or "").strip()
+    if display_name:
+        return display_name
+
+    runtime = str(platform_entry.get("runtime") or "").strip().lower()
+    platform_os = str(platform_entry.get("platform_os") or "").strip().lower()
+    image = str(platform_entry.get("image") or "").strip()
+    tag = image.partition(":")[2].strip()
+
+    if runtime == "docker":
+        docker_os_names = {
+            "debian": "Debian",
+            "ubuntu": "Ubuntu",
+            "rockylinux": "Rocky Linux",
+            "almalinux": "AlmaLinux",
+            "centos": "CentOS",
+            "fedora": "Fedora",
+            "alpine": "Alpine",
+        }
+        if platform_os in {"debian", "ubuntu", "alpine"} and tag:
+            return f"{docker_os_names[platform_os]} {tag} amd64"
+        if platform_os in {"rockylinux", "almalinux", "centos", "fedora"} and tag:
+            return f"{docker_os_names[platform_os]} {tag}"
+        if platform_os == "opensuse_tumbleweed":
+            return "openSUSE Tumbleweed"
+        if platform_os == "opensuse_leap" and tag:
+            return f"openSUSE Leap {tag}"
+        if platform_os == "archlinux":
+            return "Arch Linux base amd64" if tag == "base" else "Arch Linux amd64"
+
+    version = platform_id.split("-", 1)[1].replace("_", ".") if "-" in platform_id else ""
+    if runtime == "vm":
+        vm_os_names = {
+            "freebsd": "FreeBSD",
+            "netbsd": "NetBSD",
+            "openbsd": "OpenBSD",
+        }
+        if platform_os == "netbsd" and version:
+            return f"{vm_os_names[platform_os]} {version} x86-64"
+        if platform_os in vm_os_names and version:
+            return f"{vm_os_names[platform_os]} {version}"
+
+    if runtime == "host" and platform_os == "macos" and version:
+        return f"macOS {version}"
+
+    die(f"Platform '{platform_id}' is missing display_name and no fallback could be derived")
+
+
 def infer_artifact_arch(lane_obj) -> str:
     """Return a stable arch label for artifact naming."""
     architecture = str(lane_obj.get("architecture") or "").strip().lower()

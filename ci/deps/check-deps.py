@@ -776,9 +776,9 @@ def check_ref_workflow_deps_coverage(
             )
             continue
 
-        binding_family = binding.get("family")
-        os_name = binding.get("os")
-        version = binding.get("version")
+        binding_family = binding.get("package_family")
+        os_name = binding.get("platform_os")
+        version = binding.get("deps_key")
         if (
             not isinstance(binding_family, str)
             or not binding_family.strip()
@@ -788,7 +788,7 @@ def check_ref_workflow_deps_coverage(
             ok = False
             print(
                 f"   ERROR: platform '{platform_id}' has invalid deps binding "
-                "(missing non-empty family/os)"
+                "(missing non-empty package_family/platform_os)"
             )
             continue
 
@@ -839,13 +839,13 @@ def check_platform_catalog_bindings_consistency(
         print(f"   ERROR: platform '{platform_id}' has deps mapping but is missing from catalog")
 
     for platform_id, binding in platform_bindings.items():
-        family = binding.get("family")
-        os_name = binding.get("os")
+        family = binding.get("package_family")
+        os_name = binding.get("platform_os")
         if not isinstance(family, str) or not family.strip() or not isinstance(os_name, str) or not os_name.strip():
             ok = False
             print(
                 f"   ERROR: deps binding for platform '{platform_id}' "
-                "must include non-empty 'family' and 'os'"
+                "must include non-empty 'package_family' and 'platform_os'"
             )
 
     if ok:
@@ -886,15 +886,15 @@ def check_docker_platforms_map_to_deps(
             print(f"   ERROR: platform '{platform_id}' (runtime=docker) missing deps binding")
             continue
 
-        family = binding.get("family")
-        os_name = binding.get("os")
-        version = binding.get("version")
+        family = binding.get("package_family")
+        os_name = binding.get("platform_os")
+        version = binding.get("deps_key")
 
         if not isinstance(family, str) or not isinstance(os_name, str):
             ok = False
             print(
                 f"   ERROR: platform '{platform_id}' (runtime=docker) deps binding "
-                "missing 'family' or 'os' field"
+                "missing 'package_family' or 'platform_os' field"
             )
             continue
 
@@ -1681,9 +1681,11 @@ def main() -> int:
     print("-- workflows: install checks")
     known_families = set(client.get("build", {}).keys())
     known_os = {
-        str(entry.get("os")).strip()
+        str(entry.get("platform_os")).strip()
         for entry in platform_bindings.values()
-        if isinstance(entry, dict) and isinstance(entry.get("os"), str) and str(entry.get("os")).strip()
+        if isinstance(entry, dict)
+        and isinstance(entry.get("platform_os"), str)
+        and str(entry.get("platform_os")).strip()
     }
     required_flags_cache: dict[Path, set[str]] = {}
     workflow_dir = ROOT / ".github" / "workflows"

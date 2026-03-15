@@ -15,7 +15,7 @@ containers:
     lanes_glob: ci/run/ref/lanes/*.yml
   selection:
     keep: all_active_versions
-    group_by: deps.os
+    group_by: platform_os
     dedupe_by: normalized_tag
     prefer_tags:
       - slim

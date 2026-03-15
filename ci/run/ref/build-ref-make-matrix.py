@@ -13,6 +13,7 @@ from execution_model import (
 from lane_utils import VARIANT_NAME_SUFFIX
 from lane_utils import SUPPORTED_LANE_VARIANTS
 from matrix_common import (
+    derive_platform_display_name,
     die,
     infer_artifact_arch,
     infer_platform_os,
@@ -309,7 +310,7 @@ def apply_platform_runtime_defaults(
         inferred_version = ""
         deps = platform_entry.get("deps")
         if isinstance(deps, dict):
-            version = deps.get("version")
+            version = deps.get("key")
             if isinstance(version, (str, int, float)):
                 inferred_version = str(version).strip()
         if not inferred_version:
@@ -327,10 +328,7 @@ def auto_name_lane(family_entry, lane_obj, platform_entry, platform_id):
             "and cannot be auto-named without platform_id"
         )
 
-    display_name = require_non_empty_string(
-        platform_entry.get("display_name"),
-        f"Platform '{platform_id}'.display_name",
-    )
+    display_name = derive_platform_display_name(platform_id, platform_entry)
     variant = lane_obj.get("variant")
     suffix = VARIANT_NAME_SUFFIX.get(variant)
     if not suffix:
@@ -408,14 +406,14 @@ def apply_platform_availability_overrides(
     if not isinstance(deps, dict):
         return None
 
-    platform_os = str(deps.get("os") or "").strip()
+    platform_os = str(platform_entry.get("platform_os") or "").strip()
     if not platform_os:
         return None
     artifact_arch = infer_artifact_arch(lane_obj)
     try:
         resolved = resolve_container_runtime(
             platform_id=platform_id,
-            platform_os=str(deps.get("os") or "").strip(),
+            platform_os=platform_os,
             artifact_arch=artifact_arch,
             platform_availability=platform_availability,
         )
@@ -537,14 +535,12 @@ def normalize_lane(
         return None
     intent_runtime_preference = None
     if platform_entry is not None and str(platform_entry.get("runtime", "")).lower() == "docker":
-        deps = platform_entry.get("deps")
-        if isinstance(deps, dict):
-            platform_os_key = str(deps.get("os") or "").strip().lower()
-            if platform_os_key:
-                default_preference, overrides = container_runtime_preferences
-                intent_runtime_preference = list(
-                    overrides.get(platform_os_key, default_preference)
-                )
+        platform_os_key = str(platform_entry.get("platform_os") or "").strip().lower()
+        if platform_os_key:
+            default_preference, overrides = container_runtime_preferences
+            intent_runtime_preference = list(
+                overrides.get(platform_os_key, default_preference)
+            )
     effective_runtime, _ = resolve_preferred_runtime(
         family_entry,
         lane_obj,

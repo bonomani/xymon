@@ -1,363 +1,321 @@
 platforms:
   debian-11:
     runtime: docker
+    platform_os: debian
     image: debian:11.11-slim
-    display_name: Debian 11.11-slim amd64
     deps:
-      family: debian
-      os: debian
-      version: bullseye
+      package_family: debian
+      key: bullseye
   debian-12:
     runtime: docker
+    platform_os: debian
     image: debian:12.13-slim
-    display_name: Debian 12.13-slim amd64
     deps:
-      family: debian
-      os: debian
-      version: bookworm
+      package_family: debian
+      key: bookworm
   debian-13:
     runtime: docker
+    platform_os: debian
     image: debian:13.3-slim
-    display_name: Debian 13.3-slim amd64
     deps:
-      family: debian
-      os: debian
-      version: 13
+      package_family: debian
+      key: 13
   ubuntu-20.04:
     runtime: docker
+    platform_os: ubuntu
     image: ubuntu:20.04
-    display_name: Ubuntu 20.04 amd64
     deps:
-      family: ubuntu
-      os: ubuntu
-      version: 20
+      package_family: ubuntu
+      key: 20
   ubuntu-22.04:
     runtime: docker
+    platform_os: ubuntu
     image: ubuntu:22.04
-    display_name: Ubuntu 22.04 amd64
     deps:
-      family: ubuntu
-      os: ubuntu
-      version: local
+      package_family: ubuntu
+      key: local
   ubuntu-24.04:
     runtime: docker
+    platform_os: ubuntu
     image: ubuntu:24.04
-    display_name: Ubuntu 24.04 amd64
     deps:
-      family: ubuntu
-      os: ubuntu
-      version: latest
+      package_family: ubuntu
+      key: latest
   rockylinux-8:
     runtime: docker
+    platform_os: rockylinux
     image: rockylinux:8
-    display_name: Rocky Linux 8
     deps:
-      family: rpm
-      os: rockylinux
-      version: 8
+      package_family: rpm
+      key: 8
   rockylinux-9:
     runtime: docker
+    platform_os: rockylinux
     image: rockylinux:9
-    display_name: Rocky Linux 9
     deps:
-      family: rpm
-      os: rockylinux
-      version: 9
+      package_family: rpm
+      key: 9
   oraclelinux-10:
     runtime: docker
+    platform_os: oraclelinux
     image: oraclelinux:10
     display_name: Oracle Linux 10 arm64
     deps:
-      family: rpm
-      os: oraclelinux
-      version: 10
+      package_family: rpm
+      key: 10
   oraclelinux-10-slim:
     runtime: docker
+    platform_os: oraclelinux
     image: oraclelinux:10-slim
     display_name: Oracle Linux 10-slim amd64
     deps:
-      family: rpm
-      os: oraclelinux
-      version: 10
+      package_family: rpm
+      key: 10
   oraclelinux-9:
     runtime: docker
+    platform_os: oraclelinux
     image: oraclelinux:9
     display_name: Oracle Linux 9 amd64
     deps:
-      family: rpm
-      os: oraclelinux
-      version: 9
+      package_family: rpm
+      key: 9
   oraclelinux-8:
     runtime: docker
+    platform_os: oraclelinux
     image: oraclelinux:8
     display_name: Oracle Linux 8 amd64
     deps:
-      family: rpm
-      os: oraclelinux
-      version: 8
+      package_family: rpm
+      key: 8
   almalinux-8:
     runtime: docker
+    platform_os: almalinux
     image: almalinux:8
-    display_name: AlmaLinux 8
     deps:
-      family: rpm
-      os: almalinux
-      version: 8
+      package_family: rpm
+      key: 8
   almalinux-9:
     runtime: docker
+    platform_os: almalinux
     image: almalinux:9
-    display_name: AlmaLinux 9
     deps:
-      family: rpm
-      os: almalinux
-      version: 9
+      package_family: rpm
+      key: 9
   almalinux-10:
     runtime: docker
+    platform_os: almalinux
     image: almalinux:10
-    display_name: AlmaLinux 10
     deps:
-      family: rpm
-      os: almalinux
-      version: 10
+      package_family: rpm
+      key: 10
   centos-7:
     runtime: docker
+    platform_os: centos
     image: centos:7
-    display_name: CentOS 7
     deps:
-      family: rpm
-      os: centos
-      version: 7
+      package_family: rpm
+      key: 7
   fedora-40:
     runtime: docker
+    platform_os: fedora
     image: fedora:40
-    display_name: Fedora 40
     deps:
-      family: rpm
-      os: fedora
-      version: 40
+      package_family: rpm
+      key: 40
   fedora-41:
     runtime: docker
+    platform_os: fedora
     image: fedora:41
-    display_name: Fedora 41
     deps:
-      family: rpm
-      os: fedora
-      version: 41
+      package_family: rpm
+      key: 41
   fedora-42:
     runtime: docker
+    platform_os: fedora
     image: fedora:42
-    display_name: Fedora 42
     deps:
-      family: rpm
-      os: fedora
-      version: 42
+      package_family: rpm
+      key: 42
   opensuse-tumbleweed:
     runtime: docker
+    platform_os: opensuse_tumbleweed
     image: opensuse/tumbleweed:latest
-    display_name: openSUSE Tumbleweed
     deps:
-      family: suse
-      os: opensuse_tumbleweed
-      version: latest
+      package_family: suse
+      key: latest
   opensuse-leap-16_0:
     runtime: docker
+    platform_os: opensuse_leap
     image: opensuse/leap:16.0
-    display_name: openSUSE Leap 16.0
     deps:
-      family: suse
-      os: opensuse_leap
-      version: '16_0'
+      package_family: suse
+      key: '16_0'
   opensuse-leap-15_6:
     runtime: docker
+    platform_os: opensuse_leap
     image: opensuse/leap:15.6
-    display_name: openSUSE Leap 15.6
     deps:
-      family: suse
-      os: opensuse_leap
-      version: '15_6'
+      package_family: suse
+      key: '15_6'
   opensuse-leap-15_5:
     runtime: docker
+    platform_os: opensuse_leap
     image: opensuse/leap:15.5
-    display_name: openSUSE Leap 15.5
     deps:
-      family: suse
-      os: opensuse_leap
-      version: '15_5'
+      package_family: suse
+      key: '15_5'
   alpine-3_23:
     runtime: docker
+    platform_os: alpine
     image: alpine:3.23
-    display_name: Alpine 3.23 amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   alpine-3_22:
     runtime: docker
+    platform_os: alpine
     image: alpine:3.22
-    display_name: Alpine 3.22 amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   alpine-3_21:
     runtime: docker
+    platform_os: alpine
     image: alpine:3.21
-    display_name: Alpine 3.21 amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   alpine-3_20:
     runtime: docker
+    platform_os: alpine
     image: alpine:3.20
-    display_name: Alpine 3.20 amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   alpine-3_19:
     runtime: docker
+    platform_os: alpine
     image: alpine:3.19
-    display_name: Alpine 3.19 amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   alpine-edge:
     runtime: docker
+    platform_os: alpine
     image: alpine:edge
-    display_name: Alpine edge amd64
     deps:
-      family: alpine
-      os: alpine
-      version: 3
+      package_family: alpine
+      key: 3
   archlinux-latest:
     runtime: docker
+    platform_os: archlinux
     image: archlinux:latest
-    display_name: Arch Linux amd64
     deps:
-      family: arch
-      os: archlinux
-      version: latest
+      package_family: arch
+      key: latest
   archlinux-base:
     runtime: docker
+    platform_os: archlinux
     image: archlinux:base
-    display_name: Arch Linux base amd64
     deps:
-      family: arch
-      os: archlinux
-      version: latest
+      package_family: arch
+      key: latest
   freebsd-15_0:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
-    display_name: FreeBSD 15.0
     deps:
-      family: bsd
-      os: freebsd
+      package_family: bsd
   freebsd-14_3:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
-    display_name: FreeBSD 14.3
     deps:
-      family: bsd
-      os: freebsd
+      package_family: bsd
   freebsd-13_5:
     runtime: vm
+    platform_os: freebsd
     provider: cross-platform-actions
-    display_name: FreeBSD 13.5
     deps:
-      family: bsd
-      os: freebsd
+      package_family: bsd
   netbsd-10_1:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
-    display_name: NetBSD 10.1 x86-64
     deps:
-      family: bsd
-      os: netbsd
+      package_family: bsd
   netbsd-10_0:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
-    display_name: NetBSD 10.0 x86-64
     deps:
-      family: bsd
-      os: netbsd
+      package_family: bsd
   netbsd-9_4:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
-    display_name: NetBSD 9.4 x86-64
     deps:
-      family: bsd
-      os: netbsd
+      package_family: bsd
   netbsd-9_3:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
-    display_name: NetBSD 9.3 x86-64
     deps:
-      family: bsd
-      os: netbsd
+      package_family: bsd
   netbsd-9_2:
     runtime: vm
+    platform_os: netbsd
     provider: cross-platform-actions
-    display_name: NetBSD 9.2 x86-64
     deps:
-      family: bsd
-      os: netbsd
+      package_family: bsd
   openbsd-7_8:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
-    display_name: OpenBSD 7.8
     deps:
-      family: bsd
-      os: openbsd
+      package_family: bsd
   openbsd-7_7:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
-    display_name: OpenBSD 7.7
     deps:
-      family: bsd
-      os: openbsd
+      package_family: bsd
   openbsd-7_6:
     runtime: vm
+    platform_os: openbsd
     provider: cross-platform-actions
-    display_name: OpenBSD 7.6
     deps:
-      family: bsd
-      os: openbsd
+      package_family: bsd
   macos-latest:
     runtime: host
+    platform_os: macos
     provider: github-actions
     runner: macos-latest
     alias_of: macos-15
-    display_name: macOS latest
     deps:
-      family: macos
-      os: macos
-      version: latest
+      package_family: macos
+      key: latest
   macos-26:
     runtime: host
+    platform_os: macos
     provider: github-actions
     runner: macos-26
-    display_name: macOS 26
     deps:
-      family: macos
-      os: macos
-      version: "26"
+      package_family: macos
+      key: '26'
   macos-15:
     runtime: host
+    platform_os: macos
     provider: github-actions
     runner: macos-15
-    display_name: macOS 15
     deps:
-      family: macos
-      os: macos
-      version: "15"
+      package_family: macos
+      key: '15'
   macos-14:
     runtime: host
+    platform_os: macos
     provider: github-actions
     runner: macos-14
-    display_name: macOS 14
     deps:
-      family: macos
-      os: macos
-      version: "14"
+      package_family: macos
+      key: '14'
