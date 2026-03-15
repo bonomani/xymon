@@ -1,0 +1,73 @@
+name: Discover host runner capabilities
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: write
+  actions: read
+
+jobs:
+  matrix:
+    runs-on: ubuntu-24.04
+    outputs:
+      labels: ${{ steps.labels.outputs.labels }}
+    steps:
+      - uses: actions/checkout@v6
+      - id: labels
+        run: |
+          labels="$(python - <<'PY'
+          import json, yaml
+          from pathlib import Path
+          data = yaml.safe_load(Path('ci/deps/platform-host-runners.yaml').read_text())
+          labels = [runner['label'] for runner in data.get('runners', []) if isinstance(runner, dict) and runner.get('label')]
+          print(json.dumps(labels))
+          PY
+          )"
+          echo "labels=${labels}" >> "$GITHUB_OUTPUT"
+
+  probe:
+    needs: matrix
+    runs-on: ${{ matrix.label }}
+    strategy:
+      fail-fast: false
+      matrix:
+        label: ${{ fromJson(needs.matrix.outputs.labels) }}
+    steps:
+      - uses: actions/checkout@v6
+      - name: Probe host capabilities
+        env:
+          RUNNER_LABEL: ${{ matrix.label }}
+        run: |
+          python .github/scripts/probe-host-runner-capabilities.py > "${{ matrix.label }}.json"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: host-runner-capability-${{ matrix.label }}
+          path: ${{ matrix.label }}.json
+
+  merge:
+    needs: probe
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - uses: actions/download-artifact@v4
+        with:
+          path: .artifacts/host-runner-capabilities
+          pattern: host-runner-capability-*
+          merge-multiple: true
+      - name: Merge capability probes
+        run: |
+          python .github/scripts/merge-host-runner-capabilities.py \
+            .artifacts/host-runner-capabilities \
+            .github/data/host-runners-discovered.yml
+      - name: Commit capability catalog
+        run: |
+          git config user.name 'github-actions[bot]'
+          git config user.email 'github-actions[bot]@users.noreply.github.com'
+          git add .github/data/host-runners-discovered.yml
+          if git diff --staged --quiet; then
+            echo "No host runner capability updates"
+            exit 0
+          fi
+          git commit -m 'Refresh host runner capabilities'
+          git push

@@ -5,6 +5,7 @@ source:
   platform_intent: ci/deps/platform-intent.yaml
   docker_availability_raw: .github/data/docker-availability-raw.yml
   host_runner_catalog: ci/deps/platform-host-runners.yaml
+  host_runner_discovery: .github/data/host-runners-discovered.yml
 platforms:
   almalinux-10:
     runtime: docker
