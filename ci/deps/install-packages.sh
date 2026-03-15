@@ -64,7 +64,7 @@ if [[ ! -f "${backend_script}" ]]; then
   echo "Unsupported package manager: ${pkgmgr}" >&2
   exit 2
 fi
-
+# shellcheck disable=SC1090
 source "${backend_script}"
 
 if ! type pkg_installed >/dev/null 2>&1; then
