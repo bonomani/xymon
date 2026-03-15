@@ -19,6 +19,7 @@ ROOT = Path(__file__).resolve().parent.parent.parent
 CONTAINER_INTENT = ROOT / "ci" / "deps" / "platform-intent.yaml"
 PLATFORM_CATALOG = ROOT / "ci" / "deps" / "platform-catalog.yaml"
 PLATFORM_RELEASES = ROOT / "ci" / "deps" / "platform-releases.yaml"
+BSD_SOURCES = ROOT / "ci" / "deps" / "platform-bsd-sources.yaml"
 HOST_RUNNERS = ROOT / "ci" / "deps" / "platform-host-runners.yaml"
 DISCOVERED_RELEASES_OUTPUT = ROOT / ".github" / "data" / "platform-releases-discovered.yml"
 DOCKER_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "docker-availability-raw.yml"
@@ -316,6 +317,16 @@ def load_platform_releases() -> dict[str, dict[str, Any]]:
     return normalized
 
 
+def load_bsd_sources() -> dict[str, dict[str, Any]]:
+    data = load_yaml(BSD_SOURCES, f"BSD sources in {BSD_SOURCES}")
+    sources = field_map(data, "sources", str(BSD_SOURCES))
+    normalized: dict[str, dict[str, Any]] = {}
+    for platform_id, raw_entry in sources.items():
+        entry = as_map(raw_entry, f"{BSD_SOURCES}.sources.{platform_id}")
+        normalized[str(platform_id)] = entry
+    return normalized
+
+
 def load_selection_policy() -> dict[str, dict[str, set[str]]]:
     data = load_yaml(CONTAINER_INTENT, f"platform intent in {CONTAINER_INTENT}")
     policy: dict[str, dict[str, set[str]]] = {}
@@ -442,6 +453,76 @@ def discover_docker_releases(
                 "image": f"{repository.split('/', 1)[1] if repository.startswith('library/') else repository}:{tag}",
             }
             discovered[platform_id] = record
+    return discovered
+
+
+def discover_vm_releases(
+    platform_catalog: dict[str, dict[str, Any]],
+    bsd_sources: dict[str, dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    vm_platform_oses = {
+        platform_os
+        for platform_os, entry in platform_catalog.items()
+        if str(entry.get("runtime", "")).strip().lower() == "vm"
+    }
+    discovered: dict[str, dict[str, Any]] = {}
+    for platform_id, entry in sorted(bsd_sources.items()):
+        platform_os = field_str(entry, "os", f"{BSD_SOURCES}.sources.{platform_id}")
+        if platform_os not in vm_platform_oses:
+            continue
+        version = field_str(entry, "version", f"{BSD_SOURCES}.sources.{platform_id}")
+        repo = field_str(entry, "repo", f"{BSD_SOURCES}.sources.{platform_id}")
+        source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.sources.{platform_id}")
+        discovered[platform_id] = {
+            "runtime": "vm",
+            "platform_os": platform_os,
+            "platform_version": version,
+            "provider": "cross-platform-actions",
+            "repo": repo,
+            "source_arch": source_arch,
+        }
+    return discovered
+
+
+def discover_host_releases(
+    platform_catalog: dict[str, dict[str, Any]],
+    host_runners: list[dict[str, Any]],
+) -> dict[str, dict[str, Any]]:
+    host_platform_oses = {
+        platform_os
+        for platform_os, entry in platform_catalog.items()
+        if str(entry.get("runtime", "")).strip().lower() == "host"
+    }
+    discovered: dict[str, dict[str, Any]] = {}
+    for runner in host_runners:
+        platform_os = field_str(runner, "platform_os", f"{HOST_RUNNERS} runner {runner}")
+        if platform_os not in host_platform_oses:
+            continue
+        runner_label = field_str(runner, "label", f"{HOST_RUNNERS} runner {runner}")
+        version = field_str(runner, "platform_version", f"{HOST_RUNNERS} runner {runner}")
+        discovered[runner_label] = {
+            "runtime": "host",
+            "platform_os": platform_os,
+            "platform_version": version,
+            "provider": "github-actions",
+            "runner": runner_label,
+            "deps": {"key": version},
+        }
+        raw_aliases = runner.get("aliases", [])
+        if raw_aliases is None:
+            continue
+        aliases = as_list(raw_aliases, f"{HOST_RUNNERS} runner {runner_label}.aliases")
+        for alias in aliases:
+            alias_label = as_str(alias, f"{HOST_RUNNERS} runner {runner_label}.aliases[]")
+            discovered[alias_label] = {
+                "runtime": "host",
+                "platform_os": platform_os,
+                "platform_version": alias_label.rsplit("-", 1)[-1],
+                "provider": "github-actions",
+                "runner": alias_label,
+                "alias_of": runner_label,
+                "deps": {"key": alias_label.rsplit("-", 1)[-1]},
+            }
     return discovered
 
 
@@ -889,9 +970,14 @@ def export_catalog(*, refresh_containers: bool = False):
     platform_catalog = load_static_platform_catalog()
     selection_policy = load_selection_policy()
     static_platform_releases = load_platform_releases()
+    bsd_sources = load_bsd_sources()
+    host_runners = load_host_runners()
     discovered_docker_releases = discover_docker_releases(platform_catalog, selection_policy)
+    discovered_vm_releases = discover_vm_releases(platform_catalog, bsd_sources)
+    discovered_host_releases = discover_host_releases(platform_catalog, host_runners)
     all_platform_releases = {
-        **{k: v for k, v in static_platform_releases.items() if str(v.get("runtime", "")).lower() != "docker"},
+        **discovered_vm_releases,
+        **discovered_host_releases,
         **discovered_docker_releases,
     }
     discovered_docker_by_image = {
@@ -927,7 +1013,6 @@ def export_catalog(*, refresh_containers: bool = False):
         platform_releases, platform_catalog, selection_policy
     )
     host_entries = load_host_release_entries(platform_releases, selection_policy)
-    host_runners = load_host_runners()
     runner_indexes = build_runner_indexes(host_runners)
     existing_platform_availability = load_existing_yaml(PLATFORM_AVAILABILITY_OUTPUT)
     cached_containers = build_cached_container_index(

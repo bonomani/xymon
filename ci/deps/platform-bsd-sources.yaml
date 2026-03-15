@@ -54,27 +54,3 @@ sources:
     version: "13.5"
     repo: cross-platform-actions/freebsd-builder
     arch: x86-64
-  macos-26:
-    os: macos
-    version: "26"
-    provider: github-actions
-    arch: arm64
-    runner_label: macos-26
-  macos-15:
-    os: macos
-    version: "15"
-    provider: github-actions
-    arch: arm64
-    runner_label: macos-15
-  macos-14:
-    os: macos
-    version: "14"
-    provider: github-actions
-    arch: arm64
-    runner_label: macos-14
-  macos-latest:
-    os: macos
-    version: latest
-    provider: github-actions
-    arch: arm64
-    runner_label: macos-latest
