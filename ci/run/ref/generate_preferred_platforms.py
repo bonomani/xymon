@@ -195,12 +195,6 @@ def candidate_sort_key(
     )
 
 
-def best_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | None:
-    if not candidates:
-        return None
-    return min(candidates, key=candidate_sort_key)
-
-
 def ordered_candidates(candidates: list[PlatformCandidate], family_cfg: dict) -> list[PlatformCandidate]:
     eligible = [
         candidate

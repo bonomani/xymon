@@ -85,35 +85,25 @@ def load_platform_catalog(path, load_yaml, require) -> dict[str, dict]:
 
 
 def validate_platform_release_fields(platform_id: str, entry: dict) -> None:
-    runtime = str(entry.get("runtime", "")).strip().lower()
-    if runtime not in {"docker", "vm", "host"}:
-        raise SystemExit(
-            f"ERROR: platform release entry '{platform_id}' has unsupported runtime '{runtime}'"
-        )
+    runtime_raw = entry.get("runtime")
+    if runtime_raw is not None:
+        runtime = str(runtime_raw).strip().lower()
+        if runtime not in {"docker", "vm", "host"}:
+            raise SystemExit(
+                f"ERROR: platform release entry '{platform_id}' has unsupported runtime '{runtime}'"
+            )
 
-    platform_os = str(entry.get("platform_os", "")).strip()
-    if not platform_os:
+    platform_os_raw = entry.get("platform_os")
+    if platform_os_raw is not None and not str(platform_os_raw).strip():
         raise SystemExit(
-            f"ERROR: platform release entry '{platform_id}' must include platform_os"
+            f"ERROR: platform release entry '{platform_id}' has an empty platform_os"
         )
 
     image = str(entry.get("image", "")).strip()
     runner = str(entry.get("runner", "")).strip()
-    if runtime == "docker":
-        if not image or runner:
-            raise SystemExit(
-                f"ERROR: platform release entry '{platform_id}' (runtime=docker) must include image and must not include runner"
-            )
-        return
-    if runtime == "vm":
-        if image or runner:
-            raise SystemExit(
-                f"ERROR: platform release entry '{platform_id}' (runtime=vm) must not include image/runner"
-            )
-        return
-    if not runner or image:
+    if image and runner:
         raise SystemExit(
-            f"ERROR: platform release entry '{platform_id}' (runtime=host) must include runner and must not include image"
+            f"ERROR: platform release entry '{platform_id}' must not define both image and runner"
         )
 
 
@@ -170,19 +160,26 @@ def load_platform_deps_bindings(
             )
         package_family = str(deps.get("package_family", "")).strip()
         key_raw = release_deps.get("key")
+        image = str(entry.get("image", "")).strip()
+        runner = str(entry.get("runner", "")).strip()
+        runtime = str(entry.get("runtime", "")).strip().lower()
         if not package_family or not platform_os:
             raise SystemExit(
                 f"ERROR: platform release entry '{platform_id}' must resolve package_family and platform_os"
             )
         if key_raw is None:
-            matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)
-            if matching_rule is None:
+            if not image and runtime != "docker":
                 normalized_key = None
                 os_key = platform_os
             else:
-                inferred_version = infer_release_version(platform_id, entry)
-                normalized_key = normalize_rule_version(matching_rule, inferred_version)
-                os_key = compose_os_key(platform_os, normalized_key)
+                matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)
+                if matching_rule is None:
+                    normalized_key = None
+                    os_key = platform_os
+                else:
+                    inferred_version = infer_release_version(platform_id, entry)
+                    normalized_key = normalize_rule_version(matching_rule, inferred_version)
+                    os_key = compose_os_key(platform_os, normalized_key)
         else:
             key = str(key_raw).strip()
             matching_rule = find_matching_rule(normalization_rules, package_family, platform_os)
