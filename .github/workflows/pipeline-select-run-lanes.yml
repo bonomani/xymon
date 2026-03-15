@@ -19,7 +19,8 @@ on:
           - netbsd
           - openbsd
           - opensuse
-          - redhat
+          - almalinux
+          - rockylinux
           - fedora
           - oraclelinux
           - ubuntu
@@ -46,15 +47,16 @@ on:
           - ppc64le
           - riscv64
           - s390x
-      arch_policy:
-        description: Generated-lane architecture policy (primary always kept; non-primary on latest, all, or never)
+      coverage_policy:
+        description: Coverage policy (minimal, balanced, broad, or full)
         required: true
         type: choice
-        default: non_primary_latest_only
+        default: balanced
         options:
-          - non_primary_latest_only
-          - non_primary_all
-          - non_primary_none
+          - minimal
+          - balanced
+          - broad
+          - full
       alias_policy:
         description: Alias platform selection policy
         required: true
@@ -157,7 +159,7 @@ jobs:
                 family: '${{ inputs.family }}',
                 variant: '${{ inputs.variant }}',
                 arch: '${{ inputs.arch }}',
-                arch_policy: '${{ inputs.arch_policy }}',
+                coverage_policy: '${{ inputs.coverage_policy }}',
                 alias_policy: '${{ inputs.alias_policy }}',
                 build_tool: '${{ inputs.build_tool }}',
                 compiler: '${{ inputs.compiler }}',
@@ -169,7 +171,7 @@ jobs:
                 source_ref: '${{ inputs.source_ref }}'
               }
             });
-            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, arch_policy=${{ inputs.arch_policy }}, alias_policy=${{ inputs.alias_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, coverage_policy=${{ inputs.coverage_policy }}, alias_policy=${{ inputs.alias_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
 
   build-matrix:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
@@ -195,7 +197,7 @@ jobs:
           family: ${{ inputs.family }}
           variant: ${{ inputs.variant }}
           arch: ${{ inputs.arch }}
-          arch_policy: ${{ inputs.arch_policy }}
+          coverage_policy: ${{ inputs.coverage_policy }}
           alias_policy: ${{ inputs.alias_policy }}
           requested_build_tool: ${{ inputs.build_tool }}
           requested_compiler: ${{ inputs.compiler }}
@@ -214,7 +216,7 @@ jobs:
           echo "Selected families: ${{ steps.prepare_matrix.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
-          echo "Arch policy: ${{ inputs.arch_policy }}"
+          echo "Coverage policy: ${{ inputs.coverage_policy }}"
           echo "Alias policy: ${{ inputs.alias_policy }}"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Compiler: ${{ steps.prepare_matrix.outputs.compiler }}"

@@ -13,6 +13,7 @@ ROOT_DIR = Path(__file__).resolve().parents[3]
 AVAILABILITY_PATH = ROOT_DIR / ".github" / "data" / "platform-availability.yml"
 LANES_DIR = ROOT_DIR / "ci" / "run" / "ref" / "lanes"
 PREFERRED_OUTPUT = ROOT_DIR / "ci" / "run" / "ref" / "preferred-platforms.yml"
+POLICY_PATH = ROOT_DIR / "ci" / "run" / "ref" / "preferred-platform-policy.yaml"
 STYLE_KEYWORDS = {"slim", "minimal", "lite", "micro", "core"}
 LATEST_KEYWORDS = {"latest", "rolling", "tumbleweed", "edge", "current"}
 ARCH_PRIORITY = ["amd64", "x86-64", "x86_64", "arm64", "aarch64", "arm32v7", "armhf", "arm/v7", "arm", "ppc64le", "ppc64", "riscv64", "s390x"]
@@ -24,6 +25,21 @@ def load_availability(path: Path) -> dict[str, dict]:
     if not isinstance(platforms, dict):
         raise SystemExit(f"platform availability missing 'platforms' mapping: {path}")
     return platforms
+
+
+def load_policy(path: Path) -> dict[str, dict]:
+    data = yaml.safe_load(path.read_text(encoding="utf-8")) or {}
+    families = data.get("families")
+    if not isinstance(families, dict):
+        raise SystemExit(f"preferred platform policy missing 'families' mapping: {path}")
+    normalized = {}
+    for family, raw in families.items():
+        if not isinstance(raw, dict):
+            raise SystemExit(f"preferred platform policy entry must be a mapping: {family}")
+        normalized[str(family)] = raw
+    if "default" not in normalized:
+        raise SystemExit(f"preferred platform policy requires a 'default' entry: {path}")
+    return normalized
 
 
 @dataclasses.dataclass
@@ -84,6 +100,64 @@ class PlatformCandidate:
                 return arch
         return ""
 
+    def has_capability(self, capability: str) -> bool:
+        capability = capability.strip()
+        if capability == "direct_runner":
+            host_support = self.entry.get("host_support", {}) or {}
+            return any(
+                isinstance(record, dict) and bool(record.get("direct_runner_labels"))
+                for record in host_support.values()
+            )
+        if capability == "container_runner":
+            host_support = self.entry.get("host_support", {}) or {}
+            return any(
+                isinstance(record, dict)
+                and bool(record.get("container_runner_labels") or record.get("direct_runner_labels"))
+                for record in host_support.values()
+            )
+        capabilities = self.entry.get("capabilities", {}) or {}
+        if not isinstance(capabilities, dict):
+            return False
+        if capability in capabilities:
+            return bool(capabilities.get(capability))
+        container_tooling = capabilities.get("container_tooling", {})
+        if isinstance(container_tooling, dict) and capability in container_tooling:
+            return bool(container_tooling.get(capability))
+        emulation_tooling = capabilities.get("emulation_tooling", {})
+        if isinstance(emulation_tooling, dict) and capability in emulation_tooling:
+            return bool(emulation_tooling.get(capability))
+        virtualization = capabilities.get("virtualization", {})
+        if isinstance(virtualization, dict) and capability in virtualization:
+            return bool(virtualization.get(capability))
+        return False
+
+
+def family_policy(policy: dict[str, dict], family: str) -> dict:
+    merged = dict(policy["default"])
+    merged.update(policy.get(family, {}))
+    return merged
+
+
+def preferred_capability_score(candidate: PlatformCandidate, family_cfg: dict) -> int:
+    preferred = family_cfg.get("preferred_capabilities", []) or []
+    return sum(1 for capability in preferred if candidate.has_capability(str(capability)))
+
+
+def missing_required_capabilities(candidate: PlatformCandidate, family_cfg: dict) -> bool:
+    required = family_cfg.get("required_capabilities", []) or []
+    return any(not candidate.has_capability(str(capability)) for capability in required)
+
+
+def excluded_from_primary(candidate: PlatformCandidate, family_cfg: dict) -> bool:
+    if candidate.is_alias() and not family_cfg.get("allow_alias_as_primary", False):
+        return True
+    if candidate.is_latest_variant():
+        text = candidate.text()
+        if "rolling" in text or "tumbleweed" in text or "edge" in text:
+            return not family_cfg.get("allow_rolling_as_primary", False)
+        return not family_cfg.get("allow_latest_as_primary", False)
+    return False
+
 
 def load_lane_platform_ids(lane_file: Path) -> list[str]:
     data = yaml.safe_load(lane_file.read_text()) or {}
@@ -107,10 +181,14 @@ def build_candidates(availability: dict[str, dict], platform_ids: list[str]) -> 
     return candidates
 
 
-def candidate_sort_key(candidate: PlatformCandidate) -> tuple[int, int, tuple[int, ...], int, str]:
+def candidate_sort_key(
+    candidate: PlatformCandidate,
+    family_cfg: dict,
+) -> tuple[int, int, int, tuple[int, ...], int, str]:
     return (
-        0 if candidate.is_slim_variant() else 1,
-        0 if candidate.is_latest_variant() else 1,
+        1 if missing_required_capabilities(candidate, family_cfg) else 0,
+        0 if family_cfg.get("prefer_slim", False) and candidate.is_slim_variant() else 1,
+        -preferred_capability_score(candidate, family_cfg),
         candidate.version_sort_key(),
         candidate.arch_priority(),
         candidate.platform_id,
@@ -123,14 +201,26 @@ def best_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | N
     return min(candidates, key=candidate_sort_key)
 
 
-def ordered_candidates(candidates: list[PlatformCandidate]) -> list[PlatformCandidate]:
-    eligible = [candidate for candidate in candidates if not candidate.excluded_from_primary()]
-    excluded = [candidate for candidate in candidates if candidate.excluded_from_primary()]
-    return sorted(eligible, key=candidate_sort_key) + sorted(excluded, key=candidate_sort_key)
+def ordered_candidates(candidates: list[PlatformCandidate], family_cfg: dict) -> list[PlatformCandidate]:
+    eligible = [
+        candidate
+        for candidate in candidates
+        if not excluded_from_primary(candidate, family_cfg)
+        and not missing_required_capabilities(candidate, family_cfg)
+    ]
+    excluded = [
+        candidate
+        for candidate in candidates
+        if excluded_from_primary(candidate, family_cfg)
+        or missing_required_capabilities(candidate, family_cfg)
+    ]
+    return sorted(eligible, key=lambda candidate: candidate_sort_key(candidate, family_cfg)) + sorted(
+        excluded, key=lambda candidate: candidate_sort_key(candidate, family_cfg)
+    )
 
 
-def primary_candidate(candidates: list[PlatformCandidate]) -> PlatformCandidate | None:
-    ordered = ordered_candidates(candidates)
+def primary_candidate(candidates: list[PlatformCandidate], family_cfg: dict) -> PlatformCandidate | None:
+    ordered = ordered_candidates(candidates, family_cfg)
     if not ordered:
         return None
     return ordered[0]
@@ -140,10 +230,12 @@ def main() -> int:
     parser = argparse.ArgumentParser(description="Compute preferred platform per lane family.")
     parser.add_argument("--lanes-dir", default=LANES_DIR, type=Path)
     parser.add_argument("--availability", default=AVAILABILITY_PATH, type=Path)
+    parser.add_argument("--policy", default=POLICY_PATH, type=Path)
     parser.add_argument("--output", default=PREFERRED_OUTPUT, type=Path)
     args = parser.parse_args()
 
     availability = load_availability(args.availability)
+    policy = load_policy(args.policy)
     lanes_dir = args.lanes_dir
     if not lanes_dir.is_dir():
         raise SystemExit(f"Missing lanes directory: {lanes_dir}")
@@ -152,17 +244,23 @@ def main() -> int:
     results = []
     for lane_file in sorted(lanes_dir.glob("*.yml")):
         family = lane_file.stem
+        family_cfg = family_policy(policy, family)
         platform_ids = load_lane_platform_ids(lane_file)
         candidates = build_candidates(availability, platform_ids)
-        primary = primary_candidate(candidates)
-        ordered = ordered_candidates(candidates)
+        primary = primary_candidate(candidates, family_cfg)
+        ordered = ordered_candidates(candidates, family_cfg)
         if primary is None:
             print(f"{family}: no matching catalog entries for {platform_ids}")
             all_ok = False
             continue
         first_entry = platform_ids[0] if platform_ids else "<none>"
         preferred_note = "preferred" if primary.platform_id != first_entry else "default"
-        excluded = [candidate.platform_id for candidate in ordered if candidate.excluded_from_primary()]
+        excluded = [
+            candidate.platform_id
+            for candidate in ordered
+            if excluded_from_primary(candidate, family_cfg)
+            or missing_required_capabilities(candidate, family_cfg)
+        ]
         results.append(
             {
                 "family": family,

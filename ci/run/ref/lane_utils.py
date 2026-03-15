@@ -165,22 +165,24 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         generated_overrides or {},
         f"Lane file generated overrides: {lane_file}",
     )
-    selected_arch_policy = generated_overrides.get("arch_policy")
-    if selected_arch_policy is not None:
-        selected_arch_policy = _require_non_empty_string(
-            selected_arch_policy,
-            f"Lane file generated overrides arch_policy: {lane_file}",
+    selected_coverage_policy = generated_overrides.get("coverage_policy")
+    if selected_coverage_policy is not None:
+        selected_coverage_policy = _require_non_empty_string(
+            selected_coverage_policy,
+            f"Lane file generated overrides coverage_policy: {lane_file}",
         )
-        if selected_arch_policy == "non_primary_all":
+        if selected_coverage_policy == "full":
             secondary_scope = "all"
-        elif selected_arch_policy == "non_primary_none":
+        elif selected_coverage_policy == "minimal":
             secondary_scope = "none"
-        elif selected_arch_policy == "non_primary_latest_only":
+        elif selected_coverage_policy == "balanced":
             secondary_scope = "latest_only"
+        elif selected_coverage_policy == "broad":
+            secondary_scope = "all"
         else:
             raise LaneSpecError(
-                "Lane file generated overrides arch_policy must be one of "
-                f"non_primary_latest_only|non_primary_all|non_primary_none: {lane_file}"
+                "Lane file generated overrides coverage_policy must be one of "
+                f"minimal|balanced|broad|full: {lane_file}"
             )
     if secondary_scope not in {"none", "all", "latest_only"}:
         raise LaneSpecError(

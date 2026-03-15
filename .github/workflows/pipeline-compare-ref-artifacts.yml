@@ -19,7 +19,8 @@ on:
           - netbsd
           - openbsd
           - opensuse
-          - redhat
+          - almalinux
+          - rockylinux
           - fedora
           - oraclelinux
           - ubuntu
@@ -67,7 +68,7 @@ jobs:
           family: ${{ inputs.family }}
           variant: ${{ inputs.variant }}
           arch: ${{ inputs.arch }}
-          arch_policy: non_primary_latest_only
+          coverage_policy: balanced
           alias_policy: exclude_aliases
           requested_build_tool: cmake
           requested_compiler: auto
@@ -87,7 +88,7 @@ jobs:
           echo "Selected families: ${{ steps.prepare_matrix.outputs.selected_families }}"
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
-          echo "Arch policy: non_primary_latest_only"
+          echo "Coverage policy: balanced"
           echo "Alias policy: exclude_aliases"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"

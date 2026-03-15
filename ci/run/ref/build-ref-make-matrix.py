@@ -44,10 +44,11 @@ SUPPORTED_ARCH_FILTERS = {
     "s390x",
 }
 SUPPORTED_VARIANT_FILTERS = {"all", *SUPPORTED_LANE_VARIANTS}
-SUPPORTED_ARCH_POLICY_FILTERS = {
-    "non_primary_latest_only",
-    "non_primary_all",
-    "non_primary_none",
+SUPPORTED_COVERAGE_POLICY_FILTERS = {
+    "minimal",
+    "balanced",
+    "broad",
+    "full",
 }
 SUPPORTED_ALIAS_POLICY_FILTERS = {"exclude_aliases", "include_aliases"}
 
@@ -607,9 +608,9 @@ def parse_args():
         choices=sorted(SUPPORTED_ARCH_FILTERS),
     )
     parser.add_argument(
-        "--selected-arch-policy",
-        default="non_primary_latest_only",
-        choices=sorted(SUPPORTED_ARCH_POLICY_FILTERS),
+        "--selected-coverage-policy",
+        default="balanced",
+        choices=sorted(SUPPORTED_COVERAGE_POLICY_FILTERS),
     )
     parser.add_argument(
         "--selected-alias-policy",
@@ -667,12 +668,12 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_family_lanes(repo_root: Path, family_entry, *, selected_arch_policy: str):
+def load_family_lanes(repo_root: Path, family_entry, *, selected_coverage_policy: str):
     return load_lanes_from_file(
         repo_root / family_entry["lane_file"],
         shared_defaults=family_entry.get("lane_defaults", {}),
         strict_lane_mapping=True,
-        generated_overrides={"arch_policy": selected_arch_policy},
+        generated_overrides={"coverage_policy": selected_coverage_policy},
     )
 
 
@@ -721,7 +722,7 @@ def main():
     selected_family = args.selected_family
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
-    selected_arch_policy = args.selected_arch_policy
+    selected_coverage_policy = args.selected_coverage_policy
     selected_alias_policy = args.selected_alias_policy
     if selected_family == "all":
         selected_entries = families
@@ -743,7 +744,7 @@ def main():
         lanes = load_family_lanes(
             repo_root,
             family_entry,
-            selected_arch_policy=selected_arch_policy,
+            selected_coverage_policy=selected_coverage_policy,
         )
         for lane in lanes:
             if not isinstance(lane, dict):
