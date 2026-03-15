@@ -14,12 +14,6 @@ containers:
     platform_family: linux
     lanes_glob: ci/run/ref/lanes/*.yml
   selection:
-    keep: all_active_versions
-    group_by: platform_os
-    dedupe_by: normalized_tag
-    prefer_tags:
-      - slim
-      - latest
     tag_patterns:
       debian:
         - '^\d+(\.\d+)?-slim$'
@@ -49,40 +43,34 @@ containers:
       archlinux:
         - '^latest$'
         - '^base$'
-    include_platform_ids:
-      - debian-11
-      - debian-12
-      - debian-13
-      - ubuntu-20.04
-      - ubuntu-22.04
-      - ubuntu-24.04
-      - amazonlinux-2
-      - amazonlinux-2023
-      - rockylinux-8
-      - rockylinux-9
-      - oraclelinux-8
-      - oraclelinux-9
-      - oraclelinux-10
-      - oraclelinux-10-slim
-      - almalinux-8
-      - almalinux-9
-      - almalinux-10
-      - centos-7
-      - fedora-40
-      - fedora-41
-      - fedora-42
-      - opensuse-tumbleweed
-      - opensuse-leap-15_5
-      - opensuse-leap-15_6
-      - opensuse-leap-16_0
-      - alpine-3_19
-      - alpine-3_20
-      - alpine-3_21
-      - alpine-3_22
-      - alpine-3_23
-      - alpine-edge
-      - archlinux-base
-      - archlinux-latest
+    rules:
+      debian:
+        keep_major_versions: ["11", "12", "13"]
+      ubuntu:
+        keep_versions: ["20.04", "22.04", "24.04"]
+      amazonlinux:
+        keep_versions: ["2", "2023"]
+      rockylinux:
+        keep_major_versions: ["8", "9"]
+      oraclelinux:
+        keep_major_versions: ["8", "9", "10"]
+      almalinux:
+        keep_major_versions: ["8", "9", "10"]
+      centos:
+        keep_major_versions: ["7"]
+      fedora:
+        keep_major_versions: ["40", "41", "42"]
+      opensuse_tumbleweed:
+        keep_versions: ["latest"]
+        include_moving_targets: true
+      opensuse_leap:
+        keep_versions: ["15.5", "15.6", "16.0"]
+      alpine:
+        keep_latest_n_stable: 5
+        include_moving_targets: true
+      archlinux:
+        keep_versions: ["base", "latest"]
+        include_moving_targets: true
     exclude_platform_ids: []
   runtime_preference:
     default:
@@ -104,33 +92,19 @@ vms:
       - ci/run/ref/lanes/netbsd.yml
       - ci/run/ref/lanes/macos.yml
   selection:
-    keep: all_active_versions
-    include_platform_ids:
-      - freebsd-13_5
-      - freebsd-14_3
-      - freebsd-15_0
-      - netbsd-9_2
-      - netbsd-9_3
-      - netbsd-9_4
-      - netbsd-10_0
-      - netbsd-10_1
-      - openbsd-7_6
-      - openbsd-7_7
-      - openbsd-7_8
+    rules:
+      freebsd:
+        keep_versions: ["13.5", "14.3", "15.0"]
+      netbsd:
+        keep_versions: ["9.2", "9.3", "9.4", "10.0", "10.1"]
+      openbsd:
+        keep_versions: ["7.6", "7.7", "7.8"]
     exclude_platform_ids: []
-  architectures:
-    mode: primary_plus_latest
-    primary:
-      - amd64
-    provider_override:
-      github-actions: source_arch_only
 
 hosts:
   selection:
-    keep: all_active_versions
-    include_platform_ids:
-      - macos-14
-      - macos-15
-      - macos-26
-      - macos-latest
+    rules:
+      macos:
+        keep_versions: ["14", "15", "26", "latest"]
+        include_moving_targets: true
     exclude_platform_ids: []
