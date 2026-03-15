@@ -53,9 +53,8 @@ class PlatformCandidate:
         candidates.append(self.platform_id)
         candidates.append(self.display_name())
         for value in candidates:
-            digits = tuple(int(num) for num in re.findall(r"\\d+", str(value)))
+            digits = tuple(int(num) for num in re.findall(r"\d+", str(value)))
             if digits:
-                print("debug digits", self.platform_id, value, digits)
                 return digits
         return ()
 
@@ -129,18 +128,12 @@ def main() -> int:
         family = lane_file.stem
         platform_ids = load_lane_platform_ids(lane_file)
         candidates = build_candidates(availability, platform_ids)
-        if family == "debian":
-            print("debug keys (len)", len(candidates))
-            for candidate in candidates:
-                print("key", candidate.platform_id, candidate_sort_key(candidate))
         best = best_candidate(candidates)
-        platform_list = ", ".join(platform_ids)
         if best is None:
             print(f"{family}: no matching catalog entries for {platform_ids}")
             all_ok = False
             continue
         first_entry = platform_ids[0] if platform_ids else "<none>"
-        match_prefix = "(first)" if best.platform_id == first_entry else "(preferred)"
         preferred_note = "preferred" if best.platform_id != first_entry else "default"
         results.append(
             {

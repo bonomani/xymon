@@ -28,21 +28,21 @@ preferred_platforms:
   - centos-7
   reason: version/arch
 - family: debian
-  platform_id: debian-11
+  platform_id: debian-13
   available:
   - debian-13
   - debian-12
   - debian-11
   reason: slim-preferred
 - family: fedora
-  platform_id: fedora-40
+  platform_id: fedora-42
   available:
   - fedora-40
   - fedora-41
   - fedora-42
   reason: version/arch
 - family: freebsd
-  platform_id: freebsd-13_5
+  platform_id: freebsd-15_0
   available:
   - freebsd-15_0
   - freebsd-14_3
@@ -57,7 +57,7 @@ preferred_platforms:
   - macos-14
   reason: latest-keyword
 - family: netbsd
-  platform_id: netbsd-10_0
+  platform_id: netbsd-10_1
   available:
   - netbsd-10_1
   - netbsd-10_0
@@ -66,7 +66,7 @@ preferred_platforms:
   - netbsd-9_2
   reason: version/arch
 - family: openbsd
-  platform_id: openbsd-7_6
+  platform_id: openbsd-7_8
   available:
   - openbsd-7_8
   - openbsd-7_7
@@ -89,13 +89,13 @@ preferred_platforms:
   - oraclelinux-10-slim
   reason: slim-preferred
 - family: rockylinux
-  platform_id: rockylinux-8
+  platform_id: rockylinux-9
   available:
   - rockylinux-9
   - rockylinux-8
   reason: version/arch
 - family: ubuntu
-  platform_id: ubuntu-20.04
+  platform_id: ubuntu-24.04
   available:
   - ubuntu-24.04
   - ubuntu-22.04
