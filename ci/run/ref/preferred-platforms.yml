@@ -1,0 +1,99 @@
+preferred_platforms:
+- family: alpine
+  platform_id: alpine-edge
+  available:
+  - alpine-3_23
+  - alpine-3_22
+  - alpine-3_21
+  - alpine-3_20
+  - alpine-3_19
+  - alpine-edge
+  reason: latest-keyword
+- family: archlinux
+  platform_id: archlinux-latest
+  available:
+  - archlinux-latest
+  - archlinux-base
+  reason: latest-keyword
+- family: centos7
+  platform_id: centos-7
+  available:
+  - centos-7
+  reason: version/arch
+- family: debian
+  platform_id: debian-13
+  available:
+  - debian-13
+  - debian-12
+  - debian-11
+  reason: slim-preferred
+- family: fedora
+  platform_id: fedora-42
+  available:
+  - fedora-40
+  - fedora-41
+  - fedora-42
+  reason: version/arch
+- family: freebsd
+  platform_id: freebsd-15_0
+  available:
+  - freebsd-15_0
+  - freebsd-14_3
+  - freebsd-13_5
+  reason: version/arch
+- family: macos
+  platform_id: macos-latest
+  available:
+  - macos-latest
+  - macos-26
+  - macos-15
+  - macos-14
+  reason: latest-keyword
+- family: netbsd
+  platform_id: netbsd-10_1
+  available:
+  - netbsd-10_1
+  - netbsd-10_0
+  - netbsd-9_4
+  - netbsd-9_3
+  - netbsd-9_2
+  reason: version/arch
+- family: openbsd
+  platform_id: openbsd-7_8
+  available:
+  - openbsd-7_8
+  - openbsd-7_7
+  - openbsd-7_6
+  reason: version/arch
+- family: opensuse
+  platform_id: opensuse-tumbleweed
+  available:
+  - opensuse-tumbleweed
+  - opensuse-leap-16_0
+  - opensuse-leap-15_6
+  - opensuse-leap-15_5
+  reason: latest-keyword
+- family: oraclelinux
+  platform_id: oraclelinux-10-slim
+  available:
+  - oraclelinux-9
+  - oraclelinux-8
+  - oraclelinux-10
+  - oraclelinux-10-slim
+  reason: slim-preferred
+- family: redhat
+  platform_id: almalinux-10
+  available:
+  - rockylinux-8
+  - rockylinux-9
+  - almalinux-8
+  - almalinux-9
+  - almalinux-10
+  reason: version/arch
+- family: ubuntu
+  platform_id: ubuntu-24.04
+  available:
+  - ubuntu-24.04
+  - ubuntu-22.04
+  - ubuntu-20.04
+  reason: version/arch
