@@ -20,7 +20,7 @@ permissions:
   contents: write
 
 jobs:
-  sync-legacy-references:
+  sync-references:
     runs-on: ubuntu-22.04
     steps:
       - name: Checkout
@@ -28,14 +28,14 @@ jobs:
         with:
           fetch-depth: 0
 
-      - name: Download legacy reference artifacts
+      - name: Download reference artifacts
         shell: bash
         env:
           GH_TOKEN: ${{ github.token }}
           INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
         run: |
           set -euo pipefail
-          artifacts_dir="/tmp/legacy-reference-artifacts"
+          artifacts_dir="/tmp/reference-artifacts"
           run_id_file="/tmp/pipeline-sync-source-run-ids.txt"
           rm -rf "${artifacts_dir}"
           mkdir -p "${artifacts_dir}"
@@ -64,16 +64,16 @@ jobs:
             gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
           done
 
-          stager_script="/tmp/stage-legacy-reference-artifacts.sh"
-          install -m 0755 ci/run/ref/stage-legacy-reference-artifacts.sh "${stager_script}"
+          stager_script="/tmp/stage-ref-artifacts.sh"
+          install -m 0755 ci/run/ref/stage-ref-artifacts.sh "${stager_script}"
           printf 'REF_STAGE_SCRIPT=%s\n' "${stager_script}" >> "${GITHUB_ENV}"
 
       - name: Create archive tag
         shell: bash
         run: |
           set -euo pipefail
-          ref_dir="docs/cmake-legacy-migration/refs"
-          artifacts_dir="/tmp/legacy-reference-artifacts"
+          ref_dir="docs/refs"
+          artifacts_dir="/tmp/reference-artifacts"
           archive_tag="ci/refs/$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
 
           git checkout --orphan "tmp-archive-${GITHUB_RUN_ID}"
@@ -97,8 +97,8 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          ref_dir="docs/cmake-legacy-migration/refs"
-          artifacts_dir="/tmp/legacy-reference-artifacts"
+          ref_dir="docs/refs"
+          artifacts_dir="/tmp/reference-artifacts"
           source_branch="${{ inputs.source_branch }}"
           target_branch="${{ inputs.target_branch }}"
 
@@ -135,5 +135,5 @@ jobs:
           git config user.name "github-actions[bot]"
           git config user.email "github-actions[bot]@users.noreply.github.com"
           git add "${ref_dir}"
-          git commit -m "Update legacy reference artifacts"
+          git commit -m "Update reference artifacts"
           git push -u origin "${target_branch}"

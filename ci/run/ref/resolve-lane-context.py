@@ -78,15 +78,15 @@ def derive_lane_paths(
     baseline_prefix = ""
     legacy_hostname_config = ""
     if goal in {"ref", "compare"}:
-        baseline_build_tool, _, baseline_runtime_os = baseline_root.partition("_")
+        baseline_build_tool, _, baseline_runtime_os = baseline_root.partition("__")
         if not baseline_build_tool or not baseline_runtime_os:
             fail(f"Unsupported baseline_root format: {baseline_root}")
         baseline_prefix = (
-            "docs/cmake-legacy-migration/refs/ref/"
+            "docs/refs/ref/"
             f"{baseline_build_tool}/{baseline_runtime_os}/{platform_id}/{variant}/{artifact_arch}"
         )
         legacy_hostname_config = (
-            "docs/cmake-legacy-migration/refs/ref/"
+            "docs/refs/ref/"
             f"{baseline_build_tool}/{baseline_runtime_os}/{platform_id}/server/{artifact_arch}/"
             "var/lib/xymon/server/etc/xymonserver.cfg"
         )

@@ -93,7 +93,7 @@ families:
     os_version_key: macos_version
   validation:
     lane_overrides:
-      baseline_root: make_macos
+      baseline_root: make__macos
 
 - family: netbsd
   common:
