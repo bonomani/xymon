@@ -4,12 +4,26 @@ on:
   workflow_dispatch:
     inputs:
       target:
-        description: Derived service name (<platform>-server-<build_tool>) from .github/data/platform-releases-discovered.yml, or all (comma-separated accepted).
-        required: true
-        type: string
-        default: all
+        description: OS family to build, or all.
+        required: false
+        type: choice
+        default: "all"
+        options:
+          - "all"
+          - "almalinux"
+          - "alpine"
+          - "amazonlinux"
+          - "archlinux"
+          - "centos"
+          - "debian"
+          - "fedora"
+          - "opensuse_leap"
+          - "opensuse_tumbleweed"
+          - "oraclelinux"
+          - "rockylinux"
+          - "ubuntu"
       build_tool:
-        description: Limit builds to a specific build tool.
+        description: Build tool to use, or all.
         required: false
         type: choice
         default: "all"
