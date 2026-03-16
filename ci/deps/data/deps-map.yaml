@@ -14,7 +14,7 @@ package_templates:
     apt: [build-essential, git, findutils]
     dnf: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
     yum: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
-    zypper: [gcc, gcc-c++, make, git, findutils, diffutils]
+    zypper: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
     apk: [bash, build-base, git, findutils, diffutils]
     pacman: [base-devel, git, findutils, diffutils]
     brew: [make]
