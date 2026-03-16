@@ -1,4 +1,4 @@
-name: Pipeline - Select and Run Lanes (Advanced)
+name: Pipeline - Select and Run Lanes
 
 on:
   workflow_dispatch:
