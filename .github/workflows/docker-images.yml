@@ -23,12 +23,11 @@ on:
           - "rockylinux"
           - "ubuntu"
       build_tool:
-        description: Build tool to use, or all.
+        description: Build tool to use.
         required: false
         type: choice
-        default: "all"
+        default: "cmake"
         options:
-          - "all"
           - "cmake"
           - "make"
       image_tag:
