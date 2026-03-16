@@ -1974,7 +1974,7 @@ platforms:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:44:50.403926+00:00'
+      probed_at: '2026-03-16T10:29:33.813940+00:00'
       runner_label: macos-14
       system:
         machine: arm64
@@ -2038,7 +2038,7 @@ platforms:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:44:51.722330+00:00'
+      probed_at: '2026-03-16T10:29:32.359219+00:00'
       runner_label: macos-15
       system:
         machine: arm64
@@ -2102,7 +2102,7 @@ platforms:
       container:
         binfmt_misc_mounted: false
         docker_socket: false
-      probed_at: '2026-03-15T15:44:50.736751+00:00'
+      probed_at: '2026-03-16T10:29:32.166421+00:00'
       runner_label: macos-26
       system:
         machine: arm64

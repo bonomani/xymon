@@ -1,18 +1,4 @@
-goal:
-  validate_builds:
-    build_tools:
-      - make
-      - cmake
-    variants:
-      - server
-      - localclient
-      - client
-
 containers:
-  source:
-    runtime: docker
-    platform_family: linux
-    lanes_glob: ci/run/ref/lanes/*.yml
   selection:
     tag_patterns:
       debian:
@@ -80,18 +66,8 @@ containers:
       ubuntu:
         - linux_host
         - linux_container
-  architectures:
-    mode: primary_plus_latest
-    primary:
-      - amd64
 
 vms:
-  source:
-    lanes_globs:
-      - ci/run/ref/lanes/freebsd.yml
-      - ci/run/ref/lanes/openbsd.yml
-      - ci/run/ref/lanes/netbsd.yml
-      - ci/run/ref/lanes/macos.yml
   selection:
     rules:
       freebsd:
