@@ -153,6 +153,12 @@ resolve_normalized_platform() {
     echo "Invalid platform normalization for OS ID: ${os_name}" >&2
     exit 2
   fi
+
+  # Amazon Linux 2 still exposes yum as the package manager used by the
+  # runtime deps installer, while Amazon Linux 2023 uses dnf.
+  if [[ "${os_name}" == "amazonlinux" && "${version}" == "2" ]]; then
+    pkgmgr="yum"
+  fi
 }
 
 resolve_target_script() {
