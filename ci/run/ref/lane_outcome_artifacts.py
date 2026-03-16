@@ -8,7 +8,7 @@ import urllib.request
 import zipfile
 
 API_VERSION = "2022-11-28"
-OUTCOME_ARTIFACT_PREFIX = "lane_outcome_"
+OUTCOME_ARTIFACT_PREFIX = "lane_outcome__"
 
 
 class NoRedirectHandler(urllib.request.HTTPRedirectHandler):

@@ -1,4 +1,4 @@
-name: Pipeline - Sync Artifacts to Branches
+name: Pipeline - Sync Artifacts to Branch
 
 on:
   workflow_dispatch:
@@ -15,10 +15,6 @@ on:
         description: Merge-friendly branch to commit updated references into
         required: false
         default: ci/references-update
-      archive_branch:
-        description: Refs-only archival branch
-        required: false
-        default: ci/references-update-archive
 
 permissions:
   contents: write
@@ -72,38 +68,30 @@ jobs:
           install -m 0755 ci/run/ref/stage-legacy-reference-artifacts.sh "${stager_script}"
           printf 'REF_STAGE_SCRIPT=%s\n' "${stager_script}" >> "${GITHUB_ENV}"
 
-      - name: Sync archive branch
+      - name: Create archive tag
         shell: bash
         run: |
           set -euo pipefail
           ref_dir="docs/cmake-legacy-migration/refs"
           artifacts_dir="/tmp/legacy-reference-artifacts"
-          archive_branch="${{ inputs.archive_branch }}"
+          archive_tag="ci/refs/$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
 
-          if git fetch origin "${archive_branch}"; then
-            git checkout -B "${archive_branch}" "origin/${archive_branch}"
-          else
-            git checkout --orphan "${archive_branch}"
-            git rm -rf . >/dev/null 2>&1 || true
-          fi
+          git checkout --orphan "tmp-archive-${GITHUB_RUN_ID}"
+          git rm -rf . >/dev/null 2>&1 || true
+          git clean -fdx
 
-          git clean -fd
           mkdir -p "${ref_dir}"
-          find "${ref_dir}" -type f -delete
-
           bash "${REF_STAGE_SCRIPT}" \
             --artifacts-dir "${artifacts_dir}" \
             --ref-dir "${ref_dir}"
 
-          if [ -z "$(git status --porcelain)" ]; then
-            echo "No legacy reference changes to commit on archive branch."
-          else
-            git config user.name "github-actions[bot]"
-            git config user.email "github-actions[bot]@users.noreply.github.com"
-            git add "${ref_dir}"
-            git commit -m "Update legacy reference artifacts"
-            git push -u origin "${archive_branch}"
-          fi
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${ref_dir}"
+          git commit -m "Archive: refs snapshot (run ${GITHUB_RUN_ID})"
+          git tag "${archive_tag}"
+          git push origin "${archive_tag}"
+          echo "Created archive tag: ${archive_tag}"
 
       - name: Sync merge-friendly branch
         shell: bash

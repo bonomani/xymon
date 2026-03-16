@@ -105,9 +105,9 @@ def derive_lane_paths(
         "legacy_hostname_config": legacy_hostname_config,
         "deps_report_path": deps_report_path,
         "ref_generate_artifact_name": (
-            "ref_"
-            f"{build_tool}{artifact_suffix}{install_mode_artifact_tag}_"
-            f"{ref_os}-{variant}__{platform_id}__{artifact_arch}"
+            "ref__"
+            f"{build_tool}{artifact_suffix}{install_mode_artifact_tag}__"
+            f"{ref_os}__{platform_id}__{variant}__{artifact_arch}"
         ),
         "ref_generate_artifact_path": f"{candidate_dir}/**",
         "ref_compare_artifact_path": f"{artifact_root}/**",
