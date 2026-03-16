@@ -58,7 +58,9 @@ ORACLE_DISPLAY_NAME_MAP = {
     "10": "Oracle Linux 10 arm64",
     "10-slim": "Oracle Linux 10-slim amd64",
     "9": "Oracle Linux 9 amd64",
+    "9-slim": "Oracle Linux 9-slim amd64",
     "8": "Oracle Linux 8 amd64",
+    "8-slim": "Oracle Linux 8-slim amd64",
 }
 
 DOCKER_DISPLAY_NAME_OVERRIDES = {"oraclelinux": ORACLE_DISPLAY_NAME_MAP}
