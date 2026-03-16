@@ -34,7 +34,7 @@ def parse_args() -> argparse.Namespace:
         "--platform-availability", default=".github/data/platform-availability.yml"
     )
     parser.add_argument("--target", default="all")
-    parser.add_argument("--build-tool", default="all", choices=("all", "cmake", "make"))
+    parser.add_argument("--build-tool", default="cmake", choices=("cmake", "make"))
     parser.add_argument("--github-output", default="")
     parser.add_argument("--compose-output", default="")
     parser.add_argument("--list-targets", action="store_true")
@@ -217,7 +217,7 @@ def main() -> None:
         if not selected_names:
             die("Resolved empty --target selection")
 
-    active_build_tools = BUILD_TOOLS if build_tool_filter == "all" else (build_tool_filter,)
+    active_build_tools = (build_tool_filter,)
 
     known_names: set[str] = set()
     include: list[dict[str, str]] = []
