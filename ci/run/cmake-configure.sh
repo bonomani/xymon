@@ -6,15 +6,11 @@ script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=ci/run/cmake-profile-helpers.sh
 source "${script_dir}/cmake-profile-helpers.sh"
 
-sanitize() {
-  printf '%s' "$1"
-}
-
-PROFILE="$(sanitize "${PROFILE:-packaging}")"
-ENABLE_SSL="$(sanitize "${ENABLE_SSL:-}")"
-ENABLE_LDAP="$(sanitize "${ENABLE_LDAP:-}")"
-VARIANT="$(sanitize "${VARIANT:-}")"
-LOCALCLIENT="$(sanitize "${LOCALCLIENT:-}")"
+PROFILE="${PROFILE:-packaging}"
+ENABLE_SSL="${ENABLE_SSL:-}"
+ENABLE_LDAP="${ENABLE_LDAP:-}"
+VARIANT="${VARIANT:-}"
+LOCALCLIENT="${LOCALCLIENT:-}"
 platform_os="$(resolve_cmake_platform_os "${PLATFORM_OS:-}")"
 cmake_preset="$(resolve_cmake_effective_profile "${PROFILE}" "${platform_os}")"
 

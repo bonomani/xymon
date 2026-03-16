@@ -9,21 +9,8 @@ if [[ ! -f "${contract_file}" ]]; then
   exit 2
 fi
 
-read_contract_section() {
-  local section="$1"
-  awk -v section="${section}" '
-    BEGIN { in_section = 0 }
-    /^[[:space:]]*#/ || /^[[:space:]]*$/ { next }
-    /^\[[^]]+\][[:space:]]*$/ {
-      name = $0
-      sub(/^\[/, "", name)
-      sub(/\][[:space:]]*$/, "", name)
-      in_section = (name == section)
-      next
-    }
-    in_section { print $0 }
-  ' "${contract_file}"
-}
+# shellcheck source=ci/run/ref/lane-contract-helpers.sh
+source "${script_dir}/lane-contract-helpers.sh"
 
 runtime_execution="${RUNTIME_EXECUTION:-}"
 if [[ -z "${runtime_execution}" ]]; then

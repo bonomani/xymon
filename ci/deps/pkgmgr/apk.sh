@@ -10,4 +10,6 @@ pkg_install_one() {
   ci_deps_as_root apk add --no-cache "$1"
 }
 
-pkgmgr_install_banner="=== Install (Linux packages) ==="
+pkg_pre_install() {
+  echo "=== Install (Linux packages) ==="
+}

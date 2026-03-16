@@ -16,5 +16,3 @@ pkg_pre_install() {
   echo "=== Install (Linux packages) ==="
   ci_deps_apt_get update
 }
-
-pkgmgr_install_banner=""
