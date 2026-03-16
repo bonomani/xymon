@@ -9,7 +9,7 @@ generated:
       - defaults: s390x
   platforms:
     - platform_id: debian-13
-      name_prefix: Debian 13.3-slim
+      name_prefix: Debian 13
       variants:
         - variant: server
           allow_failure: true
@@ -17,6 +17,6 @@ generated:
           allow_failure: true
         - client
     - platform_id: debian-12
-      name_prefix: Debian 12.13-slim
+      name_prefix: Debian 12
     - platform_id: debian-11
-      name_prefix: Debian 11.11-slim
+      name_prefix: Debian 11

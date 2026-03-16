@@ -16,6 +16,7 @@ containers:
   selection:
     tag_patterns:
       debian:
+        - '^\d+$'
         - '^\d+(\.\d+)?-slim$'
       ubuntu:
         - '^\d+\.\d+$'

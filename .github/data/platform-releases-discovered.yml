@@ -1,7 +1,6 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
   platform_intent: ci/deps/platform-intent.yaml
-  platform_release_overrides: ci/deps/platform-release-overrides.yaml
 platforms:
   almalinux-10:
     runtime: docker
@@ -76,10 +75,8 @@ platforms:
   debian-11:
     runtime: docker
     platform_os: debian
-    platform_version: 11.11-slim
-    image: debian:11.11-slim
-    deps:
-      key: bullseye
+    platform_version: '11'
+    image: debian:11
   debian-11-slim:
     runtime: docker
     platform_os: debian
@@ -100,6 +97,11 @@ platforms:
     platform_os: debian
     platform_version: 11.10-slim
     image: debian:11.10-slim
+  debian-11_11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.11-slim
+    image: debian:11.11-slim
   debian-11_2-slim:
     runtime: docker
     platform_os: debian
@@ -143,10 +145,8 @@ platforms:
   debian-12:
     runtime: docker
     platform_os: debian
-    platform_version: 12.13-slim
-    image: debian:12.13-slim
-    deps:
-      key: bookworm
+    platform_version: '12'
+    image: debian:12
   debian-12-slim:
     runtime: docker
     platform_os: debian
@@ -177,6 +177,11 @@ platforms:
     platform_os: debian
     platform_version: 12.12-slim
     image: debian:12.12-slim
+  debian-12_13-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.13-slim
+    image: debian:12.13-slim
   debian-12_2-slim:
     runtime: docker
     platform_os: debian
@@ -215,8 +220,8 @@ platforms:
   debian-13:
     runtime: docker
     platform_os: debian
-    platform_version: 13.3-slim
-    image: debian:13.3-slim
+    platform_version: '13'
+    image: debian:13
   debian-13-slim:
     runtime: docker
     platform_os: debian
@@ -237,6 +242,11 @@ platforms:
     platform_os: debian
     platform_version: 13.2-slim
     image: debian:13.2-slim
+  debian-13_3-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.3-slim
+    image: debian:13.3-slim
   fedora-40:
     runtime: docker
     platform_os: fedora
@@ -422,22 +432,18 @@ platforms:
     platform_os: rockylinux
     platform_version: '9'
     image: rockylinux:9
-  ubuntu-20.04:
+  ubuntu-20_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '20.04'
     image: ubuntu:20.04
-  ubuntu-22.04:
+  ubuntu-22_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '22.04'
     image: ubuntu:22.04
-    deps:
-      key: local
-  ubuntu-24.04:
+  ubuntu-24_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '24.04'
     image: ubuntu:24.04
-    deps:
-      key: latest

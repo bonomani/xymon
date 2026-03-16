@@ -119,10 +119,10 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: ubuntu
-  primary_platform_id: ubuntu-24.04
+  primary_platform_id: ubuntu-24_04
   ordered_platform_ids:
-  - ubuntu-24.04
-  - ubuntu-22.04
-  - ubuntu-20.04
+  - ubuntu-24_04
+  - ubuntu-22_04
+  - ubuntu-20_04
   primary_arch: amd64
   excluded_from_primary: []
