@@ -35,8 +35,6 @@ containers:
         keep_major_versions: ["11", "12", "13"]
       ubuntu:
         keep_versions: ["20.04", "22.04", "24.04"]
-      amazonlinux:
-        keep_versions: ["2", "2023"]
       rockylinux:
         keep_major_versions: ["8", "9"]
       oraclelinux:
@@ -48,7 +46,6 @@ containers:
       fedora:
         keep_major_versions: ["40", "41", "42"]
       opensuse_tumbleweed:
-        keep_versions: ["latest"]
         include_moving_targets: true
       opensuse_leap:
         keep_versions: ["15.5", "15.6", "16.0"]
@@ -56,9 +53,8 @@ containers:
         keep_latest_n_stable: 5
         include_moving_targets: true
       archlinux:
-        keep_versions: ["base", "latest"]
         include_moving_targets: true
-    exclude_platform_ids: []
+
   runtime_preference:
     default:
       - linux_container
@@ -76,7 +72,7 @@ vms:
         keep_versions: ["9.2", "9.3", "9.4", "10.0", "10.1"]
       openbsd:
         keep_versions: ["7.6", "7.7", "7.8"]
-    exclude_platform_ids: []
+
 
 hosts:
   selection:
@@ -84,4 +80,4 @@ hosts:
       macos:
         keep_versions: ["14", "15", "26", "latest"]
         include_moving_targets: true
-    exclude_platform_ids: []
+
