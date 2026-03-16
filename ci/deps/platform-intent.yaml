@@ -17,7 +17,7 @@ containers:
       almalinux:
         - '^\d+$'
       centos:
-        - '^\d+$'
+        - '^7$'
       fedora:
         - '^\d+$'
       opensuse_tumbleweed:
@@ -41,8 +41,6 @@ containers:
         keep_major_versions: ["8", "9", "10"]
       almalinux:
         keep_major_versions: ["8", "9", "10"]
-      centos:
-        keep_major_versions: ["7"]
       fedora:
         keep_major_versions: ["40", "41", "42"]
       opensuse_tumbleweed:
@@ -80,4 +78,3 @@ hosts:
       macos:
         keep_versions: ["14", "15", "26", "latest"]
         include_moving_targets: true
-
