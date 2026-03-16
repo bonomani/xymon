@@ -13,6 +13,11 @@ VARIANT="${VARIANT:-}"
 LOCALCLIENT="${LOCALCLIENT:-}"
 platform_os="$(resolve_cmake_platform_os "${PLATFORM_OS:-}")"
 cmake_preset="$(resolve_cmake_effective_profile "${PROFILE}" "${platform_os}")"
+CMAKE="${CMAKE:-$(command -v cmake 2>/dev/null || command -v cmake3 2>/dev/null || true)}"
+if [[ -z "$CMAKE" ]]; then
+  echo "cmake or cmake3 not found in PATH" >&2
+  exit 1
+fi
 
 echo "=== CMake configure context ==="
 echo "PROFILE=$PROFILE"
@@ -39,7 +44,7 @@ if [[ -z "$LOCALCLIENT" ]]; then
   fi
 fi
 
-cmake_version_raw="$(cmake --version | head -n1 | awk '{print $3}')"
+cmake_version_raw="$("$CMAKE" --version | head -n1 | awk '{print $3}')"
 cmake_major="${cmake_version_raw%%.*}"
 cmake_minor_tmp="${cmake_version_raw#*.}"
 cmake_minor="${cmake_minor_tmp%%.*}"
@@ -65,7 +70,7 @@ echo "USE_PRESETS=$use_presets"
 
 if (( use_presets )); then
   cmake_cmd=(
-    cmake
+    "$CMAKE"
     --preset "$cmake_preset"
     -DENABLE_SSL="$ENABLE_SSL"
     -DENABLE_LDAP="$ENABLE_LDAP"
@@ -89,7 +94,7 @@ else
   cmake_httpdgid_chgrp="$(resolve_cmake_httpdgid_chgrp "${cmake_preset}")"
   cmake_layout="$(resolve_cmake_layout "${cmake_preset}" "${platform_os}")"
   cmake_cmd=(
-    cmake
+    "$CMAKE"
     -S .
     -B "$build_dir"
     -G "Unix Makefiles"
