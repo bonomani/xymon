@@ -38,6 +38,7 @@ targets:
     amazonlinux_2:
       profile: linux_default
       packagers:
+        yum: {}
         dnf: {}
     amazonlinux_2023:
       profile: linux_default
