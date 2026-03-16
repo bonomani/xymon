@@ -1,8 +1,8 @@
-YUM_OPTS=()
+YUM_REPO_ARGS=()
 
 yum_run() {
-  if ((${#YUM_OPTS[@]})); then
-    ci_deps_as_root yum "${YUM_OPTS[@]}" "$@"
+  if ((${#YUM_REPO_ARGS[@]})); then
+    ci_deps_as_root yum "${YUM_REPO_ARGS[@]}" "$@"
   else
     ci_deps_as_root yum "$@"
   fi
@@ -13,8 +13,8 @@ pkg_installed() {
 }
 
 pkg_available() {
-  if ((${#YUM_OPTS[@]})); then
-    yum -q "${YUM_OPTS[@]}" list available "$1" >/dev/null 2>&1
+  if ((${#YUM_REPO_ARGS[@]})); then
+    yum -q "${YUM_REPO_ARGS[@]}" list available "$1" >/dev/null 2>&1
   else
     yum -q list available "$1" >/dev/null 2>&1
   fi
@@ -48,10 +48,10 @@ pkg_pre_install() {
       fi
       if [[ "${basearch}" == "armhfp" ]]; then
         ci_deps_install_epel7_altarch_repo
-        YUM_OPTS+=(--enablerepo=ci-epel7-altarch)
+        YUM_REPO_ARGS+=(--enablerepo=ci-epel7-altarch)
       else
         ci_deps_install_epel7_archive_repo
-        YUM_OPTS+=(--enablerepo=ci-epel7-archive)
+        YUM_REPO_ARGS+=(--enablerepo=ci-epel7-archive)
       fi
     fi
     return 0
@@ -59,14 +59,14 @@ pkg_pre_install() {
 
   if yum_run -y install epel-release; then
     if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
-      YUM_OPTS+=(--enablerepo=epel)
+      YUM_REPO_ARGS+=(--enablerepo=epel)
     fi
   fi
 }
 
 if [[ "${os_name}" == "centos" && "${version}" == "7" && "${mode}" != "print" ]]; then
   ci_deps_install_centos7_vault_repo
-  YUM_OPTS=(
+  YUM_REPO_ARGS=(
     --disablerepo=*
     --enablerepo=centos7-vault-base
     --enablerepo=centos7-vault-updates
