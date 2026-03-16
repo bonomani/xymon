@@ -14,8 +14,8 @@ inputs:
   coverage_policy:
     description: Coverage policy.
     required: true
-  moving_target_policy:
-    description: Moving target selection policy.
+  rolling_policy:
+    description: Rolling-release platform selection policy.
     required: true
   requested_build_tool:
     description: Requested build tool.
@@ -144,7 +144,7 @@ runs:
           --selected-variant "${{ inputs.variant }}" \
           --selected-arch "${{ inputs.arch }}" \
           --selected-coverage-policy "${{ inputs.coverage_policy }}" \
-          --selected-moving-target-policy "${{ inputs.moving_target_policy }}" \
+          --selected-rolling-policy "${{ inputs.rolling_policy }}" \
           --goal "${{ steps.resolve_execution.outputs.goal }}" \
           --build-tool "${{ steps.resolve_execution.outputs.build_tool }}" \
           --compiler "${{ steps.resolve_execution.outputs.compiler }}" \

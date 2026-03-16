@@ -45,12 +45,12 @@ SUPPORTED_ARCH_FILTERS = {
 }
 SUPPORTED_VARIANT_FILTERS = {"all", *SUPPORTED_LANE_VARIANTS}
 SUPPORTED_COVERAGE_POLICY_FILTERS = {
-    "minimal",
-    "balanced",
-    "broad",
-    "full",
+    "none",
+    "latest_only",
+    "stable_only",
+    "all",
 }
-SUPPORTED_MOVING_TARGET_POLICY_FILTERS = {"exclude", "primary_only", "include"}
+SUPPORTED_ROLLING_POLICY_FILTERS = {"exclude", "primary_only", "include"}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -494,7 +494,7 @@ def normalize_lane(
     profile,
     install_mode,
     container_runtime_preferences,
-    selected_moving_target_policy,
+    selected_rolling_policy,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
     lane_obj.update(lane)
@@ -533,7 +533,7 @@ def normalize_lane(
         if platform_entry.get("alias_of") not in (None, ""):
             return None
         is_moving_target = is_rolling_version(platform_entry.get("platform_version", ""))
-        if selected_moving_target_policy == "exclude" and is_moving_target:
+        if selected_rolling_policy == "exclude" and is_moving_target:
             return None
     supported_build_tools = resolve_supported_build_tools(
         family_entry, lane_obj, platform_entry, platform_id
@@ -612,13 +612,13 @@ def parse_args():
     )
     parser.add_argument(
         "--selected-coverage-policy",
-        default="balanced",
+        default="latest_only",
         choices=sorted(SUPPORTED_COVERAGE_POLICY_FILTERS),
     )
     parser.add_argument(
-        "--selected-moving-target-policy",
+        "--selected-rolling-policy",
         default="primary_only",
-        choices=sorted(SUPPORTED_MOVING_TARGET_POLICY_FILTERS),
+        choices=sorted(SUPPORTED_ROLLING_POLICY_FILTERS),
     )
     parser.add_argument(
         "--goal",
@@ -729,7 +729,7 @@ def main():
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
     selected_coverage_policy = args.selected_coverage_policy
-    selected_moving_target_policy = args.selected_moving_target_policy
+    selected_rolling_policy = args.selected_rolling_policy
     if selected_family == "all":
         selected_entries = families
     else:
@@ -774,7 +774,7 @@ def main():
                 profile,
                 install_mode,
                 container_runtime_preferences,
-                selected_moving_target_policy,
+                selected_rolling_policy,
             )
             if normalized is None:
                 continue
