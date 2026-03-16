@@ -31,11 +31,12 @@ on:
           - "cmake"
           - "make"
       coverage_policy:
-        description: "balanced: no micro-versions (default). broad: all stable including micro-versions. full: everything."
+        description: "minimal: amd64 only, no micro-versions. balanced: latest-per-family gets full multi-arch, others amd64, no micro-versions. broad: full multi-arch for all stable including micro-versions. full: everything."
         required: false
         type: choice
         default: "balanced"
         options:
+          - "minimal"
           - "balanced"
           - "broad"
           - "full"
