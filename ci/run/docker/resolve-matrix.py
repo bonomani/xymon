@@ -176,9 +176,11 @@ def load_docker_build_platforms(
         digest = str(availability_entry["digest"])
         supported_platforms = resolve_supported_docker_platforms(platform_id, discovered_arches)
 
+        platform_os = str(raw_entry.get("platform_os") or "").strip()
         docker_platforms[str(platform_id)] = {
             "base_image": f"{image}@{digest}",
             "platforms": ",".join(supported_platforms),
+            "platform_os": platform_os,
         }
 
     if not docker_platforms:
@@ -204,10 +206,13 @@ def main() -> None:
         platform_releases_path, platform_availability_path
     )
 
-    target_raw = str(args.target).strip()
+    target_raw = str(args.target).strip().lower()
     build_tool_filter = str(args.build_tool).strip().lower()
+
+    os_families = {info["platform_os"] for info in docker_platforms.values() if info["platform_os"]}
+    target_is_family = target_raw in os_families
     selected_names: set[str] = set()
-    if target_raw.lower() != "all":
+    if target_raw != "all" and not target_is_family:
         selected_names = {name.strip() for name in target_raw.split(",") if name.strip()}
         if not selected_names:
             die("Resolved empty --target selection")
@@ -217,6 +222,8 @@ def main() -> None:
     known_names: set[str] = set()
     include: list[dict[str, str]] = []
     for platform_id, platform_info in docker_platforms.items():
+        if target_is_family and platform_info["platform_os"] != target_raw:
+            continue
         base_image = platform_info["base_image"]
         target_platforms = platform_info["platforms"]
         for build_tool in active_build_tools:
