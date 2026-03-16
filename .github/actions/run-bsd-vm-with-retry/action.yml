@@ -43,6 +43,8 @@ runs:
       id: vm_try1
       continue-on-error: true
       uses: cross-platform-actions/action@v0.32.0
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
@@ -59,6 +61,8 @@ runs:
       id: vm_try2
       continue-on-error: true
       uses: cross-platform-actions/action@v0.32.0
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
@@ -75,6 +79,8 @@ runs:
       id: vm_try3
       continue-on-error: true
       uses: cross-platform-actions/action@v0.32.0
+      env:
+        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
