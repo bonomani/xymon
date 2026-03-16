@@ -40,7 +40,11 @@ install_optional_epel_release() {
 }
 
 dnf_run() {
-  ci_deps_as_root dnf "${DNF_REPO_ARGS[@]}" "$@"
+  if ((${#DNF_REPO_ARGS[@]})); then
+    ci_deps_as_root dnf "${DNF_REPO_ARGS[@]}" "$@"
+  else
+    ci_deps_as_root dnf "$@"
+  fi
 }
 
 pkg_installed() {
@@ -48,7 +52,11 @@ pkg_installed() {
 }
 
 pkg_available() {
-  dnf -q "${DNF_REPO_ARGS[@]}" list --available "$1" >/dev/null 2>&1
+  if ((${#DNF_REPO_ARGS[@]})); then
+    dnf -q "${DNF_REPO_ARGS[@]}" list --available "$1" >/dev/null 2>&1
+  else
+    dnf -q list --available "$1" >/dev/null 2>&1
+  fi
 }
 
 pkg_install_one() {
