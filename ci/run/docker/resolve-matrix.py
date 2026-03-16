@@ -34,6 +34,7 @@ def parse_args() -> argparse.Namespace:
         "--platform-availability", default=".github/data/platform-availability.yml"
     )
     parser.add_argument("--target", default="all")
+    parser.add_argument("--build-tool", default="all", choices=("all", "cmake", "make"))
     parser.add_argument("--github-output", default="")
     parser.add_argument("--compose-output", default="")
     parser.add_argument("--list-targets", action="store_true")
@@ -204,18 +205,21 @@ def main() -> None:
     )
 
     target_raw = str(args.target).strip()
+    build_tool_filter = str(args.build_tool).strip().lower()
     selected_names: set[str] = set()
     if target_raw.lower() != "all":
         selected_names = {name.strip() for name in target_raw.split(",") if name.strip()}
         if not selected_names:
             die("Resolved empty --target selection")
 
+    active_build_tools = BUILD_TOOLS if build_tool_filter == "all" else (build_tool_filter,)
+
     known_names: set[str] = set()
     include: list[dict[str, str]] = []
     for platform_id, platform_info in docker_platforms.items():
         base_image = platform_info["base_image"]
         target_platforms = platform_info["platforms"]
-        for build_tool in BUILD_TOOLS:
+        for build_tool in active_build_tools:
             name = derive_service_name(platform_id, build_tool)
             known_names.add(name)
             if selected_names and name not in selected_names:
