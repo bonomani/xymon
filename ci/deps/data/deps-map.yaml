@@ -12,8 +12,8 @@ package_templates:
     pkg_add: [gmake, cmake, ninja]
   build_tools_make:
     apt: [build-essential, git, findutils]
-    dnf: [gcc, gcc-c++, make, git, findutils, diffutils]
-    yum: [gcc, gcc-c++, make, git, findutils, diffutils]
+    dnf: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
+    yum: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
     zypper: [gcc, gcc-c++, make, git, findutils, diffutils]
     apk: [bash, build-base, git, findutils, diffutils]
     pacman: [base-devel, git, findutils, diffutils]
