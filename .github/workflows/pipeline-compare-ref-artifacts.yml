@@ -69,8 +69,8 @@ jobs:
           family: ${{ inputs.family }}
           variant: ${{ inputs.variant }}
           arch: ${{ inputs.arch }}
-          coverage_policy: balanced
-          moving_target_policy: primary_only
+          coverage_policy: latest_only
+          rolling_policy: primary_only
           requested_build_tool: cmake
           requested_compiler: auto
           requested_profile: auto
@@ -90,7 +90,7 @@ jobs:
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
           echo "Coverage policy: balanced"
-          echo "Moving-target policy: primary_only"
+          echo "Rolling policy: primary_only"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}"

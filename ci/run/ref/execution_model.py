@@ -3,7 +3,7 @@
 from typing import Dict
 
 
-SUPPORTED_LAYOUTS = {"auto", "default", "debian", "gnuinstall", "packaging"}
+SUPPORTED_PROFILES = {"auto", "default", "debian", "gnuinstall", "packaging"}
 SUPPORTED_INSTALL_MODES = {"auto", "source", "package"}
 
 
@@ -78,7 +78,7 @@ def validate_requested_compiler(compiler: str) -> None:
 
 
 def validate_requested_profile(profile: str) -> None:
-    if profile not in {"", *SUPPORTED_LAYOUTS}:
+    if profile not in {"", *SUPPORTED_PROFILES}:
         raise ValueError(f"Unsupported requested_profile: {profile}")
 
 

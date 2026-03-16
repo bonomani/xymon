@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import re
+import sys
 from pathlib import Path
 
 
@@ -41,6 +42,12 @@ def extract_lane_include(
         else:
             if require_include_key and "include" not in lane_doc and "lanes" not in lane_doc:
                 raise LaneSpecError(f"Lane file must define an 'include' list: {lane_file}")
+            coverage_policy = (generated_overrides or {}).get("coverage_policy")
+            if coverage_policy and coverage_policy != "none":
+                print(
+                    f"Warning: coverage_policy={coverage_policy!r} has no effect on static lane file {lane_file}",
+                    file=sys.stderr,
+                )
             include = lane_doc.get("include", lane_doc.get("lanes", []))
     else:
         raise LaneSpecError(f"Lane file must be a list or mapping: {lane_file}")
@@ -174,19 +181,12 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
             selected_coverage_policy,
             f"Lane file generated overrides coverage_policy: {lane_file}",
         )
-        if selected_coverage_policy == "full":
-            secondary_scope = "all"
-        elif selected_coverage_policy == "minimal":
-            secondary_scope = "none"
-        elif selected_coverage_policy == "balanced":
-            secondary_scope = "latest_only"
-        elif selected_coverage_policy == "broad":
-            secondary_scope = "stable_only"
-        else:
+        if selected_coverage_policy not in {"none", "latest_only", "stable_only", "all"}:
             raise LaneSpecError(
                 "Lane file generated overrides coverage_policy must be one of "
-                f"minimal|balanced|broad|full: {lane_file}"
+                f"none|latest_only|stable_only|all: {lane_file}"
             )
+        secondary_scope = selected_coverage_policy
     if secondary_scope not in {"none", "all", "latest_only", "stable_only"}:
         raise LaneSpecError(
             f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only|stable_only: {lane_file}"
