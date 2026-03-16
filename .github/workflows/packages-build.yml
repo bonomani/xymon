@@ -9,12 +9,11 @@ on:
         type: string
         default: ""
       package_set:
-        description: Package formats to build. On rel-* tags, built package files are also uploaded to the GitHub Release.
+        description: Package format to build. On rel-* tags, built package files are also uploaded to the GitHub Release.
         required: true
         type: choice
-        default: all
+        default: deb
         options:
-          - all
           - deb
           - rpm
           - arch

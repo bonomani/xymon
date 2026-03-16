@@ -26,17 +26,20 @@ def parse_args() -> argparse.Namespace:
         description="Resolve package build inputs and matrix"
     )
     parser.add_argument("--release-version", default="")
-    parser.add_argument("--package-set", default="all")
+    parser.add_argument("--package-set", default="deb")
     parser.add_argument(
         "--github-output", default=os.environ.get("GITHUB_OUTPUT", "")
     )
     return parser.parse_args()
 
 
+ALL_PACKAGE_KINDS = ["deb", "rpm", "arch", "apk", "pkg"]
+
+
 def normalize_package_set(raw_value: str) -> str:
-    value = str(raw_value or "all").strip().lower()
-    if value not in {"all", "deb", "rpm", "arch", "apk", "pkg"}:
-        die(f"Unsupported package_set: {value}")
+    value = str(raw_value or "").strip().lower()
+    if value not in set(ALL_PACKAGE_KINDS):
+        die(f"Unsupported package_set: {value!r}")
     return value
 
 
@@ -90,7 +93,7 @@ def build_matrix(
     package_set: str,
     release_version: str,
 ) -> dict[str, list[dict[str, str]]]:
-    selected = ["deb", "rpm", "arch", "apk", "pkg"] if package_set == "all" else [package_set]
+    selected = ALL_PACKAGE_KINDS if not package_set else [package_set]
     include: list[dict[str, str]] = []
     for kind in selected:
         raw_entry = packaging_config.get(kind)
@@ -156,7 +159,8 @@ def write_outputs(
 def main() -> None:
     args = parse_args()
     output_path = Path(require_non_empty(args.github_output, "--github-output / GITHUB_OUTPUT"))
-    package_set = normalize_package_set(args.package_set)
+    raw_set = str(args.package_set or "").strip()
+    package_set = normalize_package_set(raw_set) if raw_set else ""
     release_version = resolve_release_version(args.release_version)
     packaging_config = load_packaging_config()
     matrix = build_matrix(packaging_config, package_set, release_version)
