@@ -68,7 +68,7 @@ lane_json='{
   "runtime": "linux_container",
   "ref_os": "linux",
   "artifact_family": "linux",
-  "baseline_root": "make_linux",
+  "baseline_root": "make__linux",
   "platform_id": "alpine-3_23",
   "platform_os": "alpine",
   "artifact_arch": "amd64"

@@ -97,7 +97,7 @@ runs:
         lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}
         if_no_files_found: ${{ inputs.dep_if_no_files_found }}
 
-    - name: Upload legacy references
+    - name: Upload references
       if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
       uses: actions/upload-artifact@v6
       with:
@@ -109,7 +109,10 @@ runs:
       if: ${{ fromJSON(inputs.lane_post_json).goal == 'compare' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' }}
       uses: ./.github/actions/upload-ref-valid-artifacts
       with:
-        lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}
+        build_tool: ${{ fromJSON(inputs.lane_post_json).build_tool }}
+        platform_id: ${{ fromJSON(inputs.lane_post_json).platform_id }}
+        variant: ${{ fromJSON(inputs.lane_post_json).variant }}
+        artifact_arch: ${{ fromJSON(inputs.lane_post_json).artifact_arch }}
         if_no_files_found: ${{ inputs.ref_valid_if_no_files_found }}
         extra_paths: |
           ${{ inputs.extra_paths }}

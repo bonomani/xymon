@@ -524,7 +524,7 @@ def normalize_lane(
             lane_obj["ref_os"] = runtime_default_ref_os
 
     lane_obj.setdefault("artifact_family", lane_obj["ref_os"])
-    lane_obj.setdefault("baseline_root", f"make_{lane_obj['ref_os']}")
+    lane_obj.setdefault("baseline_root", f"make__{lane_obj['ref_os']}")
     platform_id, platform_entry, platform_runtime = resolve_platform_binding(
         family_entry, lane_obj, platform_catalog
     )

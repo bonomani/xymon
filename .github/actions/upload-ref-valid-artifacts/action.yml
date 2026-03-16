@@ -2,8 +2,17 @@ name: Upload Reference Validation Artifacts
 description: Uploads common ref-validation artifacts plus optional extra paths.
 
 inputs:
-  lane_name:
-    description: Display name of the lane.
+  build_tool:
+    description: Build tool identifier (e.g. make, cmake).
+    required: true
+  platform_id:
+    description: Platform identifier (e.g. ubuntu-22_04).
+    required: true
+  variant:
+    description: Build variant (e.g. server, client).
+    required: true
+  artifact_arch:
+    description: Artifact architecture (e.g. amd64, arm64).
     required: true
   extra_paths:
     description: Optional newline-delimited extra paths to include.
@@ -83,7 +92,7 @@ runs:
     - name: Upload artifact bundle
       uses: actions/upload-artifact@v6
       with:
-        name: ref-valid-${{ inputs.lane_name }}
+        name: ref-valid__${{ inputs.build_tool }}__${{ inputs.platform_id }}__${{ inputs.variant }}__${{ inputs.artifact_arch }}
         if-no-files-found: ${{ inputs.if_no_files_found }}
         compression-level: ${{ inputs.compression_level }}
         overwrite: ${{ inputs.overwrite }}

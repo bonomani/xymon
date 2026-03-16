@@ -6,9 +6,9 @@ ref_dir=""
 
 usage() {
   cat <<'USAGE' >&2
-Usage: stage-legacy-reference-artifacts.sh --artifacts-dir PATH --ref-dir PATH
+Usage: stage-ref-artifacts.sh --artifacts-dir PATH --ref-dir PATH
 
-Copy downloaded legacy reference artifacts into refs staging layout.
+Copy downloaded reference artifacts into refs staging layout.
 USAGE
 }
 

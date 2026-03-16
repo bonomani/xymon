@@ -55,7 +55,7 @@ jobs:
           CANDIDATE_DIR: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CANDIDATE_DIR }}
         run: |
           set -euo pipefail
-          source_dir="docs/cmake-legacy-migration/refs/ref/${BUILD_TOOL}/${REF_OS}/${PLATFORM_ID}/${VARIANT}/${ARTIFACT_ARCH}"
+          source_dir="docs/refs/ref/${BUILD_TOOL}/${REF_OS}/${PLATFORM_ID}/${VARIANT}/${ARTIFACT_ARCH}"
           if [ ! -d "${source_dir}" ]; then
             echo "Missing synced candidate refs: ${source_dir}" >&2
             exit 1
