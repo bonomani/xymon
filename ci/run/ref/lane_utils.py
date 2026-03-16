@@ -191,12 +191,20 @@ def expand_generated_lanes(generated_doc, lane_file: Path, *, generated_override
         raise LaneSpecError(
             f"Lane file generated.policy.secondary_scope must be one of none|all|latest_only|stable_only: {lane_file}"
         )
-    rolling_platform_ids = {
-        value
-        for value in _require_string_list(
-            policy.get("rolling_platform_ids", []), f"Lane file generated.policy.rolling_platform_ids: {lane_file}"
-        )
-    } if policy.get("rolling_platform_ids") else set()
+    # rolling_platform_ids can be injected via generated_overrides (derived from platform data)
+    # or declared in the lane file policy as a fallback.
+    override_rolling = generated_overrides.get("rolling_platform_ids")
+    if override_rolling is not None:
+        rolling_platform_ids = set(override_rolling)
+    elif policy.get("rolling_platform_ids"):
+        rolling_platform_ids = {
+            value
+            for value in _require_string_list(
+                policy.get("rolling_platform_ids", []), f"Lane file generated.policy.rolling_platform_ids: {lane_file}"
+            )
+        }
+    else:
+        rolling_platform_ids = set()
 
     platform_entries = []
     for index, raw_entry in enumerate(platforms):

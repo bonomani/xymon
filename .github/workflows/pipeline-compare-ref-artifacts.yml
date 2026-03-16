@@ -70,8 +70,7 @@ jobs:
           variant: ${{ inputs.variant }}
           arch: ${{ inputs.arch }}
           coverage_policy: balanced
-          symbolic_alias_policy: exclude
-          moving_target_policy: ordered_only
+          moving_target_policy: primary_only
           requested_build_tool: cmake
           requested_compiler: auto
           requested_profile: auto
@@ -91,8 +90,7 @@ jobs:
           echo "Variant filter: ${{ inputs.variant }}"
           echo "Arch filter: ${{ inputs.arch }}"
           echo "Coverage policy: balanced"
-          echo "Symbolic alias policy: exclude"
-          echo "Moving-target policy: ordered_only"
+          echo "Moving-target policy: primary_only"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"
           echo "Allow-failure mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}"

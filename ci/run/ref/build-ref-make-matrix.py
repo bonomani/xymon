@@ -50,8 +50,7 @@ SUPPORTED_COVERAGE_POLICY_FILTERS = {
     "broad",
     "full",
 }
-SUPPORTED_SYMBOLIC_ALIAS_POLICY_FILTERS = {"exclude", "include"}
-SUPPORTED_MOVING_TARGET_POLICY_FILTERS = {"exclude", "ordered_only", "include"}
+SUPPORTED_MOVING_TARGET_POLICY_FILTERS = {"exclude", "primary_only", "include"}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -251,6 +250,11 @@ def infer_platform_version(platform_id: str) -> str:
     if len(parts) != 2 or not parts[1]:
         return ""
     return parts[1].replace("_", ".")
+
+
+def is_rolling_version(platform_version: str) -> bool:
+    """True if the version string is a rolling tag (non-numeric: edge, latest, base, tumbleweed…)."""
+    return not re.match(r"^\d", str(platform_version).strip())
 
 
 def lane_context_label(family_entry, lane_obj) -> str:
@@ -490,7 +494,6 @@ def normalize_lane(
     profile,
     install_mode,
     container_runtime_preferences,
-    selected_symbolic_alias_policy,
     selected_moving_target_policy,
 ):
     lane_obj = dict(family_entry["runtime_overrides"])
@@ -525,24 +528,11 @@ def normalize_lane(
         family_entry, lane_obj, platform_catalog
     )
     if platform_entry is not None:
-        if (
-            selected_symbolic_alias_policy == "exclude"
-            and platform_entry.get("alias_of") not in (None, "")
-        ):
+        # Always exclude alias platforms (e.g. debian:stable → debian:12) to avoid
+        # building the same image twice.
+        if platform_entry.get("alias_of") not in (None, ""):
             return None
-        moving_text = " ".join(
-            str(value)
-            for value in (
-                platform_id or "",
-                platform_entry.get("platform_version", ""),
-                platform_entry.get("image", ""),
-            )
-        ).lower()
-        is_moving_target = any(
-            keyword in moving_text for keyword in ("edge", "tumbleweed", "rolling")
-        ) or (
-            "latest" in moving_text and platform_entry.get("alias_of") in (None, "")
-        )
+        is_moving_target = is_rolling_version(platform_entry.get("platform_version", ""))
         if selected_moving_target_policy == "exclude" and is_moving_target:
             return None
     supported_build_tools = resolve_supported_build_tools(
@@ -626,13 +616,8 @@ def parse_args():
         choices=sorted(SUPPORTED_COVERAGE_POLICY_FILTERS),
     )
     parser.add_argument(
-        "--selected-symbolic-alias-policy",
-        default="exclude",
-        choices=sorted(SUPPORTED_SYMBOLIC_ALIAS_POLICY_FILTERS),
-    )
-    parser.add_argument(
         "--selected-moving-target-policy",
-        default="ordered_only",
+        default="primary_only",
         choices=sorted(SUPPORTED_MOVING_TARGET_POLICY_FILTERS),
     )
     parser.add_argument(
@@ -686,12 +671,15 @@ def parse_args():
     return parser.parse_args()
 
 
-def load_family_lanes(repo_root: Path, family_entry, *, selected_coverage_policy: str):
+def load_family_lanes(repo_root: Path, family_entry, *, selected_coverage_policy: str, rolling_platform_ids: set):
     return load_lanes_from_file(
         repo_root / family_entry["lane_file"],
         shared_defaults=family_entry.get("lane_defaults", {}),
         strict_lane_mapping=True,
-        generated_overrides={"coverage_policy": selected_coverage_policy},
+        generated_overrides={
+            "coverage_policy": selected_coverage_policy,
+            "rolling_platform_ids": rolling_platform_ids,
+        },
     )
 
 
@@ -741,7 +729,6 @@ def main():
     selected_variant = args.selected_variant
     selected_arch = args.selected_arch
     selected_coverage_policy = args.selected_coverage_policy
-    selected_symbolic_alias_policy = args.selected_symbolic_alias_policy
     selected_moving_target_policy = args.selected_moving_target_policy
     if selected_family == "all":
         selected_entries = families
@@ -756,6 +743,14 @@ def main():
     except ValueError as exc:
         die(str(exc))
 
+    # Derive rolling platform IDs from platform data — non-numeric versions are rolling.
+    # This replaces the manual rolling_platform_ids lists in lane files.
+    rolling_platform_ids = {
+        pid
+        for pid, entry in platform_catalog.items()
+        if is_rolling_version(str(entry.get("platform_version", "")))
+    }
+
     matrices = {runtime: [] for runtime in runtime_order}
     selected_families = []
     for family_entry in selected_entries:
@@ -764,6 +759,7 @@ def main():
             repo_root,
             family_entry,
             selected_coverage_policy=selected_coverage_policy,
+            rolling_platform_ids=rolling_platform_ids,
         )
         for lane in lanes:
             if not isinstance(lane, dict):
@@ -778,7 +774,6 @@ def main():
                 profile,
                 install_mode,
                 container_runtime_preferences,
-                selected_symbolic_alias_policy,
                 selected_moving_target_policy,
             )
             if normalized is None:

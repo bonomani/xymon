@@ -7,8 +7,7 @@ generated:
       - defaults: ppc64le
       - defaults: riscv64
       - defaults: s390x
-    rolling_platform_ids:
-      - opensuse-tumbleweed
+
   platforms:
     - platform_id: opensuse-leap-16_0
     - platform_id: opensuse-leap-15_6

@@ -7,8 +7,7 @@ generated:
       - defaults: ppc64le
       - defaults: riscv64
       - defaults: s390x
-    rolling_platform_ids:
-      - alpine-edge
+
   platforms:
     - platform_id: alpine-3_23
       name_prefix: Alpine 3.23
