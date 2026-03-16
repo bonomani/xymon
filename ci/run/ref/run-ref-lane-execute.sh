@@ -22,46 +22,24 @@ legacy_hostname_config="${legacy_hostname_config:-}"
 baseline_prefix="${baseline_prefix:-}"
 candidate_dir="${candidate_dir:-}"
 
-if [[ -z "${build_tool}" ]]; then
-  echo "Missing prepared variable: build_tool" >&2
-  exit 2
-fi
-if [[ -z "${goal}" ]]; then
-  echo "Missing prepared variable: goal" >&2
-  exit 2
-fi
-if [[ -z "${verify_depth}" ]]; then
-  echo "Missing prepared variable: verify_depth" >&2
-  exit 2
-fi
-if [[ -z "${ci_compiler}" ]]; then
-  echo "Missing prepared variable: ci_compiler" >&2
-  exit 2
-fi
-if [[ -z "${profile}" ]]; then
-  echo "Missing prepared variable: profile" >&2
-  exit 2
-fi
-if [[ -z "${install_mode}" ]]; then
-  echo "Missing prepared variable: install_mode" >&2
-  exit 2
-fi
-if [[ -z "${variant}" ]]; then
-  echo "Missing prepared variable: variant" >&2
-  exit 2
-fi
-if [[ -z "${ref_os}" ]]; then
-  echo "Missing prepared variable: ref_os" >&2
-  exit 2
-fi
-if [[ -z "${platform_os}" ]]; then
-  echo "Missing prepared variable: platform_os" >&2
-  exit 2
-fi
-if [[ -z "${platform_id}" ]]; then
-  echo "Missing prepared variable: platform_id" >&2
-  exit 2
-fi
+require_var() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    echo "Missing prepared variable: ${name}" >&2
+    exit 2
+  fi
+}
+
+require_var build_tool
+require_var goal
+require_var verify_depth
+require_var ci_compiler
+require_var profile
+require_var install_mode
+require_var variant
+require_var ref_os
+require_var platform_os
+require_var platform_id
 
 if [[ "${goal}" == "ref" ]]; then
   for var_name in \
