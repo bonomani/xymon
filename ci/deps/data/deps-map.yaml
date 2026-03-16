@@ -27,6 +27,8 @@ map:
       template: build_tools
     overrides:
       by_os:
+        amazonlinux_2:
+          yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
         centos_7:
           yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
         netbsd:
