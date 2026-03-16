@@ -68,7 +68,7 @@ def has_ref_artifacts(repo: str, token: str, run_id: str) -> bool:
         params={"per_page": "100"},
     )
     artifacts = payload.get("artifacts", [])
-    return any(str(artifact.get("name", "")).startswith("ref_") for artifact in artifacts)
+    return any(str(artifact.get("name", "")).startswith("ref__") for artifact in artifacts)
 
 
 def resolve_selector(repo: str, token: str, workflow: str, selector: str) -> str:

@@ -56,20 +56,20 @@ find "${artifacts_dir}" -type f -print0 \
       rest="${rel#*/}"
       dst_rel="${rel}"
       case "${artifact}" in
-        ref_*)
-          if [[ "${artifact}" =~ ^ref_([[:alnum:]]+)_([[:alnum:]_]+)-([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_.-]+)$ ]]; then
+        ref__*)
+          if [[ "${artifact}" =~ ^ref__([[:alnum:]_-]+)__([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_]+)__([[:alnum:]_.-]+)$ ]]; then
             build_tool="${BASH_REMATCH[1]}"
-            runtime_os="${BASH_REMATCH[2]}"
-            variant="${BASH_REMATCH[3]}"
-            platform_id="${BASH_REMATCH[4]}"
+            ref_os="${BASH_REMATCH[2]}"
+            platform_id="${BASH_REMATCH[3]}"
+            variant="${BASH_REMATCH[4]}"
             artifact_arch="${BASH_REMATCH[5]}"
-            dst_rel="ref/${build_tool}/${runtime_os}/${platform_id}/${variant}/${artifact_arch}/${rest}"
+            dst_rel="ref/${build_tool}/${ref_os}/${platform_id}/${variant}/${artifact_arch}/${rest}"
           else
             dst_rel="ref/unparsed/${rel}"
           fi
           ;;
-        deps_*)
-          if [[ "${artifact}" =~ ^deps_([[:alnum:]]+)_([[:alnum:]_.-]+)_([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_.-]+)__.*$ ]]; then
+        deps__*)
+          if [[ "${artifact}" =~ ^deps__([[:alnum:]_-]+)__([[:alnum:]_.-]+)__([[:alnum:]_]+)__([[:alnum:]_.-]+)__([[:alnum:]_.-]+)__.*$ ]]; then
             build_tool="${BASH_REMATCH[1]}"
             platform_id="${BASH_REMATCH[2]}"
             variant="${BASH_REMATCH[3]}"
@@ -80,8 +80,8 @@ find "${artifacts_dir}" -type f -print0 \
             dst_rel="deps/unparsed/${rel}"
           fi
           ;;
-        lane_outcome_*)
-          if [[ "${artifact}" =~ ^lane_outcome_([[:alnum:]]+)_([[:alnum:]_.-]+)_([[:alnum:]_]+)__.*$ ]]; then
+        lane_outcome__*)
+          if [[ "${artifact}" =~ ^lane_outcome__([[:alnum:]_-]+)__([[:alnum:]_.-]+)__([[:alnum:]_]+)__.*$ ]]; then
             build_tool="${BASH_REMATCH[1]}"
             platform_id="${BASH_REMATCH[2]}"
             variant="${BASH_REMATCH[3]}"
