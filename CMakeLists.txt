@@ -259,12 +259,32 @@ unset(XYMON_PCRE_LIBRARY)
 if(XYMON_REQUIRE_PCRE)
     find_library(XYMON_PCRE_LIBRARY
         NAMES pcre pcre2-8 pcre2
+        HINTS
+            "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
         PATHS
             /usr/pkg/lib
             /usr/local/lib
             /opt/homebrew/lib
             /opt/local/lib
     )
+    if(NOT XYMON_PCRE_LIBRARY)
+        # pkg-config fallback for systems where find_library misses the multiarch dir
+        find_package(PkgConfig QUIET)
+        if(PKG_CONFIG_FOUND)
+            foreach(_xymon_pcre_pkg libpcre2-8 libpcre)
+                if(NOT XYMON_PCRE_LIBRARY)
+                    pkg_check_modules(_XYMON_PCRE_PC QUIET "${_xymon_pcre_pkg}")
+                    if(_XYMON_PCRE_PC_FOUND AND _XYMON_PCRE_PC_LIBRARY_DIRS)
+                        unset(XYMON_PCRE_LIBRARY CACHE)
+                        find_library(XYMON_PCRE_LIBRARY
+                            NAMES ${_XYMON_PCRE_PC_LIBRARIES}
+                            HINTS ${_XYMON_PCRE_PC_LIBRARY_DIRS}
+                        )
+                    endif()
+                endif()
+            endforeach()
+        endif()
+    endif()
     if(XYMON_PCRE_LIBRARY)
         get_filename_component(XYMON_PCRE_LIBRARY_DIR "${XYMON_PCRE_LIBRARY}" DIRECTORY)
         link_directories("${XYMON_PCRE_LIBRARY_DIR}")
