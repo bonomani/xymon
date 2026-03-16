@@ -1,15 +1,27 @@
 YUM_OPTS=()
 
+yum_run() {
+  if ((${#YUM_OPTS[@]})); then
+    ci_deps_as_root yum "${YUM_OPTS[@]}" "$@"
+  else
+    ci_deps_as_root yum "$@"
+  fi
+}
+
 pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1
 }
 
 pkg_available() {
-  yum -q "${YUM_OPTS[@]}" list available "$1" >/dev/null 2>&1
+  if ((${#YUM_OPTS[@]})); then
+    yum -q "${YUM_OPTS[@]}" list available "$1" >/dev/null 2>&1
+  else
+    yum -q list available "$1" >/dev/null 2>&1
+  fi
 }
 
 pkg_install_one() {
-  ci_deps_as_root yum -y "${YUM_OPTS[@]}" install "$1"
+  yum_run -y install "$1"
 }
 
 pkg_pre_install() {
@@ -45,7 +57,7 @@ pkg_pre_install() {
     return 0
   fi
 
-  if ci_deps_as_root yum -y "${YUM_OPTS[@]}" install epel-release; then
+  if yum_run -y install epel-release; then
     if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
       YUM_OPTS+=(--enablerepo=epel)
     fi
