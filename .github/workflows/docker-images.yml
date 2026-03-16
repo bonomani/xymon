@@ -30,16 +30,28 @@ on:
         options:
           - "cmake"
           - "make"
-      coverage_policy:
-        description: "minimal: amd64 only, no micro-versions. balanced: latest-per-family gets full multi-arch, others amd64, no micro-versions. broad: full multi-arch for all stable including micro-versions. full: everything."
+      version_scope:
+        description: "primary: no micro-versions, no rolling/dev tags. stable: micro-versions included, no rolling. all: everything including edge/tumbleweed/latest."
         required: false
         type: choice
-        default: "balanced"
+        default: "primary"
         options:
-          - "minimal"
-          - "balanced"
-          - "broad"
-          - "full"
+          - "primary"
+          - "stable"
+          - "all"
+      arch:
+        description: Architecture to build. all = every arch the image supports.
+        required: false
+        type: choice
+        default: "all"
+        options:
+          - "all"
+          - "amd64"
+          - "arm64"
+          - "arm32v7"
+          - "ppc64le"
+          - "riscv64"
+          - "s390x"
       image_tag:
         description: Image tag to publish/use. Empty = sha-<short>.
         required: false
@@ -105,7 +117,8 @@ jobs:
           python3 ci/run/docker/resolve-matrix.py \
             --target "${{ inputs.target }}" \
             --build-tool "${{ inputs.build_tool }}" \
-            --coverage-policy "${{ inputs.coverage_policy }}" \
+            --version-scope "${{ inputs.version_scope }}" \
+            --arch "${{ inputs.arch }}" \
             --github-output "${GITHUB_OUTPUT}"
           {
             echo "image_tag=${image_tag}"

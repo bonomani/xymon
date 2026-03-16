@@ -304,6 +304,8 @@ def load_static_platform_catalog() -> dict[str, dict[str, Any]]:
 
 
 def load_platform_releases() -> dict[str, dict[str, Any]]:
+    if not PLATFORM_RELEASE_OVERRIDES.exists():
+        return {}
     data = load_yaml(
         PLATFORM_RELEASE_OVERRIDES,
         f"platform release overrides in {PLATFORM_RELEASE_OVERRIDES}",
@@ -1218,7 +1220,7 @@ def export_catalog(*, refresh_container_manifests: bool = False):
 
     docker_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
-        "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
+
         "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "registry_base": REGISTRY_BASE,
@@ -1329,7 +1331,7 @@ def export_catalog(*, refresh_container_manifests: bool = False):
 
     platform_availability_meta = {
         "platform_catalog": relative_to_root(PLATFORM_CATALOG),
-        "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
+
         "platform_releases_discovered": relative_to_root(DISCOVERED_RELEASES_OUTPUT),
         "platform_intent": relative_to_root(CONTAINER_INTENT),
         "docker_availability_raw": relative_to_root(DOCKER_AVAILABILITY_OUTPUT),
@@ -1352,7 +1354,7 @@ def export_catalog(*, refresh_container_manifests: bool = False):
             {
                 "platform_catalog": relative_to_root(PLATFORM_CATALOG),
                 "platform_intent": relative_to_root(CONTAINER_INTENT),
-                "platform_release_overrides": relative_to_root(PLATFORM_RELEASE_OVERRIDES),
+        
             },
             platform_releases,
         ),

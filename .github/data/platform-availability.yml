@@ -1,6 +1,5 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
-  platform_release_overrides: ci/deps/platform-release-overrides.yaml
   platform_releases_discovered: .github/data/platform-releases-discovered.yml
   platform_intent: ci/deps/platform-intent.yaml
   docker_availability_raw: .github/data/docker-availability-raw.yml
@@ -464,9 +463,9 @@ platforms:
   debian-11:
     runtime: docker
     platform_os: debian
-    platform_version: 11.11-slim
-    image: debian:11.11-slim
-    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    platform_version: '11'
+    image: debian:11
+    digest: sha256:550c53afe18c60e0dc975327dcb75a4ef8265e247e1190822bf8881a70825fce
     discovered_arches:
     - amd64
     - arm32v7
@@ -627,6 +626,32 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
+  debian-11_11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11.11-slim
+    image: debian:11.11-slim
+    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
   debian-11_2-slim:
     runtime: docker
     platform_os: debian
@@ -934,9 +959,9 @@ platforms:
   debian-12:
     runtime: docker
     platform_os: debian
-    platform_version: 12.13-slim
-    image: debian:12.13-slim
-    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+    platform_version: '12'
+    image: debian:12
+    digest: sha256:0a5bf4ecacfc050bad0131c8e1401063fd1e8343a418723f6dbd3cd13a7b9e33
     discovered_arches:
     - amd64
     - arm32v7
@@ -1165,6 +1190,44 @@ platforms:
     platform_version: 12.12-slim
     image: debian:12.12-slim
     digest: sha256:d5d3f9c23164ea16f31852f95bd5959aad1c5e854332fe00f7b3a20fcc9f635c
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-12_13-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12.13-slim
+    image: debian:12.13-slim
+    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
     discovered_arches:
     - amd64
     - arm32v7
@@ -1466,9 +1529,9 @@ platforms:
   debian-13:
     runtime: docker
     platform_os: debian
-    platform_version: 13.3-slim
-    image: debian:13.3-slim
-    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
+    platform_version: '13'
+    image: debian:13
+    digest: sha256:3615a749858a1cba49b408fb49c37093db813321355a9ab7c1f9f4836341e9db
     discovered_arches:
     - amd64
     - arm32v7
@@ -1645,6 +1708,50 @@ platforms:
     platform_version: 13.2-slim
     image: debian:13.2-slim
     digest: sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-13_3-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13.3-slim
+    image: debian:13.3-slim
+    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
     discovered_arches:
     - amd64
     - arm32v7
@@ -2472,7 +2579,7 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
-  ubuntu-20.04:
+  ubuntu-20_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '20.04'
@@ -2516,7 +2623,7 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
-  ubuntu-22.04:
+  ubuntu-22_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '22.04'
@@ -2562,7 +2669,7 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
-  ubuntu-24.04:
+  ubuntu-24_04:
     runtime: docker
     platform_os: ubuntu
     platform_version: '24.04'

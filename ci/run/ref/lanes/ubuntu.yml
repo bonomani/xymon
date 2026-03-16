@@ -8,9 +8,9 @@ generated:
       - defaults: riscv64
       - defaults: s390x
   platforms:
-    - platform_id: ubuntu-24.04
+    - platform_id: ubuntu-24_04
       name_prefix: Ubuntu 24.04
-    - platform_id: ubuntu-22.04
+    - platform_id: ubuntu-22_04
       name_prefix: Ubuntu 22.04
-    - platform_id: ubuntu-20.04
+    - platform_id: ubuntu-20_04
       name_prefix: Ubuntu 20.04

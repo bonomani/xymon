@@ -1,6 +1,5 @@
 source:
   platform_catalog: ci/deps/platform-catalog.yaml
-  platform_release_overrides: ci/deps/platform-release-overrides.yaml
   platform_releases_discovered: .github/data/platform-releases-discovered.yml
   platform_intent: ci/deps/platform-intent.yaml
   registry_base: https://registry-1.docker.io
@@ -247,18 +246,17 @@ platforms:
     - arm64
     - ppc64le
   debian-11:
-    image: debian:11.11-slim
+    image: debian:11
     repository: library/debian
     repository_url: https://hub.docker.com/_/debian
-    tag: 11.11-slim
+    tag: '11'
     platform_os: debian
-    platform_version: 11.11-slim
+    platform_version: '11'
     deps:
       package_family: debian
-      key: bullseye
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    digest: sha256:550c53afe18c60e0dc975327dcb75a4ef8265e247e1190822bf8881a70825fce
     discovered_arches:
     - amd64
     - arm32v7
@@ -333,6 +331,22 @@ platforms:
     - arm64
     - ppc64le
     - s390x
+  debian-11_11-slim:
+    image: debian:11.11-slim
+    repository: library/debian
+    repository_url: https://hub.docker.com/_/debian
+    tag: 11.11-slim
+    platform_os: debian
+    platform_version: 11.11-slim
+    deps:
+      package_family: debian
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
   debian-11_2-slim:
     image: debian:11.2-slim
     repository: library/debian
@@ -478,18 +492,17 @@ platforms:
     - ppc64le
     - s390x
   debian-12:
-    image: debian:12.13-slim
+    image: debian:12
     repository: library/debian
     repository_url: https://hub.docker.com/_/debian
-    tag: 12.13-slim
+    tag: '12'
     platform_os: debian
-    platform_version: 12.13-slim
+    platform_version: '12'
     deps:
       package_family: debian
-      key: bookworm
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+    digest: sha256:0a5bf4ecacfc050bad0131c8e1401063fd1e8343a418723f6dbd3cd13a7b9e33
     discovered_arches:
     - amd64
     - arm32v7
@@ -598,6 +611,24 @@ platforms:
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.12-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:d5d3f9c23164ea16f31852f95bd5959aad1c5e854332fe00f7b3a20fcc9f635c
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - s390x
+  debian-12_13-slim:
+    image: debian:12.13-slim
+    repository: library/debian
+    repository_url: https://hub.docker.com/_/debian
+    tag: 12.13-slim
+    platform_os: debian
+    platform_version: 12.13-slim
+    deps:
+      package_family: debian
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
     discovered_arches:
     - amd64
     - arm32v7
@@ -731,17 +762,17 @@ platforms:
     - ppc64le
     - s390x
   debian-13:
-    image: debian:13.3-slim
+    image: debian:13
     repository: library/debian
     repository_url: https://hub.docker.com/_/debian
-    tag: 13.3-slim
+    tag: '13'
     platform_os: debian
-    platform_version: 13.3-slim
+    platform_version: '13'
     deps:
       package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
+    digest: sha256:3615a749858a1cba49b408fb49c37093db813321355a9ab7c1f9f4836341e9db
     discovered_arches:
     - amd64
     - arm32v7
@@ -818,6 +849,25 @@ platforms:
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.2-slim
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+  debian-13_3-slim:
+    image: debian:13.3-slim
+    repository: library/debian
+    repository_url: https://hub.docker.com/_/debian
+    tag: 13.3-slim
+    platform_os: debian
+    platform_version: 13.3-slim
+    deps:
+      package_family: debian
+    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
     discovered_arches:
     - amd64
     - arm32v7
@@ -1068,7 +1118,7 @@ platforms:
     - arm64
     - ppc64le
     - s390x
-  ubuntu-20.04:
+  ubuntu-20_04:
     image: ubuntu:20.04
     repository: library/ubuntu
     repository_url: https://hub.docker.com/_/ubuntu
@@ -1087,7 +1137,7 @@ platforms:
     - ppc64le
     - riscv64
     - s390x
-  ubuntu-22.04:
+  ubuntu-22_04:
     image: ubuntu:22.04
     repository: library/ubuntu
     repository_url: https://hub.docker.com/_/ubuntu
@@ -1096,7 +1146,6 @@ platforms:
     platform_version: '22.04'
     deps:
       package_family: ubuntu
-      key: local
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/22.04
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
@@ -1107,7 +1156,7 @@ platforms:
     - ppc64le
     - riscv64
     - s390x
-  ubuntu-24.04:
+  ubuntu-24_04:
     image: ubuntu:24.04
     repository: library/ubuntu
     repository_url: https://hub.docker.com/_/ubuntu
@@ -1116,7 +1165,6 @@ platforms:
     platform_version: '24.04'
     deps:
       package_family: ubuntu
-      key: latest
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/24.04
     content_type: application/vnd.oci.image.index.v1+json
     digest: sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9
