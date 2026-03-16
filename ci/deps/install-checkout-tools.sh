@@ -142,8 +142,8 @@ elif command -v zypper >/dev/null 2>&1; then
   ci_deps_as_root zypper --non-interactive install "${install_pkgs[@]}"
 elif command -v apk >/dev/null 2>&1; then
   ci_deps_as_root apk add --no-cache "${install_pkgs[@]}"
-elif command -v dnf >/dev/null 2>&1; then
-  dnf_repo_args=()
+  elif command -v dnf >/dev/null 2>&1; then
+    dnf_repo_args=()
   if [[ "${prepare_profile}" == "redhat" ]] && ci_deps_configure_rocky_fallback_repos ""; then
     ci_deps_parse_os_release || true
     if [[ "${CI_DEPS_OS_ID:-}" == "rocky" ]]; then
@@ -157,11 +157,15 @@ elif command -v dnf >/dev/null 2>&1; then
       )
     fi
   fi
-  ci_deps_as_root dnf -y "${dnf_repo_args[@]}" install "${install_pkgs[@]}"
+    if ((${#dnf_repo_args[@]})); then
+      ci_deps_as_root dnf -y "${dnf_repo_args[@]}" install "${install_pkgs[@]}"
+    else
+      ci_deps_as_root dnf -y install "${install_pkgs[@]}"
+    fi
 elif command -v microdnf >/dev/null 2>&1; then
   ci_deps_as_root microdnf -y install dnf "${install_pkgs[@]}"
-elif command -v yum >/dev/null 2>&1; then
-  yum_repo_args=()
+  elif command -v yum >/dev/null 2>&1; then
+    yum_repo_args=()
   if [[ "${prepare_profile}" == "centos7" ]]; then
     ci_deps_install_centos7_vault_repo
     yum_repo_args=(
@@ -183,7 +187,11 @@ elif command -v yum >/dev/null 2>&1; then
       )
     fi
   fi
-  ci_deps_as_root yum -y "${yum_repo_args[@]}" install "${install_pkgs[@]}"
+    if ((${#yum_repo_args[@]})); then
+      ci_deps_as_root yum -y "${yum_repo_args[@]}" install "${install_pkgs[@]}"
+    else
+      ci_deps_as_root yum -y install "${install_pkgs[@]}"
+    fi
 elif command -v pacman >/dev/null 2>&1; then
   pacman_pkgs=(tar bash gawk ca-certificates)
   if [[ "${checkout_mode}" == "git" ]]; then
