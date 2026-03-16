@@ -14,6 +14,11 @@ fi
 platform_os="$(resolve_cmake_platform_os "${PLATFORM_OS:-}")"
 effective_profile="$(resolve_cmake_effective_profile "${PROFILE}" "${platform_os}")"
 build_dir="$(resolve_cmake_build_dir "${effective_profile}")"
+CMAKE="${CMAKE:-$(command -v cmake 2>/dev/null || command -v cmake3 2>/dev/null || true)}"
+if [[ -z "$CMAKE" ]]; then
+  echo "cmake or cmake3 not found in PATH" >&2
+  exit 1
+fi
 
 if [[ ! -d "${build_dir}" ]]; then
   echo "Build directory not found: ${build_dir}"
@@ -31,4 +36,4 @@ echo "BUILD_DIR=${build_dir}"
 echo "PARALLEL=${parallel_level}"
 echo "==================="
 
-cmake --build "${build_dir}" --parallel "${parallel_level}"
+"$CMAKE" --build "${build_dir}" --parallel "${parallel_level}"
