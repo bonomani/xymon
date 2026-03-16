@@ -39,7 +39,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--coverage-policy",
         default="balanced",
-        choices=("balanced", "broad", "full"),
+        choices=("minimal", "balanced", "broad", "full"),
     )
     parser.add_argument("--github-output", default="")
     parser.add_argument("--compose-output", default="")
@@ -213,32 +213,71 @@ def is_rolling_version(platform_version: str) -> bool:
     return not re.match(r"^\d", platform_version)
 
 
-def filter_by_coverage_policy(
+def _version_key(version: str) -> tuple:
+    numbers = tuple(int(p) for p in re.findall(r"\d+", version))
+    return (1 if numbers else 0, numbers, version)
+
+
+def latest_stable_per_family(docker_platforms: dict[str, dict[str, str]]) -> set[str]:
+    """Return the platform_id with the highest stable version per OS family."""
+    all_ids = set(docker_platforms)
+    by_family: dict[str, list] = {}
+    for platform_id, info in docker_platforms.items():
+        if is_micro_version(platform_id, all_ids):
+            continue
+        if is_rolling_version(info["platform_version"]):
+            continue
+        family = info["platform_os"]
+        by_family.setdefault(family, []).append(
+            (_version_key(info["platform_version"]), platform_id)
+        )
+    return {max(entries)[1] for entries in by_family.values() if entries}
+
+
+def apply_coverage_policy(
     docker_platforms: dict[str, dict[str, str]],
     coverage_policy: str,
 ) -> dict[str, dict[str, str]]:
-    """Filter platforms according to coverage_policy.
+    """Apply coverage_policy — mirrors the Pipeline lane coverage_policy semantics.
 
-    balanced (default): exclude micro-versions (pinned patches like debian-11_1-slim)
-    broad:              include micro-versions, exclude rolling (alpine-edge, archlinux-latest)
-    full:               include everything
+    Version scope (which platform versions are included):
+      minimal / balanced : primary versions only — no micro-versions
+      broad              : all stable versions including micro-versions
+      full               : everything including rolling tags (alpine-edge, archlinux-latest)
+
+    Architecture scope (which Docker --platform string each entry gets):
+      minimal  : linux/amd64 only for all platforms
+      balanced : full multi-arch for the latest stable version per OS family,
+                 linux/amd64 only for all others
+      broad    : full multi-arch for all included platforms
+      full     : full multi-arch for all included platforms
     """
-    if coverage_policy == "full":
-        return docker_platforms
-
     all_ids = set(docker_platforms)
-    filtered = {}
+    latest = latest_stable_per_family(docker_platforms) if coverage_policy == "balanced" else set()
+
+    result: dict[str, dict[str, str]] = {}
     for platform_id, info in docker_platforms.items():
         micro = is_micro_version(platform_id, all_ids)
         rolling = is_rolling_version(info["platform_version"])
 
-        if coverage_policy == "balanced" and micro:
+        # Version scope filter
+        if coverage_policy in ("minimal", "balanced") and micro:
             continue
         if coverage_policy == "broad" and rolling:
             continue
 
-        filtered[platform_id] = info
-    return filtered
+        # Architecture scope
+        if coverage_policy == "minimal":
+            effective_platforms = "linux/amd64"
+        elif coverage_policy == "balanced":
+            effective_platforms = (
+                info["platforms"] if platform_id in latest else "linux/amd64"
+            )
+        else:
+            effective_platforms = info["platforms"]
+
+        result[platform_id] = {**info, "platforms": effective_platforms}
+    return result
 
 
 def main() -> None:
@@ -256,7 +295,7 @@ def main() -> None:
     docker_platforms = load_docker_build_platforms(
         platform_releases_path, platform_availability_path
     )
-    docker_platforms = filter_by_coverage_policy(docker_platforms, args.coverage_policy)
+    docker_platforms = apply_coverage_policy(docker_platforms, args.coverage_policy)
 
     target_raw = str(args.target).strip().lower()
     build_tool_filter = str(args.build_tool).strip().lower()
