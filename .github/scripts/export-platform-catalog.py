@@ -386,6 +386,7 @@ def load_selection_policy() -> dict[str, dict[str, set[str]]]:
                 keep_versions = rule.get("keep_versions", [])
                 keep_major_versions = rule.get("keep_major_versions", [])
                 keep_latest_n_stable = rule.get("keep_latest_n_stable")
+                keep_latest_n_major = rule.get("keep_latest_n_major")
                 include_moving_targets = bool(rule.get("include_moving_targets", False))
                 rules[os_key] = {
                     "keep_versions": {
@@ -411,6 +412,11 @@ def load_selection_policy() -> dict[str, dict[str, set[str]]]:
                     "keep_latest_n_stable": (
                         int(keep_latest_n_stable)
                         if keep_latest_n_stable not in (None, "")
+                        else None
+                    ),
+                    "keep_latest_n_major": (
+                        int(keep_latest_n_major)
+                        if keep_latest_n_major not in (None, "")
                         else None
                     ),
                     "include_moving_targets": include_moving_targets,
@@ -654,6 +660,36 @@ def select_platform_releases(
                 if (
                     platform_id not in keep_ids
                     and not is_moving_target_token(selection_version_token(platform_id, entry))
+                ):
+                    del selected[platform_id]
+        for platform_os, rule in rules.items():
+            if not isinstance(rule, dict):
+                continue
+            keep_latest_n_major = rule.get("keep_latest_n_major")
+            if keep_latest_n_major in (None, 0):
+                continue
+            matching = [
+                (platform_id, entry)
+                for platform_id, entry in selected.items()
+                if selection_section_for_runtime(entry.get("runtime", "")) == section
+                and str(entry.get("platform_os") or infer_platform_os(platform_id)).strip() == platform_os
+            ]
+            stable = [
+                (platform_id, entry)
+                for platform_id, entry in matching
+                if not is_moving_target_token(selection_version_token(platform_id, entry))
+            ]
+            all_majors = sorted(
+                {selection_major_version(selection_version_token(pid, e)) for pid, e in stable},
+                key=lambda m: tuple(int(p) for p in re.findall(r"\d+", m)) if re.findall(r"\d+", m) else (0,),
+                reverse=True,
+            )
+            keep_majors = set(all_majors[: int(keep_latest_n_major)])
+            for platform_id, entry in matching:
+                version_token = selection_version_token(platform_id, entry)
+                if (
+                    not is_moving_target_token(version_token)
+                    and selection_major_version(version_token) not in keep_majors
                 ):
                     del selected[platform_id]
     return selected

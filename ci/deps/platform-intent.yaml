@@ -5,7 +5,7 @@ containers:
         - '^\d+$'
         - '^\d+(\.\d+)?-slim$'
       ubuntu:
-        - '^\d+\.\d+$'
+        - '^\d+\.04$'           # LTS releases always use .04 minor version
       amazonlinux:
         - '^2$'
         - '^2023$'
@@ -32,21 +32,21 @@ containers:
         - '^base$'
     rules:
       debian:
-        keep_major_versions: ["11", "12", "13"]
+        keep_latest_n_major: 3
       ubuntu:
-        keep_versions: ["20.04", "22.04", "24.04"]
+        keep_latest_n_stable: 3
       rockylinux:
-        keep_major_versions: ["8", "9"]
+        keep_latest_n_stable: 2
       oraclelinux:
-        keep_major_versions: ["8", "9", "10"]
+        keep_latest_n_major: 3
       almalinux:
-        keep_major_versions: ["8", "9", "10"]
+        keep_latest_n_stable: 3
       fedora:
-        keep_major_versions: ["40", "41", "42"]
+        keep_latest_n_stable: 3
       opensuse_tumbleweed:
         include_moving_targets: true
       opensuse_leap:
-        keep_versions: ["15.5", "15.6", "16.0"]
+        keep_latest_n_stable: 3
       alpine:
         keep_latest_n_stable: 5
         include_moving_targets: true
@@ -65,16 +65,15 @@ vms:
   selection:
     rules:
       freebsd:
-        keep_versions: ["13.5", "14.3", "15.0"]
+        keep_latest_n_stable: 3
       netbsd:
-        keep_versions: ["9.2", "9.3", "9.4", "10.0", "10.1"]
+        keep_latest_n_stable: 5
       openbsd:
-        keep_versions: ["7.6", "7.7", "7.8"]
-
+        keep_latest_n_stable: 3
 
 hosts:
   selection:
     rules:
       macos:
-        keep_versions: ["14", "15", "26", "latest"]
+        keep_latest_n_stable: 2
         include_moving_targets: true
