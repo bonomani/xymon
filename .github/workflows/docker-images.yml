@@ -30,6 +30,15 @@ on:
         options:
           - "cmake"
           - "make"
+      coverage_policy:
+        description: "balanced: no micro-versions (default). broad: all stable including micro-versions. full: everything."
+        required: false
+        type: choice
+        default: "balanced"
+        options:
+          - "balanced"
+          - "broad"
+          - "full"
       image_tag:
         description: Image tag to publish/use. Empty = sha-<short>.
         required: false
@@ -95,6 +104,7 @@ jobs:
           python3 ci/run/docker/resolve-matrix.py \
             --target "${{ inputs.target }}" \
             --build-tool "${{ inputs.build_tool }}" \
+            --coverage-policy "${{ inputs.coverage_policy }}" \
             --github-output "${GITHUB_OUTPUT}"
           {
             echo "image_tag=${image_tag}"

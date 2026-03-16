@@ -5,6 +5,7 @@ from __future__ import annotations
 
 import argparse
 import json
+import re
 from pathlib import Path
 
 import yaml
@@ -35,6 +36,11 @@ def parse_args() -> argparse.Namespace:
     )
     parser.add_argument("--target", default="all")
     parser.add_argument("--build-tool", default="cmake", choices=("cmake", "make"))
+    parser.add_argument(
+        "--coverage-policy",
+        default="balanced",
+        choices=("balanced", "broad", "full"),
+    )
     parser.add_argument("--github-output", default="")
     parser.add_argument("--compose-output", default="")
     parser.add_argument("--list-targets", action="store_true")
@@ -177,10 +183,12 @@ def load_docker_build_platforms(
         supported_platforms = resolve_supported_docker_platforms(platform_id, discovered_arches)
 
         platform_os = str(raw_entry.get("platform_os") or "").strip()
+        platform_version = str(raw_entry.get("platform_version") or "").strip()
         docker_platforms[str(platform_id)] = {
             "base_image": f"{image}@{digest}",
             "platforms": ",".join(supported_platforms),
             "platform_os": platform_os,
+            "platform_version": platform_version,
         }
 
     if not docker_platforms:
@@ -188,6 +196,49 @@ def load_docker_build_platforms(
                 f"{platform_releases_path} has no runtime=docker platforms"
         )
     return docker_platforms
+
+
+def is_micro_version(platform_id: str, all_platform_ids: set[str]) -> bool:
+    """True if a parent platform ID exists after stripping the _N patch segment.
+
+    e.g. debian-11_1-slim -> debian-11-slim (exists) -> micro
+         alpine-3_19      -> alpine-3        (missing) -> not micro
+    """
+    parent = re.sub(r"_\d+(-|$)", r"\1", platform_id)
+    return parent != platform_id and parent in all_platform_ids
+
+
+def is_rolling_version(platform_version: str) -> bool:
+    """True if the version string is a non-numeric rolling tag (edge, latest, base)."""
+    return not re.match(r"^\d", platform_version)
+
+
+def filter_by_coverage_policy(
+    docker_platforms: dict[str, dict[str, str]],
+    coverage_policy: str,
+) -> dict[str, dict[str, str]]:
+    """Filter platforms according to coverage_policy.
+
+    balanced (default): exclude micro-versions (pinned patches like debian-11_1-slim)
+    broad:              include micro-versions, exclude rolling (alpine-edge, archlinux-latest)
+    full:               include everything
+    """
+    if coverage_policy == "full":
+        return docker_platforms
+
+    all_ids = set(docker_platforms)
+    filtered = {}
+    for platform_id, info in docker_platforms.items():
+        micro = is_micro_version(platform_id, all_ids)
+        rolling = is_rolling_version(info["platform_version"])
+
+        if coverage_policy == "balanced" and micro:
+            continue
+        if coverage_policy == "broad" and rolling:
+            continue
+
+        filtered[platform_id] = info
+    return filtered
 
 
 def main() -> None:
@@ -205,6 +256,7 @@ def main() -> None:
     docker_platforms = load_docker_build_platforms(
         platform_releases_path, platform_availability_path
     )
+    docker_platforms = filter_by_coverage_policy(docker_platforms, args.coverage_policy)
 
     target_raw = str(args.target).strip().lower()
     build_tool_filter = str(args.build_tool).strip().lower()
