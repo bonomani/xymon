@@ -241,16 +241,29 @@ def apply_filters(
     arch_to_platform = dict(ARCH_TO_DOCKER_PLATFORM)
     target_docker_platform = arch_to_platform.get(arch) if arch != "all" else None
 
+    # OSes where every known version is a rolling tag (e.g. archlinux, opensuse_tumbleweed).
+    # For these, rolling tags ARE the stable release — don't filter them out.
+    os_all_rolling: set[str] = {
+        platform_os
+        for platform_os in {info["platform_os"] for info in docker_platforms.values()}
+        if all(
+            is_rolling_version(i["platform_version"])
+            for i in docker_platforms.values()
+            if i["platform_os"] == platform_os
+        )
+    }
+
     all_ids = set(docker_platforms)
     result: dict[str, dict[str, str]] = {}
     for platform_id, info in docker_platforms.items():
         micro = is_micro_version(platform_id, all_ids)
         rolling = is_rolling_version(info["platform_version"])
+        rolling_only_os = info["platform_os"] in os_all_rolling
 
-        # Version scope filter
-        if version_scope == "primary" and (micro or rolling):
+        # Version scope filter — exempt rolling-only OSes (they have no versioned releases)
+        if version_scope == "primary" and (micro or (rolling and not rolling_only_os)):
             continue
-        if version_scope == "stable" and rolling:
+        if version_scope == "stable" and rolling and not rolling_only_os:
             continue
 
         # Arch filter
