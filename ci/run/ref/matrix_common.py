@@ -54,22 +54,6 @@ def infer_platform_os(family: str, platform_id=None) -> str:
     return require_non_empty_string(family, "Lane family")
 
 
-ORACLE_DISPLAY_NAME_MAP = {
-    "10": "Oracle Linux 10 arm64",
-    "10-slim": "Oracle Linux 10-slim amd64",
-    "9": "Oracle Linux 9 amd64",
-    "9-slim": "Oracle Linux 9-slim amd64",
-    "8": "Oracle Linux 8 amd64",
-    "8-slim": "Oracle Linux 8-slim amd64",
-}
-
-DOCKER_DISPLAY_NAME_OVERRIDES = {"oraclelinux": ORACLE_DISPLAY_NAME_MAP}
-
-
-def _lookup_docker_display_name_override(platform_os: str, tag: str) -> str | None:
-    return DOCKER_DISPLAY_NAME_OVERRIDES.get(platform_os, {}).get(tag)
-
-
 def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
     display_name = str(platform_entry.get("display_name") or "").strip()
     if display_name:
@@ -83,9 +67,6 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
     tag = image.partition(":")[2].strip()
 
     if runtime == "docker":
-        override = _lookup_docker_display_name_override(platform_os, tag)
-        if override:
-            return override
         docker_os_names = {
             "debian": "Debian",
             "ubuntu": "Ubuntu",
@@ -100,6 +81,9 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
             return f"{docker_os_names[platform_os]} {tag} amd64"
         if platform_os in {"amazonlinux", "rockylinux", "almalinux", "centos", "fedora"} and tag:
             return f"{docker_os_names[platform_os]} {tag}"
+        if platform_os == "oraclelinux" and tag:
+            arch = "arm64" if tag == "10" else "amd64"
+            return f"Oracle Linux {tag} {arch}"
         if platform_os == "opensuse_tumbleweed":
             return "openSUSE Tumbleweed"
         if platform_os == "opensuse_leap" and tag:
