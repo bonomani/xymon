@@ -426,10 +426,6 @@ def apply_platform_availability_overrides(
     if platform_id is None or platform_entry is None:
         return None
 
-    deps = platform_entry.get("deps")
-    if not isinstance(deps, dict):
-        return None
-
     platform_os = str(platform_entry.get("platform_os") or "").strip()
     if not platform_os:
         platform_os = infer_platform_os(family_entry["family"], platform_id)
