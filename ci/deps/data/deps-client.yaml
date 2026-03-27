@@ -1,0 +1,87 @@
+build:
+  gh-debian:
+    ubuntu_latest:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+  debian:
+    ubuntu_local:
+      packagers:
+        apt:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - OpenSSL
+            - PCRE
+            - TIRPC
+          tools:
+            optional:
+            - clang
+  bsd:
+    freebsd:
+      packagers:
+        pkg:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            base_system:
+            - OpenSSL
+            - TIRPC
+            - PYTHON
+          tools:
+            optional:
+            - clang
+    netbsd:
+      packagers:
+        pkg_add:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            base_system:
+            - OpenSSL
+            - TIRPC
+          tools:
+            optional:
+            - clang
+    openbsd:
+      packagers:
+        pkg_add:
+          libs:
+            mandatory:
+            - BUILD_TOOLS
+            - PCRE
+            base_system:
+            - OpenSSL
+            - TIRPC
+          tools:
+            optional:
+            - clang
+runtime:
+  libs:
+    optional:
+  tools:
+    mandatory:
+    optional:
+    - perl
+    - python
+version_notes:
+  linux:
+    ubuntu_latest:
+    - Package names are for Ubuntu-latest; adjust for other distros/versions.
+  bsd:
+    freebsd:
+    - Verify package names for your FreeBSD release (ports/pkg naming can change).
+    netbsd:
+    - Verify package names for your NetBSD release (pkg_add naming can change).
+    openbsd:
+    - Verify package names for your OpenBSD release (pkg_add naming can change).

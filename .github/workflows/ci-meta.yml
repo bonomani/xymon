@@ -1,0 +1,23 @@
+name: CI meta
+
+on:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  ci-full:
+    uses: ./.github/workflows/ci-full.yml
+
+  ci-quality:
+    uses: ./.github/workflows/ci-quality.yml
+
+  ci-validate:
+    uses: ./.github/workflows/ci-validate.yml
+
+  xymon-build:
+    uses: ./.github/workflows/xymon-build.yml
+
+  xymon-build-cmake:
+    uses: ./.github/workflows/xymon-build-cmake.yml

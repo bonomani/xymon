@@ -1,0 +1,100 @@
+CMake configuration
+===================
+
+This file documents the CMake-based configuration flow.
+
+Quick start (Makefile parity)
+----------------------------
+
+This is the default layout and matches the legacy Makefile install paths.
+
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (optional)
+--------------------------------
+
+Use a standard FHS layout via GNUInstallDirs.
+
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Note: When USE_GNUINSTALLDIRS=ON, legacy path defaults are not used.
+
+Source installs (recommended commands)
+-------------------------------------
+
+Legacy layout (classic Xymon paths):
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (standard FHS):
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Packaging preset (recommended for RPM/DEB/Ports)
+------------------------------------------------
+
+This preset uses GNUInstallDirs and /usr as the prefix. Packaging tools should
+set DESTDIR during install. Install-time chgrp is disabled by default.
+
+  cmake --preset packaging
+  cmake --build --preset packaging
+  cmake --install build-cmake-packaging --destdir <staging-dir>
+
+Interactive configure-style script
+----------------------------------
+
+You can use the helper script to answer the usual path questions:
+
+  ./cmake-local-setup.sh
+
+The setup wrapper calls:
+  ./cmake-local-build.sh
+  ./cmake-local-install.sh
+
+It will create or reuse build-cmake/ and run CMake with the selected values.
+Use --destdir to stage an install tree for packaging.
+Use --use-ci-configure with --preset and --variant to drive the CI preset flow
+without prompts (it implies --non-interactive).
+For local builds, --variant/--localclient map to XYMON_VARIANT/LOCALCLIENT.
+When --variant is set in local mode, ENABLE_SSL and ENABLE_LDAP default to ON
+unless you override them in advanced mode.
+Local mode defaults to --preset default. If you pass --preset, the preset's
+binaryDir is used as build dir
+unless you also pass --build-dir.
+Use --parallel N to control build parallelism (e.g., --parallel 1 to match CI).
+Use --use-ci-packages to run ci/deps/install-*-packages.sh before configuring.
+Local --use-ci-packages on Linux skips sudo if all required packages are already installed.
+
+Notes
+-----
+
+- Default (USE_GNUINSTALLDIRS=OFF) preserves legacy paths under /var/lib/xymon.
+- Setting USE_GNUINSTALLDIRS=ON switches to GNUInstallDirs mapping.
+- All values can still be overridden with -D options when invoking CMake.
+
+Packaging notes
+--------------
+
+- Packaging systems set DESTDIR. Do not hardcode a staging path in presets.
+- If install-time chgrp is undesired for packaging, set -DHTTPDGID_CHGRP=OFF.
+
+Runtime dependency notes (server/client)
+----------------------------------------
+
+Server runtime:
+  - Web server
+  - sendmail-compatible mailer
+  - fping
+  - mtr
+  - perl
+  - python
+  - Optional runtime libs: OpenSSL, OpenLDAP client, net-snmp, c-ares
+
+Client runtime:
+  - Optional tools: perl, python

@@ -1,0 +1,194 @@
+name: CI full coverage
+
+on:
+  workflow_dispatch:
+  workflow_call:
+
+permissions:
+  contents: read
+
+jobs:
+  linux_legacy:
+    name: linux_legacy / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        # Keep include-only entries so all variants expand reliably in GitHub UI.
+        include:
+          - name: server
+            variant: server
+            compiler: gcc
+            localclient: OFF
+          - name: server
+            variant: server
+            compiler: clang
+            localclient: OFF
+          - name: client CT=client
+            variant: client
+            compiler: gcc
+            localclient: ON
+          - name: client CT=client
+            variant: client
+            compiler: clang
+            localclient: ON
+          - name: client CT=server
+            variant: client
+            compiler: gcc
+            localclient: OFF
+          - name: client CT=server
+            variant: client
+            compiler: clang
+            localclient: OFF
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (Linux)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          VARIANT: ${{ matrix.variant }}
+          CI_COMPILER: ${{ matrix.compiler }}
+        run: |
+          bash ci/deps/install-gh-debian-packages.sh --os ubuntu --version latest
+
+      - name: Setup (Compiler)
+        run: |
+          bash ci/run/setup-compiler.sh ${{ matrix.compiler }}
+
+      - name: Configure (Legacy)
+        env:
+          LOCALCLIENT: ${{ matrix.localclient }}
+          ENABLESSL: ${{ matrix.variant == 'client' && 'n' || 'y' }}
+        run: |
+          bash ci/run/legacy-configure.sh ${{ matrix.variant }} debian
+
+      - name: Build (Legacy)
+        run: |
+          bash ci/run/legacy-build.sh
+
+  linux_cmake:
+    name: linux_cmake / PRESET=${{ matrix.preset }} / VARIANT=${{ matrix.name }} / COMPILER=${{ matrix.compiler }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - preset: default
+            variant: server
+            name: server
+            compiler: gcc
+          - preset: gnuinstall
+            variant: server
+            name: server
+            compiler: gcc
+          - preset: packaging
+            variant: server
+            name: server
+            compiler: gcc
+          - preset: default
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: gcc
+          - preset: gnuinstall
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: gcc
+          - preset: packaging
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: gcc
+          - preset: default
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: gcc
+          - preset: gnuinstall
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: gcc
+          - preset: packaging
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: gcc
+          - preset: default
+            variant: server
+            name: server
+            compiler: clang
+          - preset: gnuinstall
+            variant: server
+            name: server
+            compiler: clang
+          - preset: packaging
+            variant: server
+            name: server
+            compiler: clang
+          - preset: default
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: clang
+          - preset: gnuinstall
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: clang
+          - preset: packaging
+            variant: client
+            name: client CT=client
+            localclient: ON
+            compiler: clang
+          - preset: default
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: clang
+          - preset: gnuinstall
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: clang
+          - preset: packaging
+            variant: client
+            name: client CT=server
+            localclient: OFF
+            compiler: clang
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Setup (Linux)
+        env:
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          VARIANT: ${{ matrix.variant }}
+          CI_COMPILER: ${{ matrix.compiler }}
+        run: |
+          bash ci/deps/install-gh-debian-packages.sh --os ubuntu --version latest
+
+      - name: Setup (Compiler)
+        run: |
+          bash ci/run/setup-compiler.sh ${{ matrix.compiler }}
+
+      - name: Configure (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+          ENABLE_SSL: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_LDAP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          ENABLE_SNMP: ${{ matrix.variant == 'client' && 'OFF' || 'ON' }}
+          VARIANT: ${{ matrix.variant }}
+          LOCALCLIENT: ${{ matrix.localclient }}
+        run: |
+          bash ci/run/cmake-configure.sh
+
+      - name: Build (CMake)
+        env:
+          PRESET: ${{ matrix.preset }}
+        run: |
+          bash ci/run/cmake-build.sh

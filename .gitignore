@@ -15,3 +15,56 @@
 .*.swp
 .DS_store
 # Simulated Subversion default ignores end here
+
+# Local build artifacts
+/Makefile
+/build-cmake/
+/lib/build-cmake/
+/build.log
+/build_analysis.log
+/build/merge-*
+/build/rename*
+/build/setup-newfiles
+/build/test*
+/docs/xymon-tips.html
+/include/config.h
+/client/*.cfg
+/xymond/etcfiles/*.cfg
+/xymond/*.sh
+
+# Generated binaries/tools (explicit, safe)
+/client/xymon*
+/client/*fetch
+/client/*update
+/client/msgcache
+/client/orcaxymon
+/common/xymon*
+/lib/availability
+/lib/loadhosts
+/lib/locator
+/lib/md5
+/lib/rmd160
+/lib/sha1
+/lib/stackio
+/lib/test-endianness
+/lib/tree
+/web/*.cgi
+/web/cgiwrap
+/web/xymonpage
+/xymond/xymond*
+/xymond/combostatus
+/xymond/convertnk
+/xymond/rrdcachectl
+/xymond/trimhistory
+/xymond/xymonfetch
+/xymond/xymon-mailack
+/xymongen/xymongen
+/xymonnet/beastat
+/xymonnet/contest
+/xymonnet/xymonnet
+/xymonnet/xymonping
+/xymonnet/xymonnet-again.sh
+/xymonproxy/xymon*
+
+# Generated config files (keep ignored)
+/xymond/etcfiles/*.conf
