@@ -622,7 +622,7 @@ ci_deps_parse_alternative_candidates() {
   done
 }
 
-# Resolve alternative expressions (e.g. "pcre|pcre2") to a single package
+# Resolve alternative expressions (e.g. "ssl|openssl") to a single package
 # for list/check flows. This does not perform retries and is intentionally
 # deterministic for print/check output.
 ci_deps_resolve_package_alternatives() {

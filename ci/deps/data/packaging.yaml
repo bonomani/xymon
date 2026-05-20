@@ -20,7 +20,7 @@ packaging:
         - tar
         - libc-ares-dev
         - libldap2-dev
-        - libpcre3-dev
+        - libpcre2-dev
         - librrd-dev
         - libssl-dev
   rpm:
@@ -39,7 +39,7 @@ packaging:
         - rpm
         - libc-ares-dev
         - libldap2-dev
-        - libpcre3-dev
+        - libpcre2-dev
         - librrd-dev
         - libssl-dev
   arch:

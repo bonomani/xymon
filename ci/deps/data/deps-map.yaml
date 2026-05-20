@@ -44,15 +44,15 @@ map:
 
   PCRE:
     defaults:
-      apt: [libpcre3-dev|libpcre2-dev]
-      dnf: [pcre-devel|pcre2-devel]
-      yum: [pcre-devel|pcre2-devel]
-      zypper: [pcre-devel|pcre2-devel]
-      apk: [pcre-dev|pcre2-dev]
-      pacman: [pcre|pcre2]
-      brew: [pcre|pcre2]
-      pkg: [pcre|pcre2]
-      pkg_add: [pcre|pcre2]
+      apt: [libpcre2-dev]
+      dnf: [pcre2-devel]
+      yum: [pcre2-devel]
+      zypper: [pcre2-devel]
+      apk: [pcre2-dev]
+      pacman: [pcre2]
+      brew: [pcre2]
+      pkg: [pcre2]
+      pkg_add: [pcre2]
 
   RRD:
     defaults:
