@@ -533,13 +533,16 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 						graphsptr = strtok_r(graphbuf, ",", &graphs_saveptr);
 						while (graphsptr != NULL) {
 							xymongraph_t *graphbyname;
+							xymongraph_t graphoverride;
 
 							graphbyname = find_xymon_graph(graphsptr);
 							if (graphbyname == NULL) {
-								errprintf("No graph-definition for graph '%s' on %s/%s, skipping\n",
-									  graphsptr, hostname, service);
-								graphsptr = strtok_r(NULL, ",", &graphs_saveptr);
-								continue;
+								/* GRAPHS_<column> entries need not be present in global GRAPHS:
+								   synthesize a gdef from the column's own gdef and let the
+								   marker name drive the RRD basename. */
+								memcpy(&graphoverride, graph, sizeof(graphoverride));
+								graphoverride.xymonrrdname = graphsptr;
+								graphbyname = &graphoverride;
 							}
 
 							fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
