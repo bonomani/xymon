@@ -57,6 +57,7 @@ typedef struct strbuffer_t {
 
 /* Generates HTML */
 #include "../lib/acklog.h"
+#include "../lib/devmongraph.h"
 #include "../lib/eventlog.h"
 #include "../lib/headfoot.h"
 #include "../lib/htmllog.h"
