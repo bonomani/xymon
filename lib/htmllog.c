@@ -167,115 +167,7 @@ static void textwithcolorimg(char *msg, FILE *output)
 	} while (restofmsg);
 }
 
-/*
- * Defensive caps for the DEVMON marker parser. The marker name is used
- * downstream as a graph-definition key (gdef lookup) and as a URL
- * parameter (`service=...`) handed to showgraph.cgi. Hostile or
- * malformed payloads must not be able to produce odd HTML/URL output
- * or unbounded allocations.
- */
-#define DEVMON_GRAPH_NAMELEN_MAX 64
-#define DEVMON_GRAPH_MAX         256
-
-/*
- * A valid DEVMON marker name is a non-empty sequence of [A-Za-z0-9_-]
- * up to DEVMON_GRAPH_NAMELEN_MAX characters. This matches the names
- * used in devmon templates' `name:` option and what graph-definition
- * sections in graphs.cfg accept between `[` and `]`. Anything else is
- * rejected silently rather than fed downstream.
- */
-static int is_valid_devmon_graph_name(const char *name, int namelen)
-{
-	int i;
-
-	if ((namelen <= 0) || (namelen > DEVMON_GRAPH_NAMELEN_MAX)) return 0;
-	for (i = 0; i < namelen; i++) {
-		unsigned char c = (unsigned char)name[i];
-		if (!(isalnum(c) || (c == '_') || (c == '-'))) return 0;
-	}
-	return 1;
-}
-
-/*
- * Parse and store one graph name from a DEVMON marker line. Two forms
- * are recognized:
- *
- *   <!--DEVMON RRD: <graphname> <dir> <max>          (real RRD payload)
- *   <!--DEVMON GRAPH: <graphname> <source> <dir> <max>
- *                                                    (alias / extra view
- *                                                     of an existing RRD)
- *
- * For both forms the first whitespace-delimited token after the prefix is
- * the graph-definition name to render. The remaining tokens are read by
- * other consumers (xymond/rrd/do_devmon.c for the RRD form, optional
- * documentation/validation for the GRAPH form) but ignored here.
- *
- * Returns 0 on success/no-op, -1 on OOM.
- */
-static int add_devmon_graph(char ***graphs, int *graphcount, int *graphsize, char *line)
-{
-	const char *marker_rrd   = "<!--DEVMON RRD: ";
-	const char *marker_graph = "<!--DEVMON GRAPH: ";
-	int markerlen;
-	char *name, *end;
-	int namelen, i;
-	char **tmpgraphs;
-	char *namecopy;
-
-	if (line == NULL) return 0;
-	if (strncmp(line, marker_rrd, strlen(marker_rrd)) == 0) {
-		markerlen = strlen(marker_rrd);
-	}
-	else if (strncmp(line, marker_graph, strlen(marker_graph)) == 0) {
-		markerlen = strlen(marker_graph);
-	}
-	else {
-		return 0;
-	}
-
-	name = line + markerlen;
-	while (*name && isspace((int)((unsigned char)*name))) name++;
-	end = name;
-	while (*end && !isspace((int)((unsigned char)*end))) end++;
-	namelen = (end - name);
-
-	if (!is_valid_devmon_graph_name(name, namelen)) return 0;
-
-	for (i=0; (i < *graphcount); i++) {
-		if ((strlen((*graphs)[i]) == namelen) && (strncmp((*graphs)[i], name, namelen) == 0)) return 0;
-	}
-
-	if (*graphcount >= DEVMON_GRAPH_MAX) return 0;
-
-	if (*graphcount >= *graphsize) {
-		*graphsize += 4;
-		tmpgraphs = (char **)realloc(*graphs, (*graphsize) * sizeof(char *));
-		if (tmpgraphs == NULL) return -1;
-		*graphs = tmpgraphs;
-	}
-
-	namecopy = (char *)malloc(namelen + 1);
-	if (namecopy == NULL) return -1;
-	strncpy(namecopy, name, namelen);
-	namecopy[namelen] = '\0';
-
-	(*graphs)[(*graphcount)++] = namecopy;
-	return 0;
-}
-
-static void free_devmon_graphs(char **graphs, int graphcount)
-{
-	int i;
-
-	if (graphs == NULL) return;
-	for (i=0; (i < graphcount); i++) {
-		if (graphs[i]) xfree(graphs[i]);
-	}
-	xfree(graphs);
-}
-
-
-void generate_html_log(char *hostname, char *displayname, char *service, char *ip, 
+void generate_html_log(char *hostname, char *displayname, char *service, char *ip,
 		       int color, int flapping, char *sender, char *flags, 
 		       time_t logtime, char *timesincechange, 
 		       char *firstline, char *restofmsg, char *modifiers,
@@ -295,10 +187,10 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 	SBUF_DEFINE(graphs);
 	char *graphsenv;
 	char *graphsptr;
-	char **devmongraphs = NULL;
-	int devmongraphcount = 0, devmongraphsize = 0;
-	int devmongraphoom = 0;
+	devmongraphs_t devmongraphs;
 	time_t now = getcurrenttime(NULL);
+
+	devmongraphs_init(&devmongraphs);
 
 	if (graphtime == 0) {
 		if (getenv("TRENDSECONDS")) graphtime = atoi(getenv("TRENDSECONDS"));
@@ -550,27 +442,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			 * column triggered the render: any service whose status message
 			 * carries them gets the corresponding graphs.
 			 */
-			{
-				char *p = restofmsg;
-
-				do {
-					while ((*p) && (isspace((int)*p) || iscntrl((int)*p))) p++;
-					if (*p) {
-						if ((strlen(p) > 10) && (*p == '<') && !strncmp(p, "<!--DEVMON", 10)) {
-							may_have_rrd = 1;
-							if (!devmongraphoom &&
-							    (add_devmon_graph(&devmongraphs, &devmongraphcount, &devmongraphsize, p) != 0)) {
-								devmongraphoom = 1;
-								free_devmon_graphs(devmongraphs, devmongraphcount);
-								devmongraphs = NULL;
-								devmongraphcount = devmongraphsize = 0;
-							}
-						}
-
-						p = strchr(p, '\n');
-					}
-				} while (p && (*p));
-			}
+			if (devmongraphs_scan(&devmongraphs, restofmsg) > 0) may_have_rrd = 1;
 		}
 		else {
 			SBUF_DEFINE(multikey);
@@ -580,7 +452,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			if (multigraphs == NULL) multigraphs = ",disk,inode,qtree,quotas,snapshot,TblSpace,if_load,";
 
 			/* Not all devmon statuses have graphs, so try to avoid generating graph links unless there is one */
-			if (strncmp(rrd->xymonrrdname,"devmon",6) == 0) may_have_rrd=0;
+			if (devmongraphs_is_devmon_rrdname(rrd->xymonrrdname)) may_have_rrd = 0;
 
 			/* 
 			 * Some reports (disk) use the number of lines as a rough measure for how many
@@ -616,19 +488,13 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 							if (!netwarediskreport) linecount++;
 						}
 
-							if (strlen(p) > 10 &&  *p == '<' ) {
-								/* Check if this is a devmon RRD header, reset the linecount to -2, as we will see a DS line and a Devmon banner*/
-								if(!strncmp(p, "<!--DEVMON",10)) {
-									linecount = -2;
-									may_have_rrd=1;
-									if (!devmongraphoom &&
-									    (add_devmon_graph(&devmongraphs, &devmongraphcount, &devmongraphsize, p) != 0)) {
-										devmongraphoom = 1;
-										free_devmon_graphs(devmongraphs, devmongraphcount);
-										devmongraphs = NULL;
-										devmongraphcount = devmongraphsize = 0;
-									}
-								}
+							if (devmongraphs_is_marker_line(p)) {
+								/* DEVMON marker line. Reset the linecount because
+								   the bloc contains a DS line and a banner that
+								   aren't real data lines. */
+								linecount = -2;
+								may_have_rrd = 1;
+								devmongraphs_add_line(&devmongraphs, p);
 							}
 
 						/* Then skip forward to the EOLN */
@@ -680,48 +546,30 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 						xfree(graphbuf);
 					}
 				}
-				else if (devmongraphcount > 0) {
-					int i;
+				else if (devmongraphs_count(&devmongraphs) > 0) {
+					devmongraph_render_ctx_t ctx;
 
-					for (i=0; (i < devmongraphcount); i++) {
-						xymongraph_t *graphbyname;
+					ctx.output       = output;
+					ctx.hostname     = hostname;
+					ctx.displayname  = displayname;
+					ctx.service      = service;
+					ctx.color        = color;
+					ctx.linecount    = linecount;
+					ctx.locatorbased = locatorbased;
+					ctx.starttime    = now - graphtime;
+					ctx.endtime      = now;
+					ctx.fallback     = graph;
 
-						/*
-						 * Prefer a graph-definition matching the marker name
-						 * exactly (e.g. [cpu_dm] from devmon-graph.cfg). Fall
-						 * back to the column's mapped gdef (resolved earlier
-						 * via TEST2RRD, typically the "devmon" catch-all)
-						 * so that setups without per-marker definitions keep
-						 * rendering instead of producing empty graphs.
-						 * Log the fallback at debug level so an admin can
-						 * spot typos that would otherwise degrade silently.
-						 */
-						graphbyname = find_xymon_graph(devmongraphs[i]);
-						if (graphbyname == NULL) {
-							dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
-								  "falling back to column gdef\n",
-								  devmongraphs[i], hostname, service);
-							graphbyname = graph;
-						}
-						if (graphbyname == NULL) {
-							errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
-								  devmongraphs[i], hostname, service);
-							continue;
-						}
-
-						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, devmongraphs[i], color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-					}
+					devmongraphs_render(&devmongraphs, &ctx);
 				}
 				else {
-					if (devmongraphoom) {
+					if (devmongraphs_oom(&devmongraphs)) {
 						errprintf("Out of memory while collecting DEVMON graph names for %s/%s, falling back to legacy graph\n",
 							  hostname, service);
 					}
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 				}
-				free_devmon_graphs(devmongraphs, devmongraphcount);
-				devmongraphs = NULL;
-				devmongraphcount = 0;
+				devmongraphs_free(&devmongraphs);
 				xfree(graphs);
 			}
 	}
