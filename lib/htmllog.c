@@ -168,20 +168,41 @@ static void textwithcolorimg(char *msg, FILE *output)
 }
 
 /*
- * Parse and store one graph name from a DEVMON marker line:
- *   <!--DEVMON RRD: <graphname> <dir> <max>
+ * Parse and store one graph name from a DEVMON marker line. Two forms
+ * are recognized:
+ *
+ *   <!--DEVMON RRD: <graphname> <dir> <max>          (real RRD payload)
+ *   <!--DEVMON GRAPH: <graphname> <source> <dir> <max>
+ *                                                    (alias / extra view
+ *                                                     of an existing RRD)
+ *
+ * For both forms the first whitespace-delimited token after the prefix is
+ * the graph-definition name to render. The remaining tokens are read by
+ * other consumers (xymond/rrd/do_devmon.c for the RRD form, optional
+ * documentation/validation for the GRAPH form) but ignored here.
+ *
  * Returns 0 on success/no-op, -1 on OOM.
  */
 static int add_devmon_graph(char ***graphs, int *graphcount, int *graphsize, char *line)
 {
-	const char *marker = "<!--DEVMON RRD: ";
-	int markerlen = strlen(marker);
+	const char *marker_rrd   = "<!--DEVMON RRD: ";
+	const char *marker_graph = "<!--DEVMON GRAPH: ";
+	int markerlen;
 	char *name, *end;
 	int namelen, i;
 	char **tmpgraphs;
 	char *namecopy;
 
-	if ((line == NULL) || (strncmp(line, marker, markerlen) != 0)) return 0;
+	if (line == NULL) return 0;
+	if (strncmp(line, marker_rrd, strlen(marker_rrd)) == 0) {
+		markerlen = strlen(marker_rrd);
+	}
+	else if (strncmp(line, marker_graph, strlen(marker_graph)) == 0) {
+		markerlen = strlen(marker_graph);
+	}
+	else {
+		return 0;
+	}
 
 	name = line + markerlen;
 	while (*name && isspace((int)((unsigned char)*name))) name++;
