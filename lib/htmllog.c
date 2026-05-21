@@ -167,6 +167,60 @@ static void textwithcolorimg(char *msg, FILE *output)
 	} while (restofmsg);
 }
 
+/*
+ * Parse and store one graph name from a DEVMON marker line:
+ *   <!--DEVMON RRD: <graphname> <dir> <max>
+ * Returns 0 on success/no-op, -1 on OOM.
+ */
+static int add_devmon_graph(char ***graphs, int *graphcount, int *graphsize, char *line)
+{
+	const char *marker = "<!--DEVMON RRD: ";
+	int markerlen = strlen(marker);
+	char *name, *end;
+	int namelen, i;
+	char **tmpgraphs;
+	char *namecopy;
+
+	if ((line == NULL) || (strncmp(line, marker, markerlen) != 0)) return 0;
+
+	name = line + markerlen;
+	while (*name && isspace((int)((unsigned char)*name))) name++;
+	end = name;
+	while (*end && !isspace((int)((unsigned char)*end))) end++;
+	namelen = (end - name);
+	if (namelen <= 0) return 0;
+
+	for (i=0; (i < *graphcount); i++) {
+		if ((strlen((*graphs)[i]) == namelen) && (strncmp((*graphs)[i], name, namelen) == 0)) return 0;
+	}
+
+	if (*graphcount >= *graphsize) {
+		*graphsize += 4;
+		tmpgraphs = (char **)realloc(*graphs, (*graphsize) * sizeof(char *));
+		if (tmpgraphs == NULL) return -1;
+		*graphs = tmpgraphs;
+	}
+
+	namecopy = (char *)malloc(namelen + 1);
+	if (namecopy == NULL) return -1;
+	strncpy(namecopy, name, namelen);
+	namecopy[namelen] = '\0';
+
+	(*graphs)[(*graphcount)++] = namecopy;
+	return 0;
+}
+
+static void free_devmon_graphs(char **graphs, int graphcount)
+{
+	int i;
+
+	if (graphs == NULL) return;
+	for (i=0; (i < graphcount); i++) {
+		if (graphs[i]) xfree(graphs[i]);
+	}
+	xfree(graphs);
+}
+
 
 void generate_html_log(char *hostname, char *displayname, char *service, char *ip, 
 		       int color, int flapping, char *sender, char *flags, 
@@ -188,6 +242,9 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 	SBUF_DEFINE(graphs);
 	char *graphsenv;
 	char *graphsptr;
+	char **devmongraphs = NULL;
+	int devmongraphcount = 0, devmongraphsize = 0;
+	int devmongraphoom = 0;
 	time_t now = getcurrenttime(NULL);
 
 	if (graphtime == 0) {
@@ -434,6 +491,33 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 		char *lcstr = strstr(restofmsg, "<!-- linecount=");
 		if (lcstr) {
 			linecount=atoi(lcstr+15);
+
+			/*
+			 * Scan the payload for DEVMON graph markers regardless of which
+			 * column triggered the render: any service whose status message
+			 * carries them gets the corresponding graphs.
+			 */
+			{
+				char *p = restofmsg;
+
+				do {
+					while ((*p) && (isspace((int)*p) || iscntrl((int)*p))) p++;
+					if (*p) {
+						if ((strlen(p) > 10) && (*p == '<') && !strncmp(p, "<!--DEVMON", 10)) {
+							may_have_rrd = 1;
+							if (!devmongraphoom &&
+							    (add_devmon_graph(&devmongraphs, &devmongraphcount, &devmongraphsize, p) != 0)) {
+								devmongraphoom = 1;
+								free_devmon_graphs(devmongraphs, devmongraphcount);
+								devmongraphs = NULL;
+								devmongraphcount = devmongraphsize = 0;
+							}
+						}
+
+						p = strchr(p, '\n');
+					}
+				} while (p && (*p));
+			}
 		}
 		else {
 			SBUF_DEFINE(multikey);
@@ -479,13 +563,20 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 							if (!netwarediskreport) linecount++;
 						}
 
-						if (strlen(p) > 10 &&  *p == '<' ) {
-							/* Check if this is a devmon RRD header, reset the linecount to -2, as we will see a DS line and a Devmon banner*/
-							if(!strncmp(p, "<!--DEVMON",10)) {
-								linecount = -2;
-								may_have_rrd=1;
+							if (strlen(p) > 10 &&  *p == '<' ) {
+								/* Check if this is a devmon RRD header, reset the linecount to -2, as we will see a DS line and a Devmon banner*/
+								if(!strncmp(p, "<!--DEVMON",10)) {
+									linecount = -2;
+									may_have_rrd=1;
+									if (!devmongraphoom &&
+									    (add_devmon_graph(&devmongraphs, &devmongraphcount, &devmongraphsize, p) != 0)) {
+										devmongraphoom = 1;
+										free_devmon_graphs(devmongraphs, devmongraphcount);
+										devmongraphs = NULL;
+										devmongraphcount = devmongraphsize = 0;
+									}
+								}
 							}
-						}
 
 						/* Then skip forward to the EOLN */
 						p = strchr(p, '\n');
@@ -500,32 +591,75 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			xfree(multikey);
 		}
 
-		if (may_have_rrd) {
-			fprintf(output, "<!-- linecount=%d -->\n", linecount);
-			fprintf(output, "<a name=\"begingraph\">&nbsp;</a>\n");
+			if (may_have_rrd) {
+				fprintf(output, "<!-- linecount=%d -->\n", linecount);
+				fprintf(output, "<a name=\"begingraph\">&nbsp;</a>\n");
 
-			/* Get the GRAPHS_* environment setting */
-			SBUF_MALLOC(graphs, 7 + strlen(service) + 1);
-			snprintf(graphs, graphs_buflen, "GRAPHS_%s", service);
-			graphsenv=getenv(graphs);
-			if (graphsenv) {
-				fprintf(output, "<!-- GRAPHS_%s: %s -->\n", service, graphsenv);
-				/* check for strtokens */
-				graphsptr = strtok(graphsenv,",");
-				while (graphsptr != NULL) {
-					// fprintf(output, "<!-- found: %s -->\n", graphsptr);
-					graph->xymonrrdname = strdup(graphsptr);
-					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-					// next token
-					graphsptr = strtok(NULL,",");
+				/* Get the GRAPHS_* environment setting */
+				SBUF_MALLOC(graphs, 7 + strlen(service) + 1);
+				snprintf(graphs, graphs_buflen, "GRAPHS_%s", service);
+				graphsenv=getenv(graphs);
+				if (graphsenv) {
+					char *graphbuf = strdup(graphsenv);
+
+					fprintf(output, "<!-- GRAPHS_%s: %s -->\n", service, graphsenv);
+					if (graphbuf) {
+						/* check for strtokens */
+						graphsptr = strtok(graphbuf, ",");
+						while (graphsptr != NULL) {
+							xymongraph_t *graphbyname;
+
+							graphbyname = find_xymon_graph(graphsptr);
+							if (graphbyname == NULL) {
+								errprintf("No graph-definition for graph '%s' on %s/%s, skipping\n",
+									  graphsptr, hostname, service);
+								graphsptr = strtok(NULL, ",");
+								continue;
+							}
+
+							fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+							graphsptr = strtok(NULL, ",");
+						}
+						xfree(graphbuf);
+					}
 				}
+				else if (devmongraphcount > 0) {
+					int i;
 
+					for (i=0; (i < devmongraphcount); i++) {
+						xymongraph_t *graphbyname;
+
+						/*
+						 * Prefer a graph-definition matching the marker name
+						 * exactly (e.g. [cpu_dm] from devmon-graph.cfg). Fall
+						 * back to the column's mapped gdef (resolved earlier
+						 * via TEST2RRD, typically the "devmon" catch-all)
+						 * so that setups without per-marker definitions keep
+						 * rendering instead of producing empty graphs.
+						 */
+						graphbyname = find_xymon_graph(devmongraphs[i]);
+						if (graphbyname == NULL) graphbyname = graph;
+						if (graphbyname == NULL) {
+							errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
+								  devmongraphs[i], hostname, service);
+							continue;
+						}
+
+						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, devmongraphs[i], color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+					}
+				}
+				else {
+					if (devmongraphoom) {
+						errprintf("Out of memory while collecting DEVMON graph names for %s/%s, falling back to legacy graph\n",
+							  hostname, service);
+					}
+					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+				}
+				free_devmon_graphs(devmongraphs, devmongraphcount);
+				devmongraphs = NULL;
+				devmongraphcount = 0;
+				xfree(graphs);
 			}
-			else {
-				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-			}
-			xfree(graphs);
-		}
 	}
 
 	if (histlocation == HIST_BOTTOM) {
@@ -676,4 +810,3 @@ char *hostnamehtml(char *hostname, char *defaultlink, int usetooltip)
 #endif  // __GNUC__
 	return result;
 }
-
