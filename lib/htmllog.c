@@ -168,6 +168,35 @@ static void textwithcolorimg(char *msg, FILE *output)
 }
 
 /*
+ * Defensive caps for the DEVMON marker parser. The marker name is used
+ * downstream as a graph-definition key (gdef lookup) and as a URL
+ * parameter (`service=...`) handed to showgraph.cgi. Hostile or
+ * malformed payloads must not be able to produce odd HTML/URL output
+ * or unbounded allocations.
+ */
+#define DEVMON_GRAPH_NAMELEN_MAX 64
+#define DEVMON_GRAPH_MAX         256
+
+/*
+ * A valid DEVMON marker name is a non-empty sequence of [A-Za-z0-9_-]
+ * up to DEVMON_GRAPH_NAMELEN_MAX characters. This matches the names
+ * used in devmon templates' `name:` option and what graph-definition
+ * sections in graphs.cfg accept between `[` and `]`. Anything else is
+ * rejected silently rather than fed downstream.
+ */
+static int is_valid_devmon_graph_name(const char *name, int namelen)
+{
+	int i;
+
+	if ((namelen <= 0) || (namelen > DEVMON_GRAPH_NAMELEN_MAX)) return 0;
+	for (i = 0; i < namelen; i++) {
+		unsigned char c = (unsigned char)name[i];
+		if (!(isalnum(c) || (c == '_') || (c == '-'))) return 0;
+	}
+	return 1;
+}
+
+/*
  * Parse and store one graph name from a DEVMON marker line. Two forms
  * are recognized:
  *
@@ -209,11 +238,14 @@ static int add_devmon_graph(char ***graphs, int *graphcount, int *graphsize, cha
 	end = name;
 	while (*end && !isspace((int)((unsigned char)*end))) end++;
 	namelen = (end - name);
-	if (namelen <= 0) return 0;
+
+	if (!is_valid_devmon_graph_name(name, namelen)) return 0;
 
 	for (i=0; (i < *graphcount); i++) {
 		if ((strlen((*graphs)[i]) == namelen) && (strncmp((*graphs)[i], name, namelen) == 0)) return 0;
 	}
+
+	if (*graphcount >= DEVMON_GRAPH_MAX) return 0;
 
 	if (*graphcount >= *graphsize) {
 		*graphsize += 4;
@@ -625,8 +657,12 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 
 					fprintf(output, "<!-- GRAPHS_%s: %s -->\n", service, graphsenv);
 					if (graphbuf) {
-						/* check for strtokens */
-						graphsptr = strtok(graphbuf, ",");
+						char *graphs_saveptr = NULL;
+
+						/* Use strtok_r so the per-comma walk keeps its own state
+						   and cannot be clobbered by other strtok-based parsers
+						   reached via find_xymon_graph or xymon_graph_data. */
+						graphsptr = strtok_r(graphbuf, ",", &graphs_saveptr);
 						while (graphsptr != NULL) {
 							xymongraph_t *graphbyname;
 
@@ -634,12 +670,12 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 							if (graphbyname == NULL) {
 								errprintf("No graph-definition for graph '%s' on %s/%s, skipping\n",
 									  graphsptr, hostname, service);
-								graphsptr = strtok(NULL, ",");
+								graphsptr = strtok_r(NULL, ",", &graphs_saveptr);
 								continue;
 							}
 
 							fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-							graphsptr = strtok(NULL, ",");
+							graphsptr = strtok_r(NULL, ",", &graphs_saveptr);
 						}
 						xfree(graphbuf);
 					}
@@ -657,9 +693,16 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 						 * via TEST2RRD, typically the "devmon" catch-all)
 						 * so that setups without per-marker definitions keep
 						 * rendering instead of producing empty graphs.
+						 * Log the fallback at debug level so an admin can
+						 * spot typos that would otherwise degrade silently.
 						 */
 						graphbyname = find_xymon_graph(devmongraphs[i]);
-						if (graphbyname == NULL) graphbyname = graph;
+						if (graphbyname == NULL) {
+							dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
+								  "falling back to column gdef\n",
+								  devmongraphs[i], hostname, service);
+							graphbyname = graph;
+						}
 						if (graphbyname == NULL) {
 							errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
 								  devmongraphs[i], hostname, service);
