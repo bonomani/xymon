@@ -493,10 +493,11 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			linecount=atoi(lcstr+15);
 
 			/*
-			 * Keep DEVMON graph-name discovery in the same message parse path.
-			 * If linecount is already present, only parse DEVMON markers.
+			 * Scan the payload for DEVMON graph markers regardless of which
+			 * column triggered the render: any service whose status message
+			 * carries them gets the corresponding graphs.
 			 */
-			if (strncmp(rrd->xymonrrdname, "devmon", 6) == 0) {
+			{
 				char *p = restofmsg;
 
 				do {
@@ -622,35 +623,36 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 						xfree(graphbuf);
 					}
 				}
-				else if (strncmp(rrd->xymonrrdname, "devmon", 6) == 0) {
+				else if (devmongraphcount > 0) {
 					int i;
 
-					if (devmongraphoom) {
-						errprintf("Out of memory while collecting DEVMON graph names for %s/%s, falling back to legacy graph\n",
-							  hostname, service);
-						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-					}
-					else {
-						for (i=0; (i < devmongraphcount); i++) {
-							xymongraph_t *graphbyname;
+					for (i=0; (i < devmongraphcount); i++) {
+						xymongraph_t *graphbyname;
 
-							graphbyname = find_xymon_graph(devmongraphs[i]);
-							if (graphbyname == NULL) {
-								errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
-									  devmongraphs[i], hostname, service);
-								continue;
-							}
-
-							fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, devmongraphs[i], color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+						/*
+						 * Prefer a graph-definition matching the marker name
+						 * exactly (e.g. [cpu_dm] from devmon-graph.cfg). Fall
+						 * back to the column's mapped gdef (resolved earlier
+						 * via TEST2RRD, typically the "devmon" catch-all)
+						 * so that setups without per-marker definitions keep
+						 * rendering instead of producing empty graphs.
+						 */
+						graphbyname = find_xymon_graph(devmongraphs[i]);
+						if (graphbyname == NULL) graphbyname = graph;
+						if (graphbyname == NULL) {
+							errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
+								  devmongraphs[i], hostname, service);
+							continue;
 						}
 
-						/* Keep old default behavior if no DEVMON graph markers were found. */
-						if (devmongraphcount == 0) {
-							fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-						}
+						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, devmongraphs[i], color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 					}
 				}
 				else {
+					if (devmongraphoom) {
+						errprintf("Out of memory while collecting DEVMON graph names for %s/%s, falling back to legacy graph\n",
+							  hostname, service);
+					}
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 				}
 				free_devmon_graphs(devmongraphs, devmongraphcount);
