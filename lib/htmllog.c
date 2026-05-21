@@ -442,21 +442,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			 * column triggered the render: any service whose status message
 			 * carries them gets the corresponding graphs.
 			 */
-			{
-				char *p = restofmsg;
-
-				do {
-					while ((*p) && (isspace((int)*p) || iscntrl((int)*p))) p++;
-					if (*p) {
-						if ((strlen(p) > 10) && (*p == '<') && !strncmp(p, "<!--DEVMON", 10)) {
-							may_have_rrd = 1;
-							devmongraphs_add_line(&devmongraphs, p);
-						}
-
-						p = strchr(p, '\n');
-					}
-				} while (p && (*p));
-			}
+			if (devmongraphs_scan(&devmongraphs, restofmsg) > 0) may_have_rrd = 1;
 		}
 		else {
 			SBUF_DEFINE(multikey);
@@ -466,7 +452,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			if (multigraphs == NULL) multigraphs = ",disk,inode,qtree,quotas,snapshot,TblSpace,if_load,";
 
 			/* Not all devmon statuses have graphs, so try to avoid generating graph links unless there is one */
-			if (strncmp(rrd->xymonrrdname,"devmon",6) == 0) may_have_rrd=0;
+			if (devmongraphs_is_devmon_rrdname(rrd->xymonrrdname)) may_have_rrd = 0;
 
 			/* 
 			 * Some reports (disk) use the number of lines as a rough measure for how many
@@ -502,13 +488,13 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 							if (!netwarediskreport) linecount++;
 						}
 
-							if (strlen(p) > 10 &&  *p == '<' ) {
-								/* Check if this is a devmon RRD header, reset the linecount to -2, as we will see a DS line and a Devmon banner*/
-								if(!strncmp(p, "<!--DEVMON",10)) {
-									linecount = -2;
-									may_have_rrd=1;
-									devmongraphs_add_line(&devmongraphs, p);
-								}
+							if (devmongraphs_is_marker_line(p)) {
+								/* DEVMON marker line. Reset the linecount because
+								   the bloc contains a DS line and a banner that
+								   aren't real data lines. */
+								linecount = -2;
+								may_have_rrd = 1;
+								devmongraphs_add_line(&devmongraphs, p);
 							}
 
 						/* Then skip forward to the EOLN */
@@ -561,38 +547,20 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					}
 				}
 				else if (devmongraphs_count(&devmongraphs) > 0) {
-					int i;
-					int n = devmongraphs_count(&devmongraphs);
+					devmongraph_render_ctx_t ctx;
 
-					for (i = 0; i < n; i++) {
-						const char *graphname = devmongraphs_name(&devmongraphs, i);
-						xymongraph_t *graphbyname;
+					ctx.output       = output;
+					ctx.hostname     = hostname;
+					ctx.displayname  = displayname;
+					ctx.service      = service;
+					ctx.color        = color;
+					ctx.linecount    = linecount;
+					ctx.locatorbased = locatorbased;
+					ctx.starttime    = now - graphtime;
+					ctx.endtime      = now;
+					ctx.fallback     = graph;
 
-						/*
-						 * Prefer a graph-definition matching the marker name
-						 * exactly (e.g. [cpu_dm] from devmon-graph.cfg). Fall
-						 * back to the column's mapped gdef (resolved earlier
-						 * via TEST2RRD, typically the "devmon" catch-all)
-						 * so that setups without per-marker definitions keep
-						 * rendering instead of producing empty graphs.
-						 * Log the fallback at debug level so an admin can
-						 * spot typos that would otherwise degrade silently.
-						 */
-						graphbyname = find_xymon_graph((char *)graphname);
-						if (graphbyname == NULL) {
-							dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
-								  "falling back to column gdef\n",
-								  graphname, hostname, service);
-							graphbyname = graph;
-						}
-						if (graphbyname == NULL) {
-							errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
-								  graphname, hostname, service);
-							continue;
-						}
-
-						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, (char *)graphname, color, graphbyname, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
-					}
+					devmongraphs_render(&devmongraphs, &ctx);
 				}
 				else {
 					if (devmongraphs_oom(&devmongraphs)) {

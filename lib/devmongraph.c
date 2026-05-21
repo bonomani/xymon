@@ -49,6 +49,19 @@ void devmongraphs_init(devmongraphs_t *g)
 	g->oom = 0;
 }
 
+int devmongraphs_is_marker_line(const char *line)
+{
+	if (line == NULL) return 0;
+	return ((strlen(line) > 10) && (*line == '<') &&
+	        (strncmp(line, "<!--DEVMON", 10) == 0));
+}
+
+int devmongraphs_is_devmon_rrdname(const char *rrdname)
+{
+	if (rrdname == NULL) return 0;
+	return (strncmp(rrdname, "devmon", 6) == 0);
+}
+
 int devmongraphs_add_line(devmongraphs_t *g, const char *line)
 {
 	const char *marker_rrd   = "<!--DEVMON RRD: ";
@@ -147,4 +160,72 @@ void devmongraphs_free(devmongraphs_t *g)
 	g->count = 0;
 	g->allocated = 0;
 	g->oom = 0;
+}
+
+int devmongraphs_scan(devmongraphs_t *g, const char *text)
+{
+	const char *p;
+	int added = 0;
+
+	if ((g == NULL) || (text == NULL)) return 0;
+
+	p = text;
+	while (*p) {
+		/* Skip leading whitespace / control bytes on this line. */
+		while (*p && (isspace((unsigned char)*p) || iscntrl((unsigned char)*p))) p++;
+		if (*p) {
+			if (devmongraphs_is_marker_line(p)) {
+				int r = devmongraphs_add_line(g, p);
+				if (r < 0) return -1;
+				if (r > 0) added++;
+			}
+			/* Skip to end of line. */
+			while (*p && (*p != '\n')) p++;
+		}
+		if (*p == '\n') p++;
+	}
+	return added;
+}
+
+void devmongraphs_render(const devmongraphs_t *g,
+                         const devmongraph_render_ctx_t *ctx)
+{
+	int i, n;
+
+	if ((g == NULL) || (ctx == NULL) || (ctx->output == NULL)) return;
+
+	n = devmongraphs_count(g);
+	for (i = 0; i < n; i++) {
+		const char *graphname = devmongraphs_name(g, i);
+		xymongraph_t *graphbyname;
+
+		/*
+		 * Prefer a graph-definition matching the marker name exactly
+		 * (e.g. [cpu_dm] from devmon-graphs.cfg). Fall back to the
+		 * column's mapped gdef (resolved earlier via TEST2RRD,
+		 * typically the "devmon" catch-all) so setups without
+		 * per-marker definitions keep rendering instead of producing
+		 * empty graphs. Log the fallback at debug level so an admin
+		 * can spot typos that would otherwise degrade silently.
+		 */
+		graphbyname = find_xymon_graph((char *)graphname);
+		if (graphbyname == NULL) {
+			dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
+			          "falling back to column gdef\n",
+			          graphname, ctx->hostname, ctx->service);
+			graphbyname = ctx->fallback;
+		}
+		if (graphbyname == NULL) {
+			errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
+			          graphname, ctx->hostname, ctx->service);
+			continue;
+		}
+
+		fprintf(ctx->output, "%s\n",
+		        xymon_graph_data(ctx->hostname, ctx->displayname,
+		                         (char *)graphname, ctx->color, graphbyname,
+		                         ctx->linecount, HG_WITHOUT_STALE_RRDS,
+		                         HG_PLAIN_LINK, ctx->locatorbased,
+		                         ctx->starttime, ctx->endtime));
+	}
 }
