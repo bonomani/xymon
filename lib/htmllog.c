@@ -479,7 +479,18 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					/* First skip all whitespace and blank lines */
 					while ((*p) && (isspace((int)*p) || iscntrl((int)*p))) p++;
 					if (*p) {
-						if ((*p == '&') && (parse_color(p+1) != -1)) {
+						if (devmongraphs_is_marker_line(p)) {
+							int added;
+
+							/* Only RRD markers start a data block with a DS line and banner. */
+							if (devmongraphs_is_rrd_marker_line(p)) {
+								linecount = -2;
+								may_have_rrd = 1;
+							}
+							added = devmongraphs_add_line(&devmongraphs, p);
+							if (added > 0) may_have_rrd = 1;
+						}
+						else if ((*p == '&') && (parse_color(p+1) != -1)) {
 							/* A "warninglight" line - skip it, unless its from a Netware box */
 							if (netwarediskreport) linecount++;
 						}
@@ -487,15 +498,6 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 							/* We found something that is not blank, so one more line */
 							if (!netwarediskreport) linecount++;
 						}
-
-							if (devmongraphs_is_marker_line(p)) {
-								/* DEVMON marker line. Reset the linecount because
-								   the bloc contains a DS line and a banner that
-								   aren't real data lines. */
-								linecount = -2;
-								may_have_rrd = 1;
-								devmongraphs_add_line(&devmongraphs, p);
-							}
 
 						/* Then skip forward to the EOLN */
 						p = strchr(p, '\n');

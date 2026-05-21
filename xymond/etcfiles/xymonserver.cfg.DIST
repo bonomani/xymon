@@ -165,6 +165,10 @@ RRDWIDTH="576"		# The RRD's contain 576 data points, so this is a good value
 # If present, overrides the column RRD value above for display purposes, so be sure
 # to include the that, if desired
 # eg, GRAPHS_cpu="la,vmstat1"
+#
+# Payloads carrying <!--DEVMON RRD: ...--> marker blocks are routed to the
+# Devmon RRD parser automatically when no built-in or extra-script handler
+# matches, so marker-backed columns can be listed here by their graph name.
 
 #
 # TEST2RRD and GRAPHS_* are used by the svcstatus.cgi script to determine if the detailed

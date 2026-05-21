@@ -101,6 +101,16 @@ void setup_exthandler(char *handlerpath, char *ids)
 	MEMUNDEFINE(rrdvalues);
 }
 
+static int handles_external_rrd(const char *id)
+{
+	int i;
+
+	if ((id == NULL) || (extids == NULL) || (exthandler == NULL)) return 0;
+
+	for (i = 0; (extids[i] && strcmp(extids[i], id)); i++) ;
+	return (extids[i] != NULL);
+}
+
 void setup_extprocessor(char *cmd)
 {
 
@@ -766,16 +776,12 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 	 */
 	else if (strcmp(id, "devmon") == 0)      do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 
-	else if (extids && exthandler) {
-		int i;
-
-		for (i=0; (extids[i] && strcmp(extids[i], id)); i++) ;
-
-		if (extids[i]) do_external_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+	else if (handles_external_rrd(id))       do_external_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+	else if (devmongraphs_has_rrd_marker(msg)) {
+		do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	}
 
 	senderip = NULL;
 
 	MEMUNDEFINE(rrdvalues);
 }
-

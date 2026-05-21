@@ -22,6 +22,9 @@ static char rcsid[] = "$Id$";
 
 #include "devmongraph.h"
 
+static const char devmon_rrd_marker[]   = "<!--DEVMON RRD: ";
+static const char devmon_graph_marker[] = "<!--DEVMON GRAPH: ";
+
 /*
  * A valid DEVMON marker name is a non-empty sequence of [A-Za-z0-9_-]
  * up to DEVMON_GRAPH_NAMELEN_MAX characters. This matches the names
@@ -39,6 +42,12 @@ static int is_valid_name(const char *name, int namelen)
 		if (!(isalnum(c) || (c == '_') || (c == '-'))) return 0;
 	}
 	return 1;
+}
+
+int devmongraphs_is_rrd_marker_line(const char *line)
+{
+	if (line == NULL) return 0;
+	return (strncmp(line, devmon_rrd_marker, sizeof(devmon_rrd_marker) - 1) == 0);
 }
 
 void devmongraphs_init(devmongraphs_t *g)
@@ -62,10 +71,26 @@ int devmongraphs_is_devmon_rrdname(const char *rrdname)
 	return (strncmp(rrdname, "devmon", 6) == 0);
 }
 
+int devmongraphs_has_rrd_marker(const char *text)
+{
+	const char *p;
+
+	if (text == NULL) return 0;
+
+	p = text;
+	while (*p) {
+		if (devmongraphs_is_rrd_marker_line(p)) return 1;
+
+		p = strchr(p, '\n');
+		if (p == NULL) break;
+		p++;
+	}
+
+	return 0;
+}
+
 int devmongraphs_add_line(devmongraphs_t *g, const char *line)
 {
-	const char *marker_rrd   = "<!--DEVMON RRD: ";
-	const char *marker_graph = "<!--DEVMON GRAPH: ";
 	int markerlen;
 	const char *name, *end;
 	int namelen, i;
@@ -75,11 +100,11 @@ int devmongraphs_add_line(devmongraphs_t *g, const char *line)
 	if (g->oom) return -1;
 	if (line == NULL) return 0;
 
-	if (strncmp(line, marker_rrd, strlen(marker_rrd)) == 0) {
-		markerlen = strlen(marker_rrd);
+	if (devmongraphs_is_rrd_marker_line(line)) {
+		markerlen = sizeof(devmon_rrd_marker) - 1;
 	}
-	else if (strncmp(line, marker_graph, strlen(marker_graph)) == 0) {
-		markerlen = strlen(marker_graph);
+	else if (strncmp(line, devmon_graph_marker, sizeof(devmon_graph_marker) - 1) == 0) {
+		markerlen = sizeof(devmon_graph_marker) - 1;
 	}
 	else {
 		return 0;

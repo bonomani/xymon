@@ -68,12 +68,26 @@ extern void devmongraphs_init(devmongraphs_t *g);
 extern int devmongraphs_is_marker_line(const char *line);
 
 /*
+ * Quick check: does this line start a real DEVMON RRD data block?
+ * Alias markers (`<!--DEVMON GRAPH:`) are intentionally excluded.
+ */
+extern int devmongraphs_is_rrd_marker_line(const char *line);
+
+/*
  * Quick check: is this rrdname the legacy "devmon" catch-all (used
  * by TEST2RRD entries like `temp=devmon`, `if_load=devmon`, ...)?
  * Used by callers that special-case devmon columns when deciding
  * whether to assume a graph exists before scanning for markers.
  */
 extern int devmongraphs_is_devmon_rrdname(const char *rrdname);
+
+/*
+ * Does this payload contain a real DEVMON RRD marker line?
+ * This is a cheap routing hint for the RRD writer. It intentionally
+ * checks for the RRD marker form at the start of a line, matching what
+ * do_devmon_rrd() can parse.
+ */
+extern int devmongraphs_has_rrd_marker(const char *text);
 
 /*
  * Inspect one line. If it carries a valid DEVMON marker, add the
