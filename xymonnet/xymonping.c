@@ -47,7 +47,9 @@ typedef struct hostdata_t {
 	int id;
 	struct sockaddr_in addr;	/* Address of host to ping */
 	int received;			/* how many ICMP_ECHO replies we've got */
+	int sent;			/* how many ICMP_ECHO requests we've sent (smoke mode) */
 	struct timespec rtt_total;
+	unsigned long *samples_usec;	/* per-reply rtt in usec (smoke mode); NULL in legacy */
 	struct hostdata_t *next;
 } hostdata_t;
 
@@ -56,6 +58,7 @@ int hostcount = 0;
 hostdata_t **hosts = NULL;	/* Array of pointers to the hostdata records, for fast access via ID */
 int myicmpid;
 int senddelay = (1000000 / 50);	/* Delay between sending packets, in microseconds */
+int samples_count = 0;		/* >0 enables smoke mode: send exactly N pings per host, record each rtt */
 
 /* This routine more or less taken from the "fping" source. Apparently by W. Stevens (public domain) */
 int calc_icmp_checksum(unsigned short *pkt, int pktlen)
@@ -151,6 +154,13 @@ void load_ips(int argc, char *argv[], FILE *fd)
 	hosts = (hostdata_t **)malloc((hostcount+1) * sizeof(hostdata_t *));
 	for (i=0, walk=hosthead; (walk); walk=walk->next, i++) hosts[i] = walk;
 	hosts[hostcount] = NULL;
+
+	/* In smoke mode, each host gets a per-sample rtt array */
+	if (samples_count > 0) {
+		for (i = 0; i < hostcount; i++) {
+			hosts[i]->samples_usec = (unsigned long *)calloc(samples_count, sizeof(unsigned long));
+		}
+	}
 }
 
 
@@ -177,8 +187,15 @@ int send_ping(int sock, int startidx, int minresponses)
 	 * responses to be dropped.
 	 */
 
-	/* Skip the hosts that have already delivered a ping response */
-	while ((idx < hostcount) && (hosts[idx]->received >= minresponses)) idx++;
+	/* Skip the hosts that have already delivered a ping response.
+	 * In smoke mode we gate on sent count instead, so every host receives
+	 * exactly samples_count pings regardless of how many replied. */
+	if (samples_count > 0) {
+		while ((idx < hostcount) && (hosts[idx]->sent >= samples_count)) idx++;
+	}
+	else {
+		while ((idx < hostcount) && (hosts[idx]->received >= minresponses)) idx++;
+	}
 	if (idx >= hostcount) return hostcount;
 
 	/* 
@@ -221,6 +238,7 @@ int send_ping(int sock, int startidx, int minresponses)
 			dbgprintf("Sent a ping to %s: index=%d, id=%d\n",
 				inet_ntoa(hosts[idx]->addr.sin_addr), idx, myicmpid);
 		}
+		hosts[idx]->sent++;
 		idx++;
 	}
 
@@ -287,7 +305,6 @@ int get_response(int sock)
 			if ((hostidx >= 0) && (hostidx < hostcount)) {
 				/* Looks like one of our packets succeeded. */
 				pktcount++;
-				hosts[hostidx]->received += 1;
 
 				pingdata = (struct pingdata_t *)(buffer + iphdrlen + sizeof(struct icmp));
 
@@ -298,6 +315,18 @@ int get_response(int sock)
 					rtt.tv_sec--;
 					rtt.tv_nsec += 1000000000;
 				}
+
+				/* In smoke mode, store each rtt in its own slot before
+				 * we bump received. Extra replies past the requested N
+				 * (rare, but possible if a peer duplicates) are dropped. */
+				if (hosts[hostidx]->samples_usec &&
+				    (hosts[hostidx]->received < samples_count)) {
+					hosts[hostidx]->samples_usec[hosts[hostidx]->received] =
+						(unsigned long)(rtt.tv_sec) * 1000000UL +
+						(unsigned long)(rtt.tv_nsec / 1000);
+				}
+
+				hosts[hostidx]->received += 1;
 
 				/* Add RTT to the total time */
 				hosts[hostidx]->rtt_total.tv_sec += rtt.tv_sec;
@@ -357,14 +386,35 @@ void show_results(void)
 			printf("%s is alive", inet_ntoa(hosts[idx]->addr.sin_addr));
 			rtt_usecs = (hosts[idx]->rtt_total.tv_sec*1000000 + (hosts[idx]->rtt_total.tv_nsec / 1000)) / hosts[idx]->received;
 			if (rtt_usecs >= 3000) {
-				printf(" (%.1f ms)\n", rtt_usecs / 1000.0);
+				printf(" (%.1f ms)", rtt_usecs / 1000.0);
 			}
 			else {
-				printf(" (%lu usec)\n", rtt_usecs);
+				printf(" (%lu usec)", rtt_usecs);
+			}
+			if (samples_count > 0) {
+				int i;
+				printf(" samples=");
+				for (i = 0; (i < hosts[idx]->received) && (i < samples_count); i++) {
+					printf("%s%.6f", (i > 0 ? "," : ""),
+					       hosts[idx]->samples_usec[i] / 1000000.0);
+				}
+				printf(" loss=%d/%d\n",
+				       hosts[idx]->sent - hosts[idx]->received,
+				       hosts[idx]->sent);
+			}
+			else {
+				printf("\n");
 			}
 		}
 		else {
-			printf("%s is unreachable\n", inet_ntoa(hosts[idx]->addr.sin_addr));
+			if (samples_count > 0) {
+				printf("%s is unreachable loss=%d/%d\n",
+				       inet_ntoa(hosts[idx]->addr.sin_addr),
+				       hosts[idx]->sent, hosts[idx]->sent);
+			}
+			else {
+				printf("%s is unreachable\n", inet_ntoa(hosts[idx]->addr.sin_addr));
+			}
 		}
 	}
 }
@@ -393,6 +443,11 @@ int main(int argc, char *argv[])
 			char *delim = strchr(argv[argi], '=');
 			minresponses = atoi(delim+1);
 		}
+		else if (strncmp(argv[argi], "--samples=", 10) == 0) {
+			char *delim = strchr(argv[argi], '=');
+			samples_count = atoi(delim+1);
+			if (samples_count < 0) samples_count = 0;
+		}
 		else if (strncmp(argv[argi], "--source=", 9) == 0) {
 			char *delim = strchr(argv[argi], '=');
 			srcip = strdup(delim+1);
@@ -408,7 +463,7 @@ int main(int argc, char *argv[])
 		}
 		else if (strcmp(argv[argi], "--help") == 0) {
 			if (pingsocket >= 0) close(pingsocket);
-			fprintf(stderr, "%s [--retries=N] [--timeout=N] [--responses=N] [--max-pps=N] [--source=IP]\n", argv[0]);
+			fprintf(stderr, "%s [--retries=N] [--timeout=N] [--responses=N] [--samples=N] [--max-pps=N] [--source=IP]\n", argv[0]);
 			return 0;
 		}
 
@@ -428,6 +483,16 @@ int main(int argc, char *argv[])
 		else if (*(argv[argi]) == '-') {
 			/* Ignore everything else - for fping compatibility */
 		}
+	}
+
+	/* Smoke mode: one outer iteration walks the host list samples_count times
+	 * (via the sendidx wraparound inside the inner loop), then drains late
+	 * responses for `timeout` seconds. minresponses = samples_count keeps
+	 * pending > 0 if responses are lost, so the cutoff (rather than an early
+	 * received-everything exit) governs when we stop waiting. */
+	if (samples_count > 0) {
+		tries = 1;
+		minresponses = samples_count;
 	}
 
 	proto = getprotobyname("icmp");
@@ -507,6 +572,19 @@ int main(int argc, char *argv[])
 
 					/* Adjust the cutoff time, so we wait TIMEOUT seconds for a response */
 					cutoff = getcurrenttime(NULL) + timeout + 1;
+
+					/* Smoke mode wraps the cursor until every host has been
+					 * pinged samples_count times. After that, sendidx stays
+					 * at hostcount and the cutoff eventually drains us out. */
+					if ((samples_count > 0) && (sendidx >= hostcount)) {
+						int i;
+						for (i = 0; i < hostcount; i++) {
+							if (hosts[i]->sent < samples_count) {
+								sendidx = 0;
+								break;
+							}
+						}
+					}
 				}
 
 				if (FD_ISSET(pingsocket, &readfds)) {
