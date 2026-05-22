@@ -22,6 +22,30 @@
 #include "xymonrrd.h"
 
 /*
+ * Wire format (single line, ASCII):
+ *
+ *   <!--DEVMON RRD: <name> <dir> <max>
+ *   <!--DEVMON GRAPH: <name> <source> <dir> <max>
+ *
+ *   <name>   : [A-Za-z0-9_-]{1,DEVMON_GRAPH_NAMELEN_MAX}
+ *   <dir>    : data-source direction keyword (parsed downstream by
+ *              do_devmon_rrd(), opaque to this module)
+ *   <max>    : integer max value (opaque here)
+ *   <source> : source column name (GRAPH alias only)
+ *
+ * Notes:
+ * - The trailing fields after <name> are mandatory in the wire protocol
+ *   emitted by the upstream devmon SNMP collector. This module ignores
+ *   them; only the <name> is captured for graph-definition lookup.
+ * - The closing '-->' is NOT required on the same line. For RRD markers
+ *   it delimits a multi-line data block; for GRAPH markers it is closed
+ *   later in the payload. Callers therefore match the opening prefix
+ *   only.
+ * - One marker per line. No multi-line parsing, no HTML/DOM parsing,
+ *   no regex. Lines that fail to match are ignored silently.
+ */
+
+/*
  * Defensive caps for marker parsing. Names are used downstream as
  * graph-definition lookup keys and URL parameters, so they must be
  * bounded both in count and in size.

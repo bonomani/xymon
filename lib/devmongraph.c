@@ -61,14 +61,14 @@ void devmongraphs_init(devmongraphs_t *g)
 int devmongraphs_is_marker_line(const char *line)
 {
 	if (line == NULL) return 0;
-	return ((strlen(line) > 10) && (*line == '<') &&
-	        (strncmp(line, "<!--DEVMON", 10) == 0));
+	return ((strncmp(line, devmon_rrd_marker,   sizeof(devmon_rrd_marker)   - 1) == 0) ||
+	        (strncmp(line, devmon_graph_marker, sizeof(devmon_graph_marker) - 1) == 0));
 }
 
 int devmongraphs_is_devmon_rrdname(const char *rrdname)
 {
 	if (rrdname == NULL) return 0;
-	return (strncmp(rrdname, "devmon", 6) == 0);
+	return (strcmp(rrdname, "devmon") == 0);
 }
 
 int devmongraphs_has_rrd_marker(const char *text)
