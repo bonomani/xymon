@@ -1,6 +1,11 @@
 # xymon — plan
 
-## xymonping: single event queue for probing
+## xymonping: single event queue for probing — **DONE**
+
+The refactor described below is complete. Smoke mode landed in
+`c8827d10`; legacy mode joined the same heap in `58f7aff7`. Kept as
+historical design context for the unified `legacy_main_loop` /
+`smoke_main_loop` shape.
 
 ### Motivation
 
@@ -104,21 +109,14 @@ once a host has answered).
 
 ### Migration
 
-Three stages. Each compiles, ships, and is independently verifiable.
-
-- **Stage 1 — shadow accounting.** Build the heap and `probe_state` array,
-  populate them alongside the existing wrap-around loop, but keep the
-  current send/recv path authoritative. Compare expected vs actual at
-  end-of-run; emit a debug log if they diverge. Goal: prove the model
-  matches reality without changing observed behaviour.
-- **Stage 2 — heap-driven smoke mode.** When `samples_count > 0`, drive
-  sends from the heap. Legacy code path stays unchanged. Per-host pacing
-  appears. Tests: `--samples=20` to a localhost target, observe even spacing
-  in `tcpdump`; loss accounting unchanged for fully-responsive,
-  fully-unresponsive, and partial-loss hosts.
-- **Stage 3 — heap-driven legacy mode.** Move classic ping onto the same
-  loop. Delete `pending`, `count_pending`, `smoke_sends_remaining`,
-  `tries`-loop, wrap-around block. Inner loop is then ~30 lines.
+Done. Stage 1 (shadow accounting) was skipped -- went directly to the
+heap-driven Stage 2 once the design held up to review. Stage 2 (smoke
+mode on the heap) landed in `c8827d10`. Stage 3 (legacy mode on the
+same heap; deleted `pending`, `count_pending`, `send_ping`, the
+`tries`-loop, the wrap-around block) landed in `58f7aff7`. The legacy
+function `legacy_main_loop` is ~100 lines, the smoke function
+`smoke_main_loop` ~150 lines, both driven by the same `pingevent_t`
+heap defined in `evheap.h`.
 
 ### Tests
 
@@ -153,8 +151,12 @@ Three stages. Each compiles, ships, and is independently verifiable.
    dependencies flat.
 3. Cancel-on-reply vs ignore-on-dispatch for `EV_EXPIRE`. Ignore-on-dispatch
    wins on simplicity if heap turnover stays small.
-4. Should Stage 3 happen at all, or is keeping legacy mode untouched cheaper
-   long term?
+4. ~~Should Stage 3 happen at all, or is keeping legacy mode untouched cheaper
+   long term?~~ Stage 3 done; the legacy code being deleted (~145 lines
+   of `pending`/`count_pending`/`tries`-loop/wrap-around) justified the
+   surgery on its own. End-to-end smoke + legacy behaviour matches the
+   previous implementation (localhost responsive: ~1ms; unreachable
+   target: drops out after the retry budget elapses, no infinite loop).
 
 ## Decisions
 
