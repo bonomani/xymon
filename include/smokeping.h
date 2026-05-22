@@ -23,12 +23,15 @@
  * caches the result; defaults to 20 if unset or non-positive. */
 int smokeping_sample_count(void);
 
-/* NULL-terminated array of rrdtool DS specs for a smoke RRD:
- *   DS:median, DS:loss, DS:ping1..pingN
- * where N = smokeping_sample_count(). Cached; do not free. */
+/* NULL-terminated array of rrdtool DS specs for a smoke RRD with `n`
+ * per-cycle samples: DS:median, DS:loss, DS:ping1..pingN. Per-N cache;
+ * do not free. _n() is the explicit variant; the zero-arg form is a
+ * convenience wrapper using smokeping_sample_count(). */
+char **smokeping_rrd_params_n(int n);
 char **smokeping_rrd_params(void);
 
-/* setup_template()-built handle for the smoke RRD params. Cached. */
+/* setup_template()-built handle for the smoke RRD params. Per-N cache. */
+void *smokeping_rrd_template_n(int n);
 void *smokeping_rrd_template(void);
 
 /* Parse a smoke-style message:
@@ -46,9 +49,14 @@ double smokeping_median(double *samples, int received);
 
 /* Format an rrdvalues string suitable for create_and_update_rrd():
  *   "<tstamp>:<median|U>:<lossfrac>:<s1>:<s2>:...:<sN>"
- * with N = smokeping_sample_count(); trailing slots padded with "U"
- * when received < N. sorted_samples must be ascending.
+ * with `n_slots` ping slots; trailing slots padded with "U" when
+ * received < n_slots. sorted_samples must be ascending.
+ * The zero-arg-N form uses smokeping_sample_count().
  * Returns bytes written (excluding NUL). */
+int smokeping_format_rrdvalues_n(char *out, int outlen, time_t tstamp,
+                                 double median, double lossfrac,
+                                 const double *sorted_samples,
+                                 int received, int n_slots);
 int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
                                double median, double lossfrac,
                                const double *sorted_samples,

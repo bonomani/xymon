@@ -372,6 +372,19 @@ int count_pending(int minresponses)
 	return result;
 }
 
+/* Returns 1 if any host still has sends queued up (sent < samples_count).
+ * In smoke mode the inner loop runs while this is true OR while we are
+ * still draining late replies before the cutoff. */
+int smoke_sends_remaining(int samples_count)
+{
+	int idx;
+
+	for (idx = 0; idx < hostcount; idx++) {
+		if (hosts[idx]->sent < samples_count) return 1;
+	}
+	return 0;
+}
+
 void show_results(void)
 {
 	int idx;
@@ -485,11 +498,13 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	/* Smoke mode: one outer iteration walks the host list samples_count times
-	 * (via the sendidx wraparound inside the inner loop), then drains late
-	 * responses for `timeout` seconds. minresponses = samples_count keeps
-	 * pending > 0 if responses are lost, so the cutoff (rather than an early
-	 * received-everything exit) governs when we stop waiting. */
+	/* Smoke mode: one outer iteration walks the host list samples_count
+	 * times (via the sendidx wraparound inside the inner loop), then
+	 * drains late responses for `timeout` seconds. The inner-loop
+	 * predicate is sample-aware (smoke_sends_remaining + cutoff) instead
+	 * of the host-counting `pending`, because `pending -= count` would
+	 * otherwise drive `pending` to zero on the first replies and exit
+	 * before all samples_count probes have been sent. */
 	if (samples_count > 0) {
 		tries = 1;
 		minresponses = samples_count;
@@ -539,8 +554,17 @@ int main(int argc, char *argv[])
 		/* Change this on each iteration, so we don't mix packets from each round of pings */
 		myicmpid = ((getpid()+tries) & 0x7FFF);
 
-		/* Do one loop over the hosts we havent had responses from yet. */
-		while (pending > 0) {
+		/* Do one loop over the hosts we havent had responses from yet.
+		 *
+		 * Legacy mode exits when `pending` (host count) reaches 0.
+		 * Smoke mode exits when every host has sent samples_count probes
+		 * AND the cutoff has elapsed for draining replies. The cutoff is
+		 * refreshed inside the writefds branch, so once sends are done
+		 * it ages out after `timeout+1` seconds. */
+		while ((samples_count > 0)
+		       ? (smoke_sends_remaining(samples_count) ||
+		          (getcurrenttime(NULL) < cutoff))
+		       : (pending > 0)) {
 			fd_set readfds, writefds;
 			struct timeval selecttmo;
 			int n;

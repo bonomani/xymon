@@ -90,12 +90,27 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		 * "loss=M/M" (unreachable hosts). All parsing/RRD shaping
 		 * lives in lib/smokeping.c so future smoke probes can reuse
 		 * it. The legacy RRD above still gets written -- keeps the
-		 * existing [conn] graph working for smoke hosts. */
+		 * existing [conn] graph working for smoke hosts.
+		 *
+		 * The RRD shape is keyed off the reported denominator N
+		 * (loss=K/N), not $SMOKEPINGSAMPLES, so a host configured
+		 * with smoke_conn:N != $SMOKEPINGSAMPLES still records all
+		 * its samples. */
 		if (strstr(msg, "loss=") != NULL) {
-			int capacity = smokeping_sample_count() + 4;
-			double *samples = (double *)calloc(capacity, sizeof(double));
+			char *lp = strstr(msg, "loss=");
+			int reported_total = 0, dummy_k = 0;
+			int n_slots, capacity;
+			double *samples;
 			int nrecv = 0, lost = 0, totalsent = 0;
 			double median, lossfrac;
+
+			/* Peek at "loss=K/N" so we know how big a buffer to
+			 * allocate before parsing the samples= list. */
+			(void)sscanf(lp + 5, "%d/%d", &dummy_k, &reported_total);
+
+			n_slots = (reported_total > 0 ? reported_total : smokeping_sample_count());
+			capacity = n_slots + 4;
+			samples = (double *)calloc(capacity, sizeof(double));
 
 			smokeping_parse_message(msg, samples, capacity, &nrecv, &lost, &totalsent);
 
@@ -106,11 +121,13 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 			median = smokeping_median(samples, nrecv);
 
 			setupfn2("%s.%s-smoke.rrd", "tcp", testname);
-			smokeping_format_rrdvalues(rrdvalues, sizeof(rrdvalues), tstamp,
-			                           median, lossfrac, samples, nrecv);
+			smokeping_format_rrdvalues_n(rrdvalues, sizeof(rrdvalues), tstamp,
+			                             median, lossfrac, samples, nrecv,
+			                             n_slots);
 			free(samples);
 			create_and_update_rrd(hostname, testname, classname, pagepaths,
-			                      smokeping_rrd_params(), smokeping_rrd_template());
+			                      smokeping_rrd_params_n(n_slots),
+			                      smokeping_rrd_template_n(n_slots));
 		}
 
 		return 0;

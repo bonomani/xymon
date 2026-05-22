@@ -38,7 +38,7 @@ test-endianness: test-endianness.c
 # the default target; run "make test-smokeping" manually. Compiles
 # smokeping.c into the binary directly and provides local xgetenv/
 # setup_template shims, so it doesn't need libxymon.a to link.
-test-smokeping: test-smokeping.c smokeping.c smokeping.h
+test-smokeping: test-smokeping.c smokeping.c ../include/smokeping.h
 	$(CC) $(CFLAGS) -o $@ test-smokeping.c smokeping.c -lm
 	./$@
 

@@ -17,8 +17,18 @@ extern char *xgetenv(const char *name);
 extern void *setup_template(char **params);
 
 static int cached_n = 0;
-static char **cached_params = NULL;
-static void *cached_tpl = NULL;
+
+/* Per-N cache of params/template. A smoke handler may need a different
+ * RRD shape per host (smoke_conn:N != $SMOKEPINGSAMPLES), so we keep a
+ * tiny linear cache keyed by N. The expected cardinality is 1 in the
+ * common case and a small handful in heterogeneous setups. */
+struct smoke_n_cache {
+	int n;
+	char **params;
+	void *tpl;
+	struct smoke_n_cache *next;
+};
+static struct smoke_n_cache *cache_head = NULL;
 
 int smokeping_sample_count(void)
 {
@@ -31,29 +41,60 @@ int smokeping_sample_count(void)
 	return cached_n;
 }
 
-char **smokeping_rrd_params(void)
+static struct smoke_n_cache *cache_lookup_or_create(int n)
 {
-	int i, n;
+	struct smoke_n_cache *c;
+
+	for (c = cache_head; c; c = c->next) {
+		if (c->n == n) return c;
+	}
+	c = (struct smoke_n_cache *)calloc(1, sizeof(*c));
+	c->n = n;
+	c->next = cache_head;
+	cache_head = c;
+	return c;
+}
+
+char **smokeping_rrd_params_n(int n)
+{
+	struct smoke_n_cache *c;
+	int i;
 	char buf[64];
 
-	if (cached_params) return cached_params;
-	n = smokeping_sample_count();
-	cached_params = (char **)calloc(n + 3, sizeof(char *));
-	cached_params[0] = strdup("DS:median:GAUGE:600:0:U");
-	cached_params[1] = strdup("DS:loss:GAUGE:600:0:U");
+	if (n <= 0) n = smokeping_sample_count();
+	c = cache_lookup_or_create(n);
+	if (c->params) return c->params;
+
+	c->params = (char **)calloc(n + 3, sizeof(char *));
+	c->params[0] = strdup("DS:median:GAUGE:600:0:U");
+	c->params[1] = strdup("DS:loss:GAUGE:600:0:U");
 	for (i = 0; i < n; i++) {
 		snprintf(buf, sizeof(buf), "DS:ping%d:GAUGE:600:0:U", i + 1);
-		cached_params[2 + i] = strdup(buf);
+		c->params[2 + i] = strdup(buf);
 	}
-	cached_params[n + 2] = NULL;
-	return cached_params;
+	c->params[n + 2] = NULL;
+	return c->params;
+}
+
+char **smokeping_rrd_params(void)
+{
+	return smokeping_rrd_params_n(smokeping_sample_count());
+}
+
+void *smokeping_rrd_template_n(int n)
+{
+	struct smoke_n_cache *c;
+
+	if (n <= 0) n = smokeping_sample_count();
+	c = cache_lookup_or_create(n);
+	if (c->tpl) return c->tpl;
+	c->tpl = setup_template(smokeping_rrd_params_n(n));
+	return c->tpl;
 }
 
 void *smokeping_rrd_template(void)
 {
-	if (cached_tpl) return cached_tpl;
-	cached_tpl = setup_template(smokeping_rrd_params());
-	return cached_tpl;
+	return smokeping_rrd_template_n(smokeping_sample_count());
 }
 
 int smokeping_parse_message(const char *msg, double *samples_out,
@@ -105,13 +146,14 @@ double smokeping_median(double *samples, int received)
 	return (samples[received / 2 - 1] + samples[received / 2]) / 2.0;
 }
 
-int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
-                               double median, double lossfrac,
-                               const double *sorted_samples, int received)
+int smokeping_format_rrdvalues_n(char *out, int outlen, time_t tstamp,
+                                 double median, double lossfrac,
+                                 const double *sorted_samples,
+                                 int received, int n_slots)
 {
-	int off, i, n;
+	int off, i;
 
-	n = smokeping_sample_count();
+	if (n_slots <= 0) n_slots = smokeping_sample_count();
 
 	off = snprintf(out, outlen, "%d:", (int)tstamp);
 	if (received > 0) {
@@ -120,7 +162,7 @@ int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
 	else {
 		off += snprintf(out + off, outlen - off, "U:%.6f", lossfrac);
 	}
-	for (i = 0; (i < n) && (off < outlen); i++) {
+	for (i = 0; (i < n_slots) && (off < outlen); i++) {
 		if (i < received) {
 			off += snprintf(out + off, outlen - off, ":%.6f", sorted_samples[i]);
 		}
@@ -129,4 +171,13 @@ int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
 		}
 	}
 	return off;
+}
+
+int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
+                               double median, double lossfrac,
+                               const double *sorted_samples, int received)
+{
+	return smokeping_format_rrdvalues_n(out, outlen, tstamp, median,
+	                                    lossfrac, sorted_samples,
+	                                    received, smokeping_sample_count());
 }
