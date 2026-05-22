@@ -92,6 +92,12 @@ datepage.cgi: $(DATEPAGEOBJS) $(XYMONCOMMLIB)
 showgraph.o: showgraph.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
 
+# Self-contained golden-output test for the @AVG:/@SUM:/... aggregate tokens.
+# Not built by the default target; run "make test-aggregate-tokens" manually.
+test-aggregate-tokens: test-aggregate-tokens.c
+	$(CC) $(CFLAGS) -o $@ $<
+	./$@
+
 # Need NETLIBS on Solaris for getservbyname(), called by parse_url()
 showgraph.cgi: $(SHOWGRAPHOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(SHOWGRAPHOBJS) $(XYMONCOMMLIBS) $(PCRELIBS) $(RRDLIBS)

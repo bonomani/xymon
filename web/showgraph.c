@@ -650,6 +650,50 @@ static int is_aggregate_token(char *inp, char **op, char **name, int *oplen, int
 		*op = "MAX";
 		*oplen = 5;
 	}
+	else if (strncmp(inp, "@AVGNAN:", 8) == 0) {
+		*op = "AVGNAN";
+		*oplen = 8;
+	}
+	else if (strncmp(inp, "@SUMNAN:", 8) == 0) {
+		*op = "SUMNAN";
+		*oplen = 8;
+	}
+	else if (strncmp(inp, "@MINNAN:", 8) == 0) {
+		*op = "MINNAN";
+		*oplen = 8;
+	}
+	else if (strncmp(inp, "@MAXNAN:", 8) == 0) {
+		*op = "MAXNAN";
+		*oplen = 8;
+	}
+	else if (strncmp(inp, "@COUNT:", 7) == 0) {
+		*op = "COUNT";
+		*oplen = 7;
+	}
+	else if (strncmp(inp, "@MEDIAN:", 8) == 0) {
+		*op = "MEDIAN";
+		*oplen = 8;
+	}
+	else if (strncmp(inp, "@STDEV:", 7) == 0) {
+		*op = "STDEV";
+		*oplen = 7;
+	}
+	else if (strncmp(inp, "@PERCENT:", 9) == 0) {
+		*op = "PERCENT";
+		*oplen = 9;
+	}
+	else if ((inp[0] == '@') && (inp[1] == 'P') && isdigit((int)inp[2])) {
+		p = inp + 3;
+		while (isdigit((int)*p) || (*p == '.')) p++;
+		if (*p != ':') return 0;
+
+		/* For @Ppct:name@, *op points into the input at the digits (e.g. "95:name@..."),
+		 * NOT to a NUL-terminated operator literal. Callers detect this form via
+		 * isdigit(op[0]) and read pct via the leading digit run; never strcmp it
+		 * against an operator name. */
+		*op = inp + 2;
+		*oplen = (p - inp) + 1;
+	}
 	else {
 		return 0;
 	}
@@ -694,9 +738,98 @@ static void add_aggregate_var(strbuffer_t *result, char *name, int namelen, int 
 	addtobuffer(result, numstr);
 }
 
+static void add_aggregate_varlist(strbuffer_t *result, char *name, int namelen, int *count)
+{
+	int i;
+
+	*count = 0;
+	for (i = 0; (i < rrddbcount); i++) {
+		if (!selected_rrdidx(i)) continue;
+
+		if (*count > 0) addtobuffer(result, ",");
+		add_aggregate_var(result, name, namelen, i);
+		(*count)++;
+	}
+}
+
+static void add_aggregate_count_rpn(strbuffer_t *result, char *name, int namelen)
+{
+	int i, n = 0;
+
+	for (i = 0; (i < rrddbcount); i++) {
+		if (!selected_rrdidx(i)) continue;
+
+		if (n > 0) addtobuffer(result, ",");
+		add_aggregate_var(result, name, namelen, i);
+		addtobuffer(result, ",UN,0,1,IF");
+		if (n > 0) addtobuffer(result, ",+");
+		n++;
+	}
+
+	if (n == 0) addtobuffer(result, "0");
+}
+
 static void add_aggregate_rpn(strbuffer_t *result, char *op, char *name, int namelen)
 {
 	int i, n = 0;
+	char *pct = NULL;
+	int pctlen = 0;
+	int ispercent = ((strcmp(op, "PERCENT") == 0) || isdigit((int)op[0]));
+
+	if (ispercent) {
+		char *p;
+
+		if (isdigit((int)op[0])) {
+			pct = op;
+			p = op;
+			while (isdigit((int)*p) || (*p == '.')) p++;
+			pctlen = (p - op);
+		}
+		else if (namelen > 0) {
+			p = memchr(name, ':', namelen);
+			if (p) {
+				pct = p + 1;
+				pctlen = namelen - (p - name) - 1;
+				namelen = (p - name);
+			}
+		}
+
+		if ((pct == NULL) || (pctlen == 0) || (namelen == 0)) {
+			addtobuffer(result, "UNKN");
+			return;
+		}
+	}
+
+	if (strcmp(op, "COUNT") == 0) {
+		add_aggregate_count_rpn(result, name, namelen);
+		return;
+	}
+
+	if ((strcmp(op, "AVGNAN") == 0) || (strcmp(op, "MEDIAN") == 0) ||
+	    (strcmp(op, "STDEV") == 0) || ispercent) {
+		add_aggregate_varlist(result, name, namelen, &n);
+
+		if (n == 0) {
+			addtobuffer(result, "UNKN");
+			return;
+		}
+
+		if (ispercent) {
+			char numstr[20];
+
+			addtobuffer(result, ",");
+			addtobufferraw(result, pct, pctlen);
+			snprintf(numstr, sizeof(numstr), ",%d,PERCENT", n);
+			addtobuffer(result, numstr);
+		}
+		else {
+			char numstr[20];
+
+			snprintf(numstr, sizeof(numstr), ",%d,%s", n, ((strcmp(op, "AVGNAN") == 0) ? "AVG" : op));
+			addtobuffer(result, numstr);
+		}
+		return;
+	}
 
 	for (i = 0; (i < rrddbcount); i++) {
 		if (!selected_rrdidx(i)) continue;
@@ -709,6 +842,9 @@ static void add_aggregate_rpn(strbuffer_t *result, char *op, char *name, int nam
 			add_aggregate_var(result, name, namelen, i);
 			if (strcmp(op, "MIN") == 0) addtobuffer(result, ",MIN");
 			else if (strcmp(op, "MAX") == 0) addtobuffer(result, ",MAX");
+			else if (strcmp(op, "MINNAN") == 0) addtobuffer(result, ",MINNAN");
+			else if (strcmp(op, "MAXNAN") == 0) addtobuffer(result, ",MAXNAN");
+			else if (strcmp(op, "SUMNAN") == 0) addtobuffer(result, ",ADDNAN");
 			else addtobuffer(result, ",+");
 		}
 		n++;
