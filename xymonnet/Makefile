@@ -26,7 +26,7 @@ endif
 all: $(PROGRAMS) $(EXTENSIONS) $(DBGTOOLS)
 
 NETTESTOBJS = xymonnet.o contest.o httptest.o httpresult.o ldaptest.o dns.o dns2.o httpcookies.o
-PINGTESTOBJS = xymonping.o
+PINGTESTOBJS = xymonping.o evheap.o
 BEASTATOBJS = beastat.o
 
 xymonnet: $(NETTESTOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONLIBS)
@@ -34,6 +34,13 @@ xymonnet: $(NETTESTOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONLIBS)
 
 xymonping: $(PINGTESTOBJS) $(XYMONTIMELIB) ../lib/libxymon.a
 	$(CC) $(CFLAGS) -o $@ $(PINGTESTOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS)
+
+# Standalone heap unit test. Not part of the default build; run
+# "make test-evheap" manually. Links evheap.c directly with a
+# stderr-printing errprintf shim, so it needs no other Xymon libs.
+test-evheap: test-evheap.c evheap.c evheap.h
+	$(CC) $(CFLAGS) -o $@ test-evheap.c evheap.c
+	./$@
 
 xymonnet.o: xymonnet.c
 	$(CC) $(CFLAGS) $(SSLFLAGS) $(LDAPFLAGS) $(SSLINCDIR) $(LDAPINCDIR) -c -o $@ xymonnet.c
