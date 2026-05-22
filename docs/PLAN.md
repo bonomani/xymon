@@ -155,3 +155,11 @@ Three stages. Each compiles, ships, and is independently verifiable.
    wins on simplicity if heap turnover stays small.
 4. Should Stage 3 happen at all, or is keeping legacy mode untouched cheaper
    long term?
+
+## Decisions
+
+- **Merging `feat/smokeping-probe` + `feat/trends-graph-aggregation` into
+  `main`: refused.** Branches stay independent on origin; rebase target
+  for these features remains `main` (smoke currently sits on top of
+  trends via rebase). Future merges -- if any -- are not part of this
+  plan.
