@@ -67,6 +67,7 @@ static char *expand_one(char *tpl) {
 static int failures = 0;
 static void check(const char *label, char *tpl, int n, int first, int last, const char *want) {
 	rrddbcount = n; firstidx = first; lastidx = last;
+	aggregate_dscount = 0;
 	char *got = expand_one(tpl);
 	if (strcmp(got, want) != 0) {
 		fprintf(stderr, "FAIL %s: tpl=%s n=%d -> %s (want %s)\n", label, tpl, n, got, want);
@@ -75,6 +76,22 @@ static void check(const char *label, char *tpl, int n, int first, int last, cons
 		printf("ok   %s: %s -> %s\n", label, tpl, got);
 	}
 	free(got);
+}
+
+/* Within-file aggregate driver: sets aggregate_dscount (no rrddbcount /
+ * firstidx / lastidx context, since within-file ops don't touch those). */
+static void check_ds(const char *label, char *tpl, int dscount, const char *want) {
+	rrddbcount = 0; firstidx = -1; lastidx = 0;
+	aggregate_dscount = dscount;
+	char *got = expand_one(tpl);
+	if (strcmp(got, want) != 0) {
+		fprintf(stderr, "FAIL %s: tpl=%s dscount=%d -> %s (want %s)\n", label, tpl, dscount, got, want);
+		failures++;
+	} else {
+		printf("ok   %s: %s -> %s\n", label, tpl, got);
+	}
+	free(got);
+	aggregate_dscount = 0;
 }
 
 int main(void) {
@@ -141,6 +158,15 @@ int main(void) {
 	check("avg-tab-in-name",   "@AVG:foo\tbar@", 3, -1, 2, "(not-aggregate)");
 	check("avg-comma-in-name", "@AVG:foo,bar@",   3, -1, 2, "(not-aggregate)");
 	check("avg-dot-in-name",   "@AVG:foo.bar@",   3, -1, 2, "foo.bar0,foo.bar1,+,foo.bar2,+,3,/"); /* dots allowed (legal in some uses) */
+
+	/* Within-file aggregate: @DSMEDIAN:prefix@ walks prefix1..prefixN. */
+	check_ds("dsmedian-n3",     "@DSMEDIAN:ping@", 3, "ping1,ping2,ping3,3,MEDIAN");
+	check_ds("dsmedian-n1",     "@DSMEDIAN:ping@", 1, "ping1,1,MEDIAN");
+	check_ds("dsmedian-n20",    "@DSMEDIAN:p@",    20,
+	         "p1,p2,p3,p4,p5,p6,p7,p8,p9,p10,p11,p12,p13,p14,p15,p16,p17,p18,p19,p20,20,MEDIAN");
+	check_ds("dsmedian-n0",     "@DSMEDIAN:ping@", 0, "UNKN");
+	check_ds("dsmedian-empty",  "@DSMEDIAN:@",     5, "(not-aggregate)");
+	check_ds("dsmedian-noterm", "@DSMEDIAN:ping",  5, "(not-aggregate)");
 
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }
 	printf("\nAll tests passed.\n");

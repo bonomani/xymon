@@ -1648,9 +1648,14 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					rrdargs = (char **)realloc(rrdargs, rrdargs_cap * sizeof(char *));
 				}
 
+				/* Expose this file's DS count to the aggregate parser
+				 * so within-file tokens (@DSMEDIAN:) emit a 1..N
+				 * indexed RPN matching the @DSIDX@-produced DEFs. */
+				aggregate_dscount = n;
 				for (i = 0; rt_defs[i]; i++) {
-					rrdargs[argi++] = strdup(expand_tokens(rt_defs[i]));
+					rrdargs[argi++] = strdup(expand_aggregate_tokens(rt_defs[i]));
 				}
+				aggregate_dscount = 0;
 
 				for (j = 0; rt_defs[j]; j++) free(rt_defs[j]);
 				free(rt_defs);

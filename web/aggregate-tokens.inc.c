@@ -1,9 +1,21 @@
 /*
  * web/aggregate-tokens.inc.c
  *
- * Shared parser + RPN-emitter for the @AVG:/@SUM:/@MIN:/@MAX:/@AVGNAN:/
- * @SUMNAN:/@MINNAN:/@MAXNAN:/@COUNT:/@MEDIAN:/@STDEV:/@PERCENT:/@P<pct>:
- * aggregate template tokens used by graphs.cfg blocks.
+ * Shared parser + RPN-emitter for graphs.cfg aggregate template tokens.
+ * Two families:
+ *
+ *   "across files" -- iterate over the RRDs matched by FNPATTERN:
+ *     @AVG: @SUM: @MIN: @MAX: @AVGNAN: @SUMNAN: @MINNAN: @MAXNAN:
+ *     @COUNT: @MEDIAN: @STDEV: @PERCENT: @P<pct>:
+ *
+ *   "within one file" -- iterate over a 1-indexed DS prefix run inside
+ *   one matched RRD (used by smokeping's [conn-smoke] block, where the
+ *   N ping samples live as N DSes in one tcp.conn-smoke.rrd):
+ *     @DSMEDIAN:
+ *
+ * The within-file family reads N from the file-static `aggregate_dscount`.
+ * Callers set it before invoking expand_aggregate_tokens on a runtime-
+ * expanded block, then reset it to 0 afterwards. A zero value emits UNKN.
  *
  * This file is **#include**'d by both web/showgraph.c (production) and
  * web/test-aggregate-tokens.c (golden-output test). Including it from
@@ -18,6 +30,15 @@
  * including TUs in the same program, which isn't a current use case)
  * stay isolated.
  */
+
+/* DS count for the current within-file aggregate. Set by callers (e.g.
+ * smoke's render-time loop) immediately before invoking
+ * expand_aggregate_tokens on a block that may use @DSMEDIAN: et al.
+ * Zero means "no DS count available"; the within-file aggregate emits
+ * UNKN. Lives at file scope (not a parameter) so the existing
+ * expand_aggregate_tokens / add_aggregate_rpn signatures stay
+ * untouched and so the test can drive it the same way. */
+static int aggregate_dscount = 0;
 
 static int selected_rrdidx(int idx)
 {
@@ -75,6 +96,13 @@ static int is_aggregate_token(char *inp, char **op, char **name, int *oplen, int
 	else if (strncmp(inp, "@PERCENT:", 9) == 0) {
 		*op = "PERCENT";
 		*oplen = 9;
+	}
+	else if (strncmp(inp, "@DSMEDIAN:", 10) == 0) {
+		/* Within-file aggregate: iterates name1..nameN where N is
+		 * the file-scope `aggregate_dscount`. The caller sets that
+		 * before invoking the parser; zero -> UNKN. */
+		*op = "DSMEDIAN";
+		*oplen = 10;
 	}
 	else if ((inp[0] == '@') && (inp[1] == 'P') && isdigit((int)inp[2])) {
 		/* @P<pct>: shorthand for @PERCENT:name:pct@. Accept a decimal
@@ -233,6 +261,29 @@ static void add_aggregate_rpn(strbuffer_t *result, char *op, char *name, int nam
 
 	if (strcmp(op, "COUNT") == 0) {
 		add_aggregate_count_rpn(result, name, namelen);
+		return;
+	}
+
+	/* Within-file aggregate: walks 1..aggregate_dscount instead of the
+	 * 0..rrddbcount-1 used by the across-files family. The 1-indexing
+	 * matches @DSIDX@'s convention so a [conn-smoke]-style block with
+	 * DEFs named ping1..pingN can use @DSMEDIAN:ping@ directly. */
+	if (strcmp(op, "DSMEDIAN") == 0) {
+		int i;
+		char numstr[20];
+
+		if (aggregate_dscount <= 0) {
+			addtobuffer(result, "UNKN");
+			return;
+		}
+		for (i = 1; i <= aggregate_dscount; i++) {
+			if (i > 1) addtobuffer(result, ",");
+			addtobufferraw(result, name, namelen);
+			snprintf(numstr, sizeof(numstr), "%d", i);
+			addtobuffer(result, numstr);
+		}
+		snprintf(numstr, sizeof(numstr), ",%d,MEDIAN", aggregate_dscount);
+		addtobuffer(result, numstr);
 		return;
 	}
 
