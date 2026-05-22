@@ -15,11 +15,21 @@
 
 #include <stdint.h>
 
+/* Event kinds: EV_SEND fires send_probe; EV_EXPIRE checks the host's
+ * reply state and either re-schedules another EV_SEND (legacy retry)
+ * or marks the host as timed out. Smoke mode only pushes EV_SEND --
+ * the late-reply drain phase handles deadlines directly without
+ * pushing EV_EXPIRE events. */
+#define EV_SEND   0
+#define EV_EXPIRE 1
+
 typedef struct pingevent_t {
 	int64_t when_ns;
 	int     host_idx;
 	int     probe_idx;
 	int     retries;	/* EWOULDBLOCK retry count */
+	int     kind;		/* EV_SEND or EV_EXPIRE */
+	int     tries_left;	/* legacy retry budget remaining on EV_SEND */
 } pingevent_t;
 
 /* Insert e into the heap. Reallocates up to evheap_max_capacity()

@@ -40,6 +40,8 @@ static pingevent_t mkev(int64_t when, int host, int probe)
 	e.host_idx = host;
 	e.probe_idx = probe;
 	e.retries = 0;
+	e.kind = EV_SEND;
+	e.tries_left = 0;
 	return e;
 }
 

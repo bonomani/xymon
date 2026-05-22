@@ -45,7 +45,6 @@ static char rcsid[] = "$Id$";
 
 #define PING_PACKET_SIZE 64
 #define PING_MINIMUM_SIZE ICMP_MINLEN
-#define SENDLIMIT 100
 
 /* Safety caps. xymon is normally run with a few thousand hosts at
  * most; these are several orders of magnitude above realistic and
@@ -409,74 +408,6 @@ static int send_probe(int host_idx, int probe_idx)
 }
 
 
-int send_ping(int sock, int startidx, int minresponses)
-{
-	static unsigned char buffer[PING_PACKET_SIZE];
-	struct icmp *icmphdr;
-	struct pingdata_t *pingdata;
-	int sentbytes;
-	int idx = startidx;
-
-	/*
-	 * Sends one ICMP "echo-request" packet.
-	 *
-	 * Note: A first attempt at this kept sending packets until
-	 * we got an EWOULDBLOCK or a send error. This causes incoming
-	 * responses to be dropped.
-	 */
-
-	/* Skip the hosts that have already delivered a ping response. */
-	while ((idx < hostcount) && (hosts[idx]->received >= minresponses)) idx++;
-	if (idx >= hostcount) return hostcount;
-
-	/* 
-	 * Don't flood the net.
-	 * By enforcing a brief sleep here, we force a delay
-	 * between sending packets. It is easiest to do before sending
-	 * a packet, because if done after the send completes, then
-	 * it affects the RTT measurements.
-	 */
-	if (senddelay) usleep(senddelay);
-
-	/* Build the packet and send it */
-	memset(buffer, 0, PING_PACKET_SIZE);
-
-	icmphdr = (struct icmp *)buffer;
-	icmphdr->icmp_type = ICMP_ECHO;
-	icmphdr->icmp_code = 0;
-	icmphdr->icmp_cksum = 0;
-	icmphdr->icmp_seq = htons(idx+1);	/* So we can map response to our hosts */
-	icmphdr->icmp_id = htons(myicmpid);
-
-	pingdata = (struct pingdata_t *)(buffer + sizeof(struct icmp));
-	pingdata->id = idx;
-	getntimer(&pingdata->timesent);
-
-	icmphdr->icmp_cksum = calc_icmp_checksum((unsigned short *)buffer, PING_PACKET_SIZE);
-
-	sentbytes = sendto(sock, buffer, PING_PACKET_SIZE, 0,
-	                   (struct sockaddr *)&hosts[idx]->addr, hosts[idx]->addrlen);
-
-	if (sentbytes == -1) {
-		if (errno != EWOULDBLOCK) {
-			errprintf("Failed to send ICMP packet: %s\n", strerror(errno));
-			idx++; /* To avoid looping indefinitely trying to send to this host */
-		}
-	}
-	else if (sentbytes == PING_PACKET_SIZE) {
-		/* We managed to send a ping! */
-		if (debug) {
-			dbgprintf("Sent a ping to %s: index=%d, id=%d\n",
-				sockaddr_str(&hosts[idx]->addr), idx, myicmpid);
-		}
-		hosts[idx]->sent++;
-		idx++;
-	}
-
-	return idx;
-}
-
-
 int get_response(int sock, int family, int is_dgram)
 {
 	static unsigned char buffer[4096];
@@ -614,17 +545,6 @@ int get_response(int sock, int family, int is_dgram)
 	return pktcount;
 }
 
-int count_pending(int minresponses)
-{
-	int result = 0;
-	int idx;
-
-	/* Counts how many hosts we haven't seen a reply from yet. */
-	for (idx = 0; (idx < hostcount); idx++)
-		if (hosts[idx]->received < minresponses) result++;
-
-	return result;
-}
 
 /* Returns the earliest per-probe deadline (probe_sent_at + host.timeout_ns)
  * across all PS_SENT probes, or INT64_MAX if no probe is still in flight.
@@ -703,11 +623,13 @@ static int smoke_main_loop(int timeout)
 	for (i = 0; i < hostcount; i++) {
 		for (k = 0; k < samples_count; k++) {
 			pingevent_t e;
-			e.when_ns   = start_ns + (int64_t)k * per_host_step_ns
-			                       + (int64_t)i * host_stagger_ns;
-			e.host_idx  = i;
-			e.probe_idx = k;
-			e.retries   = 0;
+			e.when_ns    = start_ns + (int64_t)k * per_host_step_ns
+			                        + (int64_t)i * host_stagger_ns;
+			e.host_idx   = i;
+			e.probe_idx  = k;
+			e.retries    = 0;
+			e.kind       = EV_SEND;
+			e.tries_left = 0;	/* smoke doesn't retry */
 			evheap_push(e);
 		}
 	}
@@ -820,6 +742,130 @@ static int smoke_main_loop(int timeout)
 	return 0;
 }
 
+/* Legacy (single-rtt) main loop driven by the same event heap that smoke
+ * mode uses. Each host gets one EV_SEND scheduled at t=0 with a retry
+ * budget; the send pushes an EV_EXPIRE at t+timeout. On EV_EXPIRE without
+ * a reply, the host either re-arms (tries_left > 0) or is given up on.
+ * The host's existing `received` field still drives loss accounting and
+ * `minresponses`-style early-out. Replaces the previous pending /
+ * count_pending / wrap-around / tries-loop scheme.
+ *
+ * Legacy mode is v4-only (v6 hosts were filtered at load_ips), so
+ * send_probe always uses the v4 socket here. We share send_probe with
+ * smoke -- it works for both families and writes probe_idx into the
+ * payload (always 0 for legacy). */
+static int legacy_main_loop(int timeout, int tries, int minresponses)
+{
+	int i;
+	int64_t timeout_ns = (int64_t)timeout * 1000000000LL;
+	int64_t start_ns = mono_ns();
+
+	if (tries <= 0) tries = 1;
+
+	for (i = 0; i < hostcount; i++) {
+		pingevent_t e;
+		e.when_ns    = start_ns;
+		e.host_idx   = i;
+		e.probe_idx  = 0;
+		e.retries    = 0;
+		e.kind       = EV_SEND;
+		e.tries_left = tries - 1;	/* this is the first try */
+		evheap_push(e);
+	}
+
+	myicmpid = (getpid() & 0x7FFF);
+
+	while (evheap_size() > 0) {
+		int64_t next_when, now, wait_ns;
+		struct timeval tv;
+		fd_set readfds;
+		int n, nfds, h, all_done;
+		pingevent_t ev;
+
+		/* Early exit: every host has met its response threshold.
+		 * Without this the loop would sleep until the last pending
+		 * EV_EXPIRE in the heap fires (up to --timeout later) even
+		 * though no further work would be done. O(hostcount) per
+		 * iteration; bounded by hostcount * (1 + retries) events. */
+		all_done = 1;
+		for (h = 0; h < hostcount; h++) {
+			if (hosts[h]->received < minresponses) { all_done = 0; break; }
+		}
+		if (all_done) break;
+
+		evheap_peek_when(&next_when);
+		now = mono_ns();
+		wait_ns = next_when - now;
+
+		if (wait_ns <= 0) {
+			evheap_pop(&ev);
+
+			if (ev.kind == EV_SEND) {
+				int r;
+
+				/* Skip if the host has already met the response
+				 * threshold -- no need to keep retrying. */
+				if (hosts[ev.host_idx]->received >= minresponses) continue;
+
+				r = send_probe(ev.host_idx, ev.probe_idx);
+				if (r == 0) {
+					hosts[ev.host_idx]->sent++;
+					/* Arm an EV_EXPIRE that carries forward the
+					 * remaining retry budget. */
+					ev.when_ns = mono_ns() + timeout_ns;
+					ev.kind    = EV_EXPIRE;
+					evheap_push(ev);
+				}
+				else if (r == -1 && ev.retries < EWOULDBLOCK_MAX_RETRIES) {
+					/* EWOULDBLOCK: reschedule shortly, same try
+					 * (don't decrement tries_left for a transient
+					 * socket-buffer condition). */
+					ev.retries++;
+					ev.when_ns = mono_ns() + 1000000LL;
+					evheap_push(ev);
+				}
+				else {
+					/* Hard send error or EWOULDBLOCK exhausted:
+					 * no reply will arrive. Count as a sent probe
+					 * for symmetry with smoke; don't push EV_EXPIRE. */
+					hosts[ev.host_idx]->sent++;
+				}
+			}
+			else {
+				/* EV_EXPIRE: the timeout elapsed for this send. */
+				if (hosts[ev.host_idx]->received >= minresponses) continue;
+				if (ev.tries_left > 0) {
+					/* Retry: schedule a fresh EV_SEND immediately
+					 * with one less retry available. */
+					pingevent_t next = ev;
+					next.when_ns    = mono_ns();
+					next.kind       = EV_SEND;
+					next.retries    = 0;
+					next.tries_left = ev.tries_left - 1;
+					evheap_push(next);
+				}
+				/* else: no more tries; the host stays at received=0
+				 * and show_results will report it unreachable. */
+			}
+			continue;
+		}
+
+		/* Sleep until next event, processing replies that wake us. */
+		tv.tv_sec  = wait_ns / 1000000000LL;
+		tv.tv_usec = (wait_ns % 1000000000LL) / 1000;
+		nfds = select_set(&readfds);
+		n = select(nfds, &readfds, NULL, NULL, &tv);
+		if (n < 0) {
+			if (errno == EINTR) continue;
+			errprintf("select failed: %s\n", strerror(errno));
+			return 4;
+		}
+		if (n > 0) drain_replies(&readfds);
+	}
+
+	return 0;
+}
+
 void show_results(void)
 {
 	int idx;
@@ -897,7 +943,7 @@ static int open_icmp_socket(int family, int *is_dgram_out, int *err_out)
 int main(int argc, char *argv[])
 {
 	int sockerr = 0, binderr = 0;
-	int argi, sendidx, pending, minresponses = 1, tries = 3, timeout = 5;
+	int argi, minresponses = 1, tries = 3, timeout = 5;
 	int need_v4 = 0, need_v6 = 0;
 	int i;
 	char *srcip = NULL;
@@ -1030,89 +1076,17 @@ int main(int argc, char *argv[])
 		fcntl(pingsocket_v6, F_SETFL, O_NONBLOCK);
 	}
 
-	if (samples_count > 0) {
-		/* Smoke mode: every probe is a scheduled event on a shared
-		 * min-heap. Termination is structural (heap empty + drain). */
-		int rc = smoke_main_loop(timeout);
+	{
+		/* Both modes drive sends from the shared event heap. Smoke
+		 * fans out N samples per host with no retries; legacy
+		 * schedules one EV_SEND per host with EV_EXPIRE-driven
+		 * retries up to --retries=N. */
+		int rc = (samples_count > 0) ? smoke_main_loop(timeout)
+		                             : legacy_main_loop(timeout, tries, minresponses);
 		if (pingsocket_v4 != -1) close(pingsocket_v4);
 		if (pingsocket_v6 != -1) close(pingsocket_v6);
 		if (rc == 0) show_results();
 		return rc;
 	}
-
-	pending = count_pending(minresponses);
-
-	while (tries) {
-		int sendnow = SENDLIMIT;
-		time_t cutoff = getcurrenttime(NULL) + timeout + 1;
-		sendidx = 0;
-
-		/* Change this on each iteration, so we don't mix packets from each round of pings */
-		myicmpid = ((getpid()+tries) & 0x7FFF);
-
-		/* Do one loop over the hosts we havent had responses from yet.
-		 * Legacy mode is v4-only; v6 hosts were filtered out at load. */
-		while (pending > 0) {
-			fd_set readfds, writefds;
-			struct timeval selecttmo;
-			int n;
-
-			FD_ZERO(&readfds);
-			FD_ZERO(&writefds);
-			FD_SET(pingsocket_v4, &readfds);
-
-			if (sendnow && (sendidx < hostcount)) FD_SET(pingsocket_v4, &writefds);
-
-			selecttmo.tv_sec = 0;
-			selecttmo.tv_usec = 100000;
-			n = select(pingsocket_v4+1, &readfds, &writefds, NULL, &selecttmo);
-
-			if (n < 0) {
-				if (errno == EINTR) continue;
-				errprintf("select failed: %s\n", strerror(errno));
-				return 4;
-			}
-			else if (n == 0) {
-				/* Time out */
-				sendnow = SENDLIMIT;
-			}
-			else {
-				if (sendnow && FD_ISSET(pingsocket_v4, &writefds)) {
-					/* OK to send */
-					sendidx = send_ping(pingsocket_v4, sendidx, minresponses);
-					sendnow--;
-
-					/* Adjust the cutoff time, so we wait TIMEOUT seconds for a response */
-					cutoff = getcurrenttime(NULL) + timeout + 1;
-				}
-
-				if (FD_ISSET(pingsocket_v4, &readfds)) {
-					/* Grab the replies */
-					int count = get_response(pingsocket_v4, AF_INET, is_dgram_v4);
-					pending -= count;
-					sendnow += count; if (sendnow > SENDLIMIT) sendnow = SENDLIMIT;
-				}
-			}
-
-			/* See if we have hit the timeout */
-			if ((getcurrenttime(NULL) >= cutoff) && (sendidx >= hostcount)) {
-				pending = 0;
-			}
-		}
-
-		tries--;
-		pending = count_pending(minresponses);
-		if (pending == 0) {
-			/* Have got responses for all hosts - we're done */
-			tries = 0;
-		}
-	}
-
-	if (pingsocket_v4 != -1) close(pingsocket_v4);
-	if (pingsocket_v6 != -1) close(pingsocket_v6);
-
-	show_results();
-
-	return 0;
 }
 
