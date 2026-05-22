@@ -641,8 +641,24 @@ static int def_uses_rrd_context(char *def)
 		(strstr(def, "@STACKIT@") != NULL));
 }
 
+/* Walk the template once, replacing each aggregate token with its RPN
+ * expansion, then hand the result to expand_tokens() for the @RRDFN@/
+ * @RRDIDX@/@RRDPARAM@/@COLOR@ family. Aggregate tokens are NOT nested:
+ * "@AVG:@SUM:t@@" is parsed as @AVG: with name="@SUM:t" and stops at
+ * the next @ -- the inner @SUM: is not re-expanded. Same applies to any
+ * "@RRDIDX@" written inside an aggregate operand (see comment near
+ * add_graphdef_arg). The single-pass design keeps the parser simple at
+ * the cost of these two limitations; graphs.cfg blocks shouldn't need
+ * nesting because per-RRD selection already happens inside the
+ * aggregate. */
 static char *expand_aggregate_tokens(char *tpl)
 {
+	/* result is kept as a file-static strbuffer for the lifetime of the
+	 * CGI: the caller (add_graphdef_arg) strdup's the contents before
+	 * the next call clobbers them, so the lifetime is "until the next
+	 * call." Do NOT hold a pointer into STRBUF(result) across another
+	 * expand_aggregate_tokens / expand_tokens call -- the static buffer
+	 * is shared and will be cleared. */
 	static strbuffer_t *result = NULL;
 	char *inp, *p;
 
