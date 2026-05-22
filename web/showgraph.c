@@ -488,7 +488,14 @@ void load_gdefs(char *fn)
 		}
 		else if (strncasecmp(p, "DSCOUNT", 7) == 0) {
 			p += 7; p += strspn(p, " \t");
-			newitem->dscount = atoi(p);
+			if (*p == '$') {
+				/* DSCOUNT $VAR -- read from xymonserver.cfg env */
+				char *v = xgetenv(p + 1);
+				newitem->dscount = (v ? atoi(v) : 0);
+			}
+			else {
+				newitem->dscount = atoi(p);
+			}
 			if (newitem->dscount < 0) newitem->dscount = 0;
 		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
