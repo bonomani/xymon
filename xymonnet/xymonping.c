@@ -50,7 +50,12 @@ static char rcsid[] = "$Id$";
  * most; these are several orders of magnitude above realistic and
  * exist only to fail cleanly on a corrupt or hostile hosts.cfg
  * instead of OOM-ing the box. */
-#define MAX_HOSTS            1000000
+/* The 16-bit ICMP echo sequence carries (host_idx + 1), so two hosts
+ * with indices that differ by a multiple of 65536 would receive each
+ * other's replies. The reply-side cross-check on pingdata->id catches
+ * the alias, but advertising a 1M cap when only the first ~65535 can
+ * ever match is misleading. MAX_TOTAL_PROBES still bounds the total. */
+#define MAX_HOSTS            65535
 #define MAX_SAMPLES_PER_HOST 1000
 #define MAX_TOTAL_PROBES     10000000
 
@@ -61,6 +66,7 @@ static char rcsid[] = "$Id$";
 #define PS_SENT    1	/* sent, awaiting reply */
 #define PS_REPLIED 2	/* reply received */
 #define PS_ERROR   3	/* send hard-failed; no reply possible */
+#define PS_TIMEOUT 4	/* in-flight deadline elapsed; counted as lost */
 
 typedef struct hostdata_t {
 	int id;
@@ -137,10 +143,17 @@ char *nextip(int argc, char *argv[], FILE *fd)
 	static char buf[4096];
 
 	if (argi == 0) {
-		/* Check if there are any command-line IP's */
-		struct sockaddr_in ina;
+		/* Check if there are any command-line IP's. Must accept the
+		 * same families as load_ips() below -- otherwise an IPv6
+		 * argument falls through to stdin and we report "No hosts
+		 * to ping" for a documented-supported invocation. */
+		struct in_addr  a4;
+		struct in6_addr a6;
 
-		for (argi=1; ((argi < argc) && (inet_aton(argv[argi], &ina.sin_addr) == 0)); argi++) ;
+		for (argi=1; argi < argc; argi++) {
+			if (inet_pton(AF_INET,  argv[argi], &a4) == 1) break;
+			if (inet_pton(AF_INET6, argv[argi], &a6) == 1) break;
+		}
 		cmdmode = (argi < argc);
 	}
 
@@ -510,7 +523,18 @@ int get_response(int sock, int family, int is_dgram)
 		if (hostidx < 0 || hostidx >= hostcount) continue;
 		if (hosts[hostidx]->family != family) continue;
 
+		/* Make sure the reply is large enough to actually contain
+		 * the pingdata_t payload before we dereference it. A short
+		 * but well-formed ECHOREPLY would otherwise read past the
+		 * received bytes into stale static-buffer contents. */
+		if (n < (int)(iphdrlen + hdr_size + sizeof(struct pingdata_t))) continue;
 		pingdata = (struct pingdata_t *)(buffer + iphdrlen + hdr_size);
+
+		/* icmp_seq carries only 16 bits of host index; the payload
+		 * carries the full 32-bit id. Cross-check so seq-aliased
+		 * hosts (when hostcount > 65535) and spoofed replies whose
+		 * seq happens to land on a live host can't cross-attribute. */
+		if (pingdata->id != hostidx) continue;
 
 		/* Calculate the round-trip time. */
 		rtt.tv_sec -= pingdata->timesent.tv_sec;
@@ -522,12 +546,14 @@ int get_response(int sock, int family, int is_dgram)
 
 		if (hosts[hostidx]->probe_state) {
 			/* Smoke mode: store rtt at the probe_idx slot the
-			 * payload carries. Drop duplicates and bogus indices.
-			 * A duplicate reply (same probe_idx, already REPLIED)
-			 * is silently ignored -- it's not a new sample. */
+			 * payload carries. Only PS_SENT probes are eligible:
+			 * PS_REPLIED rejects duplicates, and PS_TIMEOUT
+			 * rejects late replies whose per-probe deadline has
+			 * already elapsed (otherwise they would silently
+			 * cancel the loss we already counted). */
 			int pidx = pingdata->probe_idx;
 			if (pidx < 0 || pidx >= samples_count) continue;
-			if (hosts[hostidx]->probe_state[pidx] == PS_REPLIED) continue;
+			if (hosts[hostidx]->probe_state[pidx] != PS_SENT) continue;
 			hosts[hostidx]->samples_usec[pidx] =
 				(unsigned long)(rtt.tv_sec) * 1000000UL +
 				(unsigned long)(rtt.tv_nsec / 1000);
@@ -722,7 +748,24 @@ static int smoke_main_loop(int timeout)
 
 		now = mono_ns();
 		wait_ns = earliest - now;
-		if (wait_ns <= 0) break;	/* deadline passed; give up */
+		if (wait_ns <= 0) {
+			/* Earliest deadline has passed. Mark every probe whose
+			 * own deadline is now in the past as PS_TIMEOUT so the
+			 * next iteration picks up the next earliest still in
+			 * flight (later-scheduled probes may still be within
+			 * their per-host timeout). */
+			int i, k;
+			for (i = 0; i < hostcount; i++) {
+				if (!hosts[i]->probe_state) continue;
+				for (k = 0; k < samples_count; k++) {
+					int64_t d;
+					if (hosts[i]->probe_state[k] != PS_SENT) continue;
+					d = hosts[i]->probe_sent_at[k] + hosts[i]->timeout_ns;
+					if (d <= now) hosts[i]->probe_state[k] = PS_TIMEOUT;
+				}
+			}
+			continue;
+		}
 		tv.tv_sec  = wait_ns / 1000000000LL;
 		tv.tv_usec = (wait_ns % 1000000000LL) / 1000;
 		nfds = select_set(&readfds);
@@ -833,7 +876,7 @@ int main(int argc, char *argv[])
 			char *delim = strchr(argv[argi], '=');
 			timeout = atoi(delim+1);
 		}
-		else if (strncmp(argv[argi], "--responses=", 11) == 0) {
+		else if (strncmp(argv[argi], "--responses=", 12) == 0) {
 			char *delim = strchr(argv[argi], '=');
 			minresponses = atoi(delim+1);
 		}

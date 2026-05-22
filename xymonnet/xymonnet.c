@@ -125,7 +125,14 @@ static smoke_worker_t *smoke_worker_for(int samples)
 	for (i = 0; i < smoke_worker_count; i++) {
 		if (smoke_workers[i].samples == samples) return &smoke_workers[i];
 	}
-	smoke_workers = (smoke_worker_t *)realloc(smoke_workers, sizeof(smoke_worker_t) * (smoke_worker_count + 1));
+	{
+		smoke_worker_t *tmp = (smoke_worker_t *)realloc(smoke_workers, sizeof(smoke_worker_t) * (smoke_worker_count + 1));
+		if (!tmp) {
+			errprintf("realloc smoke_workers failed: %s\n", strerror(errno));
+			return NULL;
+		}
+		smoke_workers = tmp;
+	}
 	w = &smoke_workers[smoke_worker_count++];
 	memset(w, 0, sizeof(*w));
 	w->samples = samples;
@@ -1206,6 +1213,7 @@ int start_ping_service(service_t *service)
 
 		if (t->host->smoke_samples > 0) {
 			smoke_worker_t *w = smoke_worker_for(t->host->smoke_samples);
+			if (!w) continue;	/* smoke_worker_for already logged */
 			target_tree = w->iptree;
 			if (xtreeFind(target_tree, ip) == xtreeEnd(target_tree)) {
 				rec = strdup(ip);
@@ -1599,6 +1607,13 @@ int finish_ping_service(service_t *service)
 				if (sscanf(l, "%d.%d.%d.%d ", &ip1, &ip2, &ip3, &ip4) == 4) {
 					snprintf(pingip, sizeof(pingip), "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
 					for (t = service->items; t; t = t->next) {
+						/* Attribute only to items routed to this
+						 * worker. Without the smoke_samples check
+						 * a shared IP with mixed smoke_conn:N (or a
+						 * legacy/non-smoke peer on the same IP)
+						 * would receive another host's samples
+						 * and loss line. */
+						if (t->host->smoke_samples != w->samples) continue;
 						if (strcmp(t->host->ip, pingip) == 0) {
 							if (t->open) dbgprintf("More than one ping result for %s\n", pingip);
 							t->open = (strstr(l, "is alive") != NULL);

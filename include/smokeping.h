@@ -19,6 +19,12 @@
 #include <sys/types.h>
 #include <time.h>
 
+/* Hard upper bound on N (loss=K/N denominator) accepted by the RRD
+ * worker. Mirrors xymonping's MAX_SAMPLES_PER_HOST so a producer
+ * staying within its own cap is always accepted, while a malformed or
+ * hostile status line can't trigger a giant allocation here. */
+#define SMOKEPING_MAX_SAMPLES 1000
+
 /* Configured per-cycle sample count. Reads $SMOKEPINGSAMPLES once and
  * caches the result; defaults to 20 if unset or non-positive. */
 int smokeping_sample_count(void);

@@ -95,7 +95,9 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		 * The RRD shape is keyed off the reported denominator N
 		 * (loss=K/N), not $SMOKEPINGSAMPLES, so a host configured
 		 * with smoke_conn:N != $SMOKEPINGSAMPLES still records all
-		 * its samples. */
+		 * its samples. The [conn-smoke] graph (web/showgraph.c)
+		 * reads the per-file DS count back via rrd_info_r, so the
+		 * graph naturally matches whatever N landed here. */
 		if (strstr(msg, "loss=") != NULL) {
 			char *lp = strstr(msg, "loss=");
 			int reported_total = 0, dummy_k = 0;
@@ -105,12 +107,21 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 			double median, lossfrac;
 
 			/* Peek at "loss=K/N" so we know how big a buffer to
-			 * allocate before parsing the samples= list. */
+			 * allocate before parsing the samples= list. Clamp N
+			 * to SMOKEPING_MAX_SAMPLES: a malformed or hostile
+			 * status line with a huge denominator would otherwise
+			 * size a per-N RRD template cache entry (never freed)
+			 * and a samples buffer for it. */
 			(void)sscanf(lp + 5, "%d/%d", &dummy_k, &reported_total);
+			if (reported_total > SMOKEPING_MAX_SAMPLES) reported_total = SMOKEPING_MAX_SAMPLES;
 
 			n_slots = (reported_total > 0 ? reported_total : smokeping_sample_count());
 			capacity = n_slots + 4;
 			samples = (double *)calloc(capacity, sizeof(double));
+			if (!samples) {
+				errprintf("calloc(%d doubles) failed for smoke samples; skipping\n", capacity);
+				return 0;
+			}
 
 			smokeping_parse_message(msg, samples, capacity, &nrecv, &lost, &totalsent);
 
