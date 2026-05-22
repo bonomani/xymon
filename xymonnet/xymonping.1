@@ -2,7 +2,7 @@
 .SH NAME
 xymonping \- Xymon ping tool
 .SH SYNOPSIS
-.B "xymonping [\-\-retries=N] [\-\-timeout=N] [\-\-samples=N] [IP\-addresses]"
+.B "xymonping [\-\-retries=N] [\-\-timeout=N] [\-\-responses=N] [\-\-samples=N] [\-\-per\-host\-interval=MS] [\-\-max\-pps=N] [\-\-source=IP] [\-\-debug[=FILE]] [IP\-addresses]"
 
 .SH DESCRIPTION
 .I xymonping(1)
@@ -33,20 +33,39 @@ number of retries. With the default options, xymonping takes
 approximately 18 seconds to ping all hosts (tested with an
 input set of 1500 IP addresses).
 
-.SH SUID-ROOT INSTALLATION REQUIRED
-xymonping needs to be installed with suid-root privileges,
-since it requires a "raw socket" to send and receive ICMP
-Echo (ping) packets.
+.SH PRIVILEGES
+xymonping needs to send and receive ICMP Echo (ping) packets.
+On Linux it first tries an unprivileged
+.B SOCK_DGRAM
+ICMP socket; this works if the running user's primary GID is in the range
+configured by
+.B net.ipv4.ping_group_range
+(see
+.I sysctl(8)).
+For example, on Debian/Ubuntu the default range typically already covers
+unprivileged users; on other distros you may need:
+.sp
+   sysctl \-w net.ipv4.ping_group_range="0 2147483647"
+.sp
+If the unprivileged socket cannot be opened, xymonping falls back to
+.B SOCK_RAW
+which requires either
+.B CAP_NET_RAW
+(set via
+.I setcap(8))
+or suid-root. The recommended modern setup is:
+.sp
+   setcap cap_net_raw+ep /path/to/xymonping
+.sp
+If suid-root is used instead, xymonping immediately drops root and only
+regains it to obtain the raw socket and optionally bind a source address;
+no user-supplied or network data is touched while privileged.
 
-xymonping is implemented such that it immediately drops
-the root privileges, and only regains them to perform two
-operations: Obtaining the raw socket, and optionally binding
-it to a specific source address. These operations are performed
-as root, the rest of the time xymonping runs with normal user
-privileges. Specifically, no user-supplied data or network data
-is used while running with root privileges. Therefore it 
-should be safe to provide xymonping with the necessary
-suid-root privileges.
+IPv6 probing requires either the unprivileged-ICMP path (since Linux 3.11
+extended
+.B ping_group_range
+to ICMPv6) or
+.B CAP_NET_RAW.
 
 .SH OPTIONS
 .IP \-\-retries=N

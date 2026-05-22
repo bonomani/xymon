@@ -121,9 +121,14 @@ int smokeping_parse_message(const char *msg, double *samples_out,
 		const char *vp = sp + strlen("samples=");
 		char *qq;
 		while (*vp && (nrecv < samples_max)) {
+			double v;
 			if ((*vp == ' ') || (*vp == '\n') || (*vp == '\0')) break;
-			samples_out[nrecv++] = strtod(vp, &qq);
+			v = strtod(vp, &qq);
 			if (qq == vp) break;	/* not a number */
+			/* Drop NaN / +-inf so a malformed sample can't pollute the
+			 * downstream median (qsort with < and > is unordered for NaN
+			 * and would silently corrupt the sort). */
+			if (isfinite(v)) samples_out[nrecv++] = v;
 			vp = qq;
 			if (*vp == ',') vp++;
 		}

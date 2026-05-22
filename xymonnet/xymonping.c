@@ -209,6 +209,10 @@ void load_ips(int argc, char *argv[], FILE *fd)
 		}
 
 		newitem = (hostdata_t *)calloc(1, sizeof(hostdata_t));
+		if (!newitem) {
+			errprintf("calloc(hostdata_t) failed for %s; skipping\n", l);
+			continue;
+		}
 
 		/* Try v6 first because a v4 address is also a syntactically
 		 * acceptable string to inet_pton(AF_INET6) only in mapped
@@ -258,17 +262,30 @@ void load_ips(int argc, char *argv[], FILE *fd)
 
 	/* Setup the table of hostdata records */
 	hosts = (hostdata_t **)malloc((hostcount+1) * sizeof(hostdata_t *));
+	if (!hosts) {
+		errprintf("malloc(host table, %d entries) failed; aborting\n", hostcount + 1);
+		exit(1);
+	}
 	for (i=0, walk=hosthead; (walk); walk=walk->next, i++) hosts[i] = walk;
 	hosts[hostcount] = NULL;
 
 	/* In smoke mode, each host gets a per-sample rtt array, a per-probe
 	 * state machine, and a per-probe monotonic send timestamp. All
-	 * three are indexed by probe_idx. */
+	 * three are indexed by probe_idx. If any per-host calloc fails,
+	 * leave probe_state NULL on that host so the smoke driver and
+	 * reply path fall back to legacy single-rtt behaviour. */
 	if (samples_count > 0) {
 		for (i = 0; i < hostcount; i++) {
 			hosts[i]->samples_usec  = (unsigned long *)calloc(samples_count, sizeof(unsigned long));
 			hosts[i]->probe_state   = (uint8_t *)calloc(samples_count, sizeof(uint8_t));
 			hosts[i]->probe_sent_at = (int64_t *)calloc(samples_count, sizeof(int64_t));
+			if (!hosts[i]->samples_usec || !hosts[i]->probe_state || !hosts[i]->probe_sent_at) {
+				errprintf("calloc(smoke arrays, %d samples) failed for host idx %d; legacy fallback\n",
+				          samples_count, i);
+				free(hosts[i]->samples_usec);  hosts[i]->samples_usec  = NULL;
+				free(hosts[i]->probe_state);   hosts[i]->probe_state   = NULL;
+				free(hosts[i]->probe_sent_at); hosts[i]->probe_sent_at = NULL;
+			}
 		}
 	}
 }
