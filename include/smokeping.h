@@ -32,7 +32,12 @@ int smokeping_sample_count(void);
 /* NULL-terminated array of rrdtool DS specs for a smoke RRD with `n`
  * per-cycle samples: DS:median, DS:loss, DS:ping1..pingN. Per-N cache;
  * do not free. _n() is the explicit variant; the zero-arg form is a
- * convenience wrapper using smokeping_sample_count(). */
+ * convenience wrapper using smokeping_sample_count().
+ *
+ * Thread-safety: the per-N cache is a single linked list mutated
+ * without locking; safe in the single-threaded xymond_rrd worker that
+ * is the only current caller. If a future caller is multi-threaded
+ * (alerting daemon etc.), wrap cache_lookup_or_create in a mutex. */
 char **smokeping_rrd_params_n(int n);
 char **smokeping_rrd_params(void);
 

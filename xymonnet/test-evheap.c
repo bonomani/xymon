@@ -10,6 +10,7 @@
  */
 
 #include <stdarg.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 
@@ -40,6 +41,12 @@ static pingevent_t mkev(int64_t when, int host, int probe)
 	e.probe_idx = probe;
 	e.retries = 0;
 	return e;
+}
+
+static int cmp_i64(const void *a, const void *b)
+{
+	int64_t aa = *(const int64_t *)a, bb = *(const int64_t *)b;
+	return (aa < bb) ? -1 : (aa > bb);
 }
 
 int main(void)
@@ -157,6 +164,50 @@ int main(void)
 		evheap_push(mkev(99, 0, 0));
 		evheap_pop(&out);
 		CHECK_EQ((int)out.when_ns, 99, "clear-then-push-roundtrip");
+	}
+
+	/* Randomized fuzz: push N events with mixed-range random when_ns,
+	 * pop all, verify (a) every pop succeeds, (b) pop order is
+	 * ascending, (c) the multiset of popped when_ns values equals
+	 * the input (no element lost, no element invented). Order-only
+	 * assertions would let a buggy heap that silently dropped
+	 * duplicates still pass. */
+	{
+		enum { N = 1000 };
+		static int64_t in_arr[N];
+		static int64_t out_arr[N];
+		int i, all_pop_ok = 1, sorted_ok = 1, multiset_ok = 1;
+		pingevent_t out;
+
+		evheap_clear();
+		srand(0x5EED5EED);
+		for (i = 0; i < N; i++) {
+			int64_t v;
+			switch (rand() % 4) {
+			case 0:  v = rand() % 100;                 break;  /* small + duplicates */
+			case 1:  v = (int64_t)rand() * 1000;       break;  /* spread out */
+			case 2:  v = INT64_MAX - (rand() % 1000);  break;  /* near-max boundary */
+			default: v = rand();                       break;
+			}
+			in_arr[i] = v;
+			evheap_push(mkev(v, i, 0));
+		}
+		CHECK_EQ(evheap_size(), N, "fuzz-size-after-push");
+		for (i = 0; i < N; i++) {
+			if (evheap_pop(&out) != 0) { all_pop_ok = 0; break; }
+			out_arr[i] = out.when_ns;
+		}
+		CHECK(all_pop_ok, "fuzz-pop-all-ok");
+		CHECK_EQ(evheap_size(), 0, "fuzz-size-after-pop");
+		for (i = 1; i < N; i++) {
+			if (out_arr[i] < out_arr[i-1]) { sorted_ok = 0; break; }
+		}
+		CHECK(sorted_ok, "fuzz-pop-ascending");
+		qsort(in_arr, N, sizeof(int64_t), cmp_i64);
+		for (i = 0; i < N; i++) {
+			if (in_arr[i] != out_arr[i]) { multiset_ok = 0; break; }
+		}
+		CHECK(multiset_ok, "fuzz-multiset-equality");
 	}
 
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }

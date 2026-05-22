@@ -920,7 +920,8 @@ int main(int argc, char *argv[])
 			char *delim = strchr(argv[argi], '=');
 			senddelay = (1000000 / atoi(delim+1));
 		}
-		else if (strncmp(argv[argi], "--debug", 7) == 0) {
+		else if ((strcmp(argv[argi], "--debug") == 0) ||
+		         (strncmp(argv[argi], "--debug=", 8) == 0)) {
 			char *delim = strchr(argv[argi], '=');
 			debug = 1;
 			if (delim) set_debugfile(delim+1, 0);
