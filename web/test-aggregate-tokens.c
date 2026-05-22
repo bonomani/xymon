@@ -135,6 +135,13 @@ int main(void) {
 	check("p-no-digit",        "@P:t@",         3, -1, 2, "(not-aggregate)");
 	check("p-trailing-dot",    "@P9.:t@",       3, -1, 2, "t0,t1,t2,9.,3,PERCENT"); /* trailing dot accepted today; flag if rejecting later */
 
+	/* Name delimiter check: whitespace / commas inside the operand
+	 * would otherwise let the parser swallow downstream @TOKEN@ markers. */
+	check("avg-space-in-name", "@AVG:foo bar@",   3, -1, 2, "(not-aggregate)");
+	check("avg-tab-in-name",   "@AVG:foo\tbar@", 3, -1, 2, "(not-aggregate)");
+	check("avg-comma-in-name", "@AVG:foo,bar@",   3, -1, 2, "(not-aggregate)");
+	check("avg-dot-in-name",   "@AVG:foo.bar@",   3, -1, 2, "foo.bar0,foo.bar1,+,foo.bar2,+,3,/"); /* dots allowed (legal in some uses) */
+
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }
 	printf("\nAll tests passed.\n");
 	return 0;

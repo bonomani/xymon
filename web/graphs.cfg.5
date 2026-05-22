@@ -39,10 +39,36 @@ a new color for each graph automatically.
 Aggregate values across all files selected by FNPATTERN can be built with
 "@AVG:name@", "@SUM:name@", "@MIN:name@", "@MAX:name@", "@AVGNAN:name@",
 "@SUMNAN:name@", "@MINNAN:name@", "@MAXNAN:name@", "@COUNT:name@",
-"@MEDIAN:name@", "@STDEV:name@", "@PERCENT:name:pct@" and "@Ppct:name@".
-For example, after defining "DEF:t@RRDIDX@=@RRDFN@:ds0:AVERAGE", the line
-"CDEF:avg=@AVG:t@" expands to "CDEF:avg=t0,t1,+,t2,+,3,/" when three
-files are matched; "@P95:t@" expands to the matching RRDtool PERCENT RPN.
+"@MEDIAN:name@", "@STDEV:name@", "@PERCENT:name:pct@" and "@Ppct:name@"
+(short form, e.g. "@P95:name@" or "@P99.9:name@"). The "name" portion
+is the variable-name prefix used by preceding "DEF:name@RRDIDX@=..."
+lines -- the aggregate expands to "name0,name1,...,nameN-1" followed
+by the operator's RPN. "pct" is a decimal percentile (0-100, at most
+one dot).
+For example, after defining "DEF:t@RRDIDX@=@RRDFN@:ds0:AVERAGE", the
+line "CDEF:avg=@AVG:t@" expands to "CDEF:avg=t0,t1,+,t2,+,3,/" when
+three files are matched; "@P95:t@" expands to the matching RRDtool
+PERCENT RPN; "@PERCENT:t:99.9@" is the long form of "@P99.9:t@".
+
+When the surrounding graph is sliced by "first"/"count" CGI parameters,
+the aggregates honour the slice: only the selected RRDs (firstidx
+through lastidx inclusive) contribute. An empty selection yields
+"UNKN" for arithmetic ops and "0" for "@COUNT:" (so dividing a
+"@SUMNAN:" by a "@COUNT:" stays safe on the empty set: 0/0 in RRDtool
+RPN is UNKN as well).
+
+Semantics that rely on RRDtool's RPN operators (so they match what
+"rrdgraph_rpn(1)" describes): "@STDEV:" emits the *population* standard
+deviation (divides by N, not N-1). "@MEDIAN:" returns the lower middle
+value when N is even. "@AVG:" divides by the selected count, not the
+non-NaN count -- if any contributor is UNKN the result is UNKN; for a
+NaN-aware mean combine "@SUMNAN:" with "@COUNT:".
+
+Names accept alphanumerics and underscore (and the inner ":" in the
+"@PERCENT:name:pct@" form). "@DSIDX@"/"@PREVDSIDX@"-style index tokens
+must NOT appear inside an aggregate operand -- they are not expanded
+recursively, and the aggregate parser stops at the first "@" when
+locating the operand terminator.
 
 The remainder of the lines in each definition are passed directly to the
 RRDtool rrd_graph() routine.

@@ -89,14 +89,18 @@ xymonpage: $(WEBPAGEOBJS) $(XYMONCOMMLIB)
 datepage.cgi: $(DATEPAGEOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(DATEPAGEOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
-showgraph.o: showgraph.c
+showgraph.o: showgraph.c aggregate-tokens.inc.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
 
-# Self-contained golden-output test for the @AVG:/@SUM:/... aggregate tokens.
-# Not built by the default target; run "make test-aggregate-tokens" manually.
-test-aggregate-tokens: test-aggregate-tokens.c
-	$(CC) $(CFLAGS) -o $@ $<
-	./$@
+# Self-contained golden-output test for the @AVG:/@SUM:/... aggregate
+# tokens. The test #includes aggregate-tokens.inc.c so the parser is
+# shared with showgraph.c -- changes to the .inc.c automatically rebuild
+# both. Not built by the default target; run "make test-aggregate-tokens"
+# manually. Build only (no auto-run) so a failure stops the suite at
+# the build step rather than mid-test; users run ./test-aggregate-tokens
+# explicitly.
+test-aggregate-tokens: test-aggregate-tokens.c aggregate-tokens.inc.c
+	$(CC) $(CFLAGS) -o $@ test-aggregate-tokens.c
 
 # Need NETLIBS on Solaris for getservbyname(), called by parse_url()
 showgraph.cgi: $(SHOWGRAPHOBJS) $(XYMONCOMMLIB)
@@ -165,8 +169,12 @@ appfeed.cgi: $(APPFEEDOBJS) $(XYMONLIB)
 	$(CC) $(CFLAGS) -c -o $@ $<
 
 
+.PHONY: clean check
+check: test-aggregate-tokens
+	./test-aggregate-tokens
+
 clean:
-	rm -f $(PROGRAMS) *.o *~
+	rm -f $(PROGRAMS) *.o *~ test-aggregate-tokens
 
 install: install-bin install-cgi install-man
 

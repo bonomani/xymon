@@ -111,6 +111,18 @@ static int is_aggregate_token(char *inp, char **op, char **name, int *oplen, int
 	 * producing RPN that references undefined DEF vars (0,1,2,3,AVG)
 	 * which rrdtool rejects with a confusing message. */
 	if (p == *name) return 0;
+	/* Reject names that contain whitespace, comma, or semicolon. Without
+	 * this, "@AVG:foo bar @WHATEVER@" would swallow the @WHATEVER@
+	 * token's leading @ as part of the unbounded strchr search,
+	 * silently corrupting the surrounding template. Stay permissive on
+	 * the rest -- "name" may carry "." (for @PERCENT:n:99.9@), ":" (the
+	 * inner separator), and identifier characters used in DEF names. */
+	{
+		char *q;
+		for (q = *name; q < p; q++) {
+			if (isspace((int)*q) || *q == ',' || *q == ';') return 0;
+		}
+	}
 	*toklen = (p - inp) + 1;
 
 	return 1;

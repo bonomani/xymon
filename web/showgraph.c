@@ -683,8 +683,24 @@ static char *expand_aggregate_tokens(char *tpl)
 
 static void add_graphdef_arg(char **rrdargs, int *argi, char *def)
 {
-	rrdargs[(*argi)++] = strdup(expand_aggregate_tokens(def));
+	char *expanded = expand_aggregate_tokens(def);
+	char *copy = (expanded ? strdup(expanded) : NULL);
+	if (!copy) {
+		errprintf("strdup of expanded graphdef failed; skipping arg\n");
+		return;
+	}
+	rrdargs[(*argi)++] = copy;
 }
+
+/* NOTE on token-pass ordering: expand_aggregate_tokens runs the aggregate
+ * pass first, then feeds the result through expand_tokens() for the
+ * @RRDFN@/@RRDIDX@/@RRDPARAM@/@COLOR@ family. Consequence: @RRDIDX@ inside
+ * an aggregate operand (e.g. @AVG:p@RRDIDX@@) is NOT expanded -- the
+ * outer parser stops at the first @ when locating the operand terminator
+ * and the @RRDIDX@ token is consumed as part of the surrounding text. If
+ * a graphs.cfg author wants the aggregate to span multiple matched RRDs
+ * they should use the natural form @AVG:p@ with DEF lines that produce
+ * p0, p1, ..., pN; the per-RRD selection happens inside the aggregate. */
 
 static void add_graphdef_rrd_block(char **rrdargs, int *argi, gdef_t *gdef, int firstdef, int lastdef)
 {
