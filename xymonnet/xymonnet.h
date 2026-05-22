@@ -98,6 +98,7 @@ typedef struct testedhost_t {
 	/* The following are for the connectivity test */
 	int noconn;		/* noconn flag (don't report "conn" at all */
 	int noping;		/* noping flag (report "conn" as clear=disabled */
+	int smoke_samples;	/* >0 = ping this host in smoke mode with N samples per cycle */
 	int badconn[3];		/* badconn:x:y:z flag */
 	int downcount;		/* number of successive failed conn tests */
 	time_t downstart;	/* time() of first conn failure */

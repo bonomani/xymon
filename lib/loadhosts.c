@@ -642,6 +642,17 @@ char *xmh_custom_item(void *hostin, char *key)
 	return host->elems[i];
 }
 
+char *xmh_exact_item(void *hostin, char *key)
+{
+	int i;
+	namelist_t *host = (namelist_t *)hostin;
+
+	i = 0;
+	while (host->elems[i] && strcmp(host->elems[i], key)) i++;
+
+	return host->elems[i];
+}
+
 enum xmh_item_t xmh_key_idx(char *item)
 {
 	enum xmh_item_t i;

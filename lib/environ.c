@@ -103,6 +103,7 @@ const static struct {
 	{ "NONETPAGE", "" },
 	{ "FPING", "xymonping" },
 	{ "FPINGOPTS", "-Ae" },
+	{ "SMOKEPINGSAMPLES", "20" },
 	{ "SNTP", "sntp" },
 	{ "SNTPOPTS", "-u" },
 	{ "NTPDATE", "ntpdate" },
