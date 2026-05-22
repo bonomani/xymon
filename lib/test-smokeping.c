@@ -14,6 +14,7 @@
 #include <string.h>
 #include <math.h>
 #include <time.h>
+#include <locale.h>
 
 #include "smokeping.h"
 
@@ -89,6 +90,51 @@ int main(void)
 		CHECK_EQ(nrecv, 2, "parse-partial-nrecv");
 		CHECK_EQ(lost, 3, "parse-partial-lost");
 		CHECK_EQ(total, 5, "parse-partial-total");
+	}
+
+	/* Malformed loss=K (no denominator): the parser still returns 1
+	 * because the marker "loss=" is present, but the sscanf for K/N
+	 * only matches K. The downstream RRD writer clamps reported_total
+	 * to 0 -> falls back to env default. */
+	{
+		double s[10];
+		int nrecv, lost, total;
+		const char *msg = "1.2.3.7 is something loss=5";
+		int ok = smokeping_parse_message(msg, s, 10, &nrecv, &lost, &total);
+		CHECK_EQ(ok, 1, "parse-malformed-loss-returns-1");
+		CHECK_EQ(lost, 5, "parse-malformed-loss-lost");
+		CHECK_EQ(total, 0, "parse-malformed-loss-total-zero");
+	}
+
+	/* NaN sample: parser must drop non-finite values (qsort with < / >
+	 * is unordered on NaN and would silently corrupt the sort). */
+	{
+		double s[10];
+		int nrecv, lost, total;
+		const char *msg = "1.2.3.8 is alive (0.31 ms) samples=0.0001,NaN,0.0003 loss=0/3";
+		smokeping_parse_message(msg, s, 10, &nrecv, &lost, &total);
+		CHECK_EQ(nrecv, 2, "parse-nan-drops-nan");
+		CHECK_NEAR(s[0], 0.0001, 1e-9, "parse-nan-keeps-first");
+		CHECK_NEAR(s[1], 0.0003, 1e-9, "parse-nan-keeps-third");
+	}
+
+	/* Locale resistance: smokeping uses strtod_l with a C locale,
+	 * so the wire format's "." decimal parses correctly even when
+	 * the consumer's LC_NUMERIC says comma. The test sets de_DE if
+	 * available; if not (no German locale installed) we just verify
+	 * the parser still works under the default locale. */
+	{
+		double s[10];
+		int nrecv, lost, total;
+		const char *msg = "1.2.3.4 is alive (0.31 ms) samples=0.000310,0.000320 loss=0/2";
+		char *prev = setlocale(LC_NUMERIC, "de_DE.UTF-8");
+		smokeping_parse_message(msg, s, 10, &nrecv, &lost, &total);
+		CHECK_EQ(nrecv, 2, "parse-locale-de-nrecv");
+		if (nrecv == 2) {
+			CHECK_NEAR(s[0], 0.000310, 1e-9, "parse-locale-de-first");
+			CHECK_NEAR(s[1], 0.000320, 1e-9, "parse-locale-de-second");
+		}
+		setlocale(LC_NUMERIC, prev ? prev : "C");
 	}
 
 	/* Median */

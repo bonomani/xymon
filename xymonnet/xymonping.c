@@ -35,6 +35,7 @@ static char rcsid[] = "$Id$";
 #include <netinet/ip_icmp.h>
 #include <netinet/icmp6.h>
 #include <arpa/inet.h>
+#include <net/if.h>		/* if_nametoindex() for IPv6 link-local %iface */
 #include <netdb.h>
 
 #include <stdio.h>
@@ -216,23 +217,44 @@ void load_ips(int argc, char *argv[], FILE *fd)
 
 		/* Try v6 first because a v4 address is also a syntactically
 		 * acceptable string to inet_pton(AF_INET6) only in mapped
-		 * form (::ffff:1.2.3.4); a bare "1.2.3.4" parses as v4 only. */
+		 * form (::ffff:1.2.3.4); a bare "1.2.3.4" parses as v4 only.
+		 *
+		 * IPv6 link-local addresses (fe80::...) require a non-zero
+		 * sin6_scope_id (interface index). Accept the standard
+		 * "addr%iface" syntax: strip the suffix before inet_pton
+		 * and resolve the interface name via if_nametoindex. */
 		{
 			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&newitem->addr;
 			struct sockaddr_in  *sin4 = (struct sockaddr_in  *)&newitem->addr;
+			char *pct = strchr(l, '%');
+			unsigned int scope_id = 0;
+			if (pct) {
+				*pct = '\0';
+				scope_id = if_nametoindex(pct + 1);
+				if (scope_id == 0) {
+					errprintf("Dropping %s%%%s - unknown interface for scope_id\n", l, pct + 1);
+					*pct = '%';
+					free(newitem);
+					continue;
+				}
+			}
 			if (inet_pton(AF_INET6, l, &sin6->sin6_addr) == 1) {
-				newitem->family  = AF_INET6;
+				newitem->family   = AF_INET6;
 				sin6->sin6_family = AF_INET6;
 				sin6->sin6_port   = 0;
+				sin6->sin6_scope_id = scope_id;
 				newitem->addrlen  = sizeof(struct sockaddr_in6);
+				if (pct) *pct = '%';	/* restore for any later logging */
 			}
-			else if (inet_pton(AF_INET, l, &sin4->sin_addr) == 1) {
+			else if (!pct && inet_pton(AF_INET, l, &sin4->sin_addr) == 1) {
+				/* No %iface suffix is meaningful for IPv4. */
 				newitem->family  = AF_INET;
 				sin4->sin_family = AF_INET;
 				sin4->sin_port   = 0;
 				newitem->addrlen = sizeof(struct sockaddr_in);
 			}
 			else {
+				if (pct) *pct = '%';	/* restore for the diagnostic */
 				errprintf("Dropping %s - not an IP\n", l);
 				free(newitem);
 				continue;

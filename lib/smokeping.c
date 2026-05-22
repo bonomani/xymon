@@ -8,8 +8,34 @@
 #include <stdlib.h>
 #include <string.h>
 #include <math.h>
+#include <locale.h>
 
 #include "smokeping.h"
+
+/* strtod_l is POSIX 2008; declared by <stdlib.h> under
+ * _POSIX_C_SOURCE >= 200809L. Xymon's build doesn't set that macro
+ * project-wide, so we forward-declare locally to keep the rest of
+ * the includes untouched. */
+extern double strtod_l(const char *nptr, char **endptr, locale_t loc);
+
+/* Return a C-numeric locale handle for strtod_l, lazy-initialised on
+ * first call. xymond_rrd inherits the system locale; on de_DE (and
+ * other comma-as-decimal locales) strtod("0.000310", ...) parses only
+ * "0" and silently truncates every sample to its integer part. The
+ * smoke wire format is fixed at "%.6f" (dot decimal) regardless of
+ * what the consumer's locale claims, so parse with a forced C locale.
+ * Returns (locale_t)0 on newlocale failure -- callers should fall
+ * back to plain strtod, which at worst preserves the existing bug. */
+static locale_t smokeping_c_locale(void)
+{
+	static locale_t c_loc = (locale_t)0;
+	static int tried = 0;
+	if (!tried) {
+		c_loc = newlocale(LC_NUMERIC_MASK, "C", (locale_t)0);
+		tried = 1;
+	}
+	return c_loc;
+}
 
 /* Forward decls; we don't include libxymon.h so the unit test can
  * compile this TU standalone with its own shims. */
@@ -120,10 +146,11 @@ int smokeping_parse_message(const char *msg, double *samples_out,
 	if (sp) {
 		const char *vp = sp + strlen("samples=");
 		char *qq;
+		locale_t c_loc = smokeping_c_locale();
 		while (*vp && (nrecv < samples_max)) {
 			double v;
 			if ((*vp == ' ') || (*vp == '\n') || (*vp == '\0')) break;
-			v = strtod(vp, &qq);
+			v = (c_loc ? strtod_l(vp, &qq, c_loc) : strtod(vp, &qq));
 			if (qq == vp) break;	/* not a number */
 			/* Drop NaN / +-inf so a malformed sample can't pollute the
 			 * downstream median (qsort with < and > is unordered for NaN
