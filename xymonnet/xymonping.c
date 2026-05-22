@@ -77,9 +77,10 @@ typedef struct hostdata_t {
 	int sent;			/* how many ICMP_ECHO requests we've sent (smoke mode) */
 	struct timespec rtt_total;
 	int64_t  timeout_ns;		/* per-host probe-reply deadline; 0 = use --timeout */
-	unsigned long *samples_usec;	/* smoke mode: rtt in usec, indexed by probe_idx; NULL in legacy */
-	uint8_t       *probe_state;	/* smoke mode: PS_* per probe_idx; NULL in legacy */
+	unsigned long *samples_usec;	/* smoke mode: rtt in usec, indexed by probe_idx; NULL in legacy unless retries are tracked */
+	uint8_t       *probe_state;	/* PS_* per probe_idx; legacy allocates [tries] so late replies are rejected after PS_TIMEOUT */
 	int64_t       *probe_sent_at;	/* smoke mode: monotonic-ns send time per probe; NULL in legacy */
+	int probe_slots;		/* length of the probe_state/samples_usec arrays (samples_count in smoke, tries in legacy) */
 	struct hostdata_t *next;
 } hostdata_t;
 
@@ -307,6 +308,9 @@ void load_ips(int argc, char *argv[], FILE *fd)
 				free(hosts[i]->probe_state);   hosts[i]->probe_state   = NULL;
 				free(hosts[i]->probe_sent_at); hosts[i]->probe_sent_at = NULL;
 			}
+			else {
+				hosts[i]->probe_slots = samples_count;
+			}
 		}
 	}
 }
@@ -515,14 +519,15 @@ int get_response(int sock, int family, int is_dgram)
 		}
 
 		if (hosts[hostidx]->probe_state) {
-			/* Smoke mode: store rtt at the probe_idx slot the
-			 * payload carries. Only PS_SENT probes are eligible:
-			 * PS_REPLIED rejects duplicates, and PS_TIMEOUT
-			 * rejects late replies whose per-probe deadline has
-			 * already elapsed (otherwise they would silently
-			 * cancel the loss we already counted). */
+			/* Smoke mode (per-sample slot) or legacy (per-try slot):
+			 * store rtt at the probe_idx slot the payload carries.
+			 * Only PS_SENT probes are eligible: PS_REPLIED rejects
+			 * duplicates, and PS_TIMEOUT rejects late replies whose
+			 * per-probe deadline has already elapsed (otherwise they
+			 * would silently revive a host the loop already
+			 * considered timed out). */
 			int pidx = pingdata->probe_idx;
-			if (pidx < 0 || pidx >= samples_count) continue;
+			if (pidx < 0 || pidx >= hosts[hostidx]->probe_slots) continue;
 			if (hosts[hostidx]->probe_state[pidx] != PS_SENT) continue;
 			hosts[hostidx]->samples_usec[pidx] =
 				(unsigned long)(rtt.tv_sec) * 1000000UL +
@@ -556,7 +561,7 @@ static int64_t smoke_earliest_inflight_deadline(void)
 	int64_t best = INT64_MAX;
 
 	for (i = 0; i < hostcount; i++) {
-		for (k = 0; k < samples_count; k++) {
+		for (k = 0; k < hosts[i]->probe_slots; k++) {
 			int64_t d;
 			if (hosts[i]->probe_state[k] != PS_SENT) continue;
 			d = hosts[i]->probe_sent_at[k] + hosts[i]->timeout_ns;
@@ -758,13 +763,39 @@ static int legacy_main_loop(int timeout, int tries, int minresponses)
 {
 	int i;
 	int64_t timeout_ns = (int64_t)timeout * 1000000000LL;
+	int64_t senddelay_ns = (int64_t)senddelay * 1000LL;	/* senddelay is in us; honor --max-pps / -i */
 	int64_t start_ns = mono_ns();
 
 	if (tries <= 0) tries = 1;
 
+	/* Per-try probe_state so a late reply from a timed-out attempt
+	 * cannot revive the host during a later retry window. Each retry
+	 * fires with probe_idx = previous + 1; EV_EXPIRE marks the slot
+	 * PS_TIMEOUT, and get_response rejects replies whose slot is no
+	 * longer PS_SENT. Allocation failure falls back to the prior
+	 * behaviour (no rejection) for that host -- still better than
+	 * aborting the run. */
+	for (i = 0; i < hostcount; i++) {
+		if (hosts[i]->probe_state) continue;	/* already sized (shouldn't happen in legacy, defensive) */
+		hosts[i]->probe_state  = (uint8_t *)calloc(tries, sizeof(uint8_t));
+		hosts[i]->samples_usec = (unsigned long *)calloc(tries, sizeof(unsigned long));
+		if (!hosts[i]->probe_state || !hosts[i]->samples_usec) {
+			errprintf("calloc(legacy retry-state, %d tries) failed for host idx %d; late-reply guard disabled for this host\n",
+			          tries, i);
+			free(hosts[i]->probe_state);  hosts[i]->probe_state  = NULL;
+			free(hosts[i]->samples_usec); hosts[i]->samples_usec = NULL;
+		}
+		else {
+			hosts[i]->probe_slots = tries;
+		}
+	}
+
+	/* Stagger the first probe of each host so we don't burst the whole
+	 * batch at t=0. Retries are naturally spread by --timeout, so they
+	 * inherit no extra delay. */
 	for (i = 0; i < hostcount; i++) {
 		pingevent_t e;
-		e.when_ns    = start_ns;
+		e.when_ns    = start_ns + (int64_t)i * senddelay_ns;
 		e.host_idx   = i;
 		e.probe_idx  = 0;
 		e.retries    = 0;
@@ -810,6 +841,11 @@ static int legacy_main_loop(int timeout, int tries, int minresponses)
 				r = send_probe(ev.host_idx, ev.probe_idx);
 				if (r == 0) {
 					hosts[ev.host_idx]->sent++;
+					if (hosts[ev.host_idx]->probe_state &&
+					    ev.probe_idx >= 0 &&
+					    ev.probe_idx < hosts[ev.host_idx]->probe_slots) {
+						hosts[ev.host_idx]->probe_state[ev.probe_idx] = PS_SENT;
+					}
 					/* Arm an EV_EXPIRE that carries forward the
 					 * remaining retry budget. */
 					ev.when_ns = mono_ns() + timeout_ns;
@@ -832,16 +868,31 @@ static int legacy_main_loop(int timeout, int tries, int minresponses)
 				}
 			}
 			else {
-				/* EV_EXPIRE: the timeout elapsed for this send. */
+				/* EV_EXPIRE: the timeout elapsed for this send.
+				 * Mark the slot PS_TIMEOUT before retrying so that
+				 * a late reply for this attempt is rejected by
+				 * get_response (probe_state guard). Only overwrite
+				 * PS_SENT -- a slot that already moved to PS_REPLIED
+				 * is not stale, just delayed past its deadline. */
+				if (hosts[ev.host_idx]->probe_state &&
+				    ev.probe_idx >= 0 &&
+				    ev.probe_idx < hosts[ev.host_idx]->probe_slots &&
+				    hosts[ev.host_idx]->probe_state[ev.probe_idx] == PS_SENT) {
+					hosts[ev.host_idx]->probe_state[ev.probe_idx] = PS_TIMEOUT;
+				}
 				if (hosts[ev.host_idx]->received >= minresponses) continue;
 				if (ev.tries_left > 0) {
 					/* Retry: schedule a fresh EV_SEND immediately
-					 * with one less retry available. */
+					 * with one less retry available. probe_idx
+					 * advances so the next attempt gets its own
+					 * PS_SENT slot, distinct from the (now PS_TIMEOUT)
+					 * previous attempt. */
 					pingevent_t next = ev;
 					next.when_ns    = mono_ns();
 					next.kind       = EV_SEND;
 					next.retries    = 0;
 					next.tries_left = ev.tries_left - 1;
+					next.probe_idx  = ev.probe_idx + 1;
 					evheap_push(next);
 				}
 				/* else: no more tries; the host stays at received=0
