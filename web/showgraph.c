@@ -84,6 +84,7 @@ typedef struct gdef_t {
 	char *yaxis;
 	char *graphopts;
 	int  novzoom;
+	int  dscount;	/* DSCOUNT directive: enables @DSIDX@/@PREVDSIDX@ expansion 1..dscount */
 	char **defs;
 	struct gdef_t *next;
 } gdef_t;
@@ -327,6 +328,110 @@ void parse_query(void)
 }
 
 
+/* Replace all occurrences of `needle` in `src` with `repl`. Returns a
+ * malloc'd string; caller frees. */
+static char *str_replace_all(const char *src, const char *needle, const char *repl)
+{
+	int nlen = strlen(needle), rlen = strlen(repl);
+	const char *p;
+	char *out, *q;
+	int count = 0;
+
+	for (p = src; (p = strstr(p, needle)) != NULL; p += nlen) count++;
+	out = (char *)malloc(strlen(src) + count * (rlen - nlen) + 1);
+
+	q = out;
+	while ((p = strstr(src, needle)) != NULL) {
+		int prefix = p - src;
+		memcpy(q, src, prefix); q += prefix;
+		memcpy(q, repl, rlen); q += rlen;
+		src = p + nlen;
+	}
+	strcpy(q, src);
+	return out;
+}
+
+/* Classify a def line for @DSIDX@ expansion.
+ *   *body  - the line content after any @DSSTART:N@ prefix is stripped
+ *   *start - lower bound of the index loop:
+ *              * explicit @DSSTART:N@ prefix wins
+ *              * else 2 if the line uses @PREVDSIDX@ (skips ping0)
+ *              * else 1
+ * Returns 1 if the line should be looped, 0 if it should be emitted once. */
+static int classify_dsidx_line(char *line, char **body, int *start)
+{
+	*body = line;
+	*start = 1;
+
+	if (strncmp(line, "@DSSTART:", 9) == 0) {
+		char *p = line + 9;
+		int s = atoi(p);
+		while (isdigit((int)*p)) p++;
+		if ((*p == '@') && (s > 0)) {
+			*start = s;
+			*body = p + 1;
+		}
+	}
+
+	if (strstr(*body, "@DSIDX@") || strstr(*body, "@PREVDSIDX@")) {
+		if (strstr(*body, "@PREVDSIDX@") && (*start < 2)) *start = 2;
+		return 1;
+	}
+	return 0;
+}
+
+/* When a [block] declares DSCOUNT N, walk its def lines and expand any
+ * line containing @DSIDX@ or @PREVDSIDX@ into N copies of the body.
+ * The expansion runs at parse time so the render path stays untouched. */
+static void expand_dsidx_in_block(gdef_t *gd)
+{
+	int i, newcount = 0, outi = 0;
+	char **newdefs;
+	char idxstr[16], previdxstr[16];
+
+	if (gd->dscount <= 0) return;
+	if (gd->defs == NULL) return;
+
+	for (i = 0; gd->defs[i]; i++) {
+		char *body;
+		int start;
+		if (classify_dsidx_line(gd->defs[i], &body, &start)) {
+			int n = gd->dscount - start + 1;
+			newcount += (n > 0 ? n : 0);
+		}
+		else {
+			newcount++;
+		}
+	}
+
+	newdefs = (char **)calloc(newcount + 1, sizeof(char *));
+	for (i = 0; gd->defs[i]; i++) {
+		char *body;
+		int start;
+		if (classify_dsidx_line(gd->defs[i], &body, &start)) {
+			int idx;
+			for (idx = start; idx <= gd->dscount; idx++) {
+				char *tmp;
+				snprintf(idxstr, sizeof(idxstr), "%d", idx);
+				snprintf(previdxstr, sizeof(previdxstr), "%d", idx - 1);
+				/* Replace @PREVDSIDX@ first so we don't accidentally chew the
+				 * shorter @DSIDX@ inside it (currently they don't share a
+				 * prefix, but this keeps the substitution order intent-clear). */
+				tmp = str_replace_all(body, "@PREVDSIDX@", previdxstr);
+				newdefs[outi++] = str_replace_all(tmp, "@DSIDX@", idxstr);
+				free(tmp);
+			}
+		}
+		else {
+			newdefs[outi++] = strdup(gd->defs[i]);
+		}
+		free(gd->defs[i]);
+	}
+	newdefs[outi] = NULL;
+	free(gd->defs);
+	gd->defs = newdefs;
+}
+
 void load_gdefs(char *fn)
 {
 	FILE *fd;
@@ -346,11 +451,12 @@ void load_gdefs(char *fn)
 
 		if (*p == '[') {
 			char *delim;
-			
+
 			if (newitem) {
 				/* Save the current one, and start on the next item */
 				alldefs[alldefidx] = NULL;
 				newitem->defs = alldefs;
+				expand_dsidx_in_block(newitem);
 				newitem->next = gdefs;
 				gdefs = newitem;
 			}
@@ -379,6 +485,11 @@ void load_gdefs(char *fn)
 		}
 		else if (strncasecmp(p, "NOVZOOM", 7) == 0) {
 			newitem->novzoom = 1;
+		}
+		else if (strncasecmp(p, "DSCOUNT", 7) == 0) {
+			p += 7; p += strspn(p, " \t");
+			newitem->dscount = atoi(p);
+			if (newitem->dscount < 0) newitem->dscount = 0;
 		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
 			p += 12; p += strspn(p, " \t");
@@ -411,6 +522,7 @@ void load_gdefs(char *fn)
 		/* Save the current one, and start on the next item */
 		alldefs[alldefidx] = NULL;
 		newitem->defs = alldefs;
+		expand_dsidx_in_block(newitem);
 		newitem->next = gdefs;
 		gdefs = newitem;
 	}

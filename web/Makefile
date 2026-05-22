@@ -95,12 +95,15 @@ showgraph.o: showgraph.c aggregate-tokens.inc.c
 # Self-contained golden-output test for the @AVG:/@SUM:/... aggregate
 # tokens. The test #includes aggregate-tokens.inc.c so the parser is
 # shared with showgraph.c -- changes to the .inc.c automatically rebuild
-# both. Not built by the default target; run "make test-aggregate-tokens"
-# manually. Build only (no auto-run) so a failure stops the suite at
-# the build step rather than mid-test; users run ./test-aggregate-tokens
-# explicitly.
+# both. Build only (no auto-run); run "make check" or
+# "./test-aggregate-tokens" explicitly.
 test-aggregate-tokens: test-aggregate-tokens.c aggregate-tokens.inc.c
 	$(CC) $(CFLAGS) -o $@ test-aggregate-tokens.c
+
+# Self-contained golden-output test for @DSIDX@/@PREVDSIDX@/@DSSTART:N@
+# parse-time expansion. Build only; run via "make check" or directly.
+test-dsidx: test-dsidx.c
+	$(CC) $(CFLAGS) -o $@ $<
 
 # Need NETLIBS on Solaris for getservbyname(), called by parse_url()
 showgraph.cgi: $(SHOWGRAPHOBJS) $(XYMONCOMMLIB)
@@ -170,11 +173,12 @@ appfeed.cgi: $(APPFEEDOBJS) $(XYMONLIB)
 
 
 .PHONY: clean check
-check: test-aggregate-tokens
+check: test-aggregate-tokens test-dsidx
 	./test-aggregate-tokens
+	./test-dsidx
 
 clean:
-	rm -f $(PROGRAMS) *.o *~ test-aggregate-tokens
+	rm -f $(PROGRAMS) *.o *~ test-aggregate-tokens test-dsidx
 
 install: install-bin install-cgi install-man
 
