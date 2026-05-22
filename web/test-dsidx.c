@@ -69,8 +69,14 @@ static void expand_dsidx_in_block(gdef_t *gd)
 	char **newdefs;
 	char idxstr[16], previdxstr[16];
 
-	if (gd->dscount <= 0) return;
 	if (gd->defs == NULL) return;
+	if (gd->dscount <= 0) {
+		/* Production code calls xgetenv; the test uses plain getenv since
+		 * we don't link libxymon here. Same behavioural intent. */
+		char *envn = getenv("SMOKEPINGSAMPLES");
+		gd->dscount = (envn ? atoi(envn) : 0);
+		if (gd->dscount <= 0) return;
+	}
 
 	for (i = 0; gd->defs[i]; i++) {
 		char *body; int start;
@@ -140,12 +146,44 @@ static void free_gd(gdef_t *g)
 
 int main(void)
 {
-	/* dscount=0 -> no-op */
+	/* Tests assume a known $SMOKEPINGSAMPLES; unset for the cases that
+	 * verify the no-env fallback, and setenv per-case for the rest. */
+	unsetenv("SMOKEPINGSAMPLES");
+
+	/* dscount=0 + no env -> no-op */
 	{
 		gdef_t *g = gd_from(0, "DEF:p@DSIDX@=x", (char *)NULL);
 		expand_dsidx_in_block(g);
 		check_line("noop-zero", g->defs[0], "DEF:p@DSIDX@=x");
 		free_gd(g);
+	}
+
+	/* dscount=0 + $SMOKEPINGSAMPLES=4 -> auto-default to 4 */
+	{
+		gdef_t *g;
+		setenv("SMOKEPINGSAMPLES", "4", 1);
+		g = gd_from(0, "DEF:p@DSIDX@=x:p@DSIDX@", (char *)NULL);
+		expand_dsidx_in_block(g);
+		check_line("envdefault-1", g->defs[0], "DEF:p1=x:p1");
+		check_line("envdefault-4", g->defs[3], "DEF:p4=x:p4");
+		free_gd(g);
+		unsetenv("SMOKEPINGSAMPLES");
+	}
+
+	/* Explicit DSCOUNT overrides the env default */
+	{
+		gdef_t *g;
+		setenv("SMOKEPINGSAMPLES", "99", 1);
+		g = gd_from(3, "DEF:p@DSIDX@=x", (char *)NULL);
+		expand_dsidx_in_block(g);
+		check_line("dscount-overrides-env-1", g->defs[0], "DEF:p1=x");
+		check_line("dscount-overrides-env-3", g->defs[2], "DEF:p3=x");
+		if (g->defs[3] != NULL) {
+			fprintf(stderr, "FAIL dscount-overrides-env-stop: expected NULL at idx 3\n");
+			failures++;
+		} else printf("ok   dscount-overrides-env-stop\n");
+		free_gd(g);
+		unsetenv("SMOKEPINGSAMPLES");
 	}
 
 	/* basic loop 1..3 */
@@ -201,6 +239,32 @@ int main(void)
 		check_line("smoke-area",          g->defs[4], "AREA:slice1#FFFFFF");
 		check_line("smoke-stack2",        g->defs[5], "STACK:slice2#color");
 		check_line("smoke-stack4",        g->defs[7], "STACK:slice4#color");
+		free_gd(g);
+	}
+
+	/* Second use-case modelled on SmokePing's DNS probe: same template
+	 * shape as conn-smoke but for a different RRD/DS family
+	 * (dns.<resolver>-smoke.rrd with DSes q1..qN sorted by response
+	 * time). Verifies @DSIDX@ infrastructure isn't conn-specific. */
+	{
+		gdef_t *g = gd_from(5,
+			"DEF:q@DSIDX@=dns.r1-smoke.rrd:q@DSIDX@:AVERAGE",
+			"CDEF:s@DSIDX@=q@DSIDX@,q@PREVDSIDX@,-",
+			"AREA:q1#00000000",
+			"@DSSTART:2@AREA:s@DSIDX@#20A050A0:STACK",
+			(char *)NULL);
+		expand_dsidx_in_block(g);
+		/* DEF expands 1..5 -> 5 lines */
+		check_line("dns-def-1",     g->defs[0], "DEF:q1=dns.r1-smoke.rrd:q1:AVERAGE");
+		check_line("dns-def-5",     g->defs[4], "DEF:q5=dns.r1-smoke.rrd:q5:AVERAGE");
+		/* slice CDEF uses @PREVDSIDX@ -> auto-starts at 2, 4 lines */
+		check_line("dns-slice-2",   g->defs[5], "CDEF:s2=q2,q1,-");
+		check_line("dns-slice-5",   g->defs[8], "CDEF:s5=q5,q4,-");
+		/* invisible base */
+		check_line("dns-base",      g->defs[9], "AREA:q1#00000000");
+		/* STACK uses @DSSTART:2@ -> 4 lines, starts at idx 2 */
+		check_line("dns-stack-2",   g->defs[10], "AREA:s2#20A050A0:STACK");
+		check_line("dns-stack-5",   g->defs[13], "AREA:s5#20A050A0:STACK");
 		free_gd(g);
 	}
 

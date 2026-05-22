@@ -380,17 +380,28 @@ static int classify_dsidx_line(char *line, char **body, int *start)
 	return 0;
 }
 
-/* When a [block] declares DSCOUNT N, walk its def lines and expand any
- * line containing @DSIDX@ or @PREVDSIDX@ into N copies of the body.
- * The expansion runs at parse time so the render path stays untouched. */
+/* When a [block] uses @DSIDX@/@PREVDSIDX@, walk its def lines and expand
+ * each templated line into N copies of the body. N comes from:
+ *   1. an explicit DSCOUNT directive on the block, OR
+ *   2. $SMOKEPINGSAMPLES if DSCOUNT is absent (the typical case: a smoke
+ *      block doesn't need to repeat the count that's already in
+ *      xymonserver.cfg).
+ * If both are absent (or zero), no expansion happens and the literal
+ * @DSIDX@ tokens reach rrdtool, which errors loudly -- the desired
+ * fail-fast signal for "you used @DSIDX@ without configuring N".
+ * Expansion runs at parse time so the render path stays untouched. */
 static void expand_dsidx_in_block(gdef_t *gd)
 {
 	int i, newcount = 0, outi = 0;
 	char **newdefs;
 	char idxstr[16], previdxstr[16];
 
-	if (gd->dscount <= 0) return;
 	if (gd->defs == NULL) return;
+	if (gd->dscount <= 0) {
+		char *envn = xgetenv("SMOKEPINGSAMPLES");
+		gd->dscount = (envn ? atoi(envn) : 0);
+		if (gd->dscount <= 0) return;
+	}
 
 	for (i = 0; gd->defs[i]; i++) {
 		char *body;
