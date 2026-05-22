@@ -7,12 +7,12 @@
  * Build & run (from web/):
  *   make test-aggregate-tokens && ./test-aggregate-tokens
  *
- * NOTE: The aggregate helpers in showgraph.c are static and depend on
+ * The aggregate helpers in showgraph.c are static and depend on
  * file-scope globals (rrddbcount, firstidx, lastidx) and on libxymon's
- * strbuffer API. This test deliberately duplicates the helpers (with a
- * minimal in-test strbuffer shim) to avoid pulling in libxymon and to
- * keep the test runnable in isolation. If the helpers are ever extracted
- * into their own translation unit, fold this test into that header.
+ * strbuffer API. This test #include's the same source the production
+ * code includes (web/aggregate-tokens.inc.c), so parser and tests
+ * cannot drift. A minimal in-test strbuffer shim avoids pulling in
+ * libxymon, keeping the test runnable in isolation.
  */
 
 #include <stdio.h>
@@ -44,110 +44,11 @@ static int rrddbcount = 0;
 static int firstidx = -1;
 static int lastidx = 0;
 
-/* ---- helpers copied verbatim from web/showgraph.c (keep in sync) ---- */
-static int selected_rrdidx(int idx) {
-	return ((firstidx == -1) || ((idx >= firstidx) && (idx <= lastidx)));
-}
-
-static int is_aggregate_token(char *inp, char **op, char **name, int *oplen, int *toklen) {
-	char *p;
-	if      (strncmp(inp,"@AVG:",5)==0)    { *op="AVG";    *oplen=5; }
-	else if (strncmp(inp,"@SUM:",5)==0)    { *op="SUM";    *oplen=5; }
-	else if (strncmp(inp,"@MIN:",5)==0)    { *op="MIN";    *oplen=5; }
-	else if (strncmp(inp,"@MAX:",5)==0)    { *op="MAX";    *oplen=5; }
-	else if (strncmp(inp,"@AVGNAN:",8)==0) { *op="AVGNAN"; *oplen=8; }
-	else if (strncmp(inp,"@SUMNAN:",8)==0) { *op="SUMNAN"; *oplen=8; }
-	else if (strncmp(inp,"@MINNAN:",8)==0) { *op="MINNAN"; *oplen=8; }
-	else if (strncmp(inp,"@MAXNAN:",8)==0) { *op="MAXNAN"; *oplen=8; }
-	else if (strncmp(inp,"@COUNT:",7)==0)  { *op="COUNT";  *oplen=7; }
-	else if (strncmp(inp,"@MEDIAN:",8)==0) { *op="MEDIAN"; *oplen=8; }
-	else if (strncmp(inp,"@STDEV:",7)==0)  { *op="STDEV";  *oplen=7; }
-	else if (strncmp(inp,"@PERCENT:",9)==0){ *op="PERCENT";*oplen=9; }
-	else if ((inp[0]=='@')&&(inp[1]=='P')&&isdigit((int)inp[2])) {
-		p = inp + 3;
-		while (isdigit((int)*p) || (*p=='.')) p++;
-		if (*p != ':') return 0;
-		*op = inp + 2;
-		*oplen = (p - inp) + 1;
-	}
-	else return 0;
-	*name = inp + *oplen;
-	p = strchr(*name, '@');
-	if (!p) return 0;
-	*toklen = (p - inp) + 1;
-	return 1;
-}
-
-static void add_aggregate_var(strbuffer_t *r, char *name, int nlen, int idx) {
-	char n[20];
-	addtobufferraw(r, name, nlen);
-	snprintf(n, sizeof(n), "%d", idx);
-	addtobuffer(r, n);
-}
-static void add_aggregate_varlist(strbuffer_t *r, char *name, int nlen, int *count) {
-	int i; *count = 0;
-	for (i = 0; i < rrddbcount; i++) {
-		if (!selected_rrdidx(i)) continue;
-		if (*count > 0) addtobuffer(r, ",");
-		add_aggregate_var(r, name, nlen, i);
-		(*count)++;
-	}
-}
-static void add_aggregate_count_rpn(strbuffer_t *r, char *name, int nlen) {
-	int i, n = 0;
-	for (i = 0; i < rrddbcount; i++) {
-		if (!selected_rrdidx(i)) continue;
-		if (n > 0) addtobuffer(r, ",");
-		add_aggregate_var(r, name, nlen, i);
-		addtobuffer(r, ",UN,0,1,IF");
-		if (n > 0) addtobuffer(r, ",+");
-		n++;
-	}
-	if (n == 0) addtobuffer(r, "0");
-}
-static void add_aggregate_rpn(strbuffer_t *r, char *op, char *name, int namelen) {
-	int i, n = 0;
-	char *pct = NULL; int pctlen = 0;
-	int ispercent = ((strcmp(op,"PERCENT")==0) || isdigit((int)op[0]));
-	if (ispercent) {
-		char *p;
-		if (isdigit((int)op[0])) { pct = op; p = op; while (isdigit((int)*p)||(*p=='.')) p++; pctlen = p - op; }
-		else if (namelen > 0) {
-			p = memchr(name, ':', namelen);
-			if (p) { pct = p + 1; pctlen = namelen - (p - name) - 1; namelen = p - name; }
-		}
-		if (!pct || !pctlen || !namelen) { addtobuffer(r, "UNKN"); return; }
-	}
-	if (strcmp(op,"COUNT")==0) { add_aggregate_count_rpn(r, name, namelen); return; }
-	if ((strcmp(op,"AVGNAN")==0)||(strcmp(op,"MEDIAN")==0)||(strcmp(op,"STDEV")==0)||ispercent) {
-		add_aggregate_varlist(r, name, namelen, &n);
-		if (n == 0) { addtobuffer(r, "UNKN"); return; }
-		if (ispercent) {
-			char nb[20]; addtobuffer(r, ","); addtobufferraw(r, pct, pctlen);
-			snprintf(nb, sizeof(nb), ",%d,PERCENT", n); addtobuffer(r, nb);
-		} else {
-			char nb[20]; snprintf(nb, sizeof(nb), ",%d,%s", n, (strcmp(op,"AVGNAN")==0)?"AVG":op); addtobuffer(r, nb);
-		}
-		return;
-	}
-	for (i = 0; i < rrddbcount; i++) {
-		if (!selected_rrdidx(i)) continue;
-		if (n == 0) add_aggregate_var(r, name, namelen, i);
-		else {
-			addtobuffer(r, ",");
-			add_aggregate_var(r, name, namelen, i);
-			if      (strcmp(op,"MIN")==0)    addtobuffer(r, ",MIN");
-			else if (strcmp(op,"MAX")==0)    addtobuffer(r, ",MAX");
-			else if (strcmp(op,"MINNAN")==0) addtobuffer(r, ",MINNAN");
-			else if (strcmp(op,"MAXNAN")==0) addtobuffer(r, ",MAXNAN");
-			else if (strcmp(op,"SUMNAN")==0) addtobuffer(r, ",ADDNAN");
-			else                              addtobuffer(r, ",+");
-		}
-		n++;
-	}
-	if      (n == 0)                  addtobuffer(r, "UNKN");
-	else if (strcmp(op,"AVG")==0)     { char nb[20]; snprintf(nb, sizeof(nb), ",%d,/", n); addtobuffer(r, nb); }
-}
+/* Helpers under test come from the same source web/showgraph.c uses.
+ * Including the .inc.c (rather than maintaining a copy) keeps the test
+ * locked to the production parser; any future fix in
+ * aggregate-tokens.inc.c is automatically reflected here. */
+#include "aggregate-tokens.inc.c"
 
 /* Drive expansion of a single token; returns malloc'd RPN string. */
 static char *expand_one(char *tpl) {
@@ -207,6 +108,32 @@ int main(void) {
 	/* firstidx/lastidx slicing: only idx 1..2 selected of 4 */
 	check("avg-slice", "@AVG:t@", 4, 1, 2, "t1,t2,+,2,/");
 	check("count-slice", "@COUNT:t@", 4, 1, 2, "t1,UN,0,1,IF,t2,UN,0,1,IF,+");
+
+	/* Slicing edge cases */
+	check("avg-slice-equal", "@AVG:t@", 4, 2, 2, "t2,1,/");                  /* single element */
+	check("count-slice-oor", "@COUNT:t@", 4, 10, 20, "0");                   /* fully out of range */
+	check("avg-slice-rev",  "@AVG:t@", 4, 3, 1, "UNKN");                     /* lastidx < firstidx -> no selection */
+
+	/* n = 5 and n = 1 STDEV (output well-defined even though stddev of 1 sample is meaningless) */
+	check("stdev-n0", "@STDEV:t@", 0, -1, 0, "UNKN");
+	check("stdev-n1", "@STDEV:t@", 1, -1, 0, "t0,1,STDEV");
+	check("sum-n5",   "@SUM:t@",   5, -1, 4, "t0,t1,+,t2,+,t3,+,t4,+");
+
+	/* @PERCENT:name:pct@ pct validation -- prior version emitted garbage RPN */
+	check("percent-bad-pct",     "@PERCENT:t:abc@", 3, -1, 2, "UNKN");
+	check("percent-extra-colon", "@PERCENT:t:95:x@", 3, -1, 2, "UNKN");
+	check("percent-empty-pct",   "@PERCENT:t:@", 3, -1, 2, "UNKN");
+	check("percent-float-pct",   "@PERCENT:t:95.5@", 3, -1, 2, "t0,t1,t2,95.5,3,PERCENT");
+
+	/* Malformed/rejected aggregate tokens -- parser should return false
+	 * so the caller treats them as literal text. expand_one signals this
+	 * via the "(not-aggregate)" sentinel. */
+	check("avg-empty-operand", "@AVG:@",        3, -1, 2, "(not-aggregate)");
+	check("avg-no-terminator", "@AVG:tnoterm",  3, -1, 2, "(not-aggregate)");
+	check("p-dot-dot",         "@P95.5.5:t@",   3, -1, 2, "(not-aggregate)");
+	check("p-leading-dot",     "@P.5:t@",       3, -1, 2, "(not-aggregate)");
+	check("p-no-digit",        "@P:t@",         3, -1, 2, "(not-aggregate)");
+	check("p-trailing-dot",    "@P9.:t@",       3, -1, 2, "t0,t1,t2,9.,3,PERCENT"); /* trailing dot accepted today; flag if rejecting later */
 
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }
 	printf("\nAll tests passed.\n");
