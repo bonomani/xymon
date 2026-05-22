@@ -574,10 +574,46 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					}
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 				}
-				devmongraphs_free(&devmongraphs);
 				xfree(graphs);
 			}
 	}
+	else if (!is_history) {
+		/*
+		 * Marker-driven rendering for columns without a TEST2RRD entry.
+		 * A custom collector can attach <!--DEVMON RRD: ...--> or
+		 * <!--DEVMON GRAPH: ...--> markers to any status payload and
+		 * have the matching graph-definitions rendered, even though
+		 * the column name itself is not in TEST2RRD/GRAPHS. Without a
+		 * column gdef there is no safe fallback, so devmongraphs_render
+		 * runs in strict mode (ctx.fallback = NULL): markers that have
+		 * no exact graph-definition are skipped with an errprintf.
+		 */
+		if (devmongraphs_scan(&devmongraphs, restofmsg) > 0) {
+			devmongraph_render_ctx_t ctx;
+			int marker_linecount = -2;
+
+			fprintf(output, "<!-- linecount=%d -->\n", marker_linecount);
+			fprintf(output, "<a name=\"begingraph\">&nbsp;</a>\n");
+
+			ctx.output       = output;
+			ctx.hostname     = hostname;
+			ctx.displayname  = displayname;
+			ctx.service      = service;
+			ctx.color        = color;
+			ctx.linecount    = marker_linecount;
+			ctx.locatorbased = locatorbased;
+			ctx.starttime    = now - graphtime;
+			ctx.endtime      = now;
+			ctx.fallback     = NULL;
+
+			devmongraphs_render(&devmongraphs, &ctx);
+		}
+		else if (devmongraphs_oom(&devmongraphs)) {
+			errprintf("Out of memory while collecting DEVMON graph names for %s/%s\n",
+				  hostname, service);
+		}
+	}
+	devmongraphs_free(&devmongraphs);
 
 	if (histlocation == HIST_BOTTOM) {
 		historybutton(cgibinurl, hostname, service, ip, displayname,

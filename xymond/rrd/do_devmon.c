@@ -47,6 +47,20 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			/*if(rrdbasename) {xfree(rrdbasename);rrdbasename = NULL;}*/
 			rrdbasename = strtok(curline+16," ");
 			if (rrdbasename == NULL) rrdbasename = xstrdup(testname);
+			/*
+			 * Re-validate the basename: it is used directly as the
+			 * first %s of setupfn2("%s.%s.rrd", ...) which only
+			 * sanitizes the second parameter. An unvalidated
+			 * basename could carry "/" or ".." and escape the
+			 * host's RRD directory.
+			 */
+			else if (!devmongraphs_is_valid_name(rrdbasename, (int)strlen(rrdbasename))) {
+				errprintf("DEVMON: rejecting invalid RRD basename '%s' for %s/%s\n",
+					  rrdbasename, hostname, testname);
+				in_devmon = 1;
+				rrdbasename = NULL;
+				goto nextline;
+			}
 			dbgprintf("DEVMON: changing testname from %s to %s\n",testname,rrdbasename);
 			numds = 0;
 			goto nextline;

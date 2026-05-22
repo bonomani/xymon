@@ -84,6 +84,15 @@ typedef struct devmongraph_render_ctx_t {
 extern void devmongraphs_init(devmongraphs_t *g);
 
 /*
+ * Validate a candidate DEVMON marker name. Returns non-zero if the
+ * given byte range is a non-empty sequence of [A-Za-z0-9_-] no longer
+ * than DEVMON_GRAPH_NAMELEN_MAX. Used by both the parser (HTML/render
+ * side) and the RRD writer to refuse names that would be unsafe as
+ * file path components or URL parameters.
+ */
+extern int devmongraphs_is_valid_name(const char *name, int namelen);
+
+/*
  * Quick check: does this line look like it starts with a DEVMON
  * marker prefix? Used by callers that scan a buffer line-by-line and
  * want to special-case marker lines (e.g. to reset a line counter)
@@ -161,9 +170,13 @@ extern void devmongraphs_free(devmongraphs_t *g);
  * Render every collected marker as an <IMG ...> graph entry written
  * to ctx->output. For each marker name we:
  *   1. Look up the same-named graph-definition via find_xymon_graph().
- *   2. Fall back to ctx->fallback if the lookup misses (preserves the
- *      legacy "devmon" catch-all behavior; logged at debug level).
- *   3. Skip with an errprintf if both lookups fail.
+ *   2. If that misses, fall back to ctx->fallback ONLY when it is the
+ *      legacy "devmon" catch-all gdef (xymonrrdname == "devmon").
+ *      xymon_graph_text() special-cases that case by building
+ *      devmon:<graphname> URLs, so the marker name still drives the
+ *      RRD lookup. Any other fallback would silently render the wrong
+ *      graph and is rejected with an errprintf instead.
+ *   3. Skip with an errprintf if no acceptable gdef is available.
  *   4. Otherwise produce the graph URL via xymon_graph_data().
  */
 extern void devmongraphs_render(const devmongraphs_t *g,

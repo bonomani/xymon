@@ -32,10 +32,11 @@ static const char devmon_graph_marker[] = "<!--DEVMON GRAPH: ";
  * sections in graphs.cfg accept between `[` and `]`. Anything else is
  * rejected silently rather than fed downstream into URLs or HTML.
  */
-static int is_valid_name(const char *name, int namelen)
+int devmongraphs_is_valid_name(const char *name, int namelen)
 {
 	int i;
 
+	if (name == NULL) return 0;
 	if ((namelen <= 0) || (namelen > DEVMON_GRAPH_NAMELEN_MAX)) return 0;
 	for (i = 0; i < namelen; i++) {
 		unsigned char c = (unsigned char)name[i];
@@ -116,7 +117,7 @@ int devmongraphs_add_line(devmongraphs_t *g, const char *line)
 	while (*end && !isspace((unsigned char)*end)) end++;
 	namelen = (int)(end - name);
 
-	if (!is_valid_name(name, namelen)) return 0;
+	if (!devmongraphs_is_valid_name(name, namelen)) return 0;
 
 	/* deduplicate within this collection */
 	for (i = 0; i < g->count; i++) {
@@ -226,24 +227,31 @@ void devmongraphs_render(const devmongraphs_t *g,
 
 		/*
 		 * Prefer a graph-definition matching the marker name exactly
-		 * (e.g. [cpu_dm] from devmon-graphs.cfg). Fall back to the
-		 * column's mapped gdef (resolved earlier via TEST2RRD,
-		 * typically the "devmon" catch-all) so setups without
-		 * per-marker definitions keep rendering instead of producing
-		 * empty graphs. Log the fallback at debug level so an admin
-		 * can spot typos that would otherwise degrade silently.
+		 * (e.g. [cpu_dm] from devmon-graphs.cfg). If that lookup misses,
+		 * fall back to ctx->fallback ONLY when it is the legacy "devmon"
+		 * catch-all gdef: xymon_graph_text() special-cases that case by
+		 * building URLs of the form devmon:<graphname>, so the marker
+		 * name still drives the RRD lookup downstream. For any other
+		 * gdef (e.g. [disk], [la], ...) falling back would silently
+		 * render the wrong graph — xymon_graph_text() would use the
+		 * fallback's xymonrrdname for the URL and ignore <graphname>.
+		 * In that case we log loudly and skip rather than mislead.
 		 */
 		graphbyname = find_xymon_graph((char *)graphname);
 		if (graphbyname == NULL) {
-			dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
-			          "falling back to column gdef\n",
-			          graphname, ctx->hostname, ctx->service);
-			graphbyname = ctx->fallback;
-		}
-		if (graphbyname == NULL) {
-			errprintf("No graph-definition for DEVMON graph '%s' on %s/%s, skipping\n",
-			          graphname, ctx->hostname, ctx->service);
-			continue;
+			if (ctx->fallback &&
+			    devmongraphs_is_devmon_rrdname(ctx->fallback->xymonrrdname)) {
+				dbgprintf("DEVMON marker '%s' has no exact graph-definition for %s/%s, "
+				          "falling back to legacy devmon catch-all\n",
+				          graphname, ctx->hostname, ctx->service);
+				graphbyname = ctx->fallback;
+			}
+			else {
+				errprintf("DEVMON marker '%s' on %s/%s has no graph-definition "
+				          "and column gdef is not the legacy devmon catch-all, skipping\n",
+				          graphname, ctx->hostname, ctx->service);
+				continue;
+			}
 		}
 
 		fprintf(ctx->output, "%s\n",
