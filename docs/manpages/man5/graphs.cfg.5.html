@@ -54,6 +54,12 @@ file in the set. &quot;@RRDPARAM@&quot; contains the first word extracted from t
 pattern of files (see e.g. &quot;[memory]&quot; how this is used). &quot;@COLOR@&quot; picks
 a new color for each graph automatically.
 <P>
+Aggregate values across all files selected by FNPATTERN can be built with
+&quot;@AVG:name@&quot;, &quot;@SUM:name@&quot;, &quot;@MIN:name@&quot; and &quot;@MAX:name@&quot;. For example,
+after defining &quot;DEF:t@RRDIDX@=@RRDFN@:ds0:AVERAGE&quot;, the line
+&quot;CDEF:avg=@AVG:t@&quot; expands to &quot;CDEF:avg=t0,t1,+,t2,+,3,/&quot; when three
+files are matched.
+<P>
 The remainder of the lines in each definition are passed directly to the
 RRDtool rrd_graph() routine.
 <P>

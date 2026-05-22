@@ -625,6 +625,214 @@ char *expand_tokens(char *tpl)
 	return STRBUF(result);
 }
 
+static int selected_rrdidx(int idx)
+{
+	return ((firstidx == -1) || ((idx >= firstidx) && (idx <= lastidx)));
+}
+
+static int is_aggregate_token(char *inp, char **op, char **name, int *oplen, int *toklen)
+{
+	char *p;
+
+	if (strncmp(inp, "@AVG:", 5) == 0) {
+		*op = "AVG";
+		*oplen = 5;
+	}
+	else if (strncmp(inp, "@SUM:", 5) == 0) {
+		*op = "SUM";
+		*oplen = 5;
+	}
+	else if (strncmp(inp, "@MIN:", 5) == 0) {
+		*op = "MIN";
+		*oplen = 5;
+	}
+	else if (strncmp(inp, "@MAX:", 5) == 0) {
+		*op = "MAX";
+		*oplen = 5;
+	}
+	else {
+		return 0;
+	}
+
+	*name = inp + *oplen;
+	p = strchr(*name, '@');
+	if (p == NULL) return 0;
+	*toklen = (p - inp) + 1;
+
+	return 1;
+}
+
+static int def_uses_aggregate(char *def)
+{
+	char *p;
+
+	for (p = strchr(def, '@'); p; p = strchr(p + 1, '@')) {
+		char *op, *name;
+		int oplen, toklen;
+
+		if (is_aggregate_token(p, &op, &name, &oplen, &toklen)) return 1;
+	}
+
+	return 0;
+}
+
+static int def_uses_rrd_context(char *def)
+{
+	return ((strstr(def, "@RRDFN@") != NULL) ||
+		(strstr(def, "@RRDIDX@") != NULL) ||
+		(strstr(def, "@RRDPARAM@") != NULL) ||
+		(strstr(def, "@RRDMETA@") != NULL) ||
+		(strstr(def, "@STACKIT@") != NULL));
+}
+
+static void add_aggregate_var(strbuffer_t *result, char *name, int namelen, int idx)
+{
+	char numstr[20];
+
+	addtobufferraw(result, name, namelen);
+	snprintf(numstr, sizeof(numstr), "%d", idx);
+	addtobuffer(result, numstr);
+}
+
+static void add_aggregate_rpn(strbuffer_t *result, char *op, char *name, int namelen)
+{
+	int i, n = 0;
+
+	for (i = 0; (i < rrddbcount); i++) {
+		if (!selected_rrdidx(i)) continue;
+
+		if (n == 0) {
+			add_aggregate_var(result, name, namelen, i);
+		}
+		else {
+			addtobuffer(result, ",");
+			add_aggregate_var(result, name, namelen, i);
+			if (strcmp(op, "MIN") == 0) addtobuffer(result, ",MIN");
+			else if (strcmp(op, "MAX") == 0) addtobuffer(result, ",MAX");
+			else addtobuffer(result, ",+");
+		}
+		n++;
+	}
+
+	if (n == 0) {
+		addtobuffer(result, "UNKN");
+	}
+	else if (strcmp(op, "AVG") == 0) {
+		char numstr[20];
+
+		snprintf(numstr, sizeof(numstr), ",%d,/", n);
+		addtobuffer(result, numstr);
+	}
+}
+
+static char *expand_aggregate_tokens(char *tpl)
+{
+	static strbuffer_t *result = NULL;
+	char *inp, *p;
+
+	if (!def_uses_aggregate(tpl)) return expand_tokens(tpl);
+
+	if (!result) result = newstrbuffer(2048); else clearstrbuffer(result);
+
+	inp = tpl;
+	while (*inp) {
+		p = strchr(inp, '@');
+		if (p == NULL) {
+			addtobuffer(result, inp);
+			inp += strlen(inp);
+			continue;
+		}
+
+		if (p > inp) addtobufferraw(result, inp, (p - inp));
+
+		{
+			char *op, *name;
+			int oplen, toklen;
+
+			if (is_aggregate_token(p, &op, &name, &oplen, &toklen)) {
+				char *endp = p + toklen - 1;
+
+				add_aggregate_rpn(result, op, name, (endp - name));
+				inp = p + toklen;
+			}
+			else {
+				addtobuffer(result, "@");
+				inp = p + 1;
+			}
+		}
+	}
+
+	return expand_tokens(STRBUF(result));
+}
+
+static void add_graphdef_arg(char **rrdargs, int *argi, char *def)
+{
+	rrdargs[(*argi)++] = strdup(expand_aggregate_tokens(def));
+}
+
+static void add_graphdef_rrd_block(char **rrdargs, int *argi, gdef_t *gdef, int firstdef, int lastdef)
+{
+	int i;
+
+	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+		if (selected_rrdidx(rrdidx)) {
+			for (i = firstdef; (i < lastdef); i++) {
+				add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+			}
+		}
+	}
+}
+
+static void add_graphdef_args(char **rrdargs, int *argi, gdef_t *gdef)
+{
+	int i, have_aggregate = 0, first_aggregate = -1, first_rrd_context = -1;
+
+	for (i = 0; (gdef->defs[i]); i++) {
+		if (def_uses_aggregate(gdef->defs[i])) {
+			have_aggregate = 1;
+			if (first_aggregate == -1) first_aggregate = i;
+		}
+	}
+
+	if (!have_aggregate) {
+		add_graphdef_rrd_block(rrdargs, argi, gdef, 0, i);
+		return;
+	}
+
+	for (i = 0; (i < first_aggregate); i++) {
+		if (def_uses_rrd_context(gdef->defs[i])) {
+			if (first_rrd_context == -1) first_rrd_context = i;
+		}
+		else {
+			if (first_rrd_context != -1) {
+				add_graphdef_rrd_block(rrdargs, argi, gdef, first_rrd_context, i);
+				first_rrd_context = -1;
+			}
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+	}
+	if (first_rrd_context != -1) add_graphdef_rrd_block(rrdargs, argi, gdef, first_rrd_context, i);
+
+	for (i = first_aggregate; (gdef->defs[i]); i++) {
+		/* Aggregate is dominant: an aggregate def is emitted once even if it
+		 * also references @RRDFN@/@RRDIDX@, since looping would produce
+		 * duplicate CDEF names and break rrd_graph. */
+		if (def_uses_aggregate(gdef->defs[i])) {
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+		else if (def_uses_rrd_context(gdef->defs[i])) {
+			for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+				if (selected_rrdidx(rrdidx)) {
+					add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+				}
+			}
+		}
+		else {
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+	}
+}
+
 int rrd_name_compare(const void *v1, const void *v2)
 {
 	rrddb_t *r1 = (rrddb_t *)v1;
@@ -1110,7 +1318,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 * there are multiple RRD-files to handle).
 	 */
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
-	rrdargs = calloc(16 + pcount*rrddbcount + useroptcount + 1, sizeof(*rrdargs));
+	rrdargs = calloc(16 + pcount*(rrddbcount+1) + useroptcount + 1, sizeof(*rrdargs));
 
 
 	argi = 0;
@@ -1148,14 +1356,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		rrdargs[argi++] = useropts[useroptidx];
 	}
 
-	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
-		if ((firstidx == -1) || ((rrdidx >= firstidx) && (rrdidx <= lastidx))) {
-			int i;
-			for (i=0; (gdef->defs[i]); i++) {
-				rrdargs[argi++] = strdup(expand_tokens(gdef->defs[i]));
-			}
-		}
-	}
+	add_graphdef_args(rrdargs, &argi, gdef);
 
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));
 	rrdargs[argi++] = strdup(timestamp);
@@ -1326,4 +1527,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-
