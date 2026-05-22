@@ -17,7 +17,7 @@
 #include <stdarg.h>
 
 /* ---- minimal shim mirroring gdef_t (only fields the helpers touch) ---- */
-typedef struct { int dscount; char **defs; } gdef_t;
+typedef struct { int dscount; int dsidx_runtime; char **defs; } gdef_t;
 
 /* ---- helpers copied verbatim from showgraph.c (keep in sync) ---- */
 static char *str_replace_all(const char *src, const char *needle, const char *repl)
@@ -63,35 +63,41 @@ static int classify_dsidx_line(char *line, char **body, int *start)
 	return 0;
 }
 
-static void expand_dsidx_in_block(gdef_t *gd)
+/* Non-destructive: returns a freshly-allocated NULL-terminated array of
+ * expanded def lines. defs[] are not freed. n<=0 -> templates passed through. */
+static char **expand_dsidx_array(char *const *defs, int n)
 {
 	int i, newcount = 0, outi = 0;
 	char **newdefs;
 	char idxstr[16], previdxstr[16];
 
-	if (gd->defs == NULL) return;
-	if (gd->dscount <= 0) {
-		/* Production code calls xgetenv; the test uses plain getenv since
-		 * we don't link libxymon here. Same behavioural intent. */
-		char *envn = getenv("SMOKEPINGSAMPLES");
-		gd->dscount = (envn ? atoi(envn) : 0);
-		if (gd->dscount <= 0) return;
+	if (defs == NULL) return NULL;
+
+	if (n <= 0) {
+		for (i = 0; defs[i]; i++) newcount++;
+		newdefs = (char **)calloc(newcount + 1, sizeof(char *));
+		for (i = 0; defs[i]; i++) newdefs[i] = strdup(defs[i]);
+		newdefs[newcount] = NULL;
+		return newdefs;
 	}
 
-	for (i = 0; gd->defs[i]; i++) {
+	for (i = 0; defs[i]; i++) {
 		char *body; int start;
-		if (classify_dsidx_line(gd->defs[i], &body, &start)) {
-			int n = gd->dscount - start + 1;
-			newcount += (n > 0 ? n : 0);
+		char *line = strdup(defs[i]);
+		if (classify_dsidx_line(line, &body, &start)) {
+			int m = n - start + 1;
+			newcount += (m > 0 ? m : 0);
 		} else newcount++;
+		free(line);
 	}
 
 	newdefs = (char **)calloc(newcount + 1, sizeof(char *));
-	for (i = 0; gd->defs[i]; i++) {
+	for (i = 0; defs[i]; i++) {
 		char *body; int start;
-		if (classify_dsidx_line(gd->defs[i], &body, &start)) {
+		char *line = strdup(defs[i]);
+		if (classify_dsidx_line(line, &body, &start)) {
 			int idx;
-			for (idx = start; idx <= gd->dscount; idx++) {
+			for (idx = start; idx <= n; idx++) {
 				char *tmp;
 				snprintf(idxstr, sizeof(idxstr), "%d", idx);
 				snprintf(previdxstr, sizeof(previdxstr), "%d", idx - 1);
@@ -99,12 +105,75 @@ static void expand_dsidx_in_block(gdef_t *gd)
 				newdefs[outi++] = str_replace_all(tmp, "@DSIDX@", idxstr);
 				free(tmp);
 			}
-		} else newdefs[outi++] = strdup(gd->defs[i]);
-		free(gd->defs[i]);
+		} else newdefs[outi++] = strdup(defs[i]);
+		free(line);
 	}
 	newdefs[outi] = NULL;
-	free(gd->defs);
-	gd->defs = newdefs;
+	return newdefs;
+}
+
+static int defs_use_dsidx(char *const *defs)
+{
+	int i;
+	if (defs == NULL) return 0;
+	for (i = 0; defs[i]; i++) {
+		if (strstr(defs[i], "@DSIDX@") || strstr(defs[i], "@PREVDSIDX@")) return 1;
+	}
+	return 0;
+}
+
+/* Parse-time. dscount>0 -> expand in place. dscount==0 + @DSIDX@ used ->
+ * defer to render time (set dsidx_runtime, leave defs as templates). */
+static void expand_dsidx_in_block(gdef_t *gd)
+{
+	if (gd->defs == NULL) return;
+	if (gd->dscount > 0) {
+		char **expanded = expand_dsidx_array(gd->defs, gd->dscount);
+		int i;
+		for (i = 0; gd->defs[i]; i++) free(gd->defs[i]);
+		free(gd->defs);
+		gd->defs = expanded;
+		return;
+	}
+	if (defs_use_dsidx(gd->defs)) gd->dsidx_runtime = 1;
+}
+
+static char *def_rrdfile(const char *defline)
+{
+	const char *eq, *colon;
+	char *out; size_t n;
+	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
+	eq = strchr(defline + 4, '='); if (!eq) return NULL;
+	colon = strchr(eq + 1, ':'); if (!colon || colon == eq + 1) return NULL;
+	n = colon - (eq + 1);
+	out = (char *)malloc(n + 1);
+	memcpy(out, eq + 1, n); out[n] = '\0';
+	return out;
+}
+
+static char *def_dsname(const char *defline)
+{
+	const char *eq, *c1, *c2;
+	char *out; size_t n;
+	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
+	eq = strchr(defline + 4, '='); if (!eq) return NULL;
+	c1 = strchr(eq + 1, ':'); if (!c1) return NULL;
+	c2 = strchr(c1 + 1, ':'); if (!c2 || c2 == c1 + 1) return NULL;
+	n = c2 - (c1 + 1);
+	out = (char *)malloc(n + 1);
+	memcpy(out, c1 + 1, n); out[n] = '\0';
+	return out;
+}
+
+static char *dsname_prefix(const char *tmpl)
+{
+	const char *at = strstr(tmpl, "@DSIDX@");
+	char *out; size_t n;
+	if (!at) return NULL;
+	n = at - tmpl;
+	out = (char *)malloc(n + 1);
+	memcpy(out, tmpl, n); out[n] = '\0';
+	return out;
 }
 
 /* ---- test driver ---- */
@@ -146,44 +215,45 @@ static void free_gd(gdef_t *g)
 
 int main(void)
 {
-	/* Tests assume a known $SMOKEPINGSAMPLES; unset for the cases that
-	 * verify the no-env fallback, and setenv per-case for the rest. */
 	unsetenv("SMOKEPINGSAMPLES");
 
-	/* dscount=0 + no env -> no-op */
+	/* dscount=0 + no @DSIDX@ -> no-op, no runtime flag */
 	{
-		gdef_t *g = gd_from(0, "DEF:p@DSIDX@=x", (char *)NULL);
+		gdef_t *g = gd_from(0, "TITLE plain", (char *)NULL);
 		expand_dsidx_in_block(g);
-		check_line("noop-zero", g->defs[0], "DEF:p@DSIDX@=x");
-		free_gd(g);
-	}
-
-	/* dscount=0 + $SMOKEPINGSAMPLES=4 -> auto-default to 4 */
-	{
-		gdef_t *g;
-		setenv("SMOKEPINGSAMPLES", "4", 1);
-		g = gd_from(0, "DEF:p@DSIDX@=x:p@DSIDX@", (char *)NULL);
-		expand_dsidx_in_block(g);
-		check_line("envdefault-1", g->defs[0], "DEF:p1=x:p1");
-		check_line("envdefault-4", g->defs[3], "DEF:p4=x:p4");
-		free_gd(g);
-		unsetenv("SMOKEPINGSAMPLES");
-	}
-
-	/* Explicit DSCOUNT overrides the env default */
-	{
-		gdef_t *g;
-		setenv("SMOKEPINGSAMPLES", "99", 1);
-		g = gd_from(3, "DEF:p@DSIDX@=x", (char *)NULL);
-		expand_dsidx_in_block(g);
-		check_line("dscount-overrides-env-1", g->defs[0], "DEF:p1=x");
-		check_line("dscount-overrides-env-3", g->defs[2], "DEF:p3=x");
-		if (g->defs[3] != NULL) {
-			fprintf(stderr, "FAIL dscount-overrides-env-stop: expected NULL at idx 3\n");
+		check_line("noop-no-template", g->defs[0], "TITLE plain");
+		if (g->dsidx_runtime) {
+			fprintf(stderr, "FAIL noop-no-template: dsidx_runtime should be 0\n");
 			failures++;
-		} else printf("ok   dscount-overrides-env-stop\n");
+		} else printf("ok   noop-no-template-flag\n");
 		free_gd(g);
-		unsetenv("SMOKEPINGSAMPLES");
+	}
+
+	/* dscount=0 + @DSIDX@ present -> defer to render time:
+	 * templates left intact, dsidx_runtime set. (No more parse-time
+	 * env fallback: render time derives N per-file.) */
+	{
+		gdef_t *g = gd_from(0, "DEF:p@DSIDX@=x:p@DSIDX@", (char *)NULL);
+		expand_dsidx_in_block(g);
+		check_line("defer-keeps-template", g->defs[0], "DEF:p@DSIDX@=x:p@DSIDX@");
+		if (!g->dsidx_runtime) {
+			fprintf(stderr, "FAIL defer-keeps-template: dsidx_runtime should be 1\n");
+			failures++;
+		} else printf("ok   defer-runtime-flag\n");
+		free_gd(g);
+	}
+
+	/* Explicit DSCOUNT still expands at parse time. */
+	{
+		gdef_t *g = gd_from(3, "DEF:p@DSIDX@=x", (char *)NULL);
+		expand_dsidx_in_block(g);
+		check_line("dscount-explicit-1", g->defs[0], "DEF:p1=x");
+		check_line("dscount-explicit-3", g->defs[2], "DEF:p3=x");
+		if (g->defs[3] != NULL) {
+			fprintf(stderr, "FAIL dscount-explicit-stop: expected NULL at idx 3\n");
+			failures++;
+		} else printf("ok   dscount-explicit-stop\n");
+		free_gd(g);
 	}
 
 	/* basic loop 1..3 */
@@ -283,6 +353,59 @@ int main(void)
 			printf("ok   n1-cdef-dropped\n");
 		}
 		free_gd(g);
+	}
+
+	/* Helpers that the render-time path uses to peek into the RRD file. */
+	{
+		char *fn = def_rrdfile("DEF:p1=tcp.conn-smoke.rrd:ping1:AVERAGE");
+		if (!fn || strcmp(fn, "tcp.conn-smoke.rrd") != 0) {
+			fprintf(stderr, "FAIL def_rrdfile: got %s\n", fn ? fn : "(null)");
+			failures++;
+		} else printf("ok   def_rrdfile: %s\n", fn);
+		free(fn);
+	}
+	{
+		char *ds = def_dsname("DEF:p1=tcp.conn-smoke.rrd:ping1:AVERAGE");
+		if (!ds || strcmp(ds, "ping1") != 0) {
+			fprintf(stderr, "FAIL def_dsname: got %s\n", ds ? ds : "(null)");
+			failures++;
+		} else printf("ok   def_dsname: %s\n", ds);
+		free(ds);
+	}
+	{
+		char *pf = dsname_prefix("ping@DSIDX@");
+		if (!pf || strcmp(pf, "ping") != 0) {
+			fprintf(stderr, "FAIL dsname_prefix: got %s\n", pf ? pf : "(null)");
+			failures++;
+		} else printf("ok   dsname_prefix: %s\n", pf);
+		free(pf);
+	}
+	{
+		char *fn = def_rrdfile("AREA:slice1#FFFFFF");
+		if (fn != NULL) {
+			fprintf(stderr, "FAIL def_rrdfile-non-DEF: should be NULL, got %s\n", fn);
+			failures++; free(fn);
+		} else printf("ok   def_rrdfile-non-DEF\n");
+	}
+
+	/* expand_dsidx_array doesn't mutate input and handles n<=0 by passing
+	 * templates through (the fail-fast/render-time deferred case). */
+	{
+		char *src[] = { "DEF:p@DSIDX@=x:p@DSIDX@", NULL };
+		char **out0 = expand_dsidx_array(src, 0);
+		char **out3 = expand_dsidx_array(src, 3);
+		if (strcmp(out0[0], "DEF:p@DSIDX@=x:p@DSIDX@") != 0) {
+			fprintf(stderr, "FAIL array-n0: %s\n", out0[0]); failures++;
+		} else printf("ok   array-n0-passthrough\n");
+		if (strcmp(out3[0], "DEF:p1=x:p1") != 0 || strcmp(out3[2], "DEF:p3=x:p3") != 0) {
+			fprintf(stderr, "FAIL array-n3\n"); failures++;
+		} else printf("ok   array-n3-expand\n");
+		/* Original src must be unchanged. */
+		if (strcmp(src[0], "DEF:p@DSIDX@=x:p@DSIDX@") != 0) {
+			fprintf(stderr, "FAIL array-no-mutation\n"); failures++;
+		} else printf("ok   array-no-mutation\n");
+		{ int i; for (i = 0; out0[i]; i++) free(out0[i]); free(out0); }
+		{ int i; for (i = 0; out3[i]; i++) free(out3[i]); free(out3); }
 	}
 
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }
