@@ -590,9 +590,24 @@ Options used for the
 .I fping(1)
 or
 .I xymonping(1)
-tool for the connectivity test. Note that xymonnet will still expect the 
+tool for the connectivity test. Note that xymonnet will still expect the
 output to match the default format.
 Default: "-Ae"
+
+.IP SMOKEPINGSAMPLES
+Number of ICMP samples per cycle used by SmokePing-style probing.
+When a host carries the "smoke" or "smoke_conn" tag in
+.I hosts.cfg(5)
+(without an explicit ":N" suffix), xymonnet routes that host
+through xymonping with "\-\-samples=$SMOKEPINGSAMPLES".
+.I xymond_rrd(1)
+allocates the same number of "pingX" data sources in
+the smoke RRD, and the [conn\-smoke] block in
+.I graphs.cfg(5)
+expands its @DSIDX@ template to this many bands. Tuning this
+single variable therefore propagates consistently to the probe,
+the RRD schema, and the graph.
+Default: "20"
 
 .IP TRACEROUTE
 .IP TRACEROUTEOPTS

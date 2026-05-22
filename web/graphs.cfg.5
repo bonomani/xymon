@@ -70,6 +70,19 @@ must NOT appear inside an aggregate operand -- they are not expanded
 recursively, and the aggregate parser stops at the first "@" when
 locating the operand terminator.
 
+For graphs that repeat a similar line per data source within a single
+RRD file (e.g. ping1..pingN slots of a SmokePing-style RRD), use the
+"DSCOUNT N" directive together with the "@DSIDX@" token. At parse
+time, every def line containing "@DSIDX@" is expanded into N copies
+with @DSIDX@ replaced by 1..N. The companion "@PREVDSIDX@" token
+expands to (current index \- 1); a line that uses it automatically
+loops 2..N to avoid producing an invalid "ping0" reference. To
+override the loop's lower bound for a specific line, prefix it with
+"@DSSTART:K@" \- the prefix is stripped and K becomes the new lower
+bound. If DSCOUNT is omitted but @DSIDX@ is used, the parser falls
+back to $SMOKEPINGSAMPLES from xymonserver.cfg(5), so a
+SmokePing-style block doesn't need to repeat the count.
+
 The remainder of the lines in each definition are passed directly to the
 RRDtool rrd_graph() routine.
 
@@ -152,5 +165,5 @@ Most of the RRD graph definitions shipped with Xymon have been ported
 from the definitions in the \fBlarrd\-grapher.cgi\fR CGI from LARRD 0.43c.
 
 .SH "SEE ALSO"
-xymonserver.cfg(5), rrdtool(1), rrdgraph(1)
+xymonserver.cfg(5), hosts.cfg(5), xymonping(1), rrdtool(1), rrdgraph(1)
 

@@ -2,7 +2,7 @@
 .SH NAME
 xymonping \- Xymon ping tool
 .SH SYNOPSIS
-.B "xymonping [\-\-retries=N] [\-\-timeout=N] [IP\-addresses]"
+.B "xymonping [\-\-retries=N] [\-\-timeout=N] [\-\-samples=N] [IP\-addresses]"
 
 .SH DESCRIPTION
 .I xymonping(1)
@@ -69,6 +69,22 @@ network overhead when first determining the route to the target host -
 it may skew the round-trip-time reports. You can then use this option
 to require N responses, and xymonping will calculate the round-trip
 time as the average of all of responsetimes.
+
+.IP \-\-samples=N
+Enables SmokePing-style probing: sends exactly N pings per host (no
+retry semantics) and records every individual round-trip time, not
+just the running average. The output line for each host gains two
+fields, appended after the legacy "is alive (X ms)" / "is unreachable"
+text so existing parsers keep working:
+
+  1.2.3.4 is alive (0.31 ms) samples=0.000310,0.000320,0.000305 loss=0/3
+  1.2.3.5 is unreachable loss=3/3
+
+Samples are in seconds; loss is reported as lost/total. When this
+option is absent (or N=0), output is byte-identical to the previous
+behaviour. See also xymonserver.cfg(5) for SMOKEPINGSAMPLES and
+hosts.cfg(5) for the "smoke" host tag that dispatches xymonnet(1)
+through xymonping with this flag.
 
 .IP \-\-max\-pps=N
 Maximum number of packets per second. This limits the number of

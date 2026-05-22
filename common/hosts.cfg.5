@@ -767,6 +767,25 @@ from the result of pinging the IP's and the best/worst setting.
 The default method is "best" - so it will report green if 
 just one of the IP's respond to ping.
 
+.IP "smoke[:N], smoke_conn[:N]"
+Enables SmokePing-style probing for the host. The "smoke" form
+turns on smoke mode for every test that has a smoke variant; the
+"smoke_conn" form turns it on only for the conn (ping) test. With
+this set, xymonnet(1) routes the host through xymonping with the
+"\-\-samples=N" option, so xymonping sends exactly N pings per cycle
+and records every individual round-trip time, not just an average.
+
+The optional ":N" sets the sample count for that host; if omitted,
+the value of the SMOKEPINGSAMPLES variable from xymonserver.cfg(5)
+is used (default 20). xymond_rrd then writes a SmokePing-style
+RRD at tcp.<conn>\-smoke.rrd with DSes "median", "loss" (fraction
+0..1) and "ping1".."pingN" (sorted ascending). See the [conn\-smoke]
+block in graphs.cfg(5) for the matching graph.
+
+This feature requires the upgraded xymonping; non-xymonping
+$FPING binaries (e.g. fping) do not understand "\-\-samples=N" and
+will exit on hosts that route through the smoke worker.
+
 .IP badconn[\-weekdays\-starttime\-endtime]:x:y:z
 This is taken directly from the "fping.sh" connectivity-
 testing script, and is used by xymonnet when it runs
