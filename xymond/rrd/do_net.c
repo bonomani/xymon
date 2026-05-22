@@ -10,41 +10,7 @@
 
 static char do_net_rcsid[] = "$Id$";
 
-/* SmokePing-style RRD has a fixed DS count baked in at first call.
- * Layout: DS:median, DS:loss (fraction 0..1), DS:ping1..pingN (sorted asc).
- * Received samples shorter than N pad the trailing pingX slots with U. */
-static char **smokeping_params = NULL;
-static void *smokeping_tpl = NULL;
-static int smokeping_n = 0;
-
-static int smokeping_qsort_cmp(const void *a, const void *b)
-{
-	double da = *(const double *)a, db = *(const double *)b;
-	return (da < db) ? -1 : (da > db);
-}
-
-static void ensure_smokeping_template(void)
-{
-	int i;
-	char *envn;
-	char buf[64];
-
-	if (smokeping_params) return;
-
-	envn = xgetenv("SMOKEPINGSAMPLES");
-	smokeping_n = (envn ? atoi(envn) : 20);
-	if (smokeping_n <= 0) smokeping_n = 20;
-
-	smokeping_params = (char **)calloc(smokeping_n + 3, sizeof(char *));
-	smokeping_params[0] = strdup("DS:median:GAUGE:600:0:U");
-	smokeping_params[1] = strdup("DS:loss:GAUGE:600:0:U");
-	for (i = 0; i < smokeping_n; i++) {
-		snprintf(buf, sizeof(buf), "DS:ping%d:GAUGE:600:0:U", i + 1);
-		smokeping_params[2 + i] = strdup(buf);
-	}
-	smokeping_params[smokeping_n + 2] = NULL;
-	smokeping_tpl = setup_template(smokeping_params);
-}
+#include "smokeping.h"
 
 int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
 {
@@ -121,72 +87,30 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 
 		/* SmokePing-style data: xymonping with --samples appends
 		 * "samples=v1,v2,...,vN loss=k/M" (alive hosts) or
-		 * "loss=M/M" (unreachable hosts). The presence of "loss=" is the
-		 * smoke-mode marker, so unreachable hosts still get a smoke RRD
-		 * update (U for samples, lossfrac=1.0). The first RRD above
-		 * keeps backwards compat with the existing [conn] graph. */
-		if ((p = strstr(msg, "loss=")) != NULL) {
-			char *q, *vp;
-			char *sp;
-			double *samples;
+		 * "loss=M/M" (unreachable hosts). All parsing/RRD shaping
+		 * lives in lib/smokeping.c so future smoke probes can reuse
+		 * it. The legacy RRD above still gets written -- keeps the
+		 * existing [conn] graph working for smoke hosts. */
+		if (strstr(msg, "loss=") != NULL) {
+			int capacity = smokeping_sample_count() + 4;
+			double *samples = (double *)calloc(capacity, sizeof(double));
 			int nrecv = 0, lost = 0, totalsent = 0;
-			int i, capacity;
-			double median = 0.0, lossfrac = 0.0;
-			int k = 0, n = 0;
+			double median, lossfrac;
 
-			if (sscanf(p + strlen("loss="), "%d/%d", &k, &n) >= 1) {
-				lost = k;
-				totalsent = n;
-			}
+			smokeping_parse_message(msg, samples, capacity, &nrecv, &lost, &totalsent);
 
-			ensure_smokeping_template();
-			capacity = smokeping_n + 4;
-			samples = (double *)calloc(capacity, sizeof(double));
-
-			/* Parse comma-separated sample values (in seconds). Absent
-			 * for unreachable hosts. */
-			if ((sp = strstr(msg, "samples=")) != NULL) {
-				vp = sp + strlen("samples=");
-				while (*vp && (nrecv < capacity)) {
-					if ((*vp == ' ') || (*vp == '\n') || (*vp == '\0')) break;
-					samples[nrecv++] = strtod(vp, &q);
-					if (q == vp) break;	/* not a number */
-					vp = q;
-					if (*vp == ',') vp++;
-				}
-			}
-
-			if (totalsent <= 0) totalsent = (nrecv + lost);
+			if (totalsent <= 0) totalsent = nrecv + lost;
 			if (totalsent <= 0) totalsent = nrecv;
 			lossfrac = (totalsent > 0 ? (double)lost / (double)totalsent : 0.0);
 
-			if (nrecv > 0) {
-				qsort(samples, nrecv, sizeof(double), smokeping_qsort_cmp);
-				median = (nrecv & 1)
-					? samples[nrecv / 2]
-					: (samples[nrecv/2 - 1] + samples[nrecv/2]) / 2.0;
-			}
+			median = smokeping_median(samples, nrecv);
 
 			setupfn2("%s.%s-smoke.rrd", "tcp", testname);
-			{
-				int off = snprintf(rrdvalues, sizeof(rrdvalues), "%d:", (int)tstamp);
-				if (nrecv > 0) {
-					off += snprintf(rrdvalues + off, sizeof(rrdvalues) - off, "%.6f:%.6f", median, lossfrac);
-				}
-				else {
-					off += snprintf(rrdvalues + off, sizeof(rrdvalues) - off, "U:%.6f", lossfrac);
-				}
-				for (i = 0; (i < smokeping_n) && (off < (int)sizeof(rrdvalues)); i++) {
-					if (i < nrecv) {
-						off += snprintf(rrdvalues + off, sizeof(rrdvalues) - off, ":%.6f", samples[i]);
-					}
-					else {
-						off += snprintf(rrdvalues + off, sizeof(rrdvalues) - off, ":U");
-					}
-				}
-			}
+			smokeping_format_rrdvalues(rrdvalues, sizeof(rrdvalues), tstamp,
+			                           median, lossfrac, samples, nrecv);
 			free(samples);
-			create_and_update_rrd(hostname, testname, classname, pagepaths, smokeping_params, smokeping_tpl);
+			create_and_update_rrd(hostname, testname, classname, pagepaths,
+			                      smokeping_rrd_params(), smokeping_rrd_template());
 		}
 
 		return 0;
