@@ -7,11 +7,12 @@ xymon_resolve_install_path(_install_help_manpages "@INSTALLWWWDIR_DEST@/help/man
 file(MAKE_DIRECTORY "${_install_help}" "${_install_help_manpages}")
 
 set(_doc_help_files [==[@_DOC_HELP_FILES_FHS@]==])
+set(_doc_generated [==[@_DOC_GENERATED_FHS@]==])
 
 file(INSTALL
     DESTINATION "${_runtime_help}"
     TYPE FILE
-    FILES "@CMAKE_CURRENT_BINARY_DIR@/xymon-tips.html"
+    FILES ${_doc_generated}
 )
 
 file(INSTALL
