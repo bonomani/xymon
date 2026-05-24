@@ -441,12 +441,32 @@ prepare_os() {
   ensure_user_group "${HTTPDGID}"
 }
 
+ensure_macports() {
+  # Make MacPorts the primary macOS package manager (Homebrew is the fallback).
+  # GitHub macOS runners ship Homebrew but not MacPorts, so build it from source
+  # when absent. Non-fatal: on failure install-default-packages.sh falls back to
+  # Homebrew. Opt out entirely with MACOS_PKGMGR=brew.
+  if [ "${MACOS_PKGMGR:-}" = "brew" ]; then
+    return 0
+  fi
+  if command -v port >/dev/null 2>&1 || [ -x /opt/local/bin/port ]; then
+    export PATH="/opt/local/bin:/opt/local/sbin:${PATH}"
+    return 0
+  fi
+  if bash ci/deps/install-macports.sh; then
+    export PATH="/opt/local/bin:/opt/local/sbin:${PATH}"
+  else
+    echo "MacPorts install failed; falling back to Homebrew" >&2
+  fi
+}
+
 setup_os() {
   case "${OS_NAME}" in
     linux)
       prepare_os "www-data" "/usr/local" "/usr" "/usr/pkg"
       ;;
     macos)
+      ensure_macports
       # /opt/local covers MacPorts (Homebrew prefixes first so they still win).
       prepare_os "_www" "/opt/homebrew" "/usr/local" "/opt/local" "/usr"
       ;;

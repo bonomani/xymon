@@ -12,6 +12,7 @@ def check_shell_scripts(root) -> bool:
         root / "cmake-local-install.sh",
         root / "ci" / "deps" / "install-default-packages.sh",
         root / "ci" / "deps" / "install-checkout-tools.sh",
+        root / "ci" / "deps" / "install-macports.sh",
         root / "ci" / "deps" / "install-packages.sh",
         root / "ci" / "deps" / "install-bsd-packages.sh",
         root / "ci" / "deps" / "lib" / "install-common.sh",
