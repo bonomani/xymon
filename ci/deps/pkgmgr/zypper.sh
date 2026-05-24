@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+# openSUSE "zypper" backend plugin, sourced by install-packages.sh.
+# shellcheck shell=bash
+
 pkg_installed() {
   rpm -q "$1" >/dev/null 2>&1
 }
