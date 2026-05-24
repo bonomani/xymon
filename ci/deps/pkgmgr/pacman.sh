@@ -11,7 +11,7 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # Refresh metadata and the signing keyring (Arch disallows partial upgrades).
   ci_deps_as_root pacman -Sy --noconfirm archlinux-keyring
   ci_deps_as_root pacman -Syu --noconfirm
 }

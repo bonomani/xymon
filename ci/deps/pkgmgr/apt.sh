@@ -13,6 +13,6 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # Refresh metadata: apt-get install does not update the index itself.
   ci_deps_apt_get update
 }

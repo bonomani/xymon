@@ -11,6 +11,6 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # Refresh metadata before installing.
   ci_deps_as_root zypper --non-interactive refresh
 }

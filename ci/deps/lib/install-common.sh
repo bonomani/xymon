@@ -448,6 +448,8 @@ ci_deps_run_installer_with_report() {
   local install_fn="${3:-}"
   local pre_install_fn="${4:-}"
   local install_banner="${5:-}"
+  # Uniform install banner for every package manager when the caller passes none.
+  install_banner="${install_banner:-=== Install (${report_pkgmgr:-packages}) ===}"
   local requested_file=""
   local present_before_file=""
   local missing_before_file=""
@@ -565,6 +567,8 @@ ci_deps_run_installer_modes() {
   local install_fn="${3:-}"
   local pre_install_fn="${4:-}"
   local install_banner="${5:-}"
+  # Uniform install banner for every package manager when the caller passes none.
+  install_banner="${install_banner:-=== Install (${report_pkgmgr:-packages}) ===}"
   local -a pkg_specs=()
 
   if [[ -z "${installed_fn}" ]]; then
