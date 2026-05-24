@@ -121,7 +121,7 @@ targets:
         pacman: {}
   macos:
     macos_latest:
-      profile: linux_default
+      profile: macos_default
       packagers:
         brew: {}
         port: {}

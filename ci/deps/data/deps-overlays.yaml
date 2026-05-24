@@ -9,6 +9,12 @@ variants:
             add:
             - PCRE
             remove: []
+      macos_default:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            remove: []
       bsd_freebsd:
         libs:
           mandatory:
@@ -25,6 +31,16 @@ variants:
   server:
     profiles:
       linux_default:
+        libs:
+          mandatory:
+            add:
+            - CARES
+            - PCRE
+            - RRD
+            - LDAP
+            - NETSNMP
+            remove: []
+      macos_default:
         libs:
           mandatory:
             add:
