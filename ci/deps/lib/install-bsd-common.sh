@@ -493,9 +493,26 @@ bsd_install_pkg_add() {
   fi
 }
 
-bsd_install_pkgin() {
+# One-time setup before per-package pkgin installs (use as a pre_install hook).
+# Ensures the pkgsrc repo config + pkgin binary exist, then refreshes repository
+# metadata so dependency upgrades (e.g. a stale sqlite3) resolve against the
+# current binary set. pkgin ships in pkgsrc (/usr/pkg), not the base system, so
+# bootstrap it via pkg_add if the VM image doesn't already provide it.
+bsd_pkgin_prepare() {
+  local -a saved_pkgs=()
   if [[ "${BSD_OS_LOWER}" == "netbsd" ]]; then
     bsd_prepare_netbsd_pkg_environment
+    if [[ ! -x /usr/pkg/bin/pkgin ]]; then
+      echo "pkgin not present; bootstrapping it via pkg_add"
+      saved_pkgs=("${PKGS[@]}")
+      PKGS=(pkgin)
+      if ! bsd_install_pkg_add; then
+        PKGS=("${saved_pkgs[@]}")
+        echo "failed to bootstrap pkgin via pkg_add" >&2
+        return 1
+      fi
+      PKGS=("${saved_pkgs[@]}")
+    fi
   fi
-  ci_deps_as_root /usr/pkg/bin/pkgin -y install "${PKGS[@]}"
+  ci_deps_as_root /usr/pkg/bin/pkgin -y update
 }

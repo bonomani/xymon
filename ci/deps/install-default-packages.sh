@@ -176,6 +176,14 @@ resolve_target_script() {
         if [[ -n "${version}" ]]; then
           target_base_args+=(--version "${version}")
         fi
+        # NetBSD: prefer pkgin over raw pkg_add. pkg_add will not upgrade an
+        # already-installed older dependency (e.g. a stale sqlite3) to satisfy
+        # a newer package, whereas pkgin resolves and upgrades via repo
+        # metadata. pkgin reuses the pkg_add dependency set in the deps YAML.
+        # An explicit BSD_PKGMGR still wins.
+        if [[ "${os_name}" == "netbsd" ]]; then
+          target_pkgmgr="${BSD_PKGMGR:-pkgin}"
+        fi
         return
         ;;
       *)

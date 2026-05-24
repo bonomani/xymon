@@ -48,5 +48,12 @@ pkgin_install_one() {
   ci_deps_as_root /usr/pkg/bin/pkgin -y install "$1"
 }
 
+# Runs once before the per-package install loop: prepare the repo config,
+# bootstrap pkgin if missing, and refresh metadata so dependency upgrades
+# resolve against the current binary set.
+pkgin_pre_install() {
+  bsd_pkgin_prepare
+}
+
 ci_deps_run_installer_modes \
-  pkgin_pkg_installed pkgin_pkg_available pkgin_install_one "" "=== Install (BSD pkgin packages) ==="
+  pkgin_pkg_installed pkgin_pkg_available pkgin_install_one pkgin_pre_install "=== Install (BSD pkgin packages) ==="
