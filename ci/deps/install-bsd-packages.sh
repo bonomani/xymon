@@ -101,14 +101,10 @@ default_pkgmgr="$(bsd_default_pkgmgr_for_os "${BSD_OS_LOWER}")"
 selected_pkgmgr="${pkgmgr_override:-${default_pkgmgr}}"
 
 case "${selected_pkgmgr}" in
-  pkg)
-    target_script="${script_dir}/install-pkg-packages.sh"
-    ;;
-  pkg_add)
-    target_script="${script_dir}/install-pkg-add-packages.sh"
-    ;;
-  pkgin)
-    target_script="${script_dir}/install-pkgin-packages.sh"
+  pkg|pkg_add|pkgin)
+    # BSD package managers are pkgmgr/<name>.sh plugins driven by the shared
+    # install-packages.sh entry, same as the Linux backends.
+    target_script="${script_dir}/install-packages.sh"
     ;;
   *)
     echo "Unsupported BSD package manager: ${selected_pkgmgr}" >&2
@@ -116,7 +112,7 @@ case "${selected_pkgmgr}" in
     ;;
 esac
 
-forward_args=()
+forward_args=(--pkgmgr "${selected_pkgmgr}")
 case "${mode}" in
   print)
     forward_args+=(--print)

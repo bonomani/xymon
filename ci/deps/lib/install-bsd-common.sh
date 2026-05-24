@@ -341,6 +341,32 @@ bsd_resolve_packages() {
   fi
 }
 
+# BSD counterpart of ci_deps_init_linux_installer (lib/install-common.sh): parse
+# the CLI, set up variant defaults and OS context, resolve the package list, and
+# export report_pkgmgr. Lets install-packages.sh drive BSD package managers
+# through the same pkgmgr/<name>.sh plugin contract as Linux. pkgin reuses the
+# pkg_add dependency set in the deps YAML.
+ci_deps_init_bsd_installer() {
+  local pkgmgr="${1:-}"
+  shift || true
+  local yaml_pkgmgr="${pkgmgr}"
+
+  if [[ -z "${pkgmgr}" ]]; then
+    echo "Missing package manager for BSD installer initialization" >&2
+    return 2
+  fi
+  [[ "${pkgmgr}" == "pkgin" ]] && yaml_pkgmgr="pkg_add"
+
+  ci_deps_init_cli
+  ci_deps_parse_cli 0 1 "$@"
+  ci_deps_setup_variant_defaults
+  bsd_init_os_context "${os_name:-}" "${version:-}"
+  bsd_require_os_for_pkgmgr "${pkgmgr}" || return $?
+  bsd_resolve_packages "${pkgmgr}" "${yaml_pkgmgr}" || return $?
+  report_pkgmgr="${pkgmgr}"
+  export report_pkgmgr
+}
+
 bsd_pkg_installed() {
   local pkgmgr="${1:-}"
   local pkg="${2:-}"
