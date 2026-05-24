@@ -5,6 +5,8 @@ IFS=$' \t\n'
 script_dir="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
 # shellcheck source=lib/install-common.sh
 source "${script_dir}/lib/install-common.sh"
+# shellcheck source=lib/install-bsd-common.sh
+source "${script_dir}/lib/install-bsd-common.sh"
 ci_deps_enable_trace
 
 usage() {
@@ -55,7 +57,15 @@ fi
 
 pkgmgr="$(printf '%s' "${pkgmgr}" | tr '[:upper:]' '[:lower:]')"
 
-if ! ci_deps_init_linux_installer "${pkgmgr}" "${remaining_args[@]}"; then
+# BSD package managers init via the BSD context (no --family, OS-specific
+# resolution); everything else uses the Linux initializer. Both then load a
+# pkgmgr/<name>.sh plugin and run through ci_deps_run_installer_modes.
+case "${pkgmgr}" in
+  pkg|pkg_add|pkgin) init_fn="ci_deps_init_bsd_installer" ;;
+  *)                 init_fn="ci_deps_init_linux_installer" ;;
+esac
+
+if ! "${init_fn}" "${pkgmgr}" "${remaining_args[@]}"; then
   exit $?
 fi
 
