@@ -11,6 +11,6 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Homebrew packages) ==="
+  # Refresh metadata before installing.
   brew update
 }

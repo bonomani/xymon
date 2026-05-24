@@ -64,7 +64,7 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # Configure repos, then refresh metadata (dnf_run -y makecache below).
   configure_rocky_fallback_repos
   dnf_run -y install dnf-plugins-core
   configure_enterprise_builder_repos

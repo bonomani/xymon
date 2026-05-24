@@ -19,6 +19,6 @@ pkg_install_one() {
 # ensure a CA trust store + pkgin binary exist, and refresh metadata so
 # dependency upgrades resolve against the current binary set.
 pkg_pre_install() {
+  # Repo config, CA trust store, pkgin bootstrap, and metadata refresh.
   bsd_pkgin_prepare
-  echo "=== Install (BSD pkgin packages) ==="
 }

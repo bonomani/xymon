@@ -26,5 +26,7 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (BSD pkg_add packages) ==="
+  # No metadata refresh: pkg_add has no local catalog; it resolves names
+  # against PKG_PATH at install time. (OpenBSD release sets are frozen.)
+  :
 }

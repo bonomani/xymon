@@ -11,5 +11,7 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # No metadata refresh needed: `apk add --no-cache` re-fetches the package
+  # index on every install.
+  :
 }

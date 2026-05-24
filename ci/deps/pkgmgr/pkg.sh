@@ -16,5 +16,6 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (BSD pkg packages) ==="
+  # Refresh the binary package catalog before installing.
+  ci_deps_as_root env ASSUME_ALWAYS_YES=YES pkg update
 }

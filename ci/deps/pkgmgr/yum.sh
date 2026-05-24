@@ -25,7 +25,7 @@ pkg_install_one() {
 }
 
 pkg_pre_install() {
-  echo "=== Install (Linux packages) ==="
+  # Repo setup only; yum refreshes metadata itself on install (metadata_expire).
   if [[ "${os_name}" == "centos" && "${version}" == "7" ]]; then
     local needs_epel=0
     local pkg
