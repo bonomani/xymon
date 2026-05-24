@@ -1,3 +1,9 @@
+#!/usr/bin/env bash
+# CentOS/Amazon "yum" backend plugin, sourced by install-packages.sh.
+# Globals os_name/version/mode/PKGS are provided by lib/install-common.sh.
+# shellcheck shell=bash
+# shellcheck disable=SC2154
+
 YUM_REPO_ARGS=()
 
 yum_run() {

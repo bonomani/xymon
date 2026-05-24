@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+# Arch "pacman" backend plugin, sourced by install-packages.sh.
+# shellcheck shell=bash
+
 pkg_installed() {
   pacman -Q "$1" >/dev/null 2>&1
 }

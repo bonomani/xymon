@@ -1,3 +1,7 @@
+#!/usr/bin/env bash
+# Debian/Ubuntu "apt" backend plugin, sourced by install-packages.sh.
+# shellcheck shell=bash
+
 pkg_installed() {
   dpkg -s "$1" >/dev/null 2>&1
 }

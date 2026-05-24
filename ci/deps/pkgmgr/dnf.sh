@@ -1,3 +1,9 @@
+#!/usr/bin/env bash
+# Fedora/RHEL-family "dnf" backend plugin, sourced by install-packages.sh.
+# Globals os_name/version are provided by lib/install-common.sh at source time.
+# shellcheck shell=bash
+# shellcheck disable=SC2154
+
 DNF_REPO_ARGS=()
 
 configure_rocky_fallback_repos() {

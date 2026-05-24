@@ -17,6 +17,7 @@ def check_shell_scripts(root) -> bool:
         root / "ci" / "deps" / "lib" / "install-common.sh",
         root / "ci" / "deps" / "lib" / "install-bsd-common.sh",
         root / "ci" / "run" / "ref" / "resolve-execution-model.sh",
+        *sorted((root / "ci" / "deps" / "pkgmgr").glob("*.sh")),
     ]
     existing = [str(path) for path in scripts if path.exists()]
     if not existing:
