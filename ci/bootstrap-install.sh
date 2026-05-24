@@ -419,7 +419,10 @@ detect_cares_prefix() {
 }
 
 install_default_packages() {
+  # MACOS_PKGMGR (e.g. "port") is honored by install-default-packages.sh to
+  # pick MacPorts instead of the default Homebrew on macOS.
   CI_DEPS_BUILD_TOOL="${BUILD_TOOL}" CI_COMPILER="${CI_COMPILER}" \
+    MACOS_PKGMGR="${MACOS_PKGMGR:-}" \
     bash ci/deps/install-default-packages.sh
 }
 
@@ -444,7 +447,8 @@ setup_os() {
       prepare_os "www-data" "/usr/local" "/usr" "/usr/pkg"
       ;;
     macos)
-      prepare_os "_www" "/opt/homebrew" "/usr/local" "/usr"
+      # /opt/local covers MacPorts (Homebrew prefixes first so they still win).
+      prepare_os "_www" "/opt/homebrew" "/usr/local" "/opt/local" "/usr"
       ;;
     freebsd)
       prepare_os "www" "/usr/local" "/usr/pkg"

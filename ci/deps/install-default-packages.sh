@@ -159,6 +159,11 @@ resolve_normalized_platform() {
   if [[ "${os_name}" == "amazonlinux" && "${version}" == "2" ]]; then
     pkgmgr="yum"
   fi
+
+  # macOS: opt into MacPorts (port) instead of the default Homebrew (brew).
+  if [[ "${os_name}" == "macos" && -n "${MACOS_PKGMGR:-}" ]]; then
+    pkgmgr="${MACOS_PKGMGR}"
+  fi
 }
 
 resolve_target_script() {
@@ -199,7 +204,7 @@ resolve_target_script() {
   target_base_args=(--family "${family}" --os "${os_name}" --version "${version}")
 
   case "${pkgmgr}" in
-    apt|dnf|yum|zypper|apk|pacman|brew)
+    apt|dnf|yum|zypper|apk|pacman|brew|port)
       target_script="${script_dir}/install-packages.sh"
       target_pkgmgr="${pkgmgr}"
       ;;

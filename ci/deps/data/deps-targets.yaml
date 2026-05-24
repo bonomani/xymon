@@ -124,6 +124,7 @@ targets:
       profile: linux_default
       packagers:
         brew: {}
+        port: {}
   bsd:
     freebsd:
       profile: bsd_freebsd
