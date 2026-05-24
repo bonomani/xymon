@@ -9,6 +9,16 @@ profiles:
     tools:
       optional:
       - clang
+  macos_default:
+    # macOS provides Sun RPC/XDR in the base SDK, and MacPorts has no libtirpc
+    # port, so TIRPC is intentionally omitted here (see deps-targets.yaml).
+    libs:
+      mandatory:
+      - BUILD_TOOLS
+      - OpenSSL
+    tools:
+      optional:
+      - clang
   bsd_freebsd:
     libs:
       mandatory:
