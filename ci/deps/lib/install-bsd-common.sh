@@ -430,7 +430,9 @@ bsd_prepare_netbsd_pkg_environment() {
   export PKG_INSTALL_CONF
   export PKG_PATH="${NETBSD_PKG_PATHS[0]}"
 
-  ci_deps_as_root sh -c "printf '%s\n' '${NETBSD_PKG_PATHS[0]}' > /usr/pkg/etc/pkgin/repositories.conf" || true
+  # Strip the trailing slash: pkgin appends "/pkg_summary.*" itself, and the
+  # standard repositories.conf form ends at ".../All" (no trailing slash).
+  ci_deps_as_root sh -c "printf '%s\n' '${NETBSD_PKG_PATHS[0]%/}' > /usr/pkg/etc/pkgin/repositories.conf" || true
 }
 
 bsd_openbsd_post_install_gcc_link() {
@@ -493,15 +495,43 @@ bsd_install_pkg_add() {
   fi
 }
 
+# pkgin >= 23.12 verifies TLS certificates. NetBSD 10 ships a CA trust store
+# (certctl + bundled Mozilla certs); NetBSD 9.x does not, so https to
+# cdn.netbsd.org fails certificate verification there. When no trust store is
+# present, install mozilla-rootcerts-openssl, which populates /etc/openssl/certs
+# (where NetBSD's OpenSSL/libfetch look). Install it WITHOUT -I so its setup
+# script runs, and via pkg_add -- which does not verify TLS, so it can fetch
+# over the https mirror before a trust store exists (chicken-and-egg).
+bsd_netbsd_ensure_ca_certs() {
+  local pkg_path_try=""
+
+  if [ -n "$(ls -A /etc/openssl/certs 2>/dev/null)" ]; then
+    return 0
+  fi
+
+  echo "No CA trust store found; installing mozilla-rootcerts-openssl via pkg_add"
+  for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
+    if ci_deps_as_root env PKG_PATH="${pkg_path_try}" \
+        /usr/sbin/pkg_add mozilla-rootcerts-openssl; then
+      return 0
+    fi
+    echo "CA cert install failed for PKG_PATH=${pkg_path_try}, trying next mirror"
+  done
+  echo "failed to install CA certificates from all mirrors" >&2
+  return 1
+}
+
 # One-time setup before per-package pkgin installs (use as a pre_install hook).
-# Ensures the pkgsrc repo config + pkgin binary exist, then refreshes repository
-# metadata so dependency upgrades (e.g. a stale sqlite3) resolve against the
-# current binary set. pkgin ships in pkgsrc (/usr/pkg), not the base system, so
-# bootstrap it via pkg_add if the VM image doesn't already provide it.
+# Ensures the pkgsrc repo config, a CA trust store (so pkgin can verify https),
+# and the pkgin binary exist, then refreshes repository metadata so dependency
+# upgrades (e.g. a stale sqlite3) resolve against the current binary set. pkgin
+# ships in pkgsrc (/usr/pkg), not the base system, so bootstrap it via pkg_add
+# if the VM image doesn't already provide it.
 bsd_pkgin_prepare() {
   local -a saved_pkgs=()
   if [[ "${BSD_OS_LOWER}" == "netbsd" ]]; then
     bsd_prepare_netbsd_pkg_environment
+    bsd_netbsd_ensure_ca_certs || return 1
     if [[ ! -x /usr/pkg/bin/pkgin ]]; then
       echo "pkgin not present; bootstrapping it via pkg_add"
       saved_pkgs=("${PKGS[@]}")
