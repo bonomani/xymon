@@ -79,7 +79,7 @@ awk -v profile="${profile}" '
     value = entry
     sub(/^[^:]+:[[:space:]]*/, "", value)
     value = trim(value)
-    if (value !~ /^[-./:_A-Za-z0-9]+$/) {
+    if (value !~ /^[-.\/:_A-Za-z0-9]+$/) {
       printf "Unsafe value for %s in profile %s: %s\n", key, profile, value > "/dev/stderr"
       exit 4
     }

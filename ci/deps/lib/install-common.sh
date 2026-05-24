@@ -353,6 +353,11 @@ ci_deps_capture_installed_packages() {
     brew)
       brew list --formula > "${outfile}"
       ;;
+    port)
+      # MacPorts: list installed port names (first column of `port installed`).
+      # Piping through awk masks port's exit status when nothing is installed.
+      port -q installed 2>/dev/null | awk '{print $1}' > "${outfile}"
+      ;;
     pkg)
       /usr/sbin/pkg query '%n' > "${outfile}"
       ;;
