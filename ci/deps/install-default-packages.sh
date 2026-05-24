@@ -160,9 +160,17 @@ resolve_normalized_platform() {
     pkgmgr="yum"
   fi
 
-  # macOS: opt into MacPorts (port) instead of the default Homebrew (brew).
-  if [[ "${os_name}" == "macos" && -n "${MACOS_PKGMGR:-}" ]]; then
-    pkgmgr="${MACOS_PKGMGR}"
+  # macOS: prefer MacPorts when it is installed, otherwise fall back to
+  # Homebrew (mirrors build/Makefile.Darwin's auto detection). An explicit
+  # MACOS_PKGMGR always wins.
+  if [[ "${os_name}" == "macos" ]]; then
+    if [[ -n "${MACOS_PKGMGR:-}" ]]; then
+      pkgmgr="${MACOS_PKGMGR}"
+    elif command -v port >/dev/null 2>&1 || [[ -x /opt/local/bin/port ]]; then
+      pkgmgr="port"
+    else
+      pkgmgr="brew"
+    fi
   fi
 }
 
