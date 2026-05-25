@@ -1,4 +1,4 @@
-openapi: 3.1.0
+openapi: 3.0.3
 info:
   title: Xymon REST API
   version: 0.1.0-draft
@@ -6,8 +6,11 @@ info:
     A REST/JSON interface over the Xymon (xymond) wire protocol. Spec-first
     DRAFT contract; no implementation yet. Covers the full common surface --
     reading status, submitting status, and host/test actions -- kept
-    deliberately simple: one auth scheme, plain JSON errors, predictable paths.
-    See docs/api/00-DESIGN.md.
+    deliberately simple: one auth scheme, one JSON error shape, predictable
+    paths. See docs/api/00-DESIGN.md.
+
+    Note on OpenAPI version: 3.0.3 (not 3.1) is used on purpose for the widest
+    tooling support; 3.0's `nullable: true` is therefore valid here.
   license:
     name: GPL-2.0-only
 
@@ -31,8 +34,13 @@ paths:
       responses:
         "200":
           description: xymond is alive.
-          content: { application/json: { schema: { $ref: "#/components/schemas/Pong" } } }
-        default: { $ref: "#/components/responses/Error" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pong" }
+              example: { alive: true, server_version: "4.3.30" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+        "504": { $ref: "#/components/responses/UpstreamTimeout" }
 
   /board:
     get:
@@ -40,12 +48,12 @@ paths:
       summary: List status cells (maps to `xymondboard`).
       operationId: listBoard
       parameters:
-        - { name: host,   in: query, schema: { type: string }, description: Filter by host name. }
-        - { name: test,   in: query, schema: { type: string }, description: Filter by test name. }
-        - { name: color,  in: query, schema: { $ref: "#/components/schemas/Color" } }
-        - { name: page,   in: query, schema: { type: string }, description: Filter by Xymon page/path. }
-        - { name: tag,    in: query, schema: { type: string }, description: Filter by host tag. }
-        - { name: limit,  in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+        - { name: host,  in: query, schema: { type: string }, description: Filter by host name. }
+        - { name: test,  in: query, schema: { type: string }, description: Filter by test name. }
+        - { name: color, in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: page,  in: query, schema: { type: string }, description: Filter by Xymon page/path. }
+        - { name: tag,   in: query, schema: { type: string }, description: Filter by host tag. }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
       responses:
         "200":
           description: Matching status cells.
@@ -56,7 +64,14 @@ paths:
                 required: [items]
                 properties:
                   items: { type: array, items: { $ref: "#/components/schemas/BoardEntry" } }
-        default: { $ref: "#/components/responses/Error" }
+              example:
+                items:
+                  - { hostname: web1, testname: http, color: green, lastchange: "2026-05-25T17:00:00Z", sender: "10.0.0.5", line1: "OK - 200 in 142ms" }
+                  - { hostname: db1,  testname: disk, color: red,   lastchange: "2026-05-25T18:12:00Z", sender: "10.0.0.7", line1: "/var 96% full" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+        "504": { $ref: "#/components/responses/UpstreamTimeout" }
 
   /status:
     post:
@@ -65,10 +80,16 @@ paths:
       operationId: submitStatus
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/StatusSubmission" } } }
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StatusSubmission" }
+            example: { host: web1, test: http, color: green, message: "OK - 200 in 142ms", lifetime: "30m" }
       responses:
-        "202": { description: Status accepted. }
-        default: { $ref: "#/components/responses/Error" }
+        "202": { description: Status accepted (xymond submission is fire-and-forget). }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /hosts/{host}:
     parameters: [ { $ref: "#/components/parameters/Host" } ]
@@ -79,8 +100,12 @@ paths:
       responses:
         "200":
           description: Host info.
-          content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } }
-        default: { $ref: "#/components/responses/Error" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Host" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /hosts/{host}/tests/{test}:
     parameters:
@@ -93,8 +118,12 @@ paths:
       responses:
         "200":
           description: Status detail.
-          content: { application/json: { schema: { $ref: "#/components/schemas/StatusDetail" } } }
-        default: { $ref: "#/components/responses/Error" }
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusDetail" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /hosts/{host}/tests/{test}/disable:
     parameters:
@@ -106,10 +135,16 @@ paths:
       operationId: disableTest
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/DisableRequest" } } }
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisableRequest" }
+            example: { duration: "60m", reason: "planned maintenance" }
       responses:
         "202": { description: Disable accepted. }
-        default: { $ref: "#/components/responses/Error" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /hosts/{host}/tests/{test}/enable:
     parameters:
@@ -121,7 +156,9 @@ paths:
       operationId: enableTest
       responses:
         "202": { description: Enable accepted. }
-        default: { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /hosts/{host}/tests/{test}/ack:
     parameters:
@@ -133,10 +170,17 @@ paths:
       operationId: acknowledge
       requestBody:
         required: true
-        content: { application/json: { schema: { $ref: "#/components/schemas/Acknowledgement" } } }
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Acknowledgement" }
+            example: { duration: "2h", message: "investigating, ticket OPS-1234" }
       responses:
         "201": { description: Acknowledgement recorded. }
-        default: { $ref: "#/components/responses/Error" }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /ghosts:
     get:
@@ -149,7 +193,8 @@ paths:
           content:
             application/json:
               schema: { type: array, items: { $ref: "#/components/schemas/Ghost" } }
-        default: { $ref: "#/components/responses/Error" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
   /config/{file}:
     get:
@@ -161,8 +206,13 @@ paths:
       responses:
         "200":
           description: Raw config file contents.
-          content: { text/plain: { schema: { type: string } } }
-        default: { $ref: "#/components/responses/Error" }
+          content:
+            text/plain:
+              schema: { type: string }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
 components:
   securitySchemes:
@@ -179,6 +229,12 @@ components:
     Color:
       type: string
       enum: [green, yellow, red, blue, clear, purple]
+
+    Duration:
+      type: string
+      description: "Xymon duration: a number with a unit suffix, or -1 for until-OK."
+      pattern: '^(-1|[0-9]+[smhdw]?)$'
+      example: "60m"
 
     Pong:
       type: object
@@ -221,20 +277,20 @@ components:
         test:     { type: string }
         color:    { $ref: "#/components/schemas/Color" }
         message:  { type: string, description: Status text body. }
-        lifetime: { type: string, description: "Validity, e.g. '30m'." }
+        lifetime: { $ref: "#/components/schemas/Duration" }
 
     DisableRequest:
       type: object
       required: [duration]
       properties:
-        duration: { type: string, description: "e.g. '60m', '2h', or '-1' for until-OK." }
+        duration: { $ref: "#/components/schemas/Duration" }
         reason:   { type: string }
 
     Acknowledgement:
       type: object
       required: [duration, message]
       properties:
-        duration: { type: string, description: "e.g. '60m'." }
+        duration: { $ref: "#/components/schemas/Duration" }
         message:  { type: string }
 
     Host:
@@ -255,13 +311,31 @@ components:
 
     Error:
       type: object
+      required: [error]
       properties:
         error:  { type: string, description: Short machine-readable code. }
         detail: { type: string, description: Human-readable explanation. }
+      example: { error: not_found, detail: "no such host/test" }
 
   responses:
-    Error:
-      description: Error; the HTTP status code carries the kind (400/401/403/404/409/502/504).
-      content:
-        application/json:
-          schema: { $ref: "#/components/schemas/Error" }
+    BadRequest:
+      description: Invalid request parameters or body.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Unauthorized:
+      description: Authentication required or failed.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Forbidden:
+      description: Authenticated but not permitted.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    NotFound:
+      description: Unknown host or test.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    Conflict:
+      description: Conflicting state (e.g. acking a green status).
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    UpstreamUnavailable:
+      description: xymond is unreachable.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    UpstreamTimeout:
+      description: Timed out talking to xymond.
+      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }

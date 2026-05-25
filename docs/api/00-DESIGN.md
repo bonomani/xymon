@@ -38,6 +38,8 @@ RFC 3339 and `color` from the Xymon set.
 
 2. Conventions (the "simple" part)
 ----------------------------------
+- OpenAPI **3.0.3** (not 3.1) for the widest tooling support; validated with
+  openapi-spec-validator.
 - Base path `/xymon/api/v1`; breaking changes -> `/v2`.
 - `application/json` bodies; UTF-8 at the boundary (appfeed.c emits 8859-1).
 - **One** auth scheme: HTTP basic, reusing the existing Xymon web user db.
