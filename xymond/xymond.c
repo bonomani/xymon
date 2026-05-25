@@ -57,6 +57,7 @@ static char rcsid[] = "$Id$";
 #include <sys/msg.h>
 
 #include "libxymon.h"
+#include "xymon_tls.h"
 
 #define DISABLED_UNTIL_OK -1
 
@@ -207,6 +208,9 @@ typedef struct conn_t {
 	size_t buflen, bufsz;		/* Active and maximum length of buffer */
 	int doingwhat;			/* Communications state (NOTALK, READING, RESPONDING) */
 	time_t timeout;			/* When the timeout for this connection happens */
+#ifdef HAVE_XYMON_TLS
+	xymon_tls_t *tls;		/* Non-NULL if this connection arrived on the TLS listener */
+#endif
 	struct conn_t *next;
 } conn_t;
 
@@ -5222,6 +5226,15 @@ int main(int argc, char *argv[])
 	conn_t *connhead = NULL, *conntail=NULL;
 	char *listenip = "0.0.0.0";
 	int listenport = 0;
+#ifdef HAVE_XYMON_TLS
+	char *tls_listenip = NULL;
+	int tls_listenport = 0;
+	char *tls_cert_file = NULL;
+	char *tls_key_file  = NULL;
+	char *tls_ca_file   = NULL;
+	int tls_lsocket = -1;
+	xymon_tls_server_ctx_t *tls_server_ctx = NULL;
+#endif
 	char *hostsfn = NULL;
 	char *restartfn = NULL;
 	char *logfn = NULL;
@@ -5464,11 +5477,40 @@ int main(int argc, char *argv[])
 		else if (strcmp(argv[argi], "--no-bfq") == 0) {
 			 create_backfeedqueue = 0;
 		}
+#ifdef HAVE_XYMON_TLS
+		else if (argnmatch(argv[argi], "--tls-listen=")) {
+			char *p = strchr(argv[argi], '=') + 1;
+			char *c = strchr(p, ':');
+			if (c) {
+				tls_listenip = strndup(p, c - p);
+				tls_listenport = atoi(c + 1);
+			}
+			else {
+				tls_listenip = strdup("0.0.0.0");
+				tls_listenport = atoi(p);
+			}
+		}
+		else if (argnmatch(argv[argi], "--tls-cert=")) {
+			tls_cert_file = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (argnmatch(argv[argi], "--tls-key=")) {
+			tls_key_file = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (argnmatch(argv[argi], "--tls-ca=")) {
+			tls_ca_file = strdup(strchr(argv[argi], '=') + 1);
+		}
+#endif
 		else if (argnmatch(argv[argi], "--help")) {
 			printf("Options:\n");
 			printf("\t--listen=IP:PORT              : The address the daemon listens on\n");
 			printf("\t--hosts=FILENAME              : The hosts.cfg file\n");
 			printf("\t--ghosts=allow|drop|log       : How to handle unknown hosts\n");
+#ifdef HAVE_XYMON_TLS
+			printf("\t--tls-listen=IP:PORT          : Native-TLS listener (mTLS); requires --tls-cert/--tls-key/--tls-ca\n");
+			printf("\t--tls-cert=FILE               : Server certificate (PEM)\n");
+			printf("\t--tls-key=FILE                : Server private key (PEM)\n");
+			printf("\t--tls-ca=FILE                 : CA bundle used to verify client certs (PEM)\n");
+#endif
 			return 1;
 		}
 		else {
@@ -5539,6 +5581,51 @@ int main(int argc, char *argv[])
 		errprintf("Cannot listen (%s)\n", strerror(errno));
 		return 1;
 	}
+
+#ifdef HAVE_XYMON_TLS
+	/* Optional second listener: native TLS with mTLS. Plaintext on
+	 * `listenport` keeps working unchanged. */
+	if (tls_listenport > 0) {
+		struct sockaddr_in tls_laddr;
+
+		if (!tls_cert_file || !tls_key_file || !tls_ca_file) {
+			errprintf("--tls-listen requires --tls-cert, --tls-key, and --tls-ca\n");
+			return 1;
+		}
+
+		tls_server_ctx = xymon_tls_server_ctx_new(tls_cert_file,
+							  tls_key_file,
+							  tls_ca_file);
+		if (!tls_server_ctx) {
+			errprintf("Cannot initialise TLS server context\n");
+			return 1;
+		}
+
+		errprintf("Setting up TLS listener on %s:%d\n",
+			  tls_listenip ? tls_listenip : "0.0.0.0", tls_listenport);
+		memset(&tls_laddr, 0, sizeof(tls_laddr));
+		inet_aton(tls_listenip ? tls_listenip : "0.0.0.0",
+			  (struct in_addr *)&tls_laddr.sin_addr.s_addr);
+		tls_laddr.sin_port = htons(tls_listenport);
+		tls_laddr.sin_family = AF_INET;
+		tls_lsocket = socket(AF_INET, SOCK_STREAM, 0);
+		if (tls_lsocket == -1) {
+			errprintf("Cannot create TLS listen socket (%s)\n", strerror(errno));
+			return 1;
+		}
+		opt = 1;
+		setsockopt(tls_lsocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
+		fcntl(tls_lsocket, F_SETFL, O_NONBLOCK);
+		if (bind(tls_lsocket, (struct sockaddr *)&tls_laddr, sizeof(tls_laddr)) == -1) {
+			errprintf("Cannot bind TLS listen socket (%s)\n", strerror(errno));
+			return 1;
+		}
+		if (listen(tls_lsocket, listenq) == -1) {
+			errprintf("Cannot listen on TLS socket (%s)\n", strerror(errno));
+			return 1;
+		}
+	}
+#endif
 
 	/* Go daemon */
 	if (daemonize) {
@@ -5787,6 +5874,12 @@ int main(int argc, char *argv[])
 		 */
 		FD_ZERO(&fdread); FD_ZERO(&fdwrite);
 		FD_SET(lsocket, &fdread); maxfd = lsocket;
+#ifdef HAVE_XYMON_TLS
+		if (tls_lsocket >= 0) {
+			FD_SET(tls_lsocket, &fdread);
+			if (tls_lsocket > maxfd) maxfd = tls_lsocket;
+		}
+#endif
 
 		for (cwalk = connhead; (cwalk); cwalk = cwalk->next) {
 			switch (cwalk->doingwhat) {
@@ -5829,6 +5922,12 @@ int main(int argc, char *argv[])
 				if (FD_ISSET(cwalk->sock, &fdread)) {
 					if ((n == -1) && (errno == EAGAIN)) break; /* Do nothing */
 
+#ifdef HAVE_XYMON_TLS
+					if (cwalk->tls) {
+						n = xymon_tls_read(cwalk->tls, cwalk->bufp, (cwalk->bufsz - cwalk->buflen - 1));
+					}
+					else
+#endif
 					n = read(cwalk->sock, cwalk->bufp, (cwalk->bufsz - cwalk->buflen - 1));
 					if (n <= 0) {
 						/* End of input data on this connection */
@@ -5857,9 +5956,12 @@ int main(int argc, char *argv[])
 								if (eoln) *eoln = '\0';
 								errprintf("Data flooding from %s - 1st line %s\n",
 									  inet_ntoa(cwalk->addr.sin_addr), cwalk->buf);
+#ifdef HAVE_XYMON_TLS
+								if (cwalk->tls) { xymon_tls_close(cwalk->tls); cwalk->tls = NULL; }
+#endif
 								shutdown(cwalk->sock, SHUT_RDWR);
-								close(cwalk->sock); 
-								cwalk->sock = -1; 
+								close(cwalk->sock);
+								cwalk->sock = -1;
 								cwalk->doingwhat = NOTALK;
 							}
 						}
@@ -5869,6 +5971,12 @@ int main(int argc, char *argv[])
 
 			  case RESPONDING:
 				if (FD_ISSET(cwalk->sock, &fdwrite)) {
+#ifdef HAVE_XYMON_TLS
+					if (cwalk->tls) {
+						n = xymon_tls_write(cwalk->tls, cwalk->bufp, cwalk->buflen);
+					}
+					else
+#endif
 					n = write(cwalk->sock, cwalk->bufp, cwalk->buflen);
 
 					if ((n == -1) && (errno == EAGAIN)) break; /* Do nothing */
@@ -5882,9 +5990,12 @@ int main(int argc, char *argv[])
 					}
 
 					if (cwalk->buflen == 0) {
+#ifdef HAVE_XYMON_TLS
+						if (cwalk->tls) { xymon_tls_close(cwalk->tls); cwalk->tls = NULL; }
+#endif
 						shutdown(cwalk->sock, SHUT_WR);
-						close(cwalk->sock); 
-						cwalk->sock = -1; 
+						close(cwalk->sock);
+						cwalk->sock = -1;
 						cwalk->doingwhat = NOTALK;
 					}
 				}
@@ -5941,6 +6052,9 @@ int main(int argc, char *argv[])
 					update_statistics("");
 					cwalk->doingwhat = NOTALK;
 					if (cwalk->sock >= 0) {
+#ifdef HAVE_XYMON_TLS
+						if (cwalk->tls) { xymon_tls_close(cwalk->tls); cwalk->tls = NULL; }
+#endif
 						shutdown(cwalk->sock, SHUT_RDWR);
 						close(cwalk->sock);
 						cwalk->sock = -1;
@@ -5986,6 +6100,11 @@ int main(int argc, char *argv[])
 				tmp = khead;
 				khead = khead->next;
 
+#ifdef HAVE_XYMON_TLS
+				/* Defense in depth: free any TLS state that the
+				 * close sites above didn't already release. */
+				if (tmp->tls) { xymon_tls_close(tmp->tls); tmp->tls = NULL; }
+#endif
 				if (tmp->buf) xfree(tmp->buf);
 				xfree(tmp);
 			}
@@ -6023,9 +6142,68 @@ int main(int argc, char *argv[])
 				conntail->bufp = conntail->buf;
 				conntail->buflen = 0;
 				conntail->timeout = now + conn_timeout;
+#ifdef HAVE_XYMON_TLS
+				conntail->tls = NULL;
+#endif
 				conntail->next = NULL;
 			}
 		}
+
+#ifdef HAVE_XYMON_TLS
+		/* TLS listener: accept, do the handshake in blocking mode, then
+		 * switch back to non-blocking and hand off to the same connection
+		 * state machine. The blocking handshake briefly stalls xymond's
+		 * accept thread (typically a few ms) -- prototype simplification;
+		 * a production version would drive SSL_accept through select().  */
+		if ((tls_lsocket >= 0) && FD_ISSET(tls_lsocket, &fdread)) {
+			struct sockaddr_in addr;
+			int addrsz = sizeof(addr);
+			int sock;
+			int flags;
+			xymon_tls_t *tls;
+			char *peer_cn = NULL;
+
+			sock = accept(tls_lsocket, (struct sockaddr *)&addr, &addrsz);
+			if (sock >= 0) {
+				flags = fcntl(sock, F_GETFL, 0);
+				if (flags != -1) (void)fcntl(sock, F_SETFL, flags & ~O_NONBLOCK);
+
+				tls = xymon_tls_server_handshake(sock, tls_server_ctx, &peer_cn);
+				if (!tls) {
+					errprintf("TLS handshake failed from %s\n",
+						  inet_ntoa(addr.sin_addr));
+					close(sock);
+				}
+				else {
+					errprintf("TLS connection from %s (peer CN=%s)\n",
+						  inet_ntoa(addr.sin_addr),
+						  peer_cn ? peer_cn : "(unknown)");
+					if (peer_cn) xfree(peer_cn);
+
+					(void)fcntl(sock, F_SETFL, O_NONBLOCK);
+
+					if (connhead == NULL) {
+						connhead = conntail = (conn_t *)malloc(sizeof(conn_t));
+					}
+					else {
+						conntail->next = (conn_t *)malloc(sizeof(conn_t));
+						conntail = conntail->next;
+					}
+
+					conntail->sock = sock;
+					memcpy(&conntail->addr, &addr, sizeof(conntail->addr));
+					conntail->doingwhat = RECEIVING;
+					conntail->bufsz = XYMON_INBUF_INITIAL;
+					conntail->buf = (unsigned char *)malloc(conntail->bufsz);
+					conntail->bufp = conntail->buf;
+					conntail->buflen = 0;
+					conntail->timeout = now + conn_timeout;
+					conntail->tls = tls;
+					conntail->next = NULL;
+				}
+			}
+		}
+#endif
 	} while (running);
 
 	/* Tell the workers we to shutdown also */
@@ -6046,6 +6224,11 @@ int main(int argc, char *argv[])
 
 	if (backfeedqueue >= 0) close_feedback_queue(backfeedqueue, CHAN_MASTER);
 	if (bf_buf) xfree(bf_buf);
+
+#ifdef HAVE_XYMON_TLS
+	if (tls_lsocket >= 0) close(tls_lsocket);
+	if (tls_server_ctx) xymon_tls_server_ctx_free(tls_server_ctx);
+#endif
 
 	save_checkpoint();
 	unlink(pidfile);
