@@ -28,8 +28,30 @@ Outputs:
 The `out/` directory is `.gitignore`d. Don't commit private keys.
 
 
-Smoke test (once `xymond` TLS support lands)
---------------------------------------------
+`test-handshake.sh` — automated smoke test
+------------------------------------------
+
+Once the server is built (`./configure --server && make`):
+
+```
+$ ./tests/tls/test-handshake.sh
+```
+
+Boots xymond on `127.0.0.1:1985` with the test certs, drives an mTLS
+handshake via `openssl s_client`, verifies the server logged the expected
+peer CN, and (if the `xymon` client binary is also built) sends a real
+status message via `xymons://`. Exit code 0 means everything wired up
+correctly.
+
+Override with environment variables if your binaries live elsewhere:
+
+```
+$ XYMOND_BIN=/path/to/xymond XYMON_BIN=/path/to/xymon ./tests/tls/test-handshake.sh
+```
+
+
+Manual smoke test (terminal A + terminal B)
+-------------------------------------------
 
 Terminal A (server):
 ```
