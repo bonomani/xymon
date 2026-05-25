@@ -1,0 +1,369 @@
+openapi: 3.1.0
+info:
+  title: Xymon REST API
+  version: 0.1.0-draft
+  description: >
+    A REST/JSON interface over the Xymon (xymond) wire protocol. This is a
+    spec-first DRAFT contract; no implementation is committed yet. Endpoints map
+    onto existing xymond verbs (xymondboard, xymondlog, hostinfo, ping, status,
+    data, enable/disable, ack, config). See docs/api/00-DESIGN.md.
+  license:
+    name: GPL-2.0-only
+
+servers:
+  - url: /xymon/api/v1
+    description: Versioned base path (served by the API process / CGI).
+
+security:
+  - bearerAuth: []
+  - basicAuth: []
+
+tags:
+  - name: status
+    description: Read and submit host/test status (the xymondboard cells).
+  - name: hosts
+    description: Host-level views and actions.
+  - name: server
+    description: Server health and configuration.
+
+paths:
+  /ping:
+    get:
+      tags: [server]
+      summary: Server liveness (maps to the xymond `ping` verb).
+      operationId: ping
+      responses:
+        "200":
+          description: xymond is alive.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Pong" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+        "504": { $ref: "#/components/responses/UpstreamTimeout" }
+
+  /board:
+    get:
+      tags: [status]
+      summary: List status cells (maps to `xymondboard`).
+      operationId: listBoard
+      parameters:
+        - { name: host,   in: query, schema: { type: string }, description: "Filter by host name (xymondboard host= criterion)." }
+        - { name: test,   in: query, schema: { type: string }, description: "Filter by test name." }
+        - { name: color,  in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: page,   in: query, schema: { type: string }, description: "Filter by Xymon page/path." }
+        - { name: tag,    in: query, schema: { type: string }, description: "Filter by host tag." }
+        - name: fields
+          in: query
+          description: "Comma-separated subset of fields to project (xymondboard fields=)."
+          schema: { type: string }
+        - { name: limit,  in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+        - { name: cursor, in: query, schema: { type: string }, description: "Opaque pagination cursor." }
+      responses:
+        "200":
+          description: Matching status cells.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items:
+                    type: array
+                    items: { $ref: "#/components/schemas/BoardEntry" }
+                  next_cursor: { type: string, nullable: true }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+        "504": { $ref: "#/components/responses/UpstreamTimeout" }
+
+  /status:
+    post:
+      tags: [status]
+      summary: Submit (upsert) a host/test status (maps to the `status` verb).
+      operationId: submitStatus
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/StatusSubmission" }
+      responses:
+        "202": { description: Status accepted for processing. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+
+  /hosts/{host}:
+    parameters:
+      - $ref: "#/components/parameters/Host"
+    get:
+      tags: [hosts]
+      summary: Host configuration/info (maps to `hostinfo`).
+      operationId: getHost
+      responses:
+        "200":
+          description: Host info.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Host" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+
+  /hosts/{host}/tests/{test}:
+    parameters:
+      - $ref: "#/components/parameters/Host"
+      - $ref: "#/components/parameters/Test"
+    get:
+      tags: [status]
+      summary: Full status detail for one cell (maps to `xymondlog`).
+      operationId: getStatus
+      responses:
+        "200":
+          description: Status detail.
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/StatusDetail" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+
+  /hosts/{host}/tests/{test}/disable:
+    parameters:
+      - $ref: "#/components/parameters/Host"
+      - $ref: "#/components/parameters/Test"
+    post:
+      tags: [status]
+      summary: Disable a test for a duration (maps to `disable`).
+      operationId: disableTest
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/DisableRequest" }
+      responses:
+        "202": { description: Disable accepted. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /hosts/{host}/tests/{test}/enable:
+    parameters:
+      - $ref: "#/components/parameters/Host"
+      - $ref: "#/components/parameters/Test"
+    post:
+      tags: [status]
+      summary: Re-enable a previously disabled test (maps to `enable`).
+      operationId: enableTest
+      responses:
+        "202": { description: Enable accepted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /hosts/{host}/tests/{test}/acks:
+    parameters:
+      - $ref: "#/components/parameters/Host"
+      - $ref: "#/components/parameters/Test"
+    post:
+      tags: [status]
+      summary: Acknowledge a non-green status (maps to `ack`).
+      operationId: acknowledge
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/Acknowledgement" }
+      responses:
+        "201": { description: Acknowledgement recorded. }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "409": { $ref: "#/components/responses/Conflict" }
+
+  /ghosts:
+    get:
+      tags: [server]
+      summary: Hosts that reported but are not in hosts.cfg (maps to `ghostlist`).
+      operationId: listGhosts
+      responses:
+        "200":
+          description: Ghost reporters.
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Ghost" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+
+  /config/{file}:
+    get:
+      tags: [server]
+      summary: Fetch a server config file (maps to `config`; allow-listed).
+      operationId: getConfig
+      parameters:
+        - name: file
+          in: path
+          required: true
+          schema: { type: string }
+          description: "Config file name (server-side allow-list enforced)."
+      responses:
+        "200":
+          description: Raw config file contents.
+          content:
+            text/plain:
+              schema: { type: string }
+        "403": { $ref: "#/components/responses/Forbidden" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+components:
+  securitySchemes:
+    bearerAuth:
+      type: http
+      scheme: bearer
+      description: API token for automation.
+    basicAuth:
+      type: http
+      scheme: basic
+      description: Reuse the existing Xymon web user db (htpasswd).
+
+  parameters:
+    Host:
+      name: host
+      in: path
+      required: true
+      schema: { type: string }
+      description: Xymon host name.
+    Test:
+      name: test
+      in: path
+      required: true
+      schema: { type: string }
+      description: Test/column name.
+
+  schemas:
+    Color:
+      type: string
+      enum: [green, yellow, red, blue, clear, purple]
+      description: Xymon status color.
+
+    Pong:
+      type: object
+      required: [alive]
+      properties:
+        alive: { type: boolean }
+        server_version: { type: string }
+
+    BoardEntry:
+      type: object
+      description: One status cell, mirroring xymondboard fields.
+      required: [hostname, testname, color]
+      properties:
+        hostname:    { type: string }
+        testname:    { type: string }
+        color:       { $ref: "#/components/schemas/Color" }
+        flags:       { type: string }
+        lastchange:  { type: string, format: date-time, nullable: true }
+        logtime:     { type: string, format: date-time, nullable: true }
+        validtime:   { type: string, format: date-time, nullable: true }
+        acktime:     { type: string, format: date-time, nullable: true }
+        disabletime: { type: string, format: date-time, nullable: true }
+        sender:      { type: string }
+        cookie:      { type: string, nullable: true }
+        line1:       { type: string, description: "First line of the status message." }
+
+    StatusDetail:
+      allOf:
+        - $ref: "#/components/schemas/BoardEntry"
+        - type: object
+          properties:
+            msg:      { type: string, description: "Full status message text." }
+            ackmsg:   { type: string, nullable: true }
+            dismsg:   { type: string, nullable: true }
+            client:   { type: string, nullable: true }
+            hostinfo: { type: string, nullable: true }
+
+    StatusSubmission:
+      type: object
+      required: [host, test, color]
+      properties:
+        host:     { type: string }
+        test:     { type: string }
+        color:    { $ref: "#/components/schemas/Color" }
+        message:  { type: string, description: "Status text body." }
+        lifetime: { type: string, description: "Validity, e.g. '30m' (status +LIFETIME)." }
+        group:    { type: string, nullable: true }
+
+    DisableRequest:
+      type: object
+      required: [duration]
+      properties:
+        duration: { type: string, description: "e.g. '60m', '2h', or '-1' for until-OK." }
+        reason:   { type: string }
+
+    Acknowledgement:
+      type: object
+      required: [duration, message]
+      properties:
+        duration: { type: string, description: "Ack validity, e.g. '60m'." }
+        message:  { type: string }
+
+    Host:
+      type: object
+      required: [hostname]
+      properties:
+        hostname: { type: string }
+        ip:       { type: string, nullable: true }
+        tags:     { type: array, items: { type: string } }
+        pages:    { type: array, items: { type: string } }
+
+    Ghost:
+      type: object
+      properties:
+        hostname: { type: string }
+        sender:   { type: string }
+        lastseen: { type: string, format: date-time, nullable: true }
+
+    Problem:
+      type: object
+      description: RFC 7807 problem document.
+      properties:
+        type:     { type: string, format: uri, default: "about:blank" }
+        title:    { type: string }
+        status:   { type: integer }
+        detail:   { type: string }
+        instance: { type: string }
+
+  responses:
+    BadRequest:
+      description: Invalid request parameters.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Unauthorized:
+      description: Authentication required or failed.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Forbidden:
+      description: Authenticated but not permitted.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    NotFound:
+      description: Unknown host or test.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    Conflict:
+      description: Conflicting state (e.g. ack of a green status).
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    UpstreamUnavailable:
+      description: xymond is unreachable.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
+    UpstreamTimeout:
+      description: Timed out talking to xymond.
+      content:
+        application/problem+json:
+          schema: { $ref: "#/components/schemas/Problem" }
