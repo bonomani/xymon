@@ -202,6 +202,58 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /series:
+    get:
+      tags: [observed]
+      summary: Time-series history of state values (the data behind graphs).
+      operationId: listSeries
+      parameters:
+        - { name: host,     in: query, schema: { type: string } }
+        - { name: test,     in: query, schema: { type: string } }
+        - { name: metric,   in: query, schema: { type: string } }
+        - { name: selector, in: query, schema: { type: string }, description: "Free-dimension matchers, e.g. `mount=/var`." }
+        - { name: from,     in: query, schema: { type: string }, description: "Range start: RFC3339 or relative like `-24h`." }
+        - { name: to,       in: query, schema: { type: string, default: "now" } }
+        - { name: step,     in: query, schema: { type: string }, description: "Resolution, e.g. `5m` (maps to RRD consolidation)." }
+        - { name: limit,    in: query, schema: { type: integer, minimum: 1, maximum: 1000, default: 200 } }
+      responses:
+        "200":
+          description: One numeric time-series per matching label-set.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [series]
+                properties:
+                  series: { type: array, items: { $ref: "#/components/schemas/Series" } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/Upstream" }
+
+  /graphs:
+    get:
+      tags: [observed]
+      summary: Render a graph image of matching series over a time range (RRD-backed).
+      operationId: renderGraph
+      parameters:
+        - { name: graph,    in: query, schema: { type: string }, description: "A named graph definition id (else render ad-hoc by selector)." }
+        - { name: host,     in: query, schema: { type: string } }
+        - { name: test,     in: query, schema: { type: string } }
+        - { name: selector, in: query, schema: { type: string } }
+        - { name: from,     in: query, schema: { type: string, default: "-24h" } }
+        - { name: to,       in: query, schema: { type: string, default: "now" } }
+        - { name: format,   in: query, schema: { type: string, enum: [png, svg], default: png } }
+      responses:
+        "200":
+          description: The rendered graph.
+          content:
+            image/png: { schema: { type: string, format: binary } }
+            image/svg+xml: { schema: { type: string } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/Upstream" }
+
   # ---- Defined plane (config; uniform CRUD) -------------------------------
   # Every config resource has the identical shape: GET/POST on the collection,
   # GET/PUT/DELETE on the item. Only the record schema differs.
@@ -383,6 +435,50 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /graph-defs:
+    get:
+      tags: [defined]
+      summary: List named graph definitions (the graphs.cfg analogue).
+      operationId: listGraphDefs
+      responses:
+        "200": { description: Graph definitions., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/GraphDef" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a graph definition.
+      operationId: createGraphDef
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GraphDef" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/GraphDef" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /graph-defs/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [defined]
+      summary: Get a graph definition.
+      operationId: getGraphDef
+      responses:
+        "200": { description: Graph definition., content: { application/json: { schema: { $ref: "#/components/schemas/GraphDef" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [defined]
+      summary: Create or replace a graph definition.
+      operationId: putGraphDef
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/GraphDef" } } } }
+      responses:
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/GraphDef" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [defined]
+      summary: Delete a graph definition.
+      operationId: deleteGraphDef
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     basicAuth:
@@ -539,6 +635,33 @@ components:
         window:   { $ref: "#/components/schemas/Window" }
         reason:   { type: string, nullable: true }
         source:   { type: string, description: "Id of the Action that created it, if any.", nullable: true }
+
+    Series:
+      type: object
+      description: A numeric time-series — the history of one State's value (one label-set).
+      required: [labels, points]
+      properties:
+        labels: { $ref: "#/components/schemas/Labels" }
+        metric: { type: string }
+        points:
+          type: array
+          items:
+            type: object
+            required: [t, v]
+            properties:
+              t: { type: string, format: date-time }
+              v: { type: number, nullable: true }
+
+    GraphDef:
+      type: object
+      description: A named graph (the graphs.cfg analogue) — a selector + render hints.
+      required: [id, selector]
+      properties:
+        id:       { type: string }
+        title:    { type: string }
+        selector: { $ref: "#/components/schemas/Selector" }
+        unit:     { type: string, description: "Y-axis unit label, e.g. '%' or 'ms'." }
+        stacked:  { type: boolean, default: false }
 
     Error:
       type: object

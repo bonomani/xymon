@@ -141,10 +141,12 @@ methods are real:
     Defined   /hosts /tests /rules /suppressions
               GET (list, filter by selector) · GET/PUT/PATCH/DELETE (item)
 
-    Observed  /states /alarms /actions
+    Observed  /states /alarms /actions /series /graphs
               GET (list, filter by any dimension; group-by for rollups) · GET (item)
               writes only via real commands: POST /actions (ack/disable) and
               batch ingest of States (combo/POST)
+              /series = a State value's history (time-series); /graphs = its
+              rendered RRD image. Same selectors as /states, plus a time range.
 
 Filtering, projection (`fields`), and Selector are identical on every
 collection; a State is queried by any of its dimensions. Differences between
@@ -162,9 +164,15 @@ collections live in their record schema — data, not API structure.
 - Symmetric  : every transition = Rule − Suppression. No special cases, no
                backward arrows (suppression is a declarative gate).
 
+Promoted:
+- **Time-series (the value's history)** — a State carries the *current* value;
+  its history is the RRD series. Exposed read-only as `/series` (JSON data) and
+  `/graphs` (rendered image), reusing the same WHERE/WHAT/HOW selectors plus a
+  time range (`from`/`to`/`step`). Named graphs (the `graphs.cfg` analogue) are
+  a Defined resource `/graph-defs` = a Selector + render hints. Not a new
+  pipeline node — it is the WHEN axis of a State's value. Numeric metrics only.
+
 Deferred (promote only on demand):
-- **Metric as a first-class time-series** — today it's a `metric` dimension + a
-  value on State; promote only if raw history/graphing needs its own entity.
 - **Service** — a named Selector for now; promote to an entity only if it needs
   its own objects (ownership, SLOs).
 - **owner (WHO)** — confirm hosts/tests carry it; it is the one dimension most at

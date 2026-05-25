@@ -1,0 +1,159 @@
+<!DOCTYPE html>
+<!--
+  Xymon REST API — board mockup (static, self-contained).
+
+  A faithful classic-Xymon status grid rendered ENTIRELY from data shaped like
+  the new REST API (see ../openapi.yaml, ../01-MODEL.md). The fixtures below are
+  exactly what these endpoints would return:
+     BOARD   ← GET /states?rollup=host,test       (cell color = verdict)
+     DETAIL  ← GET /states?host=..&test=..         (atomic per-item states)
+     SERIES  ← GET /series?host=..&test=..&metric=.. (history → /graphs sparkline)
+  No backend, no build step: open this file in a browser.
+-->
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<title>Xymon — status board (API mock)</title>
+<style>
+  body { font-family: Verdana, Geneva, sans-serif; font-size: 12px;
+         background: #ffffff; color: #000; margin: 0; }
+  .topbar { background: #304860; color: #fff; padding: 10px 16px; font-weight: bold;
+            font-size: 15px; letter-spacing: .5px; display:flex; justify-content:space-between; }
+  .topbar small { font-weight: normal; opacity:.8; }
+  .wrap { padding: 14px 16px; }
+  .api  { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
+          color:#456; background:#eef2f6; border:1px solid #d4dde6; border-radius:4px;
+          padding:4px 8px; display:inline-block; margin-bottom:10px; }
+  table.board { border-collapse: collapse; }
+  table.board th, table.board td { border:1px solid #c7c7c7; padding:5px 9px; text-align:center; }
+  table.board th { background:#f0f0f0; font-weight:bold; }
+  table.board th.host { text-align:left; min-width:120px; }
+  td.host { text-align:left; font-weight:bold; background:#fafafa; }
+  .ball { display:inline-block; width:14px; height:14px; border-radius:50%;
+          box-shadow: inset -2px -2px 3px rgba(0,0,0,.35); cursor:pointer; }
+  .green  { background:#1aab1a; } .yellow { background:#f5d800; }
+  .red    { background:#e80000; } .blue   { background:#2b7be0; }
+  .clear  { background:#c4c4c4; } .purple { background:#9b1bb0; }
+  .none   { color:#bbb; }
+  label.flt { font-size:11px; color:#456; margin-left:14px; cursor:pointer; }
+  /* drill-down */
+  #detail { margin-top:18px; border:1px solid #c7c7c7; border-radius:4px; max-width:680px; display:none; }
+  #detail h3 { margin:0; padding:8px 12px; background:#304860; color:#fff; font-size:13px; border-radius:4px 4px 0 0; }
+  #detail .body { padding:10px 12px; }
+  table.items { border-collapse:collapse; width:100%; font-size:11px; }
+  table.items th, table.items td { border-bottom:1px solid #e3e3e3; padding:4px 8px; text-align:left; }
+  table.items th { color:#678; }
+  .spark { margin-top:8px; }
+  .muted { color:#789; font-size:11px; }
+</style>
+</head>
+<body>
+<div class="topbar"><span>Xymon &nbsp;·&nbsp; status board</span>
+  <small>rendered from the REST API model — <span id="ts"></span></small></div>
+
+<div class="wrap">
+  <span class="api">GET /states?rollup=host,test</span>
+  <label class="flt"><input type="checkbox" id="onlyprob"> show only problems (verdict≠green)</label>
+  <div id="grid"></div>
+  <div id="detail">
+    <h3 id="dtitle"></h3>
+    <div class="body">
+      <div class="api" id="dapi"></div>
+      <table class="items"><thead><tr><th>where</th><th>what (metric)</th><th>value</th><th>verdict</th></tr></thead>
+        <tbody id="ditems"></tbody></table>
+      <div class="spark" id="dspark"></div>
+    </div>
+  </div>
+</div>
+
+<script>
+// ---- fixtures (exactly the API response shapes) -------------------------
+const BOARD = { items: [   // GET /states?rollup=host,test
+  {host:"web1",    test:"conn", verdict:"green"},
+  {host:"web1",    test:"cpu",  verdict:"green"},
+  {host:"web1",    test:"disk", verdict:"red"},
+  {host:"web1",    test:"http", verdict:"green"},
+  {host:"db1",     test:"conn", verdict:"green"},
+  {host:"db1",     test:"cpu",  verdict:"yellow"},
+  {host:"db1",     test:"disk", verdict:"green"},
+  {host:"router1", test:"conn", verdict:"green"},
+  {host:"router1", test:"cpu",  verdict:"green"},
+  {host:"router1", test:"http", verdict:"clear"},
+]};
+
+const DETAIL = {   // GET /states?host=..&test=..  (atomic per-item states)
+  "web1|disk": [
+    {where:"mount=/var",  metric:"pct_used", value:"96%", verdict:"red"},
+    {where:"mount=/var",  metric:"inodes",   value:"41%", verdict:"green"},
+    {where:"mount=/",     metric:"pct_used", value:"38%", verdict:"green"},
+    {where:"mount=/home", metric:"pct_used", value:"72%", verdict:"yellow"},
+  ],
+  "db1|cpu": [
+    {where:"core=0", metric:"util_pct", value:"88%", verdict:"yellow"},
+    {where:"-",      metric:"load_5m",  value:"3.2", verdict:"green"},
+  ],
+};
+
+const SERIES = {   // GET /series?host=web1&test=disk&metric=pct_used  (→ /graphs)
+  "web1|disk": [88,90,91,92,93,94,95,96,96,95,96,97,96],
+};
+
+const COLORS = ["green","yellow","red","blue","clear","purple"];
+
+// ---- render the grid ----------------------------------------------------
+function render() {
+  const onlyProb = document.getElementById("onlyprob").checked;
+  const hosts = [...new Set(BOARD.items.map(i=>i.host))];
+  const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();
+  const cell  = {};
+  BOARD.items.forEach(i => cell[i.host+"|"+i.test] = i.verdict);
+
+  let h = '<table class="board"><thead><tr><th class="host">host</th>';
+  tests.forEach(t => h += `<th>${t}</th>`);
+  h += '</tr></thead><tbody>';
+  hosts.forEach(host => {
+    const rowVerdicts = tests.map(t => cell[host+"|"+t]);
+    if (onlyProb && rowVerdicts.every(v => !v || v==="green")) return;
+    h += `<tr><td class="host">${host}</td>`;
+    tests.forEach(t => {
+      const v = cell[host+"|"+t];
+      if (!v) { h += '<td><span class="none">–</span></td>'; return; }
+      const clickable = DETAIL[host+"|"+t] ? `onclick="drill('${host}','${t}','${v}')"` : "";
+      h += `<td><span class="ball ${v}" title="${host}.${t} = ${v}" ${clickable}></span></td>`;
+    });
+    h += '</tr>';
+  });
+  h += '</tbody></table>';
+  document.getElementById("grid").innerHTML = h;
+}
+
+// ---- drill-down (status detail + history sparkline) ---------------------
+function drill(host, test, verdict) {
+  const d = document.getElementById("detail");
+  document.getElementById("dtitle").textContent = `${host}.${test}  —  ${verdict}`;
+  document.getElementById("dapi").textContent = `GET /states?host=${host}&test=${test}`;
+  const items = DETAIL[host+"|"+test] || [];
+  document.getElementById("ditems").innerHTML = items.map(it =>
+    `<tr><td>${it.where}</td><td>${it.metric}</td><td>${it.value}</td>`+
+    `<td><span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}</td></tr>`).join("");
+  document.getElementById("dspark").innerHTML = sparkline(host, test);
+  d.style.display = "block";
+}
+
+function sparkline(host, test) {
+  const pts = SERIES[host+"|"+test];
+  if (!pts) return '';
+  const w=320,h=44,max=Math.max(...pts),min=Math.min(...pts),span=(max-min)||1;
+  const path = pts.map((v,i)=>`${(i/(pts.length-1))*w},${h-((v-min)/span)*(h-6)-3}`).join(" ");
+  return `<div class="api">GET /graphs?host=${host}&test=${test}&from=-24h  →  (RRD image)</div>`+
+         `<svg width="${w}" height="${h}" style="border:1px solid #d4dde6;background:#fafcff">`+
+         `<polyline fill="none" stroke="#2b7bff" stroke-width="2" points="${path}"/></svg>`+
+         `<div class="muted">pct_used over the last 24h (mock of /series + /graphs)</div>`;
+}
+
+document.getElementById("onlyprob").addEventListener("change", render);
+document.getElementById("ts").textContent = new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
+render();
+</script>
+</body>
+</html>

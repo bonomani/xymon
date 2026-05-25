@@ -15,10 +15,12 @@ This file holds the API conventions and decisions. The three docs split as:
 The API is the model's two planes, each a uniform set of resources:
 
 - **Defined** (config; full CRUD): `/hosts` `/tests` `/rules` `/suppressions`
-  — `GET`/`POST` on the collection, `GET`/`PUT`/`DELETE` on the item.
+  `/graph-defs` — `GET`/`POST` on the collection, `GET`/`PUT`/`DELETE` on the item.
 - **Observed** (runtime; read-only + the two real writes): `/states` `/alarms`
-  `/actions` — `GET` to read/query; `POST /states` ingests readings; `POST
-  /actions` issues operator commands (ack/disable/enable). Plus `GET /health`.
+  `/actions` `/series` `/graphs` — `GET` to read/query; `POST /states` ingests
+  readings; `POST /actions` issues operator commands (ack/disable/enable);
+  `/series` and `/graphs` are a value's history (data) and its rendered RRD
+  image. Plus `GET /health`.
 
 Every config resource has the identical shape; differences live in the record
 schema, not the API structure.
@@ -53,8 +55,6 @@ schema, not the API structure.
 
 4. Deferred (promote on demand)
 -------------------------------
-- Metric as a first-class time-series (today: a `metric` dimension + value on
-  State); promote for raw history/graphing.
 - Service as an entity (today: a Selector).
 - Streaming board/alarm changes (SSE/websocket) — poll for now.
 - `owner` (WHO) coverage on hosts/tests — confirm it's populated.

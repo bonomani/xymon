@@ -38,12 +38,15 @@ flowchart LR
 ├── /actions          GET   the action log
 │   │                 POST  issue a command (ack / disable / enable)
 │   └── /{id}         GET   one action
+├── /series           GET   a value's history (time-series JSON)
+├── /graphs           GET   rendered RRD graph image (png/svg)
 
 │  ── DEFINED (config; uniform CRUD) ──
 ├── /hosts            GET POST   · /{id} GET PUT DELETE
 ├── /tests            GET POST   · /{id} GET PUT DELETE
 ├── /rules            GET POST   · /{id} GET PUT DELETE
-└── /suppressions     GET POST   · /{id} GET PUT DELETE
+├── /suppressions     GET POST   · /{id} GET PUT DELETE
+└── /graph-defs       GET POST   · /{id} GET PUT DELETE   (named graphs.cfg)
 ```
 **Defined** resources are read/write (config). **Observed** resources are
 read-only, except the two real writes: ingest (`POST /states`) and operator
@@ -62,6 +65,8 @@ only its record schema differs.
 | observed | `/alarms/{id}`       | GET                | one alarm |
 | observed | `/actions`           | GET, POST          | action log / **ack·disable·enable** command |
 | observed | `/actions/{id}`      | GET                | one action |
+| observed | `/series`            | GET                | value history (time-series JSON) |
+| observed | `/graphs`            | GET                | rendered RRD graph (png/svg) |
 | defined  | `/hosts`             | GET, POST          | hosts |
 | defined  | `/hosts/{id}`        | GET, PUT, DELETE   | one host |
 | defined  | `/tests`             | GET, POST          | check definitions |
@@ -70,6 +75,8 @@ only its record schema differs.
 | defined  | `/rules/{id}`        | GET, PUT, DELETE   | one rule |
 | defined  | `/suppressions`      | GET, POST          | disable / maintenance / dependency |
 | defined  | `/suppressions/{id}` | GET, PUT, DELETE   | one suppression (DELETE = "enable") |
+| defined  | `/graph-defs`        | GET, POST          | named graphs (the `graphs.cfg` analogue) |
+| defined  | `/graph-defs/{id}`   | GET, PUT, DELETE   | one graph definition |
 
 ack/disable/enable are **not** endpoints — they are `POST /actions {type}`, and
 an operator action may create a Suppression. "enable" = `DELETE` that suppression.
