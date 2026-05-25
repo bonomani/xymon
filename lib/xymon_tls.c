@@ -43,6 +43,15 @@ struct xymon_tls_s {
 /* Process-global, lazily initialised. NULL until first successful init. */
 static SSL_CTX *client_ctx = NULL;
 
+/* Client verification policy, from XYMON_TLS_VERIFY:
+ *   full (default) - verify the server cert chain AND its hostname/IP
+ *   peer           - verify the chain only; skip the name check (cert
+ *                    pinning: trust a specific self-signed cert directly)
+ *   none           - no verification at all (encryption only; MITM-able)
+ */
+enum tls_verify_mode { TLS_VERIFY_FULL, TLS_VERIFY_PEER, TLS_VERIFY_NONE };
+static enum tls_verify_mode client_verify = TLS_VERIFY_FULL;
+
 /* Log the head of the OpenSSL error queue with a context prefix. */
 static void log_ssl_err(const char *where)
 {
@@ -65,22 +74,27 @@ static void log_ssl_err(const char *where)
 
 int xymon_tls_client_init(void)
 {
-	const char *ca_file, *cert_file, *key_file;
+	const char *ca_file, *cert_file, *key_file, *vmode;
 	SSL_CTX *ctx;
 
 	if (client_ctx) return 0;
 
-	ca_file   = xgetenv("XYMON_TLS_CA");
-	cert_file = xgetenv("XYMON_TLS_CERT");
-	key_file  = xgetenv("XYMON_TLS_KEY");
+	/* getenv (not xgetenv): these are optional now, and xgetenv would log a
+	 * spurious "Cannot find value" for any that are unset. */
+	ca_file   = getenv("XYMON_TLS_CA");
+	cert_file = getenv("XYMON_TLS_CERT");
+	key_file  = getenv("XYMON_TLS_KEY");
+	vmode     = getenv("XYMON_TLS_VERIFY");
 
-	if (!ca_file || !*ca_file) {
-		errprintf("xymon_tls: XYMON_TLS_CA is required for xymons:// URLs\n");
-		return -1;
-	}
-	if (!cert_file || !*cert_file || !key_file || !*key_file) {
-		errprintf("xymon_tls: XYMON_TLS_CERT and XYMON_TLS_KEY are required (mTLS)\n");
-		return -1;
+	client_verify = TLS_VERIFY_FULL;
+	if (vmode && *vmode) {
+		if      (strcmp(vmode, "full") == 0) client_verify = TLS_VERIFY_FULL;
+		else if (strcmp(vmode, "peer") == 0) client_verify = TLS_VERIFY_PEER;
+		else if (strcmp(vmode, "none") == 0) client_verify = TLS_VERIFY_NONE;
+		else {
+			errprintf("xymon_tls: unknown XYMON_TLS_VERIFY='%s' (use full|peer|none)\n", vmode);
+			return -1;
+		}
 	}
 
 	/* Bring up the library. OPENSSL_init_ssl is a no-op on second call. */
@@ -101,29 +115,49 @@ int xymon_tls_client_init(void)
 		SSL_CTX_free(ctx); return -1;
 	}
 
-	/* Verify the server's certificate chain against XYMON_TLS_CA. */
-	if (SSL_CTX_load_verify_locations(ctx, ca_file, NULL) != 1) {
-		errprintf("xymon_tls: cannot load CA bundle '%s'\n", ca_file);
-		log_ssl_err("SSL_CTX_load_verify_locations");
-		SSL_CTX_free(ctx); return -1;
+	/* Server-cert verification. In 'none' mode we skip it entirely
+	 * (encryption only); otherwise the chain is checked against XYMON_TLS_CA
+	 * -- which for cert pinning is simply the server's own self-signed cert. */
+	if (client_verify == TLS_VERIFY_NONE) {
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		errprintf("xymon_tls: WARNING: XYMON_TLS_VERIFY=none -- server certificate "
+			  "NOT verified (encryption only, vulnerable to MITM)\n");
 	}
-	SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+	else {
+		if (!ca_file || !*ca_file) {
+			errprintf("xymon_tls: XYMON_TLS_CA is required unless XYMON_TLS_VERIFY=none\n");
+			SSL_CTX_free(ctx); return -1;
+		}
+		if (SSL_CTX_load_verify_locations(ctx, ca_file, NULL) != 1) {
+			errprintf("xymon_tls: cannot load CA/trust file '%s'\n", ca_file);
+			log_ssl_err("SSL_CTX_load_verify_locations");
+			SSL_CTX_free(ctx); return -1;
+		}
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_PEER, NULL);
+	}
 
-	/* Our client cert + key (for mTLS). */
-	if (SSL_CTX_use_certificate_chain_file(ctx, cert_file) != 1) {
-		errprintf("xymon_tls: cannot load client cert '%s'\n", cert_file);
-		log_ssl_err("SSL_CTX_use_certificate_chain_file");
-		SSL_CTX_free(ctx); return -1;
-	}
-	if (SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) != 1) {
-		errprintf("xymon_tls: cannot load client key '%s'\n", key_file);
-		log_ssl_err("SSL_CTX_use_PrivateKey_file");
-		SSL_CTX_free(ctx); return -1;
-	}
-	if (SSL_CTX_check_private_key(ctx) != 1) {
-		errprintf("xymon_tls: client cert and key do not match\n");
-		log_ssl_err("SSL_CTX_check_private_key");
-		SSL_CTX_free(ctx); return -1;
+	/* Client cert + key are optional (only needed when the server requires
+	 * mTLS). If one is given, both must be. */
+	if ((cert_file && *cert_file) || (key_file && *key_file)) {
+		if (!cert_file || !*cert_file || !key_file || !*key_file) {
+			errprintf("xymon_tls: XYMON_TLS_CERT and XYMON_TLS_KEY must be set together\n");
+			SSL_CTX_free(ctx); return -1;
+		}
+		if (SSL_CTX_use_certificate_chain_file(ctx, cert_file) != 1) {
+			errprintf("xymon_tls: cannot load client cert '%s'\n", cert_file);
+			log_ssl_err("SSL_CTX_use_certificate_chain_file");
+			SSL_CTX_free(ctx); return -1;
+		}
+		if (SSL_CTX_use_PrivateKey_file(ctx, key_file, SSL_FILETYPE_PEM) != 1) {
+			errprintf("xymon_tls: cannot load client key '%s'\n", key_file);
+			log_ssl_err("SSL_CTX_use_PrivateKey_file");
+			SSL_CTX_free(ctx); return -1;
+		}
+		if (SSL_CTX_check_private_key(ctx) != 1) {
+			errprintf("xymon_tls: client cert and key do not match\n");
+			log_ssl_err("SSL_CTX_check_private_key");
+			SSL_CTX_free(ctx); return -1;
+		}
 	}
 
 	client_ctx = ctx;
@@ -172,21 +206,25 @@ xymon_tls_t *xymon_tls_client_handshake(int sockfd, const char *sni_hostname)
 		}
 	}
 
-	/* Certificate identity check. IP literals must be matched against the
-	 * cert's iPAddress SANs via set1_ip; set1_host would treat them as DNS
+	/* Certificate identity (hostname/IP) check -- only in 'full' mode. In
+	 * 'peer' mode the cert is pinned, so its name is irrelevant; in 'none'
+	 * mode the cert isn't verified at all. IP literals must be matched
+	 * against iPAddress SANs via set1_ip; set1_host would treat them as DNS
 	 * names and never match an IP SAN. */
-	vp = SSL_get0_param(ssl);
-	if (is_ip) {
-		if (X509_VERIFY_PARAM_set1_ip_asc(vp, sni_hostname) != 1) {
-			log_ssl_err("X509_VERIFY_PARAM_set1_ip_asc");
-			SSL_free(ssl); return NULL;
+	if (client_verify == TLS_VERIFY_FULL) {
+		vp = SSL_get0_param(ssl);
+		if (is_ip) {
+			if (X509_VERIFY_PARAM_set1_ip_asc(vp, sni_hostname) != 1) {
+				log_ssl_err("X509_VERIFY_PARAM_set1_ip_asc");
+				SSL_free(ssl); return NULL;
+			}
 		}
-	}
-	else {
-		X509_VERIFY_PARAM_set_hostflags(vp, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-		if (X509_VERIFY_PARAM_set1_host(vp, sni_hostname, 0) != 1) {
-			log_ssl_err("X509_VERIFY_PARAM_set1_host");
-			SSL_free(ssl); return NULL;
+		else {
+			X509_VERIFY_PARAM_set_hostflags(vp, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+			if (X509_VERIFY_PARAM_set1_host(vp, sni_hostname, 0) != 1) {
+				log_ssl_err("X509_VERIFY_PARAM_set1_host");
+				SSL_free(ssl); return NULL;
+			}
 		}
 	}
 
@@ -306,8 +344,8 @@ xymon_tls_server_ctx_t *xymon_tls_server_ctx_new(const char *cert_file,
 	xymon_tls_server_ctx_t *s;
 	SSL_CTX *ctx;
 
-	if (!cert_file || !key_file || !ca_file) {
-		errprintf("xymon_tls: server ctx needs cert, key, and ca paths\n");
+	if (!cert_file || !key_file) {
+		errprintf("xymon_tls: server ctx needs at least a cert and key path\n");
 		return NULL;
 	}
 
@@ -339,20 +377,29 @@ xymon_tls_server_ctx_t *xymon_tls_server_ctx_new(const char *cert_file,
 		SSL_CTX_free(ctx); return NULL;
 	}
 
-	if (SSL_CTX_load_verify_locations(ctx, ca_file, NULL) != 1) {
-		errprintf("xymon_tls: cannot load client CA bundle '%s'\n", ca_file);
-		log_ssl_err("SSL_CTX_load_verify_locations(server)");
-		SSL_CTX_free(ctx); return NULL;
+	/* Client-cert policy. With a CA/trust file we require and verify a client
+	 * cert (mTLS) -- the trust file may be a real CA or a single pinned
+	 * self-signed client cert. Without one we accept any client (encryption
+	 * only, no client authentication). */
+	if (ca_file && *ca_file) {
+		if (SSL_CTX_load_verify_locations(ctx, ca_file, NULL) != 1) {
+			errprintf("xymon_tls: cannot load client CA/trust file '%s'\n", ca_file);
+			log_ssl_err("SSL_CTX_load_verify_locations(server)");
+			SSL_CTX_free(ctx); return NULL;
+		}
+		SSL_CTX_set_verify(ctx,
+			SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
+
+		/* Make CA names available so clients know which CA to chain to. */
+		{
+			STACK_OF(X509_NAME) *ca_names = SSL_load_client_CA_file(ca_file);
+			if (ca_names) SSL_CTX_set_client_CA_list(ctx, ca_names);
+		}
 	}
-
-	/* Require a valid client cert (mTLS). */
-	SSL_CTX_set_verify(ctx,
-		SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, NULL);
-
-	/* Make CA names available so clients know which CA to chain to. */
-	{
-		STACK_OF(X509_NAME) *ca_names = SSL_load_client_CA_file(ca_file);
-		if (ca_names) SSL_CTX_set_client_CA_list(ctx, ca_names);
+	else {
+		SSL_CTX_set_verify(ctx, SSL_VERIFY_NONE, NULL);
+		errprintf("xymon_tls: WARNING: no client CA configured (--tls-ca) -- client "
+			  "certificates NOT required or verified (encryption only)\n");
 	}
 
 	s = (xymon_tls_server_ctx_t *)calloc(1, sizeof(*s));

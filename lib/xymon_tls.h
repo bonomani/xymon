@@ -25,9 +25,16 @@ typedef struct xymon_tls_s xymon_tls_t;
 
 /*
  * Lazy one-time process init for the client SSL_CTX. Reads:
- *   XYMON_TLS_CA   - PEM bundle to verify the server cert     (required)
- *   XYMON_TLS_CERT - PEM client certificate (mTLS)            (required)
- *   XYMON_TLS_KEY  - PEM client private key  (mTLS)            (required)
+ *   XYMON_TLS_VERIFY - full (default) | peer | none           (optional)
+ *                      full = verify server cert chain + hostname/IP
+ *                      peer = verify chain only (cert pinning; skip name)
+ *                      none = no verification (encryption only, MITM-able)
+ *   XYMON_TLS_CA     - PEM trust file for the server cert; a real CA or a
+ *                      pinned self-signed cert. Required unless VERIFY=none.
+ *   XYMON_TLS_CERT   - PEM client certificate (for mTLS)      (optional*)
+ *   XYMON_TLS_KEY    - PEM client private key  (for mTLS)     (optional*)
+ *                      (*required as a pair if the server requires a client
+ *                       cert; if one is set, both must be)
  * Returns 0 on success, -1 on error (an explanatory message is logged via
  * errprintf). Safe to call multiple times; only the first call does work.
  */
@@ -78,9 +85,12 @@ void xymon_tls_close(xymon_tls_t *t);
 typedef struct xymon_tls_server_ctx_s xymon_tls_server_ctx_t;
 
 /*
- * Build a server SSL_CTX from PEM file paths. mTLS is required:
- * SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, peer chain checked
- * against ca_file. TLS 1.3 only. Returns NULL on any failure (logged).
+ * Build a server SSL_CTX from PEM file paths. cert_file and key_file are
+ * required (the server must present a cert). ca_file is optional:
+ *   - non-NULL: require + verify a client cert (mTLS) against it. The trust
+ *     file may be a real CA or a single pinned self-signed client cert.
+ *   - NULL: accept any client (encryption only, no client authentication).
+ * TLS 1.3 only. Returns NULL on any failure (logged).
  */
 xymon_tls_server_ctx_t *xymon_tls_server_ctx_new(const char *cert_file,
 						 const char *key_file,

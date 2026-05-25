@@ -5511,10 +5511,10 @@ int main(int argc, char *argv[])
 			printf("\t--hosts=FILENAME              : The hosts.cfg file\n");
 			printf("\t--ghosts=allow|drop|log       : How to handle unknown hosts\n");
 #ifdef HAVE_XYMON_TLS
-			printf("\t--tls-listen=IP:PORT          : Native-TLS listener (mTLS); requires --tls-cert/--tls-key/--tls-ca\n");
+			printf("\t--tls-listen=IP:PORT          : Native-TLS listener; requires --tls-cert/--tls-key (+ --tls-ca for mTLS)\n");
 			printf("\t--tls-cert=FILE               : Server certificate (PEM)\n");
 			printf("\t--tls-key=FILE                : Server private key (PEM)\n");
-			printf("\t--tls-ca=FILE                 : CA bundle used to verify client certs (PEM)\n");
+			printf("\t--tls-ca=FILE                 : CA/trust file to verify client certs (PEM); omit to not require client certs\n");
 #endif
 			return 1;
 		}
@@ -5593,10 +5593,13 @@ int main(int argc, char *argv[])
 	if (tls_listenport > 0) {
 		struct sockaddr_in tls_laddr;
 
-		if (!tls_cert_file || !tls_key_file || !tls_ca_file) {
-			errprintf("--tls-listen requires --tls-cert, --tls-key, and --tls-ca\n");
+		if (!tls_cert_file || !tls_key_file) {
+			errprintf("--tls-listen requires at least --tls-cert and --tls-key\n");
 			return 1;
 		}
+		/* --tls-ca is optional: with it, client certs are required and
+		 * verified (mTLS); without it, the listener encrypts but does not
+		 * authenticate clients. */
 
 		tls_server_ctx = xymon_tls_server_ctx_new(tls_cert_file,
 							  tls_key_file,

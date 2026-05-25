@@ -72,12 +72,12 @@ handshake trigger changes.
 **mTLS (mutual TLS).**
 
 - Server presents a cert; client verifies against `XYMON_TLS_CA`.
-- Client presents a cert; server verifies against `--tls-ca`.
-- Server **requires** a valid client cert (`SSL_VERIFY_PEER |
-  SSL_VERIFY_FAIL_IF_NO_PEER_CERT`).
+- When `--tls-ca` is set, the server **requires** a valid client cert
+  (`SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT`), verified against it;
+  when omitted, no client cert is required (encrypt-only — see Trust modes).
 - Client identity (CN or SAN) is logged and made available to xymond's
   message handler for future ACLs. The prototype does not enforce per-client
-  authorization yet — any cert signed by the configured CA is accepted.
+  authorization yet — any cert the trust file validates is accepted.
 
 
 6. Configuration surface
@@ -93,24 +93,44 @@ Triggered by the `XYMSRV` URL scheme:
 
 When the scheme is `xymons://`, these env vars are consulted:
 
-  | Variable            | Purpose                                | Required |
-  |---------------------|----------------------------------------|----------|
-  | `XYMON_TLS_CA`      | PEM bundle for verifying server cert   | yes      |
-  | `XYMON_TLS_CERT`    | PEM client cert (for mTLS)             | yes      |
-  | `XYMON_TLS_KEY`     | PEM client private key                 | yes      |
-  | `XYMON_TLS_SNI`     | Override SNI hostname (default = host) | no       |
+  | Variable            | Purpose                                       | Required |
+  |---------------------|-----------------------------------------------|----------|
+  | `XYMON_TLS_VERIFY`  | `full` (default) / `peer` / `none` (see below)| no       |
+  | `XYMON_TLS_CA`      | PEM trust file for the server cert            | unless `none` |
+  | `XYMON_TLS_CERT`    | PEM client cert (for mTLS)                    | if server requires it |
+  | `XYMON_TLS_KEY`     | PEM client private key                        | with `CERT` |
+  | `XYMON_TLS_SNI`     | Override SNI / verification name (default=host)| no       |
 
 ### Server (`xymond`)
 
 New CLI flags (parsed in the existing option loop in `xymond.c`):
 
   --tls-listen=[ADDR:]PORT     # default disabled; prototype example: 1985
-  --tls-cert=FILE              # server cert chain (PEM)
-  --tls-key=FILE               # server private key (PEM)
-  --tls-ca=FILE                # CA bundle to verify clients (PEM)
+  --tls-cert=FILE              # server cert chain (PEM)  -- required
+  --tls-key=FILE               # server private key (PEM) -- required
+  --tls-ca=FILE                # trust file for client certs (PEM) -- optional
 
-If `--tls-listen` is set, all four flags must be present at startup or
-xymond exits with a clear error.
+`--tls-cert` and `--tls-key` are required when `--tls-listen` is set. `--tls-ca`
+is optional: with it, client certs are required and verified (mTLS); without it,
+the listener encrypts but does not authenticate clients.
+
+### Trust modes (CA-free options)
+
+The trust anchor never has to be a public/commercial CA. Three modes, from
+strongest to most permissive:
+
+  1. **CA (or private CA)** — `XYMON_TLS_VERIFY=full` (default). Server and
+     client certs are signed by a CA; the cert's hostname/IP is checked.
+     Helper: `tests/tls/gen-certs.sh`.
+  2. **Self-signed pinning** — `XYMON_TLS_VERIFY=peer`. No CA at all: each side
+     trusts the *other side's own self-signed cert* directly (`XYMON_TLS_CA` /
+     `--tls-ca` point at the peer cert). The chain is verified but the name is
+     not (the exact cert is already pinned). Full mutual authentication, zero
+     CA to operate. Helper: `tests/tls/gen-selfsigned.sh`.
+  3. **Encrypt-only** — `XYMON_TLS_VERIFY=none` on the client and omit
+     `--tls-ca` on the server. No certs to manage beyond the server's own;
+     stops passive eavesdropping but **not** an active MITM. For trusted
+     private networks only. Both sides log a warning when verification is off.
 
 
 7. Build wiring
