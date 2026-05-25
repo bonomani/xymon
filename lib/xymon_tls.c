@@ -272,11 +272,16 @@ ssize_t xymon_tls_read(xymon_tls_t *t, void *buf, size_t len)
 	  case SSL_ERROR_SSL:
 		/* OpenSSL 3.0+ reports a close without close_notify as a distinct
 		 * "unexpected eof while reading" SSL error rather than SYSCALL.
-		 * Treat it as EOF too, for parity with the plaintext path. */
+		 * Treat it as EOF too, for parity with the plaintext path. The
+		 * reason code only exists on 3.0+; on 1.1.1 / LibreSSL this path
+		 * isn't reached (they surface it as SSL_ERROR_SYSCALL, handled
+		 * above), and the macro is undefined, so guard its use. */
+#ifdef SSL_R_UNEXPECTED_EOF_WHILE_READING
 		if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
 			ERR_clear_error();
 			return 0;
 		}
+#endif
 		log_ssl_err("SSL_read");
 		errno = EIO;
 		return -1;
