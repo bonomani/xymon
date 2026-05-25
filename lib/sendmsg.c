@@ -42,8 +42,12 @@ static char rcsid[] = "$Id$";
 #include <sys/msg.h>
 
 #include "libxymon.h"
+#include "xymon_tls.h"
 
 #define SENDRETRIES 2
+
+#define XYMONS_SCHEME      "xymons://"
+#define XYMONS_SCHEME_LEN  9    /* strlen("xymons://") */
 
 /* These commands go to all Xymon servers */
 static char *multircptcmds[] = { "status", "combo", "extcombo", "meta", "data", "notify", "enable", "disable", "drop", "rename", "client", NULL };
@@ -167,6 +171,11 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	int respstrsz = 0;
 	int respstrlen = 0;
 	int result = XYMONSEND_OK;
+#ifdef HAVE_XYMON_TLS
+	int use_tls = 0;
+	char *tls_sni = NULL;
+	xymon_tls_t *tls = NULL;
+#endif
 
 	if (dontsendmessages && !respfd && !respstr) {
 		fprintf(stdout, "%s\n", message);
@@ -179,14 +188,38 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	dbgprintf("Recipient listed as '%s'\n", recipient);
 
 	if (strncmp(recipient, "http://", strlen("http://")) != 0) {
-		/* Standard communications, directly to Xymon daemon */
-		rcptip = strdup(recipient);
+		/* Direct-to-xymond path: plaintext, or TLS via xymons:// scheme. */
+		const char *host_start = recipient;
+#ifdef HAVE_XYMON_TLS
+		if (strncmp(recipient, XYMONS_SCHEME, XYMONS_SCHEME_LEN) == 0) {
+			use_tls = 1;
+			host_start = recipient + XYMONS_SCHEME_LEN;
+		}
+#endif
+		rcptip = strdup(host_start);
+		/* TLS prototype lives on a separate port (1985 by default) so the
+		 * plaintext listener on 1984 keeps working unchanged. An explicit
+		 * ":port" suffix overrides. */
+#ifdef HAVE_XYMON_TLS
+		rcptport = use_tls ? 1985 : xymondportnumber;
+#else
 		rcptport = xymondportnumber;
+#endif
 		p = strchr(rcptip, ':');
 		if (p) {
 			*p = '\0'; p++; rcptport = atoi(p);
 		}
+#ifdef HAVE_XYMON_TLS
+		if (use_tls) {
+			/* Preserve the hostname before the gethostbyname() rewrite
+			 * below; SNI + cert hostname verification need the original. */
+			tls_sni = strdup(rcptip);
+		}
+		dbgprintf("%s protocol on port %d\n",
+			  use_tls ? "TLS (xymons)" : "Standard", rcptport);
+#else
 		dbgprintf("Standard protocol on port %d\n", rcptport);
+#endif
 	}
 	else {
 		char *posturl = NULL;
@@ -348,11 +381,98 @@ retry_connect:
 				dbgprintf("Connect status is %d\n", connres);
 				isconnected = (connres == 0);
 				if (!isconnected) {
-					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)", 
+					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)",
 						  rcptip, rcptport, strerror(connres));
 					result = XYMONSEND_ECONNFAILED;
 					goto done;
 				}
+
+#ifdef HAVE_XYMON_TLS
+				if (use_tls) {
+					/* TLS path: switch to blocking, do handshake +
+					 * blocking write/read, then jump to done. This
+					 * forks off the existing non-blocking + select
+					 * loop so the plaintext path stays untouched. */
+					int flags;
+					struct timeval iotmo;
+					ssize_t wn, rn;
+					size_t respwritten = 0;
+					char *outp;
+					int rd_done;
+
+					flags = fcntl(sockfd, F_GETFL, 0);
+					if (flags != -1) (void)fcntl(sockfd, F_SETFL, flags & ~O_NONBLOCK);
+					iotmo.tv_sec  = timeout;
+					iotmo.tv_usec = 0;
+					(void)setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &iotmo, sizeof(iotmo));
+					(void)setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &iotmo, sizeof(iotmo));
+
+					tls = xymon_tls_client_handshake(sockfd, tls_sni);
+					if (!tls) {
+						snprintf(errordetails+strlen(errordetails),
+							 (sizeof(errordetails) - strlen(errordetails)),
+							 "TLS handshake to %s:%d failed",
+							 tls_sni ? tls_sni : rcptip, rcptport);
+						result = XYMONSEND_ECONNFAILED;
+						goto done;
+					}
+
+					/* Write the entire message. */
+					while (*msgptr) {
+						wn = xymon_tls_write(tls, msgptr, strlen(msgptr));
+						if (wn <= 0) {
+							snprintf(errordetails+strlen(errordetails),
+								 (sizeof(errordetails) - strlen(errordetails)),
+								 "TLS write error to %s:%d",
+								 tls_sni ? tls_sni : rcptip, rcptport);
+							result = XYMONSEND_EWRITEERROR;
+							goto done;
+						}
+						msgptr += wn;
+					}
+
+					/* Read response if caller asked for one. Mirrors the
+					 * plaintext "first-line vs full response" semantics. */
+					rd_done = ((respfd == NULL) && (respstr == NULL));
+					while (!rd_done) {
+						rn = xymon_tls_read(tls, recvbuf, sizeof(recvbuf) - 1);
+						if (rn < 0) {
+							snprintf(errordetails+strlen(errordetails),
+								 (sizeof(errordetails) - strlen(errordetails)),
+								 "TLS read error from %s:%d",
+								 tls_sni ? tls_sni : rcptip, rcptport);
+							result = XYMONSEND_EREADERROR;
+							goto done;
+						}
+						if (rn == 0) break;  /* clean shutdown */
+						recvbuf[rn] = '\0';
+						outp = recvbuf;
+						if (respfd) {
+							fwrite(outp, rn, 1, respfd);
+						}
+						else if (respstr) {
+							if (respstrsz == 0) {
+								respstrsz = (rn + sizeof(recvbuf));
+								*respstr = (char *)malloc(respstrsz);
+							}
+							else if ((rn + respstrlen) >= respstrsz) {
+								respstrsz += (rn + sizeof(recvbuf));
+								*respstr = (char *)realloc(*respstr, respstrsz);
+							}
+							memcpy(*respstr + respstrlen, outp, rn);
+							respstrlen += rn;
+							(*respstr)[respstrlen] = '\0';
+						}
+						respwritten += rn;
+						if (!fullresponse) {
+							/* Single-line response: stop after first \n. */
+							if (strchr(outp, '\n') != NULL) rd_done = 1;
+						}
+					}
+					(void)respwritten;
+					goto done;
+				}
+#endif
 			}
 
 			if (!rdone && FD_ISSET(sockfd, &readfds)) {
@@ -431,6 +551,10 @@ retry_connect:
 
 done:
 	dbgprintf("Closing connection\n");
+#ifdef HAVE_XYMON_TLS
+	if (tls) xymon_tls_close(tls);
+	if (tls_sni) xfree(tls_sni);
+#endif
 	shutdown(sockfd, SHUT_RDWR);
 	if (sockfd > 0) close(sockfd);
 	xfree(rcptip);
