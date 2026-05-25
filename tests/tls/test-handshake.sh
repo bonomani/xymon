@@ -117,11 +117,15 @@ echo "[3/5] Start xymond with --tls-listen=$TLS_HOST:$TLS_PORT"
 	>"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 
-# Wait for the TLS port to accept connections. Portable probe (no bash
-# /dev/tcp): retry a TLS connection attempt until it goes through.
+# Wait for the TLS port to accept connections. Portable, handshake-agnostic
+# probe (no bash /dev/tcp): openssl prints "CONNECTED" as soon as the TCP
+# connect succeeds, before the TLS handshake -- so this detects "port is up"
+# without depending on mTLS succeeding (a cert-less probe against an mTLS
+# listener fails the handshake, and s_client's exit code for that varies by
+# OpenSSL version).
 i=0
 while [ $i -lt 50 ]; do
-	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null >/dev/null 2>&1; then
+	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null 2>&1 | grep -q CONNECTED; then
 		break
 	fi
 	i=$((i + 1))

@@ -54,9 +54,11 @@ printf '%s %s\n' "$TLS_HOST" "$HOST" > "$HOSTS_FILE"
 	--tls-key="$CERT_DIR/server.key" --tls-ca="$CERT_DIR/ca.crt" \
 	>"$LOG_FILE" 2>&1 &
 PID=$!
+# Readiness: grep for "CONNECTED" (printed before the handshake) so it
+# doesn't depend on the mTLS handshake or OpenSSL-version exit-code quirks.
 i=0
 while [ $i -lt 50 ]; do
-	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null >/dev/null 2>&1; then break; fi
+	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null 2>&1 | grep -q CONNECTED; then break; fi
 	i=$((i + 1)); sleep 0.2
 done
 

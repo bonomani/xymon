@@ -119,12 +119,12 @@ echo "[2/4] Start xymond with --tls-listen=$TLS_HOST:$TLS_PORT"
 	>"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 
-# Portable readiness probe: retry a real TLS handshake until it succeeds.
+# Portable, handshake-agnostic readiness probe: openssl prints "CONNECTED"
+# once the TCP connect succeeds, before the TLS handshake -- so this works
+# regardless of mTLS or OpenSSL-version exit-code quirks.
 i=0
 while [ $i -lt 50 ]; do
-	if echo | openssl s_client -connect "$TLS_HOST:$TLS_PORT" \
-			-cert "$CERT_DIR/client.crt" -key "$CERT_DIR/client.key" \
-			-CAfile "$CERT_DIR/ca.crt" -tls1_3 >/dev/null 2>&1; then
+	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null 2>&1 | grep -q CONNECTED; then
 		break
 	fi
 	i=$((i + 1))

@@ -49,10 +49,12 @@ start_xymond() {
 		--tls-cert="$CERT_DIR/ss-server.crt" --tls-key="$CERT_DIR/ss-server.key" \
 		"$@" >"$_log" 2>&1 &
 	PID=$!
-	# Readiness: wait until the TCP port accepts a connection.
+	# Readiness: wait until the TCP port accepts a connection. Grep for
+	# "CONNECTED" (printed before the handshake) so this doesn't depend on
+	# the mTLS handshake succeeding or on OpenSSL-version exit-code quirks.
 	_i=0
 	while [ $_i -lt 50 ]; do
-		if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null >/dev/null 2>&1; then return 0; fi
+		if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null 2>&1 | grep -q CONNECTED; then return 0; fi
 		_i=$((_i + 1)); sleep 0.2
 	done
 	echo "FAIL: xymond did not open $TLS_HOST:$TLS_PORT" >&2; cat "$_log" >&2; exit 1
