@@ -79,6 +79,9 @@ const BOARD = { items: [   // GET /states?rollup=host,test
   {host:"router1", test:"conn", verdict:"green"},
   {host:"router1", test:"cpu",  verdict:"green"},
   {host:"router1", test:"http", verdict:"clear"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"conn", verdict:"green"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"cpu",  verdict:"green"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"disk", verdict:"green"},
 ]};
 
 const DETAIL = {   // GET /states?host=..&test=..  (atomic per-item states)
@@ -92,10 +95,19 @@ const DETAIL = {   // GET /states?host=..&test=..  (atomic per-item states)
     {where:"core=0", metric:"util_pct", value:"88%", verdict:"yellow"},
     {where:"-",      metric:"load_5m",  value:"3.2", verdict:"green"},
   ],
+  // a real Windows disk status, decomposed: one filesystem (C:) → many metrics.
+  // Only capacity (pct_used) carries a verdict (a Rule); the rest are data.
+  "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [
+    {where:"C:  (/FIXED/C:\\, Windows)", metric:"pct_used", value:"17%",       verdict:"green"},
+    {where:"C:  (/FIXED/C:\\)",          metric:"total",    value:"951.65 GB", verdict:""},
+    {where:"C:  (/FIXED/C:\\)",          metric:"avail",    value:"788.39 GB", verdict:""},
+    {where:"C:  (/FIXED/C:\\)",          metric:"used",     value:"163.26 GB", verdict:""},
+  ],
 };
 
-const SERIES = {   // GET /series?host=web1&test=disk&metric=pct_used  (→ /graphs)
+const SERIES = {   // GET /series?host=..&test=..&metric=pct_used  (→ /graphs)
   "web1|disk": [88,90,91,92,93,94,95,96,96,95,96,97,96],
+  "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [15,16,16,17,17,17,18,17,17,16,17,17,17],
 };
 
 const COLORS = ["green","yellow","red","blue","clear","purple"];
@@ -133,9 +145,12 @@ function drill(host, test, verdict) {
   document.getElementById("dtitle").textContent = `${host}.${test}  —  ${verdict}`;
   document.getElementById("dapi").textContent = `GET /states?host=${host}&test=${test}`;
   const items = DETAIL[host+"|"+test] || [];
-  document.getElementById("ditems").innerHTML = items.map(it =>
-    `<tr><td>${it.where}</td><td>${it.metric}</td><td>${it.value}</td>`+
-    `<td><span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}</td></tr>`).join("");
+  document.getElementById("ditems").innerHTML = items.map(it => {
+    const vcell = it.verdict
+      ? `<span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}`
+      : `<span class="muted">— data (no rule)</span>`;
+    return `<tr><td>${it.where}</td><td>${it.metric}</td><td>${it.value}</td><td>${vcell}</td></tr>`;
+  }).join("");
   document.getElementById("dspark").innerHTML = sparkline(host, test);
   d.style.display = "block";
 }
