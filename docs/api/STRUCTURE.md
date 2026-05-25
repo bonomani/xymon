@@ -1,176 +1,148 @@
 Xymon REST API — endpoint structure (visual)
 ============================================
 
-Companion to `openapi.yaml` (the authoritative contract) and `00-DESIGN.md`
-(rationale). This document is the at-a-glance map: the request flow, the
-resource tree, every endpoint, and the data model. Base path: `/xymon/api/v1`.
-Auth: HTTP Basic on every endpoint.
+Companion to `openapi.yaml` (the contract) and `01-MODEL.md` (the domain model).
+At-a-glance map: the request flow, the two planes, every endpoint, the `/states`
+query model, and the data model. Base path `/xymon/api/v1`; HTTP Basic on every
+endpoint.
 
 
 1. Request flow
 ---------------
-The API is a thin translation layer; it holds no monitoring state of its own —
-each call becomes one xymond wire-protocol request.
+The API is a thin translation over xymond; it holds no monitoring state itself.
 
 ```mermaid
 flowchart LR
-    C["API client<br/>(curl / app / dashboard)"]
-    A["Xymon REST API<br/>/xymon/api/v1<br/>(CGI or gateway)"]
+    C["API client"]
+    A["Xymon REST API<br/>/xymon/api/v1"]
     X[("xymond")]
-    C -- "HTTPS + Basic auth<br/>application/json" --> A
-    A -- "wire protocol<br/>(optionally xymons:// mTLS)" --> X
-    X -- "board / log / hostinfo text" --> A
+    C -- "HTTPS + Basic, JSON" --> A
+    A -- "wire protocol (opt. xymons:// mTLS)" --> X
+    X -- "board / log / config" --> A
     A -- "JSON" --> C
 ```
 
-ASCII:
 
-```
-client ──HTTPS+Basic, JSON──▶ REST API ──wire verb (opt. mTLS)──▶ xymond
-client ◀──────── JSON ─────── REST API ◀──── text response ────── xymond
-```
-
-
-2. Resource tree
-----------------
+2. Two planes, one server endpoint
+-----------------------------------
 ```
 /xymon/api/v1
-├── GET   /ping                              health
-├── GET   /board                             list status cells
-├── POST  /status                            submit a status
-├── /hosts
-│   └── /{host}
-│       ├── GET   .                          host info
-│       └── /tests/{test}
-│           ├── GET   .                      one status cell (full detail)
-│           ├── POST  /disable               silence a test for a duration
-│           ├── POST  /enable                un-silence a test
-│           └── POST  /ack                   acknowledge a non-green status
-├── GET   /ghosts                            unknown reporters
-└── GET   /config/{file}                     fetch an (allow-listed) config file
+├── GET  /health                                     server liveness
+
+│  ── OBSERVED (read-only + the real writes) ──
+├── /states           GET   query (filter by any dimension; `rollup` to aggregate)
+│   │                 POST  ingest a batch of readings (combo)
+│   └── /{id}         GET   one state
+├── /alarms           GET   query conditions raised from state
+│   └── /{id}         GET   one alarm
+├── /actions          GET   the action log
+│   │                 POST  issue a command (ack / disable / enable)
+│   └── /{id}         GET   one action
+
+│  ── DEFINED (config; uniform CRUD) ──
+├── /hosts            GET POST   · /{id} GET PUT DELETE
+├── /tests            GET POST   · /{id} GET PUT DELETE
+├── /rules            GET POST   · /{id} GET PUT DELETE
+└── /suppressions     GET POST   · /{id} GET PUT DELETE
 ```
+**Defined** resources are read/write (config). **Observed** resources are
+read-only, except the two real writes: ingest (`POST /states`) and operator
+commands (`POST /actions`). Every config resource has the *identical* shape —
+only its record schema differs.
 
 
 3. Endpoint catalog
 -------------------
-| Method & path                               | Wire verb     | Request body        | Success | Error codes              |
-|---------------------------------------------|---------------|---------------------|---------|--------------------------|
-| `GET  /ping`                                | `ping`        | —                   | 200 `Pong` | 401, 502, 504         |
-| `GET  /board`                               | `xymondboard` | — (query filters)   | 200 `{items:[BoardEntry]}` | 400, 401, 502, 504 |
-| `POST /status`                              | `status`      | `StatusSubmission`  | 202     | 400, 401, 403, 502       |
-| `GET  /hosts/{host}`                        | `hostinfo`    | —                   | 200 `Host` | 401, 404, 502         |
-| `GET  /hosts/{host}/tests/{test}`           | `xymondlog`   | —                   | 200 `StatusDetail` | 401, 404, 502 |
-| `POST /hosts/{host}/tests/{test}/disable`   | `disable`     | `DisableRequest`    | 202     | 400, 401, 404, 502       |
-| `POST /hosts/{host}/tests/{test}/enable`    | `enable`      | —                   | 202     | 401, 404, 502            |
-| `POST /hosts/{host}/tests/{test}/ack`       | `ack`         | `Acknowledgement`   | 201     | 400, 401, 404, 409, 502  |
-| `GET  /ghosts`                              | `ghostlist`   | —                   | 200 `[Ghost]` | 401, 502           |
-| `GET  /config/{file}`                       | `config`      | —                   | 200 `text/plain` | 401, 403, 404, 502 |
+| Plane | Path | Methods | Role / maps to |
+|-------|------|---------|----------------|
+| server   | `/health`            | GET                | liveness (`ping`) |
+| observed | `/states`            | GET, POST          | query board / ingest (`xymondboard` / `status`+`combo`) |
+| observed | `/states/{id}`       | GET                | one cell (`xymondlog`) |
+| observed | `/alarms`            | GET                | raised conditions |
+| observed | `/alarms/{id}`       | GET                | one alarm |
+| observed | `/actions`           | GET, POST          | action log / **ack·disable·enable** command |
+| observed | `/actions/{id}`      | GET                | one action |
+| defined  | `/hosts`             | GET, POST          | hosts |
+| defined  | `/hosts/{id}`        | GET, PUT, DELETE   | one host |
+| defined  | `/tests`             | GET, POST          | check definitions |
+| defined  | `/tests/{id}`        | GET, PUT, DELETE   | one test |
+| defined  | `/rules`             | GET, POST          | State→Alarm / Alarm→Action rules |
+| defined  | `/rules/{id}`        | GET, PUT, DELETE   | one rule |
+| defined  | `/suppressions`      | GET, POST          | disable / maintenance / dependency |
+| defined  | `/suppressions/{id}` | GET, PUT, DELETE   | one suppression (DELETE = "enable") |
 
-Reads are GET (safe, idempotent); state changes are POST. `/status` is an
-idempotent upsert of one (host, test) cell.
+ack/disable/enable are **not** endpoints — they are `POST /actions {type}`, and
+an operator action may create a Suppression. "enable" = `DELETE` that suppression.
 
 
-4. Query parameters — `GET /board`
------------------------------------
-| Param   | Type    | Purpose                                  |
-|---------|---------|------------------------------------------|
-| `host`  | string  | filter by host name                      |
-| `test`  | string  | filter by test/column name               |
-| `color` | enum    | filter by status color                   |
-| `page`  | string  | filter by Xymon page/path                |
-| `tag`   | string  | filter by host tag                       |
-| `limit` | integer | cap result count (1–10000, default 1000) |
+4. The `/states` query model
+----------------------------
+A State is a label-set; **every dimension is a filter**, and `rollup` turns the
+flat states into the familiar aggregate "column color".
 
-(Filters map to xymondboard's native criteria. No cursor paging in v1 — narrow
-with filters; revisit if needed.)
+| Param      | Question | Example |
+|------------|----------|---------|
+| `host`     | WHERE (anchor)   | `host=web1` |
+| `test`     | HOW (anchor)     | `test=disk` |
+| `metric`   | WHAT             | `metric=pct_used` |
+| `selector` | free WHERE dims  | `selector=mount=/var,core=3` |
+| `verdict`  | the answer       | `verdict=red` |
+| `rollup`   | aggregate (max severity) | `rollup=host,test` → column color |
+| `fields`   | projection       | `fields=host,test,verdict` |
+| `limit`    | cap              | `limit=500` |
+
+```
+"what's red on web1?"        GET /states?host=web1&verdict=red
+"is disk filling anywhere?"  GET /states?test=disk&metric=pct_used&verdict=red
+"web1's disk column color?"  GET /states?host=web1&test=disk&rollup=host,test
+"ack an alarm"               POST /actions {type:ack, target:{alarm:"web1:disk:/var"}, duration:"2h"}
+"silence web1 tonight"       POST /suppressions {gates:stateToAlarm, selector:{host:web1}, window:{…}}
+```
 
 
 5. Data model
 -------------
 ```mermaid
 classDiagram
-    class BoardEntry {
-        string hostname
-        string testname
-        Color  color
-        date-time lastchange
-        date-time logtime
-        date-time validtime
-        date-time acktime
-        date-time disabletime
-        string sender
-        string line1
+    class State {
+        id · host(WHERE) · test(HOW) · metric(WHAT) · labels
+        value · verdict · time
     }
-    class StatusDetail {
-        string msg
-        string ackmsg
-        string dismsg
-        string client
-    }
-    class StatusSubmission {
-        string host
-        string test
-        Color  color
-        string message
-        Duration lifetime
-    }
-    class DisableRequest {
-        Duration duration
-        string reason
-    }
-    class Acknowledgement {
-        Duration duration
-        string message
-    }
-    class Host {
-        string hostname
-        string ip
-        string[] tags
-        string[] pages
-    }
-    class Ghost {
-        string hostname
-        string sender
-        date-time lastseen
-    }
-    class Error {
-        string error
-        string detail
-    }
-    BoardEntry <|-- StatusDetail : allOf (extends)
-```
+    class Alarm   { id · severity · status(firing/ack/resolved) · since · rule }
+    class Action  { id · type · target · actor · params · suppression }
+    class Host    { hostname · ip · owner · labels }
+    class Test    { id · kind · selector · owner · enabled }
+    class Rule    { id · transition · selector · condition · severity · route }
+    class Suppression { id · gates · selector · window · reason }
 
-Relationships in words:
-- `StatusDetail` = `BoardEntry` + the message fields (`msg`, `ackmsg`, `dismsg`,
-  `client`). `GET /board` returns the lean `BoardEntry`; the single-cell
-  `GET .../tests/{test}` returns the full `StatusDetail`.
-- `StatusSubmission` / `DisableRequest` / `Acknowledgement` are the three write
-  bodies. The latter two share the `Duration` value type.
-- `Error` is the single error shape for every non-2xx (the HTTP status says
-  which kind).
+    Test --> State : produces (1..*)
+    State --> Alarm : Rule raises
+    Alarm --> Action : Rule triggers
+    Action ..> Suppression : may create
+    Suppression ..> State : gates →Alarm
+```
+Relationships in words: a Test produces many States (one per item/metric); a
+Rule raises an Alarm from State (+severity); a Rule routes an Alarm to an Action;
+an operator Action may create a Suppression; a Suppression gates a transition.
 
 
 6. Value references
 -------------------
 ```
-Color     : green | yellow | red | blue | clear | purple
-Duration  : <number>[s|m|h|d|w]   or   -1  (until OK)     e.g. 30m, 2h, -1
-Timestamps: RFC 3339 in JSON (the API converts xymond's epoch seconds)
-```
+Color   (verdict)   green | yellow | red | blue | clear | purple
+Severity            info | minor | major | critical
+AlarmStatus         firing | acknowledged | resolved
+ActionType          notify | ack | disable | enable
+Duration            <number>[smhdw] | -1            e.g. 60m, 2h, -1
 
-Status codes used across the API:
-
-```
-2xx  200 OK · 201 Created (ack) · 202 Accepted (writes; xymond is fire-and-forget)
-4xx  400 bad request · 401 unauthenticated · 403 forbidden ·
-     404 unknown host/test · 409 conflict (e.g. ack of a green status)
-5xx  502 xymond unreachable · 504 xymond timeout
+Status codes  200 OK · 201 Created · 202 Accepted · 204 No Content ·
+              400 · 401 · 403 · 404 · 409 · 502 (xymond unreachable)
 ```
 
 
-7. Where this maps in Xymon
+7. How it maps to the model
 ---------------------------
-Every endpoint is an existing xymond verb (see the catalog's "Wire verb"
-column). Precedent for a machine-readable feed already exists in
-`web/appfeed.c` (XML over `xymondboard`); this API generalizes that idea to a
-documented JSON contract. Nothing here invents monitoring behavior.
+Straight off `01-MODEL.md`: the pipeline `Host → Test → State → Alarm → Action`
+governed by "advance if a Rule matches, unless a Suppression holds". Defined
+resources are the left side you configure; Observed resources are the runtime
+you read; the value+verdict of a State is the answer its label dimensions key to.

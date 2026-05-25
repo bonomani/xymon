@@ -1,16 +1,20 @@
 openapi: 3.0.3
 info:
   title: Xymon REST API
-  version: 0.1.0-draft
+  version: 0.2.0-draft
   description: >
-    A REST/JSON interface over the Xymon (xymond) wire protocol. Spec-first
-    DRAFT contract; no implementation yet. Covers the full common surface --
-    reading status, submitting status, and host/test actions -- kept
-    deliberately simple: one auth scheme, one JSON error shape, predictable
-    paths. See docs/api/00-DESIGN.md.
+    A REST/JSON interface over the Xymon model (see docs/api/01-MODEL.md):
+    a pipeline Host → Test → State → Alarm → Action, governed by the law
+    "advance if a Rule matches, unless a Suppression holds". Two planes:
+    Defined resources (hosts, tests, rules, suppressions) are read/write;
+    Observed resources (states, alarms, actions) are read-only plus the real
+    commands (action create, state ingest). A State is a label-set whose
+    dimensions each answer one question (where/what/how/when); the value+verdict
+    is the answer. Hierarchies and the classic "column color" are group-by
+    rollups, not stored.
 
-    Note on OpenAPI version: 3.0.3 (not 3.1) is used on purpose for the widest
-    tooling support; 3.0's `nullable: true` is therefore valid here.
+    Spec-first DRAFT; no implementation yet. OpenAPI 3.0.3 for broad tooling
+    (nullable valid). Validated with openapi-spec-validator.
   license:
     name: GPL-2.0-only
 
@@ -21,198 +25,363 @@ security:
   - basicAuth: []
 
 tags:
-  - { name: status, description: Read and submit host/test status. }
-  - { name: hosts,  description: Host-level views and actions. }
-  - { name: server, description: Server health and configuration. }
+  - { name: observed, description: "Read-only runtime: states, alarms, actions (+ the real writes)." }
+  - { name: defined,  description: "Config you write: hosts, tests, rules, suppressions." }
+  - { name: server,   description: "Server health." }
 
 paths:
-  /ping:
+  /health:
     get:
       tags: [server]
-      summary: Server liveness (maps to `ping`).
-      operationId: ping
+      summary: Liveness.
+      operationId: health
       responses:
         "200":
-          description: xymond is alive.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Pong" }
-              example: { alive: true, server_version: "4.3.30" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-        "504": { $ref: "#/components/responses/UpstreamTimeout" }
+          description: alive
+          content: { application/json: { schema: { $ref: "#/components/schemas/Health" } } }
+        "502": { $ref: "#/components/responses/Upstream" }
 
-  /board:
+  # ---- Observed plane -----------------------------------------------------
+  /states:
     get:
-      tags: [status]
-      summary: List status cells (maps to `xymondboard`).
-      operationId: listBoard
+      tags: [observed]
+      summary: Query states. Every dimension is a filter; group with `rollup`.
+      operationId: listStates
       parameters:
-        - { name: host,  in: query, schema: { type: string }, description: Filter by host name. }
-        - { name: test,  in: query, schema: { type: string }, description: Filter by test name. }
-        - { name: color, in: query, schema: { $ref: "#/components/schemas/Color" } }
-        - { name: page,  in: query, schema: { type: string }, description: Filter by Xymon page/path. }
-        - { name: tag,   in: query, schema: { type: string }, description: Filter by host tag. }
-        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+        - { name: host,    in: query, schema: { type: string }, description: "WHERE anchor." }
+        - { name: test,    in: query, schema: { type: string }, description: "HOW anchor (probe)." }
+        - { name: metric,  in: query, schema: { type: string }, description: "WHAT (quantity)." }
+        - { name: verdict, in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: selector, in: query, schema: { type: string }, description: "Match free dimensions, e.g. `mount=/var,core=3`." }
+        - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (max severity), e.g. `host,test` for the classic column color." }
+        - { name: fields,  in: query, schema: { type: string }, description: "Comma-separated projection." }
+        - { name: limit,   in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
       responses:
         "200":
-          description: Matching status cells.
+          description: Matching states (or rollup buckets).
           content:
             application/json:
               schema:
                 type: object
                 required: [items]
                 properties:
-                  items: { type: array, items: { $ref: "#/components/schemas/BoardEntry" } }
+                  items: { type: array, items: { $ref: "#/components/schemas/State" } }
               example:
                 items:
-                  - { hostname: web1, testname: http, color: green, lastchange: "2026-05-25T17:00:00Z", sender: "10.0.0.5", line1: "OK - 200 in 142ms" }
-                  - { hostname: db1,  testname: disk, color: red,   lastchange: "2026-05-25T18:12:00Z", sender: "10.0.0.7", line1: "/var 96% full" }
+                  - { id: "web1:disk:/var:pct_used", host: web1, test: disk, metric: pct_used, labels: { mount: /var }, value: "96", verdict: red,   time: "2026-05-25T18:00:00Z" }
+                  - { id: "web1:disk:/:pct_used",    host: web1, test: disk, metric: pct_used, labels: { mount: "/" }, value: "38", verdict: green, time: "2026-05-25T18:00:00Z" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-        "504": { $ref: "#/components/responses/UpstreamTimeout" }
-
-  /status:
+        "502": { $ref: "#/components/responses/Upstream" }
     post:
-      tags: [status]
-      summary: Submit (upsert) a host/test status (maps to `status`).
-      operationId: submitStatus
+      tags: [observed]
+      summary: Ingest a batch of readings (the `combo`/`status` path).
+      operationId: ingestStates
       requestBody:
         required: true
         content:
           application/json:
-            schema: { $ref: "#/components/schemas/StatusSubmission" }
-            example: { host: web1, test: http, color: green, message: "OK - 200 in 142ms", lifetime: "30m" }
+            schema:
+              type: object
+              required: [readings]
+              properties:
+                readings: { type: array, items: { $ref: "#/components/schemas/Reading" } }
+            example:
+              readings:
+                - { host: web1, test: disk, metric: pct_used, labels: { mount: /var }, value: "96", verdict: red }
       responses:
-        "202": { description: Status accepted (xymond submission is fire-and-forget). }
+        "202": { description: Readings accepted; decomposed into states. }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+        "502": { $ref: "#/components/responses/Upstream" }
 
-  /hosts/{host}:
-    parameters: [ { $ref: "#/components/parameters/Host" } ]
+  /states/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
     get:
-      tags: [hosts]
-      summary: Host configuration/info (maps to `hostinfo`).
+      tags: [observed]
+      summary: One state (id = flattened label-set).
+      operationId: getState
+      responses:
+        "200":
+          description: The state.
+          content: { application/json: { schema: { $ref: "#/components/schemas/State" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /alarms:
+    get:
+      tags: [observed]
+      summary: Query alarms (conditions raised from state by Rules).
+      operationId: listAlarms
+      parameters:
+        - { name: host,     in: query, schema: { type: string } }
+        - { name: test,     in: query, schema: { type: string } }
+        - { name: severity, in: query, schema: { $ref: "#/components/schemas/Severity" } }
+        - { name: status,   in: query, schema: { $ref: "#/components/schemas/AlarmStatus" } }
+        - { name: selector, in: query, schema: { type: string } }
+        - { name: limit,    in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+      responses:
+        "200":
+          description: Matching alarms.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Alarm" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "502": { $ref: "#/components/responses/Upstream" }
+
+  /alarms/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [observed]
+      summary: One alarm.
+      operationId: getAlarm
+      responses:
+        "200":
+          description: The alarm.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Alarm" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /actions:
+    get:
+      tags: [observed]
+      summary: The action log (auto + operator actions).
+      operationId: listActions
+      parameters:
+        - { name: type,  in: query, schema: { $ref: "#/components/schemas/ActionType" } }
+        - { name: actor, in: query, schema: { type: string } }
+        - { name: limit, in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
+      responses:
+        "200":
+          description: Matching actions.
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [items]
+                properties:
+                  items: { type: array, items: { $ref: "#/components/schemas/Action" } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [observed]
+      summary: Issue an operator command (ack/disable/enable). May create a Suppression.
+      operationId: createAction
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/ActionCommand" }
+            examples:
+              acknowledge:
+                value: { type: ack, target: { alarm: "web1:disk:/var" }, duration: "2h", message: "ticket OPS-1234" }
+              disable:
+                value: { type: disable, target: { selector: "host=web1,test=disk" }, duration: "60m", message: "maintenance" }
+      responses:
+        "201":
+          description: Action recorded (and any resulting Suppression created).
+          content: { application/json: { schema: { $ref: "#/components/schemas/Action" } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+        "502": { $ref: "#/components/responses/Upstream" }
+
+  /actions/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [observed]
+      summary: One action.
+      operationId: getAction
+      responses:
+        "200":
+          description: The action.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Action" } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  # ---- Defined plane (config; uniform CRUD) -------------------------------
+  # Every config resource has the identical shape: GET/POST on the collection,
+  # GET/PUT/DELETE on the item. Only the record schema differs.
+  /hosts:
+    get:
+      tags: [defined]
+      summary: List hosts.
+      operationId: listHosts
+      responses:
+        "200": { description: Hosts., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Host" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a host.
+      operationId: createHost
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "409": { $ref: "#/components/responses/Conflict" }
+  /hosts/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [defined]
+      summary: Get a host.
       operationId: getHost
       responses:
-        "200":
-          description: Host info.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Host" }
+        "200": { description: Host., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-
-  /hosts/{host}/tests/{test}:
-    parameters:
-      - { $ref: "#/components/parameters/Host" }
-      - { $ref: "#/components/parameters/Test" }
-    get:
-      tags: [status]
-      summary: Full status detail for one cell (maps to `xymondlog`).
-      operationId: getStatus
+    put:
+      tags: [defined]
+      summary: Create or replace a host.
+      operationId: putHost
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
       responses:
-        "200":
-          description: Status detail.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/StatusDetail" }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-
-  /hosts/{host}/tests/{test}/disable:
-    parameters:
-      - { $ref: "#/components/parameters/Host" }
-      - { $ref: "#/components/parameters/Test" }
-    post:
-      tags: [status]
-      summary: Disable a test for a duration (maps to `disable`).
-      operationId: disableTest
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/DisableRequest" }
-            example: { duration: "60m", reason: "planned maintenance" }
-      responses:
-        "202": { description: Disable accepted. }
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-
-  /hosts/{host}/tests/{test}/enable:
-    parameters:
-      - { $ref: "#/components/parameters/Host" }
-      - { $ref: "#/components/parameters/Test" }
-    post:
-      tags: [status]
-      summary: Re-enable a disabled test (maps to `enable`).
-      operationId: enableTest
+    delete:
+      tags: [defined]
+      summary: Delete a host.
+      operationId: deleteHost
       responses:
-        "202": { description: Enable accepted. }
+        "204": { description: Deleted. }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
 
-  /hosts/{host}/tests/{test}/ack:
-    parameters:
-      - { $ref: "#/components/parameters/Host" }
-      - { $ref: "#/components/parameters/Test" }
-    post:
-      tags: [status]
-      summary: Acknowledge a non-green status (maps to `ack`).
-      operationId: acknowledge
-      requestBody:
-        required: true
-        content:
-          application/json:
-            schema: { $ref: "#/components/schemas/Acknowledgement" }
-            example: { duration: "2h", message: "investigating, ticket OPS-1234" }
+  /tests:
+    get:
+      tags: [defined]
+      summary: List tests (check definitions).
+      operationId: listTests
       responses:
-        "201": { description: Acknowledgement recorded. }
+        "200": { description: Tests., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Test" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a test.
+      operationId: createTest
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Test" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Test" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "404": { $ref: "#/components/responses/NotFound" }
-        "409": { $ref: "#/components/responses/Conflict" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-
-  /ghosts:
+  /tests/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
     get:
-      tags: [server]
-      summary: Hosts that reported but are not in hosts.cfg (maps to `ghostlist`).
-      operationId: listGhosts
+      tags: [defined]
+      summary: Get a test.
+      operationId: getTest
       responses:
-        "200":
-          description: Ghost reporters.
-          content:
-            application/json:
-              schema: { type: array, items: { $ref: "#/components/schemas/Ghost" } }
+        "200": { description: Test., content: { application/json: { schema: { $ref: "#/components/schemas/Test" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
-
-  /config/{file}:
-    get:
-      tags: [server]
-      summary: Fetch a server config file (maps to `config`; allow-listed).
-      operationId: getConfig
-      parameters:
-        - { name: file, in: path, required: true, schema: { type: string }, description: "Config file name (server-side allow-list)." }
-      responses:
-        "200":
-          description: Raw config file contents.
-          content:
-            text/plain:
-              schema: { type: string }
-        "401": { $ref: "#/components/responses/Unauthorized" }
-        "403": { $ref: "#/components/responses/Forbidden" }
         "404": { $ref: "#/components/responses/NotFound" }
-        "502": { $ref: "#/components/responses/UpstreamUnavailable" }
+    put:
+      tags: [defined]
+      summary: Create or replace a test.
+      operationId: putTest
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Test" } } } }
+      responses:
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Test" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [defined]
+      summary: Delete a test.
+      operationId: deleteTest
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /rules:
+    get:
+      tags: [defined]
+      summary: List rules.
+      operationId: listRules
+      responses:
+        "200": { description: Rules., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Rule" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a rule.
+      operationId: createRule
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Rule" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Rule" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /rules/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [defined]
+      summary: Get a rule.
+      operationId: getRule
+      responses:
+        "200": { description: Rule., content: { application/json: { schema: { $ref: "#/components/schemas/Rule" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [defined]
+      summary: Create or replace a rule.
+      operationId: putRule
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Rule" } } } }
+      responses:
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Rule" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [defined]
+      summary: Delete a rule.
+      operationId: deleteRule
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
+  /suppressions:
+    get:
+      tags: [defined]
+      summary: List suppressions (disable / maintenance / dependency / ack-silences).
+      operationId: listSuppressions
+      responses:
+        "200": { description: Suppressions., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Suppression" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a suppression (e.g. a maintenance window).
+      operationId: createSuppression
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Suppression" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Suppression" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /suppressions/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [defined]
+      summary: Get a suppression.
+      operationId: getSuppression
+      responses:
+        "200": { description: Suppression., content: { application/json: { schema: { $ref: "#/components/schemas/Suppression" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [defined]
+      summary: Create or replace a suppression.
+      operationId: putSuppression
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Suppression" } } } }
+      responses:
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Suppression" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [defined]
+      summary: Delete a suppression (e.g. enable = drop the disable).
+      operationId: deleteSuppression
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
 
 components:
   securitySchemes:
@@ -222,75 +391,108 @@ components:
       description: Reuse the existing Xymon web user db (htpasswd).
 
   parameters:
-    Host: { name: host, in: path, required: true, schema: { type: string }, description: Xymon host name. }
-    Test: { name: test, in: path, required: true, schema: { type: string }, description: Test/column name. }
+    Id: { name: id, in: path, required: true, schema: { type: string }, description: "Resource id (states/alarms: a flattened label-set)." }
 
   schemas:
     Color:
       type: string
       enum: [green, yellow, red, blue, clear, purple]
-
-    Duration:
+    Severity:
       type: string
-      description: "Xymon duration: a number with a unit suffix, or -1 for until-OK."
-      pattern: '^(-1|[0-9]+[smhdw]?)$'
-      example: "60m"
+      enum: [info, minor, major, critical]
+    AlarmStatus:
+      type: string
+      enum: [firing, acknowledged, resolved]
+    ActionType:
+      type: string
+      enum: [notify, ack, disable, enable]
 
-    Pong:
+    Labels:
+      type: object
+      additionalProperties: { type: string }
+      description: Free dimensions (mount, url, core, ...). Anchors host/test are surfaced separately.
+
+    Selector:
+      type: object
+      additionalProperties: { type: string }
+      description: "Label matchers scoping a rule/suppression/command, e.g. {host: web1, test: disk}."
+
+    Window:
+      type: object
+      properties:
+        start: { type: string, format: date-time }
+        end:   { type: string, format: date-time }
+
+    Health:
       type: object
       required: [alive]
       properties:
         alive: { type: boolean }
         server_version: { type: string }
 
-    BoardEntry:
+    State:
       type: object
-      description: One status cell, mirroring xymondboard fields.
-      required: [hostname, testname, color]
+      description: One atomic observation. WHERE=host+labels, HOW=test, WHAT=metric, WHEN=time; value+verdict is the answer.
+      required: [id, host, test, verdict]
       properties:
-        hostname:    { type: string }
-        testname:    { type: string }
-        color:       { $ref: "#/components/schemas/Color" }
-        lastchange:  { type: string, format: date-time, nullable: true }
-        logtime:     { type: string, format: date-time, nullable: true }
-        validtime:   { type: string, format: date-time, nullable: true }
-        acktime:     { type: string, format: date-time, nullable: true }
-        disabletime: { type: string, format: date-time, nullable: true }
-        sender:      { type: string }
-        line1:       { type: string, description: First line of the status message. }
+        id:      { type: string, description: "Flattened label-set key." }
+        host:    { type: string, description: "WHERE anchor." }
+        test:    { type: string, description: "HOW anchor (probe)." }
+        metric:  { type: string, description: "WHAT (quantity)." }
+        labels:  { $ref: "#/components/schemas/Labels" }
+        value:   { type: string, description: "The reading (string-encoded; may be numeric)." }
+        verdict: { $ref: "#/components/schemas/Color" }
+        time:    { type: string, format: date-time }
 
-    StatusDetail:
-      allOf:
-        - $ref: "#/components/schemas/BoardEntry"
-        - type: object
-          properties:
-            msg:    { type: string, description: Full status message text. }
-            ackmsg: { type: string, nullable: true }
-            dismsg: { type: string, nullable: true }
-            client: { type: string, nullable: true }
-
-    StatusSubmission:
+    Reading:
       type: object
-      required: [host, test, color]
+      description: An ingested reading; decomposed into/over a State.
+      required: [host, test]
       properties:
+        host:    { type: string }
+        test:    { type: string }
+        metric:  { type: string }
+        labels:  { $ref: "#/components/schemas/Labels" }
+        value:   { type: string }
+        verdict: { $ref: "#/components/schemas/Color" }
+        time:    { type: string, format: date-time, nullable: true }
+
+    Alarm:
+      type: object
+      description: A condition raised from State by a Rule; has a lifecycle.
+      required: [id, severity, status]
+      properties:
+        id:       { type: string }
         host:     { type: string }
         test:     { type: string }
-        color:    { $ref: "#/components/schemas/Color" }
-        message:  { type: string, description: Status text body. }
-        lifetime: { $ref: "#/components/schemas/Duration" }
+        metric:   { type: string, nullable: true }
+        labels:   { $ref: "#/components/schemas/Labels" }
+        severity: { $ref: "#/components/schemas/Severity" }
+        status:   { $ref: "#/components/schemas/AlarmStatus" }
+        since:    { type: string, format: date-time }
+        rule:     { type: string, description: "Id of the Rule that raised it.", nullable: true }
 
-    DisableRequest:
+    Action:
       type: object
-      required: [duration]
+      description: Something done (auto notify, or operator ack/disable). Operator actions may create a Suppression.
+      required: [id, type]
       properties:
-        duration: { $ref: "#/components/schemas/Duration" }
-        reason:   { type: string }
+        id:      { type: string }
+        type:    { $ref: "#/components/schemas/ActionType" }
+        target:  { $ref: "#/components/schemas/Selector" }
+        actor:   { type: string, description: "WHO performed it (null for automatic).", nullable: true }
+        time:    { type: string, format: date-time }
+        params:  { type: object, additionalProperties: true }
+        suppression: { type: string, description: "Id of any Suppression this action created.", nullable: true }
 
-    Acknowledgement:
+    ActionCommand:
       type: object
-      required: [duration, message]
+      description: Request to perform an operator action.
+      required: [type, target]
       properties:
-        duration: { $ref: "#/components/schemas/Duration" }
+        type:     { $ref: "#/components/schemas/ActionType" }
+        target:   { $ref: "#/components/schemas/Selector" }
+        duration: { type: string, description: "For ack/disable, e.g. '2h' or '-1'." }
         message:  { type: string }
 
     Host:
@@ -299,43 +501,56 @@ components:
       properties:
         hostname: { type: string }
         ip:       { type: string, nullable: true }
-        tags:     { type: array, items: { type: string } }
-        pages:    { type: array, items: { type: string } }
+        owner:    { type: string, description: "WHO is responsible (routes actions).", nullable: true }
+        labels:   { $ref: "#/components/schemas/Labels" }
 
-    Ghost:
+    Test:
       type: object
+      description: A check (probe) applied to hosts via a selector.
+      required: [id, kind]
       properties:
-        hostname: { type: string }
-        sender:   { type: string }
-        lastseen: { type: string, format: date-time, nullable: true }
+        id:       { type: string }
+        kind:     { type: string, description: "Probe type (disk, http, ...)." }
+        selector: { $ref: "#/components/schemas/Selector" }
+        owner:    { type: string, nullable: true }
+        enabled:  { type: boolean, default: true }
+        params:   { type: object, additionalProperties: true }
+
+    Rule:
+      type: object
+      description: Governs a pipeline transition — "when match, advance".
+      required: [id, transition]
+      properties:
+        id:         { type: string }
+        transition: { type: string, enum: [stateToAlarm, alarmToAction] }
+        selector:   { $ref: "#/components/schemas/Selector" }
+        condition:  { type: string, description: "e.g. 'value >= 90' or 'verdict = red'." }
+        severity:   { $ref: "#/components/schemas/Severity" }
+        route:      { type: string, description: "For alarmToAction: channel/recipient.", nullable: true }
+
+    Suppression:
+      type: object
+      description: Gates a transition for a scope+window (disable / maintenance / dependency / ack).
+      required: [id, gates, selector]
+      properties:
+        id:       { type: string }
+        gates:    { type: string, enum: [testToState, stateToAlarm, alarmToAction] }
+        selector: { $ref: "#/components/schemas/Selector" }
+        window:   { $ref: "#/components/schemas/Window" }
+        reason:   { type: string, nullable: true }
+        source:   { type: string, description: "Id of the Action that created it, if any.", nullable: true }
 
     Error:
       type: object
       required: [error]
       properties:
-        error:  { type: string, description: Short machine-readable code. }
-        detail: { type: string, description: Human-readable explanation. }
-      example: { error: not_found, detail: "no such host/test" }
+        error:  { type: string }
+        detail: { type: string }
 
   responses:
-    BadRequest:
-      description: Invalid request parameters or body.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    Unauthorized:
-      description: Authentication required or failed.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    Forbidden:
-      description: Authenticated but not permitted.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    NotFound:
-      description: Unknown host or test.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    Conflict:
-      description: Conflicting state (e.g. acking a green status).
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    UpstreamUnavailable:
-      description: xymond is unreachable.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
-    UpstreamTimeout:
-      description: Timed out talking to xymond.
-      content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } }
+    BadRequest:   { description: Invalid request.,            content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Unauthorized: { description: Authentication required/failed., content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Forbidden:    { description: Not permitted.,               content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    NotFound:     { description: Unknown resource.,            content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Conflict:     { description: Conflicting state.,           content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
+    Upstream:     { description: xymond unreachable / timed out., content: { application/json: { schema: { $ref: "#/components/schemas/Error" } } } }
