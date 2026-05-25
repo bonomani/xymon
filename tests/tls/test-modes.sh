@@ -75,7 +75,7 @@ start_xymond "$RUN_DIR/pin.log" --tls-ca="$CERT_DIR/ss-client.crt"
 OUT=$(XYMON_TLS_VERIFY=peer XYMON_TLS_CA="$CERT_DIR/ss-server.crt" \
 	XYMON_TLS_CERT="$CERT_DIR/ss-client.crt" XYMON_TLS_KEY="$CERT_DIR/ss-client.key" \
 	"$XYMON_BIN" "$URL" "ping" 2>&1 || true)
-echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK' \
+echo "$OUT" | grep -Eqi 'xymond is alive|^xymond|^OK' \
 	&& echo "  PASS: pinned mutual-auth round-trip" \
 	|| { echo "FAIL: pinning round-trip: $OUT" >&2; exit 2; }
 
@@ -83,7 +83,7 @@ echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK' \
 echo "[2/3] Pinning: a client with NO cert must be rejected"
 OUT=$(XYMON_TLS_VERIFY=peer XYMON_TLS_CA="$CERT_DIR/ss-server.crt" \
 	"$XYMON_BIN" "$URL" "ping" 2>&1 || true)
-if echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK'; then
+if echo "$OUT" | grep -Eqi 'xymond is alive|^xymond|^OK'; then
 	echo "FAIL: certless client was accepted by an mTLS listener" >&2; exit 2
 else
 	echo "  PASS: certless client rejected (handshake failed as expected)"
@@ -94,7 +94,7 @@ stop_xymond
 echo "[3/3] Encrypt-only (VERIFY=none, server without --tls-ca): should succeed"
 start_xymond "$RUN_DIR/enc.log"   # no --tls-ca
 OUT=$(XYMON_TLS_VERIFY=none "$XYMON_BIN" "$URL" "ping" 2>&1 || true)
-echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK' \
+echo "$OUT" | grep -Eqi 'xymond is alive|^xymond|^OK' \
 	&& echo "  PASS: encrypt-only round-trip" \
 	|| { echo "FAIL: encrypt-only round-trip: $OUT" >&2; exit 2; }
 stop_xymond

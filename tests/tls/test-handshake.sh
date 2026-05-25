@@ -175,7 +175,7 @@ if [ -x "$XYMON_BIN" ]; then
 		XYMON_TLS_CERT="$CERT_DIR/client.crt" \
 		XYMON_TLS_KEY="$CERT_DIR/client.key" \
 		"$XYMON_BIN" "xymons://$TLS_HOST:$TLS_PORT" "ping" 2>&1 || true )
-	if echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK'; then
+	if echo "$OUT" | grep -Eqi 'xymond is alive|^xymond|^OK'; then
 		echo "  PASS: client ping over TLS got a server response"
 	else
 		echo "FAIL: client ping over TLS produced unexpected output:" >&2
