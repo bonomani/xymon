@@ -50,7 +50,7 @@ HOST=tlstest
 TEST=bigtest
 MARKER=END_MARKER_9f3a7c
 
-RUN_DIR=$(mktemp -d -t xymon-tls-large.XXXXXX)
+RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tls-large.XXXXXX")
 PID_FILE="$RUN_DIR/xymond.pid"
 LOG_FILE="$RUN_DIR/xymond.log"
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
@@ -143,7 +143,8 @@ URL="xymons://$TLS_HOST:$TLS_PORT"
 
 # --- 3. send a large status over TLS --------------------------------------
 echo "[3/4] Send $MSG_SIZE-byte status over $URL"
-BODY="$(head -c "$MSG_SIZE" /dev/zero | tr '\0' x)$MARKER"
+# Portable large filler: OpenBSD's head has no -c, so use dd + octal-NUL tr.
+BODY="$(dd if=/dev/zero bs="$MSG_SIZE" count=1 2>/dev/null | tr '\000' x)$MARKER"
 # "@" makes the xymon client read the whole message from stdin, sidestepping
 # the OS single-argument length limit (~128KB).
 if ! printf 'status %s.%s green %s' "$HOST" "$TEST" "$BODY" | "$XYMON_BIN" "$URL" "@"; then

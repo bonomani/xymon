@@ -39,7 +39,7 @@ TLS_PORT=${TLS_PORT:-1985}
 TLS_HOST=127.0.0.1
 PLAIN_PORT=${PLAIN_PORT:-11984}    # bind plaintext somewhere unprivileged
 
-RUN_DIR=$(mktemp -d -t xymon-tls-smoke.XXXXXX)
+RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tls-smoke.XXXXXX")
 PID_FILE="$RUN_DIR/xymond.pid"
 LOG_FILE="$RUN_DIR/xymond.log"
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
@@ -139,14 +139,16 @@ echo "  xymond pid $(cat "$PID_FILE") listening"
 
 # --- 4. handshake probe with openssl s_client -----------------------------
 echo "[4/5] mTLS handshake probe via openssl s_client"
+# No -servername: TLS_HOST is an IP, and LibreSSL's s_client (correctly per
+# RFC 6066) rejects an IP literal as SNI. No -tls1_3 either: xymond is
+# TLS-1.3-only, so the negotiation lands on 1.3 regardless, and we avoid
+# depending on s_client version-flag quirks across OpenSSL/LibreSSL.
 HS_OUT=$(echo "" | openssl s_client \
 		-connect "$TLS_HOST:$TLS_PORT" \
 		-cert "$CERT_DIR/client.crt" \
 		-key  "$CERT_DIR/client.key" \
 		-CAfile "$CERT_DIR/ca.crt" \
 		-verify_return_error \
-		-servername "$TLS_HOST" \
-		-tls1_3 \
 		2>&1 || true)
 
 if echo "$HS_OUT" | grep -q 'Verify return code: 0 (ok)'; then
@@ -173,7 +175,7 @@ if [ -x "$XYMON_BIN" ]; then
 		XYMON_TLS_CERT="$CERT_DIR/client.crt" \
 		XYMON_TLS_KEY="$CERT_DIR/client.key" \
 		"$XYMON_BIN" "xymons://$TLS_HOST:$TLS_PORT" "ping" 2>&1 || true )
-	if echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK'; then
+	if echo "$OUT" | grep -Eqi 'xymond is alive|^xymond|^OK'; then
 		echo "  PASS: client ping over TLS got a server response"
 	else
 		echo "FAIL: client ping over TLS produced unexpected output:" >&2

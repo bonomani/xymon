@@ -25,7 +25,7 @@ PLAIN_PORT=${PLAIN_PORT:-21991}
 N=${N:-20}                        # number of concurrent clients
 HOST=testpage.test
 
-RUN_DIR=$(mktemp -d -t xymon-tls-conc.XXXXXX)
+RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tls-conc.XXXXXX")
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
 LOG_FILE="$RUN_DIR/xymond.log"
 PID=""
