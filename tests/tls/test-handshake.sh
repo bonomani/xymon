@@ -39,7 +39,7 @@ TLS_PORT=${TLS_PORT:-1985}
 TLS_HOST=127.0.0.1
 PLAIN_PORT=${PLAIN_PORT:-11984}    # bind plaintext somewhere unprivileged
 
-RUN_DIR=$(mktemp -d -t xymon-tls-smoke.XXXXXX)
+RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tls-smoke.XXXXXX")
 PID_FILE="$RUN_DIR/xymond.pid"
 LOG_FILE="$RUN_DIR/xymond.log"
 HOSTS_FILE="$RUN_DIR/hosts.cfg"

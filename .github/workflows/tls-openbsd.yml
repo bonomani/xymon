@@ -1,0 +1,71 @@
+name: tls-openbsd-libressl
+
+# Focused proof that the native TLS feature builds and *runs* on OpenBSD's
+# base LibreSSL (the one platform where the system crypto lib is LibreSSL,
+# not OpenSSL). Builds the server + client with CMake inside an OpenBSD VM,
+# then runs the tests/tls suite against the freshly-built binaries.
+#
+# Separate from the reference-parity pipeline on purpose: this wants a clean
+# build+runtime pass/fail signal, not an artifact comparison.
+
+on:
+  workflow_dispatch:
+  push:
+    branches:
+      - cmake/tls-test
+
+jobs:
+  openbsd-libressl:
+    name: OpenBSD ${{ matrix.version }} (LibreSSL) build + TLS tests
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        version: ["7.6"]
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Set up QEMU
+        uses: docker/setup-qemu-action@v4
+
+      - name: Build + run TLS tests on OpenBSD (LibreSSL)
+        uses: ./.github/actions/run-bsd-vm-with-retry
+        with:
+          operating_system: openbsd
+          architecture: x86-64
+          version: ${{ matrix.version }}
+          shell: bash
+          memory: 4096M
+          cpu_count: "3"
+          run_script: |
+            set -eux
+
+            # Confirm we're really on LibreSSL.
+            uname -a
+            openssl version || true
+
+            # Install server build deps via the project's own installer
+            # (VARIANT defaults to server; it self-escalates with sudo).
+            bash ci/deps/install-bsd-packages.sh --install --build-tool cmake
+
+            # Configure + build only the TLS-relevant targets with CMake.
+            # base LibreSSL provides libssl/libcrypto; pcre2 etc. come from pkg.
+            cmake -S . -B build-cmake \
+              -DXYMON_VARIANT=server \
+              -DENABLE_SSL=ON \
+              -DUSE_GNUINSTALLDIRS=OFF
+            cmake --build build-cmake --target xymond client_xymon -j3
+
+            # Point the test suite at the freshly built binaries.
+            export XYMOND_BIN="$PWD/build-cmake/xymond/xymond"
+            export XYMON_BIN="$PWD/build-cmake/client/xymon"
+            ls -l "$XYMOND_BIN" "$XYMON_BIN"
+            ldd "$XYMOND_BIN" 2>/dev/null | grep -i ssl || true
+
+            for t in test-handshake test-largemsg test-modes test-concurrency; do
+              echo "===================== $t ====================="
+              sh "tests/tls/$t.sh"
+            done
+
+            echo "OpenBSD / LibreSSL TLS build + tests: ALL PASSED"

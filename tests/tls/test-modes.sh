@@ -25,7 +25,7 @@ TLS_HOST=127.0.0.1
 TLS_PORT=${TLS_PORT:-1988}
 PLAIN_PORT=${PLAIN_PORT:-21988}
 
-RUN_DIR=$(mktemp -d -t xymon-tls-modes.XXXXXX)
+RUN_DIR=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tls-modes.XXXXXX")
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
 PID=""
 
