@@ -57,6 +57,40 @@ ssize_t xymon_tls_write(xymon_tls_t *t, const void *buf, size_t len);
  */
 void xymon_tls_close(xymon_tls_t *t);
 
+
+/* ---- Server side (xymond) ---------------------------------------------- */
+
+/*
+ * Opaque per-process server SSL context. Built once at startup from the
+ * --tls-cert / --tls-key / --tls-ca file paths and reused for every accepted
+ * connection.
+ */
+typedef struct xymon_tls_server_ctx_s xymon_tls_server_ctx_t;
+
+/*
+ * Build a server SSL_CTX from PEM file paths. mTLS is required:
+ * SSL_VERIFY_PEER | SSL_VERIFY_FAIL_IF_NO_PEER_CERT, peer chain checked
+ * against ca_file. TLS 1.3 only. Returns NULL on any failure (logged).
+ */
+xymon_tls_server_ctx_t *xymon_tls_server_ctx_new(const char *cert_file,
+						 const char *key_file,
+						 const char *ca_file);
+
+void xymon_tls_server_ctx_free(xymon_tls_server_ctx_t *sctx);
+
+/*
+ * Server-side handshake on an already-accepted, BLOCKING socket. Returns
+ * NULL on handshake or verification failure. On success the returned handle
+ * can be used with the same xymon_tls_read / xymon_tls_write / xymon_tls_close
+ * functions as the client side.
+ *
+ * If `peer_cn_out` is non-NULL, on success it is filled with a newly-malloc'd
+ * copy of the peer cert's CN (caller frees). Useful for audit logging.
+ */
+xymon_tls_t *xymon_tls_server_handshake(int sockfd,
+					xymon_tls_server_ctx_t *sctx,
+					char **peer_cn_out);
+
 #endif /* HAVE_XYMON_TLS */
 
 #endif /* __XYMON_TLS_H_ */

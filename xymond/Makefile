@@ -61,8 +61,8 @@ xymond_alert: $(ALERTOBJS) $(XYMONCOMMLIB)
 xymond_rrd: $(RRDOBJS) $(XYMONCOMMLIB)
 	$(CC) $(LDFLAGS) -o $@ $(RPATHOPT) $(RRDOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS) $(RRDLIBS) $(PCRELIBS)
 
-xymond.o: xymond.c
-	$(CC) $(CFLAGS) $(SSLFLAGS) -c -o $@ xymond.c
+xymond.o: xymond.c ../lib/xymon_tls.h
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSLINCDIR) -I../lib -c -o $@ xymond.c
 
 do_alert.o: do_alert.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ do_alert.c
