@@ -35,8 +35,10 @@ int xymon_tls_client_init(void);
 
 /*
  * Perform a TLS client handshake on an already-connected, BLOCKING socket.
- * `sni_hostname` is the original hostname from the xymons:// URL (used for
- * SNI and cert hostname verification); must not be NULL.
+ * `sni_hostname` is the peer name to verify against the server cert (the
+ * xymons:// host, or XYMON_TLS_SNI when set); must not be NULL. A DNS name
+ * is sent as SNI and matched against dNSName SANs; an IP literal is matched
+ * against iPAddress SANs (and not sent as SNI, per RFC 6066).
  *
  * Returns NULL on any failure (handshake error, cert verification failure,
  * hostname mismatch, etc.). Caller retains ownership of sockfd.
@@ -50,6 +52,14 @@ xymon_tls_t *xymon_tls_client_handshake(int sockfd, const char *sni_hostname);
  */
 ssize_t xymon_tls_read (xymon_tls_t *t, void *buf, size_t len);
 ssize_t xymon_tls_write(xymon_tls_t *t, const void *buf, size_t len);
+
+/*
+ * Send a TLS close_notify on the write direction to delimit the end of a
+ * request -- the TLS analogue of shutdown(fd, SHUT_WR). The caller may (and
+ * for a request/response exchange should) keep reading the peer's response
+ * afterwards. Best-effort; does not wait for the peer's close_notify.
+ */
+void xymon_tls_shutdown_write(xymon_tls_t *t);
 
 /*
  * Best-effort TLS shutdown + free of the per-connection state. Does NOT

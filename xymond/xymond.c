@@ -5920,8 +5920,6 @@ int main(int argc, char *argv[])
 			switch (cwalk->doingwhat) {
 			  case RECEIVING:
 				if (FD_ISSET(cwalk->sock, &fdread)) {
-					if ((n == -1) && (errno == EAGAIN)) break; /* Do nothing */
-
 #ifdef HAVE_XYMON_TLS
 					if (cwalk->tls) {
 						n = xymon_tls_read(cwalk->tls, cwalk->bufp, (cwalk->bufsz - cwalk->buflen - 1));
@@ -5929,6 +5927,11 @@ int main(int argc, char *argv[])
 					else
 #endif
 					n = read(cwalk->sock, cwalk->bufp, (cwalk->bufsz - cwalk->buflen - 1));
+					/* EAGAIN must be tested against THIS read's result, not a
+					   stale select() return: a TLS SSL_read reports WANT_READ
+					   (errno=EAGAIN) when only a partial record has arrived,
+					   and treating it as EOF here would truncate the message. */
+					if ((n == -1) && (errno == EAGAIN)) break; /* not ready - retry on a later select() */
 					if (n <= 0) {
 						/* End of input data on this connection */
 						*(cwalk->bufp) = '\0';

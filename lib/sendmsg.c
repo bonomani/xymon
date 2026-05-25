@@ -46,8 +46,10 @@ static char rcsid[] = "$Id$";
 
 #define SENDRETRIES 2
 
+#define XYMON_SCHEME       "xymon://"
+#define XYMON_SCHEME_LEN   8    /* strlen("xymon://")  -- explicit plaintext */
 #define XYMONS_SCHEME      "xymons://"
-#define XYMONS_SCHEME_LEN  9    /* strlen("xymons://") */
+#define XYMONS_SCHEME_LEN  9    /* strlen("xymons://") -- TLS */
 
 /* These commands go to all Xymon servers */
 static char *multircptcmds[] = { "status", "combo", "extcombo", "meta", "data", "notify", "enable", "disable", "drop", "rename", "client", NULL };
@@ -188,14 +190,22 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	dbgprintf("Recipient listed as '%s'\n", recipient);
 
 	if (strncmp(recipient, "http://", strlen("http://")) != 0) {
-		/* Direct-to-xymond path: plaintext, or TLS via xymons:// scheme. */
+		/* Direct-to-xymond path. Accepted forms:
+		 *   host[:port]          -> plaintext (legacy, unchanged)
+		 *   xymon://host[:port]  -> plaintext, explicit scheme
+		 *   xymons://host[:port] -> TLS
+		 */
 		const char *host_start = recipient;
 #ifdef HAVE_XYMON_TLS
 		if (strncmp(recipient, XYMONS_SCHEME, XYMONS_SCHEME_LEN) == 0) {
 			use_tls = 1;
 			host_start = recipient + XYMONS_SCHEME_LEN;
 		}
+		else
 #endif
+		if (strncmp(recipient, XYMON_SCHEME, XYMON_SCHEME_LEN) == 0) {
+			host_start = recipient + XYMON_SCHEME_LEN;
+		}
 		rcptip = strdup(host_start);
 		/* TLS prototype lives on a separate port (1985 by default) so the
 		 * plaintext listener on 1984 keeps working unchanged. An explicit
@@ -212,8 +222,13 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 #ifdef HAVE_XYMON_TLS
 		if (use_tls) {
 			/* Preserve the hostname before the gethostbyname() rewrite
-			 * below; SNI + cert hostname verification need the original. */
-			tls_sni = strdup(rcptip);
+			 * below; SNI + cert hostname verification need the original.
+			 * XYMON_TLS_SNI overrides the name used for both (e.g. when
+			 * connecting by IP to a host whose cert names a hostname).
+			 * Use getenv() rather than xgetenv() so an unset var stays
+			 * quiet instead of logging "Cannot find value". */
+			char *sni_override = getenv("XYMON_TLS_SNI");
+			tls_sni = strdup((sni_override && *sni_override) ? sni_override : rcptip);
 		}
 		dbgprintf("%s protocol on port %d\n",
 			  use_tls ? "TLS (xymons)" : "Standard", rcptport);
@@ -430,6 +445,11 @@ retry_connect:
 						}
 						msgptr += wn;
 					}
+
+					/* Signal end-of-request -- the TLS analogue of the
+					 * plaintext shutdown(SHUT_WR) below. xymond waits for
+					 * this before processing the message and replying. */
+					xymon_tls_shutdown_write(tls);
 
 					/* Read response if caller asked for one. Mirrors the
 					 * plaintext "first-line vs full response" semantics. */

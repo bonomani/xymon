@@ -157,11 +157,12 @@ fi
 # --- 5. optional: real client round-trip ----------------------------------
 if [ -x "$XYMON_BIN" ]; then
 	echo "[5/5] Real client round-trip via xymons:// scheme"
-	OUT=$( XYMSRV="xymons://$TLS_HOST:$TLS_PORT" \
-		XYMON_TLS_CA="$CERT_DIR/ca.crt" \
+	# The xymon client takes the recipient from argv, not $XYMSRV, so the
+	# xymons:// URL must be passed as the recipient argument itself.
+	OUT=$( XYMON_TLS_CA="$CERT_DIR/ca.crt" \
 		XYMON_TLS_CERT="$CERT_DIR/client.crt" \
 		XYMON_TLS_KEY="$CERT_DIR/client.key" \
-		"$XYMON_BIN" "$TLS_HOST" "ping" 2>&1 || true )
+		"$XYMON_BIN" "xymons://$TLS_HOST:$TLS_PORT" "ping" 2>&1 || true )
 	if echo "$OUT" | grep -qi 'xymond is alive\|^xymond\|^OK'; then
 		echo "  PASS: client ping over TLS got a server response"
 	else

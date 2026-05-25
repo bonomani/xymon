@@ -21,6 +21,8 @@ do
      --pcrelib DIRECTORY      : Specify location of PCRE libraries
      --sslinclude DIRECTORY   : Specify location of OpenSSL include files
      --ssllib DIRECTORY       : Specify location of OpenSSL libraries
+     --enable-xymon-tls       : Force-enable native TLS for the wire protocol
+     --disable-xymon-tls      : Disable native TLS for the wire protocol
      --ldapinclude DIRECTORY  : Specify location of OpenLDAP include files
      --ldaplib DIRECTORY      : Specify location of OpenLDAP libraries
      --caresinclude DIRECTORY : Specify location of C-ARES include files
@@ -53,6 +55,12 @@ EOF
 		;;
 	  "--ssllib")
 	  	USEROSSLLIB="$1"; shift
+		;;
+	  "--enable-xymon-tls")
+	  	ENABLE_XYMON_TLS="y"
+		;;
+	  "--disable-xymon-tls")
+	  	DISABLE_XYMON_TLS="y"
 		;;
 	  "--ldapinclude")
 	  	USERLDAPINC="$1"; shift
@@ -117,11 +125,26 @@ fi
 echo ""; echo ""
 
 . build/ssl.sh
+# build/ssl.sh sets SSLFLAGS to "-DHAVE_OPENSSL [+ -DHAVE_SSLV2/3_SUPPORT]"
+# and SSLOK=YES/NO. We rebuild SSLFLAGS deterministically below so the two
+# features can be toggled independently:
+#   HAVE_OPENSSL   : gates HTTPS-probing code in xymonnet (the prompt below).
+#   HAVE_XYMON_TLS : gates native TLS for the Xymon wire protocol (xymond
+#                    listener + sendmsg client path); on by default when
+#                    OpenSSL is present, independent of the prompt answer.
+SSLV23=""
 if test "$SSLOK" = "NO"
 then
 	ENABLESSL="n"
-	SSLDEF=""
+	if test "$ENABLE_XYMON_TLS" = "y"
+	then
+		echo "WARNING: --enable-xymon-tls requested but OpenSSL was not found; native TLS disabled."
+	fi
 else
+	# Carry over any SSLv2/SSLv3 support that ssl.sh detected.
+	case "$SSLFLAGS" in *-DHAVE_SSLV2_SUPPORT*) SSLV23="$SSLV23 -DHAVE_SSLV2_SUPPORT";; esac
+	case "$SSLFLAGS" in *-DHAVE_SSLV3_SUPPORT*) SSLV23="$SSLV23 -DHAVE_SSLV3_SUPPORT";; esac
+
 	echo ""
 	echo "Xymon can use the OpenSSL library to test SSL-enabled services"
 	echo "like https-encrypted websites, POP3S, IMAPS, NNTPS and TELNETS."
@@ -135,27 +158,30 @@ else
 	if test "$ENABLESSL" = "" -o "$ENABLESSL" = "y"
 	then
 		ENABLESSL="y"
-		# HAVE_OPENSSL  : gates HTTPS-probing code in xymonnet (legacy).
-		# HAVE_XYMON_TLS: gates native TLS for the Xymon wire protocol
-		#                 (xymond listener + sendmsg client path). Both
-		#                 are enabled together when OpenSSL is present;
-		#                 the defines are kept separate so each feature
-		#                 can be #ifdef'd independently in the source.
-		SSLDEF="-DHAVE_OPENSSL -DHAVE_XYMON_TLS"
-		if test "$OSSL2OK" = "Y"
-		then
-			SSLDEF="$SSLDEF -DHAVE_SSLV2_SUPPORT=1"
-		fi
-		if test "$OSSL3OK" = "Y"
-		then
-			SSLDEF="$SSLDEF -DHAVE_SSLV3_SUPPORT=1"
-		fi
 	else
 		ENABLESSL="n"
-		SSLDEF=""
 	fi
 	echo ""
 fi
+
+# Native TLS for the Xymon wire protocol: default ON when OpenSSL is present,
+# unless --disable-xymon-tls. Decoupled from the xymonnet HTTPS-probe prompt.
+if test "$SSLOK" = "YES" -a "$DISABLE_XYMON_TLS" != "y"
+then
+	XYMON_TLS="y"
+	echo "Native TLS support (xymon wire protocol): enabled"
+else
+	XYMON_TLS="n"
+	if test "$SSLOK" = "YES"
+	then
+		echo "Native TLS support (xymon wire protocol): disabled by --disable-xymon-tls"
+	fi
+fi
+
+# Compose the compile-time defines actually emitted to the Makefile.
+SSLFLAGS=""
+if test "$ENABLESSL" = "y"; then SSLFLAGS="-DHAVE_OPENSSL$SSLV23"; fi
+if test "$XYMON_TLS" = "y"; then SSLFLAGS="$SSLFLAGS -DHAVE_XYMON_TLS"; fi
 echo ""; echo "";
 
 . build/ldap.sh
@@ -509,7 +535,9 @@ then
 fi
 echo "#"                                 >>Makefile
 echo "# OpenSSL settings"                >>Makefile
-if test "$ENABLESSL" = "y"
+# Emit the SSL flags/libs when EITHER xymonnet HTTPS probing (HAVE_OPENSSL)
+# OR native wire TLS (HAVE_XYMON_TLS) is enabled - both need libssl linked.
+if test "$ENABLESSL" = "y" -o "$XYMON_TLS" = "y"
 then
     echo "SSLFLAGS = $SSLFLAGS"          >>Makefile
     if test "$OSSLINC" != ""; then
@@ -521,7 +549,9 @@ then
     else
 	echo "SSLLIBS = -lssl -lcrypto"  >>Makefile
     fi
-    echo "DOSSL = yes"                   >>Makefile
+    if test "$ENABLESSL" = "y"; then
+	echo "DOSSL = yes"               >>Makefile
+    fi
 fi
 echo "#"                                 >>Makefile
 echo "# OpenLDAP settings"               >>Makefile

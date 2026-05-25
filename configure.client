@@ -19,7 +19,9 @@ do
      --pcrelib DIRECTORY      : Specify location of PCRE libraries
      --sslinclude DIRECTORY   : Specify location of OpenSSL include files
      --ssllib DIRECTORY       : Specify location of OpenSSL libraries
-     --without-tls            : Disable native TLS support in the client
+     --enable-xymon-tls       : Force-enable native TLS support (requires OpenSSL)
+     --disable-xymon-tls      : Disable native TLS support in the client
+     --without-tls            : Alias for --disable-xymon-tls
      --make /path/to/gnumake  : Specify location of the GNU make program
 
   The script will search a number of standard directories for
@@ -39,8 +41,11 @@ EOF
 	  "--ssllib")
 	  	USEROSSLLIB="$1"; shift
 		;;
-	  "--without-tls")
+	  "--without-tls"|"--disable-xymon-tls")
 	  	DISABLE_XYMON_TLS="y"
+		;;
+	  "--enable-xymon-tls")
+	  	ENABLE_XYMON_TLS="y"
 		;;
 	  "--make")
 	  	MAKE="$1"; shift
@@ -100,11 +105,15 @@ echo ""
 # absent; in that case clients can still talk plaintext to xymond:1984.
 if test "$DISABLE_XYMON_TLS" = "y"
 then
-	echo "Native TLS disabled by --without-tls"
+	echo "Native TLS disabled by --disable-xymon-tls"
 	SSLOK="NO"
 else
 	echo "Checking for OpenSSL (for native TLS support)"
 	. build/ssl.sh
+	if test "$SSLOK" != "YES" -a "$ENABLE_XYMON_TLS" = "y"
+	then
+		echo "WARNING: --enable-xymon-tls requested but OpenSSL was not found; native TLS disabled."
+	fi
 fi
 if test "$SSLOK" = "YES"
 then

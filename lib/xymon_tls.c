@@ -24,6 +24,9 @@
 #include <stdlib.h>
 #include <string.h>
 #include <errno.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
@@ -126,12 +129,22 @@ int xymon_tls_client_init(void)
 	return 0;
 }
 
+/* True if `name` is a numeric IPv4/IPv6 literal rather than a DNS hostname. */
+static int is_ip_literal(const char *name)
+{
+	unsigned char buf[sizeof(struct in6_addr)];
+	if (inet_pton(AF_INET,  name, buf) == 1) return 1;
+	if (inet_pton(AF_INET6, name, buf) == 1) return 1;
+	return 0;
+}
+
 xymon_tls_t *xymon_tls_client_handshake(int sockfd, const char *sni_hostname)
 {
 	xymon_tls_t *t;
 	SSL *ssl;
 	X509_VERIFY_PARAM *vp;
 	int rc;
+	int is_ip;
 
 	if (!sni_hostname || !*sni_hostname) {
 		errprintf("xymon_tls: handshake called without SNI hostname\n");
@@ -147,18 +160,33 @@ xymon_tls_t *xymon_tls_client_handshake(int sockfd, const char *sni_hostname)
 		SSL_free(ssl); return NULL;
 	}
 
-	/* SNI -- some server-side TLS terminators key on this. */
-	if (SSL_set_tlsext_host_name(ssl, sni_hostname) != 1) {
-		log_ssl_err("SSL_set_tlsext_host_name");
-		SSL_free(ssl); return NULL;
+	is_ip = is_ip_literal(sni_hostname);
+
+	/* SNI -- some server-side TLS terminators key on this. RFC 6066 forbids
+	 * IP literals in SNI, so only send it for real hostnames. */
+	if (!is_ip) {
+		if (SSL_set_tlsext_host_name(ssl, sni_hostname) != 1) {
+			log_ssl_err("SSL_set_tlsext_host_name");
+			SSL_free(ssl); return NULL;
+		}
 	}
 
-	/* Hostname verification: cert's CN/SAN must match sni_hostname. */
+	/* Certificate identity check. IP literals must be matched against the
+	 * cert's iPAddress SANs via set1_ip; set1_host would treat them as DNS
+	 * names and never match an IP SAN. */
 	vp = SSL_get0_param(ssl);
-	X509_VERIFY_PARAM_set_hostflags(vp, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
-	if (X509_VERIFY_PARAM_set1_host(vp, sni_hostname, 0) != 1) {
-		log_ssl_err("X509_VERIFY_PARAM_set1_host");
-		SSL_free(ssl); return NULL;
+	if (is_ip) {
+		if (X509_VERIFY_PARAM_set1_ip_asc(vp, sni_hostname) != 1) {
+			log_ssl_err("X509_VERIFY_PARAM_set1_ip_asc");
+			SSL_free(ssl); return NULL;
+		}
+	}
+	else {
+		X509_VERIFY_PARAM_set_hostflags(vp, X509_CHECK_FLAG_NO_PARTIAL_WILDCARDS);
+		if (X509_VERIFY_PARAM_set1_host(vp, sni_hostname, 0) != 1) {
+			log_ssl_err("X509_VERIFY_PARAM_set1_host");
+			SSL_free(ssl); return NULL;
+		}
 	}
 
 	rc = SSL_connect(ssl);
@@ -222,6 +250,17 @@ ssize_t xymon_tls_write(xymon_tls_t *t, const void *buf, size_t len)
 		errno = EIO;
 		return -1;
 	}
+}
+
+void xymon_tls_shutdown_write(xymon_tls_t *t)
+{
+	if (!t || !t->ssl) return;
+	/* The first SSL_shutdown() sends our close_notify -- the TLS analogue of
+	 * shutdown(fd, SHUT_WR). It tells the peer "no more request data", which
+	 * lets a half-duplex server (xymond) treat it as end-of-message. We do
+	 * not wait for the peer's close_notify; the response read that follows
+	 * picks that up, and the final xymon_tls_close() completes the teardown. */
+	(void)SSL_shutdown(t->ssl);
 }
 
 void xymon_tls_close(xymon_tls_t *t)
