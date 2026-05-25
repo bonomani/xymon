@@ -50,10 +50,10 @@ paths:
       parameters:
         - { name: host,    in: query, schema: { type: string }, description: "WHERE anchor." }
         - { name: test,    in: query, schema: { type: string }, description: "HOW anchor (probe)." }
-        - { name: metric,  in: query, schema: { type: string }, description: "WHAT (quantity)." }
+        - { name: item,    in: query, schema: { type: string }, description: "WHERE — the judged item (filesystem/url/core)." }
         - { name: verdict, in: query, schema: { $ref: "#/components/schemas/Color" } }
         - { name: selector, in: query, schema: { type: string }, description: "Match free dimensions, e.g. `mount=/var,core=3`." }
-        - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (max severity), e.g. `host,test` for the classic column color." }
+        - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (worst severity), e.g. `host,test` for the classic column color." }
         - { name: fields,  in: query, schema: { type: string }, description: "Comma-separated projection." }
         - { name: limit,   in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
       responses:
@@ -68,8 +68,8 @@ paths:
                   items: { type: array, items: { $ref: "#/components/schemas/State" } }
               example:
                 items:
-                  - { id: "web1:disk:/var:pct_used", host: web1, test: disk, metric: pct_used, labels: { mount: /var }, value: "96", verdict: red,   time: "2026-05-25T18:00:00Z" }
-                  - { id: "web1:disk:/:pct_used",    host: web1, test: disk, metric: pct_used, labels: { mount: "/" }, value: "38", verdict: green, time: "2026-05-25T18:00:00Z" }
+                  - { id: "web1:disk:/var", host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: 96, inodes: 41 }, by: pct_used, verdict: red,   time: "2026-05-26T00:00:00Z" }
+                  - { id: "web1:disk:/",    host: web1, test: disk, item: "/",  labels: { mount: "/" },  metrics: { pct_used: 38 }, by: pct_used, verdict: green, time: "2026-05-26T00:00:00Z" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "502": { $ref: "#/components/responses/Upstream" }
@@ -88,7 +88,7 @@ paths:
                 readings: { type: array, items: { $ref: "#/components/schemas/Reading" } }
             example:
               readings:
-                - { host: web1, test: disk, metric: pct_used, labels: { mount: /var }, value: "96", verdict: red }
+                - { host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: 96, inodes: 41 }, by: pct_used, verdict: red }
       responses:
         "202": { description: Readings accepted; decomposed into states. }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -210,7 +210,8 @@ paths:
       parameters:
         - { name: host,     in: query, schema: { type: string } }
         - { name: test,     in: query, schema: { type: string } }
-        - { name: metric,   in: query, schema: { type: string } }
+        - { name: item,     in: query, schema: { type: string }, description: "The judged item (filesystem/url/...)." }
+        - { name: metric,   in: query, schema: { type: string }, description: "Which metric field of the item to graph." }
         - { name: selector, in: query, schema: { type: string }, description: "Free-dimension matchers, e.g. `mount=/var`." }
         - { name: from,     in: query, schema: { type: string }, description: "Range start: RFC3339 or relative like `-24h`." }
         - { name: to,       in: query, schema: { type: string, default: "now" } }
@@ -528,28 +529,34 @@ components:
 
     State:
       type: object
-      description: One atomic observation. WHERE=host+labels, HOW=test, WHAT=metric, WHEN=time; value+verdict is the answer.
+      description: >
+        One judged item (host+test+item) — Xymon's one line. `metrics` holds the
+        item's correlated measurements; `by` names the one that decides the
+        verdict (a Rule assigns the color over it); the rest are data (graph via
+        /series). WHERE=host+item+labels, HOW=test, WHEN=time.
       required: [id, host, test, verdict]
       properties:
-        id:      { type: string, description: "Flattened label-set key." }
+        id:      { type: string, description: "Flattened (host,test,item) key." }
         host:    { type: string, description: "WHERE anchor." }
         test:    { type: string, description: "HOW anchor (probe)." }
-        metric:  { type: string, description: "WHAT (quantity)." }
+        item:    { type: string, description: "WHERE — the judged thing (filesystem/url/core); empty for single-item tests." }
         labels:  { $ref: "#/components/schemas/Labels" }
-        value:   { type: string, description: "The reading (string-encoded; may be numeric)." }
+        metrics: { type: object, additionalProperties: { type: number }, description: "Correlated measurements, e.g. {cap:17, total_gb:951.65, avail_gb:788.39}." }
+        by:      { type: string, description: "Which metric drives the verdict." }
         verdict: { $ref: "#/components/schemas/Color" }
         time:    { type: string, format: date-time }
 
     Reading:
       type: object
-      description: An ingested reading; decomposed into/over a State.
+      description: An ingested item reading (one line) — becomes/updates one State.
       required: [host, test]
       properties:
         host:    { type: string }
         test:    { type: string }
-        metric:  { type: string }
+        item:    { type: string, nullable: true }
         labels:  { $ref: "#/components/schemas/Labels" }
-        value:   { type: string }
+        metrics: { type: object, additionalProperties: { type: number } }
+        by:      { type: string, nullable: true }
         verdict: { $ref: "#/components/schemas/Color" }
         time:    { type: string, format: date-time, nullable: true }
 

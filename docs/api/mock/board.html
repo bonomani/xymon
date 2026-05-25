@@ -59,8 +59,7 @@
     <h3 id="dtitle"></h3>
     <div class="body">
       <div class="api" id="dapi"></div>
-      <table class="items"><thead><tr><th>where</th><th>what (metric)</th><th>value</th><th>verdict</th></tr></thead>
-        <tbody id="ditems"></tbody></table>
+      <div id="ditable"></div>
       <div class="spark" id="dspark"></div>
     </div>
   </div>
@@ -84,24 +83,24 @@ const BOARD = { items: [   // GET /states?rollup=host,test
   {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"disk", verdict:"green"},
 ]};
 
-const DETAIL = {   // GET /states?host=..&test=..  (atomic per-item states)
+// GET /states?host=..&test=..  → ONE State per item (Xymon's one line):
+// correlated measurements live in metrics{}; `by` is the one that decides color.
+const DETAIL = {
   "web1|disk": [
-    {where:"mount=/var",  metric:"pct_used", value:"96%", verdict:"red"},
-    {where:"mount=/var",  metric:"inodes",   value:"41%", verdict:"green"},
-    {where:"mount=/",     metric:"pct_used", value:"38%", verdict:"green"},
-    {where:"mount=/home", metric:"pct_used", value:"72%", verdict:"yellow"},
+    {item:"/var",  metrics:{pct_used:"96%", inodes:"41%"}, by:"pct_used", verdict:"red"},
+    {item:"/",     metrics:{pct_used:"38%"},               by:"pct_used", verdict:"green"},
+    {item:"/home", metrics:{pct_used:"72%"},               by:"pct_used", verdict:"yellow"},
   ],
   "db1|cpu": [
-    {where:"core=0", metric:"util_pct", value:"88%", verdict:"yellow"},
-    {where:"-",      metric:"load_5m",  value:"3.2", verdict:"green"},
+    {item:"core0", metrics:{util_pct:"88%"}, by:"util_pct", verdict:"yellow"},
+    {item:"-",     metrics:{load_5m:"3.2"},  by:"load_5m",  verdict:"green"},
   ],
-  // a real Windows disk status, decomposed: one filesystem (C:) → many metrics.
-  // Only capacity (pct_used) carries a verdict (a Rule); the rest are data.
+  // a real Windows disk line: one filesystem (C:), several correlated metrics,
+  // one verdict — driven by capacity (cap). The rest are data.
   "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [
-    {where:"C:  (/FIXED/C:\\, Windows)", metric:"pct_used", value:"17%",       verdict:"green"},
-    {where:"C:  (/FIXED/C:\\)",          metric:"total",    value:"951.65 GB", verdict:""},
-    {where:"C:  (/FIXED/C:\\)",          metric:"avail",    value:"788.39 GB", verdict:""},
-    {where:"C:  (/FIXED/C:\\)",          metric:"used",     value:"163.26 GB", verdict:""},
+    {item:"C: (/FIXED/C:\\, Windows)",
+     metrics:{cap:"17%", total:"951.65 GB", used:"163.26 GB", avail:"788.39 GB"},
+     by:"cap", verdict:"green"},
   ],
 };
 
@@ -145,12 +144,23 @@ function drill(host, test, verdict) {
   document.getElementById("dtitle").textContent = `${host}.${test}  —  ${verdict}`;
   document.getElementById("dapi").textContent = `GET /states?host=${host}&test=${test}`;
   const items = DETAIL[host+"|"+test] || [];
-  document.getElementById("ditems").innerHTML = items.map(it => {
-    const vcell = it.verdict
-      ? `<span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}`
-      : `<span class="muted">— data (no rule)</span>`;
-    return `<tr><td>${it.where}</td><td>${it.metric}</td><td>${it.value}</td><td>${vcell}</td></tr>`;
-  }).join("");
+  // one row per item (Xymon's one line); columns = the union of metric keys.
+  const keys = [];
+  items.forEach(it => Object.keys(it.metrics).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+  let t = '<table class="items"><thead><tr><th>item</th>';
+  keys.forEach(k => t += `<th>${k}</th>`);
+  t += '<th>verdict</th></tr></thead><tbody>';
+  items.forEach(it => {
+    t += `<tr><td>${it.item}</td>`;
+    keys.forEach(k => {
+      const v = it.metrics[k] || '';
+      t += (k === it.by) ? `<td style="font-weight:bold">${v}</td>` : `<td>${v}</td>`;
+    });
+    t += `<td><span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}</td></tr>`;
+  });
+  t += '</tbody></table><div class="muted">one row = one item (filesystem); '+
+       '<b>bold</b> = the metric the verdict is judged on (<code>by</code>); the rest are data.</div>';
+  document.getElementById("ditable").innerHTML = t;
   document.getElementById("dspark").innerHTML = sparkline(host, test);
   d.style.display = "block";
 }

@@ -46,48 +46,64 @@ when; together they are complete; none is redundant. value + verdict are the
 *answer* the dimensions key to. WHY and WHO are not identity — they are the
 pipeline.
 
-  | Question | Answers…            | Dimension(s)                         | Role        |
-  |----------|---------------------|--------------------------------------|-------------|
-  | WHERE    | which locus         | `host` + component path (`mount`, `core`, `if`) | identity |
-  | WHAT     | which quantity      | `metric` (`pct_used`, `latency`, `fs_tx_full`)  | identity |
-  | HOW      | by what probe       | `test` (`disk`, `http`) + `sender`   | provenance  |
-  | WHEN     | at what instant     | `time`                               | content     |
-  | —        | the reading         | `value` + `verdict`                  | the answer  |
-  | WHY      | why it matters      | the **Rule**                         | → Alarm     |
-  | WHO      | who is responsible  | `owner`                              | → Action    |
+  | Question | Answers…              | Dimension(s)                                      | Role       |
+  |----------|-----------------------|---------------------------------------------------|------------|
+  | WHERE    | which thing is judged | `host` + `item` (filesystem/url/core) + labels    | identity   |
+  | HOW      | by what probe         | `test` (`disk`, `http`) + `sender`                | provenance |
+  | WHAT     | its measurements      | `metrics{}` (correlated); `by` = the deciding one | content    |
+  | WHEN     | at what instant       | `time`                                            | content    |
+  | —        | the result            | `verdict` (one color)                             | the answer |
+  | WHY      | why it matters        | the **Rule**                                      | → Alarm    |
+  | WHO      | who is responsible    | `owner`                                           | → Action   |
+
+The atom is the **item** — the smallest thing that earns **one verdict** (a
+filesystem, a URL, a core), keyed `(host, test, item)`. That is Xymon's *one
+line*.
 
 Consequences:
-- `test` is **HOW** (a probe), `mount`/`core` are **WHERE** (sub-locations),
-  `metric` is **WHAT**. No new structure per test type — just different label
-  *values*.
-- **One value per fully-qualified State** ⇒ multiple metrics = multiple States.
-  No State is ever a bag of values.
-- **Hierarchies and the classic "column color" are group-by views** over labels
-  (`group by {host,test} → max severity`), computed on demand, never stored.
-  Multiple overlapping rollups (by service, by datacenter) all coexist.
-- **Anchor labels** `host` and `test` are always present (they anchor the
-  pipeline and the default rollup); all other dimensions are free and emitted by
-  the test. A dotted name like `disk.fs_tx_full` is just a flattened label-set
-  `{test=disk, metric=fs_tx_full}` — the path and the labels are the same thing.
+- `test` is **HOW**; `host` + `item` + free labels (`mount`, `label`, `core`)
+  are **WHERE**; the numbers are **WHAT** — but they live in `metrics{}` on the
+  *one* State, because they are **correlated facets** of a single measurement
+  (`avail = total − used`, `cap = used/total`). They are **not** separate States.
+- **Split by independent verdict, not by metric.** Correlated measurements of
+  one judged thing → one compact State (one line). Genuinely independent
+  thresholds → separate States. An item thresholded on two aspects (capacity
+  *and* inodes) still has **one** color = the worst — one State.
+- `by` names the metric that drives the verdict (assigned by a **Rule** over it);
+  the rest are data, read and graphed via `/series`.
+- The classic **"column color" is a group-by rollup** — `group by {host,test} →
+  worst` over the host's item-States. Computed on demand, never stored; many
+  overlapping rollups (by service, datacenter) coexist.
+- Anchors `host`/`test`/`item` are always present; free labels are test-emitted.
+  A dotted name like `disk.fs_tx_full` is a flattened `(host,test,item,metric)`
+  identity, not extra States.
 
 
 3. Worked examples
 ------------------
-A red `disk` status on `web1` decomposes into atomic States — each one fully
-qualified, one value + verdict:
+A `disk` status on `web1` — **one State per filesystem** (Xymon's one line);
+`by`=`pct_used` drives the color, the other numbers are correlated data:
 
 ```
-WHERE                     WHAT (metric)  HOW (test)  WHEN   VALUE  VERDICT
-host=web1 mount=/var      pct_used       disk        18:00  96%    red
-host=web1 mount=/var      inodes         disk        18:00  41%    green
-host=web1 mount=/         pct_used       disk        18:00  38%    green
-host=web1 mount=/home     pct_used       disk        18:00  72%    yellow
+host=web1  test=disk
+ item    metrics{}                        by         verdict
+ /var    { pct_used:96, inodes:41 }       pct_used   red
+ /       { pct_used:38 }                  pct_used   green
+ /home   { pct_used:72 }                  pct_used   yellow
 ```
-The classic "disk column color" for web1 = `group by {host, test=disk} → max` = **red**.
+Classic "disk column color" for web1 = `group by {host,test} → worst` = **red**.
 
-The pipeline acting on the red one (WHY, then WHO):
+A real Windows disk line decomposes the same compact way — one item, several
+correlated metrics, one verdict:
 ```
-State{host=web1, mount=/var, metric=pct_used} = 96%
+host=ifmspc-usr2.ad1.i01.gtbcr.org  test=disk
+ item  labels                            metrics{}                                               by   verdict
+ C:    {mount:/FIXED/C:\, label:Windows} {cap:17, total_gb:951.65, used_gb:163.26, avail_gb:788.39}  cap  green
+```
+
+The pipeline acting on the red filesystem (WHY, then WHO):
+```
+State{host=web1, test=disk, item=/var}   by pct_used = 96
    │  WHY → Rule:  "pct_used ≥ 90 ⇒ red, severity=major"
    ▼
 Alarm  (firing, major)
@@ -101,23 +117,22 @@ maintenance   Suppression{ where: host=web1, window: 22:00–23:00 }   holds  St
 acknowledge   Action{type:ack} ⇒ Suppression{ alarm:this }           holds  Alarm→Action
 ```
 
-Other test types — same six questions, different label *values*:
+Other test types — same shape, one State per item, `metrics{}` + `by`:
 ```
-http   host=web1 url=/api    status_code   http   503    red
-       host=web1 url=/api    latency_ms    http   1200   red
-       host=web1 url=/login  status_code   http   200    green
-conn   host=web1             reachable     conn   1      green    ← no component, one metric
-cpu    host=web1 core=0      util_pct      cpu    88     yellow
-       host=web1             load_5m       cpu    3.2    green
+http  item=/api    {status_code:503, latency_ms:1200}   by=status_code  red
+      item=/login  {status_code:200, latency_ms:142}    by=status_code  green
+conn  item=-       {reachable:1}                          by=reachable    green   ← single-item test
+cpu   item=core0   {util_pct:88}                          by=util_pct     yellow
+      item=-       {load_5m:3.2}                           by=load_5m      green
 ```
 
 Same data answers any question by picking the dimension to filter/group on:
 ```
-"what's red on web1?"        WHERE host=web1 & verdict=red          → /var pct_used, /api code+latency
-"is disk filling anywhere?"  HOW=disk & WHAT=pct_used & red          → group by WHERE
-"web1's disk column color?"  WHERE host=web1 & HOW=disk → rollup     → red
-"who gets paged for this?"   WHO = owner of those States             → team:storage
-"silence web1 tonight"       Suppression WHERE host=web1, window      → no alarms 22:00–23:00
+"what's red on web1?"        states host=web1 & verdict=red          → /var (disk), /api (http)
+"web1's disk column color?"  host=web1 & test=disk → rollup worst    → red
+"the /var capacity trend"    /series host=web1&test=disk&item=/var&metric=pct_used
+"who gets paged for this?"   owner of those States                   → team:storage
+"silence web1 tonight"       Suppression host=web1, window            → no alarms 22:00–23:00
 ```
 
 

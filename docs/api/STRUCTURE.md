@@ -91,7 +91,7 @@ flat states into the familiar aggregate "column color".
 |------------|----------|---------|
 | `host`     | WHERE (anchor)   | `host=web1` |
 | `test`     | HOW (anchor)     | `test=disk` |
-| `metric`   | WHAT             | `metric=pct_used` |
+| `item`     | WHERE (judged thing) | `item=/var` |
 | `selector` | free WHERE dims  | `selector=mount=/var,core=3` |
 | `verdict`  | the answer       | `verdict=red` |
 | `rollup`   | aggregate (max severity) | `rollup=host,test` → column color |
@@ -100,8 +100,9 @@ flat states into the familiar aggregate "column color".
 
 ```
 "what's red on web1?"        GET /states?host=web1&verdict=red
-"is disk filling anywhere?"  GET /states?test=disk&metric=pct_used&verdict=red
+"is disk filling anywhere?"  GET /states?test=disk&verdict=red
 "web1's disk column color?"  GET /states?host=web1&test=disk&rollup=host,test
+"the /var capacity trend"    GET /series?host=web1&test=disk&item=/var&metric=pct_used
 "ack an alarm"               POST /actions {type:ack, target:{alarm:"web1:disk:/var"}, duration:"2h"}
 "silence web1 tonight"       POST /suppressions {gates:stateToAlarm, selector:{host:web1}, window:{…}}
 ```
@@ -112,8 +113,8 @@ flat states into the familiar aggregate "column color".
 ```mermaid
 classDiagram
     class State {
-        id · host(WHERE) · test(HOW) · metric(WHAT) · labels
-        value · verdict · time
+        id · host(WHERE) · test(HOW) · item(WHERE) · labels
+        metrics(correlated) · by · verdict · time
     }
     class Alarm   { id · severity · status(firing/ack/resolved) · since · rule }
     class Action  { id · type · target · actor · params · suppression }
@@ -128,7 +129,8 @@ classDiagram
     Action ..> Suppression : may create
     Suppression ..> State : gates →Alarm
 ```
-Relationships in words: a Test produces many States (one per item/metric); a
+Relationships in words: a Test produces many States (one per item — the
+correlated metrics ride along in `metrics{}`, with `by` deciding the verdict); a
 Rule raises an Alarm from State (+severity); a Rule routes an Alarm to an Action;
 an operator Action may create a Suppression; a Suppression gates a transition.
 
