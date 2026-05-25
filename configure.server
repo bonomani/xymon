@@ -135,7 +135,13 @@ else
 	if test "$ENABLESSL" = "" -o "$ENABLESSL" = "y"
 	then
 		ENABLESSL="y"
-		SSLDEF="-DHAVE_OPENSSL"
+		# HAVE_OPENSSL  : gates HTTPS-probing code in xymonnet (legacy).
+		# HAVE_XYMON_TLS: gates native TLS for the Xymon wire protocol
+		#                 (xymond listener + sendmsg client path). Both
+		#                 are enabled together when OpenSSL is present;
+		#                 the defines are kept separate so each feature
+		#                 can be #ifdef'd independently in the source.
+		SSLDEF="-DHAVE_OPENSSL -DHAVE_XYMON_TLS"
 		if test "$OSSL2OK" = "Y"
 		then
 			SSLDEF="$SSLDEF -DHAVE_SSLV2_SUPPORT=1"
