@@ -44,6 +44,7 @@ if(XYMON_BUILD_SERVER)
 
     # messaging / combo
     sendmsg.c
+    xymon_tls.c
     ../xymond/combostatus.c
 
     # links / URLs
@@ -228,6 +229,7 @@ add_library(xymonclientcomm STATIC
     locator.c
     loadhosts.c
     sendmsg.c
+    xymon_tls.c
     xymond_ipc.c
     xymond_buffer.c
 )

@@ -365,8 +365,13 @@ add_compile_definitions(
 )
 
 # Legacy configure.server injects -DHAVE_OPENSSL when SSL support is enabled.
+# HAVE_OPENSSL gates xymonnet's HTTPS-probe code; HAVE_XYMON_TLS gates the
+# native TLS for the Xymon wire protocol (xymond listener + sendmsg client).
+# Both are enabled together when SSL is available; kept as separate defines so
+# each feature can be #ifdef'd independently. Targets already link ssl+crypto.
 if(ENABLE_SSL)
     add_compile_definitions(HAVE_OPENSSL)
+    add_compile_definitions(HAVE_XYMON_TLS)
 endif()
 
 if(APPLE)
