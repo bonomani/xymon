@@ -3,42 +3,49 @@ info:
   title: Xymon REST API
   version: 0.1.0-draft
   description: >
-    Minimal, read-only JSON view of Xymon status, over the xymond wire protocol
-    (xymondboard / xymondlog / ping). Spec-first DRAFT; no implementation yet.
-    Read-only on purpose for now -- status submission, disable/ack, and
-    streaming are intentionally deferred. See docs/api/00-DESIGN.md.
+    A REST/JSON interface over the Xymon (xymond) wire protocol. Spec-first
+    DRAFT contract; no implementation yet. Covers the full common surface --
+    reading status, submitting status, and host/test actions -- kept
+    deliberately simple: one auth scheme, plain JSON errors, predictable paths.
+    See docs/api/00-DESIGN.md.
   license:
     name: GPL-2.0-only
 
 servers:
   - url: /xymon/api/v1
 
-# Auth is handled by the front-end web server (reuse the existing Xymon web
-# user db). Kept to a single scheme for now.
 security:
   - basicAuth: []
+
+tags:
+  - { name: status, description: Read and submit host/test status. }
+  - { name: hosts,  description: Host-level views and actions. }
+  - { name: server, description: Server health and configuration. }
 
 paths:
   /ping:
     get:
-      summary: Server liveness (maps to the xymond `ping` verb).
+      tags: [server]
+      summary: Server liveness (maps to `ping`).
       operationId: ping
       responses:
         "200":
           description: xymond is alive.
-          content:
-            application/json:
-              schema: { $ref: "#/components/schemas/Pong" }
-        "502": { $ref: "#/components/responses/Error" }
+          content: { application/json: { schema: { $ref: "#/components/schemas/Pong" } } }
+        default: { $ref: "#/components/responses/Error" }
 
   /board:
     get:
+      tags: [status]
       summary: List status cells (maps to `xymondboard`).
       operationId: listBoard
       parameters:
-        - { name: host,  in: query, schema: { type: string }, description: Filter by host name. }
-        - { name: test,  in: query, schema: { type: string }, description: Filter by test name. }
-        - { name: color, in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: host,   in: query, schema: { type: string }, description: Filter by host name. }
+        - { name: test,   in: query, schema: { type: string }, description: Filter by test name. }
+        - { name: color,  in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: page,   in: query, schema: { type: string }, description: Filter by Xymon page/path. }
+        - { name: tag,    in: query, schema: { type: string }, description: Filter by host tag. }
+        - { name: limit,  in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
       responses:
         "200":
           description: Matching status cells.
@@ -48,27 +55,114 @@ paths:
                 type: object
                 required: [items]
                 properties:
-                  items:
-                    type: array
-                    items: { $ref: "#/components/schemas/BoardEntry" }
-        "401": { $ref: "#/components/responses/Error" }
-        "502": { $ref: "#/components/responses/Error" }
+                  items: { type: array, items: { $ref: "#/components/schemas/BoardEntry" } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /status:
+    post:
+      tags: [status]
+      summary: Submit (upsert) a host/test status (maps to `status`).
+      operationId: submitStatus
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/StatusSubmission" } } }
+      responses:
+        "202": { description: Status accepted. }
+        default: { $ref: "#/components/responses/Error" }
+
+  /hosts/{host}:
+    parameters: [ { $ref: "#/components/parameters/Host" } ]
+    get:
+      tags: [hosts]
+      summary: Host configuration/info (maps to `hostinfo`).
+      operationId: getHost
+      responses:
+        "200":
+          description: Host info.
+          content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } }
+        default: { $ref: "#/components/responses/Error" }
 
   /hosts/{host}/tests/{test}:
+    parameters:
+      - { $ref: "#/components/parameters/Host" }
+      - { $ref: "#/components/parameters/Test" }
     get:
+      tags: [status]
       summary: Full status detail for one cell (maps to `xymondlog`).
       operationId: getStatus
-      parameters:
-        - { name: host, in: path, required: true, schema: { type: string } }
-        - { name: test, in: path, required: true, schema: { type: string } }
       responses:
         "200":
           description: Status detail.
+          content: { application/json: { schema: { $ref: "#/components/schemas/StatusDetail" } } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /hosts/{host}/tests/{test}/disable:
+    parameters:
+      - { $ref: "#/components/parameters/Host" }
+      - { $ref: "#/components/parameters/Test" }
+    post:
+      tags: [status]
+      summary: Disable a test for a duration (maps to `disable`).
+      operationId: disableTest
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/DisableRequest" } } }
+      responses:
+        "202": { description: Disable accepted. }
+        default: { $ref: "#/components/responses/Error" }
+
+  /hosts/{host}/tests/{test}/enable:
+    parameters:
+      - { $ref: "#/components/parameters/Host" }
+      - { $ref: "#/components/parameters/Test" }
+    post:
+      tags: [status]
+      summary: Re-enable a disabled test (maps to `enable`).
+      operationId: enableTest
+      responses:
+        "202": { description: Enable accepted. }
+        default: { $ref: "#/components/responses/Error" }
+
+  /hosts/{host}/tests/{test}/ack:
+    parameters:
+      - { $ref: "#/components/parameters/Host" }
+      - { $ref: "#/components/parameters/Test" }
+    post:
+      tags: [status]
+      summary: Acknowledge a non-green status (maps to `ack`).
+      operationId: acknowledge
+      requestBody:
+        required: true
+        content: { application/json: { schema: { $ref: "#/components/schemas/Acknowledgement" } } }
+      responses:
+        "201": { description: Acknowledgement recorded. }
+        default: { $ref: "#/components/responses/Error" }
+
+  /ghosts:
+    get:
+      tags: [server]
+      summary: Hosts that reported but are not in hosts.cfg (maps to `ghostlist`).
+      operationId: listGhosts
+      responses:
+        "200":
+          description: Ghost reporters.
           content:
             application/json:
-              schema: { $ref: "#/components/schemas/StatusDetail" }
-        "404": { $ref: "#/components/responses/Error" }
-        "502": { $ref: "#/components/responses/Error" }
+              schema: { type: array, items: { $ref: "#/components/schemas/Ghost" } }
+        default: { $ref: "#/components/responses/Error" }
+
+  /config/{file}:
+    get:
+      tags: [server]
+      summary: Fetch a server config file (maps to `config`; allow-listed).
+      operationId: getConfig
+      parameters:
+        - { name: file, in: path, required: true, schema: { type: string }, description: "Config file name (server-side allow-list)." }
+      responses:
+        "200":
+          description: Raw config file contents.
+          content: { text/plain: { schema: { type: string } } }
+        default: { $ref: "#/components/responses/Error" }
 
 components:
   securitySchemes:
@@ -76,6 +170,10 @@ components:
       type: http
       scheme: basic
       description: Reuse the existing Xymon web user db (htpasswd).
+
+  parameters:
+    Host: { name: host, in: path, required: true, schema: { type: string }, description: Xymon host name. }
+    Test: { name: test, in: path, required: true, schema: { type: string }, description: Test/column name. }
 
   schemas:
     Color:
@@ -87,35 +185,83 @@ components:
       required: [alive]
       properties:
         alive: { type: boolean }
+        server_version: { type: string }
 
     BoardEntry:
       type: object
-      description: One status cell, from xymondboard.
+      description: One status cell, mirroring xymondboard fields.
       required: [hostname, testname, color]
       properties:
-        hostname:   { type: string }
-        testname:   { type: string }
-        color:      { $ref: "#/components/schemas/Color" }
-        lastchange: { type: string, format: date-time, nullable: true }
-        line1:      { type: string, description: First line of the status message. }
+        hostname:    { type: string }
+        testname:    { type: string }
+        color:       { $ref: "#/components/schemas/Color" }
+        lastchange:  { type: string, format: date-time, nullable: true }
+        logtime:     { type: string, format: date-time, nullable: true }
+        validtime:   { type: string, format: date-time, nullable: true }
+        acktime:     { type: string, format: date-time, nullable: true }
+        disabletime: { type: string, format: date-time, nullable: true }
+        sender:      { type: string }
+        line1:       { type: string, description: First line of the status message. }
 
     StatusDetail:
       allOf:
         - $ref: "#/components/schemas/BoardEntry"
         - type: object
           properties:
-            sender: { type: string }
             msg:    { type: string, description: Full status message text. }
+            ackmsg: { type: string, nullable: true }
+            dismsg: { type: string, nullable: true }
+            client: { type: string, nullable: true }
+
+    StatusSubmission:
+      type: object
+      required: [host, test, color]
+      properties:
+        host:     { type: string }
+        test:     { type: string }
+        color:    { $ref: "#/components/schemas/Color" }
+        message:  { type: string, description: Status text body. }
+        lifetime: { type: string, description: "Validity, e.g. '30m'." }
+
+    DisableRequest:
+      type: object
+      required: [duration]
+      properties:
+        duration: { type: string, description: "e.g. '60m', '2h', or '-1' for until-OK." }
+        reason:   { type: string }
+
+    Acknowledgement:
+      type: object
+      required: [duration, message]
+      properties:
+        duration: { type: string, description: "e.g. '60m'." }
+        message:  { type: string }
+
+    Host:
+      type: object
+      required: [hostname]
+      properties:
+        hostname: { type: string }
+        ip:       { type: string, nullable: true }
+        tags:     { type: array, items: { type: string } }
+        pages:    { type: array, items: { type: string } }
+
+    Ghost:
+      type: object
+      properties:
+        hostname: { type: string }
+        sender:   { type: string }
+        lastseen: { type: string, format: date-time, nullable: true }
 
     Error:
       type: object
       properties:
-        error:  { type: string }
-        detail: { type: string }
+        error:  { type: string, description: Short machine-readable code. }
+        detail: { type: string, description: Human-readable explanation. }
 
   responses:
     Error:
-      description: Error (HTTP status carries the kind).
+      description: Error; the HTTP status code carries the kind (400/401/403/404/409/502/504).
       content:
         application/json:
           schema: { $ref: "#/components/schemas/Error" }
