@@ -139,14 +139,16 @@ echo "  xymond pid $(cat "$PID_FILE") listening"
 
 # --- 4. handshake probe with openssl s_client -----------------------------
 echo "[4/5] mTLS handshake probe via openssl s_client"
+# No -servername: TLS_HOST is an IP, and LibreSSL's s_client (correctly per
+# RFC 6066) rejects an IP literal as SNI. No -tls1_3 either: xymond is
+# TLS-1.3-only, so the negotiation lands on 1.3 regardless, and we avoid
+# depending on s_client version-flag quirks across OpenSSL/LibreSSL.
 HS_OUT=$(echo "" | openssl s_client \
 		-connect "$TLS_HOST:$TLS_PORT" \
 		-cert "$CERT_DIR/client.crt" \
 		-key  "$CERT_DIR/client.key" \
 		-CAfile "$CERT_DIR/ca.crt" \
 		-verify_return_error \
-		-servername "$TLS_HOST" \
-		-tls1_3 \
 		2>&1 || true)
 
 if echo "$HS_OUT" | grep -q 'Verify return code: 0 (ok)'; then
