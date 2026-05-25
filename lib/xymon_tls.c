@@ -30,7 +30,12 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#ifndef LIBRESSL_VERSION_NUMBER
+/* OpenSSL keeps the SSL_R_* reason codes in <openssl/sslerr.h>; LibreSSL has
+ * no such header (and no SSL_R_UNEXPECTED_EOF_WHILE_READING). ssl.h above
+ * defines LIBRESSL_VERSION_NUMBER on LibreSSL, so this include is OpenSSL-only. */
 #include <openssl/sslerr.h>
+#endif
 #include <openssl/x509v3.h>
 
 #include "libxymon.h"
