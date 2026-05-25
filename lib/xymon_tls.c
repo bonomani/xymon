@@ -30,6 +30,7 @@
 
 #include <openssl/ssl.h>
 #include <openssl/err.h>
+#include <openssl/sslerr.h>
 #include <openssl/x509v3.h>
 
 #include "libxymon.h"
@@ -211,11 +212,12 @@ ssize_t xymon_tls_read(xymon_tls_t *t, void *buf, size_t len)
 {
 	int n;
 	if (!t || !t->ssl) { errno = EINVAL; return -1; }
+	ERR_clear_error();
 	n = SSL_read(t->ssl, buf, (int)len);
 	if (n > 0) return n;
 	switch (SSL_get_error(t->ssl, n)) {
 	  case SSL_ERROR_ZERO_RETURN:
-		return 0;   /* clean shutdown */
+		return 0;   /* peer sent close_notify -- clean end of stream */
 	  case SSL_ERROR_WANT_READ:
 	  case SSL_ERROR_WANT_WRITE:
 		/* Non-blocking socket: caller should retry. Signal via the
@@ -224,6 +226,21 @@ ssize_t xymon_tls_read(xymon_tls_t *t, void *buf, size_t len)
 		errno = EAGAIN;
 		return -1;
 	  case SSL_ERROR_SYSCALL:
+		/* errno==0 means the peer closed the TCP connection without a
+		 * TLS close_notify. Xymon's plaintext path treats a bare TCP FIN
+		 * as a clean end-of-stream (recv()==0), so mirror that here. */
+		if (errno == 0) return 0;
+		return -1;
+	  case SSL_ERROR_SSL:
+		/* OpenSSL 3.0+ reports a close without close_notify as a distinct
+		 * "unexpected eof while reading" SSL error rather than SYSCALL.
+		 * Treat it as EOF too, for parity with the plaintext path. */
+		if (ERR_GET_REASON(ERR_peek_error()) == SSL_R_UNEXPECTED_EOF_WHILE_READING) {
+			ERR_clear_error();
+			return 0;
+		}
+		log_ssl_err("SSL_read");
+		errno = EIO;
 		return -1;
 	  default:
 		log_ssl_err("SSL_read");

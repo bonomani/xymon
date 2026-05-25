@@ -4741,6 +4741,11 @@ done:
 			shutdown(msg->sock, SHUT_RD);
 		}
 		else if (msg->sock >= 0) {
+#ifdef HAVE_XYMON_TLS
+			/* Send a TLS close_notify before tearing down so the client
+			 * sees a clean end-of-stream rather than an unexpected EOF. */
+			if (msg->tls) { xymon_tls_close(msg->tls); msg->tls = NULL; }
+#endif
 			shutdown(msg->sock, SHUT_RDWR);
 			close(msg->sock);
 			msg->sock = -1;
@@ -6170,6 +6175,17 @@ int main(int argc, char *argv[])
 			if (sock >= 0) {
 				flags = fcntl(sock, F_GETFL, 0);
 				if (flags != -1) (void)fcntl(sock, F_SETFL, flags & ~O_NONBLOCK);
+
+				/* Bound the blocking handshake so a stalled or dead client
+				   cannot hang xymond's single-threaded loop. Uses the same
+				   budget (conn_timeout, default 30s) as live connections. */
+				{
+					struct timeval hstmo;
+					hstmo.tv_sec  = conn_timeout;
+					hstmo.tv_usec = 0;
+					(void)setsockopt(sock, SOL_SOCKET, SO_RCVTIMEO, &hstmo, sizeof(hstmo));
+					(void)setsockopt(sock, SOL_SOCKET, SO_SNDTIMEO, &hstmo, sizeof(hstmo));
+				}
 
 				tls = xymon_tls_server_handshake(sock, tls_server_ctx, &peer_cn);
 				if (!tls) {
