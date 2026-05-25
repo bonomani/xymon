@@ -55,6 +55,10 @@ PID_FILE="$RUN_DIR/xymond.pid"
 LOG_FILE="$RUN_DIR/xymond.log"
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
 
+# Valid XYMONHOME so xymond can set up its channels regardless of the build's
+# configured install prefix (and in CI).
+export XYMONHOME="$RUN_DIR"
+
 cleanup() {
 	rc=$?
 	if [ -s "$PID_FILE" ]; then

@@ -72,3 +72,15 @@ jobs:
         run: |
           echo "running make with $(nproc) parallel processes"
           make -j$(nproc)
+
+      - name: TLS tests
+        if: matrix.variant == 'server'
+        run: |
+          set -e
+          for t in tests/tls/test-handshake.sh \
+                   tests/tls/test-largemsg.sh \
+                   tests/tls/test-modes.sh \
+                   tests/tls/test-concurrency.sh; do
+            echo "== $t =="
+            sh "$t"
+          done

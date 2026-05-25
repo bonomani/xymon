@@ -44,6 +44,11 @@ PID_FILE="$RUN_DIR/xymond.pid"
 LOG_FILE="$RUN_DIR/xymond.log"
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
 
+# xymond needs a valid XYMONHOME to set up its channels; point it at the
+# throwaway run dir so the test works regardless of the build's configured
+# install prefix (and in CI).
+export XYMONHOME="$RUN_DIR"
+
 # Single cleanup path.
 cleanup() {
 	rc=$?
@@ -112,16 +117,17 @@ echo "[3/5] Start xymond with --tls-listen=$TLS_HOST:$TLS_PORT"
 	>"$LOG_FILE" 2>&1 &
 echo $! >"$PID_FILE"
 
-# Wait for the TLS port to actually accept connections.
+# Wait for the TLS port to accept connections. Portable probe (no bash
+# /dev/tcp): retry a TLS connection attempt until it goes through.
 i=0
 while [ $i -lt 50 ]; do
-	if (echo >/dev/tcp/$TLS_HOST/$TLS_PORT) 2>/dev/null; then
+	if openssl s_client -connect "$TLS_HOST:$TLS_PORT" </dev/null >/dev/null 2>&1; then
 		break
 	fi
 	i=$((i + 1))
-	sleep 0.1
+	sleep 0.2
 done
-if ! (echo >/dev/tcp/$TLS_HOST/$TLS_PORT) 2>/dev/null; then
+if [ $i -ge 50 ]; then
 	echo "FAIL: xymond never opened $TLS_HOST:$TLS_PORT" >&2
 	exit 1
 fi

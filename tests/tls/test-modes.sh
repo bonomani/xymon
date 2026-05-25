@@ -29,6 +29,10 @@ RUN_DIR=$(mktemp -d -t xymon-tls-modes.XXXXXX)
 HOSTS_FILE="$RUN_DIR/hosts.cfg"
 PID=""
 
+# Valid XYMONHOME so xymond can set up its channels regardless of the build's
+# configured install prefix (and in CI).
+export XYMONHOME="$RUN_DIR"
+
 stop_xymond() {
 	[ -n "$PID" ] && kill "$PID" 2>/dev/null || true
 	[ -n "$PID" ] && { sleep 1; kill -9 "$PID" 2>/dev/null || true; }
