@@ -201,19 +201,22 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
 
 ## Next step
 
-Remaining for "full" TLS (all lower priority — the core feature works):
-1. **CI** — the `ipv6-e2e` lane now runs `tests/ipv6-tls/smoke.sh` (IPv6 + TLS +
-   mTLS, 9 checks). It'll execute once GitHub Actions triggering is back (it was
-   stuck repo-wide on 2026-05-26; the lane + script are ready).
-2. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
-   sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model). Needs a
-   design decision (cert-identity → hosts.cfg authorization).
+Done & proven (all lower-priority items now complete):
+- ✅ **cert-based sender ACL** — a verified TLS client cert authorizes the sender,
+  bypassing the IP `oksender` ACL (status/data/www/maint) and closing the pure-v6
+  stopgap. Decision taken: **trust except admin** — admin/config still requires
+  `adminsenders` (via `ok_admin_sender`). Proven (smoke phase 3, 11/11): with
+  `--status-senders` restricted, a non-cert sender is dropped, a cert sender gets
+  through.
+- ✅ **Build hygiene** — `IPV*_SUPPORT` via a `configure` probe
+  (`build/ipv6.sh` → `IPV6DEF`); `HAVE_XYMON_TLS` gated on `$(SSLFLAGS)`.
 
-- ✅ **Build hygiene DONE** — `IPV*_SUPPORT` now via a `configure` probe
-  (`build/ipv6.sh` → `IPV6DEF`), not hardcoded; `HAVE_XYMON_TLS` gated on the SSL
-  probe (`$(SSLFLAGS)`). Verified: smoke test still 9/9 with the probe-driven build.
+Only remaining item:
+- **CI execution** — the manual `ipv6-test.yml` lane runs `tests/ipv6-tls/smoke.sh`;
+  it'll run once GitHub's Actions auth incident (2026-05-26) is mitigated. Code +
+  lane are ready; nothing to fix.
 
-Status: **IPv6 (P1) complete & proven. TLS (P2) functional & proven** —
-handshake, TLS 1.3 floor, request/response + ingest, and client-side `xymons://`
-with enforced server-cert verification, all over pure `::1`. TLS is opt-in
-(`--tls-cert` server / `xymons://` client); plaintext + IPv4 unaffected.
+Status: **IPv6 (P1) and TLS/mTLS (P2) complete & proven** — handshake, TLS 1.3
+floor, request/response + ingest, `xymons://` client with enforced server-cert
+verification, mutual TLS, and cert-based sender authorization, all over pure
+`::1` (smoke test 11/11). TLS is opt-in; plaintext + IPv4 unaffected.
