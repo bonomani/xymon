@@ -265,48 +265,49 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 		dbgprintf("HTTP message is:\n%s\n", httpmessage);
 	}
 
-	if (inet_aton(rcptip, &addr) == 0) {
-		/* recipient is not an IP - do DNS lookup */
-
-		struct hostent *hent;
-		char hostip[IP_ADDR_STRLEN];
-
-		hent = gethostbyname(rcptip);
-		if (hent) {
-			memcpy(&addr, *(hent->h_addr_list), sizeof(struct in_addr));
-			strncpy(hostip, inet_ntoa(addr), sizeof(hostip));
-
-			if (inet_aton(hostip, &addr) == 0) {
-				result = XYMONSEND_EBADIP;
-				goto done;
-			}
-		}
-		else {
-			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Cannot determine IP address of message recipient %s", rcptip);
-			result = XYMONSEND_EIPUNKNOWN;
-			goto done;
-		}
-	}
-
 retry_connect:
 	dbgprintf("Will connect to address %s port %d\n", rcptip, rcptport);
 
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = addr.s_addr;
-	saddr.sin_port = htons(rcptport);
+	/*
+	 * Resolve + connect via getaddrinfo (AF_UNSPEC) so the recipient may be an
+	 * IPv4 or IPv6 literal, or a hostname resolving to either. Try each result
+	 * with a non-blocking connect; the select() loop below handles completion.
+	 */
+	{
+		struct addrinfo hints, *ai = NULL, *aip;
+		char portstr[16];
+		int gai;
 
-	/* Get a non-blocking socket */
-	sockfd = socket(PF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1) { result = XYMONSEND_ENOSOCKET; goto done; }
-	res = fcntl(sockfd, F_SETFL, O_NONBLOCK);
-	if (res != 0) { result = XYMONSEND_ECANNOTDONONBLOCK; goto done; }
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		snprintf(portstr, sizeof(portstr), "%d", rcptport);
 
-	res = connect(sockfd, (struct sockaddr *)&saddr, sizeof(saddr));
-	if ((res == -1) && (errno != EINPROGRESS)) {
-		snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "connect to Xymon daemon@%s:%d failed (%s)", rcptip, rcptport, strerror(errno));
-		result = XYMONSEND_ECONNFAILED;
-		goto done;
+		gai = getaddrinfo(rcptip, portstr, &hints, &ai);
+		if ((gai != 0) || !ai) {
+			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "Cannot resolve message recipient %s:%d (%s)", rcptip, rcptport, gai_strerror(gai));
+			result = XYMONSEND_EIPUNKNOWN;
+			goto done;
+		}
+
+		sockfd = -1;
+		for (aip = ai; aip; aip = aip->ai_next) {
+			sockfd = socket(aip->ai_family, aip->ai_socktype, aip->ai_protocol);
+			if (sockfd == -1) continue;
+			if (fcntl(sockfd, F_SETFL, O_NONBLOCK) != 0) { close(sockfd); sockfd = -1; continue; }
+			res = connect(sockfd, aip->ai_addr, aip->ai_addrlen);
+			if ((res == 0) || ((res == -1) && (errno == EINPROGRESS))) break;	/* connecting */
+			close(sockfd); sockfd = -1;
+		}
+		freeaddrinfo(ai);
+
+		if (sockfd == -1) {
+			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "connect to Xymon daemon@%s:%d failed (%s)", rcptip, rcptport, strerror(errno));
+			result = XYMONSEND_ECONNFAILED;
+			goto done;
+		}
 	}
 
 	rdone = ((respfd == NULL) && (respstr == NULL));
