@@ -58,13 +58,22 @@ LibreSSL guard is moot; LibreSSL still to confirm in CI). Result reframes P2 fro
 cheaper than estimated.
 
 **P1 — tcplib + IPv6 transport, plaintext only (`CONN_SSL_NO`).**
-Port from devel (source applies cleanly — `main` files are identical to devel's
-base): `tcplib.c/h`, `sendmsg.c` connect, `xymond.c` listener/event-loop (45
-call-sites), `ipaccess.c/h`, `loadhosts_net.c` (hosts.cfg v6 parsing),
-`xymond_ipc.c/h`, `build/test-ipv6.c` + build hooks (`Makefile.rules`,
-`configure.*`, `genconfig.sh`). **Disentangle from the 4.3 trunk** — take only
-these files, *not* compression/packaging. Goal: v6 client→xymond report
-end-to-end; **IPv4 must stay unbroken**.
+
+- **Step 1 ✅ DONE** — `lib/tcplib.{c,h}` compiled into `libxymoncomm.a`
+  (`XYMONCOMMLIBOBJS` + explicit `tcplib.o` rule w/ `$(SSLFLAGS)`); builds clean
+  on OpenSSL 3.0.2, full server build still links. `tcplib.c` is the *only*
+  cleanly-separable file.
+- **Step 2 — FINDING: devel's `xymond.c`/`sendmsg.c` are NOT IPv6-only.** Beyond
+  `conn_*` (tcplib, have it), devel's `xymond.c` calls `uncompress_message` /
+  `compress` / `compressiontype` (devel **compression**) and the reworked
+  sendmsg API (`sendmessage_safe/_buffer/_local`, `combo_addchar`,
+  `backfeedqueuenumber`, `setup_feedback_queue`). They can't be lifted without
+  pulling most of the 4.3 server. **Consequence:** step 2 = *hand-wire* tcplib
+  into main's `xymond.c` (write `conn_init_server` + the read/write callback
+  ourselves, no compression/backfeed) — genuine dev, ~the listener rewrite, not
+  a file copy. Same for `sendmsg.c` client connect.
+
+Goal unchanged: v6 client→xymond report end-to-end; **IPv4 must stay unbroken**.
 
 **P2 — Graft TLS hardening (the A′ core).** *Additive*, per P0 — keep tcplib's
 crypto, add what it lacks (reuse `lib/xymon_tls.c`): client-side
