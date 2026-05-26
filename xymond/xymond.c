@@ -3497,7 +3497,9 @@ static const char *capname(unsigned int cap)
 /*
  * Single access-control chokepoint for an incoming message, capability-based,
  * transport-aware and v4/v6, via the unified ACL (lib/acl.c). The cert/admin
- * rule is data, not code: a cert:* rule simply omits ACL_CAP_ADMIN.
+ * rule is data, not code: a cert:* rule omits ACL_CAP_ADMIN by convention, and
+ * granting admin to cert:* (or any broad source) requires an explicit `force`
+ * on the rule (see acl_audit_admin).
  *
  *  - no --acl configured  -> allow all (the historical "no sender list" default).
  *  - local backfeed IPC (sender 0.0.0.0) -> always trusted.

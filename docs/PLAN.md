@@ -241,6 +241,12 @@ Done & proven (all lower-priority items now complete):
   `adminsenders` (via `ok_admin_sender`). Proven (smoke phase 3, 11/11): with
   `--status-senders` restricted, a non-cert sender is dropped, a cert sender gets
   through.
+  - **SUPERSEDED by P5 (unified `--acl`):** the final design removed `oksender`
+    and the `--*-senders` lists entirely. A cert is no longer a *bypass* — it is
+    matched by `cert:*` / `cert:<id>` rules in the rule table; admin is data
+    (omitted from `cert:*` by default, grantable only with `force`), not a
+    hard-coded `ok_admin_sender` exception. The bypass / `--status-senders`
+    wording above is historical.
 - ✅ **Build hygiene** — `IPV*_SUPPORT` via a `configure` probe
   (`build/ipv6.sh` → `IPV6DEF`); `HAVE_XYMON_TLS` gated on `$(SSLFLAGS)`.
 

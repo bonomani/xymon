@@ -11,8 +11,10 @@ build has no OpenSSL.
 - **TLS** — an encrypted listener (`xymons://`), with the client verifying the
   server certificate by default.
 - **mTLS** — the server can require + verify a client certificate.
-- **Certificate-based sender authorization** — a verified client cert is a
-  trusted sender, bypassing the IP-based access list (admin commands excepted).
+- **Certificate-based sender authorization** — a verified client cert is matched
+  by `cert:*` / `cert:<id>` rules in the `--acl`, so you can authorize senders
+  (including IPv6) by certificate instead of by IP. A cert is a reporter, not an
+  admin, unless a rule grants it admin explicitly (with `force`).
 
 For copy-paste setup per deployment (isolated / internet / hybrid), see
 `ipv6-tls-deployment.md`. This document is the reference for the *why* and the
