@@ -89,6 +89,19 @@ cheaper than estimated.
 Goal unchanged: v6 client→xymond report end-to-end; **IPv4 must stay unbroken**.
 Open: the v6-sender-ACL decision (a/b/c) gates how P1 finishes.
 
+- **Step 2 ✅ DONE & PROVEN (server listener).** Hand-wired tcplib into xymond:
+  `conn_init_server` on `[::]:port`, loop now `conn_fdset`/`conn_process_*`/
+  `conn_trimactive`, new `xymond_conn_cb()` accumulates to EOF → `do_message` →
+  response, with the stopgap `conn_peer_in_addr()` for the IPv4 ACL. **Runtime
+  proof:** xymond listens on tcp6 `*:PORT`; a `ping` over the `[::]` socket
+  (v4-mapped `127.0.0.1`, i.e. an `AF_INET6` peer) returns `xymond 4.3.30`
+  end-to-end; IPv4 preserved. Pure non-mapped v6 peer **not testable on the dev
+  box** (no `::1`, dummy0 link-local won't loop back TCP) → verify on CI/BSD.
+  - Build-hygiene notes (follow-up): `IPV4_SUPPORT`/`IPV6_SUPPORT` are hardcoded
+    on the `tcplib.o` rule — should come from a `build/test-ipv6` probe like
+    devel's. And changing only the Makefile recipe doesn't rebuild `tcplib.o`
+    (needs `rm lib/tcplib.o` / clean build) — fine from clean.
+
 **P2 — Graft TLS hardening (the A′ core).** *Additive*, per P0 — keep tcplib's
 crypto, add what it lacks (reuse `lib/xymon_tls.c`): client-side
 `SSL_CTX_set_verify` + full/peer/none modes, `X509_VERIFY_PARAM_set1_host`/
@@ -129,6 +142,12 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
 
 ## Next step
 
-P0 done. Run **P1**: properly integrate `tcplib.c/h` + the IPv6 transport files
-into the legacy build (real `configure`/Makefile, not a stub), plaintext only,
-and prove a v6 client→xymond report end-to-end with IPv4 unbroken.
+P0 + P1 (server listener) done & proven. Choose the next unit:
+1. **Client side** — give `sendmsg.c` a getaddrinfo/tcplib connect so the `xymon`
+   client can *send* to a v6 server (proves true client→server v6, not just a
+   raw probe). Finishes P1's "client→xymond" with the real client.
+2. **CI verify pure-v6** — add a BSD/Linux CI lane with a real `::1`/v6 address to
+   exercise the non-mapped v6 path the dev box can't.
+3. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
+   tcplib, which also gives the cert-based auth that replaces the IPv4 ACL.
+4. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
