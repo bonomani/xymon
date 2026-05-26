@@ -205,6 +205,7 @@ typedef struct conn_t {
 	struct sockaddr_in addr;	/* Client source address */
 	unsigned char *buf, *bufp;	/* Message buffer and pointer */
 	size_t buflen, bufsz;		/* Active and maximum length of buffer */
+	size_t msgsz;			/* Declared body size from a "size:N" frame (0 = none) */
 	int doingwhat;			/* Communications state (NOTALK, READING, RESPONDING) */
 	time_t timeout;			/* When the timeout for this connection happens */
 	struct conn_t *next;
@@ -5300,7 +5301,40 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 		}
 		else if (n > 0) {
 			msg->bufp += n; msg->buflen += n; *(msg->bufp) = '\0';
-			if ((msg->bufsz - msg->buflen) < 2048) {
+
+			/* A "size:N\n" frame lets us dispatch on a declared byte-count
+			 * instead of EOF -- required over TLS, where the half-close EOF
+			 * signal isn't reliable (records sit buffered inside OpenSSL). */
+			if ((msg->msgsz == 0) && (msg->buflen >= 5) &&
+			    (strncasecmp((char *)msg->buf, "size:", 5) == 0)) {
+				char *eol = strchr((char *)msg->buf, '\n');
+				if (eol) {
+					size_t hdrlen = (eol - (char *)msg->buf) + 1;
+					long declared = atol((char *)msg->buf + 5);
+					if ((declared <= 0) || (declared > MAX_XYMON_INBUFSZ)) {
+						errprintf("Bad size: frame from %s - dropping\n", conn_print_ip(conn));
+						msg->doingwhat = NOTALK;
+					}
+					else {
+						/* strip the "size:N\n" header, keep the body */
+						msg->msgsz = (size_t)declared;
+						msg->buflen -= hdrlen;
+						memmove(msg->buf, msg->buf + hdrlen, msg->buflen + 1);
+						msg->bufp = msg->buf + msg->buflen;
+					}
+				}
+			}
+
+			if ((msg->msgsz > 0) && (msg->buflen >= msg->msgsz)) {
+				/* Sized message complete -- dispatch now, no EOF needed. */
+				*(msg->bufp) = '\0';
+				do_message(msg, "");
+				if ((msg->doingwhat == RESPONDING) && (msg->buflen > 0))
+					msg->bufp = msg->buf;
+				else
+					msg->doingwhat = NOTALK;
+			}
+			else if ((msg->bufsz - msg->buflen) < 2048) {
 				if (msg->bufsz < MAX_XYMON_INBUFSZ) {
 					msg->bufsz += XYMON_INBUF_INCREMENT;
 					msg->buf = (unsigned char *)realloc(msg->buf, msg->bufsz);
@@ -5313,15 +5347,20 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 			}
 		}
 		else {
-			/* n == 0, not a handshake state: peer finished writing (plaintext
-			 * EOF or TLS close_notify). The message is complete. */
-			*(msg->bufp) = '\0';
-			msg->sock = conn->sock;
-			do_message(msg, "");
-			if ((msg->doingwhat == RESPONDING) && (msg->buflen > 0))
-				msg->bufp = msg->buf;
-			else
-				msg->doingwhat = NOTALK;
+			/* n == 0 and not a handshake/SSL-IO state. For PLAINTEXT this is
+			 * EOF (peer half-closed) -> the message is complete. For an SSL
+			 * connection (CONN_SSL_READY) it just means "no data yet" -- TLS
+			 * messages are delimited by the size: frame, never by EOF -- so
+			 * wait for more. */
+			if (conn->connstate == CONN_PLAINTEXT) {
+				*(msg->bufp) = '\0';
+				msg->sock = conn->sock;
+				do_message(msg, "");
+				if ((msg->doingwhat == RESPONDING) && (msg->buflen > 0))
+					msg->bufp = msg->buf;
+				else
+					msg->doingwhat = NOTALK;
+			}
 		}
 		break;
 
