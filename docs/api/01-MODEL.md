@@ -53,9 +53,9 @@ pipeline.
   |----------|-----------------------|---------------------------------------------------|------------|
   | WHERE    | which thing is judged | `host` + `item` (filesystem/url/core) + labels    | identity   |
   | HOW      | by what probe         | `test` (`disk`, `http`) + `sender`                | provenance |
-  | WHAT     | its measurements      | `metrics{}` (correlated); `by` = the deciding one | content    |
+  | WHAT     | its measurements      | `metrics{}` — each may carry its own verdict      | content    |
   | WHEN     | at what instant       | `time`                                            | content    |
-  | —        | the result            | `verdict` (one color)                             | the answer |
+  | —        | the result            | `verdict` — a semantic **status** (colour is render) | the answer |
   | WHY      | why it matters        | the **Rule**                                      | → Alarm    |
   | WHO      | who is responsible    | `owner`                                           | → Action   |
 
@@ -68,13 +68,17 @@ Consequences:
   are **WHERE**; the numbers are **WHAT** — but they live in `metrics{}` on the
   *one* State, because they are **correlated facets** of a single measurement
   (`avail = total − used`, `cap = used/total`). They are **not** separate States.
-- **Split by independent verdict, not by metric.** Correlated measurements of
-  one judged thing → one compact State (one line). Genuinely independent
-  thresholds → separate States. An item thresholded on two aspects (capacity
-  *and* inodes) still has **one** color = the worst — one State.
-- `by` names the metric that drives the verdict (assigned by a **Rule** over it);
-  the rest are data, read and graphed via `/series`.
-- The classic **"column color" is a group-by rollup** — `group by {host,test} →
+- **One State per item, not per metric.** Correlated measurements of one judged
+  thing live in `metrics{}` on a single State (one line) — not split apart.
+- **Verdicts are per-metric and semantic.** A Rule assigns a *status* —
+  `ok` / `warning` / `critical` / `disabled` / `nodata` / `unknown`, **never a
+  colour** — to a metric; metrics with no rule are data (graph via `/series`).
+  The item's status = **worst** of its metrics; column / host / page = worst
+  over the level below — one operator at every level. **Colour is a pure render
+  mapping** (ok→green, warning→yellow, critical→red, disabled→blue,
+  nodata→clear, unknown→purple), so themes / colour-blindness / relabelling stay
+  a render concern.
+- The classic **"column colour" is a group-by rollup** — `group by {host,test} →
   worst` over the host's item-States. Computed on demand, never stored; many
   overlapping rollups (by service, datacenter) coexist.
 - Anchors `host`/`test`/`item` are always present; free labels are test-emitted.
@@ -85,29 +89,30 @@ Consequences:
 3. Worked examples
 ------------------
 A `disk` status on `web1` — **one State per filesystem** (Xymon's one line);
-`by`=`pct_used` drives the color, the other numbers are correlated data:
+each metric carries its own semantic status, and the item status is the worst:
 
 ```
 host=web1  test=disk
- item    metrics{}                        by         verdict
- /var    { pct_used:96, inodes:41 }       pct_used   red
- /       { pct_used:38 }                  pct_used   green
- /home   { pct_used:72 }                  pct_used   yellow
+ item    metrics (value · status)                     item status
+ /var    pct_used 96 critical · inodes 41 ok           critical
+ /       pct_used 38 ok                                 ok
+ /home   pct_used 72 warning                            warning
 ```
-Classic "disk column color" for web1 = `group by {host,test} → worst` = **red**.
+Classic "disk column" for web1 = `group by {host,test} → worst` = **critical**
+(rendered red).
 
-A real Windows disk line decomposes the same compact way — one item, several
-correlated metrics, one verdict:
+A real Windows disk line decomposes the same way — one item; only capacity is
+ruled, the rest are data:
 ```
-host=ifmspc-usr2.ad1.i01.gtbcr.org  test=disk
- item  labels                            metrics{}                                               by   verdict
- C:    {mount:/FIXED/C:\, label:Windows} {cap:17, total_gb:951.65, used_gb:163.26, avail_gb:788.39}  cap  green
+host=ifmspc-usr2.ad1.i01.gtbcr.org  test=disk     labels {mount:/FIXED/C:\, label:Windows}
+ item  metrics (value · status)                                       item status
+ C:    cap 17 ok · total 951.65G · used 163.26G · avail 788.39G        ok
 ```
 
-The pipeline acting on the red filesystem (WHY, then WHO):
+The pipeline acting on the critical filesystem (WHY, then WHO):
 ```
-State{host=web1, test=disk, item=/var}   by pct_used = 96
-   │  WHY → Rule:  "pct_used ≥ 90 ⇒ red, severity=major"
+State{host=web1, test=disk, item=/var}   metric pct_used = 96
+   │  WHY → Rule:  "pct_used ≥ 90 ⇒ critical"
    ▼
 Alarm  (firing, major)
    │  WHO → owner=team:storage → route=pager
@@ -120,19 +125,19 @@ maintenance   Suppression{ where: host=web1, window: 22:00–23:00 }   holds  St
 acknowledge   Action{type:ack} ⇒ Suppression{ alarm:this }           holds  Alarm→Action
 ```
 
-Other test types — same shape, one State per item, `metrics{}` + `by`:
+Other test types — same shape, one State per item, per-metric status:
 ```
-http  item=/api    {status_code:503, latency_ms:1200}   by=status_code  red
-      item=/login  {status_code:200, latency_ms:142}    by=status_code  green
-conn  item=-       {reachable:1}                          by=reachable    green   ← single-item test
-cpu   item=core0   {util_pct:88}                          by=util_pct     yellow
-      item=-       {load_5m:3.2}                           by=load_5m      green
+http  item=/api    status_code 503 critical · latency_ms 1200 warning   → critical
+      item=/login  status_code 200 ok        · latency_ms 142 ok        → ok
+conn  item=-       reachable 1 ok                                        → ok
+cpu   item=cpu     util_pct 88 warning · load_5m 3.2 ok                  → warning
 ```
+(`cpu` shows two independently-ruled metrics on one item; the item = worst.)
 
 Same data answers any question by picking the dimension to filter/group on:
 ```
-"what's red on web1?"        states host=web1 & verdict=red          → /var (disk), /api (http)
-"web1's disk column color?"  host=web1 & test=disk → rollup worst    → red
+"what's wrong on web1?"      states host=web1 & verdict=critical     → /var (disk), /api (http)
+"web1's disk column?"        host=web1 & test=disk → rollup worst    → critical (→red)
 "the /var capacity trend"    /series host=web1&test=disk&item=/var&metric=pct_used
 "who gets paged for this?"   owner of those States                   → team:storage
 "silence web1 tonight"       Suppression host=web1, window            → no alarms 22:00–23:00

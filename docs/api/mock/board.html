@@ -2,45 +2,47 @@
 <!--
   Xymon REST API — board mockup (static, self-contained).
 
-  A faithful classic-Xymon status grid rendered ENTIRELY from data shaped like
-  the new REST API (see ../openapi.yaml, ../01-MODEL.md). The fixtures below are
-  exactly what these endpoints would return:
-     BOARD   ← GET /states?rollup=host,test       (cell color = verdict)
-     DETAIL  ← GET /states?host=..&test=..         (atomic per-item states)
-     SERIES  ← GET /series?host=..&test=..&metric=.. (history → /graphs sparkline)
-  No backend, no build step: open this file in a browser.
+  Renders the classic Xymon board ENTIRELY from data shaped like the REST API
+  (see ../openapi.yaml, ../01-MODEL.md). Demonstrates:
+   - verdict is a SEMANTIC severity (ok/warning/critical/…); colour is a
+     rendering choice mapped here (so meaning ≠ presentation).
+   - grouping by ANY label — the dropdown switches os (discovered) / site
+     (assigned); a "View" is just a curated arrangement of these.
+   - one State per item; each ruled metric carries its own severity; the item
+     and column verdicts are the WORST consolidation.
+  Fixtures mirror: GET /states?<group>=…&rollup=host,test (cells),
+  GET /states?host&test (drill-down), GET /series + /graphs (sparkline).
+  No backend, no build: open in a browser.
 -->
 <html lang="en">
 <head>
 <meta charset="utf-8">
 <title>Xymon — status board (API mock)</title>
 <style>
-  body { font-family: Verdana, Geneva, sans-serif; font-size: 12px;
-         background: #ffffff; color: #000; margin: 0; }
-  .topbar { background: #304860; color: #fff; padding: 10px 16px; font-weight: bold;
-            font-size: 15px; letter-spacing: .5px; display:flex; justify-content:space-between; }
-  .topbar small { font-weight: normal; opacity:.8; }
-  .wrap { padding: 14px 16px; }
-  .api  { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
-          color:#456; background:#eef2f6; border:1px solid #d4dde6; border-radius:4px;
-          padding:4px 8px; display:inline-block; margin-bottom:10px; }
+  body { font-family: Verdana, Geneva, sans-serif; font-size: 12px; background:#fff; color:#000; margin:0; }
+  .topbar { background:#304860; color:#fff; padding:10px 16px; font-weight:bold; font-size:15px;
+            display:flex; justify-content:space-between; }
+  .topbar small { font-weight:normal; opacity:.8; }
+  .wrap { padding:14px 16px; }
+  .api  { font-family: ui-monospace, Menlo, Consolas, monospace; font-size:11px; color:#456;
+          background:#eef2f6; border:1px solid #d4dde6; border-radius:4px; padding:4px 8px;
+          display:inline-block; margin-bottom:10px; }
+  .controls { display:flex; gap:18px; align-items:center; flex-wrap:wrap; margin-bottom:8px; }
+  label.flt { font-size:11px; color:#456; }
+  .legend { font-size:11px; color:#456; display:flex; gap:12px; align-items:center; }
   h2.page { font-size:13px; color:#304860; margin:16px 0 6px; border-bottom:2px solid #304860;
             padding-bottom:3px; display:flex; align-items:center; gap:10px; }
   h2.page .api { margin-bottom:0; }
-  table.board { border-collapse: collapse; }
+  table.board { border-collapse:collapse; }
   table.board th, table.board td { border:1px solid #c7c7c7; padding:5px 9px; text-align:center; }
-  table.board th { background:#f0f0f0; font-weight:bold; }
-  table.board th.host { text-align:left; min-width:120px; }
+  table.board th { background:#f0f0f0; } table.board th.host { text-align:left; min-width:120px; }
   td.host { text-align:left; font-weight:bold; background:#fafafa; }
   .ball { display:inline-block; width:14px; height:14px; border-radius:50%;
-          box-shadow: inset -2px -2px 3px rgba(0,0,0,.35); cursor:pointer; }
-  .green  { background:#1aab1a; } .yellow { background:#f5d800; }
-  .red    { background:#e80000; } .blue   { background:#2b7be0; }
-  .clear  { background:#c4c4c4; } .purple { background:#9b1bb0; }
-  .none   { color:#bbb; }
-  label.flt { font-size:11px; color:#456; margin-left:14px; cursor:pointer; }
-  /* drill-down */
-  #detail { margin-top:18px; border:1px solid #c7c7c7; border-radius:4px; max-width:680px; display:none; }
+          box-shadow: inset -2px -2px 3px rgba(0,0,0,.35); cursor:pointer; vertical-align:middle; }
+  .green{background:#1aab1a}.yellow{background:#f5d800}.red{background:#e80000}
+  .blue{background:#2b7be0}.clear{background:#c4c4c4}.purple{background:#9b1bb0}
+  .none { color:#bbb; }
+  #detail { margin-top:18px; border:1px solid #c7c7c7; border-radius:4px; max-width:720px; display:none; }
   #detail h3 { margin:0; padding:8px 12px; background:#304860; color:#fff; font-size:13px; border-radius:4px 4px 0 0; }
   #detail .body { padding:10px 12px; }
   table.items { border-collapse:collapse; width:100%; font-size:11px; }
@@ -55,8 +57,16 @@
   <small>rendered from the REST API model — <span id="ts"></span></small></div>
 
 <div class="wrap">
-  <span class="api">GET /views &nbsp;→&nbsp; per page: GET /states?os=…&amp;rollup=host,test</span>
-  <label class="flt"><input type="checkbox" id="onlyprob"> show only problems (verdict≠green)</label>
+  <div class="controls">
+    <span class="api">per page: GET /states?&lt;group&gt;=…&amp;rollup=host,test</span>
+    <label class="flt">group by
+      <select id="groupby">
+        <option value="os">os (discovered)</option>
+        <option value="site">site (assigned)</option>
+      </select></label>
+    <label class="flt"><input type="checkbox" id="onlyprob"> show only problems</label>
+    <span class="legend" id="legend"></span>
+  </div>
   <div id="grid"></div>
   <div id="detail">
     <h3 id="dtitle"></h3>
@@ -69,77 +79,79 @@
 </div>
 
 <script>
-// ---- fixtures (exactly the API response shapes) -------------------------
-const BOARD = { items: [   // GET /states?rollup=host,test
-  {host:"web1",    test:"conn", verdict:"green"},
-  {host:"web1",    test:"cpu",  verdict:"green"},
-  {host:"web1",    test:"disk", verdict:"red"},
-  {host:"web1",    test:"http", verdict:"green"},
-  {host:"db1",     test:"conn", verdict:"green"},
-  {host:"db1",     test:"cpu",  verdict:"yellow"},
-  {host:"db1",     test:"disk", verdict:"green"},
-  {host:"router1", test:"conn", verdict:"green"},
-  {host:"router1", test:"cpu",  verdict:"green"},
-  {host:"router1", test:"http", verdict:"clear"},
-  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"conn", verdict:"green"},
-  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"cpu",  verdict:"green"},
-  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"disk", verdict:"green"},
+// ---- fixtures (API response shapes) -------------------------------------
+// verdict is a SEMANTIC severity, never a colour.
+const BOARD = { items: [   // GET /states?<group>=..&rollup=host,test
+  {host:"web1",    test:"conn", verdict:"ok"},
+  {host:"web1",    test:"cpu",  verdict:"ok"},
+  {host:"web1",    test:"disk", verdict:"critical"},
+  {host:"web1",    test:"http", verdict:"ok"},
+  {host:"db1",     test:"conn", verdict:"ok"},
+  {host:"db1",     test:"cpu",  verdict:"warning"},
+  {host:"db1",     test:"disk", verdict:"ok"},
+  {host:"router1", test:"conn", verdict:"ok"},
+  {host:"router1", test:"cpu",  verdict:"ok"},
+  {host:"router1", test:"http", verdict:"nodata"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"conn", verdict:"ok"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"cpu",  verdict:"ok"},
+  {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"disk", verdict:"ok"},
 ]};
 
-// GET /states?host=..&test=..  → ONE State per item (Xymon's one line):
-// correlated measurements live in metrics{}; `by` is the one that decides color.
+const HOSTS = {   // GET /hosts — labels; some discovered, some assigned
+  "web1":    {os:"linux",   site:"paris"},     // os = discovered (agent reports it)
+  "db1":     {os:"linux",   site:"paris"},     // site = assigned (admin sets it)
+  "router1": {os:"network", site:"london"},
+  "ifmspc-usr2.ad1.i01.gtbcr.org": {os:"windows", site:"london"},
+};
+
+// GET /states?host=..&test=..  → one State per item; each metric may carry its
+// OWN severity (where a Rule applies); the rest are data.
 const DETAIL = {
   "web1|disk": [
-    {item:"/var",  metrics:{pct_used:"96%", inodes:"41%"}, by:"pct_used", verdict:"red"},
-    {item:"/",     metrics:{pct_used:"38%"},               by:"pct_used", verdict:"green"},
-    {item:"/home", metrics:{pct_used:"72%"},               by:"pct_used", verdict:"yellow"},
+    {item:"/var",  metrics:[{m:"pct_used",v:"96%",verdict:"critical"}, {m:"inodes",v:"41%",verdict:"ok"}]},
+    {item:"/",     metrics:[{m:"pct_used",v:"38%",verdict:"ok"}]},
+    {item:"/home", metrics:[{m:"pct_used",v:"72%",verdict:"warning"}]},
   ],
-  "db1|cpu": [
-    {item:"core0", metrics:{util_pct:"88%"}, by:"util_pct", verdict:"yellow"},
-    {item:"-",     metrics:{load_5m:"3.2"},  by:"load_5m",  verdict:"green"},
+  "db1|cpu": [   // two independently-ruled metrics of one item; worst wins
+    {item:"cpu",   metrics:[{m:"util_pct",v:"88%",verdict:"warning"}, {m:"load_5m",v:"3.2",verdict:"ok"}]},
   ],
-  // a real Windows disk line: one filesystem (C:), several correlated metrics,
-  // one verdict — driven by capacity (cap). The rest are data.
-  "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [
-    {item:"C: (/FIXED/C:\\, Windows)",
-     metrics:{cap:"17%", total:"951.65 GB", used:"163.26 GB", avail:"788.39 GB"},
-     by:"cap", verdict:"green"},
+  "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [   // only capacity is ruled; rest = data
+    {item:"C: (/FIXED/C:\\, Windows)", metrics:[
+      {m:"cap",  v:"17%",       verdict:"ok"},
+      {m:"total",v:"951.65 GB"},
+      {m:"used", v:"163.26 GB"},
+      {m:"avail",v:"788.39 GB"},
+    ]},
   ],
 };
 
-const SERIES = {   // GET /series?host=..&test=..&metric=pct_used  (→ /graphs)
+const SERIES = {   // GET /series?…&metric=..  (→ /graphs)
   "web1|disk": [88,90,91,92,93,94,95,96,96,95,96,97,96],
   "ifmspc-usr2.ad1.i01.gtbcr.org|disk": [15,16,16,17,17,17,18,17,17,16,17,17,17],
 };
 
-const COLORS = ["green","yellow","red","blue","clear","purple"];
+// ---- severity → colour (presentation), and consolidation ----------------
+const COLOR = { ok:"green", warning:"yellow", critical:"red", disabled:"blue", nodata:"clear", unknown:"purple" };
+const RANK  = { ok:0, disabled:1, nodata:1, warning:2, unknown:3, critical:4 };
+function worst(vs){ let w="ok"; vs.forEach(v => { if (v && (RANK[v]||0) > (RANK[w]||0)) w = v; }); return w; }
+function ball(sev, sz){ const c = COLOR[sev]; return c ? `<span class="ball ${c}" title="${sev}" style="width:${sz||10}px;height:${sz||10}px"></span>` : ''; }
+// the ball IS the verdict; spell the word only when it's a problem (ok needs none)
+function label(sev){ return sev ? `${ball(sev,10)}${sev==="ok"?"":" "+sev}` : ''; }
 
-const HOSTS = {   // GET /hosts — host → os label (a derived grouping dimension)
-  "web1":"linux", "db1":"linux", "router1":"network",
-  "ifmspc-usr2.ad1.i01.gtbcr.org":"windows",
-};
-const VIEW = {    // GET /views — a curated page tree (here: nest by OS)
-  title:"All systems",
-  children:[
-    {title:"Windows", selector:{os:"windows"}},
-    {title:"Linux",   selector:{os:"linux"}},
-    {title:"Network", selector:{os:"network"}},
-  ],
-};
-
-// ---- render the page tree (a View) --------------------------------------
+// ---- render the page tree (group by any label) --------------------------
 function render() {
   const onlyProb = document.getElementById("onlyprob").checked;
-  const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();   // global cols so pages align
-  const cell  = {};
-  BOARD.items.forEach(i => cell[i.host+"|"+i.test] = i.verdict);
+  const dim   = document.getElementById("groupby").value;        // group by any label
+  const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();  // global cols → pages align
+  const cell  = {}; BOARD.items.forEach(i => cell[i.host+"|"+i.test] = i.verdict);
 
+  const values = [...new Set(Object.keys(HOSTS).map(h => HOSTS[h][dim]))].sort();
   let html = '';
-  VIEW.children.forEach(group => {
-    const hosts = Object.keys(HOSTS).filter(h => HOSTS[h] === group.selector.os);
-    html += `<h2 class="page">${group.title}`+
-            `<span class="api">GET /states?os=${group.selector.os}&amp;rollup=host,test</span></h2>`;
-    html += gridFor(hosts, tests, cell, onlyProb);
+  values.forEach(val => {
+    const hosts = Object.keys(HOSTS).filter(h => HOSTS[h][dim] === val);
+    html += `<h2 class="page">${dim}: ${val}`+
+            `<span class="api">GET /states?${dim}=${val}&amp;rollup=host,test</span></h2>`+
+            gridFor(hosts, tests, cell, onlyProb);
   });
   document.getElementById("grid").innerHTML = html;
 }
@@ -150,47 +162,51 @@ function gridFor(hosts, tests, cell, onlyProb) {
   h += '</tr></thead><tbody>';
   let shown = 0;
   hosts.forEach(host => {
-    const rowVerdicts = tests.map(t => cell[host+"|"+t]);
-    if (onlyProb && rowVerdicts.every(v => !v || v==="green")) return;
+    const row = tests.map(t => cell[host+"|"+t]);
+    if (onlyProb && row.every(v => !v || v==="ok")) return;
     shown++;
     h += `<tr><td class="host">${host}</td>`;
     tests.forEach(t => {
       const v = cell[host+"|"+t];
       if (!v) { h += '<td><span class="none">–</span></td>'; return; }
-      const clickable = DETAIL[host+"|"+t] ? `onclick="drill('${host}','${t}','${v}')"` : "";
-      h += `<td><span class="ball ${v}" title="${host}.${t} = ${v}" ${clickable}></span></td>`;
+      const c = COLOR[v];
+      const click = DETAIL[host+"|"+t] ? `onclick="drill('${host}','${t}')"` : '';
+      h += `<td><span class="ball ${c}" title="${host}.${t} = ${v}" ${click}></span></td>`;
     });
     h += '</tr>';
   });
   h += '</tbody></table>';
-  return shown ? h : '<div class="muted" style="margin:2px 0 10px">(all green — hidden)</div>';
+  return shown ? h : '<div class="muted" style="margin:2px 0 10px">(all ok — hidden)</div>';
 }
 
-// ---- drill-down (status detail + history sparkline) ---------------------
-function drill(host, test, verdict) {
-  const d = document.getElementById("detail");
-  document.getElementById("dtitle").textContent = `${host}.${test}  —  ${verdict}`;
-  document.getElementById("dapi").textContent = `GET /states?host=${host}&test=${test}`;
+// ---- drill-down: per-metric severity + WORST consolidation --------------
+function drill(host, test) {
   const items = DETAIL[host+"|"+test] || [];
-  // one row per item (Xymon's one line); columns = the union of metric keys.
+  const itemVerdict = it => worst(it.metrics.map(m => m.verdict));
+  const testVerdict = worst(items.map(itemVerdict));     // column = worst over items
+
+  document.getElementById("dtitle").innerHTML =
+    `${host}.${test} &nbsp; ${label(testVerdict)} &nbsp;<small style="opacity:.7">(column = worst over items)</small>`;
+  document.getElementById("dapi").textContent = `GET /states?host=${host}&test=${test}`;
+
   const keys = [];
-  items.forEach(it => Object.keys(it.metrics).forEach(k => { if (!keys.includes(k)) keys.push(k); }));
+  items.forEach(it => it.metrics.forEach(m => { if (!keys.includes(m.m)) keys.push(m.m); }));
   let t = '<table class="items"><thead><tr><th>item</th>';
   keys.forEach(k => t += `<th>${k}</th>`);
   t += '<th>verdict</th></tr></thead><tbody>';
   items.forEach(it => {
     t += `<tr><td>${it.item}</td>`;
     keys.forEach(k => {
-      const v = it.metrics[k] || '';
-      t += (k === it.by) ? `<td style="font-weight:bold">${v}</td>` : `<td>${v}</td>`;
+      const m = it.metrics.find(x => x.m === k);
+      t += m ? `<td>${m.v} ${ball(m.verdict,9)}</td>` : '<td></td>';  // ruled metric → its own ball
     });
-    t += `<td><span class="ball ${it.verdict}" style="width:10px;height:10px"></span> ${it.verdict}</td></tr>`;
+    t += `<td>${label(itemVerdict(it))}</td></tr>`;                   // item = worst of its metrics
   });
-  t += '</tbody></table><div class="muted">one row = one item (filesystem); '+
-       '<b>bold</b> = the metric the verdict is judged on (<code>by</code>); the rest are data.</div>';
+  t += '</tbody></table><div class="muted">each ruled metric carries its own colour; '+
+       'the <b>verdict</b> column = worst of that row\'s metrics; the title = worst over items.</div>';
   document.getElementById("ditable").innerHTML = t;
   document.getElementById("dspark").innerHTML = sparkline(host, test);
-  d.style.display = "block";
+  document.getElementById("detail").style.display = "block";
 }
 
 function sparkline(host, test) {
@@ -201,9 +217,15 @@ function sparkline(host, test) {
   return `<div class="api">GET /graphs?host=${host}&test=${test}&from=-24h  →  (RRD image)</div>`+
          `<svg width="${w}" height="${h}" style="border:1px solid #d4dde6;background:#fafcff">`+
          `<polyline fill="none" stroke="#2b7bff" stroke-width="2" points="${path}"/></svg>`+
-         `<div class="muted">pct_used over the last 24h (mock of /series + /graphs)</div>`;
+         `<div class="muted">graphs the value of one metric over time (/series + /graphs)</div>`;
 }
 
+// ---- legend (severity → colour, the mapping) ----------------------------
+document.getElementById("legend").innerHTML =
+  "severity→colour: " + ["ok","warning","critical","disabled","nodata","unknown"]
+    .map(s => `${ball(s,9)} ${s}`).join("  ");
+
+document.getElementById("groupby").addEventListener("change", render);
 document.getElementById("onlyprob").addEventListener("change", render);
 document.getElementById("ts").textContent = new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
 render();

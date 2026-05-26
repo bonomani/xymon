@@ -51,7 +51,7 @@ paths:
         - { name: host,    in: query, schema: { type: string }, description: "WHERE anchor." }
         - { name: test,    in: query, schema: { type: string }, description: "HOW anchor (probe)." }
         - { name: item,    in: query, schema: { type: string }, description: "WHERE — the judged item (filesystem/url/core)." }
-        - { name: verdict, in: query, schema: { $ref: "#/components/schemas/Color" } }
+        - { name: verdict, in: query, schema: { $ref: "#/components/schemas/Status" } }
         - { name: selector, in: query, schema: { type: string }, description: "Match free dimensions, e.g. `mount=/var,core=3`." }
         - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (worst severity), e.g. `host,test` for the classic column color." }
         - { name: fields,  in: query, schema: { type: string }, description: "Comma-separated projection." }
@@ -68,8 +68,8 @@ paths:
                   items: { type: array, items: { $ref: "#/components/schemas/State" } }
               example:
                 items:
-                  - { id: "web1:disk:/var", host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: 96, inodes: 41 }, by: pct_used, verdict: red,   time: "2026-05-26T00:00:00Z" }
-                  - { id: "web1:disk:/",    host: web1, test: disk, item: "/",  labels: { mount: "/" },  metrics: { pct_used: 38 }, by: pct_used, verdict: green, time: "2026-05-26T00:00:00Z" }
+                  - { id: "web1:disk:/var", host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } }, verdict: critical, time: "2026-05-26T00:00:00Z" }
+                  - { id: "web1:disk:/",    host: web1, test: disk, item: "/",  labels: { mount: "/" },  metrics: { pct_used: { value: 38, verdict: ok } }, verdict: ok, time: "2026-05-26T00:00:00Z" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "502": { $ref: "#/components/responses/Upstream" }
@@ -88,7 +88,7 @@ paths:
                 readings: { type: array, items: { $ref: "#/components/schemas/Reading" } }
             example:
               readings:
-                - { host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: 96, inodes: 41 }, by: pct_used, verdict: red }
+                - { host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } } }
       responses:
         "202": { description: Readings accepted; decomposed into states. }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -535,9 +535,14 @@ components:
     Id: { name: id, in: path, required: true, schema: { type: string }, description: "Resource id (states/alarms: a flattened label-set)." }
 
   schemas:
-    Color:
+    Status:
       type: string
-      enum: [green, yellow, red, blue, clear, purple]
+      description: >
+        Semantic verdict — never a colour. Rendering maps it to the familiar
+        Xymon colours: ok→green, warning→yellow, critical→red, disabled→blue,
+        nodata→clear, unknown→purple. Storing meaning (not presentation) keeps
+        themes/colour-blindness/relabelling a pure render concern.
+      enum: [ok, warning, critical, disabled, nodata, unknown]
     Severity:
       type: string
       enum: [info, minor, major, critical]
@@ -571,13 +576,22 @@ components:
         alive: { type: boolean }
         server_version: { type: string }
 
+    Metric:
+      type: object
+      description: One measurement of an item; `verdict` present only if a Rule judges it (else it's data).
+      required: [value]
+      properties:
+        value:   { type: number }
+        verdict: { $ref: "#/components/schemas/Status" }
+
     State:
       type: object
       description: >
-        One judged item (host+test+item) — Xymon's one line. `metrics` holds the
-        item's correlated measurements; `by` names the one that decides the
-        verdict (a Rule assigns the color over it); the rest are data (graph via
-        /series). WHERE=host+item+labels, HOW=test, WHEN=time.
+        One judged item (host+test+item) — Xymon's one line. `metrics` are the
+        item's correlated measurements; each may carry its own `verdict`
+        (status); metrics without one are data (graph via /series). The State
+        `verdict` is the WORST of its metrics. WHERE=host+item+labels, HOW=test.
+        verdict is a semantic status — colour is a render mapping.
       required: [id, host, test, verdict]
       properties:
         id:      { type: string, description: "Flattened (host,test,item) key." }
@@ -585,9 +599,8 @@ components:
         test:    { type: string, description: "HOW anchor (probe)." }
         item:    { type: string, description: "WHERE — the judged thing (filesystem/url/core); empty for single-item tests." }
         labels:  { $ref: "#/components/schemas/Labels" }
-        metrics: { type: object, additionalProperties: { type: number }, description: "Correlated measurements, e.g. {cap:17, total_gb:951.65, avail_gb:788.39}." }
-        by:      { type: string, description: "Which metric drives the verdict." }
-        verdict: { $ref: "#/components/schemas/Color" }
+        metrics: { type: object, additionalProperties: { $ref: "#/components/schemas/Metric" }, description: "e.g. {cap:{value:17,verdict:ok}, total_gb:{value:951.65}}." }
+        verdict: { $ref: "#/components/schemas/Status" }
         time:    { type: string, format: date-time }
 
     Reading:
@@ -599,9 +612,7 @@ components:
         test:    { type: string }
         item:    { type: string, nullable: true }
         labels:  { $ref: "#/components/schemas/Labels" }
-        metrics: { type: object, additionalProperties: { type: number } }
-        by:      { type: string, nullable: true }
-        verdict: { $ref: "#/components/schemas/Color" }
+        metrics: { type: object, additionalProperties: { $ref: "#/components/schemas/Metric" } }
         time:    { type: string, format: date-time, nullable: true }
 
     Alarm:
@@ -671,7 +682,7 @@ components:
         id:         { type: string }
         transition: { type: string, enum: [stateToAlarm, alarmToAction] }
         selector:   { $ref: "#/components/schemas/Selector" }
-        condition:  { type: string, description: "e.g. 'value >= 90' or 'verdict = red'." }
+        condition:  { type: string, description: "e.g. 'value >= 90' or 'verdict = critical'." }
         severity:   { $ref: "#/components/schemas/Severity" }
         route:      { type: string, description: "For alarmToAction: channel/recipient.", nullable: true }
 

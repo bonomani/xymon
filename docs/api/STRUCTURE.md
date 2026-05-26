@@ -117,7 +117,7 @@ flat states into the familiar aggregate "column color".
 classDiagram
     class State {
         id · host(WHERE) · test(HOW) · item(WHERE) · labels
-        metrics(correlated) · by · verdict · time
+        metrics{value, verdict?} · verdict(=worst, semantic) · time
     }
     class Alarm   { id · severity · status(firing/ack/resolved) · since · rule }
     class Action  { id · type · target · actor · params · suppression }
@@ -142,7 +142,8 @@ an operator Action may create a Suppression; a Suppression gates a transition.
 6. Value references
 -------------------
 ```
-Color   (verdict)   green | yellow | red | blue | clear | purple
+Status  (verdict)   ok | warning | critical | disabled | nodata | unknown   (semantic)
+  └ render → colour  ok→green warning→yellow critical→red disabled→blue nodata→clear unknown→purple
 Severity            info | minor | major | critical
 AlarmStatus         firing | acknowledged | resolved
 ActionType          notify | ack | disable | enable
