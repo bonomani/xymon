@@ -9,10 +9,13 @@
 #   - encrypt-only (XYMON_TLS_VERIFY=none)
 #   - verification fails closed (verify=full with no CA -> refused)
 #   - mTLS: client cert accepted; missing client cert rejected
+#   - unified --acl, broad-admin guard, --check-tls, deferred-command context
+#   - size:N framing: malformed frames rejected, trailing bytes truncated
 #
 # Requires a usable ::1 on loopback (GitHub Ubuntu runners have it; on a bare
-# WSL box: `sudo ip addr add ::1/128 dev lo`). Binaries are taken from the repo
-# build unless XYMONDBIN/XYMONBIN are set.
+# WSL box: `sudo ip addr add ::1/128 dev lo`). The size:N framing phase needs
+# python3 (skipped if absent). Binaries are taken from the repo build unless
+# XYMONDBIN/XYMONBIN are set.
 #
 # Exit 0 = all checks passed; non-zero = a check failed.
 
@@ -56,6 +59,31 @@ start_xymond() {  # extra args...
 stop_xymond() { [ -n "$xymond_pid" ] && kill "$xymond_pid" 2>/dev/null; wait "$xymond_pid" 2>/dev/null; xymond_pid=; }
 
 cli() { XYMONHOME="$H" "$XYMONBIN" "$@" 2>&1; }
+
+# raw_frame HOST PORT SIZESPEC BODY TAIL
+# Send a literal "size:<SIZESPEC>\n<BODY><TAIL>" over plaintext TCP, half-close,
+# print the reply. SIZESPEC="auto" => decimal byte-length of BODY. The official
+# xymon client always frames correctly, so a deliberately *malformed* size:
+# header (or trailing bytes past the count) can only be produced by hand.
+raw_frame() {
+	python3 -c '
+import socket,sys
+host=sys.argv[1]; port=int(sys.argv[2]); spec=sys.argv[3]
+body=sys.argv[4].encode(); tail=sys.argv[5].encode()
+n=str(len(body)) if spec=="auto" else spec
+frame=b"size:"+n.encode()+b"\n"+body+tail
+s=socket.create_connection((host,port),timeout=5)
+s.sendall(frame); s.shutdown(socket.SHUT_WR)
+out=b""
+try:
+    while True:
+        b=s.recv(4096)
+        if not b: break
+        out+=b
+except Exception: pass
+sys.stdout.write(out.decode("utf-8","replace"))
+' "$1" "$2" "$3" "$4" "$5"
+}
 
 # ---- setup: home + certs --------------------------------------------------
 mkdir -p "$H/etc" "$H/tmp" "$H/logs" "$H/data" "$H/www/rep" "$H/www/snap"
@@ -237,6 +265,36 @@ while [ $i -lt 30 ]; do
 done
 has "ACL: scheduled disable ran (TLS context replayed)" "$board" "localhost|schedtest|blue"
 stop_xymond
+
+echo "== phase 8: size:N framing -- malformed frames rejected, trailing bytes truncated =="
+# The size:N frame is parsed on any transport (it's how TLS dispatches without a
+# reliable EOF), so we exercise it cheaply over plaintext with hand-built frames.
+if ! command -v python3 >/dev/null 2>&1; then
+	echo "  SKIP - phase 8 needs python3 to send raw (deliberately malformed) frames"
+else
+	start_xymond || exit 1   # plaintext-only; no --acl => sends are accepted
+	# 1. a well-formed raw size:N frame is delivered (positive control)
+	raw_frame 127.0.0.1 $PORT auto "status localhost.rawok green raw-ok" "" >/dev/null
+	# 2. trailing garbage in the count ("size:99x") must be rejected, not read as 99
+	raw_frame 127.0.0.1 $PORT "99x" "status localhost.rawbadnum green should-drop" "" >/dev/null
+	# 3. a zero count is rejected
+	raw_frame 127.0.0.1 $PORT "0" "status localhost.rawzero green should-drop" "" >/dev/null
+	# 4. bytes past the declared size are truncated, not folded into the body:
+	#    size = len(BODY); the MARKER_TAIL bytes that follow must be discarded.
+	raw_frame 127.0.0.1 $PORT auto "status localhost.rawtrunc green MARKER_CLEAN" "MARKER_TAIL" >/dev/null
+	i=0; board=
+	while [ $i -lt 25 ]; do
+		board=$(cli "127.0.0.1:$PORT" "xymondboard fields=hostname,testname,color,msg")
+		case "$board" in *"localhost|rawok|green"*) break ;; esac
+		i=$((i+1)); sleep 0.2
+	done
+	has    "raw size:N frame delivered"                  "$board" "localhost|rawok|green"
+	hasnot "size:N trailing garbage in count rejected"   "$board" "localhost|rawbadnum|green"
+	hasnot "size:0 rejected"                             "$board" "localhost|rawzero|green"
+	has    "trailing bytes truncated (declared body kept)" "$board" "MARKER_CLEAN"
+	hasnot "trailing bytes truncated (excess discarded)"   "$board" "MARKER_TAIL"
+	stop_xymond
+fi
 
 echo "---- $pass passed, $fail failed ----"
 [ "$fail" -eq 0 ]
