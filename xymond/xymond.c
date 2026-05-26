@@ -5217,6 +5217,125 @@ void sig_handler(int signum)
 }
 
 
+#include "../lib/tcplib.h"
+
+/*
+ * IPv4/IPv6 listener bridge (A', P1 — plaintext).
+ *
+ * xymond's protocol is "client sends a message, half-closes, server reads to
+ * EOF, optionally responds, then closes". tcplib drives I/O via callbacks, so
+ * we accumulate each connection's bytes into a conn_t carried in
+ * tcpconn_t->userdata, and dispatch to do_message() on EOF — mirroring the
+ * legacy hand-rolled select() loop.
+ */
+
+/*
+ * Stopgap for the IPv4-only sender ACL (oksender): derive a struct in_addr from
+ * the peer. v4 and v4-mapped-v6 yield the real address; a pure-v6 peer (e.g. ::1)
+ * is mapped to loopback so the proof's loopback sender is accepted. Real v6 auth
+ * (ipaccess-v6 or cert-based) is a later phase — see docs/PLAN.md.
+ */
+static void conn_peer_in_addr(tcpconn_t *conn, struct sockaddr_in *out)
+{
+	memset(out, 0, sizeof(*out));
+	out->sin_family = AF_INET;
+	if (conn->family == AF_INET) {
+		out->sin_addr = ((struct sockaddr_in *)conn->peer)->sin_addr;
+	}
+	else if (conn->family == AF_INET6) {
+		struct in6_addr *a6 = &((struct sockaddr_in6 *)conn->peer)->sin6_addr;
+		if (IN6_IS_ADDR_V4MAPPED(a6))
+			memcpy(&out->sin_addr, ((unsigned char *)a6) + 12, 4);
+		else
+			inet_aton("127.0.0.1", &out->sin_addr);	/* stopgap: pure-v6 -> loopback */
+	}
+}
+
+static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t id, void *userdata)
+{
+	conn_t *msg = (conn_t *)userdata;
+	int n;
+
+	switch (id) {
+	  case CONN_CB_NEWCONNECTION:
+		msg = (conn_t *)calloc(1, sizeof(conn_t));
+		msg->sock = conn->sock;
+		msg->doingwhat = RECEIVING;
+		msg->bufsz = XYMON_INBUF_INITIAL;
+		msg->buf = msg->bufp = (unsigned char *)malloc(msg->bufsz);
+		*(msg->bufp) = '\0';
+		msg->buflen = 0;
+		conn_peer_in_addr(conn, &msg->addr);
+		conn->userdata = msg;
+		break;
+
+	  case CONN_CB_READCHECK:
+		return (msg && (msg->doingwhat == RECEIVING)) ? CONN_CBRESULT_OK : CONN_CBRESULT_FAILED;
+
+	  case CONN_CB_WRITECHECK:
+		return (msg && (msg->doingwhat == RESPONDING) && (msg->buflen > 0)) ? CONN_CBRESULT_OK : CONN_CBRESULT_FAILED;
+
+	  case CONN_CB_READ:
+		if (!msg) break;
+		n = conn_read(conn, msg->bufp, (msg->bufsz - msg->buflen - 1));
+		if (n > 0) {
+			msg->bufp += n; msg->buflen += n; *(msg->bufp) = '\0';
+			if ((msg->bufsz - msg->buflen) < 2048) {
+				if (msg->bufsz < MAX_XYMON_INBUFSZ) {
+					msg->bufsz += XYMON_INBUF_INCREMENT;
+					msg->buf = (unsigned char *)realloc(msg->buf, msg->bufsz);
+					msg->bufp = msg->buf + msg->buflen;
+				}
+				else {
+					errprintf("Data flooding from %s - dropping\n", conn_print_ip(conn));
+					msg->doingwhat = NOTALK;
+				}
+			}
+		}
+		else if (n == 0) {
+			/* EOF: the message is complete */
+			*(msg->bufp) = '\0';
+			msg->sock = conn->sock;
+			do_message(msg, "");
+			if ((msg->doingwhat == RESPONDING) && (msg->buflen > 0))
+				msg->bufp = msg->buf;
+			else
+				msg->doingwhat = NOTALK;
+		}
+		/* n < 0: tcplib already closed/cleaned the connection */
+		break;
+
+	  case CONN_CB_WRITE:
+		if (!msg) break;
+		n = conn_write(conn, msg->bufp, msg->buflen);
+		if (n > 0) { msg->bufp += n; msg->buflen -= n; }
+		if (msg->buflen <= 0) msg->doingwhat = NOTALK;
+		break;
+
+	  case CONN_CB_TIMEOUT:
+		if (msg) msg->doingwhat = NOTALK;
+		break;
+
+	  case CONN_CB_CLEANUP:
+		if (msg) {
+			if (msg->buf) xfree(msg->buf);
+			xfree(msg);
+			conn->userdata = NULL;
+		}
+		break;
+
+	  default:
+		break;
+	}
+
+	return CONN_CBRESULT_OK;
+}
+
+static void xymond_conn_info(time_t t, const char *id, char *msg)
+{
+	errprintf("tcplib: %s", msg);
+}
+
 int main(int argc, char *argv[])
 {
 	conn_t *connhead = NULL, *conntail=NULL;
@@ -5517,27 +5636,22 @@ int main(int argc, char *argv[])
 	last_stats_time = getcurrenttime(NULL);	/* delay sending of the first status report until we're fully running */
 
 
-	/* Set up a socket to listen for new connections */
-	errprintf("Setting up network listener on %s:%d\n", listenip, listenport);
-	memset(&laddr, 0, sizeof(laddr));
-	inet_aton(listenip, (struct in_addr *) &laddr.sin_addr.s_addr);
-	laddr.sin_port = htons(listenport);
-	laddr.sin_family = AF_INET;
-	lsocket = socket(AF_INET, SOCK_STREAM, 0);
-	if (lsocket == -1) {
-		errprintf("Cannot create listen socket (%s)\n", strerror(errno));
-		return 1;
-	}
-	opt = 1;
-	setsockopt(lsocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
-	fcntl(lsocket, F_SETFL, O_NONBLOCK);
-	if (bind(lsocket, (struct sockaddr *)&laddr, sizeof(laddr)) == -1) {
-		errprintf("Cannot bind to listen socket (%s)\n", strerror(errno));
-		return 1;
-	}
-	if (listen(lsocket, listenq) == -1) {
-		errprintf("Cannot listen (%s)\n", strerror(errno));
-		return 1;
+	/* Set up listener(s) via tcplib (dual-stack IPv4/IPv6, plaintext). */
+	{
+		char listenspec[256];
+		/* On Linux (bindv6only=0) a [::] socket also accepts IPv4-mapped peers. */
+		if (!*listenip || (strcmp(listenip, "0.0.0.0") == 0))
+			snprintf(listenspec, sizeof(listenspec), "[::]:%d", listenport);
+		else if (strchr(listenip, ':'))		/* an IPv6 literal */
+			snprintf(listenspec, sizeof(listenspec), "[%s]:%d", listenip, listenport);
+		else
+			snprintf(listenspec, sizeof(listenspec), "%s:%d", listenip, listenport);
+
+		errprintf("Setting up network listener on %s\n", listenspec);
+		conn_register_infohandler(xymond_conn_info, INFO_WARN);
+		conn_init_server(listenq, (long)conn_timeout * 1000000L,
+				 NULL, NULL, NULL, 0,
+				 listenspec, NULL, xymond_conn_cb);
 	}
 
 	/* Go daemon */
@@ -5786,20 +5900,7 @@ int main(int argc, char *argv[])
 		 * and setup the select() FD sets.
 		 */
 		FD_ZERO(&fdread); FD_ZERO(&fdwrite);
-		FD_SET(lsocket, &fdread); maxfd = lsocket;
-
-		for (cwalk = connhead; (cwalk); cwalk = cwalk->next) {
-			switch (cwalk->doingwhat) {
-				case RECEIVING:
-					FD_SET(cwalk->sock, &fdread);
-					if (cwalk->sock > maxfd) maxfd = cwalk->sock;
-					break;
-				case RESPONDING:
-					FD_SET(cwalk->sock, &fdwrite);
-					if (cwalk->sock > maxfd) maxfd = cwalk->sock;
-					break;
-			}
-		}
+		maxfd = conn_fdset(&fdread, &fdwrite);
 
 		/* 
 		 * Do the select() with a static 2 second timeout. 
@@ -5821,76 +5922,13 @@ int main(int argc, char *argv[])
 		}
 
 		/*
-		 * Now do the actual data exchange over the net.
+		 * Now do the actual data exchange over the net, via tcplib:
+		 * pick up new connections, then read/write active ones. The
+		 * per-connection work (accumulate to EOF -> do_message ->
+		 * respond) happens in xymond_conn_cb().
 		 */
-		for (cwalk = connhead; (cwalk); cwalk = cwalk->next) {
-			switch (cwalk->doingwhat) {
-			  case RECEIVING:
-				if (FD_ISSET(cwalk->sock, &fdread)) {
-					if ((n == -1) && (errno == EAGAIN)) break; /* Do nothing */
-
-					n = read(cwalk->sock, cwalk->bufp, (cwalk->bufsz - cwalk->buflen - 1));
-					if (n <= 0) {
-						/* End of input data on this connection */
-						*(cwalk->bufp) = '\0';
-
-						/* FIXME - need to set origin here */
-						do_message(cwalk, "");
-					}
-					else {
-						/* Add data to the input buffer - within reason ... */
-						cwalk->bufp += n;
-						cwalk->buflen += n;
-						*(cwalk->bufp) = '\0';
-						if ((cwalk->bufsz - cwalk->buflen) < 2048) {
-							if (cwalk->bufsz < MAX_XYMON_INBUFSZ) {
-								cwalk->bufsz += XYMON_INBUF_INCREMENT;
-								cwalk->buf = (unsigned char *) realloc(cwalk->buf, cwalk->bufsz);
-								cwalk->bufp = cwalk->buf + cwalk->buflen;
-							}
-							else {
-								/* Someone is flooding us */
-								char *eoln;
-
-								*(cwalk->buf + 200) = '\0';
-								eoln = strchr(cwalk->buf, '\n');
-								if (eoln) *eoln = '\0';
-								errprintf("Data flooding from %s - 1st line %s\n",
-									  inet_ntoa(cwalk->addr.sin_addr), cwalk->buf);
-								shutdown(cwalk->sock, SHUT_RDWR);
-								close(cwalk->sock); 
-								cwalk->sock = -1; 
-								cwalk->doingwhat = NOTALK;
-							}
-						}
-					}
-				}
-				break;
-
-			  case RESPONDING:
-				if (FD_ISSET(cwalk->sock, &fdwrite)) {
-					n = write(cwalk->sock, cwalk->bufp, cwalk->buflen);
-
-					if ((n == -1) && (errno == EAGAIN)) break; /* Do nothing */
-
-					if (n < 0) {
-						cwalk->buflen = 0;
-					}
-					else {
-						cwalk->bufp += n;
-						cwalk->buflen -= n;
-					}
-
-					if (cwalk->buflen == 0) {
-						shutdown(cwalk->sock, SHUT_WR);
-						close(cwalk->sock); 
-						cwalk->sock = -1; 
-						cwalk->doingwhat = NOTALK;
-					}
-				}
-				break;
-			}
-		}
+		conn_process_listeners(&fdread);
+		conn_process_active(&fdread, &fdwrite);
 
 		/* Any scheduled tasks that need attending to? */
 		{
@@ -5928,104 +5966,8 @@ int main(int argc, char *argv[])
 			}
 		}
 
-		/* Clean up conn structs that are no longer used */
-		{
-			conn_t *tmp, *khead;
-
-			dbgprintf("Beginning conn_t cleanup\n");
-			now = getcurrenttime(NULL);
-			khead = NULL; cwalk = connhead;
-			while (cwalk) {
-				/* Check for connections that timeout */
-				if (now > cwalk->timeout) {
-					update_statistics("");
-					cwalk->doingwhat = NOTALK;
-					if (cwalk->sock >= 0) {
-						shutdown(cwalk->sock, SHUT_RDWR);
-						close(cwalk->sock);
-						cwalk->sock = -1;
-					}
-				}
-
-				/* Move dead connections to a purge-list */
-				if ((cwalk == connhead) && (cwalk->doingwhat == NOTALK)) {
-					/* head of chain is dead */
-					tmp = connhead;
-					connhead = connhead->next;
-					tmp->next = khead;
-					khead = tmp;
-
-					cwalk = connhead;
-				}
-				else if (cwalk->next && (cwalk->next->doingwhat == NOTALK)) {
-					tmp = cwalk->next;
-					cwalk->next = tmp->next;
-					tmp->next = khead;
-					khead = tmp;
-
-					/* cwalk is unchanged */
-				}
-				else {
-					cwalk = cwalk->next;
-				}
-			}
-			if (connhead == NULL) {
-				conntail = NULL;
-			}
-			else {
-				conntail = connhead;
-				cwalk = connhead->next;
-				if (cwalk) {
-					while (cwalk->next) cwalk = cwalk->next;
-					conntail = cwalk;
-				}
-			}
-
-			/* Purge the dead connections */
-			while (khead) {
-				tmp = khead;
-				khead = khead->next;
-
-				if (tmp->buf) xfree(tmp->buf);
-				xfree(tmp);
-			}
-
-			dbgprintf("conn_t cleanup complete\n");
-		}
-
-		/* Pick up new connections */
-		if (FD_ISSET(lsocket, &fdread)) {
-			struct sockaddr_in addr;
-			int addrsz = sizeof(addr);
-			int sock;
-
-			dbgprintf("Picking up new connections\n");
-
-			sock = accept(lsocket, (struct sockaddr *)&addr, &addrsz);
-
-			if (sock >= 0) {
-				/* Make sure our sockets are non-blocking */
-				fcntl(sock, F_SETFL, O_NONBLOCK);
-
-				if (connhead == NULL) {
-					connhead = conntail = (conn_t *)malloc(sizeof(conn_t));
-				}
-				else {
-					conntail->next = (conn_t *)malloc(sizeof(conn_t));
-					conntail = conntail->next;
-				}
-
-				conntail->sock = sock;
-				memcpy(&conntail->addr, &addr, sizeof(conntail->addr));
-				conntail->doingwhat = RECEIVING;
-				conntail->bufsz = XYMON_INBUF_INITIAL;
-				conntail->buf = (unsigned char *)malloc(conntail->bufsz);
-				conntail->bufp = conntail->buf;
-				conntail->buflen = 0;
-				conntail->timeout = now + conn_timeout;
-				conntail->next = NULL;
-			}
-		}
+		/* Reap dead connections (tcplib tracks lifetime + timeouts). */
+		conn_trimactive();
 	} while (running);
 
 	/* Tell the workers we to shutdown also */

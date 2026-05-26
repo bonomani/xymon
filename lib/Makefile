@@ -58,7 +58,7 @@ loadhosts.o: loadhosts.c loadhosts_file.c loadhosts_net.c
 	$(CC) $(CFLAGS) -c -o $@ loadhosts.c
 
 tcplib.o: tcplib.c tcplib.h
-	$(CC) $(CFLAGS) $(SSLFLAGS) -c -o $@ $<
+	$(CC) $(CFLAGS) $(SSLFLAGS) -DIPV4_SUPPORT -DIPV6_SUPPORT -c -o $@ $<
 
 eventlog.o: eventlog.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) -c -o $@ $<
