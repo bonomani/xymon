@@ -5250,10 +5250,14 @@ void sig_handler(int signum)
  */
 
 /*
- * Stopgap for the IPv4-only sender ACL (oksender): derive a struct in_addr from
- * the peer. v4 and v4-mapped-v6 yield the real address; a pure-v6 peer (e.g. ::1)
- * is mapped to loopback so the proof's loopback sender is accepted. Real v6 auth
- * (ipaccess-v6 or cert-based) is a later phase — see docs/PLAN.md.
+ * Derive a struct in_addr from the peer for the IPv4-only sender ACL (oksender).
+ * v4 and v4-mapped-v6 yield the real address. A pure-v6 peer has no IPv4 form, so
+ * it is marked 255.255.255.255 ("unmappable"): the IPv4 ACL then fails closed and
+ * a pure-v6 sender must authenticate via a TLS client cert (oksender's cert
+ * bypass -- see docs/PLAN.md option b). It must NOT be mapped to loopback or
+ * 0.0.0.0, which oksender trusts -- that would let any v6 peer impersonate a
+ * local/admin sender. A v6-native ipaccess (sockaddr_storage; ~25 sites) is a
+ * later phase -- see docs/PLAN.md.
  */
 static void conn_peer_in_addr(tcpconn_t *conn, struct sockaddr_in *out)
 {
@@ -5267,7 +5271,7 @@ static void conn_peer_in_addr(tcpconn_t *conn, struct sockaddr_in *out)
 		if (IN6_IS_ADDR_V4MAPPED(a6))
 			memcpy(&out->sin_addr, ((unsigned char *)a6) + 12, 4);
 		else
-			inet_aton("127.0.0.1", &out->sin_addr);	/* stopgap: pure-v6 -> loopback */
+			inet_aton("255.255.255.255", &out->sin_addr);	/* pure-v6: no IPv4 form -> fail closed */
 	}
 }
 
@@ -5796,7 +5800,10 @@ int main(int argc, char *argv[])
 	 * and IPv6 sockets (see build_listenspec / listen_port's IPV6_V6ONLY). */
 	{
 		char *listenspec = build_listenspec(listenip, listenport);
-		char *tlsspec = (tlscert && tlslisten) ? build_listenspec(tlslisten, listenport) : NULL;
+		/* TLS listener defaults to 1985 (the xymons:// client default), not the
+		 * plaintext listenport -- so --tls-listen without an explicit :port both
+		 * matches the client and avoids colliding with the plaintext socket. */
+		char *tlsspec = (tlscert && tlslisten) ? build_listenspec(tlslisten, 1985) : NULL;
 		int nlisteners;
 
 		errprintf("Setting up network listener on %s\n", listenspec);
@@ -6052,6 +6059,7 @@ int main(int argc, char *argv[])
 			if (backfeeddata) {
 				backfeedcount++;
 
+				memset(&msg, 0, sizeof(msg));	/* clear cert_authorized et al. before do_message reads them */
 				msg.buf = bf_buf;
 				msg.bufsz = msg.buflen = sz;
 				msg.bufp = msg.buf + msg.buflen;

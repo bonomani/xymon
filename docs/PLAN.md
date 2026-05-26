@@ -92,7 +92,13 @@ Open: the v6-sender-ACL decision (a/b/c) gates how P1 finishes.
 - **Step 2 ✅ DONE & PROVEN (server listener).** Hand-wired tcplib into xymond:
   `conn_init_server` on `[::]:port`, loop now `conn_fdset`/`conn_process_*`/
   `conn_trimactive`, new `xymond_conn_cb()` accumulates to EOF → `do_message` →
-  response, with the stopgap `conn_peer_in_addr()` for the IPv4 ACL. **Runtime
+  response, with `conn_peer_in_addr()` bridging the peer to the IPv4 ACL: v4 and
+  v4-mapped-v6 keep their real address; a pure-v6 peer has no IPv4 form so it is
+  marked `255.255.255.255` and **fails the ACL closed** (option b — pure-v6
+  senders must use a TLS client cert; earlier revisions mapped it to loopback,
+  which let any v6 peer impersonate a trusted local sender). A v6-native
+  `ipaccess`/`oksender` (`sockaddr_storage`, ~25 sites) remains the later phase.
+  **Runtime
   proof:** xymond listens on tcp6 `*:PORT`; a `ping` over the `[::]` socket
   (v4-mapped `127.0.0.1`, i.e. an `AF_INET6` peer) returns `xymond 4.3.30`
   end-to-end; IPv4 preserved. Pure non-mapped v6 peer **not testable on the dev

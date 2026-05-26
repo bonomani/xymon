@@ -134,8 +134,10 @@ Notes
   message is delimited by its declared size rather than connection close. The
   `xymon` client does this automatically; plaintext keeps the classic
   read-to-EOF framing.
-- **Protocol floor:** TLS 1.2 minimum (SSLv3/TLS 1.0/1.1 refused); TLS 1.3 is
-  negotiated where available.
+- **Protocol floor:** the xymond server accepts TLS 1.2 or later (SSLv3/TLS
+  1.0/1.1 refused; TLS 1.3 negotiated where available), while the `xymons://`
+  client requires TLS 1.3 — liberal in what it accepts, conservative in what it
+  sends. Client/server therefore always settle on TLS 1.3.
 - **Build:** IPv6 is detected by a `configure` probe; TLS support follows the
   existing OpenSSL/`--enable-ssl` detection. Works with OpenSSL 1.1.1+/3.x and
   LibreSSL.
