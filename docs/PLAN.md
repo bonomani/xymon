@@ -140,14 +140,26 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
 3. **Prototype reconciliation** — `feat/tls-prototype` becomes the *source* of the
    P2 TLS, then retires; confirm nothing else depends on it.
 
+- **Step 3 (client) ✅ DONE & PROVEN.** `sendmsg.c` connect rewritten to
+  `getaddrinfo(AF_UNSPEC)` + non-blocking connect loop (select/IO loop
+  unchanged). Recipient may be a v4/v6 literal or a hostname. **Proof (real
+  `xymon` client):** `ping` → `xymond 4.3.30` over `127.0.0.1` and `localhost`;
+  a `status` report lands on the board, no ACL rejection. Pure non-mapped v6
+  client path → CI.
+
+**P1 is functionally complete** (client + server v6, end-to-end report proven on
+v4/v4-mapped via the dual-stack `[::]` socket). Only the pure non-mapped v6
+transport is unproven here, for lack of a usable v6 address on the dev box.
+
 ## Next step
 
-P0 + P1 (server listener) done & proven. Choose the next unit:
-1. **Client side** — give `sendmsg.c` a getaddrinfo/tcplib connect so the `xymon`
-   client can *send* to a v6 server (proves true client→server v6, not just a
-   raw probe). Finishes P1's "client→xymond" with the real client.
-2. **CI verify pure-v6** — add a BSD/Linux CI lane with a real `::1`/v6 address to
-   exercise the non-mapped v6 path the dev box can't.
-3. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
-   tcplib, which also gives the cert-based auth that replaces the IPv4 ACL.
-4. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
+Choose the next unit:
+1. **CI verify pure-v6** *(recommended — closes the one gap)* — Linux CI lane
+   (GitHub Ubuntu runners have a real `::1`): build, run xymond on `[::1]`, and
+   `xymon [::1]:PORT ping` / status, asserting the non-mapped v6 path the dev
+   box can't reach.
+2. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
+   tcplib; also gives the cert-based auth that replaces the IPv4 ACL.
+3. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
+4. **Build hygiene** — drive `IPV*_SUPPORT` from a `build/test-ipv6` probe (not
+   the hardcoded `tcplib.o` flags).
