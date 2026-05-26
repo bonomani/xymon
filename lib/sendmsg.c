@@ -182,11 +182,24 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 		/* Standard communications, directly to Xymon daemon */
 		rcptip = strdup(recipient);
 		rcptport = xymondportnumber;
-		p = strchr(rcptip, ':');
-		if (p) {
-			*p = '\0'; p++; rcptport = atoi(p);
+		if (*rcptip == '[') {
+			/* "[v6literal]" or "[v6literal]:port" */
+			char *endb = strchr(rcptip, ']');
+			if (endb) {
+				if (*(endb+1) == ':') rcptport = atoi(endb+2);
+				*endb = '\0';
+				memmove(rcptip, rcptip+1, strlen(rcptip+1)+1);	/* drop the '[' */
+			}
 		}
-		dbgprintf("Standard protocol on port %d\n", rcptport);
+		else {
+			p = strchr(rcptip, ':');
+			/* Exactly one ':' => host:port (v4/hostname). Several => a bare
+			 * IPv6 literal with no port (use the default). */
+			if (p && !strchr(p+1, ':')) {
+				*p = '\0'; p++; rcptport = atoi(p);
+			}
+		}
+		dbgprintf("Standard protocol to %s on port %d\n", rcptip, rcptport);
 	}
 	else {
 		char *posturl = NULL;
