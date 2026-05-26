@@ -205,10 +205,13 @@ Remaining for "full" TLS (all lower priority — the core feature works):
 1. **CI** — the `ipv6-e2e` lane now runs `tests/ipv6-tls/smoke.sh` (IPv6 + TLS +
    mTLS, 9 checks). It'll execute once GitHub Actions triggering is back (it was
    stuck repo-wide on 2026-05-26; the lane + script are ready).
-3. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
-   sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model).
-4. **Build hygiene** — `IPV*_SUPPORT` + `HAVE_XYMON_TLS` from `configure`
-   probes, not hardcoded Makefile flags.
+2. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
+   sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model). Needs a
+   design decision (cert-identity → hosts.cfg authorization).
+
+- ✅ **Build hygiene DONE** — `IPV*_SUPPORT` now via a `configure` probe
+  (`build/ipv6.sh` → `IPV6DEF`), not hardcoded; `HAVE_XYMON_TLS` gated on the SSL
+  probe (`$(SSLFLAGS)`). Verified: smoke test still 9/9 with the probe-driven build.
 
 Status: **IPv6 (P1) complete & proven. TLS (P2) functional & proven** —
 handshake, TLS 1.3 floor, request/response + ingest, and client-side `xymons://`
