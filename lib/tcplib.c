@@ -202,9 +202,10 @@ long conn_elapsedus(struct timespec *tstart, struct timespec *tnow)
 /* Convert a network address to printable form */
 static char *conn_print_address_and_port(tcpconn_t *conn, int includeport)
 {
-	/* IPv6 address needs 48 bytes: 8 numbers (4 bytes each), 7 colons, 1 colon before portnumber, 5 digits for portnumber, terminating NUL.
-	 * And when printing the portnumber, also '[...]' brackets to delimit the IP from the portnumber */
-	static char addrstring[48];
+	/* Worst case is a full IPv6 text address (up to INET6_ADDRSTRLEN-1 = 45 chars,
+	 * e.g. an IPv4-mapped ::ffff:255.255.255.255 form) wrapped in '[...]' to delimit
+	 * the address from the port, then ":65535", then the NUL. Size for that exactly. */
+	static char addrstring[INET6_ADDRSTRLEN + sizeof("[]:65535")];
 
 	*addrstring = '\0';
 	switch (conn->family) {
@@ -409,17 +410,54 @@ char *conn_peer_certificate_cn(tcpconn_t *conn)
 
 		e = X509_NAME_get_entry(subj, cnpos);
 		if (e) d = X509_NAME_ENTRY_get_data(e);
+		if (d) {
+			/* ASN1 string data is not guaranteed NUL-terminated and may carry
+			 * embedded NULs, so strdup() could over-read or truncate. Copy
+			 * exactly ASN1_STRING_length() bytes and terminate ourselves. */
+			int dlen = ASN1_STRING_length(d);
 #if OPENSSL_VERSION_NUMBER < 0x101010bfL
-		if (d) cn = strdup(ASN1_STRING_data(d));
+			const unsigned char *ddata = ASN1_STRING_data(d);
 #else
-		if (d) cn = strdup(ASN1_STRING_get0_data(d));
+			const unsigned char *ddata = ASN1_STRING_get0_data(d);
 #endif
+			if (ddata && (dlen > 0)) {
+				cn = malloc(dlen + 1);
+				if (cn) {
+					memcpy(cn, ddata, dlen);
+					cn[dlen] = '\0';
+				}
+			}
+		}
 	}
 
 	if (peercert) X509_free(peercert);
 #endif
 
 	return cn;
+}
+
+
+/*
+ * True if the peer presented a certificate that passed verification. This is
+ * the correct basis for "trusted sender", rather than whether a CN happens to
+ * be extractable: a perfectly valid, CA-verified cert may carry only SANs and
+ * no Common Name. SSL_get_verify_result() returns X509_V_OK when no cert was
+ * presented too, so we must also confirm a cert is actually present.
+ */
+int conn_peer_certificate_verified(tcpconn_t *conn)
+{
+#ifdef HAVE_OPENSSL
+	X509 *peercert;
+
+	if (!conn || !conn->ssl) return 0;
+	if (SSL_get_verify_result(conn->ssl) != X509_V_OK) return 0;
+	peercert = SSL_get_peer_certificate(conn->ssl);
+	if (!peercert) return 0;
+	X509_free(peercert);
+	return 1;
+#else
+	return 0;
+#endif
 }
 
 
@@ -1377,26 +1415,47 @@ int conn_init_server(int backlog, int maxlifetime,
 	SSL_CTX_set_min_proto_version(serverctx, TLS1_2_VERSION);
 #endif
 
+	/* TLS is decoupled from plaintext: a TLS setup failure disables TLS (and
+	 * STARTTLS, since both share serverctx) and is logged loudly, but the
+	 * plaintext listener still comes up so clients can always reach the daemon.
+	 * Critically this is fail-CLOSED on TLS, not fail-open: we free serverctx
+	 * and clear sslavailable, so no socket ever serves broken/unverified TLS --
+	 * a TLS client just sees the port absent (a loud failure), never a silent
+	 * downgrade. */
 	if (certfn) {
 		sslavailable = (try_ssl_certload(serverctx, certfn, keyfn) == 0);
 		if (!sslavailable) {
-			conn_info(funcid, INFO_INFO, "No server certificate - disabling SSL connections\n");
+			conn_info(funcid, INFO_ERROR, "Server certificate/key load failed - TLS DISABLED, serving plaintext only\n");
+			SSL_CTX_free(serverctx); serverctx = NULL;
 		}
 	}
 
 	if (sslavailable && rootcafn) {
 		int mode = SSL_VERIFY_PEER|SSL_VERIFY_CLIENT_ONCE;
 
-		conn_info(funcid, INFO_INFO, "Enabled client certificate verification\n");
-
 		if (requireclientcert) mode |= SSL_VERIFY_FAIL_IF_NO_PEER_CERT;
 
-		if (SSL_CTX_load_verify_locations(serverctx, rootcafn, NULL) != 1)
-			conn_info(funcid, INFO_WARN, "Cannot open rootca file %s\n", rootcafn);
+		if (SSL_CTX_load_verify_locations(serverctx, rootcafn, NULL) != 1) {
+			/* The trust store won't load. Serving TLS now would leave the
+			 * SSL_CTX with no peer verification (a fail-open client-cert
+			 * bypass), so disable TLS entirely rather than serve it unverified. */
+			conn_info(funcid, INFO_ERROR, "Cannot open rootca file %s - TLS DISABLED (refusing to serve unverified TLS), serving plaintext only\n", rootcafn);
+			SSL_CTX_free(serverctx); serverctx = NULL;
+			sslavailable = 0;
+		}
 		else {
 			SSL_CTX_set_client_CA_list(serverctx, SSL_load_client_CA_file(rootcafn));
 			SSL_CTX_set_verify(serverctx, mode, NULL);
+			conn_info(funcid, INFO_INFO, "Enabled client certificate verification\n");
 		}
+	}
+	else if (sslavailable && requireclientcert) {
+		/* --tls-require-clientcert with no trust store (--tls-ca) is a no-op:
+		 * there is nothing to verify client certs against. Rather than serve
+		 * TLS that silently ignores the requirement, disable TLS. */
+		conn_info(funcid, INFO_ERROR, "Client certificates required but no CA (rootca) configured - TLS DISABLED, serving plaintext only\n");
+		SSL_CTX_free(serverctx); serverctx = NULL;
+		sslavailable = 0;
 	}
 #endif
 
@@ -1411,17 +1470,115 @@ int conn_init_server(int backlog, int maxlifetime,
 
 #ifdef HAVE_OPENSSL
 	if (sslavailable && ssl_listeners) {
+		int nssl = 0;
+
 		listenlist = strdup(ssl_listeners);
 		listenip = strtok_r(listenlist, ",", &saveptr);
 		while (listenip) {
-			nlisteners += conn_listen(backlog, maxlifetime, listenip, CONN_SSL_YES, usercallback);
+			nssl += conn_listen(backlog, maxlifetime, listenip, CONN_SSL_YES, usercallback);
 			listenip = strtok_r(NULL, ",", &saveptr);
 		}
 		free(listenlist);
+
+		if (nssl == 0) {
+			/* TLS listeners were requested but none could be bound (e.g. the
+			 * port is in use, or a pure-IPv6 spec on a host without IPv6).
+			 * Plaintext stays up; only the TLS port is lost. */
+			conn_info(funcid, INFO_ERROR, "Could not bind any TLS listener (%s) - TLS port unavailable, serving plaintext only\n", ssl_listeners);
+		}
+		nlisteners += nssl;	/* nssl is 0 here on failure; plaintext count stands */
 	}
 #endif
 
-	return nlisteners;	/* total listener sockets bound across all specs */
+	return nlisteners;	/* plaintext + any bound TLS sockets (>=0; 0 only if nothing bound) */
+}
+
+
+/*
+ * Dry-run validation of the server TLS material, without binding any listener
+ * or going daemon. Loads what conn_init_server() loads (server cert/key, then
+ * the client-cert trust store) and enforces the same flag-coherence rules.
+ * Since startup now *degrades* on a TLS problem (TLS disabled, plaintext kept)
+ * rather than aborting, this is the way to get a non-zero exit on a broken TLS
+ * config: returns 0 if TLS would actually be served, -1 if TLS would be
+ * disabled (the daemon would still come up on plaintext). It also fails an
+ * expired / not-yet-valid server cert, which would load but not be usable.
+ * Intended for a certificate-rotation pipeline run before (re)starting xymond.
+ *
+ * What it does NOT cover (by design): listener binds (port in use, no IPv6,
+ * privileged port), file readability under a different service user, TOCTOU
+ * between check and restart, cert chain/SAN/hostname correctness, and
+ * certificate revocation. See docs/ipv6-tls.md.
+ */
+int conn_check_tls_server_config(char *certfn, char *keyfn, char *rootcafn, int requireclientcert)
+{
+	static char *funcid = "conn_check_tls_server_config";
+#ifdef HAVE_OPENSSL
+	SSL_CTX *ctx;
+	X509 *cert;
+	int rc = 0;
+
+	conn_ssllibrary_init();
+
+	/* No server cert => TLS cannot be served. The contract is "0 == TLS would
+	 * actually be served", and a cert-rotation pre-flight that loses its
+	 * --tls-cert must fail rather than report a usable config it doesn't have. */
+	if (!certfn) {
+		if (keyfn || rootcafn || requireclientcert)
+			conn_info(funcid, INFO_ERROR, "TLS check FAILED: --tls-key/--tls-ca/--tls-require-clientcert require --tls-cert\n");
+		else
+			conn_info(funcid, INFO_ERROR, "TLS check FAILED: no --tls-cert given - TLS would be disabled (plaintext only)\n");
+		return -1;
+	}
+
+	/* Requiring client certs with no CA to verify against is a no-op that
+	 * disables TLS at startup -- flag it here so the pre-flight catches it. */
+	if (requireclientcert && !rootcafn) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: --tls-require-clientcert needs --tls-ca to verify against\n");
+		return -1;
+	}
+
+	ctx = SSL_CTX_new(SSLv23_server_method());
+	if (!ctx) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: cannot allocate SSL context\n");
+		return -1;
+	}
+
+	if (try_ssl_certload(ctx, certfn, keyfn) != 0) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: server certificate/key %s/%s did not load\n",
+			  certfn, (keyfn ? keyfn : "builtin"));
+		rc = -1;
+	}
+	else if (rootcafn && (SSL_CTX_load_verify_locations(ctx, rootcafn, NULL) != 1)) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: cannot open rootca file %s\n", rootcafn);
+		rc = -1;
+	}
+	else if (((cert = SSL_CTX_get0_certificate(ctx)) != NULL) &&
+		 (X509_cmp_time(X509_get0_notAfter(cert), NULL) < 0)) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: server certificate %s has EXPIRED\n", certfn);
+		rc = -1;
+	}
+	else if (cert && (X509_cmp_time(X509_get0_notBefore(cert), NULL) > 0)) {
+		conn_info(funcid, INFO_ERROR, "TLS check FAILED: server certificate %s is not yet valid\n", certfn);
+		rc = -1;
+	}
+	else {
+		conn_info(funcid, INFO_INFO, "TLS check OK: cert=%s, key=%s, ca=%s%s\n",
+			  certfn, (keyfn ? keyfn : "builtin"),
+			  (rootcafn ? rootcafn : "(none, encrypt-only)"),
+			  (rootcafn && requireclientcert) ? " (client cert required)" : "");
+	}
+
+	SSL_CTX_free(ctx);
+	return rc;
+#else
+	/* No OpenSSL in this build: TLS can never be served, so the pre-flight must
+	 * FAIL regardless of what material was supplied -- exit 0 is reserved for
+	 * "TLS would actually be served", which this build can never do. */
+	(void)certfn; (void)keyfn; (void)rootcafn; (void)requireclientcert;
+	conn_info(funcid, INFO_ERROR, "TLS check FAILED: this build has no OpenSSL/TLS support - TLS cannot be served\n");
+	return -1;
+#endif
 }
 
 

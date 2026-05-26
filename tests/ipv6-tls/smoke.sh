@@ -69,6 +69,13 @@ printf 'subjectAltName=DNS:localhost,IP:::1\n' > "$C/srv.ext"
 openssl x509 -req -in "$C/srv.csr" -CA "$C/ca.pem" -CAkey "$C/ca.key" -CAcreateserial -out "$C/srv.pem" -days 1 -extfile "$C/srv.ext" 2>/dev/null
 openssl req -newkey rsa:2048 -keyout "$C/cli.key" -out "$C/cli.csr" -nodes -subj "/CN=xymon-client-01" 2>/dev/null
 openssl x509 -req -in "$C/cli.csr" -CA "$C/ca.pem" -CAkey "$C/ca.key" -CAcreateserial -out "$C/cli.pem" -days 1 2>/dev/null
+# A CN-less client cert (subject has no commonName) to prove trust is gated on
+# verification, not CN extraction.
+openssl req -newkey rsa:2048 -keyout "$C/cnless.key" -out "$C/cnless.csr" -nodes -subj "/O=Xymon/OU=clients" 2>/dev/null
+openssl x509 -req -in "$C/cnless.csr" -CA "$C/ca.pem" -CAkey "$C/ca.key" -CAcreateserial -out "$C/cnless.pem" -days 1 2>/dev/null
+# An already-expired server cert, for the --check-tls validation phase.
+openssl req -newkey rsa:2048 -keyout "$C/expired.key" -out "$C/expired.csr" -nodes -subj "/CN=localhost" 2>/dev/null
+openssl x509 -req -in "$C/expired.csr" -CA "$C/ca.pem" -CAkey "$C/ca.key" -CAcreateserial -out "$C/expired.pem" -days -1 2>/dev/null
 
 if ! ip -6 addr show lo 2>/dev/null | grep -qw "::1"; then
 	echo "SKIP: no ::1 on loopback (run: sudo ip addr add ::1/128 dev lo)"; exit 77
@@ -97,21 +104,138 @@ hasnot "no client cert -> rejected"  "$(XYMON_TLS_CA=$C/ca.pem cli "xymons://loc
 stop_xymond
 
 # ---- phase 3: cert-based ACL (status-senders restricted to exclude us) ----
-echo "== phase 3: a verified cert bypasses the IP sender ACL =="
-# 192.0.2.1 is TEST-NET-1 (RFC 5737): our loopback is NOT in the allow-list,
-# so a plain sender is rejected and only a cert-verified one gets through.
+echo "== phase 3: a verified cert is a trusted sender (via --acl) =="
+# ACL: loopback may read the board in cleartext but NOT post status; only a
+# verified client cert (over TLS) may post status. So a non-cert sender is
+# rejected and only a cert-verified one gets through.
+cat > "$work/acl3.cfg" <<EOF
+local   plain   www
+cert:*  tls     status
+EOF
 start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
-             --tls-ca="$C/ca.pem" --status-senders=192.0.2.1 || exit 1
+             --tls-ca="$C/ca.pem" --acl="$work/acl3.cfg" || exit 1
 
-# no client cert: sender (127.0.0.1) not in the allow-list -> dropped
+# no client cert: no rule grants it status -> dropped
 XYMON_TLS_CA=$C/ca.pem cli "xymons://localhost:$TLSPORT" "status localhost.noaclcol green rejected?" >/dev/null
-# client cert: trusted, bypasses the allow-list -> accepted
+# client cert: 'cert:* tls status' -> accepted
 XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/cli.pem XYMON_TLS_KEY=$C/cli.key \
   cli "xymons://localhost:$TLSPORT" "status localhost.certaclcol green via cert" >/dev/null
+# CN-less client cert: still verified, so still trusted (trust != CN extraction)
+XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/cnless.pem XYMON_TLS_KEY=$C/cnless.key \
+  cli "xymons://localhost:$TLSPORT" "status localhost.cnlesscol green via CN-less cert" >/dev/null
 
 board=$(cli "127.0.0.1:$PORT" "xymondboard fields=hostname,testname,color")
-hasnot "non-cert sender rejected by IP ACL" "$board" "localhost|noaclcol|green"
-has    "cert sender bypasses IP ACL"        "$board" "localhost|certaclcol|green"
+hasnot "non-cert sender denied by ACL"       "$board" "localhost|noaclcol|green"
+has    "cert sender trusted by ACL"          "$board" "localhost|certaclcol|green"
+has    "CN-less verified cert is trusted"    "$board" "localhost|cnlesscol|green"
+stop_xymond
+
+echo "== phase 4: --check-tls validation (exit 0 = ok, 1 = bad) =="
+checktls() { XYMONHOME="$H" "$XYMONDBIN" --check-tls "$@" >/dev/null 2>&1; }
+checktls --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$C/ca.pem" --tls-require-clientcert \
+  && ok "check: valid mTLS material" || bad "check: valid mTLS material"
+checktls --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+  && ok "check: valid encrypt-only" || bad "check: valid encrypt-only"
+checktls --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-require-clientcert \
+  && bad "check: require-clientcert without CA -> fail" || ok "check: require-clientcert without CA -> fail"
+checktls --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$work/missing.pem" \
+  && bad "check: missing CA -> fail" || ok "check: missing CA -> fail"
+checktls --tls-cert="$C/expired.pem" --tls-key="$C/expired.key" \
+  && bad "check: expired server cert -> fail" || ok "check: expired server cert -> fail"
+# no server cert at all: TLS would be disabled, so the pre-flight must FAIL
+# (exit 0 is reserved for "TLS would actually be served").
+checktls \
+  && bad "check: no --tls-cert -> fail (TLS disabled)" || ok "check: no --tls-cert -> fail (TLS disabled)"
+# the removed legacy flag must be a hard error (migrate to --acl)
+if XYMONHOME="$H" "$XYMONDBIN" --no-daemon --listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+     --status-senders=127.0.0.1 >/dev/null 2>&1; then bad "removed --status-senders -> exit"; else ok "removed --status-senders -> exit"; fi
+# a configured-but-empty ACL (file present, only blank/comment lines) must refuse
+# to start, not silently fall through to "no --acl -> allow all" (fail-open).
+printf '# only a comment, no rules\n\n' > "$work/acl-empty.cfg"
+if XYMONHOME="$H" "$XYMONDBIN" --no-daemon --listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+     --acl="$work/acl-empty.cfg" >/dev/null 2>&1; then bad "empty --acl -> exit"; else ok "empty --acl -> exit"; fi
+# admin-breadth guard: granting admin to cert:* must refuse to start...
+printf 'cert:*\ttls\tall\n' > "$work/acl-broad.cfg"
+if XYMONHOME="$H" "$XYMONDBIN" --no-daemon --listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+     --acl="$work/acl-broad.cfg" >/dev/null 2>&1; then bad "broad admin (cert:* all) -> exit"; else ok "broad admin (cert:* all) -> exit"; fi
+# ...unless explicitly forced
+printf 'cert:*\ttls\tall\tforce\n' > "$work/acl-forced.cfg"
+XYMONHOME="$H" MAXACCEPTSPERLOOP=20 "$XYMONDBIN" --no-daemon --listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+     --pidfile="$H/xymond.pid" --acl="$work/acl-forced.cfg" >/dev/null 2>&1 &
+fp=$!; i=0; up=0
+while [ $i -lt 20 ]; do ss -ltn 2>/dev/null | grep -q ":$PORT" && { up=1; break; }; kill -0 "$fp" 2>/dev/null || break; i=$((i+1)); sleep 0.1; done
+kill "$fp" 2>/dev/null; wait "$fp" 2>/dev/null
+[ $up = 1 ] && ok "broad admin + force -> starts" || bad "broad admin + force -> starts"
+
+echo "== phase 5: a broken TLS config degrades to plaintext (never kills the daemon) =="
+# TLS setup failure must DISABLE TLS but keep the plaintext listener up: the
+# daemon comes up on $PORT, and no broken/unverified TLS port is opened.
+degrades() {  # label, extra args...
+	label=$1; shift
+	XYMONHOME="$H" MAXACCEPTSPERLOOP=20 "$XYMONDBIN" --no-daemon \
+		--listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+		--pidfile="$H/xymond.pid" "$@" >/dev/null 2>&1 &
+	p=$!; i=0
+	while [ $i -lt 30 ]; do ss -ltn 2>/dev/null | grep -q ":$PORT" && break; kill -0 "$p" 2>/dev/null || break; i=$((i+1)); sleep 0.1; done
+	if ss -ltn 2>/dev/null | grep -q ":$PORT"; then
+		# plaintext up; the broken TLS port must NOT be listening
+		if ss -ltn 2>/dev/null | grep -q ":$TLSPORT"; then bad "$label (broken TLS port opened!)"; else ok "$label"; fi
+	else
+		bad "$label (daemon did not come up on plaintext)"
+	fi
+	kill "$p" 2>/dev/null; wait "$p" 2>/dev/null
+}
+degrades "require-clientcert without CA -> plaintext only" --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-require-clientcert
+degrades "unloadable --tls-ca -> plaintext only"           --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$work/missing.pem"
+degrades "unloadable --tls-cert -> plaintext only"         --tls-listen="[::]:$TLSPORT" --tls-cert="$work/missing.pem" --tls-key="$work/missing.key"
+degrades "cert without --tls-listen -> plaintext only"     --tls-cert="$C/srv.pem" --tls-key="$C/srv.key"
+degrades "--tls-listen without cert -> plaintext only"     --tls-listen="[::]:$TLSPORT"
+
+echo "== phase 6: unified capability ACL (--acl) =="
+# loopback may do anything but only in cleartext; remote needs a verified cert.
+cat > "$work/acl.cfg" <<EOF
+# unified capability ACL
+local   plain   all
+cert:*  tls     status,www
+EOF
+start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+             --tls-ca="$C/ca.pem" --acl="$work/acl.cfg" || exit 1
+# 1. plaintext loopback -> 'local plain all' -> allowed
+cli "127.0.0.1:$PORT" "status localhost.aclplain green via plaintext local" >/dev/null
+# 2. TLS + verified client cert -> 'cert:* tls status' -> allowed
+XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/cli.pem XYMON_TLS_KEY=$C/cli.key \
+  cli "xymons://localhost:$TLSPORT" "status localhost.aclcert green via cert" >/dev/null
+# 3. TLS WITHOUT cert -> local rule is plaintext-only, cert:* needs a cert -> denied
+XYMON_TLS_CA=$C/ca.pem \
+  cli "xymons://localhost:$TLSPORT" "status localhost.acltlsnocert green should be denied" >/dev/null
+board=$(cli "127.0.0.1:$PORT" "xymondboard fields=hostname,testname,color")   # 'local plain all' grants www
+has    "ACL: plaintext loopback allowed"       "$board" "localhost|aclplain|green"
+has    "ACL: verified cert over TLS allowed"   "$board" "localhost|aclcert|green"
+hasnot "ACL: TLS-without-cert denied (default deny + transport)" "$board" "localhost|acltlsnocert|green"
+stop_xymond
+
+echo "== phase 7: a scheduled command runs with the submitter's ACL context =="
+# Loopback may do anything, but only over TLS. The deferred command therefore
+# only runs if the scheduler replays the submitter's encrypted/cert context
+# (not just the source IP): a plaintext replay would fail this rule's transport.
+cat > "$work/acl-sched.cfg" <<EOF
+local   tls   all
+EOF
+start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+             --tls-ca="$C/ca.pem" --acl="$work/acl-sched.cfg" || exit 1
+# Seed the test (status), then schedule a disable for "now" over the SAME TLS
+# connection kind. 'schedule' needs admin, the deferred 'disable' needs maint;
+# 'local tls all' grants both, but only because the run-time check sees TLS.
+XYMON_TLS_VERIFY=none cli "xymons://[::1]:$TLSPORT" "status localhost.schedtest green seed" >/dev/null
+XYMON_TLS_VERIFY=none cli "xymons://[::1]:$TLSPORT" "schedule $(date +%s) disable localhost.schedtest 5 deferred-via-tls" >/dev/null
+# Wait for the scheduler loop to fire; a disabled test shows blue.
+i=0; board=
+while [ $i -lt 30 ]; do
+	board=$(XYMON_TLS_VERIFY=none cli "xymons://[::1]:$TLSPORT" "xymondboard fields=hostname,testname,color")
+	case "$board" in *"localhost|schedtest|blue"*) break ;; esac
+	i=$((i+1)); sleep 0.2
+done
+has "ACL: scheduled disable ran (TLS context replayed)" "$board" "localhost|schedtest|blue"
 stop_xymond
 
 echo "---- $pass passed, $fail failed ----"

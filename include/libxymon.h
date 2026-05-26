@@ -31,7 +31,7 @@ typedef struct strbuffer_t {
 #define STRBUFEND(buf) (buf->s + buf->used)
 #define STRBUFSZ(buf) (buf->sz)
 
-#define IP_ADDR_STRLEN 16
+#define IP_ADDR_STRLEN 46	/* fits a full IPv6 text address (INET6_ADDRSTRLEN) */
 
 #include "version.h"
 #include "config.h"
@@ -78,6 +78,7 @@ typedef struct strbuffer_t {
 #include "../lib/xymonrrd.h"
 #include "../lib/holidays.h"
 #include "../lib/ipaccess.h"
+#include "../lib/acl.h"
 #include "../lib/loadalerts.h"
 #include "../lib/loadhosts.h"
 #include "../lib/loadcriticalconf.h"

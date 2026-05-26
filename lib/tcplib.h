@@ -76,6 +76,7 @@ extern char *conn_print_ip(tcpconn_t *conn);
 extern char *conn_print_address(tcpconn_t *conn);
 extern char *conn_peer_certificate(tcpconn_t *conn, time_t *certstart, time_t *certend, int *keysize, char **issuer, char **fulltext);
 extern char *conn_peer_certificate_cn(tcpconn_t *conn);
+extern int conn_peer_certificate_verified(tcpconn_t *conn);
 
 extern int conn_listen(int backlog, int maxlifetime,
 		       char *localaddr, enum sslhandling_t withssl,
@@ -92,6 +93,8 @@ extern int conn_init_server(int backlog, int maxlifetime,
 			    char *certfn, char *keyfn, char *rootcafn, int requireclientcert,
 			    char *plain_listeners, char *ssl_listeners,
 			    enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *));
+
+extern int conn_check_tls_server_config(char *certfn, char *keyfn, char *rootcafn, int requireclientcert);
 
 extern void conn_init_client(void);
 extern tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype,

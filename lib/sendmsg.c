@@ -229,6 +229,15 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 			host_start = recipient + XYMONS_SCHEME_LEN;
 		}
 		else
+#else
+		if (strncmp(recipient, XYMONS_SCHEME, XYMONS_SCHEME_LEN) == 0) {
+			/* Without TLS support, don't silently treat "xymons://host" as a
+			 * literal hostname -- report the unsupported scheme clearly. */
+			snprintf(errordetails + strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "xymons:// (TLS) recipient requested, but this build has no TLS support");
+			return XYMONSEND_EBADURL;
+		}
+		else
 #endif
 		if (strncmp(recipient, XYMON_SCHEME, XYMON_SCHEME_LEN) == 0) {
 			host_start = recipient + XYMON_SCHEME_LEN;
@@ -469,8 +478,10 @@ retry_connect:
 					}
 
 					/* "size:N\n" frame so xymond dispatches on byte-count
-					 * (TLS has no reliable half-close EOF), then the body. */
-					snprintf(szhdr, sizeof(szhdr), "size:%d\n", (int)strlen(msgptr));
+					 * (TLS has no reliable half-close EOF), then the body.
+					 * N is the byte length as size_t -- never an (int) cast,
+					 * which would mis-frame a >2GB message as negative. */
+					snprintf(szhdr, sizeof(szhdr), "size:%zu\n", strlen(msgptr));
 					wp = szhdr; wleft = strlen(szhdr);
 					while (wleft > 0) {
 						wn = xymon_tls_write(tls, wp, wleft);

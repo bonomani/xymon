@@ -181,10 +181,11 @@ void *rbcookies;			/* The cookies we use */
 void *rbfilecache;
 void *rbsenders;
 
-sender_t *maintsenders = NULL;
-sender_t *statussenders = NULL;
-sender_t *adminsenders = NULL;
-sender_t *wwwsenders = NULL;
+/* Unified capability-based ACL (--acl=FILE) -- xymond's sole sender access
+ * control. NULL means no ACL configured => allow all (historical default).
+ * See lib/acl.{c,h} and docs/PLAN.md (P5). The legacy --*-senders IPv4 lists
+ * were removed; ipaccess.c/oksender remain for msgcache and --trace. */
+acl_rule_t *xymonacl = NULL;
 sender_t *tracelist = NULL;
 int      traceall = 0;
 int      ignoretraced = 0;
@@ -207,12 +208,19 @@ typedef struct conn_t {
 	size_t buflen, bufsz;		/* Active and maximum length of buffer */
 	size_t msgsz;			/* Declared body size from a "size:N" frame (0 = none) */
 	int cert_authorized;		/* sender authenticated by a verified TLS client cert */
+	int encrypted;			/* connection used TLS (for the transport-aware ACL) */
+	char *certcn;			/* verified client cert CN, or NULL (for cert:<id> ACL rules) */
+	int peerfamily;			/* AF_INET / AF_INET6 of the peer (for the v6-native ACL) */
+	unsigned char peeraddr[16];	/* peer address bytes; v4-mapped-v6 normalized to AF_INET */
 	int doingwhat;			/* Communications state (NOTALK, READING, RESPONDING) */
 	time_t timeout;			/* When the timeout for this connection happens */
 	struct conn_t *next;
 } conn_t;
 
 enum droprencmd_t { CMD_DROPHOST, CMD_DROPTEST, CMD_RENAMEHOST, CMD_RENAMETEST, CMD_DROPSTATE };
+
+/* Access-control chokepoint; defined later, used by do_maint() above do_message(). */
+static int access_check(conn_t *msg, unsigned int needcap, char *targetip, char *logmsg);
 
 static volatile int running = 1;
 static volatile int reloadconfig = 0;
@@ -383,6 +391,14 @@ typedef struct scheduletask_t {
 	time_t executiontime;
 	char *command;
 	char *sender;
+	/* The submitter's ACL context, captured at schedule time and replayed when
+	 * the command runs, so the deferred command is judged exactly as if its
+	 * sender re-submitted it on the same kind of connection (see the scheduler
+	 * loop). Persisted in the checkpoint so it survives a restart; an older
+	 * checkpoint without these fields restores them zeroed (plaintext, no cert). */
+	int encrypted;
+	int cert_verified;
+	char *certcn;
 	struct scheduletask_t *next;
 } scheduletask_t;
 scheduletask_t *schedulehead = NULL;
@@ -2112,9 +2128,9 @@ void handle_enadis(int enabled, conn_t *msg, char *sender)
 	}
 	else hwalk = xtreeData(rbhosts, hosthandle);
 
-	if (!oksender(maintsenders, 
+	if (!access_check(msg, ACL_CAP_MAINT,
 		      (hwalk->ip && (strcmp(hwalk->ip, "0.0.0.0") != 0)) ? hwalk->ip : NULL,
-		      msg->addr.sin_addr, msg->buf)) goto done;
+		      msg->buf)) goto done;
 
 	if (tname) {
 		testhandle = xtreeFind(rbtests, tname);
@@ -3467,18 +3483,87 @@ strbuffer_t *generate_hostinfo_outbuf(strbuffer_t **prebuf, boardfield_t *boardf
 }
 
 
+static const char *capname(unsigned int cap)
+{
+	switch (cap) {
+	  case ACL_CAP_STATUS: return "status";
+	  case ACL_CAP_WWW:    return "www";
+	  case ACL_CAP_MAINT:  return "maint";
+	  case ACL_CAP_ADMIN:  return "admin";
+	}
+	return "?";
+}
+
 /*
- * Admin/config commands are never authorized by a client cert alone -- they
- * always require the IP-based adminsenders ACL, even from a cert-verified
- * sender (the cert grants "trusted reporter", not "administrator").
+ * Single access-control chokepoint for an incoming message, capability-based,
+ * transport-aware and v4/v6, via the unified ACL (lib/acl.c). The cert/admin
+ * rule is data, not code: a cert:* rule simply omits ACL_CAP_ADMIN.
+ *
+ *  - no --acl configured  -> allow all (the historical "no sender list" default).
+ *  - local backfeed IPC (sender 0.0.0.0) -> always trusted.
+ *  - otherwise the rule table decides; default within it is deny.
+ *
+ * `targetip` (the host's own IP) is unused -- the legacy IP self-report bypass
+ * was retired with the --*-senders lists; express it as a rule if wanted.
+ * `logmsg` is the text logged on refusal.
+ */
+/*
+ * Render a connection's source address for logging and storage. Uses the
+ * v4/v6-native peeraddr captured at accept() time (so a pure-IPv6 peer shows
+ * its real address, not the synthetic IPv4 fallback). Synthetic connections
+ * with no peer (the backfeed channel) have peerfamily 0; fall back to the
+ * legacy sin_addr for those. Always NUL-terminates.
+ */
+static char *format_sender(conn_t *msg, char *buf, size_t bufsz)
+{
+	if (((msg->peerfamily == AF_INET) || (msg->peerfamily == AF_INET6)) &&
+	    inet_ntop(msg->peerfamily, msg->peeraddr, buf, bufsz))
+		return buf;
+
+	strncpy(buf, inet_ntoa(msg->addr.sin_addr), bufsz - 1);
+	buf[bufsz - 1] = '\0';
+	return buf;
+}
+
+static int access_check(conn_t *msg, unsigned int needcap, char *targetip, char *logmsg)
+{
+	acl_request_t req;
+	int ok;
+
+	(void)targetip;
+
+	if (!xymonacl) return 1;					/* no ACL -> allow all */
+	/* Backfeed channel: a synthetic conn with no peer (peerfamily unset) and
+	 * the wildcard address. A real peer always has peerfamily set, so a
+	 * native-IPv6 scheduled task (sin_addr left zero) is still ACL-checked. */
+	if ((msg->peerfamily == 0) && (msg->addr.sin_addr.s_addr == INADDR_ANY)) return 1;
+
+	memset(&req, 0, sizeof(req));
+	req.family = msg->peerfamily;
+	memcpy(req.addr, msg->peeraddr, sizeof(req.addr));
+	req.encrypted = msg->encrypted;
+	req.cert_verified = msg->cert_authorized;
+	req.cert_id = msg->certcn;
+
+	ok = acl_check(xymonacl, &req, needcap);
+	if (!ok && logmsg) {
+		char sbuf[IP_ADDR_STRLEN];
+		char *eoln = strchr(logmsg, '\n'); if (eoln) *eoln = '\0';
+		errprintf("ACL denied %s from %s: %s\n", capname(needcap),
+			  format_sender(msg, sbuf, sizeof(sbuf)), logmsg);
+		if (eoln) *eoln = '\n';
+	}
+	return ok;
+}
+
+/*
+ * Admin/config commands are never authorized by a client cert alone -- the ACL
+ * grants admin only to explicit source rules (a cert:* rule omits it), so this
+ * is just the admin-capability check.
  */
 static int ok_admin_sender(conn_t *msg)
 {
-	int saved = sender_cert_authorized, r;
-	sender_cert_authorized = 0;
-	r = oksender(adminsenders, NULL, msg->addr.sin_addr, msg->buf);
-	sender_cert_authorized = saved;
-	return r;
+	return access_check(msg, ACL_CAP_ADMIN, NULL, msg->buf);
 }
 
 void do_message(conn_t *msg, char *origin)
@@ -3507,11 +3592,8 @@ void do_message(conn_t *msg, char *origin)
 
 	/* Most likely, we will not send a response */
 	msg->doingwhat = NOTALK;
-	strncpy(sender, inet_ntoa(msg->addr.sin_addr), sizeof(sender));
+	format_sender(msg, sender, sizeof(sender));
 
-	/* A TLS-cert-verified sender bypasses the IP sender ACL (see oksender);
-	 * set per-message since connections interleave. Admin stays IP-gated. */
-	sender_cert_authorized = msg->cert_authorized;
 	now = getcurrenttime(NULL);
 	timeroffset = (getcurrenttime(NULL) - gettimer());
 
@@ -3637,9 +3719,9 @@ void do_message(conn_t *msg, char *origin)
 				*msgfrom = '\0';
 			}
 
-			if (statussenders) {
+			if (xymonacl) {
 				get_hts(currmsg, sender, origin, &h, &t, &grouplist, &log, &color, &downcause, NULL, 0, 0);
-				if (!oksender(statussenders, (h ? h->ip : NULL), msg->addr.sin_addr, currmsg)) validsender = 0;
+				if (!access_check(msg, ACL_CAP_STATUS, (h ? h->ip : NULL), currmsg)) validsender = 0;
 			}
 
 			if (validsender) {
@@ -3684,7 +3766,7 @@ void do_message(conn_t *msg, char *origin)
 			if (nextmsg) { *(nextmsg+1) = '\0'; nextmsg += 2; }
 
 			get_hts(currmsg, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 0, 0);
-			if (h && t && log && oksender(statussenders, (h ? h->ip : NULL), msg->addr.sin_addr, currmsg)) {
+			if (h && t && log && access_check(msg, ACL_CAP_STATUS, (h ? h->ip : NULL), currmsg)) {
 				handle_meta(currmsg, log);
 			}
 
@@ -3700,7 +3782,7 @@ void do_message(conn_t *msg, char *origin)
 			if (nextmsg) { *(nextmsg+1) = '\0'; nextmsg += 2; }
 
 			get_hts(currmsg, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 0, 0);
-			if (h && t && log && oksender(statussenders, (h ? h->ip : NULL), msg->addr.sin_addr, currmsg)) {
+			if (h && t && log && access_check(msg, ACL_CAP_STATUS, (h ? h->ip : NULL), currmsg)) {
 				handle_modify(currmsg, log, color);
 			}
 
@@ -3714,9 +3796,9 @@ void do_message(conn_t *msg, char *origin)
 			*msgfrom = '\0';
 		}
 
-		if (statussenders) {
+		if (xymonacl) {
 			get_hts(msg->buf, sender, origin, &h, &t, &grouplist, &log, &color, &downcause, NULL, 0, 0);
-			if (!oksender(statussenders, (h ? h->ip : NULL), msg->addr.sin_addr, msg->buf)) goto done;
+			if (!access_check(msg, ACL_CAP_STATUS, (h ? h->ip : NULL), msg->buf)) goto done;
 		}
 
 		get_hts(msg->buf, sender, origin, &h, &t, &grouplist, &log, &color, &downcause, NULL, 1, 1);
@@ -3790,7 +3872,7 @@ void do_message(conn_t *msg, char *origin)
 			if (hname == NULL) {
 				/* Ignore it */
 			}
-			else if (!oksender(statussenders, hostip, msg->addr.sin_addr, msg->buf)) {
+			else if (!access_check(msg, ACL_CAP_STATUS, hostip, msg->buf)) {
 				/* Invalid sender */
 				errprintf("Invalid data message - sender %s not allowed for host %s\n", sender, hostname);
 			}
@@ -3804,7 +3886,8 @@ void do_message(conn_t *msg, char *origin)
 		}
 	}
 	else if (strncmp(msg->buf, "summary", 7) == 0) {
-		/* Summaries are always allowed. Or should we ? */
+		/* A summary writes a status, so it needs the same capability. */
+		if (!access_check(msg, ACL_CAP_STATUS, NULL, msg->buf)) goto done;
 		get_hts(msg->buf, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 1, 1);
 		if (h && t && log && (color != -1)) {
 			handle_status(msg->buf, sender, h->hostname, t->name, NULL, log, color, NULL, 0);
@@ -3835,7 +3918,7 @@ void do_message(conn_t *msg, char *origin)
 		if (*id) {
 			if (*msg->buf == 'n') {
 				/* "notes" message */
-				if (!oksender(maintsenders, NULL, msg->addr.sin_addr, msg->buf)) {
+				if (!access_check(msg, ACL_CAP_MAINT, NULL, msg->buf)) {
 					/* Invalid sender */
 					errprintf("Invalid notes message - sender %s not allowed for host %s\n", 
 						  sender, id);
@@ -3846,7 +3929,7 @@ void do_message(conn_t *msg, char *origin)
 			}
 			else if (*msg->buf == 'u') {
 				/* "usermsg" message */
-				if (!oksender(statussenders, NULL, msg->addr.sin_addr, msg->buf)) {
+				if (!access_check(msg, ACL_CAP_STATUS, NULL, msg->buf)) {
 					/* Invalid sender */
 					errprintf("Invalid user message - sender %s not allowed for host %s\n", 
 						  sender, id);
@@ -3871,7 +3954,7 @@ void do_message(conn_t *msg, char *origin)
 	else if (strncmp(msg->buf, "config", 6) == 0) {
 		char *conffn, *p;
 
-		if (!oksender(statussenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_STATUS, NULL, msg->buf)) goto done;
 
 		p = msg->buf + 6; p += strspn(p, " \t");
 		p = strtok(p, " \t\r\n");
@@ -3886,7 +3969,7 @@ void do_message(conn_t *msg, char *origin)
 	else if (allow_downloads && (strncmp(msg->buf, "download", 8) == 0)) {
 		char *fn, *p;
 
-		if (!oksender(statussenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_STATUS, NULL, msg->buf)) goto done;
 
 		p = msg->buf + 8; p += strspn(p, " \t");
 		p = strtok(p, " \t\r\n");
@@ -3899,14 +3982,16 @@ void do_message(conn_t *msg, char *origin)
 		xfree(fn);
 	}
 	else if (strncmp(msg->buf, "flush filecache", 15) == 0) {
+		if (!access_check(msg, ACL_CAP_ADMIN, NULL, msg->buf)) goto done;
 		flush_filecache();
 	}
 	else if ( (strcmp(msg->buf, "reload") == 0) || (strcmp(msg->buf, "rotate") == 0) ) {
+		if (!access_check(msg, ACL_CAP_ADMIN, NULL, msg->buf)) goto done;
 		posttoall(msg->buf);
 	}
 	else if (strncmp(msg->buf, "query ", 6) == 0) {
 		get_hts(msg->buf, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 0, 0);
-		if (!oksender(statussenders, (h ? h->ip : NULL), msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_STATUS, (h ? h->ip : NULL), msg->buf)) goto done;
 
 		if (log) {
 			xfree(msg->buf);
@@ -3949,7 +4034,7 @@ void do_message(conn_t *msg, char *origin)
 		char *fields;
 		int acklevel = -1;
 
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		logfilter = setup_filter(msg->buf, &fields, &acklevel, NULL);
 		if (!fields) fields = "hostname,testname,color,flags,lastchange,logtime,validtime,acktime,disabletime,sender,cookie,ackmsg,dismsg,client,modifiers";
@@ -3985,7 +4070,7 @@ void do_message(conn_t *msg, char *origin)
 		 * xymondxlog HOST.TEST
 		 *
 		 */
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		get_hts(msg->buf, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 0, 0);
 		if (log) {
@@ -4062,7 +4147,7 @@ void do_message(conn_t *msg, char *origin)
 		strbuffer_t *response;
 		static unsigned int lastboardsize = 0;
 
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		logfilter = setup_filter(msg->buf, &fields, &acklevel, &havehostfilter);
 		if (!fields) fields = "hostname,testname,color,flags,lastchange,logtime,validtime,acktime,disabletime,sender,cookie,line1";
@@ -4175,7 +4260,7 @@ void do_message(conn_t *msg, char *origin)
 		strbuffer_t *response;
 
 
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		logfilter = setup_filter(msg->buf, &fields, &acklevel, &havehostfilter);
 
@@ -4269,7 +4354,7 @@ void do_message(conn_t *msg, char *origin)
 		static unsigned int lastboardsize = 0;
 		char *clonehost;
 
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		response = newstrbuffer(lastboardsize);
 
@@ -4330,7 +4415,7 @@ void do_message(conn_t *msg, char *origin)
 		int duration;
 		xymond_log_t *lwalk;
 
-		if (!oksender(maintsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_MAINT, NULL, msg->buf)) goto done;
 
 		MEMDEFINE(durstr);
 
@@ -4382,7 +4467,7 @@ void do_message(conn_t *msg, char *origin)
 		/* ackinfo HOST.TEST\nlevel\nvaliduntil\nackedby\nmsg */
 		int ackall = 0;
 
-		if (!oksender(maintsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_MAINT, NULL, msg->buf)) goto done;
 
 		get_hts(msg->buf, sender, origin, &h, &t, NULL, &log, &color, NULL, &ackall, 0, 0);
 		if (log) {
@@ -4449,12 +4534,17 @@ void do_message(conn_t *msg, char *origin)
 		msg->buflen = strlen(msg->buf);
 	}
 	else if (strncmp(msg->buf, "notify", 6) == 0) {
-		if (!oksender(maintsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_MAINT, NULL, msg->buf)) goto done;
 		get_hts(msg->buf, sender, origin, &h, &t, NULL, &log, &color, NULL, NULL, 0, 0);
 		if (h && t) handle_notify(msg->buf, sender, h->hostname, t->name);
 	}
 	else if (strncmp(msg->buf, "schedule", 8) == 0) {
 		char *cmd;
+
+		/* Managing the deferred-command queue is an admin operation. The
+		 * scheduled command itself is re-checked against its original sender
+		 * when it runs (see the scheduler loop in the main select() loop). */
+		if (!access_check(msg, ACL_CAP_ADMIN, NULL, msg->buf)) goto done;
 
 		/*
 		 * Schedule a later command. This is either
@@ -4489,6 +4579,10 @@ void do_message(conn_t *msg, char *origin)
 				cmd += strspn(cmd, " ");
 				newitem->sender = strdup(sender);
 				newitem->command = strdup(cmd);
+				/* Capture the submitter's ACL context to replay at run time. */
+				newitem->encrypted = msg->encrypted;
+				newitem->cert_verified = msg->cert_authorized;
+				newitem->certcn = (msg->certcn ? strdup(msg->certcn) : NULL);
 				newitem->next = schedulehead;
 				schedulehead = newitem;
 			}
@@ -4506,6 +4600,7 @@ void do_message(conn_t *msg, char *origin)
 				if (swalk) {
 					xfree(swalk->sender);
 					xfree(swalk->command);
+					if (swalk->certcn) xfree(swalk->certcn);
 					if (sprev == NULL) {
 						schedulehead = swalk->next;
 					}
@@ -4568,7 +4663,7 @@ void do_message(conn_t *msg, char *origin)
 			if (hname == NULL) {
 				/* Ignore it */
 			}
-			else if (!oksender(statussenders, hostip, msg->addr.sin_addr, msg->buf)) {
+			else if (!access_check(msg, ACL_CAP_STATUS, hostip, msg->buf)) {
 				/* Invalid sender */
 				errprintf("Invalid client message - sender %s not allowed for host %s\n", sender, hostname);
 				hname = NULL;
@@ -4622,7 +4717,7 @@ void do_message(conn_t *msg, char *origin)
 	else if (strncmp(msg->buf, "clientlog ", 10) == 0) {
 		char *hostname, *p;
 		xtreePos_t hosthandle;
-		if (!oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) goto done;
 
 		p = msg->buf + strlen("clientlog"); p += strspn(p, "\t ");
 		hostname = p; p += strcspn(p, "\t "); if (*p) { *p = '\0'; p++; }
@@ -4681,7 +4776,7 @@ void do_message(conn_t *msg, char *origin)
 		}
 	}
 	else if (strncmp(msg->buf, "ghostlist", 9) == 0) {
-		if (oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) {
+		if (access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) {
 			xtreePos_t ghandle;
 			ghostlist_t *gwalk;
 			strbuffer_t *resp;
@@ -4706,7 +4801,7 @@ void do_message(conn_t *msg, char *origin)
 	}
 
 	else if (strncmp(msg->buf, "multisrclist", 12) == 0) {
-		if (oksender(wwwsenders, NULL, msg->addr.sin_addr, msg->buf)) {
+		if (access_check(msg, ACL_CAP_WWW, NULL, msg->buf)) {
 			xtreePos_t mhandle;
 			multisrclist_t *mwalk;
 			strbuffer_t *resp;
@@ -4734,6 +4829,8 @@ void do_message(conn_t *msg, char *origin)
 		senderstats_t *rec;
 		strbuffer_t *resp;
 		char msgline[1024];
+
+		if (!access_check(msg, ACL_CAP_ADMIN, NULL, msg->buf)) goto done;
 
 		resp = newstrbuffer(0);
 
@@ -4838,8 +4935,14 @@ void save_checkpoint(void)
 	}
 
 	for (swalk = schedulehead; (swalk && (iores >= 0)); swalk = swalk->next) {
-		iores = fprintf(fd, "@@XYMONDCHK-V1|.task.|%d|%d|%s|%s\n", 
-			swalk->id, (int)swalk->executiontime, swalk->sender, nlencode(swalk->command));
+		/* nlencode() shares one static buffer, so materialize the command
+		 * before encoding certcn in the same fprintf. Trailing context fields
+		 * are ignored by older readers and default to 0/NULL when absent. */
+		char *enccmd = strdup(nlencode(swalk->command));
+		iores = fprintf(fd, "@@XYMONDCHK-V1|.task.|%d|%d|%s|%s|%d|%d|%s\n",
+			swalk->id, (int)swalk->executiontime, swalk->sender, enccmd,
+			swalk->encrypted, swalk->cert_verified, nlencode(swalk->certcn ? swalk->certcn : ""));
+		xfree(enccmd);
 	}
 
 	if (iores < 0) {
@@ -4908,6 +5011,9 @@ void load_checkpoint(char *fn)
 				  case 3: newtask->executiontime = (time_t) atoi(item); break;
 				  case 4: newtask->sender = strdup(item); break;
 				  case 5: nldecode(item); newtask->command = strdup(item); break;
+				  case 6: newtask->encrypted = atoi(item); break;
+				  case 7: newtask->cert_verified = atoi(item); break;
+				  case 8: nldecode(item); if (*item) newtask->certcn = strdup(item); break;
 				  default: break;
 				}
 				item = gettok(NULL, "|\n"); i++;
@@ -4920,6 +5026,7 @@ void load_checkpoint(char *fn)
 			else {
 				if (newtask->sender) xfree(newtask->sender);
 				if (newtask->command) xfree(newtask->command);
+				if (newtask->certcn) xfree(newtask->certcn);
 				xfree(newtask);
 			}
 
@@ -5275,6 +5382,33 @@ static void conn_peer_in_addr(tcpconn_t *conn, struct sockaddr_in *out)
 	}
 }
 
+/*
+ * Capture the peer for the unified (v6-native) ACL: family + raw address bytes.
+ * Unlike conn_peer_in_addr (which collapses to an IPv4-only struct), this keeps
+ * a native IPv6 peer as AF_INET6/16 bytes so v6 CIDR rules can match it; a
+ * v4-mapped-v6 peer is normalized to AF_INET so v4 rules match it.
+ */
+static void conn_peer_acl_addr(tcpconn_t *conn, conn_t *msg)
+{
+	msg->peerfamily = 0;
+	memset(msg->peeraddr, 0, sizeof(msg->peeraddr));
+	if (conn->family == AF_INET) {
+		msg->peerfamily = AF_INET;
+		memcpy(msg->peeraddr, &((struct sockaddr_in *)conn->peer)->sin_addr, 4);
+	}
+	else if (conn->family == AF_INET6) {
+		struct in6_addr *a6 = &((struct sockaddr_in6 *)conn->peer)->sin6_addr;
+		if (IN6_IS_ADDR_V4MAPPED(a6)) {
+			msg->peerfamily = AF_INET;
+			memcpy(msg->peeraddr, ((unsigned char *)a6) + 12, 4);
+		}
+		else {
+			msg->peerfamily = AF_INET6;
+			memcpy(msg->peeraddr, a6, 16);
+		}
+	}
+}
+
 static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t id, void *userdata)
 {
 	conn_t *msg = (conn_t *)userdata;
@@ -5290,6 +5424,7 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 		*(msg->bufp) = '\0';
 		msg->buflen = 0;
 		conn_peer_in_addr(conn, &msg->addr);
+		conn_peer_acl_addr(conn, msg);	/* full v4/v6 peer for the unified ACL */
 		conn->userdata = msg;
 		break;
 
@@ -5333,8 +5468,13 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 				char *eol = strchr((char *)msg->buf, '\n');
 				if (eol) {
 					size_t hdrlen = (eol - (char *)msg->buf) + 1;
-					long declared = atol((char *)msg->buf + 5);
-					if ((declared <= 0) || (declared > MAX_XYMON_INBUFSZ)) {
+					char *endp = NULL;
+					long declared;
+					errno = 0;
+					declared = strtol((char *)msg->buf + 5, &endp, 10);
+					/* The count must be the whole header field: digits up to the
+					 * '\n', in (0, MAX]. atol() would take "size:100x" as 100. */
+					if ((endp != eol) || errno || (declared <= 0) || (declared > MAX_XYMON_INBUFSZ)) {
 						errprintf("Bad size: frame from %s - dropping\n", conn_print_ip(conn));
 						msg->doingwhat = NOTALK;
 					}
@@ -5349,8 +5489,11 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 			}
 
 			if ((msg->msgsz > 0) && (msg->buflen >= msg->msgsz)) {
-				/* Sized message complete -- dispatch now, no EOF needed. */
-				*(msg->bufp) = '\0';
+				/* Sized message complete -- dispatch now, no EOF needed.
+				 * Terminate at exactly the declared length so any trailing
+				 * bytes beyond size:N are not folded into the message body
+				 * (xymon is one message per connection). */
+				msg->buf[msg->msgsz] = '\0';
 				do_message(msg, "");
 				if ((msg->doingwhat == RESPONDING) && (msg->buflen > 0))
 					msg->bufp = msg->buf;
@@ -5395,16 +5538,18 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 		break;
 
 	  case CONN_CB_SSLHANDSHAKE_OK:
-		/* A peer cert here has already verified (SSL_VERIFY_PEER aborts the
-		 * handshake on failure when a CA is configured), so a present cert
-		 * means a trusted sender -- it bypasses the IP sender ACL (not admin). */
+		/* The connection is now encrypted (relevant to the transport-aware ACL).
+		 * A verified peer cert additionally means a trusted sender -- gate that
+		 * on the verification result, not CN extraction: a valid CA-verified
+		 * cert may carry only SANs and no CN. The CN (if any) is kept for
+		 * cert:<id> ACL rules and freed at cleanup. */
 		if (msg) {
-			char *cn = conn_peer_certificate_cn(conn);
-			if (cn) {
+			msg->encrypted = 1;
+			if (conn_peer_certificate_verified(conn)) {
 				msg->cert_authorized = 1;
+				msg->certcn = conn_peer_certificate_cn(conn);
 				errprintf("TLS client cert verified (CN=%s) from %s - sender trusted\n",
-					  cn, conn_print_ip(conn));
-				free(cn);
+					  (msg->certcn ? msg->certcn : "(no CN)"), conn_print_ip(conn));
 			}
 		}
 		break;
@@ -5416,6 +5561,7 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 	  case CONN_CB_CLEANUP:
 		if (msg) {
 			if (msg->buf) xfree(msg->buf);
+			if (msg->certcn) free(msg->certcn);
 			xfree(msg);
 			conn->userdata = NULL;
 		}
@@ -5491,6 +5637,7 @@ int main(int argc, char *argv[])
 	char *hostsfn = NULL;
 	char *restartfn = NULL;
 	char *logfn = NULL;
+	char *aclfn = NULL;
 	int checkpointinterval = 900;
 	int do_purples = 1;
 	time_t nextpurpleupdate;
@@ -5504,6 +5651,7 @@ int main(int argc, char *argv[])
 	char *pidfile = NULL;
 	char *tlslisten = NULL, *tlscert = NULL, *tlskey = NULL, *tlsca = NULL;
 	int tlsreqcert = 0;
+	int checktls = 0;
 	struct sigaction sa;
 	time_t conn_timeout = 30;
 	char *envarea = NULL;
@@ -5570,6 +5718,12 @@ int main(int argc, char *argv[])
 		else if (strcmp(argv[argi], "--tls-require-clientcert") == 0) {
 			tlsreqcert = 1;
 		}
+		else if (strcmp(argv[argi], "--check-tls") == 0) {
+			/* Validate the TLS material and exit, without binding or
+			 * daemonizing. Run before bouncing xymond (e.g. after a cert
+			 * rotation) to confirm the next start won't fail closed. */
+			checktls = 1;
+		}
 		else if (argnmatch(argv[argi], "--timeout=")) {
 			char *p = strchr(argv[argi], '=') + 1;
 			int newconn_timeout = atoi(p);
@@ -5630,25 +5784,21 @@ int main(int argc, char *argv[])
 			char *p = strchr(argv[argi], '=');
 			ackinfologfn = strdup(p+1);
 		}
-		else if (argnmatch(argv[argi], "--maint-senders=")) {
-			/* Who is allowed to send us "enable", "disable", "ack", "notes" messages */
-			char *p = strchr(argv[argi], '=');
-			maintsenders = getsenderlist(p+1);
+		else if (argnmatch(argv[argi], "--maint-senders=") ||
+			 argnmatch(argv[argi], "--status-senders=") ||
+			 argnmatch(argv[argi], "--admin-senders=") ||
+			 argnmatch(argv[argi], "--www-senders=")) {
+			/* The four IPv4-only sender lists were replaced by the unified,
+			 * capability-based, v4/v6 ACL. Fail loudly rather than silently
+			 * dropping the access restriction the operator intended. */
+			char *eq = strchr(argv[argi], '=');
+			if (eq) *eq = '\0';
+			errprintf("FATAL: %s has been removed - use --acl=FILE (see docs/ipv6-tls.md) - exiting\n", argv[argi]);
+			exit(1);
 		}
-		else if (argnmatch(argv[argi], "--status-senders=")) {
-			/* Who is allowed to send us "status", "combo", "summary", "data" messages */
-			char *p = strchr(argv[argi], '=');
-			statussenders = getsenderlist(p+1);
-		}
-		else if (argnmatch(argv[argi], "--admin-senders=")) {
-			/* Who is allowed to send us "drop", "rename", "config", "query" messages */
-			char *p = strchr(argv[argi], '=');
-			adminsenders = getsenderlist(p+1);
-		}
-		else if (argnmatch(argv[argi], "--www-senders=")) {
-			/* Who is allowed to send us "xymondboard", "xymondlog"  messages */
-			char *p = strchr(argv[argi], '=');
-			wwwsenders = getsenderlist(p+1);
+		else if (argnmatch(argv[argi], "--acl=")) {
+			/* Unified capability ACL file -- xymond's sole sender access control. */
+			aclfn = strdup(strchr(argv[argi], '=') + 1);
 		}
 		else if (argnmatch(argv[argi], "--dbghost=")) {
 			char *p = strchr(argv[argi], '=');
@@ -5745,14 +5895,101 @@ int main(int argc, char *argv[])
 		}
 		else if (argnmatch(argv[argi], "--help")) {
 			printf("Options:\n");
-			printf("\t--listen=IP:PORT              : The address the daemon listens on\n");
+			printf("\t--listen=IP:PORT              : Plaintext listen address (IPv6 bracketed, e.g. [::]:1984)\n");
 			printf("\t--hosts=FILENAME              : The hosts.cfg file\n");
 			printf("\t--ghosts=allow|drop|log       : How to handle unknown hosts\n");
+			printf("\t--tls-listen=IP:PORT          : TLS (xymons://) listen address; needs --tls-cert (default port 1985)\n");
+			printf("\t--tls-cert=FILE               : PEM server certificate (enables TLS)\n");
+			printf("\t--tls-key=FILE                : PEM private key (optional; defaults to the --tls-cert file)\n");
+			printf("\t--tls-ca=FILE                 : PEM CA to verify client certs (matched by cert:* / cert:<id> ACL rules)\n");
+			printf("\t--tls-require-clientcert      : Refuse TLS clients without a cert verifying against --tls-ca\n");
+			printf("\t--check-tls                   : Validate --tls-cert/--tls-key/--tls-ca and exit (0=ok, 1=bad)\n");
+			printf("\t--acl=FILE                    : Unified capability ACL (supersedes --*-senders)\n");
 			return 1;
 		}
 		else {
 			errprintf("Unknown option '%s' - ignored\n", argv[argi]);
 		}
+	}
+
+	if (checktls) {
+		/* Dry-run TLS validation only: no hosts.cfg, no listeners, no daemon.
+		 * Exit 0 if TLS would actually be served, 1 if TLS would be disabled
+		 * (the daemon itself would still start on plaintext -- startup degrades
+		 * rather than aborting, so this check is how a pipeline gets a non-zero
+		 * exit on a broken TLS config). */
+		int tlsok;
+		conn_register_infohandler(xymond_conn_info, INFO_INFO);
+		tlsok = (conn_check_tls_server_config(tlscert, tlskey, tlsca, tlsreqcert) == 0);
+		return tlsok ? 0 : 1;
+	}
+
+	/* TLS flag coherence: these combinations can't serve TLS, but rather than
+	 * stop the daemon (which would also take the always-present plaintext port
+	 * down) we warn loudly and carry on serving plaintext. Use --check-tls in a
+	 * pipeline if you want a non-zero exit on a broken TLS config. */
+	if ((tlskey || tlsca || tlsreqcert) && !tlscert) {
+		errprintf("WARNING: --tls-key/--tls-ca/--tls-require-clientcert ignored - they require --tls-cert\n");
+	}
+	if (tlscert && !tlslisten) {
+		errprintf("WARNING: --tls-cert given without --tls-listen - no TLS port opened, serving plaintext only\n");
+	}
+	if (tlslisten && !tlscert) {
+		errprintf("WARNING: --tls-listen given without --tls-cert - cannot serve TLS, serving plaintext only\n");
+	}
+
+	if (aclfn) {
+		/* Load the unified capability ACL. A parse error is fatal (a broken
+		 * access policy must not be silently ignored). When loaded, access_check
+		 * uses it instead of the --*-senders lists; default within it is deny. */
+		FILE *afd = fopen(aclfn, "r");
+		char aclline[1024];
+		int lineno = 0, nrules = 0;
+
+		if (!afd) {
+			errprintf("FATAL: cannot open --acl file %s: %s\n", aclfn, strerror(errno));
+			exit(1);
+		}
+		while (fgets(aclline, sizeof(aclline), afd)) {
+			char aclerr[256];
+			acl_rule_t *rule;
+			lineno++;
+			rule = acl_parse_line(aclline, aclerr, sizeof(aclerr));
+			if (!rule) {
+				if (aclerr[0]) {
+					errprintf("FATAL: %s:%d: %s\n", aclfn, lineno, aclerr);
+					fclose(afd);
+					exit(1);
+				}
+				continue;	/* blank/comment */
+			}
+			xymonacl = acl_append(xymonacl, rule);
+			nrules++;
+		}
+		fclose(afd);
+
+		/* A configured-but-empty ACL (file present, only blank/comment lines)
+		 * must NOT fall through to access_check's "no ACL -> allow all" path --
+		 * that would silently fail open, the opposite of default-deny. The
+		 * operator clearly intended access control, so fail loudly instead. */
+		if (nrules == 0) {
+			errprintf("FATAL: --acl file %s has no rules - that would deny every sender; "
+				  "add at least 'local any all' (or omit --acl for the open default) - exiting\n", aclfn);
+			exit(1);
+		}
+
+		/* Safety net: refuse to start if a rule grants admin too broadly (to
+		 * cert:* or a wide CIDR) without an explicit `force`. Makes "everyone is
+		 * admin" hard to do by accident; intentional broad admin needs `force`. */
+		{
+			char aclerr[256];
+			if (acl_audit_admin(xymonacl, aclerr, sizeof(aclerr)) > 0) {
+				errprintf("FATAL: %s: %s - narrow the source, grant a non-admin capability, "
+					  "or append 'force' to that rule - exiting\n", aclfn, aclerr);
+				exit(1);
+			}
+		}
+		errprintf("Loaded unified ACL from %s (%d rules)\n", aclfn, nrules);
 	}
 
 	if (xgetenv("HOSTSCFG") && (hostsfn == NULL)) {
@@ -5824,6 +6061,9 @@ int main(int argc, char *argv[])
 		}
 
 		if (nlisteners == 0) {
+			/* Nothing bound at all -- not even plaintext. A TLS-only setup
+			 * problem does not reach here: conn_init_server disables TLS and
+			 * keeps plaintext, so this fires only when plaintext also failed. */
 			errprintf("FATAL: could not bind any network listener (tried %s%s%s) - exiting\n",
 				  listenspec, tlsspec ? ", TLS " : "", tlsspec ? tlsspec : "");
 			exit(1);
@@ -6130,14 +6370,35 @@ int main(int argc, char *argv[])
 					memset(&task, 0, sizeof(task));
 					task.sock = -1;
 					task.doingwhat = NOTALK;
-					inet_aton(runtask->sender, (struct in_addr *) &task.addr.sin_addr.s_addr);
+					/* Re-present the original sender to the v4/v6-native ACL:
+					 * access_check() reads peerfamily/peeraddr, so a scheduled
+					 * disable/enable/ack is judged as if it came from that peer.
+					 * sin_addr is kept in step for the legacy/backfeed paths. */
+					if (inet_pton(AF_INET, runtask->sender, &task.addr.sin_addr) == 1) {
+						task.peerfamily = AF_INET;
+						memcpy(task.peeraddr, &task.addr.sin_addr, 4);
+					}
+					else if (inet_pton(AF_INET6, runtask->sender, task.peeraddr) == 1) {
+						task.peerfamily = AF_INET6;
+					}
+					else {
+						inet_aton(runtask->sender, (struct in_addr *) &task.addr.sin_addr.s_addr);
+					}
+					/* Replay the submitter's transport/cert context so the
+					 * command's own capability check (e.g. MAINT for disable)
+					 * sees the same grant the scheduler connected with. */
+					task.encrypted = runtask->encrypted;
+					task.cert_authorized = runtask->cert_verified;
+					task.certcn = runtask->certcn;	/* borrowed for this call only */
 					task.buf = task.bufp = runtask->command;
 					task.buflen = strlen(runtask->command); task.bufsz = task.buflen+1;
 					do_message(&task, "");
 
-					errprintf("Ran scheduled task %d from %s: %s\n", 
+					errprintf("Ran scheduled task %d from %s: %s\n",
 						  runtask->id, runtask->sender, runtask->command);
-					xfree(runtask->sender); xfree(runtask->command); xfree(runtask);
+					xfree(runtask->sender); xfree(runtask->command);
+					if (runtask->certcn) xfree(runtask->certcn);
+					xfree(runtask);
 				}
 				else {
 					sprev = swalk;
