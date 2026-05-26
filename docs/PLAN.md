@@ -193,16 +193,16 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
   4.3.30`; `status` → board; `XYMON_TLS_VERIFY=none` → MITM warning + works.
 - ✅ **Verification graft DONE.** `xymon_tls.c` does server-cert verification
   (`set1_host`/`set1_ip`, modes `full|peer|none`) — and **fails closed**:
-  `verify=full` with no `XYMON_TLS_CA` refuses the handshake (proven). mTLS
-  (`XYMON_TLS_CERT/KEY` + server `--tls-ca`/`--tls-require-clientcert`) is wired
-  but not yet end-to-end tested.
+  `verify=full` with no `XYMON_TLS_CA` refuses the handshake (proven).
+- ✅ **mTLS DONE & PROVEN** (`XYMON_TLS_CERT/KEY` ↔ server `--tls-ca` +
+  `--tls-require-clientcert`): client-with-cert → `xymond 4.3.30` and status →
+  board; client-without-cert → server rejects (`tlsv13 alert certificate
+  required`). Mutual authentication confirmed.
 
 ## Next step
 
 Remaining for "full" TLS (all lower priority — the core feature works):
-1. **mTLS end-to-end** — test `XYMON_TLS_CERT/KEY` (client) against server
-   `--tls-ca` + `--tls-require-clientcert`; it's wired but unproven.
-2. **CI** — extend the `ipv6-e2e` lane with a TLS leg (gen cert, `--tls-listen`,
+1. **CI** — extend the `ipv6-e2e` lane with a TLS leg (gen cert, `--tls-listen`,
    `xymons://` ping/status) once GitHub Actions triggering is back.
 3. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
    sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model).
