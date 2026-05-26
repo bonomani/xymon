@@ -25,8 +25,11 @@ Every arrow obeys one law:
 
 Two planes:
 
-    Defined  (you write; config)     Host · Test · Rule · Suppression
+    Defined  (you write; config)     Host · Test · Rule · Suppression · View
     Observed (system writes; timed)  State · Alarm · Action
+
+(`View` is presentation only — a curated page tree — and gates nothing in the
+pipeline; see §6.)
 
 The Defined/Observed split gives config-vs-runtime and time/history for free:
 observed entities are series (State) and events (Alarm, Action).
@@ -153,8 +156,9 @@ is costly — one combo per connection is the efficient ingest path.)
 Each noun is a resource collection with the same shape; the plane decides which
 methods are real:
 
-    Defined   /hosts /tests /rules /suppressions
+    Defined   /hosts /tests /rules /suppressions /graph-defs /views
               GET (list, filter by selector) · GET/PUT/PATCH/DELETE (item)
+              /views = the curated page tree (presentation only).
 
     Observed  /states /alarms /actions /series /graphs
               GET (list, filter by any dimension; group-by for rollups) · GET (item)
@@ -186,6 +190,13 @@ Promoted:
   time range (`from`/`to`/`step`). Named graphs (the `graphs.cfg` analogue) are
   a Defined resource `/graph-defs` = a Selector + render hints. Not a new
   pipeline node — it is the WHEN axis of a State's value. Numeric metrics only.
+- **Views (the curated page tree)** — the hosts.cfg "pages" analogue: a Defined
+  resource `/views`, a tree of `{title, parent, selector, order}`. Two kinds of
+  grouping, kept separate: *derived* grouping is a **label** (`os=windows`,
+  `site=paris`) via group-by/selector; *curated* grouping (editorial order +
+  nesting + titles) is a **View**, built on selectors so membership stays
+  derived/auto-updating. A View is **presentation only** — it gates nothing in
+  the pipeline, and many overlapping Views (by OS, site, service) can coexist.
 
 Deferred (promote only on demand):
 - **Service** — a named Selector for now; promote to an entity only if it needs

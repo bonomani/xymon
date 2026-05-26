@@ -480,6 +480,50 @@ paths:
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
 
+  /views:
+    get:
+      tags: [defined]
+      summary: List views (the curated page tree; the hosts.cfg pages analogue).
+      operationId: listViews
+      responses:
+        "200": { description: Views., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/View" } } } } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    post:
+      tags: [defined]
+      summary: Create a view (a presentation node).
+      operationId: createView
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/View" } } } }
+      responses:
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/View" } } } }
+        "400": { $ref: "#/components/responses/BadRequest" }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+  /views/{id}:
+    parameters: [ { $ref: "#/components/parameters/Id" } ]
+    get:
+      tags: [defined]
+      summary: Get a view.
+      operationId: getView
+      responses:
+        "200": { description: View., content: { application/json: { schema: { $ref: "#/components/schemas/View" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+    put:
+      tags: [defined]
+      summary: Create or replace a view.
+      operationId: putView
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/View" } } } }
+      responses:
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/View" } } } }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+    delete:
+      tags: [defined]
+      summary: Delete a view.
+      operationId: deleteView
+      responses:
+        "204": { description: Deleted. }
+        "401": { $ref: "#/components/responses/Unauthorized" }
+        "404": { $ref: "#/components/responses/NotFound" }
+
 components:
   securitySchemes:
     basicAuth:
@@ -669,6 +713,21 @@ components:
         selector: { $ref: "#/components/schemas/Selector" }
         unit:     { type: string, description: "Y-axis unit label, e.g. '%' or 'ms'." }
         stacked:  { type: boolean, default: false }
+
+    View:
+      type: object
+      description: >
+        A curated presentation node (the Xymon "page" analogue): a title, optional
+        nesting, and a membership Selector. Presentation/navigation only — a View
+        gates nothing in the pipeline. Membership is derived from the selector;
+        nesting/order is editorial.
+      required: [id, title]
+      properties:
+        id:       { type: string }
+        title:    { type: string }
+        parent:   { type: string, nullable: true, description: "Parent view id (null = top level)." }
+        selector: { $ref: "#/components/schemas/Selector" }
+        order:    { type: integer, nullable: true }
 
     Error:
       type: object

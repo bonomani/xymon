@@ -24,6 +24,9 @@
   .api  { font-family: ui-monospace, Menlo, Consolas, monospace; font-size: 11px;
           color:#456; background:#eef2f6; border:1px solid #d4dde6; border-radius:4px;
           padding:4px 8px; display:inline-block; margin-bottom:10px; }
+  h2.page { font-size:13px; color:#304860; margin:16px 0 6px; border-bottom:2px solid #304860;
+            padding-bottom:3px; display:flex; align-items:center; gap:10px; }
+  h2.page .api { margin-bottom:0; }
   table.board { border-collapse: collapse; }
   table.board th, table.board td { border:1px solid #c7c7c7; padding:5px 9px; text-align:center; }
   table.board th { background:#f0f0f0; font-weight:bold; }
@@ -52,7 +55,7 @@
   <small>rendered from the REST API model — <span id="ts"></span></small></div>
 
 <div class="wrap">
-  <span class="api">GET /states?rollup=host,test</span>
+  <span class="api">GET /views &nbsp;→&nbsp; per page: GET /states?os=…&amp;rollup=host,test</span>
   <label class="flt"><input type="checkbox" id="onlyprob"> show only problems (verdict≠green)</label>
   <div id="grid"></div>
   <div id="detail">
@@ -111,20 +114,45 @@ const SERIES = {   // GET /series?host=..&test=..&metric=pct_used  (→ /graphs)
 
 const COLORS = ["green","yellow","red","blue","clear","purple"];
 
-// ---- render the grid ----------------------------------------------------
+const HOSTS = {   // GET /hosts — host → os label (a derived grouping dimension)
+  "web1":"linux", "db1":"linux", "router1":"network",
+  "ifmspc-usr2.ad1.i01.gtbcr.org":"windows",
+};
+const VIEW = {    // GET /views — a curated page tree (here: nest by OS)
+  title:"All systems",
+  children:[
+    {title:"Windows", selector:{os:"windows"}},
+    {title:"Linux",   selector:{os:"linux"}},
+    {title:"Network", selector:{os:"network"}},
+  ],
+};
+
+// ---- render the page tree (a View) --------------------------------------
 function render() {
   const onlyProb = document.getElementById("onlyprob").checked;
-  const hosts = [...new Set(BOARD.items.map(i=>i.host))];
-  const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();
+  const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();   // global cols so pages align
   const cell  = {};
   BOARD.items.forEach(i => cell[i.host+"|"+i.test] = i.verdict);
 
+  let html = '';
+  VIEW.children.forEach(group => {
+    const hosts = Object.keys(HOSTS).filter(h => HOSTS[h] === group.selector.os);
+    html += `<h2 class="page">${group.title}`+
+            `<span class="api">GET /states?os=${group.selector.os}&amp;rollup=host,test</span></h2>`;
+    html += gridFor(hosts, tests, cell, onlyProb);
+  });
+  document.getElementById("grid").innerHTML = html;
+}
+
+function gridFor(hosts, tests, cell, onlyProb) {
   let h = '<table class="board"><thead><tr><th class="host">host</th>';
   tests.forEach(t => h += `<th>${t}</th>`);
   h += '</tr></thead><tbody>';
+  let shown = 0;
   hosts.forEach(host => {
     const rowVerdicts = tests.map(t => cell[host+"|"+t]);
     if (onlyProb && rowVerdicts.every(v => !v || v==="green")) return;
+    shown++;
     h += `<tr><td class="host">${host}</td>`;
     tests.forEach(t => {
       const v = cell[host+"|"+t];
@@ -135,7 +163,7 @@ function render() {
     h += '</tr>';
   });
   h += '</tbody></table>';
-  document.getElementById("grid").innerHTML = h;
+  return shown ? h : '<div class="muted" style="margin:2px 0 10px">(all green — hidden)</div>';
 }
 
 // ---- drill-down (status detail + history sparkline) ---------------------

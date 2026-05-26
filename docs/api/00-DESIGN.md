@@ -15,7 +15,8 @@ This file holds the API conventions and decisions. The three docs split as:
 The API is the model's two planes, each a uniform set of resources:
 
 - **Defined** (config; full CRUD): `/hosts` `/tests` `/rules` `/suppressions`
-  `/graph-defs` — `GET`/`POST` on the collection, `GET`/`PUT`/`DELETE` on the item.
+  `/graph-defs` `/views` — `GET`/`POST` on the collection, `GET`/`PUT`/`DELETE`
+  on the item. (`/views` = the curated page tree; presentation only.)
 - **Observed** (runtime; read-only + the two real writes): `/states` `/alarms`
   `/actions` `/series` `/graphs` — `GET` to read/query; `POST /states` ingests
   readings; `POST /actions` issues operator commands (ack/disable/enable);

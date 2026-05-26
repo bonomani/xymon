@@ -46,7 +46,8 @@ flowchart LR
 ├── /tests            GET POST   · /{id} GET PUT DELETE
 ├── /rules            GET POST   · /{id} GET PUT DELETE
 ├── /suppressions     GET POST   · /{id} GET PUT DELETE
-└── /graph-defs       GET POST   · /{id} GET PUT DELETE   (named graphs.cfg)
+├── /graph-defs       GET POST   · /{id} GET PUT DELETE   (named graphs.cfg)
+└── /views            GET POST   · /{id} GET PUT DELETE   (curated page tree)
 ```
 **Defined** resources are read/write (config). **Observed** resources are
 read-only, except the two real writes: ingest (`POST /states`) and operator
@@ -77,6 +78,8 @@ only its record schema differs.
 | defined  | `/suppressions/{id}` | GET, PUT, DELETE   | one suppression (DELETE = "enable") |
 | defined  | `/graph-defs`        | GET, POST          | named graphs (the `graphs.cfg` analogue) |
 | defined  | `/graph-defs/{id}`   | GET, PUT, DELETE   | one graph definition |
+| defined  | `/views`             | GET, POST          | curated page tree (the `hosts.cfg` pages analogue) |
+| defined  | `/views/{id}`        | GET, PUT, DELETE   | one view (presentation only) |
 
 ack/disable/enable are **not** endpoints — they are `POST /actions {type}`, and
 an operator action may create a Suppression. "enable" = `DELETE` that suppression.
@@ -122,6 +125,7 @@ classDiagram
     class Test    { id · kind · selector · owner · enabled }
     class Rule    { id · transition · selector · condition · severity · route }
     class Suppression { id · gates · selector · window · reason }
+    class View    { id · title · parent · selector · order  (presentation only) }
 
     Test --> State : produces (1..*)
     State --> Alarm : Rule raises
