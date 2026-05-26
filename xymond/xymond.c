@@ -6093,8 +6093,10 @@ int main(int argc, char *argv[])
 	last_stats_time = getcurrenttime(NULL);	/* delay sending of the first status report until we're fully running */
 
 
-	/* Set up listener(s) via tcplib. Wildcard addresses bind separate IPv4
-	 * and IPv6 sockets (see build_listenspec / listen_port's IPV6_V6ONLY). */
+	/* Set up listener(s) via tcplib. An omitted --listen (or an explicit
+	 * comma-list) binds separate IPv4 + IPv6 sockets; an explicit wildcard
+	 * (0.0.0.0 or [::]) binds a single family. listen_port forces IPV6_V6ONLY
+	 * so the v4/v6 binds never collide. (See build_listenspec.) */
 	{
 		char *listenspec = build_listenspec(listenip, listenport);
 		/* TLS listener defaults to 1985 (the xymons:// client default), not the

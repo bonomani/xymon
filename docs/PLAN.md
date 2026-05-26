@@ -226,6 +226,11 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
     `--listen=0.0.0.0:P` binds both `0.0.0.0:P` and `[::]:P`; unbindable
     `192.0.2.1:P` → exit 1 + FATAL log; full smoke suite 11/11 (incl. IPv4
     `localhost` TLS against the `[::]` listener).
+  - **SUPERSEDED by P5g (below):** at the time of this entry an *explicit*
+    `0.0.0.0`/`[::]` wildcard expanded to dual-stack. P5g changed that — now only
+    an **omitted** `--listen` (or an explicit comma-list) is dual-stack; explicit
+    `0.0.0.0` is IPv4-only and `[::]` is IPv6-only. The dual-stack claims in this
+    P2 bullet are historical, not current behavior.
 
 ## Next step
 

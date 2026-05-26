@@ -79,7 +79,9 @@ is \fBomitted\fR, xymond defaults to dual-stack on port 1984 \(em both
 given: \fB0.0.0.0\fR is the IPv4 wildcard only, \fB::\fR (written \fB[::]\fR) is
 the IPv6 wildcard only, a concrete address such as \fB127.0.0.1:1984\fR or
 \fB[2001:db8::10]:1984\fR binds that single address, and a comma-separated list
-such as \fB0.0.0.0:1984,[::]:1984\fR requests explicit dual-stack.
+such as \fB0.0.0.0:1984,[::]:1984\fR requests explicit dual-stack. A spec with
+the host omitted (e.g. \fB:1984\fR) is treated as dual-stack, the same as
+omitting \fB\-\-listen\fR entirely.
 
 .IP "\-\-tls\-listen=IP[:PORT]"
 Open an additional listener that requires TLS (the \fIxymons://\fR scheme).

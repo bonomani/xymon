@@ -97,7 +97,9 @@ is <B>omitted</B>, xymond defaults to dual-stack on port 1984 --- both
 given: <B>0.0.0.0</B> is the IPv4 wildcard only, <B>::</B> (written <B>[::]</B>) is
 the IPv6 wildcard only, a concrete address such as <B>127.0.0.1:1984</B> or
 <B>[2001:db8::10]:1984</B> binds that single address, and a comma-separated list
-such as <B>0.0.0.0:1984,[::]:1984</B> requests explicit dual-stack.
+such as <B>0.0.0.0:1984,[::]:1984</B> requests explicit dual-stack. A spec with
+the host omitted (e.g. <B>:1984</B>) is treated as dual-stack, the same as
+omitting <B>--listen</B> entirely.
 <P>
 <DT>--tls-listen=IP[:PORT]<DD>
 Open an additional listener that requires TLS (the <I>xymons://</I> scheme).
@@ -457,6 +459,6 @@ file is read to determine the names of all known hosts.
 This document was created by
 <A HREF="http://localhost/cgi-bin/man/man2html">man2html</A>,
 using the manual pages.<BR>
-Time: 21:40:28 GMT, May 26, 2026
+Time: 22:27:43 GMT, May 26, 2026
 </BODY>
 </HTML>
