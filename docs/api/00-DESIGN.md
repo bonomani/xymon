@@ -14,9 +14,10 @@ This file holds the API conventions and decisions. The three docs split as:
 --------------------
 The API is the model's two planes, each a uniform set of resources:
 
-- **Defined** (config; full CRUD): `/hosts` `/tests` `/rules` `/suppressions`
+- **Defined** (config; full CRUD): `/entities` `/tests` `/rules` `/suppressions`
   `/graph-defs` `/views` — `GET`/`POST` on the collection, `GET`/`PUT`/`DELETE`
-  on the item. (`/views` = the curated page tree; presentation only.)
+  on the item. (`/entities` = monitored subjects of any `kind` — host/net/
+  service/link/app; `/views` = the curated page tree, presentation only.)
 - **Observed** (runtime; read-only + the two real writes): `/states` `/alarms`
   `/actions` `/series` `/graphs` — `GET` to read/query; `POST /states` ingests
   readings; `POST /actions` issues operator commands (ack/disable/enable);
@@ -36,7 +37,7 @@ schema, not the API structure.
 - **One** auth scheme: HTTP Basic, reusing the existing Xymon web user db.
 - **One** error shape: `{error, detail}`; each operation enumerates its real
   status codes (400/401/403/404/409/502).
-- **Query by dimension** on `/states`: every label is a filter (`host`, `test`,
+- **Query by dimension** on `/states`: every label is a filter (`entity`, `test`,
   `metric`, `verdict`, free dims via `selector`), with `rollup` for group-by
   aggregates (the classic "column color"), `fields` for projection, `limit`.
 - **Ingest is batch-shaped** (`POST /states` with `readings[]`) — the `combo`
@@ -48,17 +49,19 @@ schema, not the API structure.
 3. Decisions taken up front (no open questions block it)
 --------------------------------------------------------
 - **Authorization**: API-level — an authenticated caller may read and write.
-  Per-token/per-host scoping (ties to `owner`/WHO) is a later refinement.
+  Per-token/per-entity scoping (ties to `owner`/WHO) is a later refinement.
 - **Write anti-spoofing**: v1 trusts API auth for ingest; tightening to
-  "sender identity must match host" is a later option (mTLS makes it natural).
+  "sender identity must match entity" is a later option (mTLS makes it natural).
 - **`config` / file exposure**: not in v1; if added, a server-side allow-list.
 
 
 4. Deferred (promote on demand)
 -------------------------------
-- Service as an entity (today: a Selector).
+- Explicit `Relation{from,to,type}` edges — today relations are labels +
+  selectors (member-of→combo, depends-on→suppression, group→view); promote to a
+  relation graph only for multi-hop / root-cause.
 - Streaming board/alarm changes (SSE/websocket) — poll for now.
-- `owner` (WHO) coverage on hosts/tests — confirm it's populated.
+- `owner` (WHO) coverage on entities/tests — confirm it's populated.
 
 The contract in `openapi.yaml` is the source of truth; this file and the model
 explain the *why*.

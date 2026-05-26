@@ -48,12 +48,12 @@ paths:
       summary: Query states. Every dimension is a filter; group with `rollup`.
       operationId: listStates
       parameters:
-        - { name: host,    in: query, schema: { type: string }, description: "WHERE anchor." }
+        - { name: entity,  in: query, schema: { type: string }, description: "WHERE anchor — the monitored subject." }
         - { name: test,    in: query, schema: { type: string }, description: "HOW anchor (probe)." }
         - { name: item,    in: query, schema: { type: string }, description: "WHERE — the judged item (filesystem/url/core)." }
         - { name: verdict, in: query, schema: { $ref: "#/components/schemas/Status" } }
         - { name: selector, in: query, schema: { type: string }, description: "Match free dimensions, e.g. `mount=/var,core=3`." }
-        - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (worst severity), e.g. `host,test` for the classic column color." }
+        - { name: rollup,  in: query, schema: { type: string }, description: "Group-by dimensions (worst severity), e.g. `entity,test` for the classic column color." }
         - { name: fields,  in: query, schema: { type: string }, description: "Comma-separated projection." }
         - { name: limit,   in: query, schema: { type: integer, minimum: 1, maximum: 10000, default: 1000 } }
       responses:
@@ -68,8 +68,8 @@ paths:
                   items: { type: array, items: { $ref: "#/components/schemas/State" } }
               example:
                 items:
-                  - { id: "web1:disk:/var", host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } }, verdict: critical, time: "2026-05-26T00:00:00Z" }
-                  - { id: "web1:disk:/",    host: web1, test: disk, item: "/",  labels: { mount: "/" },  metrics: { pct_used: { value: 38, verdict: ok } }, verdict: ok, time: "2026-05-26T00:00:00Z" }
+                  - { id: "web1:disk:/var", entity: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } }, verdict: critical, time: "2026-05-26T00:00:00Z" }
+                  - { id: "web1:disk:/",    entity: web1, test: disk, item: "/",  labels: { mount: "/" },  metrics: { pct_used: { value: 38, verdict: ok } }, verdict: ok, time: "2026-05-26T00:00:00Z" }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "502": { $ref: "#/components/responses/Upstream" }
@@ -88,7 +88,7 @@ paths:
                 readings: { type: array, items: { $ref: "#/components/schemas/Reading" } }
             example:
               readings:
-                - { host: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } } }
+                - { entity: web1, test: disk, item: /var, labels: { mount: /var }, metrics: { pct_used: { value: 96, verdict: critical }, inodes: { value: 41, verdict: ok } } }
       responses:
         "202": { description: Readings accepted; decomposed into states. }
         "400": { $ref: "#/components/responses/BadRequest" }
@@ -114,7 +114,7 @@ paths:
       summary: Query alarms (conditions raised from state by Rules).
       operationId: listAlarms
       parameters:
-        - { name: host,     in: query, schema: { type: string } }
+        - { name: entity,   in: query, schema: { type: string } }
         - { name: test,     in: query, schema: { type: string } }
         - { name: severity, in: query, schema: { $ref: "#/components/schemas/Severity" } }
         - { name: status,   in: query, schema: { $ref: "#/components/schemas/AlarmStatus" } }
@@ -179,7 +179,7 @@ paths:
               acknowledge:
                 value: { type: ack, target: { alarm: "web1:disk:/var" }, duration: "2h", message: "ticket OPS-1234" }
               disable:
-                value: { type: disable, target: { selector: "host=web1,test=disk" }, duration: "60m", message: "maintenance" }
+                value: { type: disable, target: { selector: "entity=web1,test=disk" }, duration: "60m", message: "maintenance" }
       responses:
         "201":
           description: Action recorded (and any resulting Suppression created).
@@ -208,7 +208,7 @@ paths:
       summary: Time-series history of state values (the data behind graphs).
       operationId: listSeries
       parameters:
-        - { name: host,     in: query, schema: { type: string } }
+        - { name: entity,   in: query, schema: { type: string } }
         - { name: test,     in: query, schema: { type: string } }
         - { name: item,     in: query, schema: { type: string }, description: "The judged item (filesystem/url/...)." }
         - { name: metric,   in: query, schema: { type: string }, description: "Which metric field of the item to graph." }
@@ -238,7 +238,7 @@ paths:
       operationId: renderGraph
       parameters:
         - { name: graph,    in: query, schema: { type: string }, description: "A named graph definition id (else render ad-hoc by selector)." }
-        - { name: host,     in: query, schema: { type: string } }
+        - { name: entity,   in: query, schema: { type: string } }
         - { name: test,     in: query, schema: { type: string } }
         - { name: selector, in: query, schema: { type: string } }
         - { name: from,     in: query, schema: { type: string, default: "-24h" } }
@@ -258,47 +258,47 @@ paths:
   # ---- Defined plane (config; uniform CRUD) -------------------------------
   # Every config resource has the identical shape: GET/POST on the collection,
   # GET/PUT/DELETE on the item. Only the record schema differs.
-  /hosts:
+  /entities:
     get:
       tags: [defined]
-      summary: List hosts.
-      operationId: listHosts
+      summary: List entities (host / net / service / …).
+      operationId: listEntities
       responses:
-        "200": { description: Hosts., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Host" } } } } } } }
+        "200": { description: Hosts., content: { application/json: { schema: { type: object, required: [items], properties: { items: { type: array, items: { $ref: "#/components/schemas/Entity" } } } } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
     post:
       tags: [defined]
-      summary: Create a host.
-      operationId: createHost
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+      summary: Create an entity.
+      operationId: createEntity
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
       responses:
-        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+        "201": { description: Created., content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "409": { $ref: "#/components/responses/Conflict" }
-  /hosts/{id}:
+  /entities/{id}:
     parameters: [ { $ref: "#/components/parameters/Id" } ]
     get:
       tags: [defined]
-      summary: Get a host.
-      operationId: getHost
+      summary: Get an entity.
+      operationId: getEntity
       responses:
-        "200": { description: Host., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+        "200": { description: Host., content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
         "401": { $ref: "#/components/responses/Unauthorized" }
         "404": { $ref: "#/components/responses/NotFound" }
     put:
       tags: [defined]
-      summary: Create or replace a host.
-      operationId: putHost
-      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+      summary: Create or replace an entity.
+      operationId: putEntity
+      requestBody: { required: true, content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
       responses:
-        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Host" } } } }
+        "200": { description: Replaced., content: { application/json: { schema: { $ref: "#/components/schemas/Entity" } } } }
         "400": { $ref: "#/components/responses/BadRequest" }
         "401": { $ref: "#/components/responses/Unauthorized" }
     delete:
       tags: [defined]
-      summary: Delete a host.
-      operationId: deleteHost
+      summary: Delete an entity.
+      operationId: deleteEntity
       responses:
         "204": { description: Deleted. }
         "401": { $ref: "#/components/responses/Unauthorized" }
@@ -561,7 +561,7 @@ components:
     Selector:
       type: object
       additionalProperties: { type: string }
-      description: "Label matchers scoping a rule/suppression/command, e.g. {host: web1, test: disk}."
+      description: "Label matchers scoping a rule/suppression/command, e.g. {entity: web1, test: disk}."
 
     Window:
       type: object
@@ -591,11 +591,11 @@ components:
         item's correlated measurements; each may carry its own `verdict`
         (status); metrics without one are data (graph via /series). The State
         `verdict` is the WORST of its metrics. WHERE=host+item+labels, HOW=test.
-        verdict is a semantic status — colour is a render mapping.
+        verdict is a semantic status — colour is a render mapping. A State is observed (from a probe) or derived (from a combo test).
       required: [id, host, test, verdict]
       properties:
         id:      { type: string, description: "Flattened (host,test,item) key." }
-        host:    { type: string, description: "WHERE anchor." }
+        entity:  { type: string, description: "WHERE anchor — the monitored subject (any kind)." }
         test:    { type: string, description: "HOW anchor (probe)." }
         item:    { type: string, description: "WHERE — the judged thing (filesystem/url/core); empty for single-item tests." }
         labels:  { $ref: "#/components/schemas/Labels" }
@@ -608,7 +608,7 @@ components:
       description: An ingested item reading (one line) — becomes/updates one State.
       required: [host, test]
       properties:
-        host:    { type: string }
+        entity:  { type: string }
         test:    { type: string }
         item:    { type: string, nullable: true }
         labels:  { $ref: "#/components/schemas/Labels" }
@@ -621,7 +621,7 @@ components:
       required: [id, severity, status]
       properties:
         id:       { type: string }
-        host:     { type: string }
+        entity:   { type: string }
         test:     { type: string }
         metric:   { type: string, nullable: true }
         labels:   { $ref: "#/components/schemas/Labels" }
@@ -653,18 +653,20 @@ components:
         duration: { type: string, description: "For ack/disable, e.g. '2h' or '-1'." }
         message:  { type: string }
 
-    Host:
+    Entity:
       type: object
-      required: [hostname]
+      description: A monitored subject; `kind` distinguishes host / net / service / link / app. Tests, states, alarms attach to it regardless of kind.
+      required: [id, kind]
       properties:
-        hostname: { type: string }
-        ip:       { type: string, nullable: true }
-        owner:    { type: string, description: "WHO is responsible (routes actions).", nullable: true }
-        labels:   { $ref: "#/components/schemas/Labels" }
+        id:     { type: string }
+        kind:   { type: string, enum: [host, net, service, link, app], default: host }
+        ip:     { type: string, nullable: true }
+        owner:  { type: string, description: "WHO is responsible (routes actions).", nullable: true }
+        labels: { $ref: "#/components/schemas/Labels" }
 
     Test:
       type: object
-      description: A check (probe) applied to hosts via a selector.
+      description: A check applied to entities via a selector. kind is the probe (disk, http, …) or `combo` (a derived test computed from other states).
       required: [id, kind]
       properties:
         id:       { type: string }
@@ -673,6 +675,7 @@ components:
         owner:    { type: string, nullable: true }
         enabled:  { type: boolean, default: true }
         params:   { type: object, additionalProperties: true }
+        expr:     { type: string, nullable: true, description: "For kind=combo: expression over other states, e.g. 'worst' or 'web1.http && db1.conn'." }
 
     Rule:
       type: object

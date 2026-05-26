@@ -65,6 +65,7 @@
         <option value="site">site (assigned)</option>
       </select></label>
     <label class="flt"><input type="checkbox" id="onlyprob"> show only problems</label>
+    <label class="flt"><input type="checkbox" id="simdown"> simulate: router1 down (dependency)</label>
     <span class="legend" id="legend"></span>
   </div>
   <div id="grid"></div>
@@ -97,12 +98,15 @@ const BOARD = { items: [   // GET /states?<group>=..&rollup=host,test
   {host:"ifmspc-usr2.ad1.i01.gtbcr.org", test:"disk", verdict:"ok"},
 ]};
 
-const HOSTS = {   // GET /hosts — labels; some discovered, some assigned
-  "web1":    {os:"linux",   site:"paris"},     // os = discovered (agent reports it)
-  "db1":     {os:"linux",   site:"paris"},     // site = assigned (admin sets it)
-  "router1": {os:"network", site:"london"},
-  "ifmspc-usr2.ad1.i01.gtbcr.org": {os:"windows", site:"london"},
+const ENTITIES = {   // GET /entities — monitored subjects of ANY kind, with labels
+  "web1":    {kind:"host", os:"linux",   site:"paris",  upstream:"router1"},
+  "db1":     {kind:"host", os:"linux",   site:"paris",  upstream:"router1"},
+  "router1": {kind:"net",  os:"network", site:"london"},   // a non-host entity
+  "ifmspc-usr2.ad1.i01.gtbcr.org": {kind:"host", os:"windows", site:"london", upstream:"router1"},
+  "shop":    {kind:"service"},   // a combo entity (no os/site; status derived)
 };
+// member-of relation as a combo: shop's "service" status = worst of its members.
+const COMBO = { "shop|service": { op:"worst", members:[ {e:"web1",t:"http"}, {e:"db1",t:"conn"} ] } };
 
 // GET /states?host=..&test=..  → one State per item; each metric may carry its
 // OWN severity (where a Rule applies); the rest are data.
@@ -138,45 +142,87 @@ function ball(sev, sz){ const c = COLOR[sev]; return c ? `<span class="ball ${c}
 // the ball IS the verdict; spell the word only when it's a problem (ok needs none)
 function label(sev){ return sev ? `${ball(sev,10)}${sev==="ok"?"":" "+sev}` : ''; }
 
-// ---- render the page tree (group by any label) --------------------------
+// current verdict map; "router1 down" simulates a dependency failing.
+function cellMap() {
+  const c = {}; BOARD.items.forEach(i => c[i.host+"|"+i.test] = i.verdict);
+  if (document.getElementById("simdown").checked) c["router1|conn"] = "critical";
+  return c;
+}
+
+// ---- render the page tree (group by any label) + services ---------------
 function render() {
   const onlyProb = document.getElementById("onlyprob").checked;
   const dim   = document.getElementById("groupby").value;        // group by any label
+  const simDown = document.getElementById("simdown").checked;
   const tests = [...new Set(BOARD.items.map(i=>i.test))].sort();  // global cols → pages align
-  const cell  = {}; BOARD.items.forEach(i => cell[i.host+"|"+i.test] = i.verdict);
+  const cell  = cellMap();
 
-  const values = [...new Set(Object.keys(HOSTS).map(h => HOSTS[h][dim]))].sort();
+  const subjects = Object.keys(ENTITIES).filter(e => ENTITIES[e].kind !== "service");
+  const values = [...new Set(subjects.map(e => ENTITIES[e][dim]))].filter(v => v != null).sort();
   let html = '';
   values.forEach(val => {
-    const hosts = Object.keys(HOSTS).filter(h => HOSTS[h][dim] === val);
+    const ents = subjects.filter(e => ENTITIES[e][dim] === val);
     html += `<h2 class="page">${dim}: ${val}`+
-            `<span class="api">GET /states?${dim}=${val}&amp;rollup=host,test</span></h2>`+
-            gridFor(hosts, tests, cell, onlyProb);
+            `<span class="api">GET /states?${dim}=${val}&amp;rollup=entity,test</span></h2>`+
+            gridFor(ents, tests, cell, onlyProb, simDown);
   });
+  html += renderServices(cell);
   document.getElementById("grid").innerHTML = html;
 }
 
-function gridFor(hosts, tests, cell, onlyProb) {
-  let h = '<table class="board"><thead><tr><th class="host">host</th>';
+function gridFor(ents, tests, cell, onlyProb, simDown) {
+  let h = '<table class="board"><thead><tr><th class="host">entity</th>';
   tests.forEach(t => h += `<th>${t}</th>`);
   h += '</tr></thead><tbody>';
   let shown = 0;
-  hosts.forEach(host => {
-    const row = tests.map(t => cell[host+"|"+t]);
-    if (onlyProb && row.every(v => !v || v==="ok")) return;
+  ents.forEach(e => {
+    // dependency suppression: if the upstream is down, this entity's alarms are held
+    const suppressed = simDown && ENTITIES[e].upstream === "router1" && e !== "router1";
+    const row = tests.map(t => cell[e+"|"+t]);
+    if (onlyProb && !suppressed && row.every(v => !v || v==="ok")) return;
     shown++;
-    h += `<tr><td class="host">${host}</td>`;
+    h += `<tr${suppressed?' style="opacity:.45"':''}><td class="host">${e}`+
+         `${suppressed?' <span class="muted">⊘ suppressed (router1 down)</span>':''}</td>`;
     tests.forEach(t => {
-      const v = cell[host+"|"+t];
+      const v = cell[e+"|"+t];
       if (!v) { h += '<td><span class="none">–</span></td>'; return; }
-      const c = COLOR[v];
-      const click = DETAIL[host+"|"+t] ? `onclick="drill('${host}','${t}')"` : '';
-      h += `<td><span class="ball ${c}" title="${host}.${t} = ${v}" ${click}></span></td>`;
+      const click = DETAIL[e+"|"+t] ? `onclick="drill('${e}','${t}')"` : '';
+      h += `<td><span class="ball ${COLOR[v]}" title="${e}.${t} = ${v}" ${click}></span></td>`;
     });
     h += '</tr>';
   });
   h += '</tbody></table>';
   return shown ? h : '<div class="muted" style="margin:2px 0 10px">(all ok — hidden)</div>';
+}
+
+// ---- services: combo entities, status DERIVED from members --------------
+function renderServices(cell) {
+  const svcs = Object.keys(ENTITIES).filter(e => ENTITIES[e].kind === "service");
+  if (!svcs.length) return '';
+  let h = `<h2 class="page">services (combo)<span class="api">derived: Test{kind:combo} over members</span></h2>`+
+          '<table class="board"><thead><tr><th class="host">service.test</th><th>status</th></tr></thead><tbody>';
+  svcs.forEach(e => Object.keys(COMBO).filter(k => k.startsWith(e+"|")).forEach(k => {
+    const def = COMBO[k], test = k.split("|")[1];
+    const v = worst(def.members.map(m => cell[m.e+"|"+m.t]));
+    h += `<tr><td class="host">${e}.${test}</td>`+
+         `<td><span class="ball ${COLOR[v]}" title="${v}" onclick="drillCombo('${e}','${test}')"></span></td></tr>`;
+  }));
+  return h + '</tbody></table>';
+}
+
+function drillCombo(e, test) {
+  const c = cellMap(), def = COMBO[e+"|"+test];
+  const members = def.members.map(m => ({...m, v: c[m.e+"|"+m.t]}));
+  const v = worst(members.map(m => m.v));
+  document.getElementById("dtitle").innerHTML = `${e}.${test} &nbsp; ${label(v)} &nbsp;<small style="opacity:.7">(combo = ${def.op} of members)</small>`;
+  document.getElementById("dapi").textContent = `GET /entities/${e} (kind=service) · Test{kind:combo, expr:${def.op}}`;
+  let t = '<table class="items"><thead><tr><th>member</th><th>status</th></tr></thead><tbody>';
+  members.forEach(m => t += `<tr><td>${m.e}.${m.t}</td><td>${label(m.v)}</td></tr>`);
+  t += `</tbody></table><div class="muted">a service is a derived entity: its status = <b>${def.op}</b> of its `+
+       `members (the member-of relation, expressed as a combo Test).</div>`;
+  document.getElementById("ditable").innerHTML = t;
+  document.getElementById("dspark").innerHTML = '';
+  document.getElementById("detail").style.display = "block";
 }
 
 // ---- drill-down: per-metric severity + WORST consolidation --------------
@@ -227,6 +273,7 @@ document.getElementById("legend").innerHTML =
 
 document.getElementById("groupby").addEventListener("change", render);
 document.getElementById("onlyprob").addEventListener("change", render);
+document.getElementById("simdown").addEventListener("change", render);
 document.getElementById("ts").textContent = new Date().toISOString().replace("T"," ").slice(0,19)+" UTC";
 render();
 </script>

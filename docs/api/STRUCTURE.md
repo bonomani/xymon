@@ -42,7 +42,7 @@ flowchart LR
 ├── /graphs           GET   rendered RRD graph image (png/svg)
 
 │  ── DEFINED (config; uniform CRUD) ──
-├── /hosts            GET POST   · /{id} GET PUT DELETE
+├── /entities            GET POST   · /{id} GET PUT DELETE
 ├── /tests            GET POST   · /{id} GET PUT DELETE
 ├── /rules            GET POST   · /{id} GET PUT DELETE
 ├── /suppressions     GET POST   · /{id} GET PUT DELETE
@@ -68,8 +68,8 @@ only its record schema differs.
 | observed | `/actions/{id}`      | GET                | one action |
 | observed | `/series`            | GET                | value history (time-series JSON) |
 | observed | `/graphs`            | GET                | rendered RRD graph (png/svg) |
-| defined  | `/hosts`             | GET, POST          | hosts |
-| defined  | `/hosts/{id}`        | GET, PUT, DELETE   | one host |
+| defined  | `/entities`             | GET, POST          | monitored subjects (host/net/service) |
+| defined  | `/entities/{id}`        | GET, PUT, DELETE   | one entity |
 | defined  | `/tests`             | GET, POST          | check definitions |
 | defined  | `/tests/{id}`        | GET, PUT, DELETE   | one test |
 | defined  | `/rules`             | GET, POST          | State→Alarm / Alarm→Action rules |
@@ -92,22 +92,22 @@ flat states into the familiar aggregate "column color".
 
 | Param      | Question | Example |
 |------------|----------|---------|
-| `host`     | WHERE (anchor)   | `host=web1` |
+| `entity`   | WHERE (anchor)   | `entity=web1` |
 | `test`     | HOW (anchor)     | `test=disk` |
 | `item`     | WHERE (judged thing) | `item=/var` |
 | `selector` | free WHERE dims  | `selector=mount=/var,core=3` |
-| `verdict`  | the answer       | `verdict=red` |
-| `rollup`   | aggregate (max severity) | `rollup=host,test` → column color |
-| `fields`   | projection       | `fields=host,test,verdict` |
+| `verdict`  | the answer       | `verdict=critical` |
+| `rollup`   | aggregate (max severity) | `rollup=entity,test` → column color |
+| `fields`   | projection       | `fields=entity,test,verdict` |
 | `limit`    | cap              | `limit=500` |
 
 ```
-"what's red on web1?"        GET /states?host=web1&verdict=red
-"is disk filling anywhere?"  GET /states?test=disk&verdict=red
-"web1's disk column color?"  GET /states?host=web1&test=disk&rollup=host,test
-"the /var capacity trend"    GET /series?host=web1&test=disk&item=/var&metric=pct_used
+"what's wrong on web1?"      GET /states?entity=web1&verdict=critical
+"is disk filling anywhere?"  GET /states?test=disk&verdict=critical
+"web1's disk column color?"  GET /states?entity=web1&test=disk&rollup=entity,test
+"the /var capacity trend"    GET /series?entity=web1&test=disk&item=/var&metric=pct_used
 "ack an alarm"               POST /actions {type:ack, target:{alarm:"web1:disk:/var"}, duration:"2h"}
-"silence web1 tonight"       POST /suppressions {gates:stateToAlarm, selector:{host:web1}, window:{…}}
+"silence web1 tonight"       POST /suppressions {gates:stateToAlarm, selector:{entity:web1}, window:{…}}
 ```
 
 
@@ -116,13 +116,13 @@ flat states into the familiar aggregate "column color".
 ```mermaid
 classDiagram
     class State {
-        id · host(WHERE) · test(HOW) · item(WHERE) · labels
+        id · entity(WHERE) · test(HOW) · item(WHERE) · labels
         metrics{value, verdict?} · verdict(=worst, semantic) · time
     }
     class Alarm   { id · severity · status(firing/ack/resolved) · since · rule }
     class Action  { id · type · target · actor · params · suppression }
-    class Host    { hostname · ip · owner · labels }
-    class Test    { id · kind · selector · owner · enabled }
+    class Entity  { id · kind(host/net/service/…) · ip · owner · labels }
+    class Test    { id · kind(probe|combo) · selector · expr · owner · enabled }
     class Rule    { id · transition · selector · condition · severity · route }
     class Suppression { id · gates · selector · window · reason }
     class View    { id · title · parent · selector · order  (presentation only) }
@@ -133,10 +133,13 @@ classDiagram
     Action ..> Suppression : may create
     Suppression ..> State : gates →Alarm
 ```
-Relationships in words: a Test produces many States (one per item — the
-correlated metrics ride along in `metrics{}`, with `by` deciding the verdict); a
+Relationships in words: a Test produces many States (one per item — correlated
+metrics ride along in `metrics{}`, each with its own verdict, item=worst); a
 Rule raises an Alarm from State (+severity); a Rule routes an Alarm to an Action;
 an operator Action may create a Suppression; a Suppression gates a transition.
+Entities relate via labels: *member-of* → a `combo` Test derives a State (e.g. a
+service = worst of members); *depends-on* (`upstream=…`) → a Suppression gates
+dependents; *grouping* → a View. No separate topology store.
 
 
 6. Value references
@@ -156,7 +159,7 @@ Status codes  200 OK · 201 Created · 202 Accepted · 204 No Content ·
 
 7. How it maps to the model
 ---------------------------
-Straight off `01-MODEL.md`: the pipeline `Host → Test → State → Alarm → Action`
+Straight off `01-MODEL.md`: the pipeline `Entity → Test → State → Alarm → Action`
 governed by "advance if a Rule matches, unless a Suppression holds". Defined
 resources are the left side you configure; Observed resources are the runtime
 you read; the value+verdict of a State is the answer its label dimensions key to.

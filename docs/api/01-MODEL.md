@@ -9,8 +9,12 @@ exactly one question. This is the model the API rests on.
 1. The pipeline and the one law
 -------------------------------
 ```
-Host  ──run──▶  Test  ──produces──▶  State  ──raises──▶  Alarm  ──triggers──▶  Action
+Entity ──run──▶  Test  ──produces──▶  State  ──raises──▶  Alarm  ──triggers──▶  Action
 ```
+
+`Entity` is the monitored subject; `kind` ∈ host | net | service | link | app.
+The pipeline is identical for every kind — a `net` device or a `service` has
+Tests/States/Alarms just like a host.
 
 Every arrow obeys one law:
 
@@ -25,7 +29,7 @@ Every arrow obeys one law:
 
 Two planes:
 
-    Defined  (you write; config)     Host · Test · Rule · Suppression · View
+    Defined  (you write; config)     Entity · Test · Rule · Suppression · View
     Observed (system writes; timed)  State · Alarm · Action
 
 (`View` is presentation only — a curated page tree — and gates nothing in the
@@ -51,7 +55,7 @@ pipeline.
 
   | Question | Answers…              | Dimension(s)                                      | Role       |
   |----------|-----------------------|---------------------------------------------------|------------|
-  | WHERE    | which thing is judged | `host` + `item` (filesystem/url/core) + labels    | identity   |
+  | WHERE    | which thing is judged | `entity` + `item` (filesystem/url/core) + labels    | identity   |
   | HOW      | by what probe         | `test` (`disk`, `http`) + `sender`                | provenance |
   | WHAT     | its measurements      | `metrics{}` — each may carry its own verdict      | content    |
   | WHEN     | at what instant       | `time`                                            | content    |
@@ -60,11 +64,11 @@ pipeline.
   | WHO      | who is responsible    | `owner`                                           | → Action   |
 
 The atom is the **item** — the smallest thing that earns **one verdict** (a
-filesystem, a URL, a core), keyed `(host, test, item)`. That is Xymon's *one
+filesystem, a URL, a core), keyed `(entity, test, item)`. That is Xymon's *one
 line*.
 
 Consequences:
-- `test` is **HOW**; `host` + `item` + free labels (`mount`, `label`, `core`)
+- `test` is **HOW**; `entity` + `item` + free labels (`mount`, `label`, `core`)
   are **WHERE**; the numbers are **WHAT** — but they live in `metrics{}` on the
   *one* State, because they are **correlated facets** of a single measurement
   (`avail = total − used`, `cap = used/total`). They are **not** separate States.
@@ -73,16 +77,16 @@ Consequences:
 - **Verdicts are per-metric and semantic.** A Rule assigns a *status* —
   `ok` / `warning` / `critical` / `disabled` / `nodata` / `unknown`, **never a
   colour** — to a metric; metrics with no rule are data (graph via `/series`).
-  The item's status = **worst** of its metrics; column / host / page = worst
+  The item's status = **worst** of its metrics; column / entity / page = worst
   over the level below — one operator at every level. **Colour is a pure render
   mapping** (ok→green, warning→yellow, critical→red, disabled→blue,
   nodata→clear, unknown→purple), so themes / colour-blindness / relabelling stay
   a render concern.
-- The classic **"column colour" is a group-by rollup** — `group by {host,test} →
-  worst` over the host's item-States. Computed on demand, never stored; many
+- The classic **"column colour" is a group-by rollup** — `group by {entity,test} →
+  worst` over the entity's item-States. Computed on demand, never stored; many
   overlapping rollups (by service, datacenter) coexist.
-- Anchors `host`/`test`/`item` are always present; free labels are test-emitted.
-  A dotted name like `disk.fs_tx_full` is a flattened `(host,test,item,metric)`
+- Anchors `entity`/`test`/`item` are always present; free labels are test-emitted.
+  A dotted name like `disk.fs_tx_full` is a flattened `(entity,test,item,metric)`
   identity, not extra States.
 
 
@@ -92,26 +96,26 @@ A `disk` status on `web1` — **one State per filesystem** (Xymon's one line);
 each metric carries its own semantic status, and the item status is the worst:
 
 ```
-host=web1  test=disk
+entity=web1  test=disk
  item    metrics (value · status)                     item status
  /var    pct_used 96 critical · inodes 41 ok           critical
  /       pct_used 38 ok                                 ok
  /home   pct_used 72 warning                            warning
 ```
-Classic "disk column" for web1 = `group by {host,test} → worst` = **critical**
+Classic "disk column" for web1 = `group by {entity,test} → worst` = **critical**
 (rendered red).
 
 A real Windows disk line decomposes the same way — one item; only capacity is
 ruled, the rest are data:
 ```
-host=ifmspc-usr2.ad1.i01.gtbcr.org  test=disk     labels {mount:/FIXED/C:\, label:Windows}
+entity=ifmspc-usr2.ad1.i01.gtbcr.org  test=disk   labels {mount:/FIXED/C:\, label:Windows}
  item  metrics (value · status)                                       item status
  C:    cap 17 ok · total 951.65G · used 163.26G · avail 788.39G        ok
 ```
 
 The pipeline acting on the critical filesystem (WHY, then WHO):
 ```
-State{host=web1, test=disk, item=/var}   metric pct_used = 96
+State{entity=web1, test=disk, item=/var}   metric pct_used = 96
    │  WHY → Rule:  "pct_used ≥ 90 ⇒ critical"
    ▼
 Alarm  (firing, major)
@@ -121,7 +125,7 @@ Action  notify team:storage via pager
 ```
 Suppressions gate an arrow:
 ```
-maintenance   Suppression{ where: host=web1, window: 22:00–23:00 }   holds  State→Alarm
+maintenance   Suppression{ where: entity=web1, window: 22:00–23:00 }   holds  State→Alarm
 acknowledge   Action{type:ack} ⇒ Suppression{ alarm:this }           holds  Alarm→Action
 ```
 
@@ -136,11 +140,11 @@ cpu   item=cpu     util_pct 88 warning · load_5m 3.2 ok                  → wa
 
 Same data answers any question by picking the dimension to filter/group on:
 ```
-"what's wrong on web1?"      states host=web1 & verdict=critical     → /var (disk), /api (http)
-"web1's disk column?"        host=web1 & test=disk → rollup worst    → critical (→red)
-"the /var capacity trend"    /series host=web1&test=disk&item=/var&metric=pct_used
+"what's wrong on web1?"      states entity=web1 & verdict=critical     → /var (disk), /api (http)
+"web1's disk column?"        entity=web1 & test=disk → rollup worst    → critical (→red)
+"the /var capacity trend"    /series entity=web1&test=disk&item=/var&metric=pct_used
 "who gets paged for this?"   owner of those States                   → team:storage
-"silence web1 tonight"       Suppression host=web1, window            → no alarms 22:00–23:00
+"silence web1 tonight"       Suppression entity=web1, window            → no alarms 22:00–23:00
 ```
 
 
@@ -161,7 +165,7 @@ is costly — one combo per connection is the efficient ingest path.)
 Each noun is a resource collection with the same shape; the plane decides which
 methods are real:
 
-    Defined   /hosts /tests /rules /suppressions /graph-defs /views
+    Defined   /entities /tests /rules /suppressions /graph-defs /views
               GET (list, filter by selector) · GET/PUT/PATCH/DELETE (item)
               /views = the curated page tree (presentation only).
 
@@ -202,9 +206,18 @@ Promoted:
   nesting + titles) is a **View**, built on selectors so membership stays
   derived/auto-updating. A View is **presentation only** — it gates nothing in
   the pipeline, and many overlapping Views (by OS, site, service) can coexist.
+- **Entities of any kind** — the monitored subject generalises from host to
+  `Entity{kind}` (host | net | service | link | app); the pipeline is identical
+  for all. Resource: `/entities`.
+- **Combo / derived states** — a `Test{kind:combo, expr}` produces a State by
+  evaluating an expression over *other* States (`worst`, a boolean, …) — e.g. a
+  service = worst of its members. The named sibling of the implicit rollup; must
+  stay acyclic.
+- **Relations as labels** — host/net/service relate via labels + selectors,
+  read three ways: *member-of* → combo (derive), *depends-on* → suppression
+  (gate), *grouping* → view. No separate topology store; promote to an explicit
+  `Relation{from,to,type}` DAG only for multi-hop / root-cause.
 
 Deferred (promote only on demand):
-- **Service** — a named Selector for now; promote to an entity only if it needs
-  its own objects (ownership, SLOs).
-- **owner (WHO)** — confirm hosts/tests carry it; it is the one dimension most at
+- **owner (WHO)** — confirm entities/tests carry it; it is the one dimension most at
   risk of being a gap today.
