@@ -111,9 +111,9 @@ STARTTLS, server mTLS, SNI, close_notify. Goal: client verifies server, server
 verifies client by SAN, no sub-TLS-1.2.
 
 **P3 — Alpha gaps (scope-dependent, see Q1).** HTTP/TCP service checks over v6
-(`xymonnet.c`, `httptest.c`, `httpresult.c`, `contest.c`), URL `[literal]`
-parsing, and **true dual-stack listen** (two sockets) instead of devel's single
-v6+IPv4-mapped socket. devel left all of these unfinished — this is net-new work.
+(`xymonnet.c`, `httptest.c`, `httpresult.c`, `contest.c`) and URL `[literal]`
+parsing. devel left these unfinished — this is net-new work. (True dual-stack
+listen — two sockets — is now DONE; see "Listener hardening" under P2.)
 
 **P4 — Tests + CI.** Extend the existing OpenBSD/LibreSSL BSD CI; smoke tests for
 v4 + v6 + TLS; reuse `tests/tls/` scripts.
@@ -135,8 +135,8 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
 
 1. **Scope** — stop after P2 (transport + TLS over v6), or do P3 (full v6 service
    checks)?
-2. **Dual-stack** — true two-socket listen (P3), or accept devel's single
-   v6+mapped socket for now?
+2. **Dual-stack** — RESOLVED: true two-socket listen implemented (separate v4 +
+   v6 wildcard binds, `IPV6_V6ONLY` forced on), not the single v6+mapped socket.
 3. **Prototype reconciliation** — `feat/tls-prototype` becomes the *source* of the
    P2 TLS, then retires; confirm nothing else depends on it.
 
@@ -198,6 +198,21 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
   `--tls-require-clientcert`): client-with-cert → `xymond 4.3.30` and status →
   board; client-without-cert → server rejects (`tlsv13 alert certificate
   required`). Mutual authentication confirmed.
+- ✅ **Listener hardening DONE & PROVEN.** Replaced the single
+  v6+IPv4-mapped socket with deterministic dual-stack and fixed the listen-spec
+  parsing/error paths in `xymond.c` + `lib/tcplib.c`:
+  - `build_listenspec()` parses addresses bracket-aware (host, `host:port`,
+    `[v6]`, `[v6]:port`); a wildcard expands to `0.0.0.0:p,[::]:p` (two sockets).
+    `listen_port()` forces `IPV6_V6ONLY` so the v4/v6 binds never collide and v4
+    no longer depends on `net.ipv6.bindv6only` (BSD/macOS-safe). Same expansion
+    applied to `--tls-listen`.
+  - `conn_listen`/`conn_init_server` now return the count of sockets bound
+    (was an inverted `(result==0)` that was always discarded); xymond logs
+    `FATAL` and `exit(1)` if zero listeners bind instead of running headless.
+  - **Proven:** `--listen=[::1]:P` binds `[::1]` only (v6 ping ok, v4 refused);
+    `--listen=0.0.0.0:P` binds both `0.0.0.0:P` and `[::]:P`; unbindable
+    `192.0.2.1:P` → exit 1 + FATAL log; full smoke suite 11/11 (incl. IPv4
+    `localhost` TLS against the `[::]` listener).
 
 ## Next step
 

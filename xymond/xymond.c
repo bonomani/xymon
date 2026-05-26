@@ -5429,6 +5429,56 @@ static void xymond_conn_info(time_t t, const char *id, char *msg)
 	errprintf("tcplib: %s", msg);
 }
 
+/*
+ * Build a tcplib listener spec from a user-supplied address. Accepts an empty
+ * string, a bare host ("0.0.0.0", "::", "host", an IPv4/IPv6 literal), a
+ * "host:port", or a bracketed "[v6literal]" / "[v6literal]:port". A wildcard
+ * address expands to a dual-stack "0.0.0.0:p,[::]:p" pair so IPv4 and IPv6 each
+ * get a dedicated socket (listen_port forces IPV6_V6ONLY). Returns a malloc'd
+ * string the caller must free.
+ */
+static char *build_listenspec(const char *addr, int defaultport)
+{
+	char host[128];
+	char spec[256];
+	int port = defaultport;
+	const char *p;
+
+	host[0] = '\0';
+	if (addr && *addr) {
+		if (*addr == '[') {
+			/* [v6literal] or [v6literal]:port */
+			const char *close = strchr(addr, ']');
+			if (close) {
+				size_t n = close - (addr + 1);
+				if (n >= sizeof(host)) n = sizeof(host) - 1;
+				memcpy(host, addr + 1, n); host[n] = '\0';
+				if (*(close + 1) == ':') port = atoi(close + 2);
+			}
+		}
+		else if (((p = strchr(addr, ':')) != NULL) && (strchr(p + 1, ':') == NULL)) {
+			/* host:port - a single colon, so IPv4 or a hostname */
+			size_t n = p - addr;
+			if (n >= sizeof(host)) n = sizeof(host) - 1;
+			memcpy(host, addr, n); host[n] = '\0';
+			port = atoi(p + 1);
+		}
+		else {
+			/* bare host: IPv4, hostname, or unbracketed IPv6 literal */
+			strncpy(host, addr, sizeof(host) - 1); host[sizeof(host) - 1] = '\0';
+		}
+	}
+
+	if (!*host || (strcmp(host, "0.0.0.0") == 0) || (strcmp(host, "::") == 0))
+		snprintf(spec, sizeof(spec), "0.0.0.0:%d,[::]:%d", port, port);
+	else if (strchr(host, ':'))	/* IPv6 literal */
+		snprintf(spec, sizeof(spec), "[%s]:%d", host, port);
+	else
+		snprintf(spec, sizeof(spec), "%s:%d", host, port);
+
+	return strdup(spec);
+}
+
 int main(int argc, char *argv[])
 {
 	conn_t *connhead = NULL, *conntail=NULL;
@@ -5495,15 +5545,10 @@ int main(int argc, char *argv[])
 			debug = 1;
 		}
 		else if (argnmatch(argv[argi], "--listen=")) {
-			char *p = strchr(argv[argi], '=') + 1;
-
-			listenip = strdup(p);
-			p = strchr(listenip, ':');
-			if (p) {
-				*p = '\0';
-				listenport = atoi(p+1);
-				*p = ':';
-			}
+			/* Raw address; build_listenspec() parses it (bracket-aware)
+			 * at listener-setup time. May be host, host:port, [v6], or
+			 * [v6]:port. */
+			listenip = strdup(strchr(argv[argi], '=') + 1);
 		}
 		else if (argnmatch(argv[argi], "--tls-listen=")) {
 			/* TLS listener spec, e.g. [::]:1985 or 0.0.0.0:1985 */
@@ -5747,39 +5792,38 @@ int main(int argc, char *argv[])
 	last_stats_time = getcurrenttime(NULL);	/* delay sending of the first status report until we're fully running */
 
 
-	/* Set up listener(s) via tcplib (dual-stack IPv4/IPv6, plaintext). */
+	/* Set up listener(s) via tcplib. Wildcard addresses bind separate IPv4
+	 * and IPv6 sockets (see build_listenspec / listen_port's IPV6_V6ONLY). */
 	{
-		char listenspec[256];
-		char ipbuf[128], *cp;
-
-		/* xymond's --listen parser leaves ":port" on listenip; strip it. */
-		strncpy(ipbuf, listenip, sizeof(ipbuf)-1); ipbuf[sizeof(ipbuf)-1] = '\0';
-		cp = strchr(ipbuf, ':'); if (cp) *cp = '\0';
-
-		/* On Linux (bindv6only=0) a [::] socket also accepts IPv4-mapped peers. */
-		if (!*ipbuf || (strcmp(ipbuf, "0.0.0.0") == 0))
-			snprintf(listenspec, sizeof(listenspec), "[::]:%d", listenport);
-		else
-			snprintf(listenspec, sizeof(listenspec), "%s:%d", ipbuf, listenport);
+		char *listenspec = build_listenspec(listenip, listenport);
+		char *tlsspec = (tlscert && tlslisten) ? build_listenspec(tlslisten, listenport) : NULL;
+		int nlisteners;
 
 		errprintf("Setting up network listener on %s\n", listenspec);
 		conn_register_infohandler(xymond_conn_info, INFO_WARN);
 
-		if (tlscert && tlslisten) {
-			/* tlslisten is passed through to tcplib as the implicit-TLS
-			 * listener spec (use [::]:port for dual-stack v6). A cert also
-			 * enables opportunistic STARTTLS on the plaintext port. */
+		if (tlsspec) {
+			/* A cert also enables opportunistic STARTTLS on the plaintext port. */
 			errprintf("Setting up TLS listener on %s (cert=%s%s)\n",
-				  tlslisten, tlscert, tlsca ? ", verifying clients" : "");
-			conn_init_server(listenq, (long)conn_timeout * 1000000L,
+				  tlsspec, tlscert, tlsca ? ", verifying clients" : "");
+			nlisteners = conn_init_server(listenq, (long)conn_timeout * 1000000L,
 					 tlscert, tlskey, tlsca, tlsreqcert,
-					 listenspec, tlslisten, xymond_conn_cb);
+					 listenspec, tlsspec, xymond_conn_cb);
 		}
 		else {
-			conn_init_server(listenq, (long)conn_timeout * 1000000L,
+			nlisteners = conn_init_server(listenq, (long)conn_timeout * 1000000L,
 					 NULL, NULL, NULL, 0,
 					 listenspec, NULL, xymond_conn_cb);
 		}
+
+		if (nlisteners == 0) {
+			errprintf("FATAL: could not bind any network listener (tried %s%s%s) - exiting\n",
+				  listenspec, tlsspec ? ", TLS " : "", tlsspec ? tlsspec : "");
+			exit(1);
+		}
+
+		xfree(listenspec);
+		if (tlsspec) xfree(tlsspec);
 	}
 
 	/* Go daemon */

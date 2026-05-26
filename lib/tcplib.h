@@ -88,10 +88,10 @@ extern void add_fd(int sock, fd_set *fds, int *maxfd);
 
 extern void conn_register_infohandler(void (*cb)(time_t, const char *id, char *msg), enum infolevel_t level);
 
-extern void conn_init_server(int backlog, int maxlifetime,
-			     char *certfn, char *keyfn, char *rootcafn, int requireclientcert,
-			     char *plain_listeners, char *ssl_listeners,
-			     enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *));
+extern int conn_init_server(int backlog, int maxlifetime,
+			    char *certfn, char *keyfn, char *rootcafn, int requireclientcert,
+			    char *plain_listeners, char *ssl_listeners,
+			    enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *));
 
 extern void conn_init_client(void);
 extern tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype, 

@@ -455,6 +455,20 @@ static int listen_port(tcpconn_t *ls, int portnumber, int backlog, char *localad
 	opt = 1;
 	setsockopt(ls->sock, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt));
 
+#if defined(IPV6_SUPPORT) && defined(IPV6_V6ONLY)
+	/*
+	 * Make an IPv6 socket handle IPv6 only. We bind separate IPv4 and IPv6
+	 * wildcard sockets (see conn_init_server's "0.0.0.0:p,[::]:p" specs)
+	 * rather than relying on IPv4-mapped addresses, whose availability
+	 * depends on the net.ipv6.bindv6only sysctl (on by default on the BSDs
+	 * and macOS). With V6ONLY forced on, the two binds never collide.
+	 */
+	if (ls->family == AF_INET6) {
+		opt = 1;
+		setsockopt(ls->sock, IPPROTO_IPV6, IPV6_V6ONLY, &opt, sizeof(opt));
+	}
+#endif
+
 	switch (ls->family) {
 #ifdef IPV4_SUPPORT
 	  case AF_INET:
@@ -517,7 +531,7 @@ int conn_listen(int backlog, int maxlifetime,
 	char *local4 = NULL, *local6 = NULL;
 	int port4 = 0, port6 = 0;
 	tcpconn_t *ls;
-	int result = 0;
+	int bound = 0;
 
 	if (!max_accepts) {
 		max_accepts = atoi(xgetenv("MAXACCEPTSPERLOOP"));
@@ -571,7 +585,7 @@ int conn_listen(int backlog, int maxlifetime,
 		ls->family = AF_INET6;
 		ls->peersz = sizeof(struct sockaddr) + sizeof(struct sockaddr_in6);
 		ls->peer = (struct sockaddr *)calloc(1, ls->peersz);
-		if ((result = listen_port(ls, port6, backlog, local6)) == -1) {
+		if (listen_port(ls, port6, backlog, local6) == -1) {
 			conn_cleanup(ls);
 			free(ls); ls = NULL;
 		}
@@ -579,6 +593,7 @@ int conn_listen(int backlog, int maxlifetime,
 			conn_info(funcid, INFO_INFO, "Listening on IPv6 %s\n", conn_print_address(ls));
 			ls->next = lsocks;
 			lsocks = ls;
+			bound++;
 		}
 
 		free(local6);
@@ -597,7 +612,7 @@ int conn_listen(int backlog, int maxlifetime,
 		ls->family = AF_INET;
 		ls->peersz = sizeof(struct sockaddr_in);
 		ls->peer = (struct sockaddr *)calloc(1, ls->peersz);
-		if ((result = listen_port(ls, port4, backlog, local4)) == -1) {
+		if (listen_port(ls, port4, backlog, local4) == -1) {
 			conn_cleanup(ls);
 			free(ls); ls = NULL;
 		}
@@ -605,13 +620,14 @@ int conn_listen(int backlog, int maxlifetime,
 			conn_info(funcid, INFO_INFO, "Listening on IPv4 %s\n", conn_print_address(ls));
 			ls->next = lsocks;
 			lsocks = ls;
+			bound++;
 		}
 
 		free(local4);
 	}
 #endif
 
-	return (result == 0);
+	return bound;	/* number of listener sockets successfully bound (0 or 1) */
 }
 
 
@@ -1337,15 +1353,15 @@ static int try_ssl_certload(SSL_CTX *ctx, char *certfn, char *keyfn)
  * An IP is IPv4 dotted-quad:portnumber or IPv6 [xx:xx:xx::xx]:portnumber
  * Multiple IP's must be delimited by comma.
  */
-void conn_init_server(int backlog, int maxlifetime,
+int conn_init_server(int backlog, int maxlifetime,
 		      char *certfn, char *keyfn, char *rootcafn, int requireclientcert,
 		      char *plain_listeners, char *ssl_listeners,
 		      enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *))
 {
 	static char *funcid = "conn_init_server";
 	char *listenlist, *listenip;
-	int listenport;
 	int sslavailable = 0;
+	int nlisteners = 0;
 	char *saveptr = NULL;
 
 	signal(SIGPIPE, SIG_IGN);	/* socket I/O needs to ignore SIGPIPE */
@@ -1387,7 +1403,7 @@ void conn_init_server(int backlog, int maxlifetime,
 	listenlist = strdup(plain_listeners);
 	listenip = strtok_r(listenlist, ",", &saveptr);
 	while (listenip) {
-		conn_listen(backlog, maxlifetime, listenip, (sslavailable ? CONN_SSL_STARTTLS_SERVER : CONN_SSL_NO), usercallback);
+		nlisteners += conn_listen(backlog, maxlifetime, listenip, (sslavailable ? CONN_SSL_STARTTLS_SERVER : CONN_SSL_NO), usercallback);
 		listenip = strtok_r(NULL, ",", &saveptr);
 	}
 	free(listenlist);
@@ -1398,12 +1414,14 @@ void conn_init_server(int backlog, int maxlifetime,
 		listenlist = strdup(ssl_listeners);
 		listenip = strtok_r(listenlist, ",", &saveptr);
 		while (listenip) {
-			conn_listen(backlog, maxlifetime, listenip, CONN_SSL_YES, usercallback);
+			nlisteners += conn_listen(backlog, maxlifetime, listenip, CONN_SSL_YES, usercallback);
 			listenip = strtok_r(NULL, ",", &saveptr);
 		}
 		free(listenlist);
 	}
 #endif
+
+	return nlisteners;	/* total listener sockets bound across all specs */
 }
 
 
