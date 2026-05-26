@@ -239,12 +239,156 @@ Done & proven (all lower-priority items now complete):
 - ✅ **Build hygiene** — `IPV*_SUPPORT` via a `configure` probe
   (`build/ipv6.sh` → `IPV6DEF`); `HAVE_XYMON_TLS` gated on `$(SSLFLAGS)`.
 
-Only remaining item:
+Remaining items:
 - **CI execution** — the manual `ipv6-test.yml` lane runs `tests/ipv6-tls/smoke.sh`;
   it'll run once GitHub's Actions auth incident (2026-05-26) is mitigated. Code +
   lane are ready; nothing to fix.
+- **P5 — unified capability ACL** (below): the v6-native `ipaccess` rework, done
+  as one capability-based rule engine instead of four IPv4-only sender lists.
 
 Status: **IPv6 (P1) and TLS/mTLS (P2) complete & proven** — handshake, TLS 1.3
 floor, request/response + ingest, `xymons://` client with enforced server-cert
 verification, mutual TLS, and cert-based sender authorization, all over pure
-`::1` (smoke test 11/11). TLS is opt-in; plaintext + IPv4 unaffected.
+`::1` (smoke test 22/22). TLS is opt-in; plaintext + IPv4 unaffected.
+
+---
+
+## P5 — Unified, capability-based, v6-native ACL
+
+**Why.** Today access control is four parallel IPv4-only sender lists
+(`--status-senders` / `--www-senders` / `--maint-senders` / `--admin-senders`,
+`oksender` at ~25 call sites) plus a cert-trust bypass that's a special case in
+code (`ok_admin_sender` zeroes the cert flag so a cert can't grant admin), plus
+*no* way to require encryption. Three weaknesses converge: (1) IPv4-only — a
+native-v6 sender can't be expressed, so it fails the ACL closed and *must* use a
+cert (P1 Step-2 FINDING 2); (2) the privilege tiers and the cert/admin rule are
+scattered logic, not inspectable config; (3) plaintext is always accepted from
+anyone the IP list allows — encryption can't be mandated.
+
+This is the same ~25-site rework that v6-native `ipaccess` needs anyway. Do it
+**once** as a single rule engine rather than generalizing four lists to v6.
+
+**Model.** One ordered rule table; each rule is `SOURCE TRANSPORT CAPS`:
+- SOURCE: v4/v6 CIDR (bare = host), `local` (loopback v4 127/8 + v6 `::1`),
+  `cert:*` (any verified cert), `cert:<id>` (a named cert identity).
+- TRANSPORT: `tls` (require encryption), `plain` (require cleartext), `any`.
+- CAPS: any of `status,www,maint,admin` or `all`.
+
+**First-match-wins**, default-deny; order rules specific-before-general. The
+admin/cert rule is now *data*: a `cert:*` rule simply omits `admin`, so the
+`ok_admin_sender` special case disappears. Example expressing the whole desired
+posture (localhost-full, intranet-may-use-plaintext, remote-must-TLS+cert):
+
+```
+cert:ops-admin  tls   all                  # named admin identity (before cert:*)
+local           any   all
+10.0.0.0/8      any   status,www,maint     # intranet: plaintext or TLS, no admin
+2001:db8::/32   any   status,www,maint
+cert:*          tls   status,www           # any verified cert: reporter only
+# (no match -> deny)
+```
+
+**Backward compatibility.** The four legacy `--*-senders` flags are *removed*:
+xymond exits with a fatal error pointing the operator at `--acl=FILE`, rather
+than silently dropping the access restriction they intended. When *no* `--acl`
+is configured, `access_check()` allows everything (today's "no sender list"
+default), so unrestricted deployments are unaffected. The restrictive posture is
+opt-in, never a silent default flip.
+
+When an `--acl` *is* loaded it is the sole sender chokepoint: every protocol
+command that writes state or exposes data is gated through `access_check()` —
+including `summary` (status), `flush filecache` / `reload` / `rotate` /
+`schedule` / `senderstats` (admin). `ping`/`dummy` stay open as liveness probes.
+Scheduled commands are re-checked against their original sender when they run.
+
+**Phasing.**
+- **P5a — engine. ✅ DONE (this change).** Self-contained `lib/acl.{c,h}`:
+  rule struct, `acl_parse_line`, `acl_append`, `acl_check`, `acl_free`. v4+v6
+  CIDR, `local`, `cert:*`/`cert:<id>`, transport filter, capability bitmask,
+  first-match-wins, default-deny. Standalone unit test `tests/acl/test_acl.c`
+  (no libxymon dep) — **18/18**, builds clean under `-Wall -Wextra`. Not yet
+  wired into the build or daemon (keeps the tree green).
+- **P5b — integration. ✅ DONE & PROVEN.** `lib/acl.c` built into `libxymon`
+  (`XYMONLIBOBJS`); `acl.h` exposed via `include/libxymon.h`. `conn_t` now
+  carries `encrypted` (set at `CONN_CB_SSLHANDSHAKE_OK`), the verified-cert CN
+  (`certcn`, for `cert:<id>`), and the native v4/v6 peer (`conn_peer_acl_addr`,
+  v4-mapped normalized to AF_INET). All ~25 `oksender(...)` call sites + the two
+  `if (statussenders)` guards route through one `access_check(msg, cap, tip,
+  log)`; `ok_admin_sender` is now a thin `access_check(…, ACL_CAP_ADMIN, …)`
+  wrapper (admin-not-cert is preserved). New `--acl=FILE` loads the rule table
+  (parse error = fatal); when set it supersedes the `--*-senders` lists, else
+  the legacy `oksender` path runs **byte-for-byte unchanged** (default backend,
+  proven by smoke 1-5 at 22/22). New smoke phase 6 exercises the unified path:
+  local-plaintext allowed, verified-cert-over-TLS allowed, TLS-without-cert
+  denied (default-deny + transport gating). Full suite **25/25**.
+  - Backfeed IPC (sender 0.0.0.0) is still trusted in both backends. Under the
+    unified ACL the legacy self-report / 0.0.0.0-target bypass is *not* carried
+    over -- the rule table is authoritative (opt-in, default-deny).
+  - `ipaccess.c`/`oksender` are NOT retired: they remain the legacy backend.
+- **P5c — legacy removed. ✅ DONE.** The four `--*-senders` lists/flags/globals,
+  the `oksender` branch in `access_check`, and the per-message
+  `sender_cert_authorized` assignment are gone from xymond; `--acl` is the sole
+  sender access control. Decisions: **no `--acl` ⇒ allow all** (historical
+  default preserved); a removed `--*-senders` flag ⇒ **fatal** ("use --acl").
+  `ipaccess.c`/`oksender`/`sender_t`/`getsenderlist` remain (used by
+  `client/msgcache.c` and xymond `--trace`). Admin is no longer special-cased in
+  code -- it follows the table's default-deny; "a cert is not an admin" is now a
+  convention (keep `admin` off `cert:*`), not a hard guard.
+- **P5c — admin-breadth safety net. ✅ DONE.** Replacing the old hard "cert is
+  never admin" guard: `acl_audit_admin()` makes xymond **refuse to start** if a
+  rule grants admin (`admin`/`all`) to a broad source -- `cert:*` or a CIDR
+  wider than /24 (v4) / /120 (v6); `local`/`cert:<id>` exempt. A trailing
+  `force` token acknowledges an intentional broad grant. Data-driven, but
+  accidental "everyone is admin" is fatal. Unit test 28/28, smoke 28/28
+  (phase 3 on `--acl`; assertions: removed flag exits, broad-admin exits,
+  broad-admin+force starts).
+- **P5d — review hardening. ✅ DONE.** Six issues from a branch review:
+  1. A configured-but-empty `--acl` (file present, only blank/comment lines) no
+     longer falls through to "no ACL ⇒ allow all" — it is now **fatal** at load
+     (would otherwise silently fail open against default-deny).
+  2. Stock `tasks.cfg.DIST` no longer passes the removed `--admin-senders` (which
+     is now fatal and would block startup); it loads a shipped default
+     `etcfiles/xymonacl.cfg` (loopback=admin, everyone else status/www/maint),
+     installed copy-if-absent so an operator's policy is never clobbered.
+  3. `acl_parse_line` accepts trailing inline `# comments` (used in the docs)
+     and blank/whitespace-only lines (the leading skip now eats `\r`/`\n`).
+  4. CIDR prefix parsing uses strict `strtol` end-pointer validation, not
+     `atoi` — `/junk` (→ silent `/0` = match-all) and `/24junk` are now rejected.
+  5. `conn_print_address_and_port`'s buffer sized `INET6_ADDRSTRLEN +
+     sizeof("[]:65535")` — the old 48-byte buffer could overflow on a long
+     `[IPv6]:port`.
+  6. `--check-tls` with no `--tls-cert` now exits non-zero (TLS would be
+     disabled), matching the documented "exit 0 = TLS would be served" contract.
+  Unit test `tests/acl/test_acl.c` **42/42** under `-Wall -Wextra`. Smoke phase 4
+  gains two assertions (empty-`--acl` aborts; `--check-tls` no-cert fails).
+- **P5e — reference docs. ✅ DONE.** `xymond.8` rewritten: the four removed
+  `--*-senders` entries are gone, replaced by `--acl`, `--tls-listen`,
+  `--tls-cert`, `--tls-key`, `--tls-ca`, `--tls-require-clientcert`, `--check-tls`,
+  plus a `COMPATIBILITY` section documenting the removal/migration. HTML manpage
+  regenerated via `build/makehtml.sh`'s `man2html` invocation (boilerplate
+  normalized to match siblings; content-only diff). `xymond -h` now lists the
+  `--tls-*` flags. (The manpage previously documented only the removed flags,
+  which now fatally abort startup.)
+- **P5f — second-pass review fixes. ✅ DONE.** Five items from a re-review:
+  1. `size:N` TLS framing tightened both ends: client sends `size:%zu` (was an
+     `(int)` cast that mis-frames a >2GB body); server parses with strict
+     `strtol` end-pointer validation (was `atol`, which took `size:100x` as 100)
+     and dispatches **exactly** `msgsz` bytes (terminating at the declared
+     length) so trailing bytes can't be folded into the message body.
+  2. Default ACL now reproduces the old `--admin-senders` server-IP coverage:
+     `xymonacl.cfg.DIST` carries an `@XYMONHOSTIP_ADMIN@` marker that
+     `make cfgfiles` replaces with `<server-ip> any all` (ordered before the
+     catch-alls), or drops when the server IP is loopback. /32 host => passes
+     the broad-admin audit.
+  3. `conn_check_tls_server_config` now returns failure in **non-OpenSSL** builds
+     too (TLS can never be served there) — the twin of the OpenSSL no-cert fix.
+  4. Docs/help corrected: `--tls-key` is optional (key may live in the
+     `--tls-cert` file) — `xymond.8`, regenerated HTML, and `xymond -h`.
+  5. Stale `acl.h` comment fixed: admin to `cert:*` is allowed *with* `force`.
+- **Remaining / deliberately out of scope:**
+  - OpenSSL 3 — **verify-only**: builds clean against 3.0.2 with the deprecated
+    (but present) `SSL_library_init`/`SSLv23_*_method`/`SSL_get_peer_certificate`
+    APIs; only matters under a `no-deprecated` OpenSSL. Optional cleanup.
+  - systemd unit, compression, BFQ scaling, RRD/graph polish, packaging,
+    distro/client portability, and devel's older IPv6/TLS implementation — all
+    separate follow-up branches, not this one.
