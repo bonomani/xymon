@@ -176,16 +176,18 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
   `CBRESULT_OK`), per devel's pattern. Also: `try_ssl_io` now surfaces a clean
   close_notify (`SSL_ERROR_ZERO_RETURN`) as EOF without tearing down. Verified:
   TLSv1.3 handshake, no crash on handshake/teardown; plaintext + IPv4 unaffected.
-- ❌ **BUG 1 (reframed) — functional TLS message delivery needs `size:` framing.**
-  The half-close/EOF model does **not** map onto TLS: after `SSL_read` returns
-  the data, the close_notify (and any pipelined records) sit in OpenSSL's buffer
-  and `select()` never re-fires, so the server never sees EOF and never
-  dispatches. tcplib has **no** `SSL_pending`/`SSL_has_pending` handling — *by
-  design*: devel dispatches on a declared byte-count (`size:N\n` prefix) during
-  the `n>0` reads, never needing EOF. So robust TLS = port that framing
-  (client emits `size:`, server dispatches on count) — a client+server
-  sub-project, the real next step for functional TLS. (SSL-buffer draining is
-  the fragile, version-dependent alternative; rejected.)
+- ✅ **BUG 1 RESOLVED (server) — functional TLS delivery via `size:` framing.**
+  The half-close/EOF model can't delimit a message over TLS (records sit in
+  OpenSSL's buffer; `select` never re-fires). Server now dispatches on a declared
+  byte-count: a `size:N\n` header → `conn_t.msgsz` → dispatch when `buflen >= N`,
+  no EOF needed. Also fixed: `n==0` is EOF only for `CONN_PLAINTEXT` (for SSL it
+  means "no data yet"). **PROVEN over pure IPv6 `::1` + TLSv1.3:** size-framed
+  `ping` → `xymond 4.3.30` (request/response), size-framed `status` → board
+  (`localhost|tlsframed|green`); no crash; plaintext/IPv4 (EOF-framed) unaffected.
+- ⬜ **Client TLS (next)** — the `xymon` client (`sendmsg.c`) must (a) connect
+  with TLS for `xymons://`/`--tls`, and (b) emit the `size:N\n` frame. Then a
+  real client→TLS-server report works (today proven with a size-framed test
+  client).
 - ⬜ **Verification graft (deferred)** — client-side server-cert verification
   (`SSL_CTX_set_verify` + `X509_VERIFY_PARAM_set1_host`/`set1_ip_asc`) needs the
   `xymon` client to speak TLS first (its `sendmsg.c` connect is plain
@@ -193,14 +195,16 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
 
 ## Next step
 
-To make TLS *functional*: port the `size:N\n` framing (client emits it in
-`sendmsg.c`; server dispatches in `xymond_conn_cb` when `buflen >= size`),
-removing the dependence on EOF/half-close — this is how devel's tcplib TLS
-works. Then the client-TLS + server-cert verification graft (`set1_host`/
-`set1_ip`), which also gives cert-auth to replace the IPv4 sender ACL.
-Lower priority: v6 sender ACL (a/b/c); build hygiene (`IPV*_SUPPORT` from a
-`build/test-ipv6` probe, not hardcoded `tcplib.o` flags).
+**Client TLS** — give `sendmsg.c` a TLS connect path (reuse tcplib's
+`conn_prepare_connection`, or wrap its getaddrinfo socket) for an `xymons://`
+recipient / `--tls`, and emit the `size:N\n` frame so the server dispatches on
+count. That makes a real `xymon` client → TLS server work end-to-end (today
+proven with a size-framed test client). Then the **server-cert verification
+graft** (`SSL_CTX_set_verify` + `set1_host`/`set1_ip`), which also yields
+cert-auth to replace the IPv4 sender ACL. Lower priority: v6 sender ACL
+(a/b/c); build hygiene (`IPV*_SUPPORT` from a `build/test-ipv6` probe).
 
-Status: IPv6 (P1) is complete & proven. TLS (P2) handshakes + is hardened +
-doesn't crash, but message delivery awaits the `size:` framing. TLS is opt-in
-(`--tls-cert`); plaintext/IPv6 is unaffected.
+Status: IPv6 (P1) complete & proven. TLS (P2) **functional** — handshake,
+TLS 1.3 hardening, and request/response + ingest all proven over `::1` (with a
+size-framed client). Remaining: client-side TLS, then verification. TLS is
+opt-in (`--tls-cert`); plaintext/IPv6 unaffected.
