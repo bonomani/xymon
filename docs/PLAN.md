@@ -159,11 +159,33 @@ runs for the repo on 2026-05-26 ~10:23Z (repo-wide — `build.yml` too; public
 repo so not a quota cap; can't `workflow_dispatch` as the default branch
 `cmake/bootstrap` lacks the file). The lane will run when triggering resumes.
 
+## P2 — TLS (IN PROGRESS)
+
+- ✅ **Hardening** — `SSL_CTX_set_min_proto_version(TLS1_2)` on tcplib's server +
+  client contexts (no SSLv3/TLS1.0/1.1).
+- ✅ **Listener wiring (opt-in)** — xymond `--tls-listen` / `--tls-cert` /
+  `--tls-key` / `--tls-ca` / `--tls-require-clientcert` → `conn_init_server`
+  (implicit TLS + optional client-cert mTLS). Plaintext path unchanged when no
+  `--tls-cert` (P1 unaffected).
+- ✅ **Handshake proven** — `openssl s_client [::1]:tlsport` gets the server cert
+  (CN=localhost), negotiates, min-proto enforced.
+- ❌ **BUG 1 — request/response framing over TLS.** xymon delimits a message by
+  the client half-closing (`SHUT_WR`); over plaintext the server reads EOF yet
+  still writes the reply. tcplib's `try_ssl_io` treats `SSL_read()==0` (peer
+  close_notify) as a *full* close → `conn_cleanup` → `conn_read` returns -1 →
+  my callback never dispatches and the fd is gone, so no reply. Fix: handle
+  close_notify as a *half*-close (peer done writing, server may still reply),
+  per `feat/tls-prototype`'s `xymon_tls_shutdown_write()` approach.
+- ❌ **BUG 2 — `select(): Bad file descriptor`** crashes xymond on TLS teardown
+  (a closed fd reaches `select`). Investigate the SSL close path's fd lifecycle.
+- ⬜ **Verification graft (deferred)** — client-side server-cert verification
+  (`SSL_CTX_set_verify` + `X509_VERIFY_PARAM_set1_host`/`set1_ip_asc`) needs the
+  `xymon` client to speak TLS first (its `sendmsg.c` connect is plain
+  getaddrinfo). Then mTLS cert-auth can replace the IPv4 sender ACL.
+
 ## Next step
 
-Choose the next unit:
-1. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
-   tcplib; also gives the cert-based auth that replaces the IPv4 ACL.
-2. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
-3. **Build hygiene** — drive `IPV*_SUPPORT` from a `build/test-ipv6` probe (not
-   the hardcoded `tcplib.o` flags).
+Fix BUG 1 + BUG 2 to make TLS functional (the close_notify half-close is the
+crux; `feat/tls-prototype` is the reference). Then the client-TLS + verification
+graft. Lower priority: v6 sender ACL (a/b/c); build hygiene (`IPV*_SUPPORT` from
+a `build/test-ipv6` probe, not hardcoded `tcplib.o` flags).
