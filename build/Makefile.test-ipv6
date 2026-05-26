@@ -1,0 +1,10 @@
+include Makefile.$(OS)
+
+test-compile:
+	@$(CC) $(CFLAGS) -o test-ipv6.o -c test-ipv6.c
+
+test-link:
+	@$(CC) $(CFLAGS) -o test-ipv6 test-ipv6.o
+
+clean:
+	@rm -f test-ipv6.o test-ipv6

@@ -64,7 +64,7 @@ loadhosts.o: loadhosts.c loadhosts_file.c loadhosts_net.c
 	$(CC) $(CFLAGS) -c -o $@ loadhosts.c
 
 tcplib.o: tcplib.c tcplib.h
-	$(CC) $(CFLAGS) $(SSLFLAGS) -DIPV4_SUPPORT -DIPV6_SUPPORT -c -o $@ $<
+	$(CC) $(CFLAGS) $(SSLFLAGS) $(IPV6DEF) -c -o $@ $<
 
 xymon_tls.o: xymon_tls.c xymon_tls.h
 	$(CC) $(CFLAGS) $(SSLFLAGS) $(SSLINCDIR) $(TLSDEF) -c -o $@ xymon_tls.c
