@@ -73,7 +73,21 @@ cheaper than estimated.
   ourselves, no compression/backfeed) — genuine dev, ~the listener rewrite, not
   a file copy. Same for `sendmsg.c` client connect.
 
+- **Step 2 — FINDING 2: the sender ACL is IPv4-only.** `do_message` authorizes
+  senders via `oksender(..., struct in_addr sender, ...)` — **~25 call sites**,
+  all assuming a 32-bit IPv4 address (`ipaccess.c`). A v6 sender can't be passed
+  to it. This is the *real* reason devel fused v6 with TLS: its commit says
+  *"TLS client-certificate validation replaces IP-based access controls"* —
+  **v6 invalidates IP-based auth, so cert auth (TLS) becomes necessary.**
+  Consequence: a *plaintext* v6 server can carry traffic but **cannot authorize
+  v6 senders** with the current ACL. Coherent v6 needs one of:
+  (a) generalize `ipaccess`/`oksender` to v6 (`sockaddr_storage`; ~25 sites +
+  `ipaccess.c`); (b) cert-based auth for v6 senders (= bring P2/TLS forward —
+  v6 and TLS done together); (c) stopgap for the proof (map v4-in-v6, bypass ACL
+  on loopback) and defer real v6 auth.
+
 Goal unchanged: v6 client→xymond report end-to-end; **IPv4 must stay unbroken**.
+Open: the v6-sender-ACL decision (a/b/c) gates how P1 finishes.
 
 **P2 — Graft TLS hardening (the A′ core).** *Additive*, per P0 — keep tcplib's
 crypto, add what it lacks (reuse `lib/xymon_tls.c`): client-side
