@@ -5278,7 +5278,27 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 	  case CONN_CB_READ:
 		if (!msg) break;
 		n = conn_read(conn, msg->bufp, (msg->bufsz - msg->buflen - 1));
-		if (n > 0) {
+		if (n == 0) {
+			/* During an SSL handshake / renegotiation conn_read() returns 0 to
+			 * mean "in progress" -- NOT end-of-message. Keep going. (Treating
+			 * this as EOF tears the connection down mid-handshake.) */
+			switch (conn->connstate) {
+			  case CONN_SSL_ACCEPT_READ: case CONN_SSL_ACCEPT_WRITE:
+			  case CONN_SSL_CONNECT_READ: case CONN_SSL_CONNECT_WRITE:
+			  case CONN_SSL_STARTTLS_READ: case CONN_SSL_STARTTLS_WRITE:
+			  case CONN_SSL_READ: case CONN_SSL_WRITE:
+				return CONN_CBRESULT_OK;
+			  default: break;
+			}
+		}
+
+		if (n < 0) {
+			/* Connection closed under us -- dispatch whatever we have. */
+			if (msg->buflen > 0) { *(msg->bufp) = '\0'; do_message(msg, ""); }
+			if (!((msg->doingwhat == RESPONDING) && (msg->buflen > 0)))
+				msg->doingwhat = NOTALK;
+		}
+		else if (n > 0) {
 			msg->bufp += n; msg->buflen += n; *(msg->bufp) = '\0';
 			if ((msg->bufsz - msg->buflen) < 2048) {
 				if (msg->bufsz < MAX_XYMON_INBUFSZ) {
@@ -5292,8 +5312,9 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 				}
 			}
 		}
-		else if (n == 0) {
-			/* EOF: the message is complete */
+		else {
+			/* n == 0, not a handshake state: peer finished writing (plaintext
+			 * EOF or TLS close_notify). The message is complete. */
 			*(msg->bufp) = '\0';
 			msg->sock = conn->sock;
 			do_message(msg, "");
@@ -5302,7 +5323,6 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 			else
 				msg->doingwhat = NOTALK;
 		}
-		/* n < 0: tcplib already closed/cleaned the connection */
 		break;
 
 	  case CONN_CB_WRITE:

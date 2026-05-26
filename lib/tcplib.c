@@ -914,9 +914,21 @@ static int try_ssl_io(tcpconn_t *conn, enum io_action_t action, void *buf, size_
 			n = SSL_write(conn->ssl, buf, sz);
 
 		if (n == 0) {
-			/* Peer closed connection */
-			conn_info(funcid, INFO_INFO, "Connection closed by peer: %s\n", conn_print_address(conn));
-			conn->connstate = CONN_CLOSING;
+			/*
+			 * SSL_read()==0: peer sent close_notify (done writing). For a
+			 * clean shutdown (ZERO_RETURN) surface EOF to the application but
+			 * keep the connection alive so it can still write its response --
+			 * xymon's protocol half-closes the client side, then reads the
+			 * reply. Anything else: tear the connection down.
+			 */
+			if (action == IO_READ && SSL_get_error(conn->ssl, n) == SSL_ERROR_ZERO_RETURN) {
+				conn_info(funcid, INFO_DEBUG, "Peer finished writing (close_notify): %s\n", conn_print_address(conn));
+				/* leave connstate unchanged; return 0 == EOF to the app */
+			}
+			else {
+				conn_info(funcid, INFO_INFO, "Connection closed by peer: %s\n", conn_print_address(conn));
+				conn->connstate = CONN_CLOSING;
+			}
 		}
 		else if (n < 0) {
 			/* SSL error. Catch the re-negotiate request; if another error close the connection */
