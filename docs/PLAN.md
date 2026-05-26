@@ -116,10 +116,45 @@ crypto, add what it lacks (reuse `lib/xymon_tls.c`): client-side
 STARTTLS, server mTLS, SNI, close_notify. Goal: client verifies server, server
 verifies client by SAN, no sub-TLS-1.2.
 
-**P3 — Alpha gaps (scope-dependent, see Q1).** HTTP/TCP service checks over v6
-(`xymonnet.c`, `httptest.c`, `httpresult.c`, `contest.c`) and URL `[literal]`
-parsing. devel left these unfinished — this is net-new work. (True dual-stack
-listen — two sockets — is now DONE; see "Listener hardening" under P2.)
+**P3 — IPv6 service checks (the prober).** Net-new development (devel left this
+unfinished). Today an xymond *server* speaks v6/TLS, but the *prober* is v4-only:
+`dns.c` resolves A records only (`ares_gethostbyname(..., AF_INET, ...)` :208,
+`gethostbyname` :219); `contest.c` stores every target as `struct sockaddr_in`
+(`contest.h:85`), `inet_aton`s the IP (`contest.c:179`), and opens `PF_INET`
+sockets (:957); `lib/url.c`/`httptest.c` don't parse `http://[v6-literal]/`
+(`:362` netloc parsing). 27 `addr.sin_*` sites in `contest.c` (17 are
+`inet_ntoa` logging).
+
+**Operator entry-point (no new syntax):** a v6 literal in the hosts.cfg IP column
+(or a v6 URL) drives a v6 test — same model as v4 today. Name→AAAA resolution
+(P3b) only matters for `IP=0.0.0.0` (resolve-by-name) hosts.
+
+Sub-phases:
+- **P3a — `contest.{c,h}` v6-capable engine.** `sockaddr_in` → `sockaddr_storage`
+  (+ `socklen_t`); detect AF from the IP via `inet_pton` (v4/v6); `socket(family)`;
+  `connect()` with stored len; v6-aware source-bind (:962); a `inet_ntop` helper
+  for the 17 log sites. **IPv4 path must stay byte-identical.** No DNS/policy
+  decision needed. *Compile-verifiable here; needs a real v6 service target to
+  runtime-prove.*
+- **P3b — DNS AAAA (`dns.c`).** Resolve AAAA (c-ares `AF_UNSPEC`/`AF_INET6`;
+  `getaddrinfo` for the sync path). **Has a policy fork** (see Open Q4): when a
+  name has both A and AAAA, which family does a test use? — A-only (today),
+  AAAA-preferred, A-preferred-with-v6-fallback, or per-test tag.
+- **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`).** Parse
+  `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
+  low-risk, compile-verifiable.
+- **P3d — ICMPv6 ping (`xymonping.c`).** Separate raw-socket path (ICMP6); larger,
+  lowest priority — can be its own follow-up.
+
+**Verification gap:** xymonnet compiles here (pcre2/pcre/ares/rrd headers present)
+but cannot be runtime-proven on this box (needs reachable v6 HTTP/TCP targets).
+P3a/P3c land as compile-verified; runtime proof deferred to CI or a v6 test host.
+
+Recommended order: **P3a → P3c → P3b → P3d**; P3a+P3c give "test a v6 service by
+literal address/URL" with no policy decision; P3b adds name resolution once Q4
+is settled.
+
+**P4 — Tests + CI** *(unchanged; see below)*.
 
 **P4 — Tests + CI.** Extend the existing OpenBSD/LibreSSL BSD CI; smoke tests for
 v4 + v6 + TLS; reuse `tests/tls/` scripts.
@@ -145,6 +180,11 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
    v6 wildcard binds, `IPV6_V6ONLY` forced on), not the single v6+mapped socket.
 3. **Prototype reconciliation** — `feat/tls-prototype` becomes the *source* of the
    P2 TLS, then retires; confirm nothing else depends on it.
+4. **P3b DNS address-family selection** — when a probed name has both A and AAAA,
+   which does a test use? A-only (today) / AAAA-preferred / A-preferred-with-v6-
+   fallback / per-test tag. Gates P3b only; P3a + P3c (literal v6 / v6 URL) need
+   no decision. Client-side `sendmsg.c` already uses `getaddrinfo(AF_UNSPEC)`
+   (first working address) — the prober could mirror that.
 
 - **Step 3 (client) ✅ DONE & PROVEN.** `sendmsg.c` connect rewritten to
   `getaddrinfo(AF_UNSPEC)` + non-blocking connect loop (select/IO loop
