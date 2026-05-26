@@ -53,7 +53,7 @@ static int max_accepts = 0;
 
 /* SSL context (holds certificate, SSL protocol version etc) for server-mode operation */
 /* Note: Since this is global, we are limited to one server instance per process. */
-static SSL_CTX *serverctx = NULL;	
+static SSL_CTX *serverctx = NULL;
 
 #ifdef DEBUG_FOR_VALGRIND
 /* Valgrind complains a lot about libcrypto - see http://www.hardening-consulting.com/en/posts/20140512openssl-and-valgrind.html */
@@ -106,7 +106,7 @@ char *conn_state_names[CONN_DEAD+1] = {
 	"Closing",
 	"Dead",
 };
- 
+
 char *conn_callback_result_names[CONN_CBRESULT_LAST] = {
 	"OK",
 	"Failed",
@@ -163,7 +163,7 @@ static void conn_ssllibrary_init(void)
 void conn_getntimer(struct timespec *tp)
 {
 #if (_POSIX_TIMERS > 0) && defined(_POSIX_MONOTONIC_CLOCK) && defined(CLOCK_MONOTONIC)
-	if (clock_gettime(CLOCK_MONOTONIC, tp) == 0) 
+	if (clock_gettime(CLOCK_MONOTONIC, tp) == 0)
 		return;
 	else
 #endif
@@ -485,7 +485,7 @@ static int listen_port(tcpconn_t *ls, int portnumber, int backlog, char *localad
 #endif
 
 #ifdef IPV6_SUPPORT
-	  case AF_INET6: 
+	  case AF_INET6:
 		{
 			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)ls->peer;
 			sin6->sin6_family = ls->family;
@@ -517,7 +517,7 @@ static int listen_port(tcpconn_t *ls, int portnumber, int backlog, char *localad
 }
 
 /*
- * Setup listener. 
+ * Setup listener.
  *
  * This sets up a listener on localaddr.
  * The listener socket is added to the "lsocks" list and the conn_process_listeners()
@@ -550,7 +550,7 @@ int conn_listen(int backlog, int maxlifetime,
 		if ((*localaddr == '[') && portdelim) {
 			port6 = atoi(portdelim+2);
 			*portdelim = '\0';
-			if (inet_pton(AF_INET6, localaddr+1, &addr) == 1) 
+			if (inet_pton(AF_INET6, localaddr+1, &addr) == 1)
 				local6 = strdup(localaddr + 1);
 			*portdelim = ']';
 		}
@@ -565,7 +565,7 @@ int conn_listen(int backlog, int maxlifetime,
 		if (portdelim) {
 			port4 = atoi(portdelim+1);
 			*portdelim = '\0';
-			if (inet_pton(AF_INET, localaddr, &addr) == 1) 
+			if (inet_pton(AF_INET, localaddr, &addr) == 1)
 				local4 = strdup(localaddr);
 			*portdelim = ':';
 		}
@@ -695,11 +695,11 @@ static void try_ssl_connect(tcpconn_t *conn)
 		switch (SSL_get_error(conn->ssl, sslresult)) {
 		  case SSL_ERROR_WANT_READ: conn->connstate = CONN_SSL_CONNECT_READ; break;
 		  case SSL_ERROR_WANT_WRITE: conn->connstate = CONN_SSL_CONNECT_WRITE; break;
-		  default: 
+		  default:
 			{
 				char sslerrmsg[256];
 				ERR_error_string(ERR_get_error(), sslerrmsg);
-				conn_info(funcid, INFO_ERROR, "SSL error during connection setup with %s: %s\n", 
+				conn_info(funcid, INFO_ERROR, "SSL error during connection setup with %s: %s\n",
 					  conn_print_address(conn), sslerrmsg);
 			}
 			conn->usercallback(conn, CONN_CB_SSLHANDSHAKE_FAILED, conn->userdata);
@@ -738,11 +738,11 @@ static void try_ssl_starttls(tcpconn_t *conn)
 		switch (SSL_get_error(conn->ssl, sslresult)) {
 		  case SSL_ERROR_WANT_READ: conn->connstate = CONN_SSL_STARTTLS_READ; break;
 		  case SSL_ERROR_WANT_WRITE: conn->connstate = CONN_SSL_STARTTLS_WRITE; break;
-		  default: 
+		  default:
 			{
 				char sslerrmsg[256];
 				ERR_error_string(ERR_get_error(), sslerrmsg);
-				conn_info(funcid, INFO_ERROR, "SSL error during starttls with %s: %s\n", 
+				conn_info(funcid, INFO_ERROR, "SSL error during starttls with %s: %s\n",
 					  conn_print_address(conn), sslerrmsg);
 			}
 			conn->usercallback(conn, CONN_CB_SSLHANDSHAKE_FAILED, conn->userdata);
@@ -768,7 +768,7 @@ int conn_starttls(tcpconn_t *conn)
 			conn->ssl = SSL_new(serverctx);
 		}
 		else {
-			conn_info(funcid, INFO_ERROR, 
+			conn_info(funcid, INFO_ERROR,
 				  "starttls failed, SSL certificate not prepared\n");
 			return 1;
 		}
@@ -800,7 +800,7 @@ int conn_starttls(tcpconn_t *conn)
 #endif
 }
 
-/* 
+/*
  * Accept an incoming connection.
  *
  * When this succeeds, the useralloc() callback is
@@ -856,8 +856,8 @@ tcpconn_t *conn_accept(tcpconn_t *ls)
 
 #ifdef HAVE_OPENSSL
 	if (newconn->connstate == CONN_SSL_INIT) {
-		/* 
-		 * We have a connection, but the SSL handshake has not happened yet. 
+		/*
+		 * We have a connection, but the SSL handshake has not happened yet.
 		 * Add the connection to the SSL connection pool, and start the
 		 * handshake by calling try_ssl_accept()
 		 */
@@ -951,7 +951,7 @@ static int try_ssl_io(tcpconn_t *conn, enum io_action_t action, void *buf, size_
 			switch (SSL_get_error(conn->ssl, n)) {
 			  case SSL_ERROR_WANT_READ: conn->connstate = CONN_SSL_READ; break;
 			  case SSL_ERROR_WANT_WRITE: conn->connstate = CONN_SSL_WRITE; break;
-			  default: 
+			  default:
 				{
 					char sslerrmsg[256];
 					ERR_error_string(ERR_get_error(), sslerrmsg);
@@ -1132,7 +1132,7 @@ int conn_fdset(fd_set *fdread, fd_set *fdwrite)
 		  case CONN_SSL_INIT:
 			/*
 			 * Starting an SSL handshake, we want to read or write data.
-			 * 
+			 *
 			 * NOTE: This really should not happen, since all SSL I/O
 			 * operations explicitly call try_ssl_X(), which invokes the
 			 * SSL I/O operation and then changes state to CONN_SSL_X_READ/WRITE
@@ -1189,7 +1189,7 @@ void conn_process_active(fd_set *fdread, fd_set *fdwrite)
 	int connres;
 	socklen_t connressize;
 	struct timespec tnow;
-	
+
 #ifdef DEBUG
 	conn_info(funcid, INFO_DEBUG, "Processing all active connections\n");
 #endif
@@ -1217,7 +1217,7 @@ void conn_process_active(fd_set *fdread, fd_set *fdwrite)
 				getsockopt(walk->sock, SOL_SOCKET, SO_ERROR, &connres, &connressize);
 				if (connres != 0) {
 					walk->errcode = connres;
-					conn_info(funcid, INFO_DEBUG, "connect() to %s failed: status %d\n", 
+					conn_info(funcid, INFO_DEBUG, "connect() to %s failed: status %d\n",
 						  conn_print_address(walk), connres);
 					walk->usercallback(walk, CONN_CB_CONNECT_FAILED, walk->userdata);
 					conn_cleanup(walk);
@@ -1278,8 +1278,8 @@ void conn_process_listeners(fd_set *fdread)
 
 
 #ifdef HAVE_OPENSSL
-/* 
- * SSL helper routine to get the password for a certificate. 
+/*
+ * SSL helper routine to get the password for a certificate.
  * Tries to read the password from a file called the same as the
  * certificate, except with ".pass" instead of ".cert"
  */
@@ -1339,7 +1339,7 @@ static int try_ssl_certload(SSL_CTX *ctx, char *certfn, char *keyfn)
 	if (status != 1) {
 		char sslerrmsg[256];
 		ERR_error_string(ERR_get_error(), sslerrmsg);
-		conn_info(funcid, INFO_ERROR, "Cannot load SSL server certificate/key %s/%s: %s\n", 
+		conn_info(funcid, INFO_ERROR, "Cannot load SSL server certificate/key %s/%s: %s\n",
 			  certfn, (keyfn ? keyfn : "builtin"), sslerrmsg);
 		return -1;
 	}
@@ -1448,7 +1448,7 @@ void conn_init_client(void)
  * The connection is added to the list of active connections, and will then be handled when running
  * conn_process_active().
  */
-tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype, 
+tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype,
 				   char *localaddr, enum sslhandling_t sslhandling, char *sslname, char *certfn, char *keyfn, long maxlifetime,
 				   enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *), void *userdata)
 {
@@ -1687,7 +1687,7 @@ void conn_close_connection(tcpconn_t *conn, char *direction)
 	  case CONN_DEAD:
 	  case CONN_CLOSING:
 		break;
-	
+
 	  case CONN_PLAINTEXT:
 		/* Unencrypted connections support shutdown() */
 		if (!direction || (strcasecmp(direction, "rw") == 0)) {
@@ -1789,7 +1789,7 @@ char *conn_lookup_ip(char *hostname, int *portnumber, enum conn_ipproto_t prefer
 	if (res == 0) {
 		switch (addr->ai_family) {
 #ifdef IPV4_SUPPORT
-		  case AF_INET: 
+		  case AF_INET:
 			{
 				struct sockaddr_in *sin4 = (struct sockaddr_in *)addr->ai_addr;
 				inet_ntop(addr->ai_family, &sin4->sin_addr, addrstring, sizeof(addrstring));
@@ -1858,4 +1858,3 @@ int conn_null_ip(char *ip)
 
 	return 0;
 }
-

@@ -20,7 +20,7 @@ enum conn_socktype_t { CONN_SOCKTYPE_STREAM, CONN_SOCKTYPE_DGRAM };
 enum conn_ipproto_t { CONN_IPPROTO_ANY, CONN_IPPROTO_V4, CONN_IPPROTO_V6 };
 enum infolevel_t { INFO_CRITICAL, INFO_ERROR, INFO_WARN, INFO_INFO, INFO_DEBUG };
 enum sslhandling_t { CONN_SSL_NO, CONN_SSL_YES, CONN_SSL_STARTTLS_CLIENT, CONN_SSL_STARTTLS_SERVER };
-enum conn_callback_t { 
+enum conn_callback_t {
 	CONN_CB_NEWCONNECTION, 		/* Server mode: New incoming connection accepted */
 	CONN_CB_CONNECT_START, 		/* Client mode: connect() about to be called */
 	CONN_CB_CONNECT_COMPLETE, 	/* Client mode: connect() succeeded */
@@ -48,13 +48,13 @@ typedef struct tcpconn_t {
 	void *peer_sin;
 	int peersz;
 	enum {
-		CONN_PLAINTEXT, 
+		CONN_PLAINTEXT,
 		CONN_SSL_INIT, CONN_SSL_CONNECTING, CONN_PLAINTEXT_CONNECTING,
-		CONN_SSL_ACCEPT_READ, CONN_SSL_ACCEPT_WRITE, 
-		CONN_SSL_CONNECT_READ, CONN_SSL_CONNECT_WRITE, 
-		CONN_SSL_STARTTLS_READ, CONN_SSL_STARTTLS_WRITE, 
-		CONN_SSL_READ, CONN_SSL_WRITE, CONN_SSL_READY, 
-		CONN_CLOSING, 
+		CONN_SSL_ACCEPT_READ, CONN_SSL_ACCEPT_WRITE,
+		CONN_SSL_CONNECT_READ, CONN_SSL_CONNECT_WRITE,
+		CONN_SSL_STARTTLS_READ, CONN_SSL_STARTTLS_WRITE,
+		CONN_SSL_READ, CONN_SSL_WRITE, CONN_SSL_READY,
+		CONN_CLOSING,
 		CONN_DEAD
 	} connstate;
 	int errcode;
@@ -78,7 +78,7 @@ extern char *conn_peer_certificate(tcpconn_t *conn, time_t *certstart, time_t *c
 extern char *conn_peer_certificate_cn(tcpconn_t *conn);
 
 extern int conn_listen(int backlog, int maxlifetime,
-		       char *localaddr, enum sslhandling_t withssl, 
+		       char *localaddr, enum sslhandling_t withssl,
 		       enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *));
 extern tcpconn_t *conn_accept(tcpconn_t *ls);
 
@@ -94,7 +94,7 @@ extern int conn_init_server(int backlog, int maxlifetime,
 			    enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *));
 
 extern void conn_init_client(void);
-extern tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype, 
+extern tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_t socktype,
 					  char *localaddr, enum sslhandling_t withssl, char *sslname, char *certfn, char *keyfn, long maxlifetime,
 					  enum conn_cbresult_t (*usercallback)(tcpconn_t *, enum conn_callback_t, void *), void *userdata);
 
@@ -117,4 +117,3 @@ extern int conn_is_ip(char *ip);
 extern int conn_null_ip(char *ip);
 
 #endif
-
