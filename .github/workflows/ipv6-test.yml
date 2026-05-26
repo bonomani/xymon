@@ -1,48 +1,34 @@
-name: ipv6-e2e
+name: IPv6 + TLS test (manual)
 
-# Proves the tcplib IPv6 work end-to-end on a *real* ::1 (which the dev box
-# lacks): build the server, run xymond on the dual-stack [::] socket, and drive
-# it with the real `xymon` client over a pure (non-mapped) IPv6 address, plus an
-# IPv4 regression check.
+# Manual only: Actions tab -> "IPv6 + TLS test (manual)" -> Run workflow.
+# Builds the server and runs the IPv6 + TLS + mTLS smoke test on the runner's
+# real ::1. Not tied to push, so it never fires on its own.
 
 on:
-  push:
-    branches: [ feat/ipv6-tls ]
-  pull_request:
   workflow_dispatch:
 
 jobs:
-  ipv6-e2e:
-    name: IPv6 end-to-end (pure ::1)
+  test:
     runs-on: ubuntu-latest
     steps:
-      - name: Checkout
-        uses: actions/checkout@v6
+      - uses: actions/checkout@v6
 
-      - name: Install build dependencies
+      - name: Install build deps
         run: |
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential libc-ares-dev libldap-dev libpcre2-dev \
-            librrd-dev libssl-dev libtirpc-dev iproute2
+            librrd-dev libssl-dev libtirpc-dev
 
-      - name: Require ::1 on the runner
+      - name: Configure + build (server)
         run: |
-          ip -6 addr show lo
-          ip -6 addr show lo | grep -qw "::1" || { echo "runner has no ::1!"; exit 1; }
-
-      - name: Configure (server)
-        run: |
-          USEXYMONPING=y ENABLESSL=y ENABLELDAP=y ENABLELDAPSSL=y \
-          XYMONUSER=$(id -un) XYMONTOPDIR=$PWD/_inst XYMONVAR=$PWD/_inst/var \
-          XYMONHOSTURL=/xymon CGIDIR=$PWD/_inst/cgi XYMONCGIURL=/xymon-cgi \
-          SECURECGIDIR=$PWD/_inst/cgi-sec SECUREXYMONCGIURL=/xymon-seccgi \
-          HTTPDGID=$(id -gn) XYMONLOGDIR=$PWD/_inst/logs \
+          ENABLESSL=y ENABLELDAP=y XYMONUSER=$(id -un) \
+          XYMONTOPDIR=$PWD/_inst XYMONVAR=$PWD/_inst/var XYMONHOSTURL=/xymon \
+          CGIDIR=$PWD/_inst/cgi XYMONCGIURL=/c SECURECGIDIR=$PWD/_inst/sec \
+          SECUREXYMONCGIURL=/s HTTPDGID=$(id -gn) XYMONLOGDIR=$PWD/_inst/logs \
           XYMONHOSTNAME=localhost XYMONHOSTIP=127.0.0.1 MANROOT=$PWD/_inst/man \
           ./configure --server
+          make -j"$(nproc)"
 
-      - name: Build
-        run: make -j"$(nproc)"
-
-      - name: End-to-end — IPv6 + TLS + mTLS smoke test
+      - name: IPv6 + TLS + mTLS smoke test
         run: sh tests/ipv6-tls/smoke.sh
