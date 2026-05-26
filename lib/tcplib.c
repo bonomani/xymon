@@ -1344,6 +1344,10 @@ void conn_init_server(int backlog, int maxlifetime,
 	serverctx = SSL_CTX_new(SSLv23_server_method());
 	SSL_CTX_set_options(serverctx, (SSL_OP_NO_SSLv2 | SSL_OP_ALL));
 	SSL_CTX_set_quiet_shutdown(serverctx, 1);
+#ifdef TLS1_2_VERSION
+	/* Hardening (A' P2): refuse SSLv3 / TLS 1.0 / 1.1 */
+	SSL_CTX_set_min_proto_version(serverctx, TLS1_2_VERSION);
+#endif
 
 	if (certfn) {
 		sslavailable = (try_ssl_certload(serverctx, certfn, keyfn) == 0);
@@ -1556,6 +1560,10 @@ tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_
 
 		SSL_CTX_set_options(newconn->ctx, (SSL_OP_NO_SSLv2 | SSL_OP_ALL));
 		SSL_CTX_set_quiet_shutdown(newconn->ctx, 1);
+#ifdef TLS1_2_VERSION
+		/* Hardening (A' P2): refuse SSLv3 / TLS 1.0 / 1.1 */
+		SSL_CTX_set_min_proto_version(newconn->ctx, TLS1_2_VERSION);
+#endif
 		if (certfn) {
 			if (try_ssl_certload(newconn->ctx, certfn, keyfn) != 0) {
 				conn_info(funcid, INFO_ERROR, "Client certificate %s (key %s) not available\n", certfn, (keyfn ? keyfn : "included in certfile"));

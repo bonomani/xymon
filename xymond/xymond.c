@@ -5355,6 +5355,8 @@ int main(int argc, char *argv[])
 	struct timezone tz;
 	int daemonize = 0;
 	char *pidfile = NULL;
+	char *tlslisten = NULL, *tlscert = NULL, *tlskey = NULL, *tlsca = NULL;
+	int tlsreqcert = 0;
 	struct sigaction sa;
 	time_t conn_timeout = 30;
 	char *envarea = NULL;
@@ -5409,6 +5411,22 @@ int main(int argc, char *argv[])
 				listenport = atoi(p+1);
 				*p = ':';
 			}
+		}
+		else if (argnmatch(argv[argi], "--tls-listen=")) {
+			/* TLS listener spec, e.g. [::]:1985 or 0.0.0.0:1985 */
+			tlslisten = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (argnmatch(argv[argi], "--tls-cert=")) {
+			tlscert = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (argnmatch(argv[argi], "--tls-key=")) {
+			tlskey = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (argnmatch(argv[argi], "--tls-ca=")) {
+			tlsca = strdup(strchr(argv[argi], '=') + 1);
+		}
+		else if (strcmp(argv[argi], "--tls-require-clientcert") == 0) {
+			tlsreqcert = 1;
 		}
 		else if (argnmatch(argv[argi], "--timeout=")) {
 			char *p = strchr(argv[argi], '=') + 1;
@@ -5653,9 +5671,22 @@ int main(int argc, char *argv[])
 
 		errprintf("Setting up network listener on %s\n", listenspec);
 		conn_register_infohandler(xymond_conn_info, INFO_WARN);
-		conn_init_server(listenq, (long)conn_timeout * 1000000L,
-				 NULL, NULL, NULL, 0,
-				 listenspec, NULL, xymond_conn_cb);
+
+		if (tlscert && tlslisten) {
+			/* tlslisten is passed through to tcplib as the implicit-TLS
+			 * listener spec (use [::]:port for dual-stack v6). A cert also
+			 * enables opportunistic STARTTLS on the plaintext port. */
+			errprintf("Setting up TLS listener on %s (cert=%s%s)\n",
+				  tlslisten, tlscert, tlsca ? ", verifying clients" : "");
+			conn_init_server(listenq, (long)conn_timeout * 1000000L,
+					 tlscert, tlskey, tlsca, tlsreqcert,
+					 listenspec, tlslisten, xymond_conn_cb);
+		}
+		else {
+			conn_init_server(listenq, (long)conn_timeout * 1000000L,
+					 NULL, NULL, NULL, 0,
+					 listenspec, NULL, xymond_conn_cb);
+		}
 	}
 
 	/* Go daemon */
