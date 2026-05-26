@@ -5639,13 +5639,17 @@ int main(int argc, char *argv[])
 	/* Set up listener(s) via tcplib (dual-stack IPv4/IPv6, plaintext). */
 	{
 		char listenspec[256];
+		char ipbuf[128], *cp;
+
+		/* xymond's --listen parser leaves ":port" on listenip; strip it. */
+		strncpy(ipbuf, listenip, sizeof(ipbuf)-1); ipbuf[sizeof(ipbuf)-1] = '\0';
+		cp = strchr(ipbuf, ':'); if (cp) *cp = '\0';
+
 		/* On Linux (bindv6only=0) a [::] socket also accepts IPv4-mapped peers. */
-		if (!*listenip || (strcmp(listenip, "0.0.0.0") == 0))
+		if (!*ipbuf || (strcmp(ipbuf, "0.0.0.0") == 0))
 			snprintf(listenspec, sizeof(listenspec), "[::]:%d", listenport);
-		else if (strchr(listenip, ':'))		/* an IPv6 literal */
-			snprintf(listenspec, sizeof(listenspec), "[%s]:%d", listenip, listenport);
 		else
-			snprintf(listenspec, sizeof(listenspec), "%s:%d", listenip, listenport);
+			snprintf(listenspec, sizeof(listenspec), "%s:%d", ipbuf, listenport);
 
 		errprintf("Setting up network listener on %s\n", listenspec);
 		conn_register_infohandler(xymond_conn_info, INFO_WARN);
