@@ -144,6 +144,40 @@ static int tcp_callback(unsigned char *buf, unsigned int len, void *priv)
 }
 
 
+/* Printable form of a test's target address (v4 or v6). Static buffer, not
+ * reentrant -- a drop-in replacement for the inet_ntoa(addr.sin_addr) it
+ * supersedes (for an AF_INET address inet_ntop yields the same dotted quad). */
+static char *ss_ntop(const struct sockaddr_storage *ss)
+{
+	static char buf[INET6_ADDRSTRLEN];
+	const void *src = NULL;
+
+	if (ss->ss_family == AF_INET)       src = &((const struct sockaddr_in  *)ss)->sin_addr;
+	else if (ss->ss_family == AF_INET6) src = &((const struct sockaddr_in6 *)ss)->sin6_addr;
+	if (!src || !inet_ntop(ss->ss_family, src, buf, sizeof(buf))) strcpy(buf, "?");
+	return buf;
+}
+
+
+/* Parse a source-IP literal into a sockaddr of family `fam` (port 0). Returns 1
+ * and sets *len on success, 0 if `str` is not a valid literal of that family. */
+static int set_source_addr(struct sockaddr_storage *ss, socklen_t *len, int fam, const char *str)
+{
+	if (!str || !*str) return 0;
+	if (fam == AF_INET) {
+		struct sockaddr_in *s4 = (struct sockaddr_in *)ss;
+		if (inet_pton(AF_INET, str, &s4->sin_addr) != 1) return 0;
+		s4->sin_family = AF_INET; s4->sin_port = 0; *len = sizeof(*s4); return 1;
+	}
+	if (fam == AF_INET6) {
+		struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)ss;
+		if (inet_pton(AF_INET6, str, &s6->sin6_addr) != 1) return 0;
+		s6->sin6_family = AF_INET6; s6->sin6_port = 0; *len = sizeof(*s6); return 1;
+	}
+	return 0;
+}
+
+
 tcptest_t *add_tcp_test(char *ip, int port, char *service, ssloptions_t *sslopt,
 			char *srcip,
 			char *tspec, int silent, unsigned char *reqmsg, 
@@ -174,9 +208,23 @@ tcptest_t *add_tcp_test(char *ip, int port, char *service, ssloptions_t *sslopt,
 	newtest->totaltime.tv_sec = newtest->totaltime.tv_nsec = 0;
 
 	memset(&newtest->addr, 0, sizeof(newtest->addr));
-	newtest->addr.sin_family = PF_INET;
-	newtest->addr.sin_port = htons(port);
-	if ((ip == NULL) || (strlen(ip) == 0) || (inet_aton(ip, (struct in_addr *) &newtest->addr.sin_addr.s_addr) == 0)) {
+	newtest->port = port;
+	newtest->addrlen = 0;
+	if (ip && *ip &&
+	    (inet_pton(AF_INET, ip, &((struct sockaddr_in *)&newtest->addr)->sin_addr) == 1)) {
+		struct sockaddr_in *s4 = (struct sockaddr_in *)&newtest->addr;
+		s4->sin_family = AF_INET;
+		s4->sin_port = htons(port);
+		newtest->addrlen = sizeof(*s4);
+	}
+	else if (ip && *ip &&
+		 (inet_pton(AF_INET6, ip, &((struct sockaddr_in6 *)&newtest->addr)->sin6_addr) == 1)) {
+		struct sockaddr_in6 *s6 = (struct sockaddr_in6 *)&newtest->addr;
+		s6->sin6_family = AF_INET6;
+		s6->sin6_port = htons(port);
+		newtest->addrlen = sizeof(*s6);
+	}
+	else {
 		newtest->errcode = CONTEST_EDNS;
 	}
 
@@ -354,7 +402,7 @@ static void socket_shutdown(tcptest_t *item)
 			errprintf("Huge response %u bytes from %s\n", item->bytesread, item->tspec);
 		else
 			errprintf("Huge response %u bytes for %s:%s\n",
-				  item->bytesread, inet_ntoa(item->addr.sin_addr), item->svcinfo->svcname);
+				  item->bytesread, ss_ntop(&item->addr), item->svcinfo->svcname);
 	}
 }
 
@@ -547,7 +595,7 @@ static void setup_ssl(tcptest_t *item)
 
 			ERR_error_string(ERR_get_error(), sslerrmsg);
 			errprintf("Cannot create SSL context - IP %s, service %s: %s\n", 
-				   inet_ntoa(item->addr.sin_addr), item->svcinfo->svcname, sslerrmsg);
+				   ss_ntop(&item->addr), item->svcinfo->svcname, sslerrmsg);
 			item->sslrunning = 0;
 			item->errcode = CONTEST_ESSL;
 			return;
@@ -594,7 +642,7 @@ static void setup_ssl(tcptest_t *item)
 
 			ERR_error_string(ERR_get_error(), sslerrmsg);
 			errprintf("SSL_new failed - IP %s, service %s: %s\n", 
-				   inet_ntoa(item->addr.sin_addr), item->svcinfo->svcname, sslerrmsg);
+				   ss_ntop(&item->addr), item->svcinfo->svcname, sslerrmsg);
 			item->sslrunning = 0;
 			SSL_CTX_free(item->sslctx);
 			item->errcode = CONTEST_ESSL;
@@ -631,7 +679,7 @@ static void setup_ssl(tcptest_t *item)
 
 			ERR_error_string(ERR_get_error(), sslerrmsg);
 			errprintf("Could not initiate SSL on connection - IP %s, service %s: %s\n", 
-				   inet_ntoa(item->addr.sin_addr), item->svcinfo->svcname, sslerrmsg);
+				   ss_ntop(&item->addr), item->svcinfo->svcname, sslerrmsg);
 			item->sslrunning = 0;
 			SSL_free(item->ssldata); 
 			SSL_CTX_free(item->sslctx);
@@ -640,12 +688,12 @@ static void setup_ssl(tcptest_t *item)
 		}
 	}
 
-	sp = getservbyport(item->addr.sin_port, "tcp");
+	sp = getservbyport(htons(item->port), "tcp");
 	if (sp) {
-		sprintf(portinfo, "%s (%d/tcp)", sp->s_name, item->addr.sin_port);
+		sprintf(portinfo, "%s (%d/tcp)", sp->s_name, item->port);
 	}
 	else {
-		sprintf(portinfo, "%d/tcp", item->addr.sin_port);
+		sprintf(portinfo, "%d/tcp", item->port);
 	}
 	if ((err = SSL_connect(item->ssldata)) != 1) {
 		char sslerrmsg[256];
@@ -660,7 +708,7 @@ static void setup_ssl(tcptest_t *item)
 			/* Filter out the bogus SSL error */
 			if (strstr(sslerrmsg, "error:00000000:") == NULL) {
 				errprintf("IO error in SSL_connect to %s on host %s: %s\n",
-					  portinfo, inet_ntoa(item->addr.sin_addr), sslerrmsg);
+					  portinfo, ss_ntop(&item->addr), sslerrmsg);
 			}
 			item->errcode = CONTEST_ESSL;
 			item->sslrunning = 0; SSL_free(item->ssldata); SSL_CTX_free(item->sslctx);
@@ -668,14 +716,14 @@ static void setup_ssl(tcptest_t *item)
 		  case SSL_ERROR_SSL:
 			ERR_error_string(ERR_get_error(), sslerrmsg);
 			errprintf("Unspecified SSL error in SSL_connect to %s on host %s: %s\n",
-				  portinfo, inet_ntoa(item->addr.sin_addr), sslerrmsg);
+				  portinfo, ss_ntop(&item->addr), sslerrmsg);
 			item->errcode = CONTEST_ESSL;
 			item->sslrunning = 0; SSL_free(item->ssldata); SSL_CTX_free(item->sslctx);
 			break;
 		  default:
 			ERR_error_string(ERR_get_error(), sslerrmsg);
 			errprintf("Unknown error %d in SSL_connect to %s on host %s: %s\n",
-				  err, portinfo, inet_ntoa(item->addr.sin_addr), sslerrmsg);
+				  err, portinfo, ss_ntop(&item->addr), sslerrmsg);
 			item->errcode = CONTEST_ESSL;
 			item->sslrunning = 0; SSL_free(item->ssldata); SSL_CTX_free(item->sslctx);
 			break;
@@ -688,7 +736,7 @@ static void setup_ssl(tcptest_t *item)
 	peercert = SSL_get_peer_certificate(item->ssldata);
 	if (!peercert) {
 		errprintf("Cannot get peer certificate for %s on host %s\n",
-			  portinfo, inet_ntoa(item->addr.sin_addr));
+			  portinfo, ss_ntop(&item->addr));
 		item->errcode = CONTEST_ESSL;
 		item->sslrunning = 0; SSL_free(item->ssldata); SSL_CTX_free(item->sslctx);
 		return;
@@ -846,7 +894,7 @@ static void socket_shutdown(tcptest_t *item)
 			errprintf("Huge response %u bytes from %s\n", item->bytesread, item->tspec);
 		else
 			errprintf("Huge response %u bytes for %s:%s\n",
-				  item->bytesread, inet_ntoa(item->addr.sin_addr), item->svcinfo->svcname);
+				  item->bytesread, ss_ntop(&item->addr), item->svcinfo->svcname);
 	}
 }
 #endif
@@ -954,26 +1002,26 @@ void do_tcp_tests(int timeout, int concurrency)
 			/*
 			 * We need to allocate a new socket that has O_NONBLOCK set.
 			 */
-			nextinqueue->fd = socket(PF_INET, SOCK_STREAM, 0);
+			nextinqueue->fd = socket(nextinqueue->addr.ss_family, SOCK_STREAM, 0);
 			sockok = (nextinqueue->fd != -1);
 			if (sockok) {
-				/* Set the source address */
+				/* Set the source address (must match the target's family) */
 				if (nextinqueue->srcaddr) {
-					struct sockaddr_in src;
+					int fam = nextinqueue->addr.ss_family;
+					struct sockaddr_storage src;
+					socklen_t srclen = 0;
+					char *srcstr = nextinqueue->srcaddr;
 					int isip;
 
 					memset(&src, 0, sizeof(src));
-					src.sin_family = PF_INET;
-					src.sin_port = 0;
-					isip = (inet_aton(nextinqueue->srcaddr, (struct in_addr *) &src.sin_addr.s_addr) != 0);
-
+					isip = set_source_addr(&src, &srclen, fam, srcstr);
 					if (!isip) {
 						char *envaddr = getenv(nextinqueue->srcaddr);
-						isip = (envaddr && (inet_aton(envaddr, (struct in_addr *) &src.sin_addr.s_addr) != 0));
+						if (envaddr) { srcstr = envaddr; isip = set_source_addr(&src, &srclen, fam, srcstr); }
 					}
 
 					if (isip) {
-						res = bind(nextinqueue->fd, (struct sockaddr *)&src, sizeof(src));
+						res = bind(nextinqueue->fd, (struct sockaddr *)&src, srclen);
 						if (res != 0) errprintf("WARNING: Could not bind to source IP %s for test %s: %s\n",
 								nextinqueue->srcaddr, nextinqueue->tspec, strerror(errno));
 					}
@@ -992,7 +1040,7 @@ void do_tcp_tests(int timeout, int concurrency)
 					getntimer(&nextinqueue->timestart);
 					nextinqueue->lastactive = nextinqueue->timestart.tv_sec;
 					nextinqueue->cutoff = nextinqueue->timestart.tv_sec + timeout + 1;
-					res = connect(nextinqueue->fd, (struct sockaddr *)&nextinqueue->addr, sizeof(nextinqueue->addr));
+					res = connect(nextinqueue->fd, (struct sockaddr *)&nextinqueue->addr, nextinqueue->addrlen);
 
 					/*
 					 * Did it work ?
@@ -1337,7 +1385,7 @@ restartselect:
 							if (!item->telnetnegotiate) {
 								dbgprintf("Max. telnet negotiation (%d) reached for host %s\n", 
 									MAX_TELNET_CYCLES,
-									inet_ntoa(item->addr.sin_addr));
+									ss_ntop(&item->addr));
 							}
 
 							if (do_telnet_options(item)) {
@@ -1390,8 +1438,8 @@ void show_tcp_test_results(void)
 
 	for (item = thead; (item); item = item->next) {
 		printf("Address=%s:%d, open=%d, res=%d, err=%d, connecttime=%u.%06u, totaltime=%u.%06u, ",
-				inet_ntoa(item->addr.sin_addr), 
-				ntohs(item->addr.sin_port),
+				ss_ntop(&item->addr),
+				item->port,
 				item->open, item->connres, item->errcode,
 				(unsigned int)item->duration.tv_sec, (unsigned int)(item->duration.tv_nsec/1000),
 				(unsigned int)item->totaltime.tv_sec, (unsigned int)(item->totaltime.tv_nsec/1000));
@@ -1545,8 +1593,8 @@ int main(int argc, char *argv[])
 					httptest = (http_data_t *)testitem->privdata;
 					if (httptest && httptest->tcptest) {
 						printf("TCP connection goes to %s:%d\n",
-							inet_ntoa(httptest->tcptest->addr.sin_addr),
-							ntohs(httptest->tcptest->addr.sin_port));
+							ss_ntop(&httptest->tcptest->addr),
+							httptest->tcptest->port);
 						printf("Request:\n%s\n", httptest->tcptest->sendtxt);
 					}
 				}
