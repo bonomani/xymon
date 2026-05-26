@@ -202,8 +202,9 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
 ## Next step
 
 Remaining for "full" TLS (all lower priority — the core feature works):
-1. **CI** — extend the `ipv6-e2e` lane with a TLS leg (gen cert, `--tls-listen`,
-   `xymons://` ping/status) once GitHub Actions triggering is back.
+1. **CI** — the `ipv6-e2e` lane now runs `tests/ipv6-tls/smoke.sh` (IPv6 + TLS +
+   mTLS, 9 checks). It'll execute once GitHub Actions triggering is back (it was
+   stuck repo-wide on 2026-05-26; the lane + script are ready).
 3. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
    sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model).
 4. **Build hygiene** — `IPV*_SUPPORT` + `HAVE_XYMON_TLS` from `configure`

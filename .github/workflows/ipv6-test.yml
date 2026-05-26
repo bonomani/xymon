@@ -44,40 +44,5 @@ jobs:
       - name: Build
         run: make -j"$(nproc)"
 
-      - name: Set up a minimal runtime home
-        run: |
-          H="$PWD/_xy"
-          mkdir -p "$H/etc" "$H/tmp" "$H/logs" "$H/data" "$H/www/rep" "$H/www/snap"
-          printf '0.0.0.0\tlocalhost\t#\n' > "$H/etc/hosts.cfg"
-          cp xymond/etcfiles/xymonserver.cfg "$H/etc/" || true
-
-      - name: End-to-end — pure IPv6 over ::1 + IPv4 regression
-        run: |
-          set -e
-          H="$PWD/_xy"
-          trap 'echo "=== xymond.log ==="; cat xymond.log 2>/dev/null || true; pkill -x xymond || true' EXIT
-
-          MAXACCEPTSPERLOOP=20 XYMONHOME="$H" xymond/xymond --no-daemon \
-            --listen=0.0.0.0:19840 --hosts="$H/etc/hosts.cfg" \
-            --pidfile="$H/xymond.pid" > xymond.log 2>&1 &
-
-          # wait for the listener to come up
-          for i in $(seq 1 40); do ss -ltn | grep -q ':19840' && break; sleep 0.25; done
-          echo "=== IPv6 listener ==="
-          ss -ltn6 | grep 19840 || { echo "no tcp6 listener on 19840"; exit 1; }
-
-          echo "=== pure IPv6 ping over [::1] (non-mapped) ==="
-          out=$(XYMONHOME="$H" common/xymon "[::1]:19840" "ping"); echo "  reply: $out"
-          echo "$out" | grep -q "^xymond "
-
-          echo "=== pure IPv6 status report over [::1] -> board ==="
-          XYMONHOME="$H" common/xymon "[::1]:19840" "status localhost.v6col green CI pure-v6 OK"
-          board=$(XYMONHOME="$H" common/xymon "[::1]:19840" "xymondboard fields=hostname,testname,color")
-          echo "$board"
-          echo "$board" | grep -q "localhost|v6col|green"
-
-          echo "=== IPv4 regression ping over 127.0.0.1 ==="
-          out4=$(XYMONHOME="$H" common/xymon "127.0.0.1:19840" "ping"); echo "  reply: $out4"
-          echo "$out4" | grep -q "^xymond "
-
-          echo "ALL CHECKS PASSED: pure IPv6 (::1) and IPv4 both work end-to-end"
+      - name: End-to-end — IPv6 + TLS + mTLS smoke test
+        run: sh tests/ipv6-tls/smoke.sh
