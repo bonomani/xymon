@@ -184,27 +184,32 @@ repo so not a quota cap; can't `workflow_dispatch` as the default branch
   means "no data yet"). **PROVEN over pure IPv6 `::1` + TLSv1.3:** size-framed
   `ping` → `xymond 4.3.30` (request/response), size-framed `status` → board
   (`localhost|tlsframed|green`); no crash; plaintext/IPv4 (EOF-framed) unaffected.
-- ⬜ **Client TLS (next)** — the `xymon` client (`sendmsg.c`) must (a) connect
-  with TLS for `xymons://`/`--tls`, and (b) emit the `size:N\n` frame. Then a
-  real client→TLS-server report works (today proven with a size-framed test
-  client).
-- ⬜ **Verification graft (deferred)** — client-side server-cert verification
-  (`SSL_CTX_set_verify` + `X509_VERIFY_PARAM_set1_host`/`set1_ip_asc`) needs the
-  `xymon` client to speak TLS first (its `sendmsg.c` connect is plain
-  getaddrinfo). Then mTLS cert-auth can replace the IPv4 sender ACL.
+- ✅ **Client TLS DONE & PROVEN.** Ported the prototype's synchronous helper
+  `lib/xymon_tls.{c,h}` and wired it into `sendmsg.c`: `xymons://host[:port]`
+  scheme (default `:1985`, `[v6]` ok), blocking handshake, `size:N\n`-framed
+  write + reply read. Build: `xymon_tls.o` in the comm libs, `HAVE_XYMON_TLS`
+  gated on `SSLFLAGS`. **Proven with the real `xymon` client over `::1` +
+  TLSv1.3:** `xymons://localhost` + `XYMON_TLS_CA` (full verify) → `xymond
+  4.3.30`; `status` → board; `XYMON_TLS_VERIFY=none` → MITM warning + works.
+- ✅ **Verification graft DONE.** `xymon_tls.c` does server-cert verification
+  (`set1_host`/`set1_ip`, modes `full|peer|none`) — and **fails closed**:
+  `verify=full` with no `XYMON_TLS_CA` refuses the handshake (proven). mTLS
+  (`XYMON_TLS_CERT/KEY` + server `--tls-ca`/`--tls-require-clientcert`) is wired
+  but not yet end-to-end tested.
 
 ## Next step
 
-**Client TLS** — give `sendmsg.c` a TLS connect path (reuse tcplib's
-`conn_prepare_connection`, or wrap its getaddrinfo socket) for an `xymons://`
-recipient / `--tls`, and emit the `size:N\n` frame so the server dispatches on
-count. That makes a real `xymon` client → TLS server work end-to-end (today
-proven with a size-framed test client). Then the **server-cert verification
-graft** (`SSL_CTX_set_verify` + `set1_host`/`set1_ip`), which also yields
-cert-auth to replace the IPv4 sender ACL. Lower priority: v6 sender ACL
-(a/b/c); build hygiene (`IPV*_SUPPORT` from a `build/test-ipv6` probe).
+Remaining for "full" TLS (all lower priority — the core feature works):
+1. **mTLS end-to-end** — test `XYMON_TLS_CERT/KEY` (client) against server
+   `--tls-ca` + `--tls-require-clientcert`; it's wired but unproven.
+2. **CI** — extend the `ipv6-e2e` lane with a TLS leg (gen cert, `--tls-listen`,
+   `xymons://` ping/status) once GitHub Actions triggering is back.
+3. **cert-based sender ACL** — let a verified client cert (CN/SAN) authorize the
+   sender, replacing the IPv4 `oksender` stopgap for v6 (devel's model).
+4. **Build hygiene** — `IPV*_SUPPORT` + `HAVE_XYMON_TLS` from `configure`
+   probes, not hardcoded Makefile flags.
 
-Status: IPv6 (P1) complete & proven. TLS (P2) **functional** — handshake,
-TLS 1.3 hardening, and request/response + ingest all proven over `::1` (with a
-size-framed client). Remaining: client-side TLS, then verification. TLS is
-opt-in (`--tls-cert`); plaintext/IPv6 unaffected.
+Status: **IPv6 (P1) complete & proven. TLS (P2) functional & proven** —
+handshake, TLS 1.3 floor, request/response + ingest, and client-side `xymons://`
+with enforced server-cert verification, all over pure `::1`. TLS is opt-in
+(`--tls-cert` server / `xymons://` client); plaintext + IPv4 unaffected.
