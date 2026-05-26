@@ -96,5 +96,23 @@ has  "mTLS ping (with client cert)" "$(XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/
 hasnot "no client cert -> rejected"  "$(XYMON_TLS_CA=$C/ca.pem cli "xymons://localhost:$TLSPORT" ping)"  "xymond "
 stop_xymond
 
+# ---- phase 3: cert-based ACL (status-senders restricted to exclude us) ----
+echo "== phase 3: a verified cert bypasses the IP sender ACL =="
+# 192.0.2.1 is TEST-NET-1 (RFC 5737): our loopback is NOT in the allow-list,
+# so a plain sender is rejected and only a cert-verified one gets through.
+start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+             --tls-ca="$C/ca.pem" --status-senders=192.0.2.1 || exit 1
+
+# no client cert: sender (127.0.0.1) not in the allow-list -> dropped
+XYMON_TLS_CA=$C/ca.pem cli "xymons://localhost:$TLSPORT" "status localhost.noaclcol green rejected?" >/dev/null
+# client cert: trusted, bypasses the allow-list -> accepted
+XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/cli.pem XYMON_TLS_KEY=$C/cli.key \
+  cli "xymons://localhost:$TLSPORT" "status localhost.certaclcol green via cert" >/dev/null
+
+board=$(cli "127.0.0.1:$PORT" "xymondboard fields=hostname,testname,color")
+hasnot "non-cert sender rejected by IP ACL" "$board" "localhost|noaclcol|green"
+has    "cert sender bypasses IP ACL"        "$board" "localhost|certaclcol|green"
+stop_xymond
+
 echo "---- $pass passed, $fail failed ----"
 [ "$fail" -eq 0 ]

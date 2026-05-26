@@ -206,6 +206,7 @@ typedef struct conn_t {
 	unsigned char *buf, *bufp;	/* Message buffer and pointer */
 	size_t buflen, bufsz;		/* Active and maximum length of buffer */
 	size_t msgsz;			/* Declared body size from a "size:N" frame (0 = none) */
+	int cert_authorized;		/* sender authenticated by a verified TLS client cert */
 	int doingwhat;			/* Communications state (NOTALK, READING, RESPONDING) */
 	time_t timeout;			/* When the timeout for this connection happens */
 	struct conn_t *next;
@@ -3466,6 +3467,20 @@ strbuffer_t *generate_hostinfo_outbuf(strbuffer_t **prebuf, boardfield_t *boardf
 }
 
 
+/*
+ * Admin/config commands are never authorized by a client cert alone -- they
+ * always require the IP-based adminsenders ACL, even from a cert-verified
+ * sender (the cert grants "trusted reporter", not "administrator").
+ */
+static int ok_admin_sender(conn_t *msg)
+{
+	int saved = sender_cert_authorized, r;
+	sender_cert_authorized = 0;
+	r = oksender(adminsenders, NULL, msg->addr.sin_addr, msg->buf);
+	sender_cert_authorized = saved;
+	return r;
+}
+
 void do_message(conn_t *msg, char *origin)
 {
 	static int nesting = 0;
@@ -3493,6 +3508,10 @@ void do_message(conn_t *msg, char *origin)
 	/* Most likely, we will not send a response */
 	msg->doingwhat = NOTALK;
 	strncpy(sender, inet_ntoa(msg->addr.sin_addr), sizeof(sender));
+
+	/* A TLS-cert-verified sender bypasses the IP sender ACL (see oksender);
+	 * set per-message since connections interleave. Admin stays IP-gated. */
+	sender_cert_authorized = msg->cert_authorized;
 	now = getcurrenttime(NULL);
 	timeroffset = (getcurrenttime(NULL) - gettimer());
 
@@ -4383,7 +4402,7 @@ void do_message(conn_t *msg, char *origin)
 		char *hostname = NULL, *testname = NULL;
 		char *p;
 
-		if (!oksender(adminsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!ok_admin_sender(msg)) goto done;
 
 		p = msg->buf + 4; p += strspn(p, " \t");
 		hostname = strtok(p, " \t");
@@ -4400,7 +4419,7 @@ void do_message(conn_t *msg, char *origin)
 		char *hostname = NULL, *n1 = NULL, *n2 = NULL;
 		char *p;
 
-		if (!oksender(adminsenders, NULL, msg->addr.sin_addr, msg->buf)) goto done;
+		if (!ok_admin_sender(msg)) goto done;
 
 		p = msg->buf + 6; p += strspn(p, " \t");
 		hostname = strtok(p, " \t");
@@ -5369,6 +5388,21 @@ static enum conn_cbresult_t xymond_conn_cb(tcpconn_t *conn, enum conn_callback_t
 		n = conn_write(conn, msg->bufp, msg->buflen);
 		if (n > 0) { msg->bufp += n; msg->buflen -= n; }
 		if (msg->buflen <= 0) msg->doingwhat = NOTALK;
+		break;
+
+	  case CONN_CB_SSLHANDSHAKE_OK:
+		/* A peer cert here has already verified (SSL_VERIFY_PEER aborts the
+		 * handshake on failure when a CA is configured), so a present cert
+		 * means a trusted sender -- it bypasses the IP sender ACL (not admin). */
+		if (msg) {
+			char *cn = conn_peer_certificate_cn(conn);
+			if (cn) {
+				msg->cert_authorized = 1;
+				errprintf("TLS client cert verified (CN=%s) from %s - sender trusted\n",
+					  cn, conn_print_ip(conn));
+				free(cn);
+			}
+		}
 		break;
 
 	  case CONN_CB_TIMEOUT:
