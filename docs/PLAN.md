@@ -15,9 +15,10 @@ and A′ keeps that engine while replacing its crypto with the portable, verifyi
 TLS the prototype already proved.
 
 Rejected:
-- **plain A** (tcplib as-is) — its 2015 TLS (`SSLv23_*_method`,
-  `SSL_library_init`, no peer verification) won't even build clean on OpenSSL-3 /
-  current LibreSSL; modernization is mandatory, so A′ strictly dominates it.
+- **plain A** (tcplib as-is) — P0 shows it *builds* clean on OpenSSL 3, but its
+  TLS is weak: no SAN/IP identity check (CN-string only), the client never
+  verifies the server cert, no protocol floor. A′ keeps tcplib's engine and
+  hardens exactly those, so it strictly dominates plain A.
 - **B** (hand-roll IPv6 on the existing select loop) — reinvents tcplib's
   abstraction, keeps the blocking model, no async/TLS upside.
 - **C** (transport-only) — smallest, but leaves the connection model and service
@@ -27,27 +28,34 @@ Rejected:
 
 ## What A′ is, concretely
 
-`tcplib` (async engine, from devel) + the prototype's TLS internals
-(`lib/xymon_tls.c` logic) wired into tcplib's `SSL_CTX`/`SSL` slots. We keep
-tcplib's structure (STARTTLS states, cert-based ACL replacing IP ACLs, the
-callback event loop); we swap only the crypto:
+`tcplib` (async engine, from devel) + the prototype's TLS hardening
+(`lib/xymon_tls.c` logic) wired into tcplib's existing `SSL_CTX`/`SSL` slots. We
+keep tcplib's structure (STARTTLS states, server mTLS, SNI, close_notify, the
+callback event loop) and add only the *identity/strength* checks it lacks:
 
-| tcplib (2015) | → grafted (A′) |
+P0 confirmed tcplib already has STARTTLS, server mTLS (verify client vs CA),
+SNI, close_notify (`SSL_shutdown`), and — on OpenSSL 3 — TLS 1.3
+(`SSLv23_method` ⇒ `TLS_method`). P2 is the additive graft of what's missing:
+
+| Missing in tcplib | P2 adds (from prototype `lib/xymon_tls.c`) |
 |---|---|
-| `SSLv23_server/client_method` | `TLS_*_method`, TLS 1.3 |
-| no peer verification | `X509_VERIFY_PARAM_set1_host` / `set1_ip_asc` |
-| `SSL_library_init` / `OpenSSL_add_all_algorithms` | auto-init; LibreSSL `sslerr.h` guard |
-| no close_notify / EOF handling | correct `close_notify`, EOF-tolerant read |
-| — | trust modes: pinning / encrypt-only |
+| identity check is CN-string only (no SAN, no IP) | `X509_VERIFY_PARAM_set1_host` / `set1_ip_asc` |
+| client never verifies the server cert | client `SSL_CTX_set_verify` + full/peer/none modes |
+| no protocol floor (only SSLv2 off; TLS1.0/1.1 allowed) | `SSL_CTX_set_min_proto_version(TLS1_2)` |
+| single trust posture | pinning / encrypt-only selectable |
 
 ---
 
 ## Phases
 
-**P0 — Feasibility spike (do first).** Drop `lib/tcplib.c`/`.h` + a minimal build
-hook onto the branch; try to compile on this box. Expectation: the 2015 TLS APIs
-fail → confirms the P2 modernization surface. Output: a short note of exactly
-what breaks.
+**P0 — Feasibility spike. ✅ DONE.** Built `lib/tcplib.c` syntax-only against
+OpenSSL 3.0.2 (`-DHAVE_OPENSSL`, stubbed `config.h`): **0 errors, 0 warnings**.
+The "2015 APIs" are compat macros (`SSLv23_*_method` ⇒ `TLS_*_method`;
+`SSL_library_init`/`OpenSSL_add_all_algorithms` ⇒ no-ops), so **no OpenSSL-3
+build work is needed** (tcplib doesn't include `sslerr.h`, so the prototype's
+LibreSSL guard is moot; LibreSSL still to confirm in CI). Result reframes P2 from
+*portability* to the *identity/strength* graft above. A′ confirmed viable and
+cheaper than estimated.
 
 **P1 — tcplib + IPv6 transport, plaintext only (`CONN_SSL_NO`).**
 Port from devel (source applies cleanly — `main` files are identical to devel's
@@ -58,10 +66,13 @@ call-sites), `ipaccess.c/h`, `loadhosts_net.c` (hosts.cfg v6 parsing),
 these files, *not* compression/packaging. Goal: v6 client→xymond report
 end-to-end; **IPv4 must stay unbroken**.
 
-**P2 — Graft modern TLS (the A′ core).** Replace tcplib's crypto with the
-prototype's stack (reuse `lib/xymon_tls.c`): TLS 1.3, host/IP verification,
-OpenSSL-3 + LibreSSL portability, close_notify, trust modes. Keep tcplib's
-STARTTLS + cert-ACL wiring. Goal: mTLS handshake over tcplib, verifying.
+**P2 — Graft TLS hardening (the A′ core).** *Additive*, per P0 — keep tcplib's
+crypto, add what it lacks (reuse `lib/xymon_tls.c`): client-side
+`SSL_CTX_set_verify` + full/peer/none modes, `X509_VERIFY_PARAM_set1_host`/
+`set1_ip_asc` SAN identity check (replacing the CN-string match),
+`SSL_CTX_set_min_proto_version(TLS1_2)`, selectable trust modes. Keep tcplib's
+STARTTLS, server mTLS, SNI, close_notify. Goal: client verifies server, server
+verifies client by SAN, no sub-TLS-1.2.
 
 **P3 — Alpha gaps (scope-dependent, see Q1).** HTTP/TCP service checks over v6
 (`xymonnet.c`, `httptest.c`, `httpresult.c`, `contest.c`), URL `[literal]`
@@ -95,5 +106,6 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
 
 ## Next step
 
-Run **P0**: bring `tcplib.c/h` onto the branch and attempt a build → report what
-the 2015 TLS APIs break, sizing P2.
+P0 done. Run **P1**: properly integrate `tcplib.c/h` + the IPv6 transport files
+into the legacy build (real `configure`/Makefile, not a stub), plaintext only,
+and prove a v6 client→xymond report end-to-end with IPv4 unbroken.
