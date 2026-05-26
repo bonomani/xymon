@@ -1,0 +1,83 @@
+name: ipv6-e2e
+
+# Proves the tcplib IPv6 work end-to-end on a *real* ::1 (which the dev box
+# lacks): build the server, run xymond on the dual-stack [::] socket, and drive
+# it with the real `xymon` client over a pure (non-mapped) IPv6 address, plus an
+# IPv4 regression check.
+
+on:
+  push:
+    branches: [ feat/ipv6-tls ]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  ipv6-e2e:
+    name: IPv6 end-to-end (pure ::1)
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+
+      - name: Install build dependencies
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libc-ares-dev libldap-dev libpcre2-dev \
+            librrd-dev libssl-dev libtirpc-dev iproute2
+
+      - name: Require ::1 on the runner
+        run: |
+          ip -6 addr show lo
+          ip -6 addr show lo | grep -qw "::1" || { echo "runner has no ::1!"; exit 1; }
+
+      - name: Configure (server)
+        run: |
+          USEXYMONPING=y ENABLESSL=y ENABLELDAP=y ENABLELDAPSSL=y \
+          XYMONUSER=$(id -un) XYMONTOPDIR=$PWD/_inst XYMONVAR=$PWD/_inst/var \
+          XYMONHOSTURL=/xymon CGIDIR=$PWD/_inst/cgi XYMONCGIURL=/xymon-cgi \
+          SECURECGIDIR=$PWD/_inst/cgi-sec SECUREXYMONCGIURL=/xymon-seccgi \
+          HTTPDGID=$(id -gn) XYMONLOGDIR=$PWD/_inst/logs \
+          XYMONHOSTNAME=localhost XYMONHOSTIP=127.0.0.1 MANROOT=$PWD/_inst/man \
+          ./configure --server
+
+      - name: Build
+        run: make -j"$(nproc)"
+
+      - name: Set up a minimal runtime home
+        run: |
+          H="$PWD/_xy"
+          mkdir -p "$H/etc" "$H/tmp" "$H/logs" "$H/data" "$H/www/rep" "$H/www/snap"
+          printf '0.0.0.0\tlocalhost\t#\n' > "$H/etc/hosts.cfg"
+          cp xymond/etcfiles/xymonserver.cfg "$H/etc/" || true
+
+      - name: End-to-end — pure IPv6 over ::1 + IPv4 regression
+        run: |
+          set -e
+          H="$PWD/_xy"
+          trap 'echo "=== xymond.log ==="; cat xymond.log 2>/dev/null || true; pkill -x xymond || true' EXIT
+
+          MAXACCEPTSPERLOOP=20 XYMONHOME="$H" xymond/xymond --no-daemon \
+            --listen=0.0.0.0:19840 --hosts="$H/etc/hosts.cfg" \
+            --pidfile="$H/xymond.pid" > xymond.log 2>&1 &
+
+          # wait for the listener to come up
+          for i in $(seq 1 40); do ss -ltn | grep -q ':19840' && break; sleep 0.25; done
+          echo "=== IPv6 listener ==="
+          ss -ltn6 | grep 19840 || { echo "no tcp6 listener on 19840"; exit 1; }
+
+          echo "=== pure IPv6 ping over [::1] (non-mapped) ==="
+          out=$(XYMONHOME="$H" common/xymon "[::1]:19840" "ping"); echo "  reply: $out"
+          echo "$out" | grep -q "^xymond "
+
+          echo "=== pure IPv6 status report over [::1] -> board ==="
+          XYMONHOME="$H" common/xymon "[::1]:19840" "status localhost.v6col green CI pure-v6 OK"
+          board=$(XYMONHOME="$H" common/xymon "[::1]:19840" "xymondboard fields=hostname,testname,color")
+          echo "$board"
+          echo "$board" | grep -q "localhost|v6col|green"
+
+          echo "=== IPv4 regression ping over 127.0.0.1 ==="
+          out4=$(XYMONHOME="$H" common/xymon "127.0.0.1:19840" "ping"); echo "  reply: $out4"
+          echo "$out4" | grep -q "^xymond "
+
+          echo "ALL CHECKS PASSED: pure IPv6 (::1) and IPv4 both work end-to-end"
