@@ -147,19 +147,23 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
   a `status` report lands on the board, no ACL rejection. Pure non-mapped v6
   client path → CI.
 
-**P1 is functionally complete** (client + server v6, end-to-end report proven on
-v4/v4-mapped via the dual-stack `[::]` socket). Only the pure non-mapped v6
-transport is unproven here, for lack of a usable v6 address on the dev box.
+**P1 is COMPLETE and fully proven.** After adding `::1` to the dev box loopback
+(`ip addr add ::1/128 dev lo`): `xymon [::1]:PORT ping` → `xymond 4.3.30` and a
+`status` lands on the board (`localhost|v6native|green`) — a genuine
+**non-mapped** IPv6 connection (`::1` can't be v4-mapped). IPv4 ping still works.
+Client + server speak IPv6 end-to-end; pure v6 and v4 both verified.
+
+A CI lane (`.github/workflows/ipv6-e2e`) is committed to run the same e2e on a
+runner's real `::1` for ongoing regression. NOTE: GitHub stopped creating Actions
+runs for the repo on 2026-05-26 ~10:23Z (repo-wide — `build.yml` too; public
+repo so not a quota cap; can't `workflow_dispatch` as the default branch
+`cmake/bootstrap` lacks the file). The lane will run when triggering resumes.
 
 ## Next step
 
 Choose the next unit:
-1. **CI verify pure-v6** *(recommended — closes the one gap)* — Linux CI lane
-   (GitHub Ubuntu runners have a real `::1`): build, run xymond on `[::1]`, and
-   `xymon [::1]:PORT ping` / status, asserting the non-mapped v6 path the dev
-   box can't reach.
-2. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
+1. **P2 (TLS hardening)** — graft the prototype's verify/SAN/min-proto onto
    tcplib; also gives the cert-based auth that replaces the IPv4 ACL.
-3. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
-4. **Build hygiene** — drive `IPV*_SUPPORT` from a `build/test-ipv6` probe (not
+2. **v6 sender ACL (a/b/c)** — decide real v6 auth (see Step 2 finding 2).
+3. **Build hygiene** — drive `IPV*_SUPPORT` from a `build/test-ipv6` probe (not
    the hardcoded `tcplib.o` flags).
