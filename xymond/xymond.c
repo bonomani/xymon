@@ -5580,14 +5580,17 @@ static void xymond_conn_info(time_t t, const char *id, char *msg)
 }
 
 /*
- * Build a tcplib listener spec from a user-supplied address. Accepts an empty
- * string, a bare host ("0.0.0.0", "::", "host", an IPv4/IPv6 literal), a
- * "host:port", or a bracketed "[v6literal]" / "[v6literal]:port". A wildcard
- * address expands to a dual-stack "0.0.0.0:p,[::]:p" pair so IPv4 and IPv6 each
- * get a dedicated socket (listen_port forces IPV6_V6ONLY). Returns a malloc'd
- * string the caller must free.
+ * Build a single tcplib listener spec from a user-supplied address. Accepts a
+ * bare host ("0.0.0.0", "::", "host", an IPv4/IPv6 literal), a "host:port", or
+ * a bracketed "[v6literal]" / "[v6literal]:port". An explicit wildcard binds a
+ * single family: "0.0.0.0" -> IPv4 wildcard "0.0.0.0:p" and "::" -> IPv6
+ * wildcard "[::]:p" (the v6 socket is IPV6_V6ONLY, so it never also grabs v4).
+ * A concrete address binds only its own family. The dual-stack default for an
+ * *omitted* --listen is applied by the caller (build_listenspec); explicit
+ * dual-stack is the comma list "0.0.0.0:p,[::]:p". Returns a malloc'd string the
+ * caller must free.
  */
-static char *build_listenspec(const char *addr, int defaultport)
+static char *build_one_listenspec(const char *addr, int defaultport)
 {
 	char host[128];
 	char spec[256];
@@ -5619,20 +5622,77 @@ static char *build_listenspec(const char *addr, int defaultport)
 		}
 	}
 
-	if (!*host || (strcmp(host, "0.0.0.0") == 0) || (strcmp(host, "::") == 0))
+	if (!*host)			/* token with no host (e.g. ":1984"): both families */
 		snprintf(spec, sizeof(spec), "0.0.0.0:%d,[::]:%d", port, port);
-	else if (strchr(host, ':'))	/* IPv6 literal */
+	else if (strchr(host, ':'))	/* IPv6 literal, or "::" IPv6 wildcard */
 		snprintf(spec, sizeof(spec), "[%s]:%d", host, port);
-	else
+	else				/* IPv4 (incl. "0.0.0.0" wildcard) or hostname */
 		snprintf(spec, sizeof(spec), "%s:%d", host, port);
 
 	return strdup(spec);
 }
 
+/*
+ * Build a tcplib listener list. An omitted listener is the branch default:
+ * dual-stack "0.0.0.0:p,[::]:p", with dedicated IPv4/IPv6 sockets. An explicit
+ * listener preserves operator intent, and comma-separated listener lists are
+ * passed through after normalizing each element.
+ */
+static char *build_listenspec(const char *addr, int defaultport)
+{
+	char spec[256];
+	char *result = NULL;
+	size_t resultlen = 0;
+	const char *p;
+
+	if (!addr || !*addr) {
+		snprintf(spec, sizeof(spec), "0.0.0.0:%d,[::]:%d", defaultport, defaultport);
+		return strdup(spec);
+	}
+
+	p = addr;
+	while (p && *p) {
+		const char *end = strchr(p, ',');
+		const char *start = p;
+		size_t len = (end ? (size_t)(end - p) : strlen(p));
+		char *token, *part, *newresult;
+		size_t partlen, need;
+
+		while ((len > 0) && ((*start == ' ') || (*start == '\t'))) { start++; len--; }
+		while ((len > 0) && ((start[len-1] == ' ') || (start[len-1] == '\t'))) len--;
+
+		if (len > 0) {
+			token = (char *)malloc(len + 1);
+			memcpy(token, start, len);
+			token[len] = '\0';
+			part = build_one_listenspec(token, defaultport);
+			free(token);
+
+			partlen = strlen(part);
+			need = resultlen + partlen + (resultlen ? 1 : 0) + 1;
+			newresult = (char *)realloc(result, need);
+			if (!newresult) {
+				free(result);
+				free(part);
+				return NULL;
+			}
+			result = newresult;
+			if (resultlen) result[resultlen++] = ',';
+			memcpy(result + resultlen, part, partlen + 1);
+			resultlen += partlen;
+			free(part);
+		}
+
+		p = (end ? end + 1 : NULL);
+	}
+
+	return (result ? result : strdup(""));
+}
+
 int main(int argc, char *argv[])
 {
 	conn_t *connhead = NULL, *conntail=NULL;
-	char *listenip = "0.0.0.0";
+	char *listenip = NULL;	/* omitted => build_listenspec() dual-stack default */
 	int listenport = 0;
 	char *hostsfn = NULL;
 	char *restartfn = NULL;
@@ -6439,4 +6499,3 @@ int main(int argc, char *argv[])
 
 	return 0;
 }
-

@@ -385,6 +385,16 @@ Scheduled commands are re-checked against their original sender when they run.
   4. Docs/help corrected: `--tls-key` is optional (key may live in the
      `--tls-cert` file) — `xymond.8`, regenerated HTML, and `xymond -h`.
   5. Stale `acl.h` comment fixed: admin to `cert:*` is allowed *with* `force`.
+- **P5g — explicit `--listen` wildcards bind a single family. ✅ DONE.** Finalized
+  semantics: `--listen` omitted => dual-stack `0.0.0.0:p,[::]:p`; `0.0.0.0` =>
+  IPv4 wildcard only; `[::]` => IPv6 wildcard only; a comma list (e.g.
+  `0.0.0.0:p,[::]:p`) => explicit dual-stack; same rules for `--tls-listen`.
+  Code: `build_one_listenspec()` no longer expands explicit `0.0.0.0`/`::` to
+  dual-stack, and the default `listenip` is now NULL so the omitted case (not an
+  explicit wildcard) is what produces dual-stack (`[::]` is `IPV6_V6ONLY`).
+  Comma-list support already existed. Docs (`ipv6-tls.md`, deployment guide,
+  `xymond.8` + HTML) updated; smoke binds explicit dual-stack and a new phase 9
+  asserts v4-only / v6-only / comma-dual / omitted-default. Smoke 44/44.
 - **Remaining / deliberately out of scope:**
   - OpenSSL 3 — **verify-only**: builds clean against 3.0.2 with the deprecated
     (but present) `SSL_library_init`/`SSLv23_*_method`/`SSL_get_peer_certificate`

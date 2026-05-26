@@ -11,6 +11,7 @@
 #   - mTLS: client cert accepted; missing client cert rejected
 #   - unified --acl, broad-admin guard, --check-tls, deferred-command context
 #   - size:N framing: malformed frames rejected, trailing bytes truncated
+#   - --listen address-family binding (single-family wildcards, dual-stack)
 #
 # Requires a usable ::1 on loopback (GitHub Ubuntu runners have it; on a bare
 # WSL box: `sudo ip addr add ::1/128 dev lo`). The size:N framing phase needs
@@ -46,7 +47,7 @@ hasnot() { case "$2" in *"$3"*) bad "$1 (unexpectedly got: $3)" ;; *) ok "$1" ;;
 
 start_xymond() {  # extra args...
 	XYMONHOME="$H" MAXACCEPTSPERLOOP=20 "$XYMONDBIN" --no-daemon \
-		--listen=0.0.0.0:$PORT --hosts="$H/etc/hosts.cfg" \
+		--listen=0.0.0.0:$PORT,[::]:$PORT --hosts="$H/etc/hosts.cfg" \
 		--pidfile="$H/xymond.pid" "$@" > "$work/xymond.log" 2>&1 &
 	xymond_pid=$!
 	i=0
@@ -111,7 +112,7 @@ fi
 
 # ---- phase 1: TLS listener, client-cert optional --------------------------
 echo "== phase 1: plaintext + TLS (verify) =="
-start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$C/ca.pem" || exit 1
+start_xymond --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$C/ca.pem" || exit 1
 
 has  "IPv4 plaintext ping"        "$(cli "127.0.0.1:$PORT" ping)"                                   "xymond "
 has  "pure IPv6 plaintext ping"   "$(cli "[::1]:$PORT" ping)"                                       "xymond "
@@ -125,7 +126,7 @@ stop_xymond
 
 # ---- phase 2: client cert REQUIRED ----------------------------------------
 echo "== phase 2: mTLS required =="
-start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$C/ca.pem" --tls-require-clientcert || exit 1
+start_xymond --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$C/ca.pem" --tls-require-clientcert || exit 1
 
 has  "mTLS ping (with client cert)" "$(XYMON_TLS_CA=$C/ca.pem XYMON_TLS_CERT=$C/cli.pem XYMON_TLS_KEY=$C/cli.key cli "xymons://localhost:$TLSPORT" ping)" "xymond "
 hasnot "no client cert -> rejected"  "$(XYMON_TLS_CA=$C/ca.pem cli "xymons://localhost:$TLSPORT" ping)"  "xymond "
@@ -140,7 +141,7 @@ cat > "$work/acl3.cfg" <<EOF
 local   plain   www
 cert:*  tls     status
 EOF
-start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+start_xymond --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
              --tls-ca="$C/ca.pem" --acl="$work/acl3.cfg" || exit 1
 
 # no client cert: no rule grants it status -> dropped
@@ -213,11 +214,11 @@ degrades() {  # label, extra args...
 	fi
 	kill "$p" 2>/dev/null; wait "$p" 2>/dev/null
 }
-degrades "require-clientcert without CA -> plaintext only" --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-require-clientcert
-degrades "unloadable --tls-ca -> plaintext only"           --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$work/missing.pem"
-degrades "unloadable --tls-cert -> plaintext only"         --tls-listen="[::]:$TLSPORT" --tls-cert="$work/missing.pem" --tls-key="$work/missing.key"
+degrades "require-clientcert without CA -> plaintext only" --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-require-clientcert
+degrades "unloadable --tls-ca -> plaintext only"           --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" --tls-ca="$work/missing.pem"
+degrades "unloadable --tls-cert -> plaintext only"         --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$work/missing.pem" --tls-key="$work/missing.key"
 degrades "cert without --tls-listen -> plaintext only"     --tls-cert="$C/srv.pem" --tls-key="$C/srv.key"
-degrades "--tls-listen without cert -> plaintext only"     --tls-listen="[::]:$TLSPORT"
+degrades "--tls-listen without cert -> plaintext only"     --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT"
 
 echo "== phase 6: unified capability ACL (--acl) =="
 # loopback may do anything but only in cleartext; remote needs a verified cert.
@@ -226,7 +227,7 @@ cat > "$work/acl.cfg" <<EOF
 local   plain   all
 cert:*  tls     status,www
 EOF
-start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+start_xymond --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
              --tls-ca="$C/ca.pem" --acl="$work/acl.cfg" || exit 1
 # 1. plaintext loopback -> 'local plain all' -> allowed
 cli "127.0.0.1:$PORT" "status localhost.aclplain green via plaintext local" >/dev/null
@@ -249,7 +250,7 @@ echo "== phase 7: a scheduled command runs with the submitter's ACL context =="
 cat > "$work/acl-sched.cfg" <<EOF
 local   tls   all
 EOF
-start_xymond --tls-listen="[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
+start_xymond --tls-listen="0.0.0.0:$TLSPORT,[::]:$TLSPORT" --tls-cert="$C/srv.pem" --tls-key="$C/srv.key" \
              --tls-ca="$C/ca.pem" --acl="$work/acl-sched.cfg" || exit 1
 # Seed the test (status), then schedule a disable for "now" over the SAME TLS
 # connection kind. 'schedule' needs admin, the deferred 'disable' needs maint;
@@ -295,6 +296,53 @@ else
 	hasnot "trailing bytes truncated (excess discarded)"   "$board" "MARKER_TAIL"
 	stop_xymond
 fi
+
+echo "== phase 9: --listen address-family binding (single-family wildcards) =="
+# An explicit wildcard binds ONE family (0.0.0.0 => IPv4, [::] => IPv6); omitting
+# --listen is dual-stack; a comma list is explicit dual-stack.
+# lstart SPEC : start plaintext-only xymond with --listen=SPEC; 0 if $PORT is up.
+lstart() {
+	XYMONHOME="$H" MAXACCEPTSPERLOOP=20 "$XYMONDBIN" --no-daemon \
+		--listen="$1" --hosts="$H/etc/hosts.cfg" --pidfile="$H/xymond.pid" \
+		> "$work/xymond.log" 2>&1 &
+	xymond_pid=$!
+	i=0
+	while [ $i -lt 50 ]; do
+		ss -ltn 2>/dev/null | grep -q ":$PORT" && return 0
+		kill -0 "$xymond_pid" 2>/dev/null || return 1
+		i=$((i+1)); sleep 0.1
+	done
+	return 1
+}
+
+if lstart "0.0.0.0:$PORT"; then
+	has    "0.0.0.0 wildcard: IPv4 served"      "$(cli "127.0.0.1:$PORT" ping)" "xymond "
+	hasnot "0.0.0.0 wildcard: IPv6 NOT served"  "$(cli "[::1]:$PORT" ping)"     "xymond "
+else bad "0.0.0.0 wildcard: daemon failed to start"; fi
+stop_xymond
+
+if lstart "[::]:$PORT"; then
+	has    "[::] wildcard: IPv6 served"         "$(cli "[::1]:$PORT" ping)"     "xymond "
+	hasnot "[::] wildcard: IPv4 NOT served"     "$(cli "127.0.0.1:$PORT" ping)" "xymond "
+else bad "[::] wildcard: daemon failed to start"; fi
+stop_xymond
+
+if lstart "0.0.0.0:$PORT,[::]:$PORT"; then
+	has    "comma list: IPv4 served"            "$(cli "127.0.0.1:$PORT" ping)" "xymond "
+	has    "comma list: IPv6 served"            "$(cli "[::1]:$PORT" ping)"     "xymond "
+else bad "comma list: daemon failed to start"; fi
+stop_xymond
+
+# --listen omitted => dual-stack default (port from XYMONDPORT)
+XYMONHOME="$H" XYMONDPORT=$PORT MAXACCEPTSPERLOOP=20 "$XYMONDBIN" --no-daemon \
+	--hosts="$H/etc/hosts.cfg" --pidfile="$H/xymond.pid" > "$work/xymond.log" 2>&1 &
+xymond_pid=$!
+i=0; while [ $i -lt 50 ]; do ss -ltn 2>/dev/null | grep -q ":$PORT" && break; kill -0 "$xymond_pid" 2>/dev/null || break; i=$((i+1)); sleep 0.1; done
+if ss -ltn 2>/dev/null | grep -q ":$PORT"; then
+	has "omitted --listen: IPv4 served (dual-stack default)" "$(cli "127.0.0.1:$PORT" ping)" "xymond "
+	has "omitted --listen: IPv6 served (dual-stack default)" "$(cli "[::1]:$PORT" ping)"     "xymond "
+else bad "omitted --listen: daemon failed to start on dual-stack default"; fi
+stop_xymond
 
 echo "---- $pass passed, $fail failed ----"
 [ "$fail" -eq 0 ]

@@ -30,12 +30,12 @@ Rules to know first
 
        --listen=10.0.0.1:1984
 
-   Put remote clients on the TLS listener:
+   Put remote clients on the TLS listener. A single wildcard binds one family,
+   so use a comma list to serve TLS on both IPv4 and IPv6:
 
-       --tls-listen=0.0.0.0:1985
+       --tls-listen=0.0.0.0:1985,[::]:1985
 
-   Use `[::]:1985` instead of `0.0.0.0:1985` when you want the TLS listener on
-   IPv6. Specific IPv6 addresses must be bracketed, for example
+   Specific IPv6 addresses must be bracketed, for example
    `[2001:db8::10]:1985`.
 
 2. TLS is selected by the client recipient scheme.
@@ -84,6 +84,52 @@ Rules to know first
 
        local     any   all
        cert:ops  tls   all
+
+
+IPv4, IPv6, and dual-stack bindings
+====================================
+
+Address-family choice is controlled by the address you put in `--listen` and
+`--tls-listen`. The same rules apply to both options.
+
+| Goal | Listener value | What xymond binds |
+|------|----------------|-------------------|
+| Dual-stack default | *omit `--listen`* | both `0.0.0.0:1984` and `[::]:1984` |
+| Dual-stack, explicit | `0.0.0.0:1984,[::]:1984` | both `0.0.0.0:1984` and `[::]:1984` |
+| All IPv4 interfaces | `0.0.0.0:1984` | IPv4 wildcard only |
+| All IPv6 interfaces | `[::]:1984` | IPv6 wildcard only |
+| IPv4 only, one address | `192.0.2.10:1984` | only that IPv4 address |
+| IPv4 only, loopback | `127.0.0.1:1984` | only IPv4 loopback |
+| IPv6 only, one address | `[2001:db8::10]:1984` | only that IPv6 address |
+| IPv6 only, loopback | `[::1]:1984` | only IPv6 loopback |
+
+Important: an explicit wildcard binds a single family — `0.0.0.0` is IPv4 only
+and `[::]` is IPv6 only. Omitting `--listen` (the default) is dual-stack, and an
+explicit dual-stack listener is the comma list `0.0.0.0:1984,[::]:1984`.
+
+Examples:
+
+    # Plaintext on IPv4 loopback only; TLS on public dual-stack.
+    xymond --listen=127.0.0.1:1984 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
+           --tls-cert=/etc/xymon/tls/server.pem
+
+    # Plaintext on a private IPv4 address; TLS on one public IPv6 address only.
+    xymond --listen=10.0.0.1:1984 \
+           --tls-listen=[2001:db8::10]:1985 \
+           --tls-cert=/etc/xymon/tls/server.pem
+
+    # IPv6-only local deployment.
+    xymond --listen=[::1]:1984
+
+For single-family exposure across many interfaces, use the matching wildcard
+(`0.0.0.0` for IPv4, `[::]` for IPv6); for one address, bind it directly.
+
+ACLs are independent of the bind address. If both families are allowed, write
+both IPv4 and IPv6 source rules:
+
+    10.0.0.0/8        any   status,www,maint
+    2001:db8:100::/48 any   status,www,maint
 
 
 Profile A: intranet only
@@ -138,7 +184,7 @@ require client certificates.
 Server:
 
     xymond --listen=127.0.0.1:1984 \
-           --tls-listen=0.0.0.0:1985 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
            --tls-cert=/etc/xymon/tls/server.pem \
            --tls-key=/etc/xymon/tls/server.key \
            --tls-ca=/etc/xymon/tls/client-ca.pem \
@@ -189,7 +235,7 @@ clients must use TLS and client certificates.
 Server:
 
     xymond --listen=10.0.0.1:1984 \
-           --tls-listen=0.0.0.0:1985 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
            --tls-cert=/etc/xymon/tls/server.pem \
            --tls-key=/etc/xymon/tls/server.key \
            --tls-ca=/etc/xymon/tls/client-ca.pem \

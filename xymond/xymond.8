@@ -71,17 +71,21 @@ This option causes xymond to merge all matching entries together into
 one and return all of it to the client.
 
 .IP "\-\-listen=IP[:PORT]"
-Specifies the IP-address and port where xymond will listen for incoming
-plaintext connections. By default, xymond listens on IP 0.0.0.0 (i.e. all
-IPv4 addresses available on the host) and port 1984. IPv6 addresses must be
-bracketed, e.g. \fB[::1]:1984\fR for loopback or \fB[::]:1984\fR for all IPv6
-addresses.
+Specifies the address(es) and port where xymond listens for incoming plaintext
+connections, using a dedicated socket per address family (not IPv4-mapped IPv6,
+so behaviour is independent of \fBnet.ipv6.bindv6only\fR). When \fB\-\-listen\fR
+is \fBomitted\fR, xymond defaults to dual-stack on port 1984 \(em both
+\fB0.0.0.0:1984\fR and \fB[::]:1984\fR. An explicit value binds exactly what is
+given: \fB0.0.0.0\fR is the IPv4 wildcard only, \fB::\fR (written \fB[::]\fR) is
+the IPv6 wildcard only, a concrete address such as \fB127.0.0.1:1984\fR or
+\fB[2001:db8::10]:1984\fR binds that single address, and a comma-separated list
+such as \fB0.0.0.0:1984,[::]:1984\fR requests explicit dual-stack.
 
 .IP "\-\-tls\-listen=IP[:PORT]"
 Open an additional listener that requires TLS (the \fIxymons://\fR scheme).
 This is a separate port from the plaintext \fB\-\-listen\fR; both can be active
-at once. The port defaults to 1985 if not given, and IPv6 addresses are
-bracketed as for \fB\-\-listen\fR. A TLS port is opened only if
+at once. The port defaults to 1985 if not given, and the IPv4/IPv6 binding
+rules are the same as for \fB\-\-listen\fR. A TLS port is opened only if
 \fB\-\-tls\-cert\fR is also supplied (with \fB\-\-tls\-key\fR, or the key inside
 the cert file); otherwise xymond warns and continues serving plaintext only (a
 TLS misconfiguration degrades to
@@ -374,4 +378,3 @@ file is read to determine the names of all known hosts.
 
 .SH "SEE ALSO"
 xymon(7), xymonserver.cfg(5).
-

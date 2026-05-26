@@ -21,10 +21,24 @@ full option/ACL detail.
 
 IPv6
 ----
-xymond's listener is now dual-stack. With the usual `--listen=0.0.0.0:1984`
-(or no `--listen`), it binds `[::]:1984`, which on Linux (`net.ipv6.bindv6only=0`)
-accepts both IPv6 and IPv4-mapped clients. To bind a specific address use
-`--listen=<ip>:<port>`; an IPv6 literal is written `[2001:db8::1]:1984`.
+xymond can listen on IPv4, IPv6, or both, using a dedicated socket per address
+family — it does not rely on IPv4-mapped IPv6 sockets, so behavior does not
+depend on the host's `net.ipv6.bindv6only` setting.
+
+When `--listen` is **omitted**, xymond defaults to dual-stack and opens both
+`0.0.0.0:1984` and `[::]:1984`. An **explicit** value binds exactly what you ask
+for: a wildcard binds a single family, and dual-stack is a comma list.
+
+    xymond                                    # --listen omitted: dual-stack (0.0.0.0 + [::])
+    xymond --listen=0.0.0.0:1984              # IPv4 wildcard only
+    xymond --listen=[::]:1984                 # IPv6 wildcard only
+    xymond --listen=0.0.0.0:1984,[::]:1984    # explicit dual-stack
+    xymond --listen=192.0.2.10:1984           # one IPv4 address
+    xymond --listen=[2001:db8::10]:1984       # one IPv6 address
+    xymond --listen=127.0.0.1:1984            # IPv4 loopback only
+    xymond --listen=[::1]:1984                # IPv6 loopback only
+
+The same address syntax applies to `--tls-listen`.
 
 The `xymon` client accepts IPv4/IPv6 literals and hostnames as the recipient:
 
@@ -37,14 +51,14 @@ TLS server
 ----------
 Enable a TLS listener with a certificate and key:
 
-    xymond --listen=0.0.0.0:1984 \
-           --tls-listen=[::]:1985 \
+    xymond --listen=0.0.0.0:1984,[::]:1984 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
            --tls-cert=/etc/xymon/tls/server.pem \
            --tls-key=/etc/xymon/tls/server.key
 
 | Option | Meaning |
 |--------|---------|
-| `--tls-listen=SPEC` | Address(es) for the implicit-TLS listener, e.g. `[::]:1985` or `0.0.0.0:1985`. |
+| `--tls-listen=SPEC` | Address(es) for the implicit-TLS listener; same binding rules as `--listen` (wildcard = one family, comma list = dual-stack), e.g. `0.0.0.0:1985,[::]:1985`. |
 | `--tls-cert=FILE` | PEM server certificate. |
 | `--tls-key=FILE` | PEM private key (defaults to the cert file if omitted). |
 | `--tls-ca=FILE` | PEM trust store for **client** certificates — enables mTLS verification. |
