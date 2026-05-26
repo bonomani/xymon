@@ -154,6 +154,34 @@ static void setup_transport(char *recipient)
 #define XYMONS_SCHEME      "xymons://"	/* TLS */
 #define XYMONS_SCHEME_LEN  9
 
+/*
+ * Open a non-blocking socket and start connecting to the first usable address
+ * at or after *aip (an entry in a getaddrinfo() result list). On success
+ * returns the socket fd - the connect either completed or is in progress - and
+ * leaves *aip pointing at the address used, so the caller can resume the walk
+ * at (*aip)->ai_next if this connection later fails. Returns -1 when the
+ * address list is exhausted.
+ */
+static int start_connect(struct addrinfo **aip)
+{
+	struct addrinfo *a;
+	int fd, res;
+
+	for (a = *aip; a; a = a->ai_next) {
+		fd = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+		if (fd == -1) continue;
+		if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) { close(fd); continue; }
+		res = connect(fd, a->ai_addr, a->ai_addrlen);
+		if ((res == 0) || ((res == -1) && (errno == EINPROGRESS))) {
+			*aip = a;
+			return fd;
+		}
+		close(fd);
+	}
+	*aip = NULL;
+	return -1;
+}
+
 static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **respstr, int fullresponse, int timeout)
 {
 	struct in_addr addr;
@@ -168,6 +196,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	char *rcptip = NULL;
 	int rcptport = 0;
 	int connretries = SENDRETRIES;
+	struct addrinfo *ai = NULL, *aip = NULL;	/* resolved address list + cursor (live until done:) */
 	SBUF_DEFINE(httpmessage);
 	char recvbuf[32768];
 	int haveseenhttphdrs = 1;
@@ -316,6 +345,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	}
 
 retry_connect:
+	if (ai) { freeaddrinfo(ai); ai = NULL; }	/* re-resolve cleanly on a timeout retry */
 	dbgprintf("Will connect to address %s port %d\n", rcptip, rcptport);
 
 	/*
@@ -324,7 +354,7 @@ retry_connect:
 	 * with a non-blocking connect; the select() loop below handles completion.
 	 */
 	{
-		struct addrinfo hints, *ai = NULL, *aip;
+		struct addrinfo hints;
 		char portstr[16];
 		int gai;
 
@@ -341,17 +371,11 @@ retry_connect:
 			goto done;
 		}
 
-		sockfd = -1;
-		for (aip = ai; aip; aip = aip->ai_next) {
-			sockfd = socket(aip->ai_family, aip->ai_socktype, aip->ai_protocol);
-			if (sockfd == -1) continue;
-			if (fcntl(sockfd, F_SETFL, O_NONBLOCK) != 0) { close(sockfd); sockfd = -1; continue; }
-			res = connect(sockfd, aip->ai_addr, aip->ai_addrlen);
-			if ((res == 0) || ((res == -1) && (errno == EINPROGRESS))) break;	/* connecting */
-			close(sockfd); sockfd = -1;
-		}
-		freeaddrinfo(ai);
-
+		/* Start connecting to the first usable address. If this one ultimately
+		 * fails, the IO loop walks to the next (e.g. IPv4 after IPv6); the list
+		 * stays live until done:. */
+		aip = ai;
+		sockfd = start_connect(&aip);
 		if (sockfd == -1) {
 			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
 				 "connect to Xymon daemon@%s:%d failed (%s)", rcptip, rcptport, strerror(errno));
@@ -399,7 +423,18 @@ retry_connect:
 				dbgprintf("Connect status is %d\n", connres);
 				isconnected = (connres == 0);
 				if (!isconnected) {
-					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)", 
+					/* This address failed - fall back to the next one
+					 * (dual-stack: e.g. IPv4 after an IPv6 attempt). No
+					 * data has been sent yet, so the new socket restarts
+					 * the loop cleanly. */
+					dbgprintf("Connect to %s:%d failed (%s) - trying next address\n",
+						  rcptip, rcptport, strerror(connres));
+					close(sockfd); sockfd = -1;
+					aip = aip ? aip->ai_next : NULL;
+					sockfd = start_connect(&aip);
+					if (sockfd != -1) continue;	/* re-enter select() on the new socket */
+
+					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)",
 						  rcptip, rcptport, strerror(connres));
 					result = XYMONSEND_ECONNFAILED;
 					goto done;
@@ -564,6 +599,7 @@ done:
 #endif
 	shutdown(sockfd, SHUT_RDWR);
 	if (sockfd > 0) close(sockfd);
+	if (ai) freeaddrinfo(ai);
 	xfree(rcptip);
 	if (httpmessage) xfree(httpmessage);
 	return result;

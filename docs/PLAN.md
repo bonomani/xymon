@@ -146,6 +146,13 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
   `xymon` client):** `ping` → `xymond 4.3.30` over `127.0.0.1` and `localhost`;
   a `status` report lands on the board, no ACL rejection. Pure non-mapped v6
   client path → CI.
+  - ✅ **Dual-stack connect fallback.** The connect loop no longer commits to
+    the first address: `start_connect()` walks the `getaddrinfo` list, and if an
+    async connect fails the IO loop falls back to the next address (e.g. IPv4
+    after an unreachable IPv6) instead of returning `ECONNFAILED`. The list now
+    stays live until `done:`. **Proven:** with a name resolving to a dead `::1`
+    (first) + live `127.0.0.1`, the client falls back and gets `xymond 4.3.30`;
+    smoke suite still 11/11.
 
 **P1 is COMPLETE and fully proven.** After adding `::1` to the dev box loopback
 (`ip addr add ::1/128 dev lo`): `xymon [::1]:PORT ping` → `xymond 4.3.30` and a
