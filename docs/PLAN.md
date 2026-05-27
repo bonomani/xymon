@@ -150,8 +150,41 @@ Sub-phases:
 - **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`).** Parse
   `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
   low-risk, compile-verifiable.
-- **P3d — ICMPv6 ping (`xymonping.c`).** Separate raw-socket path (ICMP6); larger,
-  lowest priority — can be its own follow-up.
+- **P3d — IPv6 `conn`/ping.** Two possible routes, neither done; **devel does
+  NEITHER** (devel's `xymonping.c` has zero IPv6, and its fping invocation is
+  byte-identical to main — no `-6`/`fping6`/family-split). The ping test just
+  shells out to `$FPING $FPINGOPTS` (default `xymonping -Ae`) and feeds it a list
+  of **IPs on stdin** (`xymonnet.c:1136`→`:1172`).
+  - *Route 1 — built-in `xymonping`:* port it to ICMPv6 (raw ICMP6 socket).
+    Larger; required only if the deployment uses the built-in pinger.
+  - *Route 2 — external `fping`:* a v6-capable fping can ping v6 with little/no C
+    change — BUT note: **xymonnet pre-resolves and feeds fping IP addresses, not
+    hostnames, so fping's own resolver (incl. AAAA) is bypassed.** A v6 IP must
+    already be in the list (v6 literal today, or P3b). Remaining xymonnet work:
+    the list is one combined v4+v6 feed to one process → may need fping 4.x
+    (auto-detects/mixes) or splitting into v4/`fping6` runs; `FPINGOPTS=-Ae` has
+    no `-6`. So this route is mostly config + a possible list-split, not a port.
+  Either way: deferred.
+
+  **v6 address-reuse audit (does a resolved/literal v6 address actually get used
+  by a test?).** Name resolution (`dnsresolve`) is A-only, so it **never yields
+  v6** today — only a **literal** v6 in the hosts.cfg IP column introduces one
+  (`h->ip` is `IP_ADDR_STRLEN`=46, fits; `ip_to_test` returns it unchanged). Given
+  a v6 literal, per consumer:
+  - `tcp`/`ssl` (`add_tcp_test`←`ip_to_test`): **reused** ✓ (P3a connects v6).
+  - `conn`/ping (fping list): **reused** — the v6 string is fed to fping as-is, no
+    v4 validation; success then depends on the pinger (built-in xymonping fails;
+    v6 fping works).
+  - `http`/`https` (`httptest.c:686` `add_tcp_test(desturl->ip,…)`): **NOT reused**
+    — http ignores the host IP and connects to the *URL's own host*, resolved
+    separately via `dnsresolve` (v4-only) or a URL forced-IP. Needs P3b + P3c.
+  - `dns=` service test (`dns_test_server`, `dns.c:303`): **rejected** — it does
+    `inet_aton(serverip)` and bails "(not a valid IP)" on a v6 server IP → P3g.
+- **P3g — `dns=` service test over v6 (deferred).** `dns_test_server()` parses the
+  DNS server IP with `inet_aton` (v4-only) and feeds c-ares a `struct in_addr`;
+  a v6 server IP is rejected. Make it accept a v6 server (inet_pton + ares v6
+  server option). Note `dns2.c` already understands AAAA as a *record type*; this
+  is about *reaching the DNS server over v6*. Deferred.
 - **P3e — multi-address resolution + ordered fallback (deferred).** Today `dns.c`
   keeps only `h_addr_list[0]` (`:120`) — a name with several A records tests just
   the first, and there's no fallback even within IPv4. P3e stores the full
@@ -169,10 +202,11 @@ Sub-phases:
   TTL or cache across cycles. A `--dns-cache-ttl=N` (or similar) arg would allow
   non-default caching. Deferred.
 
-**Deferred for now (explicit):** P3e (multi-address + ordered fallback) and P3f
-(resolution caching/TTL) are both **out of scope** for the current P3 effort. P3
-now targets P3a (done) + P3b (single-address family selection) + P3c (URL
-brackets), with P3d/P3e/P3f as later follow-ups.
+**Deferred for now (explicit):** P3d (`conn`/ping v6), P3e (multi-address +
+ordered fallback), P3f (resolution caching/TTL), and P3g (`dns=` test over v6)
+are all **out of scope** for the current P3 effort. P3 now targets P3a (done) +
+P3b (single-address family selection) + P3c (URL brackets); P3d/P3e/P3f/P3g are
+later follow-ups.
 
 **Verification gap:** xymonnet compiles here (pcre2/pcre/ares/rrd headers present)
 but cannot be runtime-proven on this box (needs reachable v6 HTTP/TCP targets).
