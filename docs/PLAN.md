@@ -141,12 +141,19 @@ v6 address can reach `h->ip`/`contest`** → P3a is **unreachable for v6 here**.
 `README.IPv6` ("Alpha Notes") accordingly claims conn checks "via literals in
 hosts.cfg ... should work" (the literal part has a real basis; its "via DNS" and
 built-in-ICMPv6 claims are overstated — dns.c is A-only and xymonping is v4-only).
-**New prerequisite — P3-pre (`loadhosts_file.c`): accept a v6 literal in the IP
-column — PORT FROM DEVEL.** Replace our `%d.%d.%d.%d` sscanf with devel's
-`conn_is_ip()` + raw `strdup(inbol)` approach. **We already have `conn_is_ip`
-(`lib/tcplib.c:1978`)**, so this is a small port, not net-new. It's the real
-operator entry-point (was missed) and gates P3a usability. (`newitem->ip` is
-`IP_ADDR_STRLEN`=46, fits a v6 literal.)
+**P3-pre — accept a v6 literal in the hosts.cfg IP column. ✅ DONE & RUNTIME-PROVEN
+(`d9d42237`).** Replaced our `%d.%d.%d.%d` sscanf with a v6-aware parse adapted
+from devel: read the first two tokens, validate the IP with `conn_is_ip()` (v4 OR
+v6, `tcplib.c:1978`), store it verbatim in `newitem->ip` (`IP_ADDR_STRLEN`=46),
+preference via `conn_null_ip()`. Proven with the standalone `loadhosts` test:
+`2001:db8::1`/`::1` parse and store verbatim; `1.2.3.4`/`192.0.2.10`/`0.0.0.0`
+unchanged; bogus host still Unknown. **This is the entry-point P3a needed — a v6
+literal now reaches `h->ip`.** (Minor: a malformed address is now simply not a
+host, no special "bad nibble" error; strict `inet_pton` vs the old `%d`.)
+**Combined with P3a, a v6-literal host is now testable end-to-end (code-complete):
+tcp/ssl/http-by-IP via contest (P3a), and conn/ping via the fping list** (the
+latter still needs a v6-capable fping at runtime). Not yet runtime-proven for the
+actual connect/ping (no v6 target here).
 
 Sub-phases:
 - **P3a — `contest.{c,h}` v6-capable engine.** `sockaddr_in` → `sockaddr_storage`
@@ -245,21 +252,22 @@ Sub-phases:
   TTL or cache across cycles. A `--dns-cache-ttl=N` (or similar) arg would allow
   non-default caching. Deferred.
 
-**P3 PAUSED — only P3a landed; everything else deferred.** Rationale: the *prober*
-is IPv4-only in devel too (`contest`/`dns`/`url`/ping — verified per-item), so
-those are net-new, and none can be runtime-proven on this box (no reachable v6
-targets). Rather than stack more compile-only, unproven prober changes, we pause
-after the engine refactor. **Exception — P3-pre** (accept a v6 literal in
-hosts.cfg) **is NOT net-new**: devel already does it and our `conn_is_ip` exists,
-so it's a small port — but it's only useful once the rest of P3 lands, so it
-waits too.
-- **Done:** **P3a** (`contest.c` v6 engine) — committed, compile-verified. It is
-  **v4-byte-identical and currently UNREACHABLE for v6**: no v6 address can reach
-  `h->ip` yet (hosts.cfg parser is v4-only — P3-pre — and the resolver is A-only —
-  P3b), so the new v6 branch is never exercised in any current config. Safe to
-  leave on the branch (not reverted); it only becomes live once P3-pre/P3b feed it
-  a v6 address, and it still needs a v6 runtime test then.
-- **Deferred (all):** **P3b** (resolver AAAA + `--ipproto`/`ip=`), **P3c** (URL
+**P3 status — P3-pre + P3a landed (v6-literal path code-complete); resolver/URL/
+ping deferred.** A **v6-literal host is now testable end-to-end in code**:
+hosts.cfg accepts the literal (P3-pre, runtime-proven), it reaches `h->ip` →
+`contest` connects v6 (P3a, compile-proven) for tcp/ssl/http-by-IP, and the fping
+list carries it for conn/ping (needs a v6 fping). Still deferred (net-new, not in
+devel either — `contest`/`dns`/`url`/ping are IPv4-only there): **P3b** (resolve
+*names* to AAAA — by-name v6), **P3c** (URL `[v6]`), **P3d** (v6 ping = fping
+config/list-split), **P3e/P3f/P3g/P3h**. The actual v6 connect/ping is not
+runtime-proven here (no reachable v6 target); that needs a CI v6 lane or v6 host.
+- **Done:** **P3-pre** (`loadhosts_file.c`, `d9d42237`) — v6 literals in hosts.cfg,
+  runtime-proven; and **P3a** (`contest.c` v6 engine) — compile-verified,
+  v4-byte-identical. Together: a **v6-literal host now reaches `h->ip` and is
+  testable by literal** (tcp/ssl/http-by-IP via P3a; conn/ping via fping). The
+  actual v6 connect/ping is not yet runtime-proven (no v6 target here).
+- **Deferred:** **P3b** (resolver AAAA + `--ipproto`/`ip=` — needed for *by-name*
+  v6), **P3c** (URL
   `[v6]` parsing), **P3d** (`conn`/ping v6), **P3e** (multi-address + fallback),
   **P3f** (resolution caching/TTL), **P3g** (`dns=` test over v6), **P3h** (reverse
   DNS/PTR — investigate-only).
