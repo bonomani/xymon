@@ -2,9 +2,10 @@ Xymon over IPv6 and TLS
 =======================
 
 This branch adds native **IPv6** and **TLS/mTLS** transport to xymond and the
-`xymon` client. Both are opt-in; an unconfigured server behaves exactly as
-before (IPv4 + plaintext), and the changes are compiled out entirely when the
-build has no OpenSSL.
+`xymon` client. TLS/mTLS are opt-in; when IPv6 support is available, an omitted
+`--listen` opens both IPv4 and IPv6 plaintext listeners. Bind `--listen`
+explicitly if plaintext must stay local-only. TLS changes are compiled out
+entirely when the build has no OpenSSL.
 
 - **IPv6** — xymond listens dual-stack and the client can reach v4/v6 literals
   or hostnames.
@@ -16,9 +17,9 @@ build has no OpenSSL.
   (including IPv6) by certificate instead of by IP. A cert is a reporter, not an
   admin, unless a rule grants it admin explicitly (with `force`).
 
-For copy-paste setup per deployment (isolated / internet / hybrid), see
-`ipv6-tls-deployment.md`. This document is the reference for the *why* and the
-full option/ACL detail.
+For copy-paste setup for the three security levels (TLS only, TLS with server
+verification, and mTLS), see `ipv6-tls-deployment.md`. This document is the
+reference for the *why* and the full option/ACL detail.
 
 
 IPv6

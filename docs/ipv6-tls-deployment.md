@@ -1,19 +1,56 @@
 Xymon over IPv6/TLS - deployment guide
 =======================================
 
-This is the practical setup guide. For the complete option and ACL reference, see
-`ipv6-tls.md`.
+This is the practical setup guide. For the complete option and ACL reference,
+see `ipv6-tls.md`.
 
-Start by choosing one deployment profile:
+For encrypted Xymon server-client communication, configure TLS first and add
+client certificates later. Practically there are three security levels:
 
-| Profile | Use when | Plaintext listener | TLS listener | Client identity | Typical ACL |
-|---------|----------|--------------------|--------------|-----------------|-------------|
-| A. Intranet | all clients are on a trusted LAN or management network | LAN or management IP | optional | source IP | LAN can report/query |
-| B. Internet | clients reach xymond over an untrusted network | loopback only | public or DMZ IP | verified client cert | `cert:* tls status,www` |
-| C. Hybrid | some clients are on the LAN, some are remote | LAN or management IP | public or DMZ IP | LAN IPs and remote certs | LAN rule plus `cert:* tls` rule |
+| Level | Encryption | Server authenticated | Client authenticated | Protects against |
+|-------|------------|----------------------|----------------------|------------------|
+| 1. TLS only | yes | no | no | passive sniffing |
+| 2. TLS + server verification | yes | yes | no | sniffing + fake server/MITM |
+| 3. Mutual TLS (mTLS) | yes | yes | yes | sniffing + MITM + unauthorized clients |
 
-The safest default for a public deployment is Profile B. Profile A is only for
-networks where plaintext monitoring traffic is acceptable.
+Minimum recommended deployment:
+
+- Server: plaintext bound to `127.0.0.1` only, TLS exposed on port `1985`, and
+  a server certificate installed.
+- Client: `xymons://...`, `XYMON_TLS_VERIFY=full`, and `XYMON_TLS_CA`
+  configured.
+
+Client certificates are the next step, but they are not required for minimal
+encryption.
+
+
+Baseline TLS server
+===================
+
+Use this server layout for levels 1 and 2:
+
+    xymond --listen=127.0.0.1:1984 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
+           --tls-cert=/etc/xymon/tls/server.pem \
+           --tls-key=/etc/xymon/tls/server.key \
+           --acl=/etc/xymon/acl.cfg \
+           --hosts=/etc/xymon/hosts.cfg
+
+Minimal ACL for levels 1 and 2:
+
+    local       any  all
+    0.0.0.0/0   tls  status,www
+    ::/0        tls  status,www
+
+This allows local administration on loopback and allows remote clients to report
+and query only over TLS. It does not authenticate clients; any TLS client that
+can reach the listener can use the granted `status,www` capabilities.
+
+Important: `--listen=127.0.0.1:1984` keeps plaintext local only. Do not expose
+these plaintext listeners unless plaintext monitoring traffic is acceptable:
+
+    --listen=0.0.0.0:1984
+    --listen=[::]:1984
 
 
 Rules to know first
@@ -132,54 +169,58 @@ both IPv4 and IPv6 source rules:
     2001:db8:100::/48 any   status,www,maint
 
 
-Profile A: intranet only
-========================
+Level 1: encrypted, without verification
+========================================
 
-Use this when all Xymon clients are on a trusted LAN or management network.
-Plaintext may be acceptable here.
+Use level 1 only as a bootstrap step or on a network where active MITM attacks
+are not in scope. Traffic is encrypted, so passive sniffing is prevented, but an
+attacker could impersonate the server.
 
-Server:
-
-    xymond --listen=10.0.0.1:1984 \
-           --acl=/etc/xymon/acl.cfg \
-           --hosts=/etc/xymon/hosts.cfg
-
-ACL:
-
-    local        any   all
-    10.0.0.0/8   any   status,www,maint
+Server: use the baseline TLS server shown above.
 
 Client:
 
-    XYMSERVERS="10.0.0.1"
-
-Optional TLS on the same intranet:
-
-    xymond --listen=10.0.0.1:1984 \
-           --tls-listen=10.0.0.1:1985 \
-           --tls-cert=/etc/xymon/tls/server.pem \
-           --tls-key=/etc/xymon/tls/server.key \
-           --acl=/etc/xymon/acl.cfg \
-           --hosts=/etc/xymon/hosts.cfg
-
-Client during bootstrap, encrypted but not verified:
-
     XYMON_TLS_VERIFY=none
-    XYMSERVERS="xymons://10.0.0.1:1985"
+    XYMSERVERS="xymons://monitor.example.com:1985"
 
-Client after the server CA is installed:
+Risk:
+
+- encrypted
+- no server authentication
+- a fake server/MITM can still receive client traffic
+
+
+Level 2: encrypted, with server verification
+============================================
+
+This is the minimum recommended level for internet or other untrusted networks.
+The client verifies the server certificate chain and the DNS/IP name it connects
+to.
+
+Server: use the baseline TLS server shown above, with a certificate whose SAN
+matches the client recipient name.
+
+Client:
 
     XYMON_TLS_CA=/etc/xymon/tls/server-ca.pem
     XYMON_TLS_VERIFY=full
     XYMSERVERS="xymons://monitor.example.com:1985"
 
+Use a DNS name covered by the server certificate. If the client connects to an
+IP address but the certificate names `monitor.example.com`, set:
 
-Profile B: internet-facing server
-=================================
+    XYMON_TLS_SNI=monitor.example.com
 
-Use this when any client reaches xymond across the internet or another
-untrusted network. Bind plaintext to loopback, expose only the TLS listener, and
-require client certificates.
+Level 2 does not authenticate clients. The baseline ACL limits remote clients to
+TLS transport and `status,www`, but any client that can connect to the TLS port
+can use those capabilities.
+
+
+Level 3: encrypted, with server verification and client certificates
+====================================================================
+
+Level 3 is proper mTLS. Use it when the server must reject unauthorized clients
+instead of only encrypting the transport.
 
 Server:
 
@@ -194,18 +235,17 @@ Server:
 
 ACL:
 
-    local    any   all
-    cert:*   tls   status,www
+    local       any  all
+    cert:*      tls  status,www
 
 This lets any client with a certificate signed by your private client CA report
-status and use normal query/maintenance functions. It does not grant remote
-admin.
+status and use normal query functions. It does not grant remote admin.
 
 To grant admin to one named certificate:
 
-    local       any   all
-    cert:ops    tls   all
-    cert:*      tls   status,www
+    local       any  all
+    cert:ops    tls  all
+    cert:*      tls  status,www
 
 Put the named rule before `cert:*`, because ACL matching is first-match-wins.
 
@@ -217,22 +257,16 @@ Client:
     XYMON_TLS_VERIFY=full
     XYMSERVERS="xymons://monitor.example.com:1985"
 
-Use a DNS name covered by the server certificate. If the client connects to an
-IP address but the cert names `monitor.example.com`, set:
-
-    XYMON_TLS_SNI=monitor.example.com
-
 There is no CRL/OCSP checking. Use short-lived client certificates and automate
 renewal if clients are internet-facing.
 
 
-Profile C: hybrid LAN plus remote clients
-=========================================
+Hybrid LAN plus remote clients
+==============================
 
-Use this when local clients can report over a private network, but remote
-clients must use TLS and client certificates.
-
-Server:
+If local clients may report over a private network but remote clients must use
+TLS, bind plaintext to the private address instead of the public wildcard and
+make the ACL transport-aware:
 
     xymond --listen=10.0.0.1:1984 \
            --tls-listen=0.0.0.0:1985,[::]:1985 \
@@ -245,9 +279,9 @@ Server:
 
 ACL:
 
-    local         any   all
-    10.0.0.0/8    any   status,www,maint
-    cert:*        tls   status,www
+    local         any  all
+    10.0.0.0/8    any  status,www,maint
+    cert:*        tls  status,www
 
 LAN client:
 
@@ -258,6 +292,7 @@ Remote client:
     XYMON_TLS_CA=/etc/xymon/tls/server-ca.pem
     XYMON_TLS_CERT=/etc/xymon/tls/client.pem
     XYMON_TLS_KEY=/etc/xymon/tls/client.key
+    XYMON_TLS_VERIFY=full
     XYMSERVERS="xymons://monitor.example.com:1985"
 
 
@@ -267,23 +302,24 @@ Rolling out gradually
 You can move a fleet in stages. Each client chooses plaintext or TLS by its
 `XYMSERVERS` entry, so old and new clients can coexist.
 
-| Stage | Server config | Client config | Security |
-|-------|---------------|---------------|----------|
-| 0. Plaintext | `--listen` only | `xymon://server:1984` | no wire protection |
-| 1. Encrypt only | add `--tls-listen`, cert/key | `xymons://server:1985`, `XYMON_TLS_VERIFY=none` | prevents passive sniffing, not MITM |
-| 2. Verify server | same as stage 1 | add `XYMON_TLS_CA`, use `XYMON_TLS_VERIFY=full` | detects fake servers |
-| 3. Optional client certs | add `--tls-ca`, ACL can use `cert:*` | add `XYMON_TLS_CERT` and `XYMON_TLS_KEY` | cert clients can be authorized |
-| 4. Required client certs | add `--tls-require-clientcert` | all TLS clients need cert/key | rejects clients without valid certs |
-| 5. Least privilege | tighten ACL | same | reporters cannot become admins |
+| Step | Security level | Server config | Client config |
+|------|----------------|---------------|---------------|
+| 0 | Plaintext only | `--listen` only | `xymon://server:1984` |
+| 1 | Level 1: TLS only | baseline TLS server | `xymons://server:1985`, `XYMON_TLS_VERIFY=none` |
+| 2 | Level 2: TLS + server verification | same server, valid server cert | add `XYMON_TLS_CA`, use `XYMON_TLS_VERIFY=full` |
+| 3 | Level 3: mTLS | add `--tls-ca`, `--tls-require-clientcert`, and `cert:*` ACL rules | add `XYMON_TLS_CERT` and `XYMON_TLS_KEY` |
+
+After level 3, tighten the ACL as needed: grant `admin` only to named client
+certificates or narrow management source ranges, not to `cert:*`.
 
 Recommended order:
 
 1. Add the TLS listener while leaving existing plaintext clients alone.
 2. Move clients to `xymons://` with temporary `XYMON_TLS_VERIFY=none`.
 3. Deploy the server CA to clients and switch them to `XYMON_TLS_VERIFY=full`.
-4. Issue client certificates and add `--tls-ca`.
+4. Issue client certificates, add `--tls-ca`, and test `cert:*` ACL rules.
 5. After every remote client has a cert, enable `--tls-require-clientcert`.
-6. Tighten the ACL so remote clients match only `tls` rules.
+6. Tighten the ACL so remote clients match only `tls` or `cert:*` rules.
 
 
 Certificate authorities
