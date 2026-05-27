@@ -136,18 +136,31 @@ Sub-phases:
   for the 17 log sites. **IPv4 path must stay byte-identical.** No DNS/policy
   decision needed. *Compile-verifiable here; needs a real v6 service target to
   runtime-prove.*
-- **P3b — DNS AAAA (`dns.c`).** Resolve AAAA (c-ares `AF_UNSPEC`/`AF_INET6`;
-  `getaddrinfo` for the sync path). Policy **resolved (Q4):** default `auto`
-  (`AF_UNSPEC`, first working address, mirroring `sendmsg.c`), a new global
-  `--ipproto=auto|ipv4|ipv6` flag (fleet default; `ipv4` preserves today), and a
-  per-host `ip=4|6|auto` tag override. Ordered v4-then-v6 fallback deferred.
-  `dns.c` also stores a v4-only `struct in_addr` cache today → must carry a v6
-  result.
+- **P3b — DNS AAAA (`dns.c`).** SCOPE: the **host-name resolver** in `dns.c` —
+  `dnsresolve()` / `add_host_to_dns_queue()` / `dns_simple_callback()` (the c-ares
+  path), which turns a monitored host's name into the IP its tests connect to
+  (callers: `xymonnet.c:846,873` via `ip_to_test`, `httptest.c:369,378`). This is
+  A-only today and caches a single `struct in_addr` → make it resolve AAAA and
+  carry a v6 result. **NOT in scope:** `dns_test_server()` (also in `dns.c`,
+  `:285`) drives the `dns=` *service test* via `dns2.c` — a separate concern, and
+  `dns2.c` already understands AAAA as a queryable record type. Policy
+  **resolved (Q4):** default `auto` (`AF_UNSPEC`, first result, single-address),
+  global `--ipproto=auto|ipv4|ipv6` flag (fleet default; `ipv4` preserves today),
+  per-host `ip=4|6|auto` override. Ordered fallback / multi-address → P3e.
 - **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`).** Parse
   `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
   low-risk, compile-verifiable.
 - **P3d — ICMPv6 ping (`xymonping.c`).** Separate raw-socket path (ICMP6); larger,
   lowest priority — can be its own follow-up.
+- **P3e — multi-address resolution + ordered fallback (deferred).** Today `dns.c`
+  keeps only `h_addr_list[0]` (`:120`) — a name with several A records tests just
+  the first, and there's no fallback even within IPv4. P3e stores the full
+  `getaddrinfo` list (A + AAAA) and has `contest` try addresses in order
+  (happy-eyeballs-ish). This single phase delivers BOTH "test multiple resolved
+  IPs" and the Q4 "v4-then-v6 / v6-then-v4" fallback forms. CNAME chains are
+  already followed by the resolver (the final addresses are what's returned); the
+  canonical name / `h_aliases` are ignored, which is fine. Largest resolver
+  change; do only if multi-address robustness is required.
 
 **Verification gap:** xymonnet compiles here (pcre2/pcre/ares/rrd headers present)
 but cannot be runtime-proven on this box (needs reachable v6 HTTP/TCP targets).
@@ -184,9 +197,12 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
 3. **Prototype reconciliation** — `feat/tls-prototype` becomes the *source* of the
    P2 TLS, then retires; confirm nothing else depends on it.
 4. **P3b DNS address-family selection — RESOLVED.** Two-level policy:
-   - **Default `auto`** = `getaddrinfo(AF_UNSPEC)`, first working address (with the
-     cross-address fallback `sendmsg.c` already added), i.e. the prober mirrors the
-     client side.
+   - **Default `auto`** = `getaddrinfo(AF_UNSPEC)`, take the **first** result
+     (family per OS/RFC-6724 order). NOTE: this is a **single-address** resolve, no
+     connect-time fallback — matching today's resolver, which already keeps only
+     `h_addr_list[0]` (`dns.c:120`) and discards any further addresses. (Earlier
+     wording said "first *working* address with fallback"; that was inaccurate —
+     fallback needs the full address list, see the new deferred phase below.)
    - **Global fleet default** — a new xymonnet flag `--ipproto=auto|ipv4|ipv6`
      (set in `tasks.cfg`, same style as `--dns=`), default `auto`. `--ipproto=ipv4`
      preserves today's IPv4-only behavior fleet-wide. (No such global exists today:
@@ -194,10 +210,12 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
    - **Per-host override** — a hosts.cfg tag `ip=4|6|auto` that wins over the global.
    - Resolution order per test: per-host tag → global `--ipproto` → `auto`. A literal
      v4/v6 IP in the hosts.cfg IP column pins the family regardless (no resolution).
-   - **Deferred:** the ordered "v4-then-v6 / v6-then-v4" fallback forms — no devel
-     precedent (devel's prober is A-only; its tcplib only has an internal
-     `CONN_IPPROTO_ANY/V4/V6` hint with no fallback), and they need happy-eyeballs
-     work in contest's async engine. Revisit only if needed.
+   - **Deferred → P3e:** the ordered "v4-then-v6 / v6-then-v4" fallback forms.
+     These are the **same work** as treating *multiple* resolved addresses (today
+     only the first is kept), so they're folded into a new multi-address phase
+     (P3e). No devel precedent (devel's prober is A-only; its tcplib only has an
+     internal `CONN_IPPROTO_ANY/V4/V6` hint with no fallback). Revisit only if
+     needed.
 
 - **Step 3 (client) ✅ DONE & PROVEN.** `sendmsg.c` connect rewritten to
   `getaddrinfo(AF_UNSPEC)` + non-blocking connect loop (select/IO loop
