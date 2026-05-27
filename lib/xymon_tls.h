@@ -3,8 +3,8 @@
 /*                                                                            */
 /* Native TLS support for the Xymon wire protocol.                            */
 /*                                                                            */
-/* This is the client-side surface used by lib/sendmsg.c. The server-side    */
-/* helpers (xymon_tls_server_*) land with the xymond changes.                 */
+/* This is the client-side surface used by lib/sendmsg.c. Server-side TLS for */
+/* xymond is handled by lib/tcplib.c, not here.                               */
 /*                                                                            */
 /* All declarations are compiled out when HAVE_XYMON_TLS is not defined, so   */
 /* including this header on a non-TLS build is a no-op.                       */
@@ -73,43 +73,6 @@ void xymon_tls_shutdown_write(xymon_tls_t *t);
  * close the underlying socket fd; that remains the caller's responsibility.
  */
 void xymon_tls_close(xymon_tls_t *t);
-
-
-/* ---- Server side (xymond) ---------------------------------------------- */
-
-/*
- * Opaque per-process server SSL context. Built once at startup from the
- * --tls-cert / --tls-key / --tls-ca file paths and reused for every accepted
- * connection.
- */
-typedef struct xymon_tls_server_ctx_s xymon_tls_server_ctx_t;
-
-/*
- * Build a server SSL_CTX from PEM file paths. cert_file and key_file are
- * required (the server must present a cert). ca_file is optional:
- *   - non-NULL: require + verify a client cert (mTLS) against it. The trust
- *     file may be a real CA or a single pinned self-signed client cert.
- *   - NULL: accept any client (encryption only, no client authentication).
- * TLS 1.3 only. Returns NULL on any failure (logged).
- */
-xymon_tls_server_ctx_t *xymon_tls_server_ctx_new(const char *cert_file,
-						 const char *key_file,
-						 const char *ca_file);
-
-void xymon_tls_server_ctx_free(xymon_tls_server_ctx_t *sctx);
-
-/*
- * Server-side handshake on an already-accepted, BLOCKING socket. Returns
- * NULL on handshake or verification failure. On success the returned handle
- * can be used with the same xymon_tls_read / xymon_tls_write / xymon_tls_close
- * functions as the client side.
- *
- * If `peer_cn_out` is non-NULL, on success it is filled with a newly-malloc'd
- * copy of the peer cert's CN (caller frees). Useful for audit logging.
- */
-xymon_tls_t *xymon_tls_server_handshake(int sockfd,
-					xymon_tls_server_ctx_t *sctx,
-					char **peer_cn_out);
 
 #endif /* HAVE_XYMON_TLS */
 

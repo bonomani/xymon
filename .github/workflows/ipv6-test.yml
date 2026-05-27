@@ -29,6 +29,10 @@ jobs:
           XYMONHOSTNAME=localhost XYMONHOSTIP=127.0.0.1 MANROOT=$PWD/_inst/man \
           ./configure --server
           make -j"$(nproc)"
+          make -C xymonnet contest   # standalone TCP-test tool used by prober-smoke.sh
 
       - name: IPv6 + TLS + mTLS smoke test
         run: sh tests/ipv6-tls/smoke.sh
+
+      - name: IPv6 prober (contest) smoke test
+        run: sh tests/ipv6-tls/prober-smoke.sh

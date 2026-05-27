@@ -1685,11 +1685,12 @@ tcpconn_t *conn_prepare_connection(char *ip, int portnumber, enum conn_socktype_
 			freeaddrinfo(addr);
 
 			if (localaddr) {
-				if (inet_pton(AF_INET6, localaddr, &addr) == 1) {
+				struct in6_addr la6;
+				if (inet_pton(AF_INET6, localaddr, &la6) == 1) {
 					sin6 = (struct sockaddr_in6 *)calloc(1, sizeof(struct sockaddr_in6));
-					sin6->sin6_family = AF_INET;
+					sin6->sin6_family = AF_INET6;
 					sin6->sin6_port = 0;
-					memcpy(&sin6->sin6_addr, &addr, sizeof(struct in6_addr));
+					memcpy(&sin6->sin6_addr, &la6, sizeof(struct in6_addr));
 					local = (struct sockaddr *)sin6;
 					locallen = sizeof(struct sockaddr_in6);
 				}
