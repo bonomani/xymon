@@ -192,6 +192,20 @@ Sub-phases:
   a v6 server IP is rejected. Make it accept a v6 server (inet_pton + ares v6
   server option). Note `dns2.c` already understands AAAA as a *record type*; this
   is about *reaching the DNS server over v6*. Deferred.
+- **P3h — reverse DNS (PTR) — INVESTIGATE if wanted (deferred).** First disambiguate:
+  the `!` "reverse" *test* flag (`xymonnet.c:502`, "service should be DOWN") is a
+  negated test, **unrelated to reverse DNS**. Reverse DNS proper has two angles:
+  - *As a service test:* `dns2.c` already supports a `PTR` record type
+    (`:105,:372`), so monitoring "does this server answer PTR?" is possible today
+    — the operator supplies the reverse name. The v6 dimension is forming the
+    **`ip6.arpa`** nibble query name and reaching the server over v6 (P3g); the
+    PTR parsing itself is reused as-is.
+  - *As a resolver feature (IP→hostname for xymonnet's own use):* **does not exist**
+    anywhere — no `gethostbyaddr`/`ares_gethostbyaddr`/`getnameinfo`. If we ever
+    want it (e.g. show/verify the PTR name of a monitored IP, or forward/reverse
+    consistency checks), it's net-new: `ares_gethostbyaddr`/`getnameinfo` with
+    `AF_INET6` + `ip6.arpa` for v6. No current use case — flagged for investigation
+    only, not scheduled.
 - **P3e — multi-address resolution + ordered fallback (deferred).** Today `dns.c`
   keeps only `h_addr_list[0]` (`:120`) — a name with several A records tests just
   the first, and there's no fallback even within IPv4. P3e stores the full
@@ -210,8 +224,9 @@ Sub-phases:
   non-default caching. Deferred.
 
 **Deferred for now (explicit):** P3d (`conn`/ping v6), P3e (multi-address +
-ordered fallback), P3f (resolution caching/TTL), and P3g (`dns=` test over v6)
-are all **out of scope** for the current P3 effort. P3 now targets P3a (done) +
+ordered fallback), P3f (resolution caching/TTL), P3g (`dns=` test over v6), and
+P3h (reverse DNS / PTR — investigate-only) are all **out of scope** for the
+current P3 effort. P3 now targets P3a (done) +
 P3b (single-address family selection) + P3c (URL brackets); P3d/P3e/P3f/P3g are
 later follow-ups.
 
