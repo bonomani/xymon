@@ -125,9 +125,19 @@ sockets (:957); `lib/url.c`/`httptest.c` don't parse `http://[v6-literal]/`
 (`:362` netloc parsing). 27 `addr.sin_*` sites in `contest.c` (17 are
 `inet_ntoa` logging).
 
-**Operator entry-point (no new syntax):** a v6 literal in the hosts.cfg IP column
-(or a v6 URL) drives a v6 test — same model as v4 today. Name→AAAA resolution
-(P3b) only matters for `IP=0.0.0.0` (resolve-by-name) hosts.
+**CORRECTION (verified) — there is NO working v6 entry-point today.** An earlier
+draft claimed "a v6 literal in the hosts.cfg IP column drives a v6 test." That is
+**false**: the hosts.cfg host-line parser (`lib/loadhosts_file.c:305`) accepts the
+IP column *only* as IPv4 — `sscanf(inbol, "%d.%d.%d.%d %s", …)`, nibble-checked,
+re-stored as `%d.%d.%d.%d` — the sole IP-bearing branch, and devel has zero v6 in
+that file. So a `2001:db8::1 host` line won't parse. Combined with the A-only
+resolver, **no v6 address can reach `h->ip`/`contest` at all** → **P3a is
+unreachable for v6 today**, not merely dormant.
+**New prerequisite — P3-pre (`loadhosts_file.c`): accept a v6 literal in the IP
+column** (bracketed `[2001:db8::1]` or bare, via `inet_pton`, stored in
+`newitem->ip` which is `IP_ADDR_STRLEN`=46 so it fits). Without this, every other
+P3 piece that relies on a host IP is unreachable for v6. This is the real
+operator entry-point and was missed; it gates P3a usability.
 
 Sub-phases:
 - **P3a — `contest.{c,h}` v6-capable engine.** `sockaddr_in` → `sockaddr_storage`
@@ -173,11 +183,10 @@ Sub-phases:
     unresolvable **ping-only** by-name host can leak a literal `0.0.0.0` to fping.)
   Either way: deferred.
 
-  **v6 address-reuse audit (does a resolved/literal v6 address actually get used
-  by a test?).** Name resolution (`dnsresolve`) is A-only, so it **never yields
-  v6** today — only a **literal** v6 in the hosts.cfg IP column introduces one
-  (`h->ip` is `IP_ADDR_STRLEN`=46, fits; `ip_to_test` returns it unchanged). Given
-  a v6 literal, per consumer:
+  **v6 address-reuse audit — IF a v6 address could reach `h->ip` (it can't today;
+  see the P3-pre correction above: hosts.cfg parser is v4-only and the resolver is
+  A-only), would each test reuse it?** This audit assumes the entry-point is fixed
+  (P3-pre / P3b) and asks whether each *consumer* then handles a v6 `h->ip`:
   - `tcp`/`ssl` (`add_tcp_test`←`ip_to_test`): **reused** ✓ (P3a connects v6).
   - `conn`/ping (fping list): **reused** — the v6 string is fed to fping as-is, no
     v4 validation; success then depends on the pinger (built-in xymonping fails;
@@ -229,9 +238,11 @@ verified per-item), so it's all net-new, and it can't be runtime-proven on this
 box (no reachable v6 targets). Rather than stack more compile-only, unproven
 prober changes, we pause after the engine refactor.
 - **Done:** **P3a** (`contest.c` v6 engine) — committed, compile-verified. It is
-  **dormant/v4-safe**: the v6 path only triggers for a v6 literal target (none in
-  current configs), and the v4 path is byte-identical. Left on the branch (not
-  reverted) pending the rest of P3 + a v6 runtime test.
+  **v4-byte-identical and currently UNREACHABLE for v6**: no v6 address can reach
+  `h->ip` yet (hosts.cfg parser is v4-only — P3-pre — and the resolver is A-only —
+  P3b), so the new v6 branch is never exercised in any current config. Safe to
+  leave on the branch (not reverted); it only becomes live once P3-pre/P3b feed it
+  a v6 address, and it still needs a v6 runtime test then.
 - **Deferred (all):** **P3b** (resolver AAAA + `--ipproto`/`ip=`), **P3c** (URL
   `[v6]` parsing), **P3d** (`conn`/ping v6), **P3e** (multi-address + fallback),
   **P3f** (resolution caching/TTL), **P3g** (`dns=` test over v6), **P3h** (reverse
