@@ -329,8 +329,25 @@ There are two different trust directions. Keep them conceptually separate:
 
 | CA | Signs | Trusted by | Can be public? |
 |----|-------|------------|----------------|
-| Server CA | the xymond server certificate | Xymon clients via `XYMON_TLS_CA` | yes, public ACME is fine |
+| Server CA | the xymond server certificate | Xymon clients via `XYMON_TLS_CA` | yes, if clients can validate what xymond serves |
 | Client CA | client certificates for mTLS | xymond via `--tls-ca` | no, use a private dedicated CA |
+
+Public ACME, such as Let's Encrypt, is a good fit for the **server**
+certificate when the complete certificate chain is available to clients: it
+proves that clients are talking to `monitor.example.com` and it solves renewal
+cleanly.
+
+Implementation note: current xymond loads only the server certificate from
+`--tls-cert`; do not rely on extra intermediate certificates in a file such as
+Let's Encrypt `fullchain.pem` being sent as the server chain. Before using a
+public ACME server certificate with `XYMON_TLS_CA` set to an OS CA bundle, test
+that Xymon clients can actually validate the deployed certificate. If they
+cannot, use a private server CA, or a self-signed server certificate trusted
+through `XYMON_TLS_CA`, until xymond supports serving certificate chains.
+
+For **client** certificates, use ACME only when it is a **private/internal ACME
+CA** that issues certificates only to your monitored hosts. Do not point
+`--tls-ca` at a public CA bundle for mTLS.
 
 The client CA must not be a public CA. If the server trusts a public CA for
 client certificates, then `cert:*` can mean "any public certificate from the
@@ -352,7 +369,24 @@ The server certificate must match how clients connect:
 | `xymons://192.0.2.10:1985` | `IP:192.0.2.10` in SAN |
 
 For normal internet-facing deployments, use a public ACME certificate for the
-server and make clients connect by DNS name.
+server and make clients connect by DNS name. With the current xymond TLS
+loader, `--tls-cert` should be understood as the server certificate itself, not
+as a complete served chain:
+
+    xymond --listen=127.0.0.1:1984 \
+           --tls-listen=0.0.0.0:1985,[::]:1985 \
+           --tls-cert=/etc/letsencrypt/live/monitor.example.com/cert.pem \
+           --tls-key=/etc/letsencrypt/live/monitor.example.com/privkey.pem \
+           --acl=/etc/xymon/acl.cfg \
+           --hosts=/etc/xymon/hosts.cfg
+
+Client level 2 with a public ACME server certificate normally uses the OS CA
+bundle file for `XYMON_TLS_CA`. `XYMON_TLS_CA` must name a PEM trust file; it is
+not an implicit default store and it is not a CA directory. On Debian/Ubuntu:
+
+    XYMON_TLS_CA=/etc/ssl/certs/ca-certificates.crt
+    XYMON_TLS_VERIFY=full
+    XYMSERVERS="xymons://monitor.example.com:1985"
 
 If clients must connect to an IP address but the certificate names a DNS host,
 set `XYMON_TLS_SNI` on the client to the certificate name.
