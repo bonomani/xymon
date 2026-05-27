@@ -161,14 +161,28 @@ Sub-phases:
   already followed by the resolver (the final addresses are what's returned); the
   canonical name / `h_aliases` are ignored, which is fine. Largest resolver
   change; do only if multi-address robustness is required.
+- **P3f — DNS resolution caching / TTL knob (deferred).** Today `dns.c`'s cache
+  (`dnscache`, `:59`) is **per-process with no TTL/expiry**: built fresh by
+  `dns_init()` each run, a name resolves once per run (`find_dnscache` short-circuits,
+  `:190`), and `resolvetime` (`:56`) is stats-only. Since xymonnet re-runs each
+  test cycle, it effectively re-resolves every cycle — no knob to honor DNS record
+  TTL or cache across cycles. A `--dns-cache-ttl=N` (or similar) arg would allow
+  non-default caching. Deferred.
+
+**Deferred for now (explicit):** P3e (multi-address + ordered fallback) and P3f
+(resolution caching/TTL) are both **out of scope** for the current P3 effort. P3
+now targets P3a (done) + P3b (single-address family selection) + P3c (URL
+brackets), with P3d/P3e/P3f as later follow-ups.
 
 **Verification gap:** xymonnet compiles here (pcre2/pcre/ares/rrd headers present)
 but cannot be runtime-proven on this box (needs reachable v6 HTTP/TCP targets).
 P3a/P3c land as compile-verified; runtime proof deferred to CI or a v6 test host.
 
-Recommended order: **P3a → P3c → P3b → P3d**; P3a+P3c give "test a v6 service by
-literal address/URL" with no policy decision; P3b adds name resolution once Q4
-is settled.
+Recommended order (active scope): **P3a (done) → P3c → P3b**. P3a+P3c give "test a
+v6 service by literal address/URL" with no policy decision; P3b adds single-address
+name resolution under the settled Q4 policy. **P3d (ICMPv6), P3e (multi-address +
+fallback), P3f (resolution TTL/caching) are deferred follow-ups**, not in current
+scope.
 
 **P4 — Tests + CI** *(unchanged; see below)*.
 
