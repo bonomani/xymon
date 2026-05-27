@@ -137,9 +137,12 @@ Sub-phases:
   decision needed. *Compile-verifiable here; needs a real v6 service target to
   runtime-prove.*
 - **P3b — DNS AAAA (`dns.c`).** Resolve AAAA (c-ares `AF_UNSPEC`/`AF_INET6`;
-  `getaddrinfo` for the sync path). **Has a policy fork** (see Open Q4): when a
-  name has both A and AAAA, which family does a test use? — A-only (today),
-  AAAA-preferred, A-preferred-with-v6-fallback, or per-test tag.
+  `getaddrinfo` for the sync path). Policy **resolved (Q4):** default `auto`
+  (`AF_UNSPEC`, first working address, mirroring `sendmsg.c`), a new global
+  `--ipproto=auto|ipv4|ipv6` flag (fleet default; `ipv4` preserves today), and a
+  per-host `ip=4|6|auto` tag override. Ordered v4-then-v6 fallback deferred.
+  `dns.c` also stores a v4-only `struct in_addr` cache today → must carry a v6
+  result.
 - **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`).** Parse
   `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
   low-risk, compile-verifiable.
@@ -180,11 +183,21 @@ v4 + v6 + TLS; reuse `tests/tls/` scripts.
    v6 wildcard binds, `IPV6_V6ONLY` forced on), not the single v6+mapped socket.
 3. **Prototype reconciliation** — `feat/tls-prototype` becomes the *source* of the
    P2 TLS, then retires; confirm nothing else depends on it.
-4. **P3b DNS address-family selection** — when a probed name has both A and AAAA,
-   which does a test use? A-only (today) / AAAA-preferred / A-preferred-with-v6-
-   fallback / per-test tag. Gates P3b only; P3a + P3c (literal v6 / v6 URL) need
-   no decision. Client-side `sendmsg.c` already uses `getaddrinfo(AF_UNSPEC)`
-   (first working address) — the prober could mirror that.
+4. **P3b DNS address-family selection — RESOLVED.** Two-level policy:
+   - **Default `auto`** = `getaddrinfo(AF_UNSPEC)`, first working address (with the
+     cross-address fallback `sendmsg.c` already added), i.e. the prober mirrors the
+     client side.
+   - **Global fleet default** — a new xymonnet flag `--ipproto=auto|ipv4|ipv6`
+     (set in `tasks.cfg`, same style as `--dns=`), default `auto`. `--ipproto=ipv4`
+     preserves today's IPv4-only behavior fleet-wide. (No such global exists today:
+     `--dns=` is IP-vs-name, orthogonal to family; the prober is *implicitly* v4.)
+   - **Per-host override** — a hosts.cfg tag `ip=4|6|auto` that wins over the global.
+   - Resolution order per test: per-host tag → global `--ipproto` → `auto`. A literal
+     v4/v6 IP in the hosts.cfg IP column pins the family regardless (no resolution).
+   - **Deferred:** the ordered "v4-then-v6 / v6-then-v4" fallback forms — no devel
+     precedent (devel's prober is A-only; its tcplib only has an internal
+     `CONN_IPPROTO_ANY/V4/V6` hint with no fallback), and they need happy-eyeballs
+     work in contest's async engine. Revisit only if needed.
 
 - **Step 3 (client) ✅ DONE & PROVEN.** `sendmsg.c` connect rewritten to
   `getaddrinfo(AF_UNSPEC)` + non-blocking connect loop (select/IO loop
