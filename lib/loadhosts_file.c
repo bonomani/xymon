@@ -127,6 +127,7 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 	int prepresult;
 	int ip1, ip2, ip3, ip4, groupid, pageidx;
 	char hostname[4096];
+	char iptoken[IP_ADDR_STRLEN];	/* IP column (v4 or v6 literal) */
 	SBUF_DEFINE(dgname);
 	pagelist_t *curtoppage, *curpage, *pgtail;
 	void * htree;
@@ -302,21 +303,16 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 				}
 			}
 		}
-		else if (sscanf(inbol, "%d.%d.%d.%d %s", &ip1, &ip2, &ip3, &ip4, hostname) == 5) {
+		else if ((sscanf(inbol, "%45s %4095s", iptoken, hostname) == 2) && conn_is_ip(iptoken)) {
 			char *startoftags, *tag, *delim;
 			int elemidx, elemsize;
 			char groupidstr[15];
 			xtreePos_t handle;
 			namelist_t *newitem;
 
-			if ( (ip1 < 0) || (ip1 > 255) ||
-			     (ip2 < 0) || (ip2 > 255) ||
-			     (ip3 < 0) || (ip3 > 255) ||
-			     (ip4 < 0) || (ip4 > 255)) {
-				errprintf("Invalid IPv4-address for host %s (nibble outside 0-255 range): %d.%d.%d.%d\n",
-					  hostname, ip1, ip2, ip3, ip4);
-				goto nextline;
-			}
+			/* iptoken is a valid IPv4 or IPv6 literal (conn_is_ip() accepts both,
+			 * via inet_pton); a v6 literal is stored verbatim. A malformed address
+			 * fails conn_is_ip() and the line is simply not treated as a host. */
 
 			newitem = calloc(1, sizeof(namelist_t));
 
@@ -329,14 +325,17 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 				if (p) *p = '\0';
 			}
 
-			snprintf(newitem->ip, sizeof(newitem->ip), "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+			strncpy(newitem->ip, iptoken, sizeof(newitem->ip) - 1);
+			newitem->ip[sizeof(newitem->ip) - 1] = '\0';
 			snprintf(groupidstr, sizeof(groupidstr), "%d", groupid);
 			newitem->groupid = strdup(groupidstr);
 			newitem->dgname = (dgname ? strdup(dgname) : strdup("NONE"));
 			newitem->pageindex = pageidx++;
 
 			newitem->hostname = strdup(hostname);
-			if (ip1 || ip2 || ip3 || ip4) newitem->preference = 1; else newitem->preference = 0;
+			/* preference: a real address => 1, the "resolve-by-name" null IP
+			 * (0.0.0.0 or ::) => 0, matching the prior v4 (ip1|ip2|ip3|ip4) test. */
+			newitem->preference = conn_null_ip(iptoken) ? 0 : 1;
 			newitem->logname = strdup(newitem->hostname);
 			{ char *p = newitem->logname; while ((p = strchr(p, '.')) != NULL) { *p = '_'; } }
 			newitem->page = curpage;
