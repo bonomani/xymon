@@ -125,19 +125,28 @@ sockets (:957); `lib/url.c`/`httptest.c` don't parse `http://[v6-literal]/`
 (`:362` netloc parsing). 27 `addr.sin_*` sites in `contest.c` (17 are
 `inet_ntoa` logging).
 
-**CORRECTION (verified) — there is NO working v6 entry-point today.** An earlier
-draft claimed "a v6 literal in the hosts.cfg IP column drives a v6 test." That is
-**false**: the hosts.cfg host-line parser (`lib/loadhosts_file.c:305`) accepts the
-IP column *only* as IPv4 — `sscanf(inbol, "%d.%d.%d.%d %s", …)`, nibble-checked,
-re-stored as `%d.%d.%d.%d` — the sole IP-bearing branch, and devel has zero v6 in
-that file. So a `2001:db8::1 host` line won't parse. Combined with the A-only
-resolver, **no v6 address can reach `h->ip`/`contest` at all** → **P3a is
-unreachable for v6 today**, not merely dormant.
+**CORRECTION (verified) — no working v6 entry-point ON OUR BRANCH today; but devel
+solved this part and it's portable.** An earlier draft claimed "a v6 literal in the
+hosts.cfg IP column drives a v6 test." On *our* branch that's **false**: our
+`lib/loadhosts_file.c:305` parses the IP column *only* as IPv4 —
+`sscanf(inbol, "%d.%d.%d.%d %s", …)`, nibble-checked, re-stored as `%d.%d.%d.%d` —
+so a `2001:db8::1 host` line won't parse. Combined with the A-only resolver, **no
+v6 address can reach `h->ip`/`contest`** → P3a is **unreachable for v6 here**.
+*(An earlier commit overstated this as "main or devel"; that was wrong about devel
+— see next.)*
+**devel ALREADY accepts v6 literals in hosts.cfg.** devel's rewritten
+`loadhosts_file.c` isolates the IP token, validates it with the v6-aware
+`conn_is_ip()` (`tcplib.c` — returns 4/6/0) and stores the **raw string**
+(`newitem->ip = strdup(inbol)`), so a v6 literal survives. devel's
+`README.IPv6` ("Alpha Notes") accordingly claims conn checks "via literals in
+hosts.cfg ... should work" (the literal part has a real basis; its "via DNS" and
+built-in-ICMPv6 claims are overstated — dns.c is A-only and xymonping is v4-only).
 **New prerequisite — P3-pre (`loadhosts_file.c`): accept a v6 literal in the IP
-column** (bracketed `[2001:db8::1]` or bare, via `inet_pton`, stored in
-`newitem->ip` which is `IP_ADDR_STRLEN`=46 so it fits). Without this, every other
-P3 piece that relies on a host IP is unreachable for v6. This is the real
-operator entry-point and was missed; it gates P3a usability.
+column — PORT FROM DEVEL.** Replace our `%d.%d.%d.%d` sscanf with devel's
+`conn_is_ip()` + raw `strdup(inbol)` approach. **We already have `conn_is_ip`
+(`lib/tcplib.c:1978`)**, so this is a small port, not net-new. It's the real
+operator entry-point (was missed) and gates P3a usability. (`newitem->ip` is
+`IP_ADDR_STRLEN`=46, fits a v6 literal.)
 
 Sub-phases:
 - **P3a — `contest.{c,h}` v6-capable engine.** `sockaddr_in` → `sockaddr_storage`
@@ -232,11 +241,14 @@ Sub-phases:
   TTL or cache across cycles. A `--dns-cache-ttl=N` (or similar) arg would allow
   non-default caching. Deferred.
 
-**P3 PAUSED — only P3a landed; everything else deferred.** Rationale: none of P3
-exists upstream (devel's prober is IPv4-only across `contest`/`dns`/`url`/ping —
-verified per-item), so it's all net-new, and it can't be runtime-proven on this
-box (no reachable v6 targets). Rather than stack more compile-only, unproven
-prober changes, we pause after the engine refactor.
+**P3 PAUSED — only P3a landed; everything else deferred.** Rationale: the *prober*
+is IPv4-only in devel too (`contest`/`dns`/`url`/ping — verified per-item), so
+those are net-new, and none can be runtime-proven on this box (no reachable v6
+targets). Rather than stack more compile-only, unproven prober changes, we pause
+after the engine refactor. **Exception — P3-pre** (accept a v6 literal in
+hosts.cfg) **is NOT net-new**: devel already does it and our `conn_is_ip` exists,
+so it's a small port — but it's only useful once the rest of P3 lands, so it
+waits too.
 - **Done:** **P3a** (`contest.c` v6 engine) — committed, compile-verified. It is
   **v4-byte-identical and currently UNREACHABLE for v6**: no v6 address can reach
   `h->ip` yet (hosts.cfg parser is v4-only — P3-pre — and the resolver is A-only —
