@@ -136,7 +136,7 @@ Sub-phases:
   for the 17 log sites. **IPv4 path must stay byte-identical.** No DNS/policy
   decision needed. *Compile-verifiable here; needs a real v6 service target to
   runtime-prove.*
-- **P3b — DNS AAAA (`dns.c`).** SCOPE: the **host-name resolver** in `dns.c` —
+- **P3b — DNS AAAA (`dns.c`) — DEFERRED (P3 paused).** SCOPE: the **host-name resolver** in `dns.c` —
   `dnsresolve()` / `add_host_to_dns_queue()` / `dns_simple_callback()` (the c-ares
   path), which turns a monitored host's name into the IP its tests connect to
   (callers: `xymonnet.c:846,873` via `ip_to_test`, `httptest.c:369,378`). This is
@@ -147,8 +147,8 @@ Sub-phases:
   **resolved (Q4):** default `auto` (`AF_UNSPEC`, first result, single-address),
   global `--ipproto=auto|ipv4|ipv6` flag (fleet default; `ipv4` preserves today),
   per-host `ip=4|6|auto` override. Ordered fallback / multi-address → P3e.
-- **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`).** Parse
-  `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
+- **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`) — DEFERRED (P3 paused).**
+  Parse `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
   low-risk, compile-verifiable.
 - **P3d — IPv6 `conn`/ping.** Two possible routes, neither done; **devel does
   NEITHER** (devel's `xymonping.c` has zero IPv6, and its fping invocation is
@@ -223,22 +223,26 @@ Sub-phases:
   TTL or cache across cycles. A `--dns-cache-ttl=N` (or similar) arg would allow
   non-default caching. Deferred.
 
-**Deferred for now (explicit):** P3d (`conn`/ping v6), P3e (multi-address +
-ordered fallback), P3f (resolution caching/TTL), P3g (`dns=` test over v6), and
-P3h (reverse DNS / PTR — investigate-only) are all **out of scope** for the
-current P3 effort. P3 now targets P3a (done) +
-P3b (single-address family selection) + P3c (URL brackets); P3d/P3e/P3f/P3g are
-later follow-ups.
+**P3 PAUSED — only P3a landed; everything else deferred.** Rationale: none of P3
+exists upstream (devel's prober is IPv4-only across `contest`/`dns`/`url`/ping —
+verified per-item), so it's all net-new, and it can't be runtime-proven on this
+box (no reachable v6 targets). Rather than stack more compile-only, unproven
+prober changes, we pause after the engine refactor.
+- **Done:** **P3a** (`contest.c` v6 engine) — committed, compile-verified. It is
+  **dormant/v4-safe**: the v6 path only triggers for a v6 literal target (none in
+  current configs), and the v4 path is byte-identical. Left on the branch (not
+  reverted) pending the rest of P3 + a v6 runtime test.
+- **Deferred (all):** **P3b** (resolver AAAA + `--ipproto`/`ip=`), **P3c** (URL
+  `[v6]` parsing), **P3d** (`conn`/ping v6), **P3e** (multi-address + fallback),
+  **P3f** (resolution caching/TTL), **P3g** (`dns=` test over v6), **P3h** (reverse
+  DNS/PTR — investigate-only).
 
-**Verification gap:** xymonnet compiles here (pcre2/pcre/ares/rrd headers present)
-but cannot be runtime-proven on this box (needs reachable v6 HTTP/TCP targets).
-P3a/P3c land as compile-verified; runtime proof deferred to CI or a v6 test host.
+**Verification gap (why deferred):** xymonnet compiles here (pcre2/pcre/ares/rrd
+present) but cannot be runtime-proven without reachable v6 HTTP/TCP targets — so
+all remaining P3 work waits on a CI v6 lane or a v6 test host.
 
-Recommended order (active scope): **P3a (done) → P3c → P3b**. P3a+P3c give "test a
-v6 service by literal address/URL" with no policy decision; P3b adds single-address
-name resolution under the settled Q4 policy. **P3d (ICMPv6), P3e (multi-address +
-fallback), P3f (resolution TTL/caching) are deferred follow-ups**, not in current
-scope.
+When P3 resumes, the recommended order is **P3c → P3b** (literal/URL v6 + by-name
+single-address), then P3d–P3h as needed.
 
 **P4 — Tests + CI** *(unchanged; see below)*.
 
