@@ -121,6 +121,26 @@ char *hostscfg_content(void)
 	return strdup(STRBUF(contentbuffer));
 }
 
+/* Local IP-literal helpers (v4 or v6). Defined here rather than reusing tcplib's
+ * conn_is_ip()/conn_null_ip() because loadhosts.o is linked into the *client*
+ * comm lib, which does not include tcplib.o (and must not pull in TLS). These
+ * use only inet_pton, available everywhere. */
+static int lh_is_ip(const char *s)
+{
+	struct in_addr a4;
+	struct in6_addr a6;
+	return (inet_pton(AF_INET, s, &a4) == 1) || (inet_pton(AF_INET6, s, &a6) == 1);
+}
+
+static int lh_null_ip(const char *s)
+{
+	struct in_addr a4;
+	struct in6_addr a6;
+	if (inet_pton(AF_INET, s, &a4) == 1) return (a4.s_addr == INADDR_ANY);
+	if (inet_pton(AF_INET6, s, &a6) == 1) return (memcmp(&a6, &in6addr_any, sizeof(a6)) == 0);
+	return 0;
+}
+
 int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 {
 	/* Return value: 0 for load OK, 1 for "No files changed since last load", -1 for error (file not found) */
@@ -303,7 +323,7 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 				}
 			}
 		}
-		else if ((sscanf(inbol, "%45s %4095s", iptoken, hostname) == 2) && conn_is_ip(iptoken)) {
+		else if ((sscanf(inbol, "%45s %4095s", iptoken, hostname) == 2) && lh_is_ip(iptoken)) {
 			char *startoftags, *tag, *delim;
 			int elemidx, elemsize;
 			char groupidstr[15];
@@ -335,7 +355,7 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 			newitem->hostname = strdup(hostname);
 			/* preference: a real address => 1, the "resolve-by-name" null IP
 			 * (0.0.0.0 or ::) => 0, matching the prior v4 (ip1|ip2|ip3|ip4) test. */
-			newitem->preference = conn_null_ip(iptoken) ? 0 : 1;
+			newitem->preference = lh_null_ip(iptoken) ? 0 : 1;
 			newitem->logname = strdup(newitem->hostname);
 			{ char *p = newitem->logname; while ((p = strchr(p, '.')) != NULL) { *p = '_'; } }
 			newitem->page = curpage;

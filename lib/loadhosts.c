@@ -21,6 +21,9 @@ static char rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <time.h>
 #include <limits.h>
+#include <sys/socket.h>
+#include <netinet/in.h>
+#include <arpa/inet.h>
 
 #include "libxymon.h"
 
