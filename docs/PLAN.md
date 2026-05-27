@@ -259,13 +259,17 @@ hosts.cfg accepts the literal (P3-pre, runtime-proven), it reaches `h->ip` →
 list carries it for conn/ping (needs a v6 fping). Still deferred (net-new, not in
 devel either — `contest`/`dns`/`url`/ping are IPv4-only there): **P3b** (resolve
 *names* to AAAA — by-name v6), **P3c** (URL `[v6]`), **P3d** (v6 ping = fping
-config/list-split), **P3e/P3f/P3g/P3h**. The actual v6 connect/ping is not
-runtime-proven here (no reachable v6 target); that needs a CI v6 lane or v6 host.
-- **Done:** **P3-pre** (`loadhosts_file.c`, `d9d42237`) — v6 literals in hosts.cfg,
-  runtime-proven; and **P3a** (`contest.c` v6 engine) — compile-verified,
-  v4-byte-identical. Together: a **v6-literal host now reaches `h->ip` and is
-  testable by literal** (tcp/ssl/http-by-IP via P3a; conn/ping via fping). The
-  actual v6 connect/ping is not yet runtime-proven (no v6 target here).
+config/list-split), **P3e/P3f/P3g/P3h**.
+- **Done & RUNTIME-PROVEN:** **P3-pre** (`loadhosts_file.c`, `d9d42237`/`e663c32d`)
+  — v6 literals in hosts.cfg, proven via the standalone `loadhosts` test; and
+  **P3a** (`contest.c` v6 engine) — the **actual v6 TCP connect is now
+  runtime-proven** by `tests/ipv6-tls/prober-smoke.sh`: standalone `contest`
+  opens `::1` (`open=1` + banner read), v4 parity holds, and a v6 connect with no
+  listener fails closed (`open=0`, `ECONNREFUSED`). v4 path byte-identical. So a
+  **v6-literal host is testable by literal end-to-end** (tcp/ssl/http-by-IP via
+  P3a; conn/ping carried to fping). Remaining unproven only: the full xymonnet→
+  xymond pipeline over v6 and HTTPS/TLS-over-v6 service tests (need a v6 target);
+  by-name v6 needs P3b.
 - **Deferred:** **P3b** (resolver AAAA + `--ipproto`/`ip=` — needed for *by-name*
   v6), **P3c** (URL
   `[v6]` parsing), **P3d** (`conn`/ping v6), **P3e** (multi-address + fallback),
