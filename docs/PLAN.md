@@ -159,11 +159,18 @@ Sub-phases:
     Larger; required only if the deployment uses the built-in pinger.
   - *Route 2 — external `fping`:* a v6-capable fping can ping v6 with little/no C
     change — BUT note: **xymonnet pre-resolves and feeds fping IP addresses, not
-    hostnames, so fping's own resolver (incl. AAAA) is bypassed.** A v6 IP must
+    hostnames, so fping's own resolver (incl. AAAA) is bypassed.** The list is
+    built from `ip_to_test()` (`:1136`) and written verbatim to fping stdin
+    (`:1243`). For `0.0.0.0` (resolve-by-name) hosts the name is resolved by
+    xymonnet's own **A-only `dnsresolve`** first, so by-name hosts get a **v4-only**
+    ping target — v6 ping for them needs P3b regardless of pinger. A v6 IP must
     already be in the list (v6 literal today, or P3b). Remaining xymonnet work:
     the list is one combined v4+v6 feed to one process → may need fping 4.x
     (auto-detects/mixes) or splitting into v4/`fping6` runs; `FPINGOPTS=-Ae` has
     no `-6`. So this route is mostly config + a possible list-split, not a port.
+    (Pre-existing edge, not v6-specific: the ping loop checks `dnserror` *before*
+    calling `ip_to_test` (`:1134`), and the feed has no `0.0.0.0` filter, so an
+    unresolvable **ping-only** by-name host can leak a literal `0.0.0.0` to fping.)
   Either way: deferred.
 
   **v6 address-reuse audit (does a resolved/literal v6 address actually get used
