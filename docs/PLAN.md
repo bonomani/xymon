@@ -169,13 +169,17 @@ Sub-phases:
 - **P3c — URL `[v6-literal]` parsing (`lib/url.c`, `httptest.c`) — DEFERRED (P3 paused).**
   Parse `http://[2001:db8::1]:port/path` (bracketed host, port after `]`). Additive,
   low-risk, compile-verifiable.
-- **P3d — IPv6 `conn`/ping.** Two possible routes, neither done; **devel does
-  NEITHER** (devel's `xymonping.c` has zero IPv6, and its fping invocation is
-  byte-identical to main — no `-6`/`fping6`/family-split). The ping test just
-  shells out to `$FPING $FPINGOPTS` (default `xymonping -Ae`) and feeds it a list
-  of **IPs on stdin** (`xymonnet.c:1136`→`:1172`).
-  - *Route 1 — built-in `xymonping`:* port it to ICMPv6 (raw ICMP6 socket).
-    Larger; required only if the deployment uses the built-in pinger.
+- **P3d — IPv6 `conn`/ping.** Two routes, neither done; **devel does NEITHER**
+  (its `xymonping.c` has zero IPv6, fping invocation byte-identical to main). The
+  ping test shells out to `$FPING $FPINGOPTS` and feeds it **IPs on stdin**
+  (`xymonnet.c:1136`→`:1172`). **In practice `fping` is the pinger:** `configure`
+  (`build/fping.sh`) auto-detects fping and defaults to it, and explicitly
+  recommends it over the built-in (*"xymonping ... is not yet fully stable ...
+  best to use the external fping"*). `FPING=xymonping` (`environ.c:104`) is only
+  the no-fping fallback. So **Route 2 is the realistic path; Route 1 is
+  low-value/skippable.**
+  - *Route 1 — built-in `xymonping` → ICMPv6 (raw ICMP6 socket): DEPRIORITIZED.*
+    Minority deployments, and Xymon itself discourages xymonping. Probably skip.
   - *Route 2 — external `fping`:* a v6-capable fping can ping v6 with little/no C
     change — BUT note: **xymonnet pre-resolves and feeds fping IP addresses, not
     hostnames, so fping's own resolver (incl. AAAA) is bypassed.** The list is
