@@ -1,5 +1,16 @@
 include Makefile.$(OS)
 
+# RRDtool argv-API probes, driven by build/rrd.sh. Going through this Makefile
+# (rather than calling the compiler directly from the shell script) lets the
+# probe inherit the same per-OS $(CFLAGS) as every other dependency test, so it
+# finds rrd.h wherever Makefile.$(OS) points the include path. Exactly one of
+# the two prototypes matches the installed header; the other fails to compile.
+detect-const:
+	@$(CC) $(CFLAGS) $(RRDINC) -DRRD_ARGV_CONST -o /dev/null -c test-rrd-argv.c
+
+detect-mutable:
+	@$(CC) $(CFLAGS) $(RRDINC) -o /dev/null -c test-rrd-argv.c
+
 test-compile:
 	@$(CC) $(CFLAGS) $(RRDDEF) $(RRDINC) -o test-rrd.o -c test-rrd.c
 
