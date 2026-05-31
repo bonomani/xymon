@@ -64,6 +64,52 @@
 		fi
 	done
 
+	# If the scan above found no header, rrd.h is either already in the default
+	# compiler search path (nothing to do) or under a prefix we did not list
+	# (MacPorts /opt/local, Homebrew /opt/homebrew, ...). Only act when a bare
+	# "#include <rrd.h>" does not compile, so systems where it already works stay
+	# untouched. Prefer pkg-config -- it resolves any prefix without hardcoding --
+	# and fall back to scanning the macOS package-manager prefixes when pkg-config
+	# or librrd.pc is unavailable. macOS shared libraries use the .dylib extension.
+	if test "$RRDINC" = "" && ! echo '#include <rrd.h>' | ${CC:-cc} -E - >/dev/null 2>&1
+	then
+		if pkg-config --exists librrd 2>/dev/null
+		then
+			RRDINC=`pkg-config --variable=includedir librrd 2>/dev/null`
+			RRDLIB=`pkg-config --variable=libdir librrd 2>/dev/null`
+		fi
+
+		if test "$RRDINC" = ""
+		then
+			for DIR in /opt/local /opt/homebrew
+			do
+				if test -f $DIR/include/rrd.h
+				then
+					RRDINC=$DIR/include
+				fi
+
+				if test -f $DIR/lib/librrd.dylib
+				then
+					RRDLIB=$DIR/lib
+				fi
+				if test -f $DIR/lib/librrd.a
+				then
+					RRDLIB=$DIR/lib
+				fi
+
+				if test -f $DIR/lib/libpng.dylib
+				then
+					PNGLIB="-L$DIR/lib -lpng"
+				fi
+
+				if test -f $DIR/lib/libz.dylib
+				then
+					ZLIB="-L$DIR/lib -lz"
+				fi
+			done
+		fi
+	fi
+
 	if test "$USERRRDINC" != ""; then
 		RRDINC="$USERRRDINC"
 	fi
