@@ -76,23 +76,18 @@
 	if test "$RRDINC" != ""; then INCOPT="-I$RRDINC"; fi
 	if test "$RRDLIB" != ""; then LIBOPT="-L$RRDLIB"; fi
 
-	# Detect the RRDtool argv API by probing rrd.h directly, rather than
-	# inferring it from the RRDtool version (which is unreliable: e.g. some
-	# 1.8 backports already use the "const char **" prototype). We try to
-	# redeclare rrd_update() both ways and keep the one that matches.
+	# Detect the RRDtool argv API by probing rrd.h, rather than inferring it from
+	# the RRDtool version (which is unreliable: e.g. some 1.8 backports already use
+	# the "const char **" prototype). We redeclare rrd_update() both ways and keep
+	# the one that matches. The probe runs through Makefile.test-rrd so it inherits
+	# the same per-OS $(CFLAGS) as every other dependency test (e.g. the macOS
+	# package-manager include paths in Makefile.Darwin), instead of invoking the
+	# compiler directly and missing them.
 	probe_rrd_const_args() {
-		${CC:-cc} ${INCOPT} -x c -c -o /dev/null - >/dev/null 2>&1 <<'PROBE'
-#include <rrd.h>
-int rrd_update(int, const char **);
-int main(void) { return 0; }
-PROBE
+		( cd build && OS=`uname -s | sed -e's@/@_@g'` RRDINC="$INCOPT" $MAKE -f Makefile.test-rrd detect-const ) >/dev/null 2>&1
 	}
 	probe_rrd_mutable_args() {
-		${CC:-cc} ${INCOPT} -x c -c -o /dev/null - >/dev/null 2>&1 <<'PROBE'
-#include <rrd.h>
-int rrd_update(int, char **);
-int main(void) { return 0; }
-PROBE
+		( cd build && OS=`uname -s | sed -e's@/@_@g'` RRDINC="$INCOPT" $MAKE -f Makefile.test-rrd detect-mutable ) >/dev/null 2>&1
 	}
 
 	if test "$RRD_CONST_ARGS" != ""; then
