@@ -168,9 +168,10 @@ ci_deps_resolve_packages() {
     exit 1
   fi
 
-  if [[ "${apply_ci_compiler}" == "1" && "${CI_COMPILER}" == "clang" && "${pkgmgr}" != "brew" ]]; then
+  if [[ "${apply_ci_compiler}" == "1" && "${CI_COMPILER}" == "clang" && "${pkgmgr}" != "brew" && "${pkgmgr}" != "port" ]]; then
     # macOS runners already provide clang via Command Line Tools/Xcode, and
-    # Homebrew does not ship a plain `clang` formula.
+    # neither Homebrew nor MacPorts ships a plain `clang` package (MacPorts
+    # only has versioned ports such as clang-18), so never request it on macOS.
     PKGS+=(clang)
   fi
 }
