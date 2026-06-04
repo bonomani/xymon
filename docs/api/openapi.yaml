@@ -592,7 +592,7 @@ components:
         (status); metrics without one are data (graph via /series). The State
         `verdict` is the WORST of its metrics. WHERE=host+item+labels, HOW=test.
         verdict is a semantic status — colour is a render mapping. A State is observed (from a probe) or derived (from a combo test).
-      required: [id, host, test, verdict]
+      required: [id, entity, test, verdict]
       properties:
         id:      { type: string, description: "Flattened (host,test,item) key." }
         entity:  { type: string, description: "WHERE anchor — the monitored subject (any kind)." }
@@ -606,7 +606,7 @@ components:
     Reading:
       type: object
       description: An ingested item reading (one line) — becomes/updates one State.
-      required: [host, test]
+      required: [entity, test]
       properties:
         entity:  { type: string }
         test:    { type: string }
