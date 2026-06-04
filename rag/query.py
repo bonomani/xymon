@@ -17,16 +17,18 @@ from config import Config
 from store import VectorStore
 
 
-def answer(cfg: Config, question: str, top_k: int | None = None) -> str:
+def answer(cfg: Config, question: str, top_k: int | None = None,
+           *, embedder=None, store=None, model=None) -> str:
     k = top_k or cfg.top_k
-    store = VectorStore(cfg)
+    # Injectable backends (see ingest.run) for dependency-free testing.
+    store = store or VectorStore(cfg)
     if store.count() == 0:
         return "The vector store is empty -- run ingest.py first."
 
-    qvec = embedding.build(cfg).embed([question])[0]
+    qvec = (embedder or embedding.build(cfg)).embed([question])[0]
     hits = store.query(qvec, k)
 
-    model = llm_mod.build(cfg)
+    model = model or llm_mod.build(cfg)
     user = prompts.build_user_prompt(question, hits)
     return model.complete(prompts.SYSTEM, user)
 

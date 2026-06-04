@@ -17,7 +17,8 @@ from config import Config
 from store import VectorStore
 
 
-def run(cfg: Config, source: str, json_path: Path | None = None) -> int:
+def run(cfg: Config, source: str, json_path: Path | None = None,
+        *, embedder=None, store=None) -> int:
     if json_path is not None:
         docs = json.loads(json_path.read_text())
     else:
@@ -28,10 +29,12 @@ def run(cfg: Config, source: str, json_path: Path | None = None) -> int:
         print("nothing to ingest")
         return 0
 
-    embedder = embedding.build(cfg)
+    # Backends are injectable so the pipeline is testable without the heavy
+    # ML/DB deps; default to the real ones from config.
+    embedder = embedder or embedding.build(cfg)
     vectors = embedder.embed([c["text"] for c in chunks])
 
-    store = VectorStore(cfg)
+    store = store or VectorStore(cfg)
     store.upsert(chunks, vectors)
     print(f"ingested {len(chunks)} chunk(s) from {len(docs)} doc(s); "
           f"collection now holds {store.count()} chunk(s)")
