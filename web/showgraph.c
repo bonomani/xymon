@@ -1004,7 +1004,7 @@ static char *expand_aggregate_tokens(char *tpl)
 	return expand_tokens(STRBUF(result));
 }
 
-static void add_graphdef_arg(char **rrdargs, int *argi, char *def)
+static void add_graphdef_arg(xymon_rrd_argv_item_t *rrdargs, int *argi, char *def)
 {
 	char *expanded = expand_aggregate_tokens(def);
 	char *copy = (expanded ? strdup(expanded) : NULL);
@@ -1025,7 +1025,7 @@ static void add_graphdef_arg(char **rrdargs, int *argi, char *def)
  * they should use the natural form @AVG:p@ with DEF lines that produce
  * p0, p1, ..., pN; the per-RRD selection happens inside the aggregate. */
 
-static void add_graphdef_rrd_block(char **rrdargs, int *argi, gdef_t *gdef, int firstdef, int lastdef)
+static void add_graphdef_rrd_block(xymon_rrd_argv_item_t *rrdargs, int *argi, gdef_t *gdef, int firstdef, int lastdef)
 {
 	int i;
 
@@ -1038,7 +1038,7 @@ static void add_graphdef_rrd_block(char **rrdargs, int *argi, gdef_t *gdef, int 
 	}
 }
 
-static void add_graphdef_args(char **rrdargs, int *argi, gdef_t *gdef)
+static void add_graphdef_args(xymon_rrd_argv_item_t *rrdargs, int *argi, gdef_t *gdef)
 {
 	int i, have_aggregate = 0, first_aggregate = -1, first_rrd_context = -1;
 
@@ -1645,7 +1645,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				need = (size_t)(argi + per_this * (rrddbcount - rrdidx) + 2 /* timestamp + NULL */);
 				if (need > rrdargs_cap) {
 					rrdargs_cap = need;
-					rrdargs = (char **)realloc(rrdargs, rrdargs_cap * sizeof(char *));
+					rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
 				}
 
 				/* Expose this file's DS count to the aggregate parser
