@@ -35,23 +35,50 @@ def _xymondboard(cfg: Config) -> str:
     return out.stdout
 
 
+def parse_board(raw: str) -> list[dict]:
+    """Parse a xymondboard dump into structured rows (host/test/color/msg)."""
+    rows: list[dict] = []
+    for line in raw.splitlines():
+        if not line.strip():
+            continue
+        row = dict(zip(_BOARD_FIELDS, line.split("|")))
+        msg = (row.get("msg") or row.get("line1") or "").replace("\\n", "\n")
+        rows.append({
+            "host": row.get("hostname", "?"),
+            "test": row.get("testname", "?"),
+            "color": row.get("color", "?"),
+            "lastchange": row.get("lastchange", ""),
+            "msg": msg.strip(),
+        })
+    return rows
+
+
+def status_rows(cfg: Config) -> list[dict]:
+    """Structured live board rows -- shared by the RAG export and REST API."""
+    return parse_board(_xymondboard(cfg))
+
+
+def host_history(cfg: Config, host: str) -> str | None:
+    """Return one host's raw state-change history, or None if absent."""
+    path = cfg.xymon_histdir / host
+    if not path.is_file():
+        return None
+    try:
+        return path.read_text(errors="replace")
+    except OSError:
+        return None
+
+
 def iter_status(cfg: Config) -> Iterator[dict]:
     """Yield one document per host/test from the live board."""
-    for raw in _xymondboard(cfg).splitlines():
-        if not raw.strip():
-            continue
-        parts = raw.split("|")
-        row = dict(zip(_BOARD_FIELDS, parts))
-        host, test = row.get("hostname", "?"), row.get("testname", "?")
-        color = row.get("color", "?")
-        msg = (row.get("msg") or row.get("line1") or "").replace("\\n", "\n")
-        text = (f"Host {host}, test {test} is {color.upper()}.\n"
-                f"{msg.strip()}")
+    for r in status_rows(cfg):
+        text = (f"Host {r['host']}, test {r['test']} is {r['color'].upper()}.\n"
+                f"{r['msg']}")
         yield {
-            "id": f"status:{host}:{test}",
+            "id": f"status:{r['host']}:{r['test']}",
             "text": text,
-            "meta": {"source": "status", "host": host, "test": test,
-                     "color": color, "lastchange": row.get("lastchange", "")},
+            "meta": {"source": "status", "host": r["host"], "test": r["test"],
+                     "color": r["color"], "lastchange": r["lastchange"]},
         }
 
 
