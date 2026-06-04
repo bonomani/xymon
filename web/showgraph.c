@@ -110,11 +110,11 @@ static void free_rrddb_table(void)
 
 	if (!rrddbs) return;
 	for (i=0; (i < rrddbcount); i++) {
-		if (rrddbs[i].key) xfree(rrddbs[i].key);
-		if (rrddbs[i].rrdfn) xfree(rrddbs[i].rrdfn);
-		if (rrddbs[i].rrdparam) xfree(rrddbs[i].rrdparam);
+		if (rrddbs[i].key) free(rrddbs[i].key);
+		if (rrddbs[i].rrdfn) free(rrddbs[i].rrdfn);
+		if (rrddbs[i].rrdparam) free(rrddbs[i].rrdparam);
 	}
-	xfree(rrddbs);
+	free(rrddbs);
 	rrddbs = NULL;
 	rrddbcount = rrddbsize = 0;
 }
@@ -1088,7 +1088,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			if (fgets(graphtitle, sizeof(graphtitle), pfd) == NULL) *graphtitle = '\0';
 			pclose(pfd);
 		}
-		xfree(pcmd);
+		free(pcmd);
 
 		/* Drop any newline at end of the title */
 		p = strchr(graphtitle, '\n'); if (p) *p = '\0';
@@ -1226,8 +1226,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 cleanup:
 	if (calcpr) {
 		int i;
-		for (i=0; (calcpr[i]); i++) xfree(calcpr[i]);
-		xfree(calcpr);
+		for (i=0; (calcpr[i]); i++) free(calcpr[i]);
+		free(calcpr);
 		calcpr = NULL;
 	}
 
@@ -1239,8 +1239,8 @@ cleanup:
 	if (rrdargs) free(rrdargs);
 	free_rrddb_table();
 
-	if (useroptval) xfree(useroptval);
-	if (useropts) xfree(useropts);
+	if (useroptval) free(useroptval);
+	if (useropts) free(useropts);
 	if (grapherr) errormsg((char *)grapherr);
 }
 
@@ -1283,7 +1283,7 @@ void generate_zoompage(char *selfURI)
 				}
 
 				fwrite(buf, 1, n, stdout);
-				xfree(buf);
+				free(buf);
 			}
 		}
 	}
