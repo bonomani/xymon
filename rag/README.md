@@ -25,6 +25,21 @@ host/service state and outage root causes from your own monitoring data.
 | `llm.py` | Answer generation. Backends: `anthropic`, `openai`, or `local` (Ollama/llama.cpp). |
 | `prompts.py` | System prompt + context assembly. |
 | `query.py` | Retrieve top-k + ask the LLM. |
+| `xymon_api.py` | Optional REST/OpenAPI facade over Xymon (`/hosts` `/status` `/alerts` `/history`) for other consumers (n8n, dashboards, LLMs). |
+
+## REST API facade (optional)
+
+Xymon exposes only the TCP 1984 protocol, CGIs and flat files -- no native
+REST/OpenAPI. `xymon_api.py` puts a small FastAPI layer in front so any modern
+consumer reads clean JSON, with Swagger UI at `/docs`:
+
+```bash
+uvicorn xymon_api:app --host 0.0.0.0 --port 8080
+# GET /hosts | /status?color=red | /alerts | /history/{host} | /openapi.json
+```
+
+It reuses the same extraction code as the RAG export, so the assistant and any
+external tool see one consistent view.
 
 ## The two design choices are configuration, not forks
 
