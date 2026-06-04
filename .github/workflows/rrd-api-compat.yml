@@ -1,0 +1,28 @@
+name: RRD API compat
+
+# Verify lib/rrd_api_compat.h compiles against both the legacy "char **" and
+# the modern "const char **" RRDtool argv APIs. No real librrd needed.
+
+on:
+  push:
+    paths:
+      - 'lib/rrd_api_compat.h'
+      - 'build/rrd.sh'
+      - 'tests/rrd-api-compat-check.sh'
+      - '.github/workflows/rrd-api-compat.yml'
+  pull_request:
+    paths:
+      - 'lib/rrd_api_compat.h'
+      - 'build/rrd.sh'
+      - 'tests/rrd-api-compat-check.sh'
+      - '.github/workflows/rrd-api-compat.yml'
+  workflow_dispatch:
+
+jobs:
+  compat:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+      - name: Run rrd_api_compat.h regression test
+        run: bash tests/rrd-api-compat-check.sh
