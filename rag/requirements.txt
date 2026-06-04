@@ -1,0 +1,10 @@
+# Core (always needed)
+chromadb>=0.5
+
+# Local, private embeddings (default: XYMON_RAG_EMBED=local)
+sentence-transformers>=3.0
+
+# Online LLM backends (install the one you use)
+anthropic>=0.40        # XYMON_RAG_LLM=anthropic  (default)
+openai>=1.40           # XYMON_RAG_LLM=openai, or =local via OpenAI-compatible URL,
+                       # and XYMON_RAG_EMBED=openai
