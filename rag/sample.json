@@ -1,0 +1,7 @@
+[
+ {"id":"status:db01:disk","text":"Host db01, test disk is RED.\nFilesystem /var is 98% full - CRITICAL. Largest consumer: /var/lib/xymon/rrd growing 2GB/day. Purge or extend the LV.","meta":{"source":"status","host":"db01","test":"disk","color":"red"}},
+ {"id":"status:db01:conn","text":"Host db01, test conn is GREEN.\nConnection OK, ping 0.3ms.","meta":{"source":"status","host":"db01","test":"conn","color":"green"}},
+ {"id":"status:web01:http","text":"Host web01, test http is YELLOW.\nHTTP latency high (2.1s) on https://shop.example.com - above 2s warning threshold. Backend db01 slow?","meta":{"source":"status","host":"web01","test":"http","color":"yellow"}},
+ {"id":"status:web01:cpu","text":"Host web01, test cpu is GREEN.\nCPU load normal, 0.8 over 4 cores.","meta":{"source":"status","host":"web01","test":"cpu","color":"green"}},
+ {"id":"history:db01","text":"State-change history for host db01:\n2024-11-14 02:10 disk green->red /var crossed 95%\n2024-11-14 03:40 http (web01) green->yellow latency rose as db01 IO saturated\n2024-11-13 22:00 disk green, nightly backup wrote 40GB to /var","meta":{"source":"history","host":"db01"}}
+]

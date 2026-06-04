@@ -1,0 +1,4 @@
+rag_store/
+__pycache__/
+xymon-docs.json
+*.pyc
