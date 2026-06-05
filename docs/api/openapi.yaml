@@ -655,14 +655,35 @@ components:
 
     Entity:
       type: object
-      description: A monitored subject; `kind` distinguishes host / net / service / link / app. Tests, states, alarms attach to it regardless of kind.
-      required: [id, kind]
+      description: >
+        A monitored subject. The one structural distinction is `composition`:
+        a *measured* entity (atom — host, container, SNMP device) gets its
+        verdict directly from a probe; a *derived* entity (aggregate — service,
+        cluster) gets it by combining member states via `derivation`, evaluated
+        on demand by the API (the rollup mechanism), not a native Xymon combo.
+        Everything descriptive — role (host/net/service/cluster/link/app),
+        platform (physical/vm/container), collection (agent/snmp/synthetic) — is
+        an open label in `labels`, never branched on, so a new category needs no
+        contract change.
+      required: [id, composition]
       properties:
-        id:     { type: string }
-        kind:   { type: string, enum: [host, net, service, link, app], default: host }
-        ip:     { type: string, nullable: true }
-        owner:  { type: string, description: "WHO is responsible (routes actions).", nullable: true }
-        labels: { $ref: "#/components/schemas/Labels" }
+        id:          { type: string }
+        composition: { type: string, enum: [measured, derived], default: measured, description: "measured = atom (probe); derived = aggregate (derivation over members)." }
+        derivation:  { allOf: [ { $ref: "#/components/schemas/Derivation" } ], nullable: true, description: "Required iff composition=derived; absent for measured." }
+        ip:          { type: string, nullable: true }
+        owner:       { type: string, description: "WHO is responsible (routes actions).", nullable: true }
+        labels:      { $ref: "#/components/schemas/Labels", description: "Open dimensions: role=host|net|service|cluster|link|app, platform=physical|vm|container, collection=agent|snmp|synthetic, from/to for links, …" }
+
+    Derivation:
+      type: object
+      description: >
+        How a derived entity computes its verdict from member states — evaluated
+        ON DEMAND by the API (the same group-by/rollup mechanism as the classic
+        column colour), NOT by a native Xymon cross-host combo.
+      required: [selector, reduce]
+      properties:
+        selector: { type: string, description: "Which member states feed it, e.g. 'role=host,site=paris,test=http'." }
+        reduce:   { type: string, description: "How to combine members: worst | best | quorum>=N | a boolean expr." }
 
     Test:
       type: object
