@@ -51,9 +51,18 @@ mocks until their backend lands.
 | `GET /states` | **real** | `xymondboard` structured fields, colour→status (`item`/`metrics` deferred) |
 | `GET /alarms` | **real** | non-ok states |
 | `GET /entities` | **real** | distinct hosts (`composition=measured`, `role` label) |
-| `GET /series` | mock | next: `rrdtool xport` |
-| `GET /graphs` | mock | next: proxy Xymon's `showgraph` CGI |
+| `GET /series` | **real** | `rrdtool xport --json` over `<host>/<test>.rrd` |
+| `GET /graphs` | **real** | proxy Xymon's `showgraph` CGI (png/svg) |
 | derived entities | helper ready (`reduce_worst`) | API computes `derivation.reduce` over members — the on-demand rollup, no native Xymon combo |
 | writes / CRUD (`/actions`, `POST /states`, `/tests` …) | mock | deferred |
 
-Point the real reads at a server with `XYMON_BIN` / `XYMON_SERVER`.
+Configure the backend via env: `XYMON_BIN` / `XYMON_SERVER` (board),
+`XYMON_RRDDIR` (RRD files), `XYMON_CGI_URL` (showgraph CGI).
+
+## Auth
+
+The contract declares HTTP Basic globally. Enforcement is **optional** and
+reuses Xymon's web htpasswd: set `XYMON_API_PASSWD=/path/to/xymonpasswd` to
+require Basic on every `/xymon/api/v1/...` request (crypt entries; for
+apr1/bcrypt add `passlib`). Unset → open (dev/mock). `build_app(require_auth=…)`
+overrides it in tests.

@@ -30,6 +30,9 @@ _BOARD = "\n".join([
 
 def main() -> int:
     xymon.xymondboard = lambda: _BOARD              # type: ignore
+    xymon.rrd_xport = lambda args: (                # type: ignore
+        '{"meta":{"start":1700000000,"step":300},"data":[[1.0],[2.0]]}')
+    xymon.fetch_graph = lambda url: (b"\x89PNG mock", "image/png")  # type: ignore
     spec = app_mod.load_spec()
     base = (spec.get("servers") or [{}])[0].get("url", "").rstrip("/")
     client = TestClient(app_mod.build_app(spec))
