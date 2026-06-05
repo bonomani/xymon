@@ -9,10 +9,11 @@ keep a one-line reason.
 - Injectable backends + offline `selftest.py` (glue validated).
 - Real retrieval verified: BGE embeddings + ChromaDB rank the correct
   host/test first, including the root-cause history chunk.
-- REST/OpenAPI facade over Xymon (`xymon_api.py`): `/hosts /status /alerts
-  /history/{host}` + `/openapi.json`, tested offline (`test_api.py`). Gives the
-  RAG -- and any external consumer (n8n, dashboards) -- one JSON view of Xymon,
-  which Xymon itself lacks (only TCP 1984 / CGI / flat files).
+- `api` source: the RAG consumes the canonical Xymon REST API (the
+  `feat/openapi` branch's `/states`) over HTTP -- `states_to_docs()` +
+  `api_status_docs()`, tested offline (`test_api_source.py`). The earlier local
+  `xymon_api.py` facade was removed; the canonical API (spec + mock + real read
+  backend) lives on `feat/openapi`, so we don't ship two competing APIs.
 
 ## Next — LLM generation test
 
@@ -45,10 +46,10 @@ The retrieval half is proven; the generation half is still unexercised.
   - TLS / `xymonsend` over the documented port; configurable timeout/retries.
   - optional shared-secret / source-IP note in the README (Xymon ACLs).
   - graceful per-host failure (skip + log) instead of aborting the export.
-- **Secure the REST facade** — `xymon_api.py` is currently unauthenticated.
-  Add an API key / bearer dependency, bind to localhost by default, document a
-  reverse-proxy + TLS deployment. Optionally let the RAG export read the board
-  via this API instead of shelling out to `xymon`.
+- **Canonical REST API (on `feat/openapi`)** — harden it there, not here: real
+  `/series` (rrdtool) + `/graphs` (showgraph CGI proxy), HTTP Basic auth reusing
+  Xymon's web users, then derived-entity rollups. The RAG's `api` source then
+  gets richer data for free.
 
 ## Later (not MVP)
 
