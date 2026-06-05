@@ -17,6 +17,7 @@ import yaml
 from fastapi import FastAPI
 from starlette.responses import JSONResponse, Response
 
+import xymon
 from example import success_example
 
 _HTTP_METHODS = {"get", "post", "put", "patch", "delete"}
@@ -35,6 +36,39 @@ def make_handler(status: int, body):
     return handler
 
 
+# Real read endpoints backed by a live Xymon server. Everything else stays a
+# conformant mock until its backend lands.
+async def _states(request):
+    q = request.query_params
+    return JSONResponse({"items": xymon.states(
+        q.get("entity"), q.get("test"), q.get("verdict"))})
+
+
+async def _alarms(request):
+    return JSONResponse({"items": xymon.alarms()})
+
+
+async def _entities(request):
+    return JSONResponse({"items": xymon.entities()})
+
+
+async def _health(request):
+    try:
+        xymon.xymondboard()
+        alive = True
+    except Exception:                               # noqa: BLE001
+        alive = False
+    return JSONResponse({"alive": alive})
+
+
+REAL_HANDLERS = {
+    ("get", "/states"): _states,
+    ("get", "/alarms"): _alarms,
+    ("get", "/entities"): _entities,
+    ("get", "/health"): _health,
+}
+
+
 def build_app(spec: dict | None = None) -> FastAPI:
     spec = spec or load_spec()
     base = (spec.get("servers") or [{}])[0].get("url", "").rstrip("/")
@@ -46,9 +80,13 @@ def build_app(spec: dict | None = None) -> FastAPI:
         for method, op in item.items():
             if method not in _HTTP_METHODS:
                 continue
-            status, body = success_example(op, spec)
-            app.add_route(base + path, make_handler(status, body),
-                          methods=[method.upper()])
+            real = REAL_HANDLERS.get((method, path))
+            if real is not None:
+                handler = real
+            else:
+                status, body = success_example(op, spec)
+                handler = make_handler(status, body)
+            app.add_route(base + path, handler, methods=[method.upper()])
 
     # Serve the authored contract verbatim as the OpenAPI document.
     app.openapi = lambda: spec                      # type: ignore[assignment]

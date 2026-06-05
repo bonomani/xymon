@@ -15,12 +15,21 @@ from fastapi.testclient import TestClient
 from jsonschema import Draft7Validator, RefResolver
 
 import app as app_mod
+import xymon
 from example import success_response
 
 _METHODS = {"get", "post", "put", "patch", "delete"}
 
+# Synthetic board so the real read handlers work without a Xymon server.
+_BOARD = "\n".join([
+    "db01|disk|red|1700000000",
+    "db01|conn|green|1700000000",
+    "web01|http|yellow|1700000100",
+])
+
 
 def main() -> int:
+    xymon.xymondboard = lambda: _BOARD              # type: ignore
     spec = app_mod.load_spec()
     base = (spec.get("servers") or [{}])[0].get("url", "").rstrip("/")
     client = TestClient(app_mod.build_app(spec))

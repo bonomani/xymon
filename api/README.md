@@ -39,15 +39,21 @@ conformant**.
 | `example.py` | Conformant example generator (author example → else synthesised from schema). |
 | `test_conformance.py` | Validates every response against its declared schema. |
 
-## From mock to real (next)
+## Real vs mock
 
-The real read backend replaces mock handlers with thin adapters over Xymon,
-with **minimal parsing** (see `docs/api/` and the RAG `rag/PLAN.md`):
+Read endpoints are backed by a live Xymon server (`xymon.py`), with **minimal
+parsing** (see `docs/api/` and the RAG `rag/PLAN.md`); the rest stay conformant
+mocks until their backend lands.
 
-- `/states` `/alarms` `/entities` ← `xymondboard` structured fields (split on `|`,
-  colour→status); `metrics{}`/`item` deferred.
-- `/series` ← `rrdtool xport`; `/graphs` ← proxy Xymon's `showgraph` CGI.
-- **derived** entities (`composition=derived`) ← the API computes
-  `derivation.reduce` (start with `worst`) over member states — the on-demand
-  rollup, no native Xymon cross-host combo required.
-- writes / CRUD (`/actions`, `POST /states`, `/tests` `/rules` …) deferred.
+| Endpoint | Status | Source |
+|----------|--------|--------|
+| `GET /health` | **real** | `xymondboard` reachability |
+| `GET /states` | **real** | `xymondboard` structured fields, colour→status (`item`/`metrics` deferred) |
+| `GET /alarms` | **real** | non-ok states |
+| `GET /entities` | **real** | distinct hosts (`composition=measured`, `role` label) |
+| `GET /series` | mock | next: `rrdtool xport` |
+| `GET /graphs` | mock | next: proxy Xymon's `showgraph` CGI |
+| derived entities | helper ready (`reduce_worst`) | API computes `derivation.reduce` over members — the on-demand rollup, no native Xymon combo |
+| writes / CRUD (`/actions`, `POST /states`, `/tests` …) | mock | deferred |
+
+Point the real reads at a server with `XYMON_BIN` / `XYMON_SERVER`.
