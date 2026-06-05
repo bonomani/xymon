@@ -12,9 +12,13 @@ exactly one question. This is the model the API rests on.
 Entity ──run──▶  Test  ──produces──▶  State  ──raises──▶  Alarm  ──triggers──▶  Action
 ```
 
-`Entity` is the monitored subject; `kind` ∈ host | net | service | link | app.
-The pipeline is identical for every kind — a `net` device or a `service` has
-Tests/States/Alarms just like a host.
+`Entity` is the monitored subject. Its one structural property is
+`composition`: a **measured** entity (atom) earns its verdict directly from a
+probe; a **derived** entity (aggregate) earns it by combining member states.
+Everything descriptive — `role` (host/net/service/cluster/link/app), `platform`
+(physical/vm/container), `collection` (agent/snmp/synthetic) — is an open
+**label**, never branched on. The pipeline is identical regardless: a derived
+`service` or an SNMP `net` device has Tests/States/Alarms just like a host.
 
 Every arrow obeys one law:
 
@@ -206,15 +210,22 @@ Promoted:
   nesting + titles) is a **View**, built on selectors so membership stays
   derived/auto-updating. A View is **presentation only** — it gates nothing in
   the pipeline, and many overlapping Views (by OS, site, service) can coexist.
-- **Entities of any kind** — the monitored subject generalises from host to
-  `Entity{kind}` (host | net | service | link | app); the pipeline is identical
-  for all. Resource: `/entities`.
-- **Combo / derived states** — a `Test{kind:combo, expr}` produces a State by
-  evaluating an expression over *other* States (`worst`, a boolean, …) — e.g. a
-  service = worst of its members. The named sibling of the implicit rollup; must
-  stay acyclic.
+- **Measured vs derived (composition)** — the structural axis. A *measured*
+  entity (host, container, SNMP `net` device) earns its verdict from a probe;
+  what differs between them — agent vs SNMP vs synthetic — is the *collector*
+  (how data is produced), a `collection` label, not core logic. A *derived*
+  entity (service, cluster) earns its verdict from members. The kind name
+  (host/net/service/…) is a `role` **label**, never branched on; a new role or
+  `platform` (e.g. `container`) needs no contract change. Resource: `/entities`.
+- **Derivation (aggregates), computed by the layer** — a derived entity carries
+  `derivation = {selector, reduce}`: the API evaluates it ON DEMAND over member
+  states (`worst`, `quorum>=N`, a boolean) — e.g. a service = worst of its
+  members. This is the same machinery as the implicit rollup ("column colour");
+  must stay acyclic. Note: Xymon has **no real native cross-host combo** (its
+  `combo` is host-local batch transport), so aggregation lives in our layer, not
+  in Xymon.
 - **Relations as labels** — host/net/service relate via labels + selectors,
-  read three ways: *member-of* → combo (derive), *depends-on* → suppression
+  read three ways: *member-of* → derivation (derive), *depends-on* → suppression
   (gate), *grouping* → view. No separate topology store; promote to an explicit
   `Relation{from,to,type}` DAG only for multi-hop / root-cause.
 
