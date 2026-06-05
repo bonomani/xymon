@@ -9,7 +9,5 @@ anthropic>=0.40        # XYMON_RAG_LLM=anthropic  (default)
 openai>=1.40           # XYMON_RAG_LLM=openai, or =local via OpenAI-compatible URL,
                        # and XYMON_RAG_EMBED=openai
 
-# REST API facade over Xymon (xymon_api.py) + its tests
-fastapi>=0.110
-uvicorn[standard]>=0.29
-httpx>=0.27            # used by fastapi.testclient
+# `api` source: read the canonical Xymon REST API (feat/openapi) over HTTP
+httpx>=0.27

@@ -44,7 +44,7 @@ def run(cfg: Config, source: str, json_path: Path | None = None,
 def main() -> None:
     ap = argparse.ArgumentParser(description=__doc__,
                                  formatter_class=argparse.RawDescriptionHelpFormatter)
-    ap.add_argument("source", choices=["status", "history"])
+    ap.add_argument("source", choices=["status", "history", "api"])
     ap.add_argument("--json", type=Path, default=None,
                     help="ingest a saved xymon_export JSON instead of polling")
     args = ap.parse_args()

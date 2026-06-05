@@ -104,19 +104,56 @@ def iter_history(cfg: Config) -> Iterator[dict]:
         }
 
 
+def states_to_docs(states: list[dict]) -> list[dict]:
+    """Map Xymon REST API State objects to RAG documents (pure; no network)."""
+    docs: list[dict] = []
+    for s in states:
+        ent, test = s.get("entity", "?"), s.get("test", "?")
+        verdict = s.get("verdict", "unknown")
+        metrics = s.get("metrics") or {}
+        mtxt = "; ".join(
+            f"{k}={m.get('value')}"
+            + (f" ({m['verdict']})" if isinstance(m, dict) and m.get("verdict")
+               else "")
+            for k, m in metrics.items())
+        text = f"Entity {ent}, test {test} is {verdict.upper()}."
+        if mtxt:
+            text += f"\n{mtxt}"
+        docs.append({
+            "id": s.get("id", f"{ent}:{test}"),
+            "text": text,
+            "meta": {"source": "api", "host": ent, "test": test,
+                     "color": verdict, "lastchange": s.get("time", "")},
+        })
+    return docs
+
+
+def api_status_docs(cfg: Config) -> list[dict]:
+    """Pull current states from the Xymon REST API and map them to documents."""
+    import httpx
+    base = cfg.xymon_api_url.rstrip("/")
+    with httpx.Client(timeout=30) as client:
+        resp = client.get(f"{base}/states")
+        resp.raise_for_status()
+        states = resp.json().get("items", [])
+    return states_to_docs(states)
+
+
 def export(cfg: Config, source: str) -> list[dict]:
     if source == "status":
         return list(iter_status(cfg))
     if source == "history":
         return list(iter_history(cfg))
-    raise ValueError(f"unknown source: {source!r} (use status|history)")
+    if source == "api":
+        return api_status_docs(cfg)
+    raise ValueError(f"unknown source: {source!r} (use status|history|api)")
 
 
 def main() -> None:
     import argparse
 
     ap = argparse.ArgumentParser(description=__doc__)
-    ap.add_argument("source", choices=["status", "history"])
+    ap.add_argument("source", choices=["status", "history", "api"])
     ap.add_argument("-o", "--out", type=Path, default=Path("xymon-docs.json"))
     args = ap.parse_args()
 

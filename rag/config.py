@@ -27,6 +27,11 @@ class Config:
     xymon_histdir: Path = field(
         default_factory=lambda: Path(_env("XYMON_HISTDIR",
                                           "/var/lib/xymon/hist")))
+    # Xymon REST API base (the `api` source reads /states from it instead of
+    # shelling out to the xymon client). See ../api on the feat/openapi branch.
+    xymon_api_url: str = field(
+        default_factory=lambda: _env("XYMON_RAG_API_URL",
+                                     "http://localhost:8080/xymon/api/v1"))
 
     # --- Embeddings -------------------------------------------------------
     # "local"  -> sentence-transformers (no network, privacy-friendly)
