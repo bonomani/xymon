@@ -530,6 +530,14 @@ configure_build_make() {
   export ENABLESSL=y
   export ENABLELDAP
   ENABLELDAP="$(onoff_to_yesno "${ENABLE_LDAP:-ON}" "y")"
+  # SNMP is gated by the legacy SNMP=1 env var that configure.server honors
+  # (the ENABLESNMP=y option from upstream #135 isn't in this tree yet).
+  # Translate ENABLE_SNMP=ON -> SNMP=1 so the server build matches the lane's
+  # intent and actually uses the net-snmp the dep layer installs; otherwise
+  # leave SNMP unset, which configure.server treats as DOSNMP=no.
+  if [ "$(onoff_to_yesno "${ENABLE_SNMP:-OFF}" "n")" = "y" ]; then
+    export SNMP=1
+  fi
   export XYMONUSER="${XYMONUSER:-xymon}"
   export HTTPDGID="${HTTPDGID:-www}"
   if [ ! -f "${MAKE_PROFILE_EXPORTER}" ]; then
@@ -538,7 +546,7 @@ configure_build_make() {
   fi
   eval "$(bash "${MAKE_PROFILE_EXPORTER}" --profile "${BUILD_PROFILE}")"
   echo "Bootstrap make profile '${BUILD_PROFILE}' environment before configure:"
-  for var in XYMONTOPDIR XYMONVAR XYMONHOSTURL CGIDIR XYMONCGIURL SECURECGIDIR SECUREXYMONCGIURL XYMONLOGDIR XYMONHOSTNAME XYMONHOSTIP MANROOT INSTALLBINDIR INSTALLETCDIR INSTALLWEBDIR INSTALLEXTDIR INSTALLTMPDIR INSTALLWWWDIR XYMONUSER HTTPDGID USEXYMONPING ENABLESSL ENABLELDAP ENABLELDAPSSL; do
+  for var in XYMONTOPDIR XYMONVAR XYMONHOSTURL CGIDIR XYMONCGIURL SECURECGIDIR SECUREXYMONCGIURL XYMONLOGDIR XYMONHOSTNAME XYMONHOSTIP MANROOT INSTALLBINDIR INSTALLETCDIR INSTALLWEBDIR INSTALLEXTDIR INSTALLTMPDIR INSTALLWWWDIR XYMONUSER HTTPDGID USEXYMONPING ENABLESSL ENABLELDAP ENABLELDAPSSL SNMP; do
     printf '  %s=%s\n' "$var" "${!var:-<unset>}"
   done
   export CC="${CC:-${CI_COMPILER}}"
@@ -563,6 +571,7 @@ configure_build_make() {
 
 configure_build_cmake() {
   local cmake_enable_ldap
+  local cmake_enable_snmp
   local cmake_apply_ownership
   local cmake_use_gnuinstalldirs
   local cmake_install_prefix
@@ -572,6 +581,10 @@ configure_build_cmake() {
   local -a cmake_args
 
   cmake_enable_ldap="$(onoff_to_cmake "${ENABLE_LDAP:-ON}" "ON")"
+  # Pass ENABLE_SNMP explicitly rather than relying on the CMake option default
+  # (ON): that makes the cmake build honor the lane flag -- on for server, OFF
+  # for client/localclient -- and keeps it consistent with the make path.
+  cmake_enable_snmp="$(onoff_to_cmake "${ENABLE_SNMP:-OFF}" "OFF")"
   if [ -n "${LEGACY_APPLY_OWNERSHIP:-}" ]; then
     cmake_apply_ownership="$(onoff_to_cmake "${LEGACY_APPLY_OWNERSHIP}" "OFF")"
   elif [ "${BUILD_INSTALL_MODE}" = "package" ]; then
@@ -610,6 +623,7 @@ configure_build_cmake() {
     -DXYMON_VARIANT="${CMAKE_VARIANT}"
     -DLOCALCLIENT="${CMAKE_LOCALCLIENT}"
     -DENABLE_LDAP="${cmake_enable_ldap}"
+    -DENABLE_SNMP="${cmake_enable_snmp}"
     -DENABLE_SSL=ON
   )
   if [ -n "${XYMONHOSTNAME:-}" ]; then
