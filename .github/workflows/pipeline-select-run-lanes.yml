@@ -105,7 +105,7 @@ on:
           - source
           - package
       verify_depth:
-        description: Verification depth (configure|build|install, ref_mode!=off forces install)
+        description: Verification depth (configure|build|install|test, ref_mode!=off forces install; test runs tests/testsuite after install, skipped on emulated/VM lanes)
         required: true
         type: choice
         default: install
@@ -113,6 +113,7 @@ on:
           - configure
           - build
           - install
+          - test
       ref_mode:
         description: "Reference mode: off → goal=verify (build only), generate → goal=ref (build + publish artifacts)"
         required: true

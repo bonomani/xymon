@@ -104,7 +104,7 @@ case "${install_mode}" in
 esac
 
 case "${verify_depth}" in
-  configure|build|install)
+  configure|build|install|test)
     ;;
   *)
     echo "Unsupported prepared verify_depth value: ${verify_depth}" >&2

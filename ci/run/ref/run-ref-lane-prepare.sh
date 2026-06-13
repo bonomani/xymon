@@ -81,7 +81,7 @@ Usage: run-ref-lane-prepare.sh --env-out PATH [lane args]
   --profile default|debian|gnuinstall|packaging
   --install-mode auto|source|package
   --goal verify|ref
-  --verify-depth configure|build|install
+  --verify-depth configure|build|install|test
   --variant NAME
   [--ref-mode off|generate]
   [--publish none|artifact]
@@ -213,7 +213,7 @@ case "${ci_compiler}" in
     ;;
 esac
 case "${verify_depth}" in
-  configure|build|install)
+  configure|build|install|test)
     ;;
   *)
     echo "Unsupported --verify-depth value: ${verify_depth}" >&2

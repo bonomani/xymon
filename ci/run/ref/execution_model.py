@@ -88,7 +88,7 @@ def validate_requested_install_mode(install_mode: str) -> None:
 
 
 def validate_requested_verify_depth(verify_depth: str) -> None:
-    if verify_depth not in {"configure", "build", "install"}:
+    if verify_depth not in {"configure", "build", "install", "test"}:
         raise ValueError(f"Unsupported requested_verify_depth: {verify_depth}")
 
 

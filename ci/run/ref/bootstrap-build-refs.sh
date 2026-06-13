@@ -149,7 +149,7 @@ if [[ "${build_tool}" == "make" && "${profile}" == "debian" && "${install_mode}"
 fi
 
 case "${verify_depth}" in
-  configure|build|install)
+  configure|build|install|test)
     ;;
   *)
     echo "Unsupported --verify-depth value: ${verify_depth}" >&2
@@ -157,7 +157,10 @@ case "${verify_depth}" in
     ;;
 esac
 if [[ "${verify_depth}" != "install" ]]; then
-  echo "bootstrap-build-refs requires --verify-depth install (got: ${verify_depth})" >&2
+  # Ref generation only ever stages an installed tree; the testsuite is never
+  # run here. goal=ref/compare lanes are already downgraded to install
+  # upstream, so reaching this with anything else (incl. test) is a misuse.
+  echo "bootstrap-build-refs requires --verify-depth install (ref generation never runs the testsuite; got: ${verify_depth})" >&2
   exit 2
 fi
 

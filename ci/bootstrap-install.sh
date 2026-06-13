@@ -238,7 +238,7 @@ normalize_install_mode() {
 normalize_verify_depth() {
   VERIFY_DEPTH="$(printf '%s' "${VERIFY_DEPTH:-install}" | tr '[:upper:]' '[:lower:]')"
   case "${VERIFY_DEPTH}" in
-    configure|build|install)
+    configure|build|install|test)
       ;;
     *)
       echo "Unsupported --verify-depth value: ${VERIFY_DEPTH}" >&2
@@ -843,3 +843,42 @@ echo "=== Install staged tree ==="
 "${RUN_INSTALL_FN}"
 echo "=== Record staged tree metadata ==="
 write_staged_metadata
+
+if [ "${VERIFY_DEPTH}" = "test" ]; then
+  echo "=== Run regression testsuite (verify depth: test) ==="
+  # Native lanes only: emulated/foreign-arch lanes are slow and the suite's
+  # network/round-trip tests are unreliable under QEMU/VM, so downgrade to a
+  # plain install there instead of failing. RUNTIME_EXECUTION and ARCHITECTURE
+  # are exported into the lane env (resolve-lane-context.py); both are empty
+  # when the script is run directly by a developer, which counts as native.
+  runtime_exec="${RUNTIME_EXECUTION:-}"
+  arch="${ARCHITECTURE:-}"
+  if [ "${runtime_exec}" = "vm" ]; then
+    echo "=== Skip testsuite: emulated/VM lane (RUNTIME_EXECUTION=vm); downgrading to install ==="
+    exit 0
+  fi
+  case "${arch}" in
+    ""|amd64|x86_64|x86-64)
+      ;;
+    *)
+      echo "=== Skip testsuite: emulated container lane (ARCHITECTURE=${arch}); downgrading to install ==="
+      exit 0
+      ;;
+  esac
+  if [ ! -x ./tests/testsuite ]; then
+    echo "tests/testsuite missing or not executable" >&2
+    exit 1
+  fi
+  # `set -e` (line 2) would abort on testsuite's nonzero exit before we can map
+  # it; `|| rc=$?` exempts the command. The suite exits 77 when every test
+  # skipped -- but a lane has the full source checked out, so an all-skip means
+  # broken discovery, not a legitimate skip. Treat it as a hard failure (mirrors
+  # .github/workflows/tests.yml).
+  rc=0
+  ./tests/testsuite || rc=$?
+  if [ "${rc}" = "77" ]; then
+    echo "testsuite skipped everything (rc=77) -- full source present in lane means broken discovery, not a legitimate skip" >&2
+    exit 1
+  fi
+  exit "${rc}"
+fi

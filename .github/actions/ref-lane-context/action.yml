@@ -6,7 +6,7 @@ inputs:
     description: JSON-encoded lane object.
     required: true
   verify_depth:
-    description: Verification depth (configure|build|install).
+    description: Verification depth (configure|build|install|test).
     required: true
   goal:
     description: Execution goal (verify|ref|compare).
