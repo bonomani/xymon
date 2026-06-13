@@ -401,6 +401,14 @@ ensure_gmake() {
 }
 
 detect_cares_prefix() {
+  # Last-match-wins, mirroring the make probe build/c-ares.sh (upstream PR #136):
+  # scan every candidate and keep the LAST one that actually carries <ares.h>, so
+  # a later (more-preferred) prefix overrides an earlier one. Callers therefore
+  # list prefixes low-to-high preference. On macOS this makes MacPorts
+  # (/opt/local, listed last) win over Homebrew, matching how configure.server's
+  # own c-ares probe resolves the prefix -- previously this returned on the first
+  # match, so Homebrew won and contradicted configure. Falls back to the first
+  # candidate when no prefix carries ares.h.
   CARES_PREFIX=""
   local fallback=""
   for candidate in "$@"; do
@@ -410,10 +418,9 @@ detect_cares_prefix() {
     fi
     if [ -f "${candidate}/include/ares.h" ]; then
       CARES_PREFIX="${candidate}"
-      return
     fi
   done
-  if [ -n "${fallback}" ]; then
+  if [ -z "${CARES_PREFIX}" ] && [ -n "${fallback}" ]; then
     CARES_PREFIX="${fallback}"
   fi
 }
@@ -467,8 +474,10 @@ setup_os() {
       ;;
     macos)
       ensure_macports
-      # /opt/local covers MacPorts (Homebrew prefixes first so they still win).
-      prepare_os "_www" "/opt/homebrew" "/usr/local" "/opt/local" "/usr"
+      # Low-to-high preference (detect_cares_prefix is last-match-wins): MacPorts
+      # /opt/local is listed LAST so it wins over Homebrew, matching the make
+      # probe's MacPorts-wins precedence (PR #136).
+      prepare_os "_www" "/opt/homebrew" "/usr/local" "/usr" "/opt/local"
       ;;
     freebsd)
       prepare_os "www" "/usr/local" "/usr/pkg"
