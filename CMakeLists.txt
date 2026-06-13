@@ -258,7 +258,10 @@ unset(XYMON_PCRE_LIBRARY CACHE)
 unset(XYMON_PCRE_LIBRARY)
 if(XYMON_REQUIRE_PCRE)
     find_library(XYMON_PCRE_LIBRARY
-        NAMES pcre pcre2-8 pcre2
+        # The codebase uses the PCRE2 API exclusively (lib/matching.c etc.), so
+        # PCRE1 (libpcre) must never be selected: on a host with both installed
+        # it would be found first and then every pcre2_* symbol fails to link.
+        NAMES pcre2-8 pcre2
         HINTS
             "/usr/lib/${CMAKE_LIBRARY_ARCHITECTURE}"
         PATHS
@@ -292,7 +295,7 @@ if(XYMON_REQUIRE_PCRE)
             add_compile_definitions(PCRE2)
         endif()
     else()
-        message(FATAL_ERROR "PCRE library not found (tried pcre, pcre2-8, pcre2)")
+        message(FATAL_ERROR "PCRE2 library not found (tried pcre2-8, pcre2)")
     endif()
 endif()
 
