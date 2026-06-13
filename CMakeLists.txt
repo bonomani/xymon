@@ -299,6 +299,44 @@ if(XYMON_REQUIRE_PCRE)
     endif()
 endif()
 
+# RRDtool argv API detection (mirrors build/rrd.sh). RRDtool changed
+# rrd_update()'s argv parameter from "char **" to "const char **";
+# lib/rrd_api_compat.h needs RRD_CONST_ARGS (0/1) to select the matching
+# wrapper. Probe rrd.h directly by redeclaring rrd_update() both ways and
+# keeping the one that compiles -- the version number is unreliable (some 1.8
+# backports already use const). Override with -DRRD_CONST_ARGS=0|1 if needed.
+if(ENABLE_RRD AND NOT DEFINED RRD_CONST_ARGS)
+    include(CheckCSourceCompiles)
+    find_path(RRD_INCLUDE_DIR rrd.h)
+    set(CMAKE_REQUIRED_QUIET TRUE)
+    if(RRD_INCLUDE_DIR)
+        set(CMAKE_REQUIRED_INCLUDES "${RRD_INCLUDE_DIR}")
+    endif()
+    check_c_source_compiles(
+        "#include <rrd.h>\nint rrd_update(int, const char **);\nint main(void){return 0;}"
+        XYMON_RRD_ARGV_IS_CONST)
+    check_c_source_compiles(
+        "#include <rrd.h>\nint rrd_update(int, char **);\nint main(void){return 0;}"
+        XYMON_RRD_ARGV_IS_MUTABLE)
+    unset(CMAKE_REQUIRED_INCLUDES)
+    unset(CMAKE_REQUIRED_QUIET)
+    if(XYMON_RRD_ARGV_IS_CONST AND NOT XYMON_RRD_ARGV_IS_MUTABLE)
+        set(RRD_CONST_ARGS 1)
+        message(STATUS "Detected RRDtool argv API: const char **")
+    elseif(XYMON_RRD_ARGV_IS_MUTABLE AND NOT XYMON_RRD_ARGV_IS_CONST)
+        set(RRD_CONST_ARGS 0)
+        message(STATUS "Detected RRDtool argv API: char **")
+    else()
+        message(FATAL_ERROR
+            "Unable to determine the RRDtool argv API from rrd.h. Re-run with "
+            "-DRRD_CONST_ARGS=1 (rrd.h uses const char **) or "
+            "-DRRD_CONST_ARGS=0 (rrd.h uses char **).")
+    endif()
+endif()
+if(ENABLE_RRD)
+    add_compile_definitions(RRD_CONST_ARGS=${RRD_CONST_ARGS})
+endif()
+
 # Match legacy build/Makefile.* NETLIBS handling for shared comm libraries.
 if(CMAKE_SYSTEM_NAME STREQUAL "Linux")
     find_library(XYMON_TIRPC_LIBRARY tirpc)
