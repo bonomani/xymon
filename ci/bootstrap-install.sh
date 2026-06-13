@@ -873,7 +873,7 @@ if [ "${VERIFY_DEPTH}" = "test" ]; then
   # it; `|| rc=$?` exempts the command. The suite exits 77 when every test
   # skipped -- but a lane has the full source checked out, so an all-skip means
   # broken discovery, not a legitimate skip. Treat it as a hard failure (mirrors
-  # .github/workflows/tests.yml).
+  # the post-build suite run in .github/workflows/build.yml).
   # Tell the suite which build variant this lane exercised so variant-specific
   # tests (need_variant in tests/lib/assert.sh) can skip what does not apply --
   # e.g. server-only checks on a client/localclient lane.
