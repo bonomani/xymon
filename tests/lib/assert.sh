@@ -30,6 +30,22 @@ skip() {
 	exit 77
 }
 
+# need_variant VARIANT [VARIANT...] -- skip unless the build variant being
+# exercised is one of those listed. The variant comes from $XYMON_VARIANT, which
+# the CI lane test stage exports (server|client|localclient). When it is unset
+# -- a developer run, a release tarball, or the full-source tests.yml job --
+# there is no variant restriction and the test runs, preserving prior behaviour.
+# Use this for tests that exercise a component absent from some builds (the
+# server configure, RRD, xymonnet, the web CGIs), so a client-only lane does not
+# run server-only checks.
+need_variant() {
+	[ -n "${XYMON_VARIANT:-}" ] || return 0
+	for _nv in "$@"; do
+		[ "${XYMON_VARIANT}" = "${_nv}" ] && return 0
+	done
+	skip "not applicable to the ${XYMON_VARIANT} build (needs variant: $*)"
+}
+
 # pass [MSG] -- cosmetic; tests that reach the end without failing already
 # pass. Useful only when a test wants to emit a one-line success summary.
 pass() {

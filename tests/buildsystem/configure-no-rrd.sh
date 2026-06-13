@@ -26,6 +26,10 @@ set -euo pipefail
 
 ROOT=$(find_root)
 
+# Server-only: exercises './configure --server'. A client/localclient lane has
+# no server build and lacks server deps (c-ares, ...), so skip there.
+need_variant server
+
 [ -f "$ROOT/configure" ]        || skip "configure missing (CMake-only tree?)"
 [ -f "$ROOT/configure.server" ] || skip "configure.server missing"
 [ -d "$ROOT/build" ]            || skip "build/ missing"
