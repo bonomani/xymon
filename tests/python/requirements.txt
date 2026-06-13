@@ -1,0 +1,11 @@
+# Test dependencies for the Python functional harness (tests/python/).
+# Kept deliberately minimal: the round-trip talks to xymond over a raw TCP
+# socket from the stdlib, so no client library or psutil is needed -- a
+# subprocess.Popen handle plus terminate()/kill() covers the daemon lifecycle.
+#
+# The floor is the real minimum the harness uses (pytest.ExitCode, landed in
+# 5.0), not an aspirational one: CI installs the distro's python3-pytest
+# (7.x on current Ubuntu), and the bridge only does `import pytest` -- it never
+# pip-installs this file -- so a floor above the distro version would be both
+# unenforced and contradicted by the lane that runs it.
+pytest>=5.0

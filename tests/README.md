@@ -160,6 +160,43 @@ assertion helper covers the surface we have today. If the directory
 grows past ~30 tests and the lack of structure starts to bite, we
 revisit.
 
+### The one carve-out: pytest for network/process scenarios
+
+Bash stays the default and the rule above is unchanged for everything it
+already covers — shipped-file invariants, packaging artefacts, build and
+configure probes, binary-driving checks. One narrow exception exists, under
+`tests/python/`: a functional scenario that needs **fine-grained control of the
+wire protocol** (exact bytes, half-close, timeouts, retries), **structured
+parsing of a daemon's reply**, and **portable process lifecycle** is written in
+pytest, because that is what Python does better than bash. The first and so far
+only such scenario is the `xymond` network round-trip (start the daemon, submit
+a `status` over a raw TCP socket, read it back via `xymondboard`, assert on the
+exact `testname|color|line1` row).
+
+This does **not** make pytest the new default. It is reserved for cases where
+the network/process control buys something concrete; shell tests stay shell
+tests. The constraints that keep it from leaking into the rest of the suite:
+
+- **The runner is untouched.** `tests/testsuite` still discovers only executable
+  `*.sh`; the `*.py` files are invisible to it. A single bridge,
+  `tests/integration/xymond-roundtrip.sh`, locates the prerequisites and maps
+  pytest's exit code onto the suite contract (`0`=pass, `77`=skip, else fail),
+  so `./tests/testsuite` and `make test` cover the Python scenario through the
+  same one entry point as every other test.
+- **Same skip/fail discipline.** The bridge skips (`77`) only when the host
+  can't run it — no `python3`, no `pytest`, or `xymond` not built. The override
+  contract holds: an explicit `XYMOND` (bridge) or `XYMOND_BIN` (direct pytest)
+  pointing at nothing **fails**, it does not skip. An empty or all-skipped pytest
+  session under the bridge is promoted to a failure, so it can never green-light
+  a PASS that ran nothing.
+- **Stdlib only.** The harness uses Python's standard library (sockets,
+  `subprocess`) — no `psutil`, no Linux-only APIs — so it stays runnable on
+  macOS and the BSDs, not just the Linux CI lane. `pytest` is the only added
+  dependency; without it the bridge skips rather than fails.
+
+Run it directly during development with `pytest tests/python/`; see
+`tests/python/README.md` for the harness internals.
+
 ## Downstream consumers
 
 Debian's [autopkgtest](https://wiki.debian.org/autopkgtest) is an

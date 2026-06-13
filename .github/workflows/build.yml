@@ -46,7 +46,12 @@ jobs:
             libpcre2-dev \
             librrd-dev \
             libssl-dev \
-            libtirpc-dev
+            libtirpc-dev \
+            python3-pytest
+          # python3-pytest powers tests/integration/xymond-roundtrip.sh. If it
+          # is dropped, that bridge SKIPS (77) rather than failing, and a single
+          # skip is invisible among the other passing server tests -- the
+          # round-trip would silently stop running in CI with no red. Keep it.
 
       - name: Configure (${{ matrix.name }})
         env:
