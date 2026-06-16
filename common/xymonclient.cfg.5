@@ -36,16 +36,20 @@ $XYMONHOME/logs
 Directory used for temporary files. Default: $XYMONHOME/tmp/
 
 .IP XYMONCLIENT_FS_INCLUDE_TYPES
-Whitespace-separated Linux filesystem types to include in the
+Whitespace-separated filesystem types to include in the
 client's disk and inode reports even when they are normally excluded
 as pseudo (\fBnodev\fR) filesystems. Types are matched as exact df type
 tokens. Defaults to \fBzfs virtiofs tmpfs\fR \(em real local filesystems
 that merely happen to be flagged nodev. Set to "" to restore the
 historical behaviour of dropping every nodev type. Including remote
 filesystems also requires XYMONCLIENT_FS_DF_LOCAL_ONLY=no.
+The defaults and the nodev/\fB/proc/filesystems\fR mechanism described here
+are Linux-specific; the FreeBSD, NetBSD, OpenBSD and macOS clients honour the
+same variable and the same exclude-wins precedence, but it defaults to empty
+there and adjusts a built-in per-OS exclusion set.
 
 .IP XYMONCLIENT_FS_EXCLUDE_TYPES
-Whitespace-separated Linux filesystem types to exclude in addition
+Whitespace-separated filesystem types to exclude in addition
 to the default pseudo-filesystem exclusions. Matching is on the exact
 df type token, and nodev types (overlay, fuse, ...) are already excluded
 by default, so an effective entry names a type that is not a nodev
@@ -71,6 +75,9 @@ distro patches (such as Debian's) that do.
 Set to \fByes\fR (the default) to pass \fB\-l\fR to df and report
 local filesystems only. Set to \fBno\fR to report remote filesystems
 as well. Invalid values produce a warning and use the safe default.
+The macOS client implements this by keeping only the filesystems mount(8)
+flags as \fBlocal\fR (MNT_LOCAL, the same flag \fBdf \-l\fR selects), since
+macOS df ignores \fB\-l\fR when queried per path.
 With \fBno\fR, a stale or hard-blocked remote mount can wedge df
 indefinitely (an uninterruptible D-state wait): the client run never
 finishes, so the whole host goes purple \(em no data for all metrics,
