@@ -74,15 +74,27 @@ EOF
 : > "$TMP/tmpfs"
 : > "$TMP/fuse.sshfs"
 
+# /proc/mounts fixture for the DF_LOCAL_ONLY=no split: a local fs, a noise
+# tmpfs, and two remote (hard-block) mounts the sentinel must probe separately.
+# Format matches /proc/mounts: "device mountpoint fstype options dump pass".
+# nfs4 and cifs are in XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES' default set.
+cat > "$TMP/proc.mounts" <<'EOF'
+/dev/sda1 / ext4 rw 0 0
+tmpfs /run tmpfs rw 0 0
+server:/exp /mnt/nfs nfs4 rw 0 0
+//win/share /mnt/cifs cifs rw 0 0
+EOF
+
 # Extract just the [df] block from xymonclient-linux.sh and rewrite the
-# /proc/filesystems reference. Drop the trailing `echo "[inode]"` line with
-# `sed '$d'` (portable last-line delete; `head -n -1` is a GNU extension and
-# OpenBSD head(1) rejects a negative count) so we exit cleanly after one df
-# invocation per run.
+# /proc/filesystems and /proc/mounts references. Drop the trailing
+# `echo "[inode]"` line with `sed '$d'` (portable last-line delete; `head -n -1`
+# is a GNU extension and OpenBSD head(1) rejects a negative count) so we exit
+# cleanly after one df invocation per run.
 SNIPPET="$TMP/df-section.sh"
 sed -n '/^echo "\[df\]"/,/^echo "\[inode\]"/p' "$SCRIPT" \
 	| sed '$d' \
 	| sed "s!/proc/filesystems!$TMP/proc.filesystems!g" \
+	| sed "s!/proc/mounts!$TMP/proc.mounts!g" \
 	> "$SNIPPET"
 
 # Combined [df]+[inode] block (stops before [mount], drops that trailing echo).
@@ -93,6 +105,7 @@ COMBINED="$TMP/df-inode-section.sh"
 sed -n '/^echo "\[df\]"/,/^echo "\[mount\]"/p' "$SCRIPT" \
 	| sed '$d' \
 	| sed "s!/proc/filesystems!$TMP/proc.filesystems!g" \
+	| sed "s!/proc/mounts!$TMP/proc.mounts!g" \
 	> "$COMBINED"
 
 # --- stubs -------------------------------------------------------------------
@@ -140,13 +153,16 @@ run_snippet() {
 	: > "$DF_LOG"
 	: > "$INODE_LOG"
 	: > "$STDERR_LOG"
+	rm -f "$TMP"/df-probe-* 2>/dev/null   # no sentinel state leaks across cases
 	(
 		cd "$TMP"
-		/bin/sh "$SNIPPET" >/dev/null 2>"$STDERR_LOG"
+		# XYMONTMP points the sentinel's probe files at the test tmp.
+		XYMONTMP="$TMP" /bin/sh "$SNIPPET" >/dev/null 2>"$STDERR_LOG"
 	)
-	# Pad with spaces so substring assertions for " -x tmpfs " work even
-	# at the ends of the line.
-	printf ' %s ' "$(cat "$DF_LOG")"
+	# Flatten newlines (DF_LOCAL_ONLY=no logs both the local and the remote df
+	# invocation) and pad with spaces so substring assertions like " -x tmpfs "
+	# or " /mnt/nfs " match regardless of which line a token lands on.
+	printf ' %s ' "$(tr '\n' ' ' < "$DF_LOG")"
 }
 
 # run_inode: run the combined [df]+[inode] block and return the argv the
@@ -156,11 +172,12 @@ run_inode() {
 	: > "$DF_LOG"
 	: > "$INODE_LOG"
 	: > "$STDERR_LOG"
+	rm -f "$TMP"/df-probe-* 2>/dev/null   # no sentinel state leaks across cases
 	(
 		cd "$TMP"
-		/bin/sh "$COMBINED" >/dev/null 2>"$STDERR_LOG"
+		XYMONTMP="$TMP" /bin/sh "$COMBINED" >/dev/null 2>"$STDERR_LOG"
 	)
-	printf ' %s ' "$(cat "$INODE_LOG")"
+	printf ' %s ' "$(tr '\n' ' ' < "$INODE_LOG")"
 }
 
 # Callers pass per-case env vars via the inline prefix on the
@@ -240,19 +257,31 @@ args=$(XYMONCLIENT_FS_INCLUDE_TYPES=tmpfs XYMONCLIENT_FS_EXCLUDE_TYPES=tmpfs run
 assert_contains " -x tmpfs " "$args" \
 	"a type in both include and exclude lists must stay excluded (exclude wins)"
 
-# --- XYMONCLIENT_FS_DF_LOCAL_ONLY=no drops the -l flag ----------------------
+# --- XYMONCLIENT_FS_DF_LOCAL_ONLY=no: local keeps -l, remote probed apart -----
+#
+# Under the sentinel split, DF_LOCAL_ONLY=no no longer just drops -l globally.
+# The local set is always collected with `df -l` (it cannot wedge on a remote
+# server), and remote mounts -- discovered from /proc/mounts, here the nfs4/cifs
+# fixtures -- are probed by a separate df WITHOUT -l so they appear. Both df
+# invocations land in DF_LOG.
 
 args=$(XYMONCLIENT_FS_DF_LOCAL_ONLY=no run_snippet)
-assert_contains     " -P " "$args" "DF_LOCAL_ONLY=no must still pass -P"
-assert_not_contains " -l " "$args" "DF_LOCAL_ONLY=no must drop -l"
+assert_contains " -P " "$args" "DF_LOCAL_ONLY=no must still pass -P"
+assert_contains " -l " "$args" "DF_LOCAL_ONLY=no must keep -l on the local set"
+assert_contains " /mnt/nfs "  "$args" "DF_LOCAL_ONLY=no must probe the remote nfs mount"
+assert_contains " /mnt/cifs " "$args" "DF_LOCAL_ONLY=no must probe the remote cifs mount"
 
+# Default (local-only): -l present, and no remote mount is probed.
 args=$(XYMONCLIENT_FS_DF_LOCAL_ONLY=yes run_snippet)
-assert_contains " -l " "$args" "DF_LOCAL_ONLY=yes must still pass -l"
+assert_contains     " -l " "$args" "DF_LOCAL_ONLY=yes must still pass -l"
+assert_not_contains " /mnt/nfs " "$args" "DF_LOCAL_ONLY=yes must NOT probe remote mounts"
 
-# An invalid value must fail safe rather than silently exposing remote mounts.
+# An invalid value must fail safe (local-only), not silently probe remote mounts.
 args=$(XYMONCLIENT_FS_DF_LOCAL_ONLY=YES run_snippet)
-assert_contains " -l " "$args" \
+assert_contains     " -l " "$args" \
 	"invalid DF_LOCAL_ONLY value must fall back to local-only mode"
+assert_not_contains " /mnt/nfs " "$args" \
+	"invalid DF_LOCAL_ONLY value must not probe remote mounts"
 assert_contains "invalid XYMONCLIENT_FS_DF_LOCAL_ONLY" "$(cat "$STDERR_LOG")" \
 	"invalid DF_LOCAL_ONLY value must produce a warning"
 

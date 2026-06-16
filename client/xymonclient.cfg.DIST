@@ -51,21 +51,34 @@ LOGFETCHOPTS=""
 #    INCLUDE), so the type stays excluded.
 #
 # XYMONCLIENT_FS_DF_LOCAL_ONLY: "yes" (default) passes -l to df, hiding
-#    remote filesystems. Set to "no" to report nfs/ceph/etc. Any other
+#    remote filesystems. Set to "no" to also report nfs/ceph/etc. Any other
 #    value produces a warning and falls back to "yes".
-#    WARNING: with "no", a stale or hard-blocked remote mount can wedge df
-#    indefinitely (an uninterruptible D-state wait). The client run never
-#    finishes, so the whole host goes PURPLE -- no data for ALL metrics,
-#    not just disk -- until the mount recovers or the host reboots.
+#    With "no", remote hard-blocking types (see
+#    XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES) are probed behind a non-blocking
+#    sentinel, so a dead/stale server can NOT hang the client: its mount is
+#    reported failed (red, 100%) while every other metric keeps flowing (no
+#    purple), and it recovers on its own once the server returns. The local
+#    set (df -l) is always collected synchronously and stays fresh.
 #
-#    A df that *exits* non-zero with no output (a real error, not a hang)
-#    is marked failed (yellow) rather than left empty, so a failed probe is
-#    not silently reported green. This does not cover the hang above: a
-#    wedged df never exits.
+# XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES: whitespace-separated df types that are
+#    remote AND can wedge df in uninterruptible D-state when the server is down
+#    (default "nfs nfs4 cifs smb3 ceph glusterfs fuse.glusterfs lustre afs").
+#    Only used with DF_LOCAL_ONLY=no; these types are routed through the
+#    sentinel instead of the synchronous local df.
+#
+# XYMONCLIENT_FS_REMOTE_DF_TIMEOUT: seconds to wait for the remote df probe before
+#    giving up on it for this cycle (default "30"). A poll BUDGET, not a kill
+#    timeout -- a wedged df keeps running and is reaped on a later cycle
+#    (D-state ignores SIGKILL). Empty/invalid falls back to 30; capped at 3600.
+#
+#    A df that *exits* non-zero with no output (a real error) is marked failed
+#    (yellow) rather than left empty, so a failed probe is not reported green.
 #
 # XYMONCLIENT_FS_INCLUDE_TYPES="zfs virtiofs tmpfs"
 # XYMONCLIENT_FS_EXCLUDE_TYPES="iso9660 squashfs fuse.snapfuse"
 # XYMONCLIENT_FS_DF_LOCAL_ONLY="yes"
+# XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES="nfs nfs4 cifs smb3 ceph glusterfs fuse.glusterfs lustre afs"
+# XYMONCLIENT_FS_REMOTE_DF_TIMEOUT="30"
 
 
 # Local Mode (Only) Options

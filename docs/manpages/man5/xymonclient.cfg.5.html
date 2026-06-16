@@ -82,17 +82,32 @@ distro patches (such as Debian's) that do.
 <P>
 <DT>XYMONCLIENT_FS_DF_LOCAL_ONLY<DD>
 Set to <B>yes</B> (the default) to pass <B>-l</B> to df and report
-local filesystems only. Set to <B>no</B> to report remote filesystems
-as well. Invalid values produce a warning and use the safe default.
-With <B>no</B>, a stale or hard-blocked remote mount can wedge df
-indefinitely (an uninterruptible D-state wait): the client run never
-finishes, so the whole host goes purple &mdash; no data for all metrics,
-not just disk &mdash; until the mount recovers or the host reboots.
+local filesystems only. Set to <B>no</B> to also report remote
+filesystems. Invalid values produce a warning and use the safe default.
+With <B>no</B>, remote hard-blocking types (see
+<B>XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES</B>) are probed behind a
+non-blocking sentinel, so a dead or stale server cannot hang the client:
+its mount is reported failed (red, 100%) while every other metric keeps
+flowing (no purple), and it recovers on its own once the server returns.
+The local set (df -l) is always collected synchronously and stays fresh.
+<P>
+<DT>XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES<DD>
+Whitespace-separated df filesystem types that are remote and can wedge df
+in an uninterruptible D-state wait when the backing server is down
+(default <B>nfs nfs4 cifs smb3 ceph glusterfs fuse.glusterfs lustre
+afs</B>). Only consulted with <B>XYMONCLIENT_FS_DF_LOCAL_ONLY=no</B>;
+these types are routed through the sentinel instead of the synchronous
+local df.
+<P>
+<DT>XYMONCLIENT_FS_REMOTE_DF_TIMEOUT<DD>
+Seconds to wait for the remote df probe before giving up on it for this
+cycle (default 30). This is a poll budget, not a kill timeout: a wedged
+df keeps running and is reaped on a later cycle (D-state ignores SIGKILL).
+An empty or invalid value falls back to 30; the value is capped at 3600.
 <P>
 A df that <I>exits</I> non-zero with no output (a real error, not a hang)
 is marked failed (yellow) rather than left empty, so a failed filesystem
-probe is not silently reported green. This does not cover the hang above:
-a wedged df never exits.
+probe is not silently reported green.
 <P>
 <DT>XYMON<DD>
 Full path to the 

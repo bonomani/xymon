@@ -69,17 +69,29 @@ distro patches (such as Debian's) that do.
 
 .IP XYMONCLIENT_FS_DF_LOCAL_ONLY
 Set to \fByes\fR (the default) to pass \fB\-l\fR to df and report
-local filesystems only. Set to \fBno\fR to report remote filesystems
-as well. Invalid values produce a warning and use the safe default.
-With \fBno\fR, a stale or hard-blocked remote mount can wedge df
-indefinitely (an uninterruptible D-state wait): the client run never
-finishes, so the whole host goes purple \(em no data for all metrics,
-not just disk \(em until the mount recovers or the host reboots.
+local filesystems only. Set to \fBno\fR to also report remote
+filesystems. Invalid values produce a warning and use the safe default.
+With \fBno\fR, remote hard-blocking types (see
+\fBXYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES\fR) are probed behind a
+non-blocking sentinel, so a dead or stale server cannot hang the client:
+its mount is reported failed (red, 100%) while every other metric keeps
+flowing (no purple), and it recovers on its own once the server returns.
+The local set (df \-l) is always collected synchronously and stays fresh.
+.IP XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES
+Whitespace-separated df filesystem types that are remote and can wedge df
+in an uninterruptible D-state wait when the backing server is down
+(default \fBnfs nfs4 cifs smb3 ceph glusterfs fuse.glusterfs lustre
+afs\fR). Only consulted with \fBXYMONCLIENT_FS_DF_LOCAL_ONLY=no\fR; these
+types are routed through the sentinel instead of the synchronous local df.
+.IP XYMONCLIENT_FS_REMOTE_DF_TIMEOUT
+Seconds to wait for the remote df probe before giving up on it for this
+cycle (default 30). This is a poll budget, not a kill timeout: a wedged
+df keeps running and is reaped on a later cycle (D-state ignores SIGKILL).
+An empty or invalid value falls back to 30; the value is capped at 3600.
 .IP
 A df that \fIexits\fR non-zero with no output (a real error, not a hang)
 is marked failed (yellow) rather than left empty, so a failed filesystem
-probe is not silently reported green. This does not cover the hang
-above: a wedged df never exits.
+probe is not silently reported green.
 
 .IP XYMON
 Full path to the 

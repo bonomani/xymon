@@ -113,11 +113,70 @@ case "$DFLOCALONLY" in
 		DFLOCALONLY=yes
 		;;
 esac
+# XYMONCLIENT_FS_REMOTE_DF_TIMEOUT: seconds to wait for the remote df probe before
+# giving up for this cycle (default 30). A poll BUDGET, not a kill timeout: the
+# bg df is left running and reaped later, never killed (D-state ignores SIGKILL).
+# Non-numeric/empty/zero -> 30; capped at 3600.
+DFTIMEOUT="${XYMONCLIENT_FS_REMOTE_DF_TIMEOUT:-30}"
+case "$DFTIMEOUT" in
+	*[!0-9]*|'') DFTIMEOUT=30 ;;
+	*[1-9]*) ;;
+	*) DFTIMEOUT=30 ;;
+esac
+[ "$DFTIMEOUT" -le 3600 ] 2>/dev/null || DFTIMEOUT=3600
+
+# XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES: remote df types whose df HARD-BLOCKS in
+# uninterruptible D-state (SIGKILL ignored) when the server is down (NFS, CIFS,
+# Ceph, ...). Run behind the sentinel so a dead server can't hang the client.
+# Only consulted with DF_LOCAL_ONLY=no; df -l keeps them out otherwise.
+: "${XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES=nfs nfs4 cifs smb3 ceph glusterfs fuse.glusterfs lustre afs}"
+DFPROBEDIR="${XYMONTMP:-/tmp}"
+
+# df_sentinel TAG ARGS... : df for the remote set, at most ONE outstanding per
+# TAG. A D-state df can't be killed, so leave it running and detect it next cycle
+# instead of launching another -- orphans never accumulate and it self-recovers
+# when the server returns. Prints rows (no header); returns 0 with data, 124 when
+# unavailable (still wedged, or past the poll budget).
+df_sentinel()
+{
+	_tag="$1"; shift
+	_probe="$DFPROBEDIR/df-probe-$_tag"; _pidf="$_probe.pid"
+	if [ -f "$_pidf" ]; then
+		_old=`cat "$_pidf" 2>/dev/null`
+		# Still our wedged df? (verify comm to survive PID reuse across reboots)
+		if [ -n "$_old" ] && kill -0 "$_old" 2>/dev/null && \
+		   [ "`cat /proc/$_old/comm 2>/dev/null`" = df ]; then
+			return 124
+		fi
+		rm -f "$_pidf"
+		if [ -s "$_probe" ]; then
+			sed -e '1d' "$_probe"; rm -f "$_probe"; return 0  # recovered (1 cycle late)
+		fi
+		rm -f "$_probe"
+	fi
+	# No writable probe dir: report unavailable, never run a SYNCHRONOUS remote df
+	# here -- a foreground df would reintroduce the very hang the sentinel prevents.
+	: 2>/dev/null > "$_probe" || return 124
+	df "$@" > "$_probe" 2>/dev/null &
+	_pid=$!; echo "$_pid" > "$_pidf"
+	_n=0
+	while kill -0 "$_pid" 2>/dev/null; do
+		[ "$_n" -ge "$DFTIMEOUT" ] && break
+		sleep 1; _n=$((_n + 1))
+	done
+	if kill -0 "$_pid" 2>/dev/null; then
+		return 124                            # leave running as the sentinel
+	fi
+	rm -f "$_pidf"; sed -e '1d' "$_probe"; rm -f "$_probe"; return 0
+}
+
+# run_df INODEFLAG : emit df -P output (header + rows). With DF_LOCAL_ONLY=no the
+# local and remote sets are collected separately, so a wedged remote server can
+# neither block nor stale the local data (df -l can't stat a remote server).
 run_df()
 {
 	DFINODES="$1"
 	set -- -P
-	[ "$DFLOCALONLY" = yes ] && set -- "$@" -l
 	[ "$DFINODES" = yes ] && set -- "$@" -i
 
 	case $- in
@@ -129,7 +188,37 @@ run_df()
 	done
 	[ "$DFRESTOREGLOB" = yes ] && set +f
 
-	df "$@"
+	if [ "$DFLOCALONLY" = yes ]; then
+		df "$@" -l
+		return
+	fi
+
+	# Local set first -- always fresh, never blocks (df -l skips remote servers).
+	df "$@" -l
+
+	# Remote set: find hard-blocking mounts in /proc/mounts (reading it never
+	# blocks), then probe them behind the sentinel. Match fs type ($3) by exact
+	# set membership, not regex, so "fuse.glusterfs" compares literally.
+	[ -r /proc/mounts ] || return 0
+	case $- in *f*) _rg=no ;; *) _rg=yes; set -f ;; esac
+	_rm=$(awk -v types="$XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES" '
+		BEGIN { n = split(types, a, /[ \t]+/); for (i = 1; i <= n; i++) t[a[i]] = 1 }
+		($3 in t) { print $2 }' /proc/mounts)
+	if [ -n "$_rm" ]; then
+		_tag=disk; [ "$DFINODES" = yes ] && _tag=inode
+		_rout=`df_sentinel "$_tag" "$@" $_rm`
+		if [ $? -eq 124 ]; then
+			# Probe unavailable -> surface each remote mount as a failed (100%)
+			# row so it is not silently dropped (== green) until it recovers.
+			for _m in $_rm; do
+				echo "unavailable:$_m 1 1 0 100% $_m"
+			done
+		else
+			printf '%s\n' "$_rout"
+		fi
+	fi
+	[ "$_rg" = yes ] && set +f
+	return 0
 }
 # emit_df INODEFLAG LABEL
 # Run df (optionally in inode mode) and reproduce the historical sed join.
