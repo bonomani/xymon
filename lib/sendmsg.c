@@ -147,6 +147,41 @@ static void setup_transport(char *recipient)
 	dbgprintf("xymonproxyport = %d\n", xymonproxyport);
 }
 
+#include "xymon_tls.h"
+
+#define XYMON_SCHEME       "xymon://"	/* explicit plaintext */
+#define XYMON_SCHEME_LEN   8
+#define XYMONS_SCHEME      "xymons://"	/* TLS */
+#define XYMONS_SCHEME_LEN  9
+
+/*
+ * Open a non-blocking socket and start connecting to the first usable address
+ * at or after *aip (an entry in a getaddrinfo() result list). On success
+ * returns the socket fd - the connect either completed or is in progress - and
+ * leaves *aip pointing at the address used, so the caller can resume the walk
+ * at (*aip)->ai_next if this connection later fails. Returns -1 when the
+ * address list is exhausted.
+ */
+static int start_connect(struct addrinfo **aip)
+{
+	struct addrinfo *a;
+	int fd, res;
+
+	for (a = *aip; a; a = a->ai_next) {
+		fd = socket(a->ai_family, a->ai_socktype, a->ai_protocol);
+		if (fd == -1) continue;
+		if (fcntl(fd, F_SETFL, O_NONBLOCK) != 0) { close(fd); continue; }
+		res = connect(fd, a->ai_addr, a->ai_addrlen);
+		if ((res == 0) || ((res == -1) && (errno == EINPROGRESS))) {
+			*aip = a;
+			return fd;
+		}
+		close(fd);
+	}
+	*aip = NULL;
+	return -1;
+}
+
 static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **respstr, int fullresponse, int timeout)
 {
 	struct in_addr addr;
@@ -161,12 +196,18 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	char *rcptip = NULL;
 	int rcptport = 0;
 	int connretries = SENDRETRIES;
+	struct addrinfo *ai = NULL, *aip = NULL;	/* resolved address list + cursor (live until done:) */
 	SBUF_DEFINE(httpmessage);
 	char recvbuf[32768];
 	int haveseenhttphdrs = 1;
 	int respstrsz = 0;
 	int respstrlen = 0;
 	int result = XYMONSEND_OK;
+#ifdef HAVE_XYMON_TLS
+	int use_tls = 0;
+	char *tls_sni = NULL;
+	xymon_tls_t *tls = NULL;
+#endif
 
 	if (dontsendmessages && !respfd && !respstr) {
 		fprintf(stdout, "%s\n", message);
@@ -179,14 +220,61 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 	dbgprintf("Recipient listed as '%s'\n", recipient);
 
 	if (strncmp(recipient, "http://", strlen("http://")) != 0) {
-		/* Standard communications, directly to Xymon daemon */
-		rcptip = strdup(recipient);
-		rcptport = xymondportnumber;
-		p = strchr(rcptip, ':');
-		if (p) {
-			*p = '\0'; p++; rcptport = atoi(p);
+		/* Standard communications, directly to Xymon daemon. Optional scheme:
+		 *   xymons://host[:port] -> TLS ; xymon://host / bare -> plaintext */
+		const char *host_start = recipient;
+#ifdef HAVE_XYMON_TLS
+		if (strncmp(recipient, XYMONS_SCHEME, XYMONS_SCHEME_LEN) == 0) {
+			use_tls = 1;
+			host_start = recipient + XYMONS_SCHEME_LEN;
 		}
-		dbgprintf("Standard protocol on port %d\n", rcptport);
+		else
+#else
+		if (strncmp(recipient, XYMONS_SCHEME, XYMONS_SCHEME_LEN) == 0) {
+			/* Without TLS support, don't silently treat "xymons://host" as a
+			 * literal hostname -- report the unsupported scheme clearly. */
+			snprintf(errordetails + strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "xymons:// (TLS) recipient requested, but this build has no TLS support");
+			return XYMONSEND_EBADURL;
+		}
+		else
+#endif
+		if (strncmp(recipient, XYMON_SCHEME, XYMON_SCHEME_LEN) == 0) {
+			host_start = recipient + XYMON_SCHEME_LEN;
+		}
+
+		rcptip = strdup(host_start);
+#ifdef HAVE_XYMON_TLS
+		rcptport = use_tls ? 1985 : xymondportnumber;	/* TLS defaults to :1985 */
+#else
+		rcptport = xymondportnumber;
+#endif
+		if (*rcptip == '[') {
+			/* "[v6literal]" or "[v6literal]:port" */
+			char *endb = strchr(rcptip, ']');
+			if (endb) {
+				if (*(endb+1) == ':') rcptport = atoi(endb+2);
+				*endb = '\0';
+				memmove(rcptip, rcptip+1, strlen(rcptip+1)+1);	/* drop the '[' */
+			}
+		}
+		else {
+			p = strchr(rcptip, ':');
+			/* Exactly one ':' => host:port (v4/hostname). Several => a bare
+			 * IPv6 literal with no port (use the default). */
+			if (p && !strchr(p+1, ':')) {
+				*p = '\0'; p++; rcptport = atoi(p);
+			}
+		}
+#ifdef HAVE_XYMON_TLS
+		if (use_tls) {
+			/* SNI + cert-hostname verification use the original hostname
+			 * (XYMON_TLS_SNI overrides, e.g. when connecting by IP). */
+			char *sni_override = getenv("XYMON_TLS_SNI");
+			tls_sni = strdup((sni_override && *sni_override) ? sni_override : rcptip);
+		}
+#endif
+		dbgprintf("Standard protocol to %s on port %d\n", rcptip, rcptport);
 	}
 	else {
 		char *posturl = NULL;
@@ -265,48 +353,44 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, char **res
 		dbgprintf("HTTP message is:\n%s\n", httpmessage);
 	}
 
-	if (inet_aton(rcptip, &addr) == 0) {
-		/* recipient is not an IP - do DNS lookup */
+retry_connect:
+	if (ai) { freeaddrinfo(ai); ai = NULL; }	/* re-resolve cleanly on a timeout retry */
+	dbgprintf("Will connect to address %s port %d\n", rcptip, rcptport);
 
-		struct hostent *hent;
-		char hostip[IP_ADDR_STRLEN];
+	/*
+	 * Resolve + connect via getaddrinfo (AF_UNSPEC) so the recipient may be an
+	 * IPv4 or IPv6 literal, or a hostname resolving to either. Try each result
+	 * with a non-blocking connect; the select() loop below handles completion.
+	 */
+	{
+		struct addrinfo hints;
+		char portstr[16];
+		int gai;
 
-		hent = gethostbyname(rcptip);
-		if (hent) {
-			memcpy(&addr, *(hent->h_addr_list), sizeof(struct in_addr));
-			strncpy(hostip, inet_ntoa(addr), sizeof(hostip));
+		memset(&hints, 0, sizeof(hints));
+		hints.ai_family = AF_UNSPEC;
+		hints.ai_socktype = SOCK_STREAM;
+		snprintf(portstr, sizeof(portstr), "%d", rcptport);
 
-			if (inet_aton(hostip, &addr) == 0) {
-				result = XYMONSEND_EBADIP;
-				goto done;
-			}
-		}
-		else {
-			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Cannot determine IP address of message recipient %s", rcptip);
+		gai = getaddrinfo(rcptip, portstr, &hints, &ai);
+		if ((gai != 0) || !ai) {
+			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "Cannot resolve message recipient %s:%d (%s)", rcptip, rcptport, gai_strerror(gai));
 			result = XYMONSEND_EIPUNKNOWN;
 			goto done;
 		}
-	}
 
-retry_connect:
-	dbgprintf("Will connect to address %s port %d\n", rcptip, rcptport);
-
-	memset(&saddr, 0, sizeof(saddr));
-	saddr.sin_family = AF_INET;
-	saddr.sin_addr.s_addr = addr.s_addr;
-	saddr.sin_port = htons(rcptport);
-
-	/* Get a non-blocking socket */
-	sockfd = socket(PF_INET, SOCK_STREAM, 0);
-	if (sockfd == -1) { result = XYMONSEND_ENOSOCKET; goto done; }
-	res = fcntl(sockfd, F_SETFL, O_NONBLOCK);
-	if (res != 0) { result = XYMONSEND_ECANNOTDONONBLOCK; goto done; }
-
-	res = connect(sockfd, (struct sockaddr *)&saddr, sizeof(saddr));
-	if ((res == -1) && (errno != EINPROGRESS)) {
-		snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "connect to Xymon daemon@%s:%d failed (%s)", rcptip, rcptport, strerror(errno));
-		result = XYMONSEND_ECONNFAILED;
-		goto done;
+		/* Start connecting to the first usable address. If this one ultimately
+		 * fails, the IO loop walks to the next (e.g. IPv4 after IPv6); the list
+		 * stays live until done:. */
+		aip = ai;
+		sockfd = start_connect(&aip);
+		if (sockfd == -1) {
+			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+				 "connect to Xymon daemon@%s:%d failed (%s)", rcptip, rcptport, strerror(errno));
+			result = XYMONSEND_ECONNFAILED;
+			goto done;
+		}
 	}
 
 	rdone = ((respfd == NULL) && (respstr == NULL));
@@ -348,12 +432,101 @@ retry_connect:
 				dbgprintf("Connect status is %d\n", connres);
 				isconnected = (connres == 0);
 				if (!isconnected) {
-					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)", 
+					/* This address failed - fall back to the next one
+					 * (dual-stack: e.g. IPv4 after an IPv6 attempt). No
+					 * data has been sent yet, so the new socket restarts
+					 * the loop cleanly. */
+					dbgprintf("Connect to %s:%d failed (%s) - trying next address\n",
+						  rcptip, rcptport, strerror(connres));
+					close(sockfd); sockfd = -1;
+					aip = aip ? aip->ai_next : NULL;
+					sockfd = start_connect(&aip);
+					if (sockfd != -1) continue;	/* re-enter select() on the new socket */
+
+					snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Could not connect to Xymon daemon@%s:%d (%s)",
 						  rcptip, rcptport, strerror(connres));
 					result = XYMONSEND_ECONNFAILED;
 					goto done;
 				}
 			}
+
+#ifdef HAVE_XYMON_TLS
+				if (use_tls) {
+					/* TLS path: switch to blocking, handshake, send a
+					 * size:-framed message and read the reply, then done --
+					 * forks off the plaintext non-blocking loop entirely. */
+					int flags;
+					struct timeval iotmo;
+					ssize_t wn, rn;
+					char *outp, *wp;
+					size_t wleft;
+					int rd_done;
+					char szhdr[32];
+
+					flags = fcntl(sockfd, F_GETFL, 0);
+					if (flags != -1) (void)fcntl(sockfd, F_SETFL, flags & ~O_NONBLOCK);
+					iotmo.tv_sec = timeout; iotmo.tv_usec = 0;
+					(void)setsockopt(sockfd, SOL_SOCKET, SO_RCVTIMEO, &iotmo, sizeof(iotmo));
+					(void)setsockopt(sockfd, SOL_SOCKET, SO_SNDTIMEO, &iotmo, sizeof(iotmo));
+
+					tls = xymon_tls_client_handshake(sockfd, tls_sni);
+					if (!tls) {
+						snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+							 "TLS handshake to %s:%d failed", tls_sni ? tls_sni : rcptip, rcptport);
+						result = XYMONSEND_ECONNFAILED;
+						goto done;
+					}
+
+					/* "size:N\n" frame so xymond dispatches on byte-count
+					 * (TLS has no reliable half-close EOF), then the body.
+					 * N is the byte length as size_t -- never an (int) cast,
+					 * which would mis-frame a >2GB message as negative. */
+					snprintf(szhdr, sizeof(szhdr), "size:%zu\n", strlen(msgptr));
+					wp = szhdr; wleft = strlen(szhdr);
+					while (wleft > 0) {
+						wn = xymon_tls_write(tls, wp, wleft);
+						if (wn <= 0) { result = XYMONSEND_EWRITEERROR; goto done; }
+						wp += wn; wleft -= wn;
+					}
+					while (*msgptr) {
+						wn = xymon_tls_write(tls, msgptr, strlen(msgptr));
+						if (wn <= 0) {
+							snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+								 "TLS write error to %s:%d", tls_sni ? tls_sni : rcptip, rcptport);
+							result = XYMONSEND_EWRITEERROR;
+							goto done;
+						}
+						msgptr += wn;
+					}
+
+					/* Read the response (server closes when done). */
+					rd_done = ((respfd == NULL) && (respstr == NULL));
+					while (!rd_done) {
+						rn = xymon_tls_read(tls, recvbuf, sizeof(recvbuf) - 1);
+						if (rn < 0) {
+							snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)),
+								 "TLS read error from %s:%d", tls_sni ? tls_sni : rcptip, rcptport);
+							result = XYMONSEND_EREADERROR;
+							goto done;
+						}
+						if (rn == 0) break;	/* clean shutdown */
+						recvbuf[rn] = '\0';
+						outp = recvbuf;
+						if (respfd) {
+							fwrite(outp, rn, 1, respfd);
+						}
+						else if (respstr) {
+							if (respstrsz == 0) { respstrsz = (rn + sizeof(recvbuf)); *respstr = (char *)malloc(respstrsz); }
+							else if ((rn + respstrlen) >= respstrsz) { respstrsz += (rn + sizeof(recvbuf)); *respstr = (char *)realloc(*respstr, respstrsz); }
+							memcpy(*respstr + respstrlen, outp, rn);
+							respstrlen += rn;
+							(*respstr)[respstrlen] = '\0';
+						}
+						if (!fullresponse) { if (strchr(outp, '\n') != NULL) rd_done = 1; }
+					}
+					goto done;
+				}
+#endif
 
 			if (!rdone && FD_ISSET(sockfd, &readfds)) {
 				char *outp;
@@ -431,8 +604,13 @@ retry_connect:
 
 done:
 	dbgprintf("Closing connection\n");
+#ifdef HAVE_XYMON_TLS
+	if (tls) xymon_tls_close(tls);
+	if (tls_sni) xfree(tls_sni);
+#endif
 	shutdown(sockfd, SHUT_RDWR);
 	if (sockfd > 0) close(sockfd);
+	if (ai) freeaddrinfo(ai);
 	xfree(rcptip);
 	if (httpmessage) xfree(httpmessage);
 	return result;
