@@ -121,12 +121,33 @@ char *hostscfg_content(void)
 	return strdup(STRBUF(contentbuffer));
 }
 
+/* Local IP-literal helpers (v4 or v6). Defined here rather than reusing tcplib's
+ * conn_is_ip()/conn_null_ip() because loadhosts.o is linked into the *client*
+ * comm lib, which does not include tcplib.o (and must not pull in TLS). These
+ * use only inet_pton, available everywhere. */
+static int lh_is_ip(const char *s)
+{
+	struct in_addr a4;
+	struct in6_addr a6;
+	return (inet_pton(AF_INET, s, &a4) == 1) || (inet_pton(AF_INET6, s, &a6) == 1);
+}
+
+static int lh_null_ip(const char *s)
+{
+	struct in_addr a4;
+	struct in6_addr a6;
+	if (inet_pton(AF_INET, s, &a4) == 1) return (a4.s_addr == INADDR_ANY);
+	if (inet_pton(AF_INET6, s, &a6) == 1) return (memcmp(&a6, &in6addr_any, sizeof(a6)) == 0);
+	return 0;
+}
+
 int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 {
 	/* Return value: 0 for load OK, 1 for "No files changed since last load", -1 for error (file not found) */
 	int prepresult;
 	int ip1, ip2, ip3, ip4, groupid, pageidx;
 	char hostname[4096];
+	char iptoken[IP_ADDR_STRLEN];	/* IP column (v4 or v6 literal) */
 	SBUF_DEFINE(dgname);
 	pagelist_t *curtoppage, *curpage, *pgtail;
 	void * htree;
@@ -302,21 +323,16 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 				}
 			}
 		}
-		else if (sscanf(inbol, "%d.%d.%d.%d %s", &ip1, &ip2, &ip3, &ip4, hostname) == 5) {
+		else if ((sscanf(inbol, "%45s %4095s", iptoken, hostname) == 2) && lh_is_ip(iptoken)) {
 			char *startoftags, *tag, *delim;
 			int elemidx, elemsize;
 			char groupidstr[15];
 			xtreePos_t handle;
 			namelist_t *newitem;
 
-			if ( (ip1 < 0) || (ip1 > 255) ||
-			     (ip2 < 0) || (ip2 > 255) ||
-			     (ip3 < 0) || (ip3 > 255) ||
-			     (ip4 < 0) || (ip4 > 255)) {
-				errprintf("Invalid IPv4-address for host %s (nibble outside 0-255 range): %d.%d.%d.%d\n",
-					  hostname, ip1, ip2, ip3, ip4);
-				goto nextline;
-			}
+			/* iptoken is a valid IPv4 or IPv6 literal (conn_is_ip() accepts both,
+			 * via inet_pton); a v6 literal is stored verbatim. A malformed address
+			 * fails conn_is_ip() and the line is simply not treated as a host. */
 
 			newitem = calloc(1, sizeof(namelist_t));
 
@@ -329,14 +345,17 @@ int load_hostnames(char *hostsfn, char *extrainclude, int fqdn)
 				if (p) *p = '\0';
 			}
 
-			snprintf(newitem->ip, sizeof(newitem->ip), "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+			strncpy(newitem->ip, iptoken, sizeof(newitem->ip) - 1);
+			newitem->ip[sizeof(newitem->ip) - 1] = '\0';
 			snprintf(groupidstr, sizeof(groupidstr), "%d", groupid);
 			newitem->groupid = strdup(groupidstr);
 			newitem->dgname = (dgname ? strdup(dgname) : strdup("NONE"));
 			newitem->pageindex = pageidx++;
 
 			newitem->hostname = strdup(hostname);
-			if (ip1 || ip2 || ip3 || ip4) newitem->preference = 1; else newitem->preference = 0;
+			/* preference: a real address => 1, the "resolve-by-name" null IP
+			 * (0.0.0.0 or ::) => 0, matching the prior v4 (ip1|ip2|ip3|ip4) test. */
+			newitem->preference = lh_null_ip(iptoken) ? 0 : 1;
 			newitem->logname = strdup(newitem->hostname);
 			{ char *p = newitem->logname; while ((p = strchr(p, '.')) != NULL) { *p = '_'; } }
 			newitem->page = curpage;

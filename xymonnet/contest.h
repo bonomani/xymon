@@ -82,7 +82,9 @@ typedef void (*f_callback_final)(void *privdata);
 #define CONTEST_ESSL       5
 
 typedef struct tcptest_t {
-	struct sockaddr_in addr;        /* Address (IP+port) to test */
+	struct sockaddr_storage addr;   /* Address (IP+port) to test (v4 or v6) */
+	socklen_t addrlen;              /* sizeof the active sockaddr_in / _in6 */
+	int port;                       /* host-order port (logging / getservbyport) */
 	char *srcaddr;
 	struct svcinfo_t *svcinfo;      /* svcinfo_t for service */
 	long int randomizer;
