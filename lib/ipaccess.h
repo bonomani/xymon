@@ -25,6 +25,7 @@ typedef struct sender_t {
 } sender_t;
 
 
+extern int sender_cert_authorized;
 extern sender_t *getsenderlist(char *iplist);
 extern int oksender(sender_t *oklist, char *targetip, struct in_addr sender, char *msgbuf);
 

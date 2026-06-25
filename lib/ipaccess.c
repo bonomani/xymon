@@ -54,6 +54,14 @@ sender_t *getsenderlist(char *iplist)
 	return result;
 }
 
+/*
+ * Set per-message by xymond when the connection authenticated with a verified
+ * TLS client certificate. Such a sender is trusted (the CA is the trust anchor)
+ * and bypasses the IP-based access list. Admin commands deliberately do NOT use
+ * this path -- see ok_admin_sender() in xymond.c.
+ */
+int sender_cert_authorized = 0;
+
 int oksender(sender_t *oklist, char *targetip, struct in_addr sender, char *msgbuf)
 {
 	int i;
@@ -61,6 +69,12 @@ int oksender(sender_t *oklist, char *targetip, struct in_addr sender, char *msgb
 	char *eoln = NULL;
 
 	dbgprintf("-> oksender\n");
+
+	/* A TLS-cert-verified sender is trusted regardless of source IP. */
+	if (sender_cert_authorized) {
+		dbgprintf("<- oksender(cert-authorized)\n");
+		return 1;
+	}
 
 	/* If oklist is empty, we're not doing any access checks - so return OK */
 	if (oklist == NULL) {

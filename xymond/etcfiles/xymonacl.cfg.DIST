@@ -1,0 +1,37 @@
+# Xymon unified access-control list (loaded by xymond via --acl=FILE).
+#
+# Each rule is:   SOURCE   TRANSPORT   CAPS   [force]
+#   SOURCE     a v4/v6 CIDR (a bare address is a host), "local" (loopback),
+#              "cert:*" (any verified client cert) or "cert:<id>" (a named one)
+#   TRANSPORT  "any", "plain" (cleartext only) or "tls" (encrypted only)
+#   CAPS       any of  status,www,maint,admin  (or "all")
+#   force      acknowledge an intentionally broad admin grant (see below)
+#
+# First match wins; if no rule matches, the request is DENIED. Order rules
+# specific-before-general. A trailing "# ..." is a comment. The local backfeed
+# IPC channel is always trusted regardless of the rules below. Full reference:
+# docs/ipv6-tls.md.
+#
+# This shipped default reproduces the historical posture: the loopback host and
+# the server's own IP have full administrative access, and every other sender
+# may report status and run www/maint queries but NOT admin. Tighten it for your
+# site -- e.g. require TLS from off-net senders, or grant admin to a named cert:
+#
+#     cert:ops-admin  tls   all                 # a named admin identity
+#     2001:db8::/32   any   status,www,maint    # your IPv6 intranet
+#     cert:*          tls   status,www          # any verified cert: reporter only
+#
+# To grant admin to a broad source (cert:* or a CIDR wider than /24 v4 / /120
+# v6) xymond requires an explicit "force" on that rule, so "everyone is admin"
+# can't happen by accident.
+#
+# NOTE: this is a template. The @XYMONHOSTIP_ADMIN@ marker below is replaced at
+# build time (make cfgfiles) with a rule granting admin to the server's own IP
+# -- the old --admin-senders=127.0.0.1,$XYMONSERVERIP behaviour -- or dropped if
+# the server IP is loopback. It must precede the catch-all rules (first match
+# wins).
+
+local         any   all                 # loopback: full administrative access
+@XYMONHOSTIP_ADMIN@
+0.0.0.0/0     any   status,www,maint    # any IPv4 sender: report/query, no admin
+::/0          any   status,www,maint    # any IPv6 sender: report/query, no admin
