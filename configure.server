@@ -99,6 +99,8 @@ echo ""
 echo ""; echo ""
 . build/pcre.sh
 echo ""; echo ""
+. build/ipv6.sh
+echo ""; echo ""
 . build/c-ares.sh
 echo ""; echo ""
 
@@ -517,6 +519,9 @@ then
     fi
     echo "DOSSL = yes"                   >>Makefile
 fi
+echo "#"                                 >>Makefile
+echo "# IPv6 support (probed by build/ipv6.sh)" >>Makefile
+echo "IPV6DEF = $IPV6DEF"                 >>Makefile
 echo "#"                                 >>Makefile
 echo "# OpenLDAP settings"               >>Makefile
 echo "LDAPFLAGS = $LDAPDEF"              >>Makefile
