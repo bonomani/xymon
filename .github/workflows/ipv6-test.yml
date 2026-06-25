@@ -1,0 +1,38 @@
+name: IPv6 + TLS test (manual)
+
+# Manual only: Actions tab -> "IPv6 + TLS test (manual)" -> Run workflow.
+# Builds the server and runs the IPv6 + TLS + mTLS smoke test on the runner's
+# real ::1. Not tied to push, so it never fires on its own.
+
+on:
+  workflow_dispatch:
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v6
+
+      - name: Install build deps
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends \
+            build-essential libc-ares-dev libldap-dev libpcre2-dev \
+            librrd-dev libssl-dev libtirpc-dev
+
+      - name: Configure + build (server)
+        run: |
+          ENABLESSL=y ENABLELDAP=y XYMONUSER=$(id -un) \
+          XYMONTOPDIR=$PWD/_inst XYMONVAR=$PWD/_inst/var XYMONHOSTURL=/xymon \
+          CGIDIR=$PWD/_inst/cgi XYMONCGIURL=/c SECURECGIDIR=$PWD/_inst/sec \
+          SECUREXYMONCGIURL=/s HTTPDGID=$(id -gn) XYMONLOGDIR=$PWD/_inst/logs \
+          XYMONHOSTNAME=localhost XYMONHOSTIP=127.0.0.1 MANROOT=$PWD/_inst/man \
+          ./configure --server
+          make -j"$(nproc)"
+          make -C xymonnet contest   # standalone TCP-test tool used by prober-smoke.sh
+
+      - name: IPv6 + TLS + mTLS smoke test
+        run: sh tests/ipv6-tls/smoke.sh
+
+      - name: IPv6 prober (contest) smoke test
+        run: sh tests/ipv6-tls/prober-smoke.sh

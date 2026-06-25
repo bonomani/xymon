@@ -21,7 +21,7 @@
 	CMD xymond --pidfile=$XYMONSERVERLOGS/xymond.pid \
 		--restart=$XYMONTMP/xymond.chk --checkpoint-file=$XYMONTMP/xymond.chk --checkpoint-interval=600 \
 		--log=$XYMONSERVERLOGS/xymond.log \
-		--admin-senders=127.0.0.1,$XYMONSERVERIP \
+		--acl=@XYMONHOME@/etc/xymonacl.cfg \
 		--store-clientlogs=!msgs
 
 # "history" keeps track of the status changes that happen.
