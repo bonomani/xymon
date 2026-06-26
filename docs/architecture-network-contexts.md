@@ -88,7 +88,50 @@ protocol and would not understand a `size:` header. The probe-side equivalent of
 Content-Length/chunked, DNS-over-TCP 2-byte prefix, one datagram = one message)
 — declarative config (#123), not a universal `size:N`.
 
-## 6. Recommendations
+## 6. Naming — discovery vs identity (DNS is not identity)
+
+A remote machine has a **real name** (the identity you/it asserts). DNS — and
+especially **reverse DNS (PTR)** on cloud/DHCP networks — hands out **arbitrary,
+auto-generated** names that need not match it
+(`ec2-203-0-113-7.compute.amazonaws.com`, `host-..-dyn.isp.net`). So DNS names
+are a *discovery* signal, never an *identity*. Split the two layers cleanly:
+
+```
+DISCOVERY / CORRELATION   <- forward DNS  +  reverse DNS (aliases) , forward-confirmed (FCrDNS)
+        |  (suggests, proposes, correlates -- does NOT prove)
+        v
+IDENTITY / AUTHORIZATION  <- address (where)  +  cert CN (who, cryptographically proven)
+                             never decide trust on a discovered name
+```
+
+**Reverse DNS is genuinely useful — at the discovery layer.** From an address it
+surfaces the name(s)/aliases an operator published, which is more than cosmetic:
+
+| Use case | How reverse DNS helps |
+|---|---|
+| **Dedup** | monitoring `web.corp` and `www.corp` → PTR shows both are `web01` → same machine → avoid double-counting; candidate for a dependency (#195) |
+| **Cluster member naming** (mode B, round-robin) | `web.example` → `10.0.0.1, 10.0.0.2` → PTR → `web01`, `web02` → name members instead of "address #1/#2" |
+| **Ghost / auto-discovery** | an unknown IP reports in → PTR suggests a name to add to `hosts.cfg` |
+| **Alias discovery** | an IP with several PTRs → discover the machine's alternate names |
+
+**But validate before trusting — forward-confirm (FCrDNS):**
+`IP → PTR → name → forward → does it resolve back to the IP?` If yes, the alias is
+coherent; if not, it is an arbitrary name usable for **display only**.
+
+**The boundary:**
+- The **bus / ACL** authenticates by **IP/CIDR** (where the packet comes from) or
+  **`cert:<id>`** (the verified cert CN — the *proven* real name), **never** by a
+  PTR lookup (`acl.c` does `inet_pton`/`prefix_match`, not `gethostbyaddr`).
+- The **hosts.cfg hostname** is *your label*, deliberately decoupled from DNS
+  (`testip`/static IP → the name need not exist in DNS at all; `0.0.0.0` → you
+  opt into DNS resolution). Xymon's identity for a host is not dictated by DNS.
+- Reverse DNS may **inform** config (propose names, group aliases, name cluster
+  members) but must not **decide** authorization.
+
+**Rule of thumb:** *DNS (forward + reverse) = discovery; address + cert =
+identity.* Discovery proposes; identity decides.
+
+## 7. Recommendations
 
 1. **Unify exactly one thing: the transport.** tcplib is dual-stack, TLS-capable
    and DGRAM-capable; `contest.c` duplicates all of it. Migrating the prober's
@@ -103,7 +146,7 @@ Content-Length/chunked, DNS-over-TCP 2-byte prefix, one datagram = one message)
    (catalog/framing/cluster) and #195 (dependencies) both become materially
    simpler once the prober rides tcplib — do `08` first.
 
-## 7. Artifact index
+## 8. Artifact index
 
 | Artifact | Layer / context | What it covers |
 |---|---|---|
