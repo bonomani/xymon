@@ -68,6 +68,28 @@ int sslincludecipherlist = 1;
 int sslshowallciphers = 0;
 int snienabled = 0;	/* SNI disabled by default */
 
+/* ------------------------------------------------------------------------- *
+ * TODO(prober-on-tcplib) -- RFC stub, see docs/prober-on-tcplib.md           *
+ *                                                                            *
+ * This file is a SECOND, self-contained network engine: it rolls its own     *
+ * non-blocking socket loop (see the socket() call further down) and its own   *
+ * OpenSSL state machine (setup_ssl / SSL_new / SSL_connect), in parallel to   *
+ * lib/tcplib -- which already does dual-stack IPv4/IPv6, TLS 1.2/1.3 (+       *
+ * STARTTLS), and STREAM *and* DGRAM. The IPv6 support in this branch had to   *
+ * be re-implemented here by hand (sockaddr_storage) instead of inherited.     *
+ *                                                                            *
+ * Generalisation: migrate the prober's TRANSPORT layer onto tcplib's conn_*   *
+ * API (conn_prepare_connection + conn_* callbacks). That yields IPv6, TLS and *
+ * UDP/DGRAM probing uniformly and deletes hundreds of lines of bespoke        *
+ * socket/SSL code. Per-protocol FRAMING (banner-first, expect, line- vs       *
+ * length-delimited) is a SEPARATE concern: it stays out of the transport and  *
+ * becomes declarative in services.cfg -- see issue #123. The hardcoded        *
+ * http/https svcinfo_t below are themselves part of #123.                     *
+ *                                                                            *
+ * Depends on split/04-server-ipv6-plaintext (tcplib) + split/05-tls; overlays *
+ * split/02-xymonnet-ipv6. NOT a transport for the internal bus -- size:N      *
+ * framing is the bus's concern and must never leak into probes.               *
+ * ------------------------------------------------------------------------- */
 static svcinfo_t svcinfo_http  = { "http", NULL, 0, NULL, 0, 0, (TCP_GET_BANNER|TCP_HTTP), 80 };
 static svcinfo_t svcinfo_https = { "https", NULL, 0, NULL, 0, 0, (TCP_GET_BANNER|TCP_HTTP|TCP_SSL), 443 };
 static ssloptions_t default_sslopt = { NULL, SSLVERSION_DEFAULT, NULL };
@@ -636,6 +658,9 @@ static void setup_ssl(tcptest_t *item)
 	}
 
 	if (item->ssldata == NULL) {
+		/* TODO(prober-on-tcplib): this hand-rolled OpenSSL state machine duplicates
+		 * lib/xymon_tls + tcplib's TLS handling. Fold into conn_* so probe TLS and
+		 * bus TLS share one implementation (and gain STARTTLS). docs/prober-on-tcplib.md */
 		item->ssldata = SSL_new(item->sslctx);
 		if (!item->ssldata) {
 			char sslerrmsg[256];
@@ -1002,6 +1027,11 @@ void do_tcp_tests(int timeout, int concurrency)
 			/*
 			 * We need to allocate a new socket that has O_NONBLOCK set.
 			 */
+			/* TODO(prober-on-tcplib): replace this bespoke non-blocking socket --
+			 * and the select() loop and SSL machine around it -- with
+			 * conn_prepare_connection() from lib/tcplib. SOCK_STREAM is hardcoded
+			 * here; tcplib's CONN_SOCKTYPE_DGRAM would also unlock UDP probes
+			 * (NTP/DNS/SNMP/QUIC) on the same path. docs/prober-on-tcplib.md */
 			nextinqueue->fd = socket(nextinqueue->addr.ss_family, SOCK_STREAM, 0);
 			sockok = (nextinqueue->fd != -1);
 			if (sockok) {
