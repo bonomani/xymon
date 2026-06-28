@@ -90,6 +90,8 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		 * ntpdate output: 
 		 *    server 172.16.10.2, stratum 3, offset -0.040324, delay 0.02568
 		 *    13 Nov 11:29:06 ntpdate[7038]: adjust time server 172.16.10.2 offset -0.040324 sec
+		 * built-in SNTP probe banner:
+		 *    ... stratum 2, offset +0.001234 +/- 0.005678 sec, delay 0.000900 sec
 		 */
 
 		char dataforntpstat[100];
@@ -97,15 +99,9 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		char offsetbuf[40];
 		char *msgcopy = strdup(msg);
 
-		if (strstr(msgcopy, "ntpdate") != NULL) {
-			/* Old-style "ntpdate" output */
-			char *p;
-
-			p = strstr(msgcopy, "offset ");
-			if (p) {
-				p += 7;
-				offsetval = strtok(p, " \r\n\t");
-			}
+		if ((p = strstr(msgcopy, "offset ")) != NULL) {
+			/* ntpdate and the built-in SNTP probe both report "offset <seconds>". */
+			offsetval = strtok(p + 7, " \r\n\t");
 		}
 		else if (strstr(msgcopy, " secs") != NULL) {
 			/* Probably new "sntp" output */
