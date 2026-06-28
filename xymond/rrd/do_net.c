@@ -94,10 +94,13 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		 *    ... stratum 2, offset +0.001234 +/- 0.005678 sec, delay 0.000900 sec
 		 */
 
-		char dataforntpstat[100];
+		static char *ntp_params[] = { "DS:offsetms:GAUGE:600:U:U", NULL };
+		static void *ntp_tpl = NULL;
 		char *offsetval = NULL;
 		char offsetbuf[40];
 		char *msgcopy = strdup(msg);
+
+		if (ntp_tpl == NULL) ntp_tpl = setup_template(ntp_params);
 
 		if ((p = strstr(msgcopy, "offset ")) != NULL) {
 			/* ntpdate and the built-in SNTP probe both report "offset <seconds>". */
@@ -126,10 +129,13 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 		}
 		
 		if (offsetval) {
-			/* ntpdate/sntp report the offset in seconds; the ntpstat RRD DS is
-			 * milliseconds (offsetms), so scale before recording. */
-			snprintf(dataforntpstat, sizeof(dataforntpstat), "offset=%.6f", atof(offsetval) * 1000.0);
-			do_ntpstat_rrd(hostname, testname, classname, pagepaths, dataforntpstat, tstamp);
+			/* The backends report the offset in seconds; ntp.rrd's DS is in
+			 * milliseconds (offsetms), so scale before recording. The network "ntp"
+			 * offset (a remote server) lands in its own RRD, kept separate from the
+			 * client "ntpstat" test's ntpstat.rrd. */
+			setupfn("%s.rrd", "ntp");
+			snprintf(rrdvalues, sizeof(rrdvalues), "%d:%.6f", (int)tstamp, atof(offsetval) * 1000.0);
+			create_and_update_rrd(hostname, testname, classname, pagepaths, ntp_params, ntp_tpl);
 		}
 
 		xfree(msgcopy);

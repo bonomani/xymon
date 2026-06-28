@@ -397,7 +397,7 @@ int ntp_internal_probe(const char *ip, const char *srcip, int timeout, strbuffer
 	}
 
 	/* Status banner. do_net.c reads the clock offset back from "offset <sec>"
-	 * (seconds) and records it in ntpstat.rrd (scaled to ms). The stratum, the
+	 * (seconds) and records it in ntp.rrd (scaled to ms). The stratum, the
 	 * "+/-" bound (RFC 5905 root distance = (rootdelay+delay)/2 + rootdisp,
 	 * validated against NTP_MAXROOTDIST) and delay are shown for the operator. */
 	snprintf(line, sizeof(line),

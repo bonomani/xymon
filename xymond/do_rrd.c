@@ -697,6 +697,7 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 	else if (strcmp(id, "xymond") == 0)      do_xymond_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "citrix") == 0)      do_citrix_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "ntpstat") == 0)     do_ntpstat_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+	else if (strcmp(id, "ntp") == 0)         do_net_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 
 	else if (strcmp(id, "la") == 0)          do_la_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "disk") == 0)        do_disk_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
