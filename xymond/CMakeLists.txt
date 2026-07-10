@@ -277,6 +277,15 @@ configure_file(
     @ONLY
 )
 
+# PR #222 renamed these five to .DIST (make generates them in cfgfiles)
+foreach(_xy_cfg analysis combo graphs client-local rrddefinitions)
+    configure_file(
+        ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/${_xy_cfg}.cfg.DIST
+        ${XYMOND_CFGDIR}/${_xy_cfg}.cfg
+        @ONLY
+    )
+endforeach()
+
 execute_process(
     COMMAND ${CMAKE_CURRENT_SOURCE_DIR}/../build/bb-commands.sh
     OUTPUT_VARIABLE _BB_COMMANDS
@@ -333,8 +342,8 @@ add_custom_target(xymond_install_cfg ALL
     COMMAND $<TARGET_FILE:merge-lines> ${XYMOND_CFGDIR}/xymonserver.cfg ${INSTALL_ETC_STAGING}/xymonserver.cfg LARRDCOLUMN=TRENDSCOLUMN LARRDS=TEST2RRD
     COMMAND $<TARGET_FILE:merge-lines> ${XYMOND_CFGDIR}/cgioptions.cfg ${INSTALL_ETC_STAGING}/cgioptions.cfg
     COMMAND $<TARGET_FILE:merge-sects> ${XYMOND_CFGDIR}/tasks.cfg ${INSTALL_ETC_STAGING}/tasks.cfg larrdstatus=rrdstatus larrddata=rrddata
-    COMMAND $<TARGET_FILE:merge-sects> ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/client-local.cfg ${INSTALL_ETC_STAGING}/client-local.cfg
-    COMMAND $<TARGET_FILE:merge-sects> ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/graphs.cfg ${INSTALL_ETC_STAGING}/graphs.cfg
+    COMMAND $<TARGET_FILE:merge-sects> ${XYMOND_CFGDIR}/client-local.cfg ${INSTALL_ETC_STAGING}/client-local.cfg
+    COMMAND $<TARGET_FILE:merge-sects> ${XYMOND_CFGDIR}/graphs.cfg ${INSTALL_ETC_STAGING}/graphs.cfg
     COMMAND $<TARGET_FILE:merge-lines> ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/columndoc.csv ${INSTALL_ETC_STAGING}/columndoc.csv
     COMMAND ${CMAKE_COMMAND}
             -DSETUP_NEWFILES_EXE=$<TARGET_FILE:setup-newfiles>
@@ -379,15 +388,15 @@ if(TARGET xymond_rrd)
 endif()
 
 set(_LEGACY_ETC_FILES
-    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/analysis.cfg
-    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/combo.cfg
+    ${XYMOND_CFGDIR}/analysis.cfg
+    ${XYMOND_CFGDIR}/combo.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/critical.cfg
-    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/graphs.cfg
+    ${XYMOND_CFGDIR}/graphs.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/holidays.cfg
-    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/rrddefinitions.cfg
+    ${XYMOND_CFGDIR}/rrddefinitions.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/snmpmibs.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/xymonmenu.cfg
-    ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/client-local.cfg
+    ${XYMOND_CFGDIR}/client-local.cfg
     ${CMAKE_CURRENT_SOURCE_DIR}/etcfiles/columndoc.csv
 )
 

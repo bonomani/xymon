@@ -16,6 +16,7 @@ add_executable(xymonnet
     dns.c
     dns2.c
     httpcookies.c
+    udpquery.c
 )
 if(ENABLE_LDAP)
     target_compile_definitions(xymonnet PRIVATE HAVE_LDAP)
