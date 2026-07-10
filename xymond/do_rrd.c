@@ -79,6 +79,24 @@ typedef struct flushtree_t {
 	time_t flushtime;
 } flushtree_t;
 
+/*
+ * Count how many RRD files each status message actually updates, and record
+ * it in <rrddir>/<hostname>/.<testname>.count (issue #234). htmllog uses a
+ * fresh count as the number of graph datasets when paging status-page graphs,
+ * instead of guessing from the status text line count - a guess that pages
+ * into graph images with no data behind them whenever the two diverge.
+ * The file is rewritten when the count changes, and re-touched periodically
+ * so a reader can spot an abandoned count on its mtime alone.
+ */
+#define RRDCOUNT_HEARTBEAT (6*60*60)
+static int msgupdates = 0;		/* RRD files updated while handling the current message */
+static void *rrdcountcache = NULL;	/* hostname|testname -> last written count and time */
+typedef struct rrdcountitem_t {
+	char *key;
+	int count;
+	time_t lastwrite;
+} rrdcountitem_t;
+
 
 void setup_exthandler(char *handlerpath, char *ids)
 {
@@ -482,6 +500,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			cacheitem->updtime[cacheitem->valcount] = updtime;
 			cacheitem->vals[cacheitem->valcount] = strdup(rrdvalues);
 			cacheitem->valcount += 1;
+			msgupdates++;
 			MEMUNDEFINE(filedir);
 			MEMUNDEFINE(rrdvalues);
 			return 0;
@@ -508,6 +527,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		return 2;
 	}
 
+	msgupdates++;
 	MEMUNDEFINE(filedir);
 	MEMUNDEFINE(rrdvalues);
 
@@ -678,6 +698,47 @@ static int rrddatasets(char *hostname, char ***dsnames)
 #include "rrd/do_devmon.c"
 
 
+static void save_rrdcount(char *hostname, char *testname, int count)
+{
+	char fn[PATH_MAX], tmpfn[PATH_MAX + 8];
+	FILE *fd;
+	char *key;
+	xtreePos_t handle;
+	rrdcountitem_t *item;
+	time_t now = gettimer();
+
+	if (!rrdcountcache) rrdcountcache = xtreeNew(strcasecmp);
+
+	key = (char *)malloc(strlen(hostname) + strlen(testname) + 2);
+	sprintf(key, "%s|%s", hostname, testname);
+	handle = xtreeFind(rrdcountcache, key);
+	if (handle != xtreeEnd(rrdcountcache)) {
+		item = (rrdcountitem_t *)xtreeData(rrdcountcache, handle);
+		xfree(key);
+		if ((item->count == count) && ((now - item->lastwrite) < RRDCOUNT_HEARTBEAT)) return;
+	}
+	else {
+		item = (rrdcountitem_t *)calloc(1, sizeof(rrdcountitem_t));
+		item->key = key;
+		xtreeAdd(rrdcountcache, item->key, item);
+	}
+
+	/* The host directory exists: a positive count means at least one RRD update succeeded */
+	snprintf(fn, sizeof(fn), "%s/%s/.%s.count", rrddir, hostname, testname);
+	snprintf(tmpfn, sizeof(tmpfn), "%s.tmp", fn);
+	fd = fopen(tmpfn, "w");
+	if (fd == NULL) return;
+	fprintf(fd, "%d\n", count);
+	fclose(fd);
+	if (rename(tmpfn, fn) == -1) {
+		remove(tmpfn);
+		return;
+	}
+
+	item->count = count;
+	item->lastwrite = now;
+}
+
 void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *sender, xymonrrd_t *ldef, char *classname, char *pagepaths)
 {
 	char *id;
@@ -686,6 +747,7 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 
 	if (ldef) id = ldef->xymonrrdname; else id = testname;
 	senderip = sender;
+	msgupdates = 0;
 
 	if      (strcmp(id, "bbgen") == 0)       do_xymongen_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "xymongen") == 0)    do_xymongen_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
@@ -773,6 +835,8 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 
 		if (extids[i]) do_external_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	}
+
+	if (msgupdates > 0) save_rrdcount(hostname, testname, msgupdates);
 
 	senderip = NULL;
 
