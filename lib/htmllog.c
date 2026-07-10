@@ -167,8 +167,38 @@ static void textwithcolorimg(char *msg, FILE *output)
 	} while (restofmsg);
 }
 
+/*
+ * xymond_rrd records how many RRD files the most recent status update
+ * actually touched, in <XYMONRRDS>/<hostname>/.<service>.count (issue #234).
+ * A fresh count is authoritative for how many graph datasets exist - unlike
+ * the legacy fallback of counting status-text lines, which pages into graph
+ * images with no data behind them whenever text lines and RRD files diverge.
+ * Returns 0 when no trustworthy count is available: file missing or
+ * unreadable (remote RRD directory in locator setups, static filestore pages
+ * rendered off-server, older xymond_rrd), or older than the 24h cutoff
+ * showgraph itself uses to drop stale RRD files from graphs.
+ */
+static int rrd_update_count(char *hostname, char *service, time_t now)
+{
+	char fn[PATH_MAX];
+	struct stat st;
+	FILE *fd;
+	int count = 0;
 
-void generate_html_log(char *hostname, char *displayname, char *service, char *ip, 
+	snprintf(fn, sizeof(fn), "%s/%s/.%s.count", xgetenv("XYMONRRDS"), hostname, service);
+	if (stat(fn, &st) != 0) return 0;
+	if ((now - st.st_mtime) > 86400) return 0;
+
+	fd = fopen(fn, "r");
+	if (fd == NULL) return 0;
+	if (fscanf(fd, "%d", &count) != 1) count = 0;
+	fclose(fd);
+
+	return (count > 0) ? count : 0;
+}
+
+
+void generate_html_log(char *hostname, char *displayname, char *service, char *ip,
 		       int color, int flapping, char *sender, char *flags, 
 		       time_t logtime, char *timesincechange, 
 		       char *firstline, char *restofmsg, char *modifiers,
@@ -464,7 +494,14 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			 */
 			SBUF_MALLOC(multikey, strlen(service) + 3);
 			snprintf(multikey, multikey_buflen, ",%s,", service);
-			if (strstr(multigraphs, multikey)) {
+
+			/* Prefer the per-status RRD file count recorded by xymond_rrd
+			 * (issue #234): the line-count guess below overestimates whenever
+			 * status lines and RRD files diverge, paging into graph images
+			 * with no data behind them. */
+			if (strstr(multigraphs, multikey)) linecount = rrd_update_count(hostname, service, now);
+
+			if ((linecount == 0) && strstr(multigraphs, multikey)) {
 				/* The "disk" report from the NetWare client puts a "warning light" on all entries */
 				int netwarediskreport = (strstr(firstline, "NetWare Volumes") != NULL);
 
