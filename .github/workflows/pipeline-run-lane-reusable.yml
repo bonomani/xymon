@@ -42,6 +42,8 @@ jobs:
   lane:
     name: ${{ inputs.lane_name }}
     runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
+    # Backstop: slowest healthy lane (macOS server) takes ~100 minutes.
+    timeout-minutes: 180
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -87,6 +89,10 @@ jobs:
         id: lane_run_bsd_vm
         if: ${{ steps.lane_ctx.outputs.runtime_execution == 'vm' }}
         continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
+        # cross-platform-actions retries the VM SSH handshake forever when the
+        # VM never boots; healthy BSD lanes finish in <5 minutes, so bound the
+        # whole step (all 3 retry attempts) instead of hanging for hours.
+        timeout-minutes: 30
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
           operating_system: ${{ steps.lane_ctx.outputs.ref_os }}

@@ -93,6 +93,9 @@ jobs:
 
       - name: Build package artifacts on BSD VM
         if: ${{ matrix.execution == 'bsd_vm' }}
+        # Bound the VM step: cross-platform-actions waits for the VM SSH
+        # handshake forever when the VM never boots.
+        timeout-minutes: 30
         uses: ./.github/actions/run-bsd-vm-with-retry
         with:
           operating_system: ${{ matrix.vm_operating_system }}
