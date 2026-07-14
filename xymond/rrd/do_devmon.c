@@ -21,6 +21,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 	static pcre2_code *inclpattern = NULL;
 	static pcre2_code *exclpattern = NULL;
 	int in_devmon = 1;
+	int metrics_block = 0;	/* current block was opened by XYMON METRICS, not the legacy banner */
 	int numds = 0;
 	char *rrdbasename;
 	int lineno = 0;
@@ -52,6 +53,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			char *slash;
 
 			in_devmon = 0;
+			metrics_block = 0;
 			/*if(rrdbasename) {xfree(rrdbasename);rrdbasename = NULL;}*/
 			rrdbasename = strtok(curline+16," ");
 			if (rrdbasename == NULL) rrdbasename = xstrdup(testname);
@@ -77,6 +79,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				char *attr;
 
 				in_devmon = 0;
+				metrics_block = 1;
 				rrdbasename = name;
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
@@ -154,8 +157,19 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		}
 		/* File names in the format if_load.eth0.0.rrd; a lazy banner
 		 * attribute is enforced by the generic creation gate in
-		 * create_and_update_rrd(). */
-		setupfn2("%s.%s.rrd", rrdbasename, ifname);
+		 * create_and_update_rrd(). METRICS blocks reversibly encode the
+		 * instance (rrdinstance_encode) so an arbitrary instance - a mount
+		 * point, a name with a comma - round-trips to one unambiguous file;
+		 * the legacy banner keeps setupfn2()'s lossy '/'->',' so its
+		 * existing files are untouched. */
+		if (metrics_block) {
+			char *encinst = rrdinstance_encode(ifname);
+			setupfn2("%s.%s.rrd", rrdbasename, encinst);
+			xfree(encinst);
+		}
+		else {
+			setupfn2("%s.%s.rrd", rrdbasename, ifname);
+		}
 		dbgprintf("Sending from devmon to RRD for %s %s: %s\n",rrdbasename,ifname,rrdvalues);
 		create_and_update_rrd(hostname, testname, classname, pagepaths, devmon_params, NULL);
 		if (ifname) { xfree(ifname); ifname = NULL; }
