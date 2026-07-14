@@ -56,6 +56,21 @@ assert_contains "diskio_ops.ada1.rrd" "$out" "METRICS block creates one file per
 assert_contains "diskio_busy.ada0.rrd" "$out" "second METRICS block in the same message written too"
 assert_contains "diskio_busy.ada1.rrd" "$out" "second METRICS block in the same message written too"
 
+# A METRICS instance is reversibly encoded (rrdinstance_encode): a mount
+# point or a name containing a comma round-trips to one unambiguous file,
+# instead of the legacy lossy '/'->',' that aliased "/a/b" and "/a,b".
+cat >"$work/body-encode" <<'EOF'
+<!--XYMON METRICS: diskpath
+DS:v:GAUGE:600:0:U
+/data 1
+/a,b 2
+-->
+status text
+EOF
+out=$(feed_status diskio "$work/body-encode")
+assert_contains "diskpath.%2Fdata.rrd" "$out" "METRICS instance '/data' is percent-encoded, not ',data'"
+assert_contains "diskpath.%2Fa,b.rrd" "$out" "'/a,b' stays distinct from what '/a/b' would encode to"
+
 # Block names become RRD filename prefixes, so invalid names skip the whole
 # block - but a valid block later in the same message is still written.
 cat >"$work/body-evil" <<'EOF'

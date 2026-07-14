@@ -1635,7 +1635,10 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					snprintf(rrddbs[rrddbcount].rrdparam, buflen, "http://%s", param);
 				}
 				else {
-					rrddbs[rrddbcount].rrdparam = strdup(param);
+					/* Reverse rrdinstance_encode() for METRICS-block files
+					 * (%XX -> original byte); a plain capture with no escapes
+					 * passes through unchanged, so legacy graphs are unaffected. */
+					rrddbs[rrddbcount].rrdparam = rrdinstance_decode(param);
 				}
 
 				if (strlen(rrddbs[rrddbcount].rrdparam) > paramlen) {
