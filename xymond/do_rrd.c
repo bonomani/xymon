@@ -297,6 +297,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 {
 	static int callcounter = 0;
 	struct stat st;
+	int lazyforced = 0;
 	int pcount, result;
 	char *updcachekey;
 	xtreePos_t handle;
@@ -329,6 +330,14 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	/* Watch out here - "rrdfn" may be very large. */
 	snprintf(filedir, sizeof(filedir)-1, "%s/%s/%s", rrddir, hostname, rrdfn);
 	filedir[sizeof(filedir)-1] = '\0'; /* Make sure it is null terminated */
+
+	/* The graph definition's storage filters: EXSTOREPATTERN drops the
+	 * instance entirely, STOREPATTERN keeps only matching instances
+	 * (and a match forces creation past the LAZY gate below). */
+	if (!xymon_gdef_store_allowed(rrdfn, &lazyforced)) {
+		dbgprintf("Store filter drops %s\n", rrdfn);
+		return 0;
+	}
 
 	/* 
 	 * Prepare to cache the update. Create the cache tree, and find/create a cache record.
@@ -379,7 +388,8 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		 * baseline lives in memory: after a restart it is re-learned
 		 * from the next sample, which for a flat instance is the
 		 * same value. */
-		if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
+		if (lazyforced) lazygate = 0;
+		else if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
 		if (lazygate) {
 			char *values = strchr(rrdvalues, ':');
 			xtreePos_t lh;

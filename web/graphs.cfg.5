@@ -43,6 +43,19 @@ flat instance is the same value. The same gate is available per
 message via the METRICS banner's "lazy" attribute - see
 xymond_rrd(8).
 
+"EXSTOREPATTERN <regex>" and "STOREPATTERN <regex>" filter which
+instances are stored at all, for every writer path targeting this
+graph's files: instances matching EXSTOREPATTERN are never written,
+and when STOREPATTERN is set only matching instances are. Patterns
+match the RRD filename minus its ".rrd" suffix, case-insensitively.
+A STOREPATTERN match also forces the instance past a LAZY gate, so a
+deliberately named flat instance can be graphed anyway. Graphs with
+storage filters render unsliced - their file set diverges from what
+a status message shows, so a message-derived paging count cannot be
+trusted. (These keywords replace the drafted RRDEXCLUDE/RRDINCLUDE
+environment variables; analysis.cfg's "DISK ... IGNORE" remains the
+tool when the status line should disappear too.)
+
 A "TRENDS" keyword makes the graph a member of the trends-column page
 without an entry in the GRAPHS environment variable - the membership
 lives with the graph definition. Graphs listed in GRAPHS remain
