@@ -293,3 +293,13 @@ const char *testcfg_ncv(const char *testname, int *split)
 	}
 	return NULL;
 }
+
+int testcfg_countlines(const char *testname)
+{
+	tc_test_t *t = testcfg_find(testcfg_load(), testname);
+	tc_metric_t *m;
+
+	if (!t) return 0;
+	for (m = t->metrics; (m); m = m->next) if (m->countlines) return 1;
+	return 0;
+}

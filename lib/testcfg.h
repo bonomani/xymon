@@ -73,4 +73,9 @@ extern tc_backend_t *testcfg_backend(tc_metric_t *metric, const char *name);  /*
  * by the RRD writer to overlay the NCV_<col>/SPLITNCV_<col> environment. */
 extern const char *testcfg_ncv(const char *testname, int *split);
 
+/* Does any metric of this column carry COUNTLINES? Then the status page
+ * derives its graph-paging count from the status lines (the --multigraphs
+ * membership), regardless of the built-in/env list. */
+extern int testcfg_countlines(const char *testname);
+
 #endif

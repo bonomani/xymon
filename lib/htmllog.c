@@ -472,7 +472,9 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			 */
 			SBUF_MALLOC(multikey, strlen(service) + 3);
 			snprintf(multikey, multikey_buflen, ",%s,", service);
-			if (strstr(multigraphs, multikey)) {
+			/* A test.cfg COUNTLINES metric joins the line-counting set,
+			 * regardless of the built-in/--multigraphs list. */
+			if (strstr(multigraphs, multikey) || testcfg_countlines(service)) {
 				/* The "disk" report from the NetWare client puts a "warning light" on all entries */
 				int netwarediskreport = (strstr(firstline, "NetWare Volumes") != NULL);
 
