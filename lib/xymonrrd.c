@@ -36,6 +36,47 @@ static const char *metafmt = "<RRDGraph>\n  <GraphType>%s</GraphType>\n  <GraphL
 
 
 /*
+ * test.cfg, read once and cached: the column->metric bindings there override
+ * the TEST2RRD environment (env is the fallback for columns with no section).
+ * Absent test.cfg leaves every mapping exactly as the env produced it.
+ */
+static tc_test_t *load_testcfg_cached(void)
+{
+	static int loaded = 0;
+	static tc_test_t *tc = NULL;
+	char fn[PATH_MAX];
+	FILE *fd;
+	strbuffer_t *inbuf, *all;
+	char err[200];
+
+	if (loaded) return tc;
+	loaded = 1;
+
+	snprintf(fn, sizeof(fn), "%s/etc/test.cfg", xgetenv("XYMONHOME"));
+	fd = stackfopen(fn, "r", NULL);
+	if (fd == NULL) return NULL;
+
+	inbuf = newstrbuffer(0); all = newstrbuffer(0);
+	while (stackfgets(inbuf, NULL)) addtobuffer(all, STRBUF(inbuf));
+	stackfclose(fd);
+	freestrbuffer(inbuf);
+
+	tc = testcfg_parse(STRBUF(all), err, sizeof(err));
+	if (!tc && *err) errprintf("test.cfg: %s\n", err);
+	freestrbuffer(all);
+	return tc;
+}
+
+/* The metric a single-metric TEST binds its column to, or NULL if the test
+ * does not map cleanly to one RRD name (0 or >1 metrics, e.g. pseudo-columns
+ * and self-describing multi-metric tests, which route by other means). */
+static const char *testcfg_rrdname(tc_test_t *t)
+{
+	if (!t || !t->metrics || t->metrics->next) return NULL;
+	return t->metrics->name;
+}
+
+/*
  * Define the mapping between Xymon columns and RRD graphs.
  * Normally they are identical, but some RRD's use different names.
  */
@@ -48,6 +89,7 @@ static void rrd_setup(void)
 	int count;
 	xymonrrd_t *lrec;
 	xymongraph_t *grec;
+	tc_test_t *tclist, *tc;
 
 
 	/* Do nothing if we have been called within the past 5 minutes */
@@ -99,7 +141,11 @@ static void rrd_setup(void)
 	xfree(tcptests);
 	xfree(services);
 
+	/* Reserve extra table slots for test.cfg column bindings not already
+	 * present in TEST2RRD - they are overlaid after the env fill below. */
+	tclist = load_testcfg_cached();
 	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
+	for (tc = tclist; (tc); tc = tc->next) count += (testcfg_rrdname(tc) != NULL);
 	xymonrrds = (xymonrrd_t *)calloc((count+1), sizeof(xymonrrd_t));
 
 	xymonrrdtree = xtreeNew(strcasecmp);
@@ -107,7 +153,7 @@ static void rrd_setup(void)
 	while (ldef) {
 		p = strchr(ldef, '=');
 		if (p) {
-			*p = '\0'; 
+			*p = '\0';
 			lrec->svcname = strdup(ldef);
 			lrec->xymonrrdname = strdup(p+1);
 		}
@@ -120,6 +166,29 @@ static void rrd_setup(void)
 		lrec++;
 	}
 	xfree(lenv);
+
+	/* Overlay test.cfg: a single-metric TEST binds its column to that
+	 * metric, overriding TEST2RRD for the same column, or adding a new
+	 * one. This is the TEST2RRD env replacement; multi-metric and
+	 * pseudo-column tests bind no single RRD name and are skipped. */
+	for (tc = tclist; (tc); tc = tc->next) {
+		const char *rrdname = testcfg_rrdname(tc);
+		xtreePos_t h;
+
+		if (!rrdname) continue;
+		h = xtreeFind(xymonrrdtree, tc->name);
+		if (h != xtreeEnd(xymonrrdtree)) {
+			xymonrrd_t *ex = (xymonrrd_t *)xtreeData(xymonrrdtree, h);
+			if (ex->xymonrrdname != ex->svcname) xfree(ex->xymonrrdname);
+			ex->xymonrrdname = strdup(rrdname);
+		}
+		else {
+			lrec->svcname = strdup(tc->name);
+			lrec->xymonrrdname = strdup(rrdname);
+			xtreeAdd(xymonrrdtree, lrec->svcname, lrec);
+			lrec++;
+		}
+	}
 
 	/* Setup the xymongraphs table, describing how to make graphs from an RRD */
 	lenv = strdup(xgetenv("GRAPHS"));
