@@ -101,12 +101,12 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
 			char *pat = p + 14 + strspn(p+14, " \t");
 			pat[strcspn(pat, " \t\r\n")] = '\0';
-			if (*pat && !cur->exstorepat) cur->exstorepat = strdup(pat);
+			if (*pat) { if (cur->exstorepat) xfree(cur->exstorepat); cur->exstorepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "STOREPATTERN", 12) == 0) && isspace((int)p[12])) {
 			char *pat = p + 12 + strspn(p+12, " \t");
 			pat[strcspn(pat, " \t\r\n")] = '\0';
-			if (*pat && !cur->storepat) cur->storepat = strdup(pat);
+			if (*pat) { if (cur->storepat) xfree(cur->storepat); cur->storepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own
