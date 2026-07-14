@@ -462,6 +462,34 @@ Example: Flag "conn" status a yellow if responsetime exceeds
 .br
 	DS conn tcp.conn.rrd:sec >0.1 COLOR=yellow TEXT="Response time &V exceeds &U seconds"
 .sp
+.SH AGGDS - RRD based status override on an aggregate
+.sp
+.BR "AGGDS column fn(filepattern:dataset) rules maxage=N COLOR=colorname TEXT=explanation"
+.sp
+Like DS, but the compared value is an aggregate over a whole set of
+RRD files instead of one value from one file: "fn" is one of "sum",
+"avg", "max", "min" or "count", and "filepattern" is a pattern (use a
+"%" prefix for a regular expression) matched against the RRD
+filenames of the host. No whitespace is allowed inside the
+parentheses. E.g. the total read rate across all disks:
+.br
+	AGGDS diskio sum(%diskio_ops\\..+\\.rrd:reads) >5000 COLOR=yellow TEXT="Total reads &V ops/s (> &L)"
+.sp
+The aggregate is computed from the most recent value of each matching
+file, and is evaluated once per incoming message after all of its RRD
+updates completed - never per file, so it cannot see a half-updated
+set. Values from files not updated within "maxage" seconds (default
+600) are excluded, so retired instances do not haunt the aggregates;
+a rule with no fresh matching values at all is skipped. In the TEXT
+placeholders, "&N" is the aggregate name, e.g. "sum(reads)". The same
+first-match rule as DS applies, per column, aggregate and color. The
+GAUGE-only note above applies here too, and - as with DS rules - the
+operator and threshold form one token (">90", not "> 90").
+
+Each aggregate recolors the column through its own modifier slot
+("aggds:sum(reads)"), so several AGGDS rules may drive one status
+column without overwriting each other's verdicts.
+.sp
 .SH MQ Series SETTINGS
 .sp
 .BR "MQ_QUEUE queuename [age\-warning=N] [age\-critical=N] [depth\-warning=N] [depth\-critical=N]"

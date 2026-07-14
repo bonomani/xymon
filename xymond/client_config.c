@@ -229,6 +229,22 @@ typedef struct c_rrdds_t {
 } c_rrdds_t;
 
 
+#define AGGDS_FN_SUM   0
+#define AGGDS_FN_AVG   1
+#define AGGDS_FN_MAX   2
+#define AGGDS_FN_MIN   3
+#define AGGDS_FN_COUNT 4
+typedef struct c_aggds_t {
+	exprlist_t *rrdkey;	/* Pattern match for filenames of the aggregated RRD files */
+	char *rrdds;		/* DS name */
+	char *column;		/* Status column modified by this check */
+	int color;
+	int aggfn;		/* AGGDS_FN_* aggregation function */
+	int maxage;		/* Seconds before a stored value is too stale to aggregate */
+	/* For absolute min/max values of the aggregate */
+	double limitval, limitval2;
+} c_aggds_t;
+
 typedef struct c_mq_queue_t {
 	exprlist_t *qmgrname, *qname;
 	int warnlen, critlen;
@@ -239,7 +255,7 @@ typedef struct c_mq_channel_t {
 	exprlist_t *qmgrname, *chnname, *warnstates, *alertstates;
 } c_mq_channel_t;
 
-typedef enum { C_LOAD, C_UPTIME, C_CLOCK, C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL } ruletype_t;
+typedef enum { C_LOAD, C_UPTIME, C_CLOCK, C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_AGGDS } ruletype_t;
 
 typedef struct c_rule_t {
 	exprlist_t *hostexp;
@@ -277,10 +293,55 @@ typedef struct c_rule_t {
 		c_paging_t paging;
 		c_mibval_t mibval;
 		c_rrdds_t rrdds;
+		c_aggds_t aggds;
 		c_mq_queue_t mqqueue;
 		c_mq_channel_t mqchannel;
 	} rule;
 } c_rule_t;
+
+/*
+ * Current-values store for AGGDS rules: the latest value of every RRD
+ * dataset xymond_rrd has written, per host, so aggregates can be computed
+ * over a metric set at message-batch end. Only maintained when AGGDS
+ * rules exist.
+ */
+typedef struct aggds_val_t {
+	char *rrdfn;		/* RRD filename */
+	char *dsnam;		/* dataset name */
+	double val;
+	time_t ts;
+} aggds_val_t;
+
+static void *aggds_store = NULL;	/* host -> tree of "rrdfn|ds" -> aggds_val_t */
+static int aggds_rules_exist = 0;
+
+/* Full teardown, used when a config reload leaves no AGGDS rules - the
+ * store would otherwise be dead weight kept until process exit. */
+static void destroy_aggds_store(void)
+{
+	xtreePos_t hpos, vpos;
+
+	if (!aggds_store) return;
+
+	for (hpos = xtreeFirst(aggds_store); (hpos != xtreeEnd(aggds_store)); hpos = xtreeNext(aggds_store, hpos)) {
+		void *hosttree = xtreeData(aggds_store, hpos);
+		char *hostkey = xtreeKey(aggds_store, hpos);
+
+		for (vpos = xtreeFirst(hosttree); (vpos != xtreeEnd(hosttree)); vpos = xtreeNext(hosttree, vpos)) {
+			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vpos);
+			char *key = xtreeKey(hosttree, vpos);
+
+			xfree(entry->rrdfn);
+			xfree(entry->dsnam);
+			xfree(entry);
+			xfree(key);
+		}
+		xtreeDestroy(hosttree);
+		xfree(hostkey);
+	}
+	xtreeDestroy(aggds_store);
+	aggds_store = NULL;
+}
 
 static c_rule_t *rulehead = NULL;
 static c_rule_t *ruletail = NULL;
@@ -582,12 +643,18 @@ int load_client_config(char *configfn)
 			if (tmp->rule.rrdds.column) xfree(tmp->rule.rrdds.column);
 			break;
 
+		  case C_AGGDS:
+			if (tmp->rule.aggds.rrdds) xfree(tmp->rule.aggds.rrdds);
+			if (tmp->rule.aggds.column) xfree(tmp->rule.aggds.column);
+			break;
+
 		  default:
 			break;
 		}
 		xfree(tmp);
 	}
 	rulehead = ruletail = NULL;
+	aggds_rules_exist = 0;
 	while (exprhead) {
 		exprlist_t *tmp = exprhead;
 		exprhead = exprhead->next;
@@ -1507,6 +1574,99 @@ int load_client_config(char *configfn)
 					}
 				} while (tok && (!isqual(tok)));
 			}
+			else if (strcasecmp(tok, "AGGDS") == 0) {
+				/* AGGDS <column> <fn>(<filepattern>:<ds>) <relop><value> [maxage=N] [COLOR=...] [TEXT=...]
+				 * fn is sum, avg, max, min or count; the aggregate is
+				 * computed over the latest stored value of every RRD
+				 * file matching <filepattern>. No whitespace inside
+				 * the parentheses, and the operator and threshold form
+				 * one token (">90", not "> 90") - as in DS rules. */
+				char *column, *expr, *paren, *closing, *key, *ds;
+				int aggfn = -1;
+
+				tok = wstok(NULL);
+				column = tok;
+
+				expr = wstok(NULL);
+				paren = (expr ? strchr(expr, '(') : NULL);
+				closing = (paren ? strrchr(paren+1, ')') : NULL);
+				key = NULL; ds = NULL;
+				if (paren && closing) {
+					*paren = '\0'; *closing = '\0';
+					if      (strcasecmp(expr, "sum") == 0)   aggfn = AGGDS_FN_SUM;
+					else if (strcasecmp(expr, "avg") == 0)   aggfn = AGGDS_FN_AVG;
+					else if (strcasecmp(expr, "max") == 0)   aggfn = AGGDS_FN_MAX;
+					else if (strcasecmp(expr, "min") == 0)   aggfn = AGGDS_FN_MIN;
+					else if (strcasecmp(expr, "count") == 0) aggfn = AGGDS_FN_COUNT;
+
+					key = paren+1;
+					ds = strrchr(key, ':');
+					if (ds) { *ds = '\0'; ds++; }
+				}
+
+				if (!column || (aggfn == -1) || !key || !ds || !(*key) || !(*ds)) {
+					errprintf("Invalid AGGDS definition at line %d (expecting <column> fn(<filepattern>:<dataset>))\n", cfid);
+					continue;
+				}
+
+				currule = NEWRULE(C_AGGDS);
+				currule->rule.aggds.color = COL_RED;
+				currule->rule.aggds.aggfn = aggfn;
+				currule->rule.aggds.maxage = 600;
+				currule->rule.aggds.rrdkey = setup_expr(key, 0);
+				currule->rule.aggds.rrdds = strdup(ds);
+				currule->rule.aggds.column = strdup(column);
+				aggds_rules_exist = 1;
+
+				do {
+					int getnumber = 0;
+
+					tok = wstok(NULL); if (!tok || isqual(tok)) continue;
+
+					if (strncasecmp(tok, ">=", 2) == 0) {
+						if (currule->flags) currule->flags |= RRDDSCHK_INTVL;
+						currule->flags |= RRDDSCHK_GE;
+						getnumber = 2;
+					}
+					else if (strncasecmp(tok, "<=", 2) == 0) {
+						if (currule->flags) currule->flags |= RRDDSCHK_INTVL;
+						currule->flags |= RRDDSCHK_LE;
+						getnumber = 2;
+					}
+					else if (strncasecmp(tok, ">", 1) == 0) {
+						if (currule->flags) currule->flags |= RRDDSCHK_INTVL;
+						currule->flags |= RRDDSCHK_GT;
+						getnumber = 1;
+					}
+					else if (strncasecmp(tok, "<", 1) == 0) {
+						if (currule->flags) currule->flags |= RRDDSCHK_INTVL;
+						currule->flags |= RRDDSCHK_LT;
+						getnumber = 1;
+					}
+					else if (strncasecmp(tok, "maxage=", 7) == 0) {
+						currule->rule.aggds.maxage = atoi(tok+7);
+					}
+					else if (strncasecmp(tok, "color=", 6) == 0) {
+						int col = parse_color(tok+6);
+						if (col != -1) currule->rule.aggds.color = col;
+					}
+
+					if (getnumber) {
+						if (currule->flags & RRDDSCHK_INTVL)
+							currule->rule.aggds.limitval2 = atof(tok+getnumber);
+						else
+							currule->rule.aggds.limitval = atof(tok+getnumber);
+
+						if ((currule->flags & RRDDSCHK_INTVL) && (currule->rule.aggds.limitval > currule->rule.aggds.limitval2)) {
+							double tmp;
+
+							tmp = currule->rule.aggds.limitval;
+							currule->rule.aggds.limitval = currule->rule.aggds.limitval2;
+							currule->rule.aggds.limitval2 = tmp;
+						}
+					}
+				} while (tok && (!isqual(tok)));
+			}
 			else if (strcasecmp(tok, "MQ_QUEUE") == 0) {
 				char *p;
 				currule = NEWRULE(C_MQ_QUEUE);
@@ -1619,6 +1779,9 @@ int load_client_config(char *configfn)
 	/* Create the ruletree, but leave it empty - it will be filled as clients report */
 	ruletree = xtreeNew(strcasecmp);
 	havetree = 1;
+
+	/* If the reload removed the last AGGDS rule, the store is dead weight */
+	if (!aggds_rules_exist) destroy_aggds_store();
 
 	MEMUNDEFINE(fn);
 	return 1;
@@ -1883,6 +2046,25 @@ void dump_client_config(void)
 					printf(" <=%.2f", rwalk->rule.rrdds.limitval);
 			}
 			printf(" color=%s", colorname(rwalk->rule.rrdds.color));
+			break;
+
+		  case C_AGGDS:
+			{
+				char *fnnames[] = { "sum", "avg", "max", "min", "count" };
+
+				printf("AGGDS %s %s(%s:%s)", rwalk->rule.aggds.column,
+					fnnames[rwalk->rule.aggds.aggfn],
+					rwalk->rule.aggds.rrdkey->pattern, rwalk->rule.aggds.rrdds);
+				if (rwalk->flags & RRDDSCHK_GT)
+					printf(" >%.2f", rwalk->rule.aggds.limitval);
+				if (rwalk->flags & RRDDSCHK_GE)
+					printf(" >=%.2f", rwalk->rule.aggds.limitval);
+				if (rwalk->flags & RRDDSCHK_LT)
+					printf(" <%.2f", (rwalk->flags & RRDDSCHK_INTVL) ? rwalk->rule.aggds.limitval2 : rwalk->rule.aggds.limitval);
+				if (rwalk->flags & RRDDSCHK_LE)
+					printf(" <=%.2f", (rwalk->flags & RRDDSCHK_INTVL) ? rwalk->rule.aggds.limitval2 : rwalk->rule.aggds.limitval);
+				printf(" maxage=%d color=%s", rwalk->rule.aggds.maxage, colorname(rwalk->rule.aggds.color));
+			}
 			break;
 
 		  case C_MQ_QUEUE:
@@ -3230,6 +3412,273 @@ nextrule:
 
 	if (valscopy) xfree(valscopy);
 	if (vallist) xfree(vallist);
+	freestrbuffer(seen);
+
+	return (STRBUFLEN(resbuf) > 0) ? resbuf : NULL;
+}
+
+
+/*
+ * Record the latest value of every dataset in an RRD update, so AGGDS
+ * rules can aggregate over a metric set later. Called by the RRD writer
+ * on every update; a no-op unless AGGDS rules are configured.
+ */
+void update_aggds_store(char *hostname, char *rrdkey, void *valnames, char *vals)
+{
+	char *valscopy;
+	char **vallist;
+	char *p;
+	int idx = 0;
+	time_t ts;
+	void *hosttree;
+	xtreePos_t handle;
+
+	if (!aggds_rules_exist || !valnames || !vals) return;
+
+	if (!aggds_store) aggds_store = xtreeNew(strcasecmp);
+	handle = xtreeFind(aggds_store, hostname);
+	if (handle == xtreeEnd(aggds_store)) {
+		hosttree = xtreeNew(strcmp);
+		xtreeAdd(aggds_store, strdup(hostname), hosttree);
+	}
+	else {
+		hosttree = xtreeData(aggds_store, handle);
+	}
+
+	/* Split the "timestamp:v1:v2:..." string into indexable numbers */
+	valscopy = strdup(vals);
+	vallist = calloc(128, sizeof(char *));
+	vallist[0] = valscopy;
+	for (p = strchr(valscopy, ':'); (p); p = strchr(p+1, ':')) {
+		if (idx == 126) break;
+		vallist[++idx] = p+1;
+		*p = '\0';
+	}
+
+	ts = (time_t)atol(vallist[0]);
+	if (ts <= 0) ts = getcurrenttime(NULL);
+
+	for (handle = xtreeFirst(valnames); (handle != xtreeEnd(valnames)); handle = xtreeNext(valnames, handle)) {
+		rrdtplnames_t *tpl = (rrdtplnames_t *)xtreeData(valnames, handle);
+		char *valstr, *endptr;
+		double val;
+		char *key;
+		size_t keylen;
+		xtreePos_t vhandle;
+		aggds_val_t *entry;
+
+		if ((tpl->idx < 0) || (tpl->idx > idx)) continue;
+		valstr = vallist[tpl->idx];
+		if (!valstr) continue;
+		val = strtod(valstr, &endptr);
+		if ((endptr == valstr) || (*endptr != '\0')) continue;	/* "U" and friends */
+
+		keylen = strlen(rrdkey) + strlen(tpl->dsnam) + 2;
+		key = (char *)malloc(keylen);
+		snprintf(key, keylen, "%s|%s", rrdkey, tpl->dsnam);
+
+		vhandle = xtreeFind(hosttree, key);
+		if (vhandle == xtreeEnd(hosttree)) {
+			entry = (aggds_val_t *)calloc(1, sizeof(aggds_val_t));
+			entry->rrdfn = strdup(rrdkey);
+			entry->dsnam = strdup(tpl->dsnam);
+			xtreeAdd(hosttree, key, entry);
+		}
+		else {
+			entry = (aggds_val_t *)xtreeData(hosttree, vhandle);
+			xfree(key);
+		}
+		entry->val = val;
+		entry->ts = ts;
+	}
+
+	xfree(vallist);
+	xfree(valscopy);
+}
+
+
+/*
+ * Invalidate one host's slice of the store - used when a host is dropped
+ * or renamed, so its values do not linger in aggregates and a host
+ * re-added under the same name starts clean. Entries are marked stale
+ * (ts=0, outside every freshness window) rather than deleted: xtree
+ * deletion leaves tombstones anyway, and live entries are reused in
+ * place when the host reports again.
+ */
+void flush_aggds_store(char *hostname)
+{
+	void *hosttree;
+	xtreePos_t handle;
+
+	if (!aggds_store) return;
+	handle = xtreeFind(aggds_store, hostname);
+	if (handle == xtreeEnd(aggds_store)) return;
+	hosttree = xtreeData(aggds_store, handle);
+
+	for (handle = xtreeFirst(hosttree); (handle != xtreeEnd(hosttree)); handle = xtreeNext(hosttree, handle)) {
+		aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, handle);
+		entry->ts = 0;
+	}
+}
+
+
+/*
+ * Evaluate AGGDS rules for one host. Called once per incoming message
+ * after its whole batch of RRD updates completed - never per file, which
+ * would aggregate over half-updated values. Values older than the rule's
+ * maxage are excluded, so retired instances do not haunt the aggregates.
+ */
+strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagepaths)
+{
+	static strbuffer_t *resbuf = NULL;
+	static char *fnnames[] = { "sum", "avg", "max", "min", "count" };
+	char msgline[1024];
+	char aggname[256];
+	c_rule_t *rule;
+	void *hinfo;
+	void *hosttree;
+	xtreePos_t handle;
+	strbuffer_t *seen;
+	time_t now = getcurrenttime(NULL);
+
+	if (!aggds_rules_exist || !aggds_store) return NULL;
+	handle = xtreeFind(aggds_store, hostname);
+	if (handle == xtreeEnd(aggds_store)) return NULL;
+	hosttree = xtreeData(aggds_store, handle);
+
+	if (!resbuf) resbuf = newstrbuffer(0);
+	clearstrbuffer(resbuf);
+	seen = newstrbuffer(0);
+
+	hinfo = hostinfo(hostname);
+	rule = getrule(hostname, pagepaths, classname, hinfo, C_AGGDS);
+	while (rule) {
+		int n = 0, rulematch = 0;
+		double sum = 0.0, minval = 0.0, maxval = 0.0, val = 0.0;
+		xtreePos_t vhandle;
+
+		for (vhandle = xtreeFirst(hosttree); (vhandle != xtreeEnd(hosttree)); vhandle = xtreeNext(hosttree, vhandle)) {
+			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vhandle);
+
+			if (strcmp(entry->dsnam, rule->rule.aggds.rrdds) != 0) continue;
+			if (!rule->rule.aggds.rrdkey || !namematch(entry->rrdfn, rule->rule.aggds.rrdkey->pattern, rule->rule.aggds.rrdkey->exp)) continue;
+			if ((now - entry->ts) > rule->rule.aggds.maxage) continue;
+
+			if ((n == 0) || (entry->val > maxval)) maxval = entry->val;
+			if ((n == 0) || (entry->val < minval)) minval = entry->val;
+			sum += entry->val;
+			n++;
+		}
+		if (n == 0) goto nextrule;
+
+		switch (rule->rule.aggds.aggfn) {
+		  case AGGDS_FN_SUM:   val = sum; break;
+		  case AGGDS_FN_AVG:   val = sum / n; break;
+		  case AGGDS_FN_MAX:   val = maxval; break;
+		  case AGGDS_FN_MIN:   val = minval; break;
+		  case AGGDS_FN_COUNT: val = n; break;
+		}
+
+		snprintf(aggname, sizeof(aggname), "%s(%s)", fnnames[rule->rule.aggds.aggfn], rule->rule.aggds.rrdds);
+
+		/* First match wins per (column, aggregate, severity) - same
+		 * top-to-bottom shadowing semantics as the DS rules. */
+		snprintf(msgline, sizeof(msgline), "\001%s\002%s\002%s\001",
+			 rule->rule.aggds.column, aggname, colorname(rule->rule.aggds.color));
+		if (strstr(STRBUF(seen), msgline)) goto nextrule;
+		addtobuffer(seen, msgline);
+
+		if (rule->flags & RRDDSCHK_INTVL) {
+			rulematch = ( ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.aggds.limitval))  ||
+				        ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.aggds.limitval)) ) &&
+				      ( ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.aggds.limitval2))  ||
+				        ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.aggds.limitval2)) ) );
+
+			if (!rule->statustext) {
+				char fmt[100];
+
+				strcpy(fmt, "&N=&V (");
+				if (rule->flags & RRDDSCHK_GT) strcat(fmt, " > &L");
+				else if (rule->flags & RRDDSCHK_GE) strcat(fmt, " >= &L");
+				strcat(fmt, " and");
+				if (rule->flags & RRDDSCHK_LT) strcat(fmt, " < &U)");
+				else if (rule->flags & RRDDSCHK_LE) strcat(fmt, " <= &U)");
+
+				rule->statustext = strdup(fmt);
+			}
+		}
+		else {
+			rulematch = ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.aggds.limitval))  ||
+				      ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.aggds.limitval)) ||
+				      ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.aggds.limitval))  ||
+				      ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.aggds.limitval))   );
+
+			if (!rule->statustext) {
+				char *fmt = "";
+
+				if      (rule->flags & RRDDSCHK_GT) fmt = "&N=&V (> &L)";
+				else if (rule->flags & RRDDSCHK_GE) fmt = "&N=&V (>= &L)";
+				else if (rule->flags & RRDDSCHK_LT) fmt = "&N=&V (< &L)";
+				else if (rule->flags & RRDDSCHK_LE) fmt = "&N=&V (<= &L)";
+
+				rule->statustext = strdup(fmt);
+			}
+		}
+
+		if (rulematch) {
+			char *bot, *marker;
+
+			/* The modify source is per-aggregate: xymond keeps one
+			 * modifier per (column, source), so a shared source would
+			 * let two AGGDS rules on one column clobber each other. */
+			snprintf(msgline, sizeof(msgline), "modify %s.%s %s aggds:%s ",
+				hostname, rule->rule.aggds.column,
+				colorname(rule->rule.aggds.color), aggname);
+			addtobuffer(resbuf, msgline);
+
+			bot = rule->statustext;
+			do {
+				marker = strchr(bot, '&');
+				if (marker) {
+					*marker = '\0';
+					addtobuffer(resbuf, bot);
+					*marker = '&';
+					switch (*(marker+1)) {
+					  case 'N': addtobuffer(resbuf, aggname);
+						    bot = marker+2;
+						    break;
+
+					  case 'V': snprintf(msgline, sizeof(msgline), "%.2f", val);
+						    addtobuffer(resbuf, msgline);
+						    bot = marker+2;
+						    break;
+
+					  case 'L': snprintf(msgline, sizeof(msgline), "%.2f", rule->rule.aggds.limitval);
+						    addtobuffer(resbuf, msgline);
+						    bot = marker+2;
+						    break;
+
+					  case 'U': snprintf(msgline, sizeof(msgline), "%.2f", (rule->flags & RRDDSCHK_INTVL) ? rule->rule.aggds.limitval2 : rule->rule.aggds.limitval);
+						    addtobuffer(resbuf, msgline);
+						    bot = marker+2;
+						    break;
+
+					  default:  addtobuffer(resbuf, "&"); bot = marker+1; break;
+					}
+				}
+				else {
+					addtobuffer(resbuf, bot);
+					bot = NULL;
+				}
+			} while (bot);
+
+			addtobuffer(resbuf, "\n\n");
+		}
+
+nextrule:
+		rule = getrule(NULL, NULL, NULL, hinfo, C_AGGDS);
+	}
+
 	freestrbuffer(seen);
 
 	return (STRBUFLEN(resbuf) > 0) ? resbuf : NULL;

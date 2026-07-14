@@ -441,10 +441,13 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 
 	/*
-	 * Match the RRD data against any DS client-configuration modifiers.
+	 * Match the RRD data against any DS client-configuration modifiers,
+	 * and feed the current-values store used by AGGDS aggregate rules
+	 * (evaluated at message-batch end, not per file).
 	 */
 	modifymsg = check_rrdds_thresholds(hostname, classname, pagepaths, rrdfn, ((rrdtpldata_t *)template)->dsnames, rrdvalues);
 	if (modifymsg) combo_add(modifymsg);
+	update_aggds_store(hostname, rrdfn, ((rrdtpldata_t *)template)->dsnames, rrdvalues);
 
 	/*
 	 * See if we want the data to go to an external handler.

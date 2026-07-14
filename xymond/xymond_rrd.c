@@ -372,6 +372,13 @@ int main(int argc, char *argv[])
 				pagepaths = (metadata[18] ? metadata[18] : "");
 				ldef = find_xymon_rrd(testname, metadata[8]);
 				update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
+
+				/* AGGDS aggregate rules run once per message, after
+				 * its whole batch of RRD updates completed */
+				{
+					strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
+					if (aggmsg) combo_add(aggmsg);
+				}
 				break;
 
 			  default:
@@ -389,6 +396,11 @@ int main(int argc, char *argv[])
 			pagepaths = (metadata[7] ? metadata[7] : "");
 			ldef = find_xymon_rrd(testname, "");
 			update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
+
+			{
+				strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
+				if (aggmsg) combo_add(aggmsg);
+			}
 		}
 		else if (strncmp(metadata[0], "@@shutdown", 10) == 0) {
 			running = 0;
@@ -417,6 +429,7 @@ int main(int argc, char *argv[])
 
 			sprintf(hostdir, "%s/%s", rrddir, basename(hostname));
 			dropdirectory(hostdir, 1);
+			flush_aggds_store(hostname);
 
 			MEMUNDEFINE(hostdir);
 		}
@@ -440,6 +453,7 @@ int main(int argc, char *argv[])
 			sprintf(oldhostdir, "%s/%s", rrddir, hostname);
 			sprintf(newhostdir, "%s/%s", rrddir, newhostname);
 			rename(oldhostdir, newhostdir);
+			flush_aggds_store(hostname);	/* repopulates under the new name */
 
 			if (net_worker_locatorbased()) locator_rename_host(hostname, newhostname, ST_RRD);
 

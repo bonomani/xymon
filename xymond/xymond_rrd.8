@@ -323,6 +323,14 @@ same name; if none exists,
 synthesizes a generic definition (one line per dataset) from the
 files themselves, so no server-side configuration is required.
 
+To alert on an aggregate over the stored values (e.g. the total of a
+dataset across all instances) without storing the total anywhere, see
+the AGGDS rules in
+.I analysis.cfg(5),
+and to graph such a total see the aggregate tokens ("@SUMNAN:" and
+friends) in
+.I graphs.cfg(5).
+
 The legacy "<!--DEVMON RRD:" banner emitted by the devmon SNMP
 collector is the ancestor of this mechanism and is accepted forever;
 it implies both store and show, and is now also routed by content
