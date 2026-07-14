@@ -58,11 +58,37 @@ static char rrdvalues[MAX_LINE_LEN];
  * it is - 0 for an idle disk, 100 for an always-full filesystem), and
  * the file is created when a later sample differs from it. */
 static int lazy_banner = 0;
-static void *lazybaselines = NULL;	/* host/file -> first-seen value string */
+typedef struct lazybaseline_t { char *val; } lazybaseline_t;
+static void *lazybaselines = NULL;	/* host/file -> lazybaseline_t (val=NULL: relearn) */
 
 void setup_lazy(int lazy)
 {
 	lazy_banner = lazy;
+}
+
+/* Invalidate a host's lazy baselines (drophost/renamehost), so a re-added
+ * or renamed instance re-learns its baseline instead of comparing against a
+ * stale one - which could otherwise silently drop a genuinely active
+ * instance forever. Entries are reset in place (val=NULL); the small tree
+ * nodes stay, avoiding xtree deletion tombstone hazards. */
+void drop_lazy_baselines(char *hostname)
+{
+	char prefix[PATH_MAX];
+	size_t plen;
+	xtreePos_t h;
+
+	if (!lazybaselines) return;
+	plen = snprintf(prefix, sizeof(prefix), "/%s/", hostname);
+
+	for (h = xtreeFirst(lazybaselines); (h != xtreeEnd(lazybaselines)); h = xtreeNext(lazybaselines, h)) {
+		char *key = xtreeKey(lazybaselines, h);
+		lazybaseline_t *bl = (lazybaseline_t *)xtreeData(lazybaselines, h);
+
+		if (bl && bl->val && (strncmp(key, prefix, plen) == 0)) {
+			xfree(bl->val);
+			bl->val = NULL;
+		}
+	}
 }
 
 /* Does any component of the colon-separated value list differ from the
@@ -336,6 +362,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	 * (and a match forces creation past the LAZY gate below). */
 	if (!xymon_gdef_store_allowed(rrdfn, &lazyforced)) {
 		dbgprintf("Store filter drops %s\n", rrdfn);
+		MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 		return 0;
 	}
 
@@ -381,7 +408,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 		/* A lazy instance begins existing when its values first
 		 * change: the first-seen sample is the baseline, and only a
-		 * later deviation beyond the tolerance creates the file.
+		 * later sample that differs from it creates the file.
 		 * Flat instances - idle at zero or pinned at any constant -
 		 * get no file, no graph, no paging slot. Existing files
 		 * always update (this is the create branch only). The
@@ -392,18 +419,30 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		else if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
 		if (lazygate) {
 			char *values = strchr(rrdvalues, ':');
+			lazybaseline_t *bl;
 			xtreePos_t lh;
 
 			if (values) values++;
 			if (!lazybaselines) lazybaselines = xtreeNew(strcasecmp);
 			lh = xtreeFind(lazybaselines, updcachekey);
-			if (lh == xtreeEnd(lazybaselines)) {
-				xtreeAdd(lazybaselines, strdup(updcachekey), strdup(values ? values : ""));
+			bl = (lh == xtreeEnd(lazybaselines)) ? NULL : (lazybaseline_t *)xtreeData(lazybaselines, lh);
+			if (!bl) {
+				bl = (lazybaseline_t *)calloc(1, sizeof(lazybaseline_t));
+				bl->val = strdup(values ? values : "");
+				xtreeAdd(lazybaselines, strdup(updcachekey), bl);
 				dbgprintf("Lazy baseline learned for absent %s\n", rrdfn);
+				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 				return 0;
 			}
-			if (!lazy_deviates(values, (char *)xtreeData(lazybaselines, lh))) {
+			if (!bl->val) {	/* invalidated by a host drop - relearn */
+				bl->val = strdup(values ? values : "");
+				dbgprintf("Lazy baseline re-learned for %s\n", rrdfn);
+				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
+				return 0;
+			}
+			if (!lazy_deviates(values, bl->val)) {
 				dbgprintf("Lazy skip: %s still at its baseline\n", rrdfn);
+				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 				return 0;
 			}
 			/* Deviation: fall through and create. The baseline entry

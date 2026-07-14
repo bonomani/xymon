@@ -66,6 +66,18 @@ cat >>"$work/graphs.cfg" <<'EOF'
 [incvar2]
 	TITLE Early title
 	INCLUDE incbase
+
+[incbase_sp]
+	FNPATTERN ^incm\.(.+)\.rrd
+	TITLE base
+	YAXIS v
+	STOREPATTERN keepbase
+	DEF:v@RRDIDX@=@RRDFN@:v:AVERAGE
+	LINE1:v@RRDIDX@#@COLOR@:@RRDPARAM@
+
+[incvar_sp]
+	INCLUDE incbase_sp
+	STOREPATTERN keepvar
 EOF
 
 render() {
@@ -95,5 +107,24 @@ grep -aq "=incm.a.rrd:v:AVERAGE" "$work/out" || fail "pre-INCLUDE variant lost t
 render "incbase"
 grep -aq "Base title" "$work/out" || fail "base gdef no longer renders on its own"
 grep -aq "GPRINT:v0:LAST:extra" "$work/out" && fail "variant line leaked into the base"
+
+# STOREPATTERN written after INCLUDE overrides the inherited one (own-wins),
+# checked through the metadata API rather than the rrd_graph dump.
+cat >"$work/spprobe.c" <<'CEOF'
+#include <stdio.h>
+#include <string.h>
+#include "libxymon.h"
+int main(void) {
+	/* incm.keepvar.rrd should store (matches keepvar), incm.keepbase.rrd
+	 * should NOT (the base pattern must have been overridden). */
+	int okvar  = xymon_gdef_store_allowed("incvar_sp.keepvar.rrd", NULL);
+	int okbase = xymon_gdef_store_allowed("incvar_sp.keepbase.rrd", NULL);
+	printf("keepvar=%d keepbase=%d ", okvar, okbase);
+	return (okvar == 1 && okbase == 0) ? 0 : 1;
+}
+CEOF
+"$CC" -I"$ROOT/include" -I"$ROOT/lib" -o "$work/spprobe" "$work/spprobe.c" 	"$ROOT/lib/libxymoncomm.a" $pcre_libs -lssl -lcrypto 2>"$work/spcc.log" 	|| { cat "$work/spcc.log" >&2; fail "store-pattern probe does not compile"; }
+mkdir -p "$work/etc"; cp "$work/graphs.cfg" "$work/etc/graphs.cfg"  # load_gdef_meta reads $XYMONHOME/etc/graphs.cfg
+XYMONHOME="$work" "$work/spprobe" >"$work/spout" 2>&1 	|| fail "INCLUDE + own STOREPATTERN did not override the base: $(cat "$work/spout")"
 
 pass "INCLUDE inherits a gdef with later-wins overrides and appended lines"

@@ -51,8 +51,9 @@ typedef struct gdefmeta_t {
 	int lazy;		/* LAZY: no file until the values first change */
 	char *exstorepat;	/* EXSTOREPATTERN: instances never stored */
 	char *storepat;		/* STOREPATTERN: only these stored; forces past LAZY */
-	pcre2_code *exstore;	/* compiled on demand */
+	pcre2_code *exstore;	/* compiled on demand (NULL after a failed compile too) */
 	pcre2_code *store;
+	int exstore_tried, store_tried;
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -101,12 +102,12 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
 			char *pat = p + 14 + strspn(p+14, " \t");
 			pat[strcspn(pat, " \t\r\n")] = '\0';
-			if (*pat && !cur->exstorepat) cur->exstorepat = strdup(pat);
+			if (*pat) { if (cur->exstorepat) xfree(cur->exstorepat); cur->exstorepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "STOREPATTERN", 12) == 0) && isspace((int)p[12])) {
 			char *pat = p + 12 + strspn(p+12, " \t");
 			pat[strcspn(pat, " \t\r\n")] = '\0';
-			if (*pat && !cur->storepat) cur->storepat = strdup(pat);
+			if (*pat) { if (cur->storepat) xfree(cur->storepat); cur->storepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own
@@ -168,7 +169,11 @@ static pcre2_code *storepat_compile(char *pattern)
 	PCRE2_SIZE errofs;
 	pcre2_code *result = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS, &err, &errofs, NULL);
 
-	if (!result) errprintf("graphs.cfg store pattern '%s' invalid at offset %d\n", pattern, (int)errofs);
+	if (!result) {
+		char msg[256];
+		pcre2_get_error_message(err, (PCRE2_UCHAR *)msg, sizeof(msg));
+		errprintf("graphs.cfg store pattern '%s' invalid at offset %d: %s\n", pattern, (int)errofs, msg);
+	}
 	return result;
 }
 
@@ -201,11 +206,17 @@ int xymon_gdef_store_allowed(char *fn, int *forced)
 	if ((fnlen > 4) && (strcmp(fn+fnlen-4, ".rrd") == 0)) fnlen -= 4;
 
 	if (walk->exstorepat) {
-		if (!walk->exstore) walk->exstore = storepat_compile(walk->exstorepat);
+		if (!walk->exstore && !walk->exstore_tried) {
+			walk->exstore = storepat_compile(walk->exstorepat);
+			walk->exstore_tried = 1;	/* compile once; a broken pattern fails open */
+		}
 		if (walk->exstore && storepat_match(walk->exstore, fn, fnlen)) return 0;
 	}
 	if (walk->storepat) {
-		if (!walk->store) walk->store = storepat_compile(walk->storepat);
+		if (!walk->store && !walk->store_tried) {
+			walk->store = storepat_compile(walk->storepat);
+			walk->store_tried = 1;
+		}
 		if (walk->store) {
 			if (!storepat_match(walk->store, fn, fnlen)) return 0;
 			if (forced) *forced = 1;

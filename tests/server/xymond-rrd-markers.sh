@@ -221,6 +221,29 @@ out=$(lazyfeed lazygdef steady 4 4 changing 4 9)
 assert_not_contains "lazygdef.steady.rrd" "$out" "a steady instance never gets a file, even at a nonzero baseline"
 assert_contains "lazygdef.changing.rrd" "$out" "an instance is created when its value first changes"
 
+# A dropped host re-learns lazy baselines instead of comparing against
+# stale ones. In one xymond_rrd process: learn baseline 5 for a lazy
+# instance, drop the host, then re-report a NEW steady value 8 twice.
+# With the drop hook the baseline is re-learned (8 is the new baseline,
+# no file); without it the stale 5 makes 8 look like a deviation and a
+# file is created spuriously.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
+	printf '@@drophost|%s|127.0.0.1|dh\n@@\n' $((ts+60))
+	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+120)) $((ts+1920)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 8\n-->\ns\n@@\n'
+	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+180)) $((ts+1980)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 8\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" "$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -e "$work/rrd/dh/lz.x.rrd" ] \
+	&& fail "drop hook: re-added instance steady at a new value must re-learn, not create"
+
 # Markers are line-anchored: a banner quoted mid-line must not trigger the
 # writer, and a plain status creates nothing.
 cat >"$work/body-midline" <<'EOF'

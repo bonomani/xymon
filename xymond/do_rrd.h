@@ -25,6 +25,7 @@ extern void rrdcacheflushall(void);
 extern void rrdcacheflushhost(char *hostname);
 extern void setup_extprocessor(char *cmd);
 extern void shutdown_extprocessor(void);
+extern void drop_lazy_baselines(char *hostname);
 
 
 #endif
