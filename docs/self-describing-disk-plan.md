@@ -5,30 +5,25 @@ METRICS block instead of the built-in `do_disk` handler, without breaking
 filenames, history, graphs, or old clients. This is the endpoint the
 linecount-hint fix (feat/disk-linecount-hint) was the pragmatic first step of.
 
-It requires two capabilities that neither existing branch has alone, so this
-branch is the integration point of both.
-
-## Base: merge of two branches
+## Base: self-describing-metrics only
 
 This branch (`feat/self-describing-disk`) is based on `feat/self-describing-metrics`
-(the engine: marker writer + content routing) and must merge in `feat/test-cfg`
-(the config surface: `TEST`/`METRIC`/`HANDLER`).
+and needs nothing else. That branch supplies both genuinely-required pieces:
 
-Merge status (measured): four conflicts, all additive - both sides add to the
-same regions, none are logic clashes:
+1. the marker **writer** (`do_devmon_rrd`) that creates the block's RRDs, and
+2. **content routing** (`xymon_markers_have_store`) that detects a block and
+   dispatches to that writer.
 
-- `include/libxymon.h` - both append includes; keep both.
-- `lib/Makefile` - both add objects to XYMONLIBOBJS; keep both.
-- `lib/xymonrrd.c` - self-describing adds the gdef metadata + MAXINSTANCESPERIMAGE/TRENDS
-  overlay in `rrd_setup`; test-cfg adds the `testcfg` column->RRD overlay in the
-  same function. Both edits are sequential additions; interleave them.
-- `lib/htmllog.c` - self-describing adds marker rendering + fileset-unknown
-  paging; test-cfg adds the GRAPHS override + COUNTLINES membership. Different
-  spots in the same function; keep both.
+`feat/test-cfg` is NOT required (an earlier draft of this plan wrongly said it
+was). The one thing it was invoked for - rerouting disk off the built-in
+handler - has a smaller solution that lives entirely on this branch (see
+Feature 2). test-cfg's `HANDLER markers` is an optional, cleaner, config-driven
+way to express that reroute, and can be adopted later if the two branches merge;
+it is not a prerequisite for self-describing disk.
 
-Step 0 is to perform this merge and resolve the four files additively, then
-re-run both branches' full suites (they must stay green - the two feature sets
-are orthogonal at runtime).
+(For reference, if the branches ever do merge, the conflict is four files, all
+additive - `include/libxymon.h`, `lib/Makefile`, `lib/xymonrrd.c`,
+`lib/htmllog.c` - both sides add to the same regions with no logic clash.)
 
 ## The two missing capabilities
 
@@ -77,48 +72,42 @@ Acceptance: `/a/b` and `/a,b` produce distinct RRD files; the graph legend shows
 the real mount point; a migrated tree's graphs are continuous with pre-cutover
 history.
 
-### Feature 2 - HANDLER reroutes RRD creation off the built-in handler
+### Feature 2 - a block-bearing status wins over the built-in handler
 
 Problem: the dispatcher in `xymond/do_rrd.c` (`update_rrd`) checks built-in
 handler ids first (`if (strcmp(id,"disk")==0) do_disk_rrd(...)`), and content
 routing is only the fallback. So a `disk` status carrying a METRICS block still
-goes to `do_disk_rrd` -> double write. To make the block the sole writer, the
-`disk` column's routing id must be overridden away from `disk`.
+goes to `do_disk_rrd` -> double write.
 
-Fix: the test.cfg `HANDLER` override already sets a column's routing id
-(`testcfg_rrdname` returns `t->handler` first). Needs:
+Fix (on this branch, no test-cfg): move the content-routing check ahead of the
+built-in chain - when a status carries a store block
+(`xymon_markers_have_store(msg)`), dispatch to `do_devmon_rrd` and do NOT fall
+into the built-in `disk` branch. This is the "self-describing beats built-in"
+rule, and it is safe because emitting a block is deliberate: a column only
+reroutes if its producer chose to add one, so default columns hit exactly the
+same built-in branch as today.
 
-- `test.cfg`: `TEST disk { HANDLER markers; METRIC disk { ... } }` makes
-  `find_xymon_rrd("disk")` resolve to a marker route rather than the `disk`
-  handler.
-- `xymond/do_rrd.c`: today content routing is a fallback *after* the handler
-  chain. Add: when the resolved id is the marker route (or `HANDLER markers` is
-  in force for the column), dispatch to the marker writer and do NOT fall into
-  the built-in `disk` branch. Equivalent: let an explicit id of `markers` route
-  to `do_devmon_rrd` in the id chain.
-- Precedence (already in the test-cfg model): HANDLER > TEST2RRD > built-in name
-  match > marker auto-detect. This commit makes the HANDLER win actually retire
-  the built-in for that column.
+Optional refinement (needs test-cfg, later): `HANDLER markers` on a `TEST`
+block expresses the same reroute per-column and config-driven, rather than
+automatically-on-block-present. Cleaner control, but not required - the
+dispatch-precedence rule above is enough to retire `do_disk` for a
+block-bearing disk status.
 
-Scope: needs both branches (routing engine from self-describing, HANDLER config
-from test-cfg) - hence this integration branch.
+Scope: self-contained on `feat/self-describing-metrics`.
 
 ## The disk metric block itself
 
-With features 1 and 2 present, express disk as a metric:
+With feature 2 present (and optionally feature 1), express disk as a block. No
+test.cfg is needed - the block itself drives everything:
 
-1. `test.cfg`:
-   ```
-   TEST disk {
-           SOURCE client
-           HANDLER markers
-           METRIC disk { }          # files disk,<mount>.rrd via feature 1
-   }
-   ```
-2. The status body carries a METRICS block whose instance lines are the
+1. The status body carries a METRICS block whose instance lines are the
    filesystems, with the DS the `[disk]` gdef already expects (percent-used,
-   etc. - collision 3, mechanical: match do_disk's dataset names/values).
-3. Who emits the block: the server-side `unix_disk_report` in
+   etc. - collision 3, mechanical: match do_disk's dataset names/values). The
+   block's presence is what reroutes disk off `do_disk` (feature 2), so no
+   `HANDLER`/`TEST2RRD` config is required to make it the sole writer.
+   (test.cfg `TEST disk { HANDLER markers ... }` is the optional config-driven
+   way to force the same reroute explicitly - not needed here.)
+2. Who emits the block: the server-side `unix_disk_report` in
    `xymond/xymond_client.c` (same place the linecount hint lives) is the natural
    producer - it already iterates the filesystems, knows the post-IGNORE set,
    and computes the values. It appends the METRICS block to the status it builds.
@@ -128,7 +117,7 @@ With features 1 and 2 present, express disk as a metric:
    - Consequence: the `<!-- linecount -->` hint becomes redundant for disk (the
      block's instance count is exact and derived) and can be dropped for the
      columns that carry a block, kept for those that do not.
-4. do_disk retired for the column via feature 2; `do_disk_rrd` still exists for
+3. do_disk retired for the column via feature 2; `do_disk_rrd` still exists for
    any column/client not carrying a block (fallback forever).
 
 ## History / migration
@@ -154,7 +143,9 @@ inheriting the old collision unchanged.
 
 ## Phasing (commits on this branch)
 
-1. Merge test-cfg; resolve the four additive conflicts; both suites green.
+1. Feature 2 first (smallest): a block-bearing status routes to the marker
+   writer ahead of the built-in handler; test: a disk status with a block
+   writes once, no do_disk double-write; a block-less disk status is unchanged.
 2. Feature 1: reversible instance encoding (writer encode + showgraph decode)
    + one-time rename migration; test: `/a/b` and `/a,b` get distinct RRDs and
    legends show the real mount point. (Deferrable - see Feature 1.)
@@ -180,5 +171,6 @@ inheriting the old collision unchanged.
 - Content routing already lets any sender create RRDs; server-synthesising the
   block (not trusting a client block) keeps disk's trust model unchanged.
 - Project phase: this is rethink-tier (retiring a built-in handler). It rides on
-  two feature branches that are themselves not yet merged upstream. Sequence
-  after those land, or keep as a proving branch.
+  ONE feature branch (self-describing-metrics), not yet merged upstream.
+  Sequence after that lands, or keep as a proving branch. test-cfg is optional
+  and only for the config-driven HANDLER refinement.
