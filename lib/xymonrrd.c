@@ -20,6 +20,9 @@ static char rcsid[] = "$Id$";
 #include <stdio.h>
 #include <time.h>
 
+#define PCRE2_CODE_UNIT_WIDTH 8
+#include <pcre2.h>
+
 #include "libxymon.h"
 #include "version.h"
 
@@ -46,6 +49,10 @@ typedef struct gdefmeta_t {
 	int maxinstancesperimage;		/* MAXINSTANCESPERIMAGE N: instances per image when paging */
 	int trends;		/* TRENDS: show on the trends page */
 	int lazy;		/* LAZY: no file until the values first change */
+	char *exstorepat;	/* EXSTOREPATTERN: instances never stored */
+	char *storepat;		/* STOREPATTERN: only these stored; forces past LAZY */
+	pcre2_code *exstore;	/* compiled on demand */
+	pcre2_code *store;
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -91,6 +98,16 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "LAZY", 4) == 0) && ((p[4] == '\0') || isspace((int)p[4]))) {
 			cur->lazy = 1;
 		}
+		else if (cur && (strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
+			char *pat = p + 14 + strspn(p+14, " \t");
+			pat[strcspn(pat, " \t\r\n")] = '\0';
+			if (*pat && !cur->exstorepat) cur->exstorepat = strdup(pat);
+		}
+		else if (cur && (strncasecmp(p, "STOREPATTERN", 12) == 0) && isspace((int)p[12])) {
+			char *pat = p + 12 + strspn(p+12, " \t");
+			pat[strcspn(pat, " \t\r\n")] = '\0';
+			if (*pat && !cur->storepat) cur->storepat = strdup(pat);
+		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own
 			 * keywords (before or after) override - later wins. */
@@ -103,6 +120,8 @@ static void load_gdef_meta(void)
 				if (cur->maxinstancesperimage == 0) cur->maxinstancesperimage = base->maxinstancesperimage;
 				if (base->trends) cur->trends = 1;
 				if (base->lazy) cur->lazy = 1;
+				if (base->exstorepat && !cur->exstorepat) cur->exstorepat = strdup(base->exstorepat);
+				if (base->storepat && !cur->storepat) cur->storepat = strdup(base->storepat);
 			}
 		}
 	}
@@ -143,6 +162,58 @@ int xymon_gdef_lazy_forfile(char *fn)
 	return (walk && walk->lazy);
 }
 
+static pcre2_code *storepat_compile(char *pattern)
+{
+	int err;
+	PCRE2_SIZE errofs;
+	pcre2_code *result = pcre2_compile((PCRE2_SPTR)pattern, PCRE2_ZERO_TERMINATED, PCRE2_CASELESS, &err, &errofs, NULL);
+
+	if (!result) errprintf("graphs.cfg store pattern '%s' invalid at offset %d\n", pattern, (int)errofs);
+	return result;
+}
+
+static int storepat_match(pcre2_code *pat, char *fn, size_t fnlen)
+{
+	pcre2_match_data *md;
+	int result;
+
+	md = pcre2_match_data_create_from_pattern(pat, NULL);
+	result = pcre2_match(pat, (PCRE2_SPTR)fn, fnlen, 0, 0, md, NULL);
+	pcre2_match_data_free(md);
+	return (result >= 0);
+}
+
+/*
+ * The RRD writer's storage gate: may this file be written at all, and if
+ * so, does a STOREPATTERN match force it past the LAZY creation gate?
+ * Patterns match the filename minus its ".rrd" suffix, case-insensitively.
+ * Returns 0 = drop, 1 = store.
+ */
+int xymon_gdef_store_allowed(char *fn, int *forced)
+{
+	gdefmeta_t *walk = gdefmeta_forfile(fn);
+	size_t fnlen;
+
+	if (forced) *forced = 0;
+	if (!walk || (!walk->exstorepat && !walk->storepat)) return 1;
+
+	fnlen = strlen(fn);
+	if ((fnlen > 4) && (strcmp(fn+fnlen-4, ".rrd") == 0)) fnlen -= 4;
+
+	if (walk->exstorepat) {
+		if (!walk->exstore) walk->exstore = storepat_compile(walk->exstorepat);
+		if (walk->exstore && storepat_match(walk->exstore, fn, fnlen)) return 0;
+	}
+	if (walk->storepat) {
+		if (!walk->store) walk->store = storepat_compile(walk->storepat);
+		if (walk->store) {
+			if (!storepat_match(walk->store, fn, fnlen)) return 0;
+			if (forced) *forced = 1;
+		}
+	}
+	return 1;
+}
+
 /* Does this graph's config make its file set diverge from what a status
  * message shows? Then a message-derived paging count cannot be trusted. */
 int xymon_gdef_fileset_unknown(char *name)
@@ -150,7 +221,7 @@ int xymon_gdef_fileset_unknown(char *name)
 	gdefmeta_t *walk;
 
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
-	return (walk && walk->lazy);
+	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
 }
 
 

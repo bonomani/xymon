@@ -218,6 +218,20 @@ int main(void)
 	expect_not_contains("gdef LAZY renders unsliced", html, "service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=");
 	free(html);
 
+	/* A store-filtered graph (EXSTOREPATTERN/STOREPATTERN) also renders
+	 * unsliced: its file set diverges from the message, so a derived
+	 * count cannot be trusted. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_filt\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\nb 2\nx 3\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_filt -->\n"
+		"status text\n");
+	expect_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
 	/* A hostile count= must not drive the renderer into building a
 	 * giant page: absurd values render unsliced. */
 	html = render_log_msg("diskio", 0, "",

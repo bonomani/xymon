@@ -161,6 +161,13 @@ mkdir -p "$work/etc"
 cat >"$work/etc/graphs.cfg" <<'GDEFS'
 [lazygdef]
 	LAZY
+[filt]
+	EXSTOREPATTERN bad
+[only]
+	STOREPATTERN keep
+[flz]
+	LAZY
+	STOREPATTERN pinned
 GDEFS
 lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
 	local ts; ts=$(date +%s)
@@ -178,6 +185,35 @@ lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
 		"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 	ls "$work/rrd/testhost" 2>/dev/null || true
 }
+
+# EXSTOREPATTERN drops matching instances at the writer; STOREPATTERN
+# keeps only matching ones; and a STOREPATTERN match forces an instance
+# past the LAZY gate - a steady value stores immediately when named.
+cat >"$work/body-storefilters" <<'BODY'
+<!--XYMON METRICS: filt
+DS:v:GAUGE:600:0:U
+bad 5
+good 6
+-->
+<!--XYMON METRICS: only
+DS:v:GAUGE:600:0:U
+keep 7
+other 8
+-->
+<!--XYMON METRICS: flz
+DS:v:GAUGE:600:0:U
+pinned 100
+rest 100
+-->
+status text
+BODY
+out=$(feed_status diskio "$work/body-storefilters")
+assert_not_contains "filt.bad.rrd" "$out" "EXSTOREPATTERN drops the matching instance"
+assert_contains "filt.good.rrd" "$out" "EXSTOREPATTERN leaves the others"
+assert_contains "only.keep.rrd" "$out" "STOREPATTERN keeps the matching instance"
+assert_not_contains "only.other.rrd" "$out" "STOREPATTERN drops non-matching instances"
+assert_contains "flz.pinned.rrd" "$out" "a STOREPATTERN match forces storage past the LAZY gate"
+assert_not_contains "flz.rest.rrd" "$out" "unforced flat instances stay lazy"
 
 # gdef LAZY: the first sample is the baseline, whatever its value - the
 # steady instance (4 -> 4) gets no file, the changing one (4 -> 9) does.

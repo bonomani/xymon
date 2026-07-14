@@ -39,6 +39,8 @@ cat >"$work/etc/graphs.cfg" <<'GDEFS'
 	MAXINSTANCESPERIMAGE 2
 [diskio_gzy]
 	LAZY
+[diskio_filt]
+	EXSTOREPATTERN x
 GDEFS
 
 # The harness links libxymoncomm; a never-built tree skips (the post-build

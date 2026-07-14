@@ -697,6 +697,48 @@ void load_gdefs(char *fn)
 			 * the RRD writer */
 			continue;
 		}
+		else if ((strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
+			/* Storage filter; consumed by lib/xymonrrd.c */
+			continue;
+		}
+		else if ((strncasecmp(p, "STOREPATTERN", 12) == 0) && isspace((int)p[12])) {
+			continue;
+		}
+		else if ((strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
+			/* Inherit an earlier-defined gdef: header keywords copied
+			 * now (later keywords in this section override), its
+			 * definition lines copied in place; further lines append. */
+			char *bname = p + 7;
+			gdef_t *base;
+			int i;
+
+			bname += strspn(bname, " \t");
+			bname[strcspn(bname, " \t\r\n")] = '\0';
+			for (base = gdefs; (base && strcmp(bname, base->name)); base = base->next) ;
+			if (base == NULL) {
+				errprintf("graphs.cfg error: [%s] includes unknown definition '%s'\n", newitem->name, bname);
+				continue;
+			}
+
+			/* The variant's own keywords always win, wherever they
+			 * appear relative to the INCLUDE line - inherit only
+			 * what the variant has not set itself. */
+			if (base->fnpat && !newitem->fnpat) newitem->fnpat = strdup(base->fnpat);
+			if (base->exfnpat && !newitem->exfnpat) newitem->exfnpat = strdup(base->exfnpat);
+			if (base->title && !newitem->title) newitem->title = strdup(base->title);
+			if (base->yaxis && !newitem->yaxis) newitem->yaxis = strdup(base->yaxis);
+			if (base->graphopts && !newitem->graphopts) newitem->graphopts = strdup(base->graphopts);
+			if (!newitem->novzoom) newitem->novzoom = base->novzoom;
+			if (!newitem->dscount) newitem->dscount = base->dscount;
+			if (!newitem->dsidx_runtime) newitem->dsidx_runtime = base->dsidx_runtime;
+			for (i = 0; (base->defs[i]); i++) {
+				if (alldefidx == alldefcount) {
+					alldefcount += 5;
+					alldefs = (char **)realloc(alldefs, (alldefcount+1) * sizeof(char *));
+				}
+				alldefs[alldefidx++] = strdup(base->defs[i]);
+			}
+		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
 			p += 12; p += strspn(p, " \t");
 			newitem->graphopts = strdup(p);
