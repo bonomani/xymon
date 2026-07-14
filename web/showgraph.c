@@ -84,6 +84,9 @@ typedef struct gdef_t {
 	char *yaxis;
 	char *graphopts;
 	int  novzoom;
+	int  dscount;	/* DSCOUNT directive: enables @DSIDX@/@PREVDSIDX@ expansion 1..dscount */
+	int  dsidx_runtime;	/* 1 = block uses @DSIDX@ without explicit DSCOUNT; expand at render time so N
+				 *     can be derived from each RRD file's actual DS list */
 	char **defs;
 	struct gdef_t *next;
 } gdef_t;
@@ -327,6 +330,293 @@ void parse_query(void)
 }
 
 
+/* Replace all occurrences of `needle` in `src` with `repl`. Returns a
+ * malloc'd string; caller frees. */
+static char *str_replace_all(const char *src, const char *needle, const char *repl)
+{
+	int nlen = strlen(needle), rlen = strlen(repl);
+	const char *p;
+	char *out, *q;
+	int count = 0;
+
+	for (p = src; (p = strstr(p, needle)) != NULL; p += nlen) count++;
+	out = (char *)malloc(strlen(src) + count * (rlen - nlen) + 1);
+
+	q = out;
+	while ((p = strstr(src, needle)) != NULL) {
+		int prefix = p - src;
+		memcpy(q, src, prefix); q += prefix;
+		memcpy(q, repl, rlen); q += rlen;
+		src = p + nlen;
+	}
+	strcpy(q, src);
+	return out;
+}
+
+/* Classify a def line for @DSIDX@ expansion.
+ *   *body  - the line content after any @DSSTART:N@ prefix is stripped
+ *   *start - lower bound of the index loop:
+ *              * explicit @DSSTART:N@ prefix wins
+ *              * else 2 if the line uses @PREVDSIDX@ (skips ping0)
+ *              * else 1
+ * Returns 1 if the line should be looped, 0 if it should be emitted once. */
+static int classify_dsidx_line(char *line, char **body, int *start)
+{
+	*body = line;
+	*start = 1;
+
+	if (strncmp(line, "@DSSTART:", 9) == 0) {
+		char *p = line + 9;
+		int s = atoi(p);
+		while (isdigit((int)*p)) p++;
+		if ((*p == '@') && (s > 0)) {
+			*start = s;
+			*body = p + 1;
+		}
+	}
+
+	if (strstr(*body, "@DSIDX@") || strstr(*body, "@PREVDSIDX@")) {
+		if (strstr(*body, "@PREVDSIDX@") && (*start < 2)) *start = 2;
+		return 1;
+	}
+	return 0;
+}
+
+/* Expand every @DSIDX@/@PREVDSIDX@-templated def line in `defs` into N
+ * concrete copies, returning a freshly-allocated NULL-terminated array.
+ * Non-templated lines are copied verbatim. Caller owns the result.
+ * If n <= 0 the templates pass through unchanged so the literal tokens
+ * reach rrdtool, which errors loudly -- the desired fail-fast signal. */
+static char **expand_dsidx_array(char *const *defs, int n)
+{
+	int i, newcount = 0, outi = 0;
+	char **newdefs;
+	char idxstr[16], previdxstr[16];
+
+	if (defs == NULL) return NULL;
+
+	if (n <= 0) {
+		for (i = 0; defs[i]; i++) newcount++;
+		newdefs = (char **)calloc(newcount + 1, sizeof(char *));
+		for (i = 0; defs[i]; i++) newdefs[i] = strdup(defs[i]);
+		newdefs[newcount] = NULL;
+		return newdefs;
+	}
+
+	for (i = 0; defs[i]; i++) {
+		char *body;
+		int start;
+		char *line = strdup(defs[i]);
+		if (classify_dsidx_line(line, &body, &start)) {
+			int m = n - start + 1;
+			newcount += (m > 0 ? m : 0);
+		}
+		else {
+			newcount++;
+		}
+		free(line);
+	}
+
+	newdefs = (char **)calloc(newcount + 1, sizeof(char *));
+	for (i = 0; defs[i]; i++) {
+		char *body;
+		int start;
+		char *line = strdup(defs[i]);
+		if (classify_dsidx_line(line, &body, &start)) {
+			int idx;
+			for (idx = start; idx <= n; idx++) {
+				char *tmp;
+				snprintf(idxstr, sizeof(idxstr), "%d", idx);
+				snprintf(previdxstr, sizeof(previdxstr), "%d", idx - 1);
+				/* Replace @PREVDSIDX@ first so we don't accidentally chew the
+				 * shorter @DSIDX@ inside it (currently they don't share a
+				 * prefix, but this keeps the substitution order intent-clear). */
+				tmp = str_replace_all(body, "@PREVDSIDX@", previdxstr);
+				newdefs[outi++] = str_replace_all(tmp, "@DSIDX@", idxstr);
+				free(tmp);
+			}
+		}
+		else {
+			newdefs[outi++] = strdup(defs[i]);
+		}
+		free(line);
+	}
+	newdefs[outi] = NULL;
+	return newdefs;
+}
+
+/* Does any def line in `defs` use @DSIDX@/@PREVDSIDX@? */
+static int defs_use_dsidx(char *const *defs)
+{
+	int i;
+	if (defs == NULL) return 0;
+	for (i = 0; defs[i]; i++) {
+		if (strstr(defs[i], "@DSIDX@") || strstr(defs[i], "@PREVDSIDX@")) return 1;
+	}
+	return 0;
+}
+
+/* Parse-time entry point for @DSIDX@ blocks. Three regimes:
+ *   1. Explicit DSCOUNT N -> expand defs[] in place; final shape is fixed.
+ *   2. No DSCOUNT, but defs use @DSIDX@ -> leave defs[] as templates and
+ *      mark dsidx_runtime=1, so render time can pick N from the actual
+ *      RRD file (different hosts may store different sample counts).
+ *   3. No @DSIDX@ at all -> nothing to do.
+ */
+static void expand_dsidx_in_block(gdef_t *gd)
+{
+	if (gd->defs == NULL) return;
+
+	if (gd->dscount > 0) {
+		char **expanded = expand_dsidx_array(gd->defs, gd->dscount);
+		int i;
+		for (i = 0; gd->defs[i]; i++) free(gd->defs[i]);
+		free(gd->defs);
+		gd->defs = expanded;
+		return;
+	}
+
+	if (defs_use_dsidx(gd->defs)) gd->dsidx_runtime = 1;
+}
+
+/* Pull the .rrd filename out of a DEF line of the form
+ *   DEF:var=FILENAME:ds:CF
+ * Returns a freshly-allocated string (caller frees) or NULL if the line
+ * isn't a DEF or doesn't fit that shape. */
+static char *def_rrdfile(const char *defline)
+{
+	const char *eq, *colon;
+	char *out;
+	size_t n;
+
+	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
+	eq = strchr(defline + 4, '=');
+	if (!eq) return NULL;
+	colon = strchr(eq + 1, ':');
+	if (!colon || colon == eq + 1) return NULL;
+	n = colon - (eq + 1);
+	out = (char *)malloc(n + 1);
+	memcpy(out, eq + 1, n);
+	out[n] = '\0';
+	return out;
+}
+
+/* Walk a DS-template like "ping@DSIDX@" and return the literal prefix
+ * before @DSIDX@ ("ping"). Caller frees. NULL if no @DSIDX@ present. */
+static char *dsname_prefix(const char *tmpl)
+{
+	const char *at = strstr(tmpl, "@DSIDX@");
+	char *out;
+	size_t n;
+	if (!at) return NULL;
+	n = at - tmpl;
+	out = (char *)malloc(n + 1);
+	memcpy(out, tmpl, n);
+	out[n] = '\0';
+	return out;
+}
+
+/* Pull the DS name template out of a DEF line:
+ *   DEF:var=file.rrd:DSNAME:CF -> DSNAME
+ * Caller frees; NULL on parse failure. */
+static char *def_dsname(const char *defline)
+{
+	const char *eq, *c1, *c2;
+	char *out;
+	size_t n;
+
+	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
+	eq = strchr(defline + 4, '=');
+	if (!eq) return NULL;
+	c1 = strchr(eq + 1, ':');
+	if (!c1) return NULL;
+	c2 = strchr(c1 + 1, ':');
+	if (!c2 || c2 == c1 + 1) return NULL;
+	n = c2 - (c1 + 1);
+	out = (char *)malloc(n + 1);
+	memcpy(out, c1 + 1, n);
+	out[n] = '\0';
+	return out;
+}
+
+/* Count DSes in `rrdfn` whose names start with `prefix` and end with a
+ * positive integer (e.g. prefix="ping" matches ping1..pingN). Returns 0
+ * if the file can't be opened or has no matches. */
+static int rrd_count_ds_with_prefix(const char *rrdfn, const char *prefix)
+{
+	rrd_info_t *info, *p;
+	int count = 0;
+	size_t plen;
+
+	if (!rrdfn || !prefix) return 0;
+	plen = strlen(prefix);
+
+	rrd_clear_error();
+	info = rrd_info_r((char *)rrdfn);
+	if (!info) { rrd_clear_error(); return 0; }
+
+	/* rrd_info keys for DSes look like: ds[NAME].type, ds[NAME].minimal_heartbeat, ...
+	 * Count once per unique NAME that starts with `prefix` and whose
+	 * remainder is a positive integer. We use the ".index" suffix because
+	 * it appears exactly once per DS. */
+	for (p = info; p; p = p->next) {
+		const char *k = p->key;
+		const char *rb;
+		const char *q;
+		int has_digit = 0;
+		if (strncmp(k, "ds[", 3) != 0) continue;
+		rb = strchr(k + 3, ']');
+		if (!rb) continue;
+		if (strcmp(rb, "].index") != 0) continue;
+		if ((size_t)(rb - (k + 3)) <= plen) continue;
+		if (strncmp(k + 3, prefix, plen) != 0) continue;
+		for (q = k + 3 + plen; q < rb; q++) {
+			if (*q < '0' || *q > '9') { has_digit = 0; break; }
+			has_digit = 1;
+		}
+		if (has_digit) count++;
+	}
+
+	rrd_info_free(info);
+	return count;
+}
+
+/* Decide how many copies to expand @DSIDX@ into for *this* render pass.
+ * Order of precedence:
+ *   1. count actually present in `rrdfn` (matched against the first
+ *      @DSIDX@-using DEF's DS-name prefix),
+ *   2. 0 -> leaves templates literal (rrdtool will error loudly).
+ * The file-derived count makes the graph match what the writer actually
+ * stored, even when hosts differ in their sample counts. */
+static int derive_dscount_for_file(char *const *templates, const char *rrdfn)
+{
+	int i;
+
+	for (i = 0; templates && templates[i]; i++) {
+		char *fn, *dsname, *prefix;
+		int n;
+		if (!strstr(templates[i], "@DSIDX@")) continue;
+		fn = def_rrdfile(templates[i]);
+		dsname = def_dsname(templates[i]);
+		if (!fn || !dsname) { free(fn); free(dsname); continue; }
+		prefix = dsname_prefix(dsname);
+		if (!prefix) { free(fn); free(dsname); continue; }
+		/* If the template uses @RRDFN@ as its filename, rrdtool's own
+		 * cwd-relative substitution applies at graph time; we ask the
+		 * concrete file passed in via rrdfn instead. */
+		n = rrd_count_ds_with_prefix(
+			(strstr(fn, "@RRDFN@") != NULL) ? rrdfn : fn,
+			prefix);
+		free(fn); free(dsname); free(prefix);
+		if (n > 0) return n;
+		break;	/* file present but no matching DS */
+	}
+
+	/* No usable file: leave the templates literal (rrdtool errors
+	 * loudly). A probe-specific default can be layered on later. */
+	return 0;
+}
+
 void load_gdefs(char *fn)
 {
 	FILE *fd;
@@ -346,11 +636,12 @@ void load_gdefs(char *fn)
 
 		if (*p == '[') {
 			char *delim;
-			
+
 			if (newitem) {
 				/* Save the current one, and start on the next item */
 				alldefs[alldefidx] = NULL;
 				newitem->defs = alldefs;
+				expand_dsidx_in_block(newitem);
 				newitem->next = gdefs;
 				gdefs = newitem;
 			}
@@ -379,6 +670,18 @@ void load_gdefs(char *fn)
 		}
 		else if (strncasecmp(p, "NOVZOOM", 7) == 0) {
 			newitem->novzoom = 1;
+		}
+		else if (strncasecmp(p, "DSCOUNT", 7) == 0) {
+			p += 7; p += strspn(p, " \t");
+			if (*p == '$') {
+				/* DSCOUNT $VAR -- read from xymonserver.cfg env */
+				char *v = xgetenv(p + 1);
+				newitem->dscount = (v ? atoi(v) : 0);
+			}
+			else {
+				newitem->dscount = atoi(p);
+			}
+			if (newitem->dscount < 0) newitem->dscount = 0;
 		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
 			p += 12; p += strspn(p, " \t");
@@ -411,6 +714,7 @@ void load_gdefs(char *fn)
 		/* Save the current one, and start on the next item */
 		alldefs[alldefidx] = NULL;
 		newitem->defs = alldefs;
+		expand_dsidx_in_block(newitem);
 		newitem->next = gdefs;
 		gdefs = newitem;
 	}
@@ -625,6 +929,162 @@ char *expand_tokens(char *tpl)
 	return STRBUF(result);
 }
 
+/* Aggregate-token parser + RPN emitter. Lives in its own file so
+ * web/test-aggregate-tokens.c can include the same source: any future
+ * fix here is visible to both without manual mirroring. The file
+ * relies on rrddbcount/firstidx/lastidx being declared earlier in
+ * this TU (they are -- file-static above). */
+#include "aggregate-tokens.inc.c"
+
+static int def_uses_rrd_context(char *def)
+{
+	return ((strstr(def, "@RRDFN@") != NULL) ||
+		(strstr(def, "@RRDIDX@") != NULL) ||
+		(strstr(def, "@RRDPARAM@") != NULL) ||
+		(strstr(def, "@RRDMETA@") != NULL) ||
+		(strstr(def, "@STACKIT@") != NULL));
+}
+
+/* Walk the template once, replacing each aggregate token with its RPN
+ * expansion, then hand the result to expand_tokens() for the @RRDFN@/
+ * @RRDIDX@/@RRDPARAM@/@COLOR@ family. Aggregate tokens are NOT nested:
+ * "@AVG:@SUM:t@@" is parsed as @AVG: with name="@SUM:t" and stops at
+ * the next @ -- the inner @SUM: is not re-expanded. Same applies to any
+ * "@RRDIDX@" written inside an aggregate operand (see comment near
+ * add_graphdef_arg). The single-pass design keeps the parser simple at
+ * the cost of these two limitations; graphs.cfg blocks shouldn't need
+ * nesting because per-RRD selection already happens inside the
+ * aggregate. */
+static char *expand_aggregate_tokens(char *tpl)
+{
+	/* result is kept as a file-static strbuffer for the lifetime of the
+	 * CGI: the caller (add_graphdef_arg) strdup's the contents before
+	 * the next call clobbers them, so the lifetime is "until the next
+	 * call." Do NOT hold a pointer into STRBUF(result) across another
+	 * expand_aggregate_tokens / expand_tokens call -- the static buffer
+	 * is shared and will be cleared. */
+	static strbuffer_t *result = NULL;
+	char *inp, *p;
+
+	if (!def_uses_aggregate(tpl)) return expand_tokens(tpl);
+
+	if (!result) result = newstrbuffer(2048); else clearstrbuffer(result);
+
+	inp = tpl;
+	while (*inp) {
+		p = strchr(inp, '@');
+		if (p == NULL) {
+			addtobuffer(result, inp);
+			inp += strlen(inp);
+			continue;
+		}
+
+		if (p > inp) addtobufferraw(result, inp, (p - inp));
+
+		{
+			char *op, *name;
+			int oplen, toklen;
+
+			if (is_aggregate_token(p, &op, &name, &oplen, &toklen)) {
+				char *endp = p + toklen - 1;
+
+				add_aggregate_rpn(result, op, name, (endp - name));
+				inp = p + toklen;
+			}
+			else {
+				addtobuffer(result, "@");
+				inp = p + 1;
+			}
+		}
+	}
+
+	return expand_tokens(STRBUF(result));
+}
+
+static void add_graphdef_arg(char **rrdargs, int *argi, char *def)
+{
+	char *expanded = expand_aggregate_tokens(def);
+	char *copy = (expanded ? strdup(expanded) : NULL);
+	if (!copy) {
+		errprintf("strdup of expanded graphdef failed; skipping arg\n");
+		return;
+	}
+	rrdargs[(*argi)++] = copy;
+}
+
+/* NOTE on token-pass ordering: expand_aggregate_tokens runs the aggregate
+ * pass first, then feeds the result through expand_tokens() for the
+ * @RRDFN@/@RRDIDX@/@RRDPARAM@/@COLOR@ family. Consequence: @RRDIDX@ inside
+ * an aggregate operand (e.g. @AVG:p@RRDIDX@@) is NOT expanded -- the
+ * outer parser stops at the first @ when locating the operand terminator
+ * and the @RRDIDX@ token is consumed as part of the surrounding text. If
+ * a graphs.cfg author wants the aggregate to span multiple matched RRDs
+ * they should use the natural form @AVG:p@ with DEF lines that produce
+ * p0, p1, ..., pN; the per-RRD selection happens inside the aggregate. */
+
+static void add_graphdef_rrd_block(char **rrdargs, int *argi, gdef_t *gdef, int firstdef, int lastdef)
+{
+	int i;
+
+	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+		if (selected_rrdidx(rrdidx)) {
+			for (i = firstdef; (i < lastdef); i++) {
+				add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+			}
+		}
+	}
+}
+
+static void add_graphdef_args(char **rrdargs, int *argi, gdef_t *gdef)
+{
+	int i, have_aggregate = 0, first_aggregate = -1, first_rrd_context = -1;
+
+	for (i = 0; (gdef->defs[i]); i++) {
+		if (def_uses_aggregate(gdef->defs[i])) {
+			have_aggregate = 1;
+			if (first_aggregate == -1) first_aggregate = i;
+		}
+	}
+
+	if (!have_aggregate) {
+		add_graphdef_rrd_block(rrdargs, argi, gdef, 0, i);
+		return;
+	}
+
+	for (i = 0; (i < first_aggregate); i++) {
+		if (def_uses_rrd_context(gdef->defs[i])) {
+			if (first_rrd_context == -1) first_rrd_context = i;
+		}
+		else {
+			if (first_rrd_context != -1) {
+				add_graphdef_rrd_block(rrdargs, argi, gdef, first_rrd_context, i);
+				first_rrd_context = -1;
+			}
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+	}
+	if (first_rrd_context != -1) add_graphdef_rrd_block(rrdargs, argi, gdef, first_rrd_context, i);
+
+	for (i = first_aggregate; (gdef->defs[i]); i++) {
+		/* Aggregate is dominant: an aggregate def is emitted once even if it
+		 * also references @RRDFN@/@RRDIDX@, since looping would produce
+		 * duplicate CDEF names and break rrd_graph. */
+		if (def_uses_aggregate(gdef->defs[i])) {
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+		else if (def_uses_rrd_context(gdef->defs[i])) {
+			for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+				if (selected_rrdidx(rrdidx)) {
+					add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+				}
+			}
+		}
+		else {
+			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
+		}
+	}
+}
+
 int rrd_name_compare(const void *v1, const void *v2)
 {
 	rrddb_t *r1 = (rrddb_t *)v1;
@@ -781,6 +1241,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	time_t now = getcurrenttime(NULL);
 
 	int argi, pcount;
+	size_t rrdargs_cap = 0;	/* current allocated entries in rrdargs[] (grows on runtime-expansion overshoot) */
 
 	/* Options for rrd_graph() */
 	int  rrdargcount;
@@ -1140,7 +1601,16 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 * there are multiple RRD-files to handle).
 	 */
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
-	rrdargs = calloc(16 + pcount*rrddbcount + useroptcount + 1, sizeof(*rrdargs));
+
+	/* The emit-once aggregate pass adds at most one extra slot per def
+	 * (the +1 in pcount*(rrddbcount+1)). Runtime @DSIDX@ expansion can
+	 * balloon the count further; track capacity so the runtime path can
+	 * realloc inside the per-file loop. */
+	{
+		size_t initial_cap = 16 + pcount*(rrddbcount+1) + useroptcount + 1;
+		rrdargs_cap = initial_cap;
+		rrdargs = calloc(initial_cap, sizeof(*rrdargs));
+	}
 
 
 	argi = 0;
@@ -1178,13 +1648,51 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		rrdargs[argi++] = useropts[useroptidx];
 	}
 
-	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
-		if ((firstidx == -1) || ((rrdidx >= firstidx) && (rrdidx <= lastidx))) {
-			int i;
-			for (i=0; (gdef->defs[i]); i++) {
-				rrdargs[argi++] = strdup(expand_tokens(gdef->defs[i]));
+	/* Two paths, intentionally separate:
+	 *
+	 * - Smoke's runtime @DSIDX@ path (gdef->dsidx_runtime) needs the
+	 *   per-RRD DS count from rrd_info_r and may expand a single def
+	 *   line into N defs. It runs its own per-file loop and grows
+	 *   rrdargs on the fly. Aggregate tokens inside such blocks are
+	 *   not supported yet (Phase 3 adds @DSMEDIAN:/etc. that
+	 *   aggregate within one file's DSes).
+	 *
+	 * - Standard path uses trends's add_graphdef_args which splits
+	 *   defs into per-RRD-context vs aggregate (the aggregate is
+	 *   emitted once, the rest are emitted per RRD). */
+	if (gdef->dsidx_runtime) {
+		for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+			if (!selected_rrdidx(rrdidx)) continue;
+			{
+				int i, per_this = 0, j;
+				size_t need;
+				int n = derive_dscount_for_file(gdef->defs, rrddbs[rrdidx].rrdfn);
+				char **rt_defs = expand_dsidx_array(gdef->defs, n);
+
+				for (j = 0; rt_defs[j]; j++) per_this++;
+				need = (size_t)(argi + per_this * (rrddbcount - rrdidx) + 2 /* timestamp + NULL */);
+				if (need > rrdargs_cap) {
+					rrdargs_cap = need;
+					rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
+					if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
+				}
+
+				/* Expose this file's DS count to the aggregate parser
+				 * so within-file tokens (@DSMEDIAN:) emit a 1..N
+				 * indexed RPN matching the @DSIDX@-produced DEFs. */
+				aggregate_dscount = n;
+				for (i = 0; rt_defs[i]; i++) {
+					rrdargs[argi++] = strdup(expand_aggregate_tokens(rt_defs[i]));
+				}
+				aggregate_dscount = 0;
+
+				for (j = 0; rt_defs[j]; j++) free(rt_defs[j]);
+				free(rt_defs);
 			}
 		}
+	}
+	else {
+		add_graphdef_args(rrdargs, &argi, gdef);
 	}
 
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));
