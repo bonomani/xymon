@@ -57,6 +57,11 @@ typedef struct tc_test_t {
 extern tc_test_t *testcfg_parse(const char *text, char *errbuf, int errbufsz);
 extern void testcfg_free(tc_test_t *head);
 
+/* Load $XYMONHOME/etc/test.cfg once and cache it (NULL if absent or on a
+ * syntax error, which is logged). Shared by every consumer that overlays
+ * test.cfg on its environment fallback. */
+extern tc_test_t *testcfg_load(void);
+
 /* Lookups. */
 extern tc_test_t *testcfg_find(tc_test_t *head, const char *name);
 extern tc_metric_t *testcfg_metric(tc_test_t *test, const char *name);

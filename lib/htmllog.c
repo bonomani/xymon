@@ -422,15 +422,23 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			}
 		}
 
-		/* GRAPHS_<service> custom graphs render even when the service has no
-		 * default graph (issue #31) - but never for reverse tests, which
-		 * collect no RRD data. */
-		SBUF_MALLOC(graphs, 7 + strlen(service) + 1);
-		snprintf(graphs, graphs_buflen, "GRAPHS_%s", service);
-		graphsenv = getenv(graphs);
-		if (graphsenv && (*graphsenv == '\0')) graphsenv = NULL;	/* set-but-empty = not set */
+		/* The status-page graph list: test.cfg's per-test GRAPHS override
+		 * wins over the GRAPHS_<service> environment (env is the fallback
+		 * for tests with no section). Custom graphs render even when the
+		 * service has no default graph (issue #31) - but never for reverse
+		 * tests, which collect no RRD data. */
+		{
+			tc_test_t *tct = testcfg_find(testcfg_load(), service);
+			if (tct && tct->graphs && *tct->graphs) graphsenv = tct->graphs;
+		}
+		if (!graphsenv) {
+			SBUF_MALLOC(graphs, 7 + strlen(service) + 1);
+			snprintf(graphs, graphs_buflen, "GRAPHS_%s", service);
+			graphsenv = getenv(graphs);
+			if (graphsenv && (*graphsenv == '\0')) graphsenv = NULL;	/* set-but-empty = not set */
+			xfree(graphs);
+		}
 		if (flags && strchr(flags, 'R')) graphsenv = NULL;
-		xfree(graphs);
 	}
 	if ((rrd && graph) || graphsenv) {
 		int may_have_rrd = 1;

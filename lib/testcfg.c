@@ -135,9 +135,18 @@ static tc_test_t *load_test(bracenode_t *tnode)
 		else if ((strcasecmp(c->words[0], "PORT") == 0) && (c->nwords >= 2)) t->port = strdup(c->words[1]);
 		else if ((strcasecmp(c->words[0], "HANDLER") == 0) && (c->nwords >= 2)) t->handler = strdup(c->words[1]);
 		else if (strcasecmp(c->words[0], "GRAPHS") == 0) {
+			/* Comma-separated for the downstream consumer; tolerate both
+			 * "GRAPHS a b" and "GRAPHS a, b" by stripping trailing commas. */
 			strbuffer_t *sb = newstrbuffer(0);
 			int j;
-			for (j = 1; j < c->nwords; j++) { if (j > 1) addtobuffer(sb, " "); addtobuffer(sb, c->words[j]); }
+			for (j = 1; j < c->nwords; j++) {
+				char *w = c->words[j];
+				size_t wl = strlen(w);
+				while (wl && (w[wl-1] == ',')) wl--;
+				if (wl == 0) continue;
+				if (STRBUFLEN(sb)) addtobuffer(sb, ",");
+				addtobufferraw(sb, w, wl);
+			}
 			t->graphs = strdup(STRBUF(sb));
 			freestrbuffer(sb);
 		}
@@ -205,6 +214,34 @@ void testcfg_free(tc_test_t *head)
 		if (t->graphs) xfree(t->graphs);
 		xfree(t);
 	}
+}
+
+tc_test_t *testcfg_load(void)
+{
+	static int loaded = 0;
+	static tc_test_t *cache = NULL;
+	char fn[PATH_MAX];
+	FILE *fd;
+	strbuffer_t *inbuf, *all;
+	char err[200];
+
+	if (loaded) return cache;
+	loaded = 1;
+
+	snprintf(fn, sizeof(fn), "%s/etc/test.cfg", xgetenv("XYMONHOME"));
+	fd = stackfopen(fn, "r", NULL);
+	if (fd == NULL) return NULL;
+
+	inbuf = newstrbuffer(0); all = newstrbuffer(0);
+	while (stackfgets(inbuf, NULL)) addtobuffer(all, STRBUF(inbuf));
+	stackfclose(fd);
+	freestrbuffer(inbuf);
+
+	err[0] = '\0';
+	cache = testcfg_parse(STRBUF(all), err, sizeof(err));
+	if (!cache && *err) errprintf("test.cfg: %s\n", err);
+	freestrbuffer(all);
+	return cache;
 }
 
 tc_test_t *testcfg_find(tc_test_t *head, const char *name)

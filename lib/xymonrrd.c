@@ -35,38 +35,6 @@ static const char *xymonlinkfmt = "<table summary=\"%s Graph\"><tr><td><A HREF=\
 static const char *metafmt = "<RRDGraph>\n  <GraphType>%s</GraphType>\n  <GraphLink><![CDATA[%s]]></GraphLink>\n  <GraphImage><![CDATA[%s&amp;graph=hourly]]></GraphImage>\n</RRDGraph>\n";
 
 
-/*
- * test.cfg, read once and cached: the column->metric bindings there override
- * the TEST2RRD environment (env is the fallback for columns with no section).
- * Absent test.cfg leaves every mapping exactly as the env produced it.
- */
-static tc_test_t *load_testcfg_cached(void)
-{
-	static int loaded = 0;
-	static tc_test_t *tc = NULL;
-	char fn[PATH_MAX];
-	FILE *fd;
-	strbuffer_t *inbuf, *all;
-	char err[200];
-
-	if (loaded) return tc;
-	loaded = 1;
-
-	snprintf(fn, sizeof(fn), "%s/etc/test.cfg", xgetenv("XYMONHOME"));
-	fd = stackfopen(fn, "r", NULL);
-	if (fd == NULL) return NULL;
-
-	inbuf = newstrbuffer(0); all = newstrbuffer(0);
-	while (stackfgets(inbuf, NULL)) addtobuffer(all, STRBUF(inbuf));
-	stackfclose(fd);
-	freestrbuffer(inbuf);
-
-	tc = testcfg_parse(STRBUF(all), err, sizeof(err));
-	if (!tc && *err) errprintf("test.cfg: %s\n", err);
-	freestrbuffer(all);
-	return tc;
-}
-
 /* The metric a single-metric TEST binds its column to, or NULL if the test
  * does not map cleanly to one RRD name (0 or >1 metrics, e.g. pseudo-columns
  * and self-describing multi-metric tests, which route by other means). */
@@ -143,7 +111,7 @@ static void rrd_setup(void)
 
 	/* Reserve extra table slots for test.cfg column bindings not already
 	 * present in TEST2RRD - they are overlaid after the env fill below. */
-	tclist = load_testcfg_cached();
+	tclist = testcfg_load();
 	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
 	for (tc = tclist; (tc); tc = tc->next) count += (testcfg_rrdname(tc) != NULL);
 	xymonrrds = (xymonrrd_t *)calloc((count+1), sizeof(xymonrrd_t));
