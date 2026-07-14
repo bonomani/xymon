@@ -1231,6 +1231,86 @@ void build_menu_page(char *selfURI, int backsecs)
 }
 
 
+/*
+ * Self-describing statuses (XYMON METRICS markers) create RRD files named
+ * <name>.<instance>.rrd without requiring a graphs.cfg entry. When no gdef
+ * exists for such a name, synthesize a generic one; its definition lines
+ * are generated later from the dataset names of the first matching file,
+ * one line per dataset. A hand-written [name] section in graphs.cfg always
+ * wins - this is only the fallback.
+ */
+#define SYNTHETIC_DSMAX 10
+
+static gdef_t *synthetic_gdef(char *name)
+{
+	gdef_t *newitem;
+	size_t patlen;
+	int len = strspn(name, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
+
+	/* Only for names safe as a filename prefix and regex literal */
+	if ((len == 0) || (len > 64) || (name[len] != '\0')) return NULL;
+
+	newitem = (gdef_t *)calloc(1, sizeof(gdef_t));
+	newitem->name = strdup(name);
+	patlen = strlen(name) + sizeof("^\\.(.+)\\.rrd");
+	newitem->fnpat = (char *)malloc(patlen);
+	snprintf(newitem->fnpat, patlen, "^%s\\.(.+)\\.rrd", name);
+	newitem->title = strdup(name);
+	newitem->yaxis = strdup("Value");
+	newitem->defs = NULL;	/* generated later from the first matching RRD */
+
+	return newitem;
+}
+
+static char **synthetic_defs(char *rrdfn)
+{
+	rrd_info_t *info, *iwalk;
+	char *dsnames[SYNTHETIC_DSMAX];
+	int dscount = 0, i;
+	char **defs;
+	char buf[320];
+
+	if (!rrdfn) errormsg("No RRD files match this graph");
+
+	info = rrd_info_r(rrdfn);
+	if (!info) errormsg("Cannot read RRD file for this graph");
+
+	for (iwalk = info; (iwalk && (dscount < SYNTHETIC_DSMAX)); iwalk = iwalk->next) {
+		char *bracket;
+		size_t nlen;
+
+		if (strncmp(iwalk->key, "ds[", 3) != 0) continue;
+		bracket = strchr(iwalk->key+3, ']');
+		if (!bracket) continue;
+		nlen = bracket - (iwalk->key+3);
+		if ((nlen == 0) || (nlen > 64)) continue;
+
+		/* Each dataset appears with several keys - record it once */
+		for (i=0; (i < dscount); i++) {
+			if ((strlen(dsnames[i]) == nlen) && (strncmp(dsnames[i], iwalk->key+3, nlen) == 0)) break;
+		}
+		if (i < dscount) continue;
+
+		dsnames[dscount] = (char *)malloc(nlen+1);
+		memcpy(dsnames[dscount], iwalk->key+3, nlen); dsnames[dscount][nlen] = '\0';
+		dscount++;
+	}
+	rrd_info_free(info);
+
+	if (dscount == 0) errormsg("RRD file has no datasets");
+
+	defs = (char **)calloc(2*dscount + 1, sizeof(char *));
+	for (i=0; (i < dscount); i++) {
+		snprintf(buf, sizeof(buf), "DEF:v%d@RRDIDX@=@RRDFN@:%s:AVERAGE", i, dsnames[i]);
+		defs[2*i] = strdup(buf);
+		snprintf(buf, sizeof(buf), "LINE1:v%d@RRDIDX@#@COLOR@:@RRDPARAM@ %s", i, dsnames[i]);
+		defs[2*i + 1] = strdup(buf);
+		xfree(dsnames[i]);
+	}
+
+	return defs;
+}
+
 void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 {
 	gdef_t *gdef = NULL, *gdefuser = NULL;
@@ -1315,6 +1395,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			}
 		}
 	}
+	if (gdef == NULL) gdef = synthetic_gdef(service);
 	if (gdef == NULL) errormsg("Unknown graph requested");
 	if (hostlist && (gdef->fnpat == NULL)) {
 		SBUF_DEFINE(multiname);
@@ -1600,6 +1681,12 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 * graph-specific ones (which may be repeated if
 	 * there are multiple RRD-files to handle).
 	 */
+	if (gdef->defs == NULL) {
+		/* Synthetic gdef: definition lines come from the datasets of the
+		 * first RRD file matching the graph's filename pattern. */
+		gdef->defs = synthetic_defs((rrddbcount > 0) ? rrddbs[0].rrdfn : NULL);
+	}
+
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
 
 	/* The emit-once aggregate pass adds at most one extra slot per def
