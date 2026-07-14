@@ -267,6 +267,12 @@ static char *xymon_graph_text(char *hostname, char *dispname, char *service, int
 		int first = 1;
 		int step;
 
+		/* The item count comes from status content (a linecount override
+		 * or a count= marker), so an absurd or negative value must not
+		 * drive the part loop into building a giant page - such a graph
+		 * renders unsliced instead. */
+		if ((itemcount < 0) || (itemcount > 4096)) itemcount = 0;
+
 		step = (graphdef->maxgraphs ? graphdef->maxgraphs : 5);
 		if (itemcount) {
 			/* Spread itemcount instances evenly over the needed number of
