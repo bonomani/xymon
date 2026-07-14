@@ -32,32 +32,50 @@ are orthogonal at runtime).
 
 ## The two missing capabilities
 
-### Feature 1 - the writer honours a metric-declared filename convention
+### Feature 1 - a collision-free instance encoding, with a one-time rename
 
-Problem: `do_disk` writes `disk,root.rrd` (via `setupfn2("%s%s.rrd","disk",",root")`),
-while the marker/devmon writer hardcodes `setupfn2("%s.%s.rrd", base, inst)` ->
-`disk.root.rrd`. Different separator, so a naive block would create a parallel,
-differently-named RRD set and orphan 20 years of history.
+Why an encoding at all: a mount point cannot be a filename verbatim - `/` is the
+directory separator (`disk,/var/log.rrd` would be read as nested directories).
+So `/` must be substituted. `do_disk` uses `/`->`,` (`/`->`,root` for the root),
+the marker/devmon writer applies its own `/`->`,` and joins with `.`. Two
+issues:
 
-Fix: give the METRICS block control of its instance->filename mapping so it can
-reproduce the existing names exactly.
+1. The two conventions differ slightly (`disk,root.rrd` vs `disk.,root.rrd`), so
+   a naive block would orphan history - the original reason this feature existed.
+2. More important, `/`->`,` is **ambiguous and always has been**: `,` is a legal
+   filename character, so `/a/b` and `/a,b` both encode to `disk,a,b.rrd` and
+   collide into one RRD. Only `/` and NUL are illegal in filenames, so **no
+   single-character substitution is safe** - a collision-free scheme must be
+   reversible.
 
-- Wire format: an optional attribute on the block banner declaring the file
-  template, e.g.
-  `<!--XYMON METRICS: disk fnfmt=%s,%s`
-  (default stays `%s.%s` for existing marker columns - fully backward
-  compatible). Or a per-instance escape: emit the instance already in the
-  ",root" form and a template that concatenates.
-- Writer (`xymond/rrd/do_devmon.c`): where it currently builds
-  `setupfn2("%s.%s.rrd", rrdbasename, ifname)`, honour the declared template.
-  Validate the template (exactly two `%s`, no path separators beyond the
-  sanitisation already added) so a hostile status cannot craft a filename.
-- Result: `disk,root.rrd` produced identically -> existing files continue,
-  the `[disk]` gdef's FNPATTERN still matches, no migration.
+Decision (option 2): do NOT add a per-column filename template (`fnfmt`) to the
+writer - that bakes a legacy quirk in permanently and keeps the collision.
+Instead adopt one reversible, collision-free instance encoding for the whole
+writer, and migrate existing files into it once. This fixes the 20-year latent
+collision as a side effect and keeps the writer uniform (disk is not special).
 
-Scope: this is self-contained on the writer; it does not need test.cfg. It could
-even land on `feat/self-describing-metrics` independently. Kept here so the disk
-block has a home to use it.
+Three coordinated pieces (this is writer AND showgraph, not writer alone):
+
+- **Encode** (`xymond/rrd/do_devmon.c` / the shared filename builder): `/` (and
+  the escape char) percent-encoded, e.g. `/var` -> `%2Fvar`, `%` -> `%25`.
+  Reversible, collision-free.
+- **Capture** (graphs.cfg gdef `FNPATTERN`): unchanged mechanism, matches the
+  encoded name.
+- **Decode** (`web/showgraph.c` `@RRDPARAM@`): decode the captured instance back
+  to the mount point for the legend, so graphs read `/var`, not `%2Fvar`.
+- **Migrate** (one-time script): rename existing `disk,*.rrd` into the new
+  encoding, idempotent and safe (skip already-migrated, never lose a file).
+  Run once at cutover; not in the hot write path.
+
+Separability: fixing the ancient collision is independent of self-describing
+disk. If the encode/decode/migrate chain proves fiddly, self-describing disk can
+ship first on the existing `,` encoding (inheriting the old collision - no worse
+than today), and the collision fix lands as its own follow-up. So option 2 is
+the target, but it does not block the disk block.
+
+Acceptance: `/a/b` and `/a,b` produce distinct RRD files; the graph legend shows
+the real mount point; a migrated tree's graphs are continuous with pre-cutover
+history.
 
 ### Feature 2 - HANDLER reroutes RRD creation off the built-in handler
 
@@ -115,10 +133,15 @@ With features 1 and 2 present, express disk as a metric:
 
 ## History / migration
 
-None required if feature 1 reproduces `disk,root.rrd` exactly. Verify by
-diffing the filenames the block path produces against a pre-change `do_disk`
-run for the same df input - they must be byte-identical. That equality is the
-acceptance test for feature 1.
+Option 2 (chosen) does not reproduce the old names - it replaces the ambiguous
+`,` encoding with a reversible one and renames existing files once. History is
+preserved by the migration, not by matching names. Acceptance: after the
+one-time rename, a column's graphs are continuous across the cutover, and the
+previously-colliding `/a/b` vs `/a,b` now have separate RRDs.
+
+If the collision fix is deferred (see Feature 1 "separability"), self-describing
+disk ships on the existing `,` encoding with no rename and no display change,
+inheriting the old collision unchanged.
 
 ## What this buys beyond paging
 
@@ -132,8 +155,9 @@ acceptance test for feature 1.
 ## Phasing (commits on this branch)
 
 1. Merge test-cfg; resolve the four additive conflicts; both suites green.
-2. Feature 1: writer honours `fnfmt`; test: block path reproduces do_disk's
-   filenames byte-for-byte.
+2. Feature 1: reversible instance encoding (writer encode + showgraph decode)
+   + one-time rename migration; test: `/a/b` and `/a,b` get distinct RRDs and
+   legends show the real mount point. (Deferrable - see Feature 1.)
 3. Feature 2: HANDLER routes a column to the marker writer, retiring the
    built-in; test: a disk status with a block writes once (no do_disk double).
 4. `unix_disk_report` emits the METRICS block (DS matching the gdef); drop the
@@ -143,8 +167,10 @@ acceptance test for feature 1.
 
 ## Risks / watch-items
 
-- Filename equality is load-bearing: any deviation orphans history. Byte-diff
-  test is mandatory, not optional.
+- The rename migration is load-bearing and destructive: it must be idempotent,
+  skip already-migrated files, and never lose one. Test on a copy first.
+- The encode/decode must round-trip: any instance the writer encodes,
+  showgraph must decode to the identical mount point, or legends break.
 - The dispatcher change (feature 2) touches the hot RRD path for every column;
   guard it so only an explicit HANDLER/marker route diverts - default columns
   must hit the exact same built-in branch as today.
