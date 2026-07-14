@@ -554,6 +554,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				graphsptr = strtok(graphscopy,",");
 				while (graphsptr != NULL) {
 					xymongraph_t localgraph, *owngdef;
+					int gcount = linecount;
 
 					/*
 					 * A stack-local gdef keeps the entry verbatim in the link
@@ -568,13 +569,18 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					localgraph.xymonrrdname = graphsptr;
 					if (!owngdef) localgraph.maxgraphs = xymon_gdef_maxinstancesperimage(graphsptr);
 					if (localgraph.maxgraphs == 0) localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : (graph ? graph->maxgraphs : 0));
-					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, &localgraph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+					/* A LAZY graph's file set is the ever-active
+					 * instances - a line-derived count would hide
+					 * trailing files, so render unsliced. */
+					if (xymon_gdef_fileset_unknown(graphsptr)) gcount = 0;
+					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 					graphsptr = strtok(NULL,",");
 				}
 				xfree(graphscopy);
 			}
 			else if (may_have_rrd && rrd && graph) {
-				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+				int gcount = (xymon_gdef_fileset_unknown(graph->xymonrrdname) ? 0 : linecount);
+				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 			}
 
 			if (markershow) {
@@ -601,7 +607,14 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					memset(&localgraph, 0, sizeof(localgraph));
 					localgraph.xymonrrdname = mwalk->name;
 					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : xymon_gdef_maxinstancesperimage(mwalk->name));
-					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, xymon_marker_instancecount(mwalk), HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+					/* gdef LAZY overrides a derived count (explicit
+					 * count= still wins) - same reasoning as the
+					 * banner attribute */
+					{
+						int gcount = xymon_marker_instancecount(mwalk);
+						if ((mwalk->instancespec < 0) && xymon_gdef_fileset_unknown(mwalk->name)) gcount = 0;
+						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+					}
 				}
 			}
 		}

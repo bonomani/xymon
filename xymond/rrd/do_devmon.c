@@ -61,6 +61,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			while ((slash = strchr(rrdbasename, '/')) != NULL) *slash = ',';
 			dbgprintf("DEVMON: changing testname from %s to %s\n",testname,rrdbasename);
 			numds = 0;
+			setup_lazy(0);
 			goto nextline;
 		}
 		if(!strncmp(curline, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER))) {
@@ -73,10 +74,16 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			int namelen = (name ? strspn(name, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") : 0);
 
 			if (name && (namelen > 0) && (namelen <= XYMON_MARKER_NAMELEN_MAX) && (name[namelen] == '\0')) {
+				char *attr;
+
 				in_devmon = 0;
 				rrdbasename = name;
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
+				setup_lazy(0);
+				while ((attr = strtok(NULL, " ")) != NULL) {
+					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
+				}
 			}
 			else {
 				dbgprintf("METRICS: invalid block name, skipping block\n");
@@ -145,7 +152,9 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			rrdvalues[rrdvalused++] = ':';
 			strcpy(rrdvalues + rrdvalused, dsval); rrdvalused += strlen(dsval);
 		}
-		/* File names in the format if_load.eth0.0.rrd */
+		/* File names in the format if_load.eth0.0.rrd; a lazy banner
+		 * attribute is enforced by the generic creation gate in
+		 * create_and_update_rrd(). */
 		setupfn2("%s.%s.rrd", rrdbasename, ifname);
 		dbgprintf("Sending from devmon to RRD for %s %s: %s\n",rrdbasename,ifname,rrdvalues);
 		create_and_update_rrd(hostname, testname, classname, pagepaths, devmon_params, NULL);
@@ -157,6 +166,7 @@ nextline:
 		if (fsline) { xfree(fsline); fsline = NULL; }
 		curline = (eoln ? (eoln+1) : NULL);
 	}
+	setup_lazy(0);	/* the banner flag must not leak into other handlers */
 
 	return 0;
 }

@@ -305,6 +305,33 @@ letters, digits, "_" and "-" (max 64 characters); an invalid name
 skips the whole block. A message may carry several blocks. The block
 is invisible on the rendered status page.
 
+A block may declare itself "lazy":
+
+.nf
+   <!--XYMON METRICS: diskio_ops lazy
+.fi
+
+The same gate can be set server-side for any graph - including stock
+columns, with no client cooperation - with the LAZY keyword in the
+graphs.cfg(5) definition.
+
+In a lazy block an instance begins existing when its values first
+CHANGE: the first sample seen becomes the instance's baseline -
+whatever the value is - and the RRD file is created only when a
+later sample differs from it. Flat
+instances produce no files and no graphs, whether they idle at zero
+(spare disks, unused interfaces) or sit pinned at a constant (an
+always-full filesystem). From the moment of creation every sample is
+recorded as usual - an instance that goes flat again keeps its file
+and its history. Because the file set is therefore the EVER-changed
+instances, which no single message can know, the graph of a lazy
+block renders unsliced by default (nothing is ever hidden); give the
+GRAPH marker an explicit count= to slice it. Two things to know: a
+constant-but-meaningful metric never graphs under lazy (that is the
+point - do not use it where flat history matters), and creation
+happens at the first CHANGED sample, so a varying instance appears
+one reporting cycle after its birth.
+
 To display graphs of these files on the status page, add one
 
 .nf

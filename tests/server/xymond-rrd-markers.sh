@@ -122,6 +122,69 @@ out=$(feed_status diskio "$work/body-long")
 assert_not_contains "longline.huge.rrd" "$out" "oversized value line is skipped"
 assert_contains "longline.ok.rrd" "$out" "lines after an oversized one are still written"
 
+# A "lazy" METRICS block: an instance begins existing when its values
+# first change. The first frame only teaches baselines (idle 0:0,
+# live 5:0); the second frame's live 0:0 deviates from its baseline and
+# creates the file, while idle stays at baseline and never does. Once
+# created, every later sample updates the file as usual.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lazydemo lazy\n'
+	printf 'DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n'
+	printf 'idle 0:0\n'
+	printf 'live 5:0\n'
+	printf -- '-->\n'
+	printf 'status text\n'
+	printf '@@\n'
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lazydemo lazy\n'
+	printf 'DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n'
+	printf 'idle 0:0\n'
+	printf 'live 0:0\n'
+	printf -- '-->\n'
+	printf 'status text\n'
+	printf '@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/lazydemo.live.rrd" ] \
+	|| fail "lazy block: an instance whose values changed must get a file"
+[ -e "$work/rrd/testhost/lazydemo.idle.rrd" ] \
+	&& fail "lazy block: a baseline-steady instance must not create a file"
+
+# The same gate from the graph definition: [lazygdef] carries LAZY in
+# graphs.cfg, so a block WITHOUT any banner attribute is still lazy.
+mkdir -p "$work/etc"
+cat >"$work/etc/graphs.cfg" <<'GDEFS'
+[lazygdef]
+	LAZY
+GDEFS
+lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
+	local ts; ts=$(date +%s)
+	rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+	{
+		printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+			"$ts" $((ts+1800)) "$ts" "$ts"
+		printf '<!--XYMON METRICS: %s\nDS:v:GAUGE:600:0:U\n%s %s\n%s %s\n-->\nstatus\n@@\n' \
+			"$1" "$2" "$3" "$5" "$6"
+		printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+			$((ts+300)) $((ts+2100)) "$ts" "$ts"
+		printf '<!--XYMON METRICS: %s\nDS:v:GAUGE:600:0:U\n%s %s\n%s %s\n-->\nstatus\n@@\n' \
+			"$1" "$2" "$4" "$5" "$7"
+	} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+		"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+	ls "$work/rrd/testhost" 2>/dev/null || true
+}
+
+# gdef LAZY: the first sample is the baseline, whatever its value - the
+# steady instance (4 -> 4) gets no file, the changing one (4 -> 9) does.
+out=$(lazyfeed lazygdef steady 4 4 changing 4 9)
+assert_not_contains "lazygdef.steady.rrd" "$out" "a steady instance never gets a file, even at a nonzero baseline"
+assert_contains "lazygdef.changing.rrd" "$out" "an instance is created when its value first changes"
+
 # Markers are line-anchored: a banner quoted mid-line must not trigger the
 # writer, and a plain status creates nothing.
 cat >"$work/body-midline" <<'EOF'

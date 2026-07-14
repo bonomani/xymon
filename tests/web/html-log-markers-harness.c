@@ -180,6 +180,44 @@ int main(void)
 	expect_contains("count matches what the writer writes", html, "service=diskio_mixed&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
+	/* A lazy block's file set is the EVER-active instances - the message
+	 * cannot know it (an instance that goes idle keeps its file), so the
+	 * graph renders unsliced: nothing is ever hidden. Explicit count=
+	 * still slices. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_lazy lazy\n"
+		"DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n"
+		"a 0:0\n"
+		"b 3:0\n"
+		"c 0:0\n"
+		"d 0:7\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_lazy -->\n"
+		"<!--XYMON GRAPH: diskio_lazysliced instances=6 -->\n"
+		"<!--XYMON METRICS: diskio_lazysliced lazy\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"x 1\n"
+		"-->\n"
+		"status text\n");
+	expect_contains("lazy blocks render unsliced", html, "service=diskio_lazy&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("lazy blocks render unsliced", html, "service=diskio_lazy&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	expect_contains("explicit count= still slices a lazy graph", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	expect_contains("explicit count= still slices a lazy graph", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=4&amp;count=3");
+	free(html);
+
+	/* gdef LAZY (graphs.cfg) makes the graph render unsliced even
+	 * without any banner attribute. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_gzy\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\nb 2\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_gzy -->\n"
+		"status text\n");
+	expect_contains("gdef LAZY renders unsliced", html, "service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("gdef LAZY renders unsliced", html, "service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
 	/* A hostile count= must not drive the renderer into building a
 	 * giant page: absurd values render unsliced. */
 	html = render_log_msg("diskio", 0, "",

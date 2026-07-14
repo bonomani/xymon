@@ -45,6 +45,7 @@ typedef struct gdefmeta_t {
 	char *name;
 	int maxinstancesperimage;		/* MAXINSTANCESPERIMAGE N: instances per image when paging */
 	int trends;		/* TRENDS: show on the trends page */
+	int lazy;		/* LAZY: no file until the values first change */
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -87,6 +88,9 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "TRENDS", 6) == 0) && ((p[6] == '\0') || isspace((int)p[6]))) {
 			cur->trends = 1;
 		}
+		else if (cur && (strncasecmp(p, "LAZY", 4) == 0) && ((p[4] == '\0') || isspace((int)p[4]))) {
+			cur->lazy = 1;
+		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own
 			 * keywords (before or after) override - later wins. */
@@ -98,6 +102,7 @@ static void load_gdef_meta(void)
 			if (base && (base != cur)) {
 				if (cur->maxinstancesperimage == 0) cur->maxinstancesperimage = base->maxinstancesperimage;
 				if (base->trends) cur->trends = 1;
+				if (base->lazy) cur->lazy = 1;
 			}
 		}
 	}
@@ -111,6 +116,41 @@ int xymon_gdef_maxinstancesperimage(char *name)
 
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
 	return ((walk && (walk->maxinstancesperimage > 0)) ? walk->maxinstancesperimage : 0);
+}
+
+
+/* Filename lookup: match "name.instance.rrd" against the graph
+ * definitions, with the same partial-match boundary rule as
+ * find_xymon_graph(). The scan must be loaded first. */
+static gdefmeta_t *gdefmeta_forfile(char *fn)
+{
+	gdefmeta_t *walk;
+
+	load_gdef_meta();
+	for (walk = gdefmetahead; (walk); walk = walk->next) {
+		int nlen = strlen(walk->name);
+		if (strncmp(walk->name, fn, nlen) != 0) continue;
+		if ((fn[nlen] != '.') && (fn[nlen] != ',') && (fn[nlen] != '\0')) continue;
+		return walk;
+	}
+	return NULL;
+}
+
+int xymon_gdef_lazy_forfile(char *fn)
+{
+	gdefmeta_t *walk = gdefmeta_forfile(fn);
+
+	return (walk && walk->lazy);
+}
+
+/* Does this graph's config make its file set diverge from what a status
+ * message shows? Then a message-derived paging count cannot be trusted. */
+int xymon_gdef_fileset_unknown(char *name)
+{
+	gdefmeta_t *walk;
+
+	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	return (walk && walk->lazy);
 }
 
 

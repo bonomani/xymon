@@ -51,6 +51,36 @@ static char **extids = NULL;
 
 static char rrdvalues[MAX_LINE_LEN];
 
+/* Lazy creation, set per data block by the block writer. The graph
+ * definition's LAZY keyword provides the same gate for every handler,
+ * looked up by target filename. An instance begins existing when its
+ * values first CHANGE: the first-seen sample is the baseline (whatever
+ * it is - 0 for an idle disk, 100 for an always-full filesystem), and
+ * the file is created when a later sample differs from it. */
+static int lazy_banner = 0;
+static void *lazybaselines = NULL;	/* host/file -> first-seen value string */
+
+void setup_lazy(int lazy)
+{
+	lazy_banner = lazy;
+}
+
+/* Does any component of the colon-separated value list differ from the
+ * baseline? A change in component count is a difference too. */
+static int lazy_deviates(char *values, char *baseline)
+{
+	char *v = values, *b = baseline;
+
+	while (v || b) {
+		if (!v || !b) return 1;	/* different number of components */
+		if (atof(v) != atof(b)) return 1;
+		v = strchr(v, ':'); if (v) v++;
+		b = strchr(b, ':'); if (b) b++;
+	}
+
+	return 0;
+}
+
 static char *senderip = NULL;
 static char rrdfn[PATH_MAX];   /* Base filename without directories, from setupfn() */
 static char filedir[PATH_MAX]; /* Full path filename */
@@ -333,11 +363,43 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	/* If the RRD file doesn't exist, create it immediately */
 	if (stat(filedir, &st) == -1) {
 		xymon_rrd_argv_item_t *rrdcreate_params;
+		int lazygate = lazy_banner;
 		char **rrddefinitions;
 		int rrddefcount, i;
 		char *rrakey = NULL;
 		char stepsetting[10];
 		int havestepsetting = 0, fixcount = 2;
+
+		/* A lazy instance begins existing when its values first
+		 * change: the first-seen sample is the baseline, and only a
+		 * later deviation beyond the tolerance creates the file.
+		 * Flat instances - idle at zero or pinned at any constant -
+		 * get no file, no graph, no paging slot. Existing files
+		 * always update (this is the create branch only). The
+		 * baseline lives in memory: after a restart it is re-learned
+		 * from the next sample, which for a flat instance is the
+		 * same value. */
+		if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
+		if (lazygate) {
+			char *values = strchr(rrdvalues, ':');
+			xtreePos_t lh;
+
+			if (values) values++;
+			if (!lazybaselines) lazybaselines = xtreeNew(strcasecmp);
+			lh = xtreeFind(lazybaselines, updcachekey);
+			if (lh == xtreeEnd(lazybaselines)) {
+				xtreeAdd(lazybaselines, strdup(updcachekey), strdup(values ? values : ""));
+				dbgprintf("Lazy baseline learned for absent %s\n", rrdfn);
+				return 0;
+			}
+			if (!lazy_deviates(values, (char *)xtreeData(lazybaselines, lh))) {
+				dbgprintf("Lazy skip: %s still at its baseline\n", rrdfn);
+				return 0;
+			}
+			/* Deviation: fall through and create. The baseline entry
+			 * stays behind unused - the file now exists, so this
+			 * gate is never consulted for it again. */
+		}
 
 		dbgprintf("Creating rrd %s\n", filedir);
 

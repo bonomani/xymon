@@ -74,7 +74,17 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 			char *name = marker_name(bol + strlen(XYMON_METRICS_MARKER));
 			if (name) {
 				block = find_or_add(&head, &tail, &count, name);
-				if (block) block->store = 1;
+				if (block) {
+					char *p = bol + strlen(XYMON_METRICS_MARKER);
+
+					block->store = 1;
+					/* banner attributes, up to end-of-line */
+					while (*p && (*p != '\n')) {
+						if ((strncmp(p, " lazy", 5) == 0) &&
+						    ((p[5] == ' ') || (p[5] == '\n') || (p[5] == '\r') || (p[5] == '\0'))) block->lazy = 1;
+						p++;
+					}
+				}
 			}
 		}
 		else if (strncmp(bol, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) {
@@ -159,6 +169,11 @@ void xymon_markers_free(xymonmarker_t *head)
 int xymon_marker_instancecount(xymonmarker_t *marker)
 {
 	if (marker->instancespec >= 0) return marker->instancespec;
+	/* A lazy block's file set is the EVER-active instances, which the
+	 * current message cannot know (an instance that goes idle keeps its
+	 * file) - a derived count would hide trailing files. Render
+	 * unsliced unless an explicit instances= says otherwise. */
+	if (marker->lazy) return 0;
 	if (marker->store && (marker->blockinstances > 0)) return marker->blockinstances;
 	return 0;
 }

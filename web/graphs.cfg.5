@@ -29,6 +29,20 @@ graph. This keeps the split size with the graph it describes; it
 overrides the legacy "name::N" suffix in the GRAPHS environment
 variable (see xymonserver.cfg(5)), which remains supported.
 
+A "LAZY" keyword makes file creation lazy for every writer path
+targeting this graph's files: the first sample seen for an instance
+becomes its baseline - whatever the value is - and the RRD file is
+created only when a later sample differs. Flat instances produce no files
+and no graphs, whether they idle at zero (spare disks, unused
+interfaces) or sit pinned at a constant (an always-full database
+filesystem). Existing files always update, and such graphs render
+unsliced (their file set is the ever-changed instances, which no
+single status can know). The baseline is held in memory: after a
+daemon restart it is re-learned from the next sample, which for a
+flat instance is the same value. The same gate is available per
+message via the METRICS banner's "lazy" attribute - see
+xymond_rrd(8).
+
 A "TRENDS" keyword makes the graph a member of the trends-column page
 without an entry in the GRAPHS environment variable - the membership
 lives with the graph definition. Graphs listed in GRAPHS remain
