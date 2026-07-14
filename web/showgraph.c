@@ -96,6 +96,8 @@ typedef struct rrddb_t {
 	char *key;
 	char *rrdfn;
 	char *rrdparam;
+	int   rrdparamfinal;	/* rrdparam is the final legend already (rrdinstance-decoded);
+				 * skip the legacy comma->slash un-mangling at render time. */
 } rrddb_t;
 
 rrddb_t *rrddbs = NULL;
@@ -906,7 +908,7 @@ char *expand_tokens(char *tpl)
 				SBUF_DEFINE(resultstr);
 
 				val = colon_escape(rrddbs[rrdidx].rrdparam);
-				p = val; while ((p = strchr(p, ',')) != NULL) *p = '/';
+				if (!rrddbs[rrdidx].rrdparamfinal) { p = val; while ((p = strchr(p, ',')) != NULL) *p = '/'; }
 
 				/* rrdparam strings may be very long. */
 				if (strlen(val) > 100) *(val+100) = '\0';
@@ -935,7 +937,7 @@ char *expand_tokens(char *tpl)
 				char *val, *p, *metaval;
 
 				val = colon_escape(rrddbs[rrdidx].rrdparam);
-				p = val; while ((p = strchr(p, ',')) != NULL) *p = '/';
+				if (!rrddbs[rrdidx].rrdparamfinal) { p = val; while ((p = strchr(p, ',')) != NULL) *p = '/'; }
 
 				metaval = lookup_meta(val, rrddbs[rrdidx].rrdfn);
 				if (metaval) addtobuffer(result, metaval);
@@ -1508,6 +1510,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			rrddbs[0].rrdfn = (char *)malloc(buflen);
 			snprintf(rrddbs[0].rrdfn, buflen, "%s.rrd", gdef->name);
 			rrddbs[0].rrdparam = NULL;
+			rrddbs[0].rrdparamfinal = 0;
 		}
 		else {
 			int i, maxlen;
@@ -1529,6 +1532,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				buflen = maxlen + 2;
 				rrddbs[i].rrdparam = (char *)malloc(buflen);
 				snprintf(rrddbs[i].rrdparam, buflen, paramfmt, hostlist[i]);
+				rrddbs[i].rrdparamfinal = 0;
 			}
 		}
 	}
@@ -1620,6 +1624,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 
 			/* We have a matching file! */
 			rrddbs[rrddbcount].rrdfn = strdup(d->d_name);
+			rrddbs[rrddbcount].rrdparamfinal = 0;
 			if (haveparam) {
 				/*
 				 * This is ugly, but I cannot find a pretty way of un-mangling
@@ -1635,10 +1640,17 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					snprintf(rrddbs[rrddbcount].rrdparam, buflen, "http://%s", param);
 				}
 				else {
-					/* Reverse rrdinstance_encode() for METRICS-block files
-					 * (%XX -> original byte); a plain capture with no escapes
-					 * passes through unchanged, so legacy graphs are unaffected. */
-					rrddbs[rrddbcount].rrdparam = rrdinstance_decode(param);
+					/* Reverse rrdinstance_encode() for encoded files (disk,
+					 * inode, METRICS blocks): %XX -> original byte. If the
+					 * capture actually held an escape, the decoded value is the
+					 * final legend and must NOT be run through the legacy
+					 * comma->slash un-mangling below (a mount like "/a,b" would
+					 * otherwise turn back into "/a/b"). A plain capture with no
+					 * escapes decodes to itself and keeps the old behaviour, so
+					 * legacy backends (iostat, ...) are unaffected. */
+					char *dec = rrdinstance_decode(param);
+					rrddbs[rrddbcount].rrdparam = dec;
+					rrddbs[rrddbcount].rrdparamfinal = (strcmp(dec, param) != 0);
 				}
 
 				if (strlen(rrddbs[rrddbcount].rrdparam) > paramlen) {
