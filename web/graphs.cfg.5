@@ -29,6 +29,26 @@ graph. This keeps the split size with the graph it describes; it
 overrides the legacy "name::N" suffix in the GRAPHS environment
 variable (see xymonserver.cfg(5)), which remains supported.
 
+A "TRENDS" keyword makes the graph a member of the trends-column page
+without an entry in the GRAPHS environment variable - the membership
+lives with the graph definition. Graphs listed in GRAPHS remain
+members as before.
+
+"INCLUDE <name>" inherits an earlier-defined graph: its header
+keywords (TITLE, YAXIS, FNPATTERN, MAXINSTANCESPERIMAGE, TRENDS, ...) are copied,
+and its definition lines are copied in place. The variant's own
+keywords override the inherited ones, wherever they appear relative
+to the INCLUDE line, and its definition lines append - so a variant can retitle, retune the split
+size, or add curves without repeating the base:
+.sp
+[diskio_ops_wide]
+.br
+        INCLUDE diskio_ops
+.br
+        TITLE Disk operations (wide)
+.br
+        MAXINSTANCESPERIMAGE 5
+
 If a fixed set of RRD files are used for the graph, you just write those
 in the RRDtool definitions. Note that Xymon keeps all RRD files for a host 
 in a separate directory per host, so you need not worry about the hostname 

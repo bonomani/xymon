@@ -44,6 +44,7 @@ static const char *metafmt = "<RRDGraph>\n  <GraphType>%s</GraphType>\n  <GraphL
 typedef struct gdefmeta_t {
 	char *name;
 	int maxinstancesperimage;		/* MAXINSTANCESPERIMAGE N: instances per image when paging */
+	int trends;		/* TRENDS: show on the trends page */
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -82,6 +83,22 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "MAXINSTANCESPERIMAGE", 20) == 0) && isspace((int)p[20])) {
 			cur->maxinstancesperimage = atoi(p+20);
 			if (cur->maxinstancesperimage < 0) cur->maxinstancesperimage = 0;
+		}
+		else if (cur && (strncasecmp(p, "TRENDS", 6) == 0) && ((p[6] == '\0') || isspace((int)p[6]))) {
+			cur->trends = 1;
+		}
+		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
+			/* A variant inherits the base's metadata; its own
+			 * keywords (before or after) override - later wins. */
+			char *bname = p + 7; 
+			gdefmeta_t *base;
+			bname += strspn(bname, " \t");
+			bname[strcspn(bname, " \t\r\n")] = '\0';
+			for (base = gdefmetahead; (base && strcmp(base->name, bname)); base = base->next) ;
+			if (base && (base != cur)) {
+				if (cur->maxinstancesperimage == 0) cur->maxinstancesperimage = base->maxinstancesperimage;
+				if (base->trends) cur->trends = 1;
+			}
 		}
 	}
 	stackfclose(fd);
@@ -183,10 +200,17 @@ static void rrd_setup(void)
 	}
 	xfree(lenv);
 
-	/* Setup the xymongraphs table, describing how to make graphs from an RRD */
+	/* Setup the xymongraphs table, describing how to make graphs from an RRD.
+	 * Graph metadata from graphs.cfg contributes too: gdefs marked TRENDS
+	 * become table members without a GRAPHS env entry. */
+	load_gdef_meta();
 	lenv = strdup(xgetenv("GRAPHS"));
 	p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0';	/* Drop a trailing comma */
 	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
+	{
+		gdefmeta_t *meta;
+		for (meta = gdefmetahead; (meta); meta = meta->next) count += (meta->trends != 0);
+	}
 	xymongraphs = (xymongraph_t *)calloc((count+1), sizeof(xymongraph_t));
 
 	grec = xymongraphs; ldef = strtok(lenv, ",");
@@ -215,9 +239,22 @@ static void rrd_setup(void)
 	}
 	xfree(lenv);
 
-	/* Graph metadata from graphs.cfg overrides the env table: the split
-	 * size belongs with the graph definition, not in a second file. */
-	load_gdef_meta();
+	/* Append gdefs marked TRENDS in graphs.cfg that GRAPHS did not list */
+	{
+		gdefmeta_t *meta;
+		for (meta = gdefmetahead; (meta); meta = meta->next) {
+			xymongraph_t *walk;
+			if (!meta->trends) continue;
+			for (walk = xymongraphs; (walk->xymonrrdname && strcmp(walk->xymonrrdname, meta->name)); walk++) ;
+			if (walk->xymonrrdname == NULL) {
+				walk->xymonrrdname = strdup(meta->name);
+				grec = walk;
+			}
+		}
+	}
+
+	/* MAXINSTANCESPERIMAGE in the graph definition overrides a legacy ::N suffix:
+	 * the split size belongs with the graph, not in a second file. */
 	for (grec = xymongraphs; (grec->xymonrrdname); grec++) {
 		int maxinstancesperimage = xymon_gdef_maxinstancesperimage(grec->xymonrrdname);
 		if (maxinstancesperimage > 0) grec->maxgraphs = maxinstancesperimage;
