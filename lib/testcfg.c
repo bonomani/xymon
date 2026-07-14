@@ -87,19 +87,30 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 
 		if (strcasecmp(c->words[0], "TRACKMAX") == 0) m->trackmax = 1;
 		else if (strcasecmp(c->words[0], "COUNTLINES") == 0) m->countlines = 1;
-		else if ((strcasecmp(c->words[0], "NCV") == 0)) {
-			/* keep the NCV spec verbatim (block body words or inline args) */
+		else if ((strcasecmp(c->words[0], "NCV") == 0) || (strcasecmp(c->words[0], "SPLITNCV") == 0)) {
+			/* Collect the "name:type" pairs into a comma-separated spec
+			 * (the form the NCV env carries). Inline args ("NCV a:X b:Y")
+			 * or a block body ("NCV { a:X; b:Y }") both work; a block
+			 * entry's words rejoin on ':'. */
 			strbuffer_t *sb = newstrbuffer(0);
 			int j;
-			for (j = 1; j < c->nwords; j++) { if (j > 1) addtobuffer(sb, " "); addtobuffer(sb, c->words[j]); }
+			for (j = 1; j < c->nwords; j++) {
+				char *w = c->words[j];
+				size_t wl = strlen(w);
+				while (wl && (w[wl-1] == ',')) wl--;
+				if (wl == 0) continue;
+				if (STRBUFLEN(sb)) addtobuffer(sb, ",");
+				addtobufferraw(sb, w, wl);
+			}
 			for (j = 0; j < c->nchildren; j++) {
 				int k;
 				bracenode_t *e = c->children[j];
-				if (STRBUFLEN(sb)) addtobuffer(sb, " ");
+				if (STRBUFLEN(sb)) addtobuffer(sb, ",");
 				for (k = 0; k < e->nwords; k++) { if (k) addtobuffer(sb, ":"); addtobuffer(sb, e->words[k]); }
 			}
 			if (m->ncv) xfree(m->ncv);
 			m->ncv = strdup(STRBUF(sb));
+			m->ncv_split = (strcasecmp(c->words[0], "SPLITNCV") == 0);
 			freestrbuffer(sb);
 		}
 		else if (is_rrd_verb(c->words[0])) {
@@ -266,4 +277,19 @@ tc_backend_t *testcfg_backend(tc_metric_t *metric, const char *name)
 	if (!name) name = "rrd";
 	for (b = metric->backends; (b && strcasecmp(b->name, name)); b = b->next) ;
 	return b;
+}
+
+const char *testcfg_ncv(const char *testname, int *split)
+{
+	tc_test_t *t = testcfg_find(testcfg_load(), testname);
+	tc_metric_t *m;
+
+	if (!t) return NULL;
+	for (m = t->metrics; (m); m = m->next) {
+		if (m->ncv) {
+			if (split) *split = m->ncv_split;
+			return m->ncv;
+		}
+	}
+	return NULL;
 }

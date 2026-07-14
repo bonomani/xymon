@@ -35,12 +35,17 @@ static const char *xymonlinkfmt = "<table summary=\"%s Graph\"><tr><td><A HREF=\
 static const char *metafmt = "<RRDGraph>\n  <GraphType>%s</GraphType>\n  <GraphLink><![CDATA[%s]]></GraphLink>\n  <GraphImage><![CDATA[%s&amp;graph=hourly]]></GraphImage>\n</RRDGraph>\n";
 
 
-/* The metric a single-metric TEST binds its column to, or NULL if the test
- * does not map cleanly to one RRD name (0 or >1 metrics, e.g. pseudo-columns
- * and self-describing multi-metric tests, which route by other means). */
+/* The RRD-handler id a TEST binds its column to, or NULL if it does not map
+ * cleanly to one (pseudo-columns, multi-metric self-describing tests). Order
+ * follows the RFC: an explicit HANDLER wins; otherwise a single metric routes
+ * to the "ncv" handler when it carries an NCV/SPLITNCV spec, else to its own
+ * name (the plain TEST2RRD binding). */
 static const char *testcfg_rrdname(tc_test_t *t)
 {
-	if (!t || !t->metrics || t->metrics->next) return NULL;
+	if (!t) return NULL;
+	if (t->handler) return t->handler;
+	if (!t->metrics || t->metrics->next) return NULL;
+	if (t->metrics->ncv) return "ncv";
 	return t->metrics->name;
 }
 

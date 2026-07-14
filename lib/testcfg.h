@@ -35,7 +35,8 @@ typedef struct tc_metric_t {
 	char *name;
 	int trackmax;			/* TRACKMAX */
 	int countlines;			/* COUNTLINES (paging from status lines) */
-	char *ncv;			/* NCV spec, verbatim, or NULL */
+	char *ncv;			/* NCV/SPLITNCV spec (name:type ...), or NULL */
+	int ncv_split;			/* the spec came from SPLITNCV (one file per var) */
 	tc_backend_t *backends;		/* at least the implicit "rrd" if any storage verb seen */
 	struct tc_metric_t *next;
 } tc_metric_t;
@@ -66,5 +67,10 @@ extern tc_test_t *testcfg_load(void);
 extern tc_test_t *testcfg_find(tc_test_t *head, const char *name);
 extern tc_metric_t *testcfg_metric(tc_test_t *test, const char *name);
 extern tc_backend_t *testcfg_backend(tc_metric_t *metric, const char *name);  /* name NULL -> the default (rrd) */
+
+/* The NCV/SPLITNCV parse spec for a column (the first metric of the test that
+ * carries one), or NULL. *split (if non-NULL) is set to 1 for SPLITNCV. Used
+ * by the RRD writer to overlay the NCV_<col>/SPLITNCV_<col> environment. */
+extern const char *testcfg_ncv(const char *testname, int *split);
 
 #endif
