@@ -566,7 +566,8 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					owngdef = find_xymon_graph(graphsptr);
 					memset(&localgraph, 0, sizeof(localgraph));
 					localgraph.xymonrrdname = graphsptr;
-					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : (graph ? graph->maxgraphs : 0));
+					if (!owngdef) localgraph.maxgraphs = xymon_gdef_maxinstancesperimage(graphsptr);
+					if (localgraph.maxgraphs == 0) localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : (graph ? graph->maxgraphs : 0));
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, &localgraph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 					graphsptr = strtok(NULL,",");
 				}
@@ -599,7 +600,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					owngdef = find_xymon_graph(mwalk->name);
 					memset(&localgraph, 0, sizeof(localgraph));
 					localgraph.xymonrrdname = mwalk->name;
-					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : 0);
+					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : xymon_gdef_maxinstancesperimage(mwalk->name));
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, xymon_marker_instancecount(mwalk), HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 				}
 			}

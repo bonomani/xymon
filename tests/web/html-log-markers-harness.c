@@ -81,6 +81,7 @@ static const char *diskio_msg =
 	"<!--XYMON GRAPH: diskio_busy -->\n"
 	"<!--XYMON GRAPH: diskio_sum instances=all -->\n"
 	"<!--XYMON GRAPH: diskio_lat instances=10 -->\n"
+	"<!--XYMON GRAPH: diskio_split instances=4 -->\n"
 	"\n"
 	"Disk I/O Status\n"
 	"ada0: 10 r/s, 20 w/s\n";
@@ -95,8 +96,14 @@ int main(void)
 	 * (graph list and paging counts) comes from the message itself. */
 	html = render_log_msg("diskio", 0, "", diskio_msg);
 	expect_contains("marker page has a graph section", html, "<a name=\"begingraph\">");
-	/* count derived from the METRICS block: 3 instances, default base 5 -> one slice of 3 */
-	expect_contains("derived count", html, "service=diskio_ops&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	/* count derived from the METRICS block: 3 instances; the gdef's own
+	 * MAXINSTANCESPERIMAGE 1 (graphs.cfg) slices them one per image */
+	expect_contains("derived count with gdef MAXINSTANCESPERIMAGE", html, "service=diskio_ops&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=1");
+	expect_contains("derived count with gdef MAXINSTANCESPERIMAGE", html, "service=diskio_ops&amp;graph_width=576&amp;graph_height=120&amp;first=3&amp;count=1");
+	/* MAXINSTANCESPERIMAGE in the graph definition beats a legacy ::N in GRAPHS:
+	 * diskio_split is listed as ::4 but its gdef says MAXINSTANCESPERIMAGE 2 */
+	expect_contains("MAXINSTANCESPERIMAGE beats legacy ::N", html, "service=diskio_split&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	expect_contains("MAXINSTANCESPERIMAGE beats legacy ::N", html, "service=diskio_split&amp;graph_width=576&amp;graph_height=120&amp;first=3&amp;count=2");
 	/* GRAPHS lists diskio_busy::2; 3 instances at cap 2 fill 2 images of
 	 * step 2 - the step rounds up to fill images, the last one holds the
 	 * remainder */

@@ -28,6 +28,17 @@ fi
 work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-htmllog-markers.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
+# Split sizes declared in the graph definition itself (MAXINSTANCESPERIMAGE); the
+# diskio_split entry also has a legacy ::4 in GRAPHS - MAXINSTANCESPERIMAGE wins.
+mkdir -p "$work/etc"
+cat >"$work/etc/graphs.cfg" <<'GDEFS'
+[diskio_ops]
+	MAXINSTANCESPERIMAGE 1
+	TITLE Disk operations
+[diskio_split]
+	MAXINSTANCESPERIMAGE 2
+GDEFS
+
 # The harness links libxymoncomm; a never-built tree skips (the post-build
 # CI suite exercises it), a built tree refreshes the archive incrementally.
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
@@ -48,7 +59,7 @@ XYMONSKIN="/xymon/gifs" \
 XYMONWEB="/xymon" \
 IMAGEFILETYPE="gif" \
 TEST2RRD="cpu=la,disk" \
-GRAPHS="la,disk,tcp,diskio_busy::2" \
+GRAPHS="la,disk,tcp,diskio_busy::2,diskio_split::4" \
 GRAPHS_smart="smart-temp" \
 INFOCOLUMN="info" \
 TRENDSCOLUMN="trends" \

@@ -36,6 +36,68 @@ static const char *metafmt = "<RRDGraph>\n  <GraphType>%s</GraphType>\n  <GraphL
 
 
 /*
+ * Graph metadata read from the [name] sections of graphs.cfg: keywords
+ * that belong with the graph definition but are needed by the page
+ * renderers (which never parse the full rrdtool definitions). Only the
+ * section headers and the known keywords are scanned.
+ */
+typedef struct gdefmeta_t {
+	char *name;
+	int maxinstancesperimage;		/* MAXINSTANCESPERIMAGE N: instances per image when paging */
+	struct gdefmeta_t *next;
+} gdefmeta_t;
+static gdefmeta_t *gdefmetahead = NULL;
+
+static void load_gdef_meta(void)
+{
+	static int done = 0;
+	char fn[PATH_MAX];
+	FILE *fd;
+	strbuffer_t *inbuf;
+	gdefmeta_t *cur = NULL;
+
+	if (done) return;
+	done = 1;
+
+	snprintf(fn, sizeof(fn), "%s/etc/graphs.cfg", xgetenv("XYMONHOME"));
+	fd = stackfopen(fn, "r", NULL);
+	if (fd == NULL) return;
+
+	inbuf = newstrbuffer(0);
+	while (stackfgets(inbuf, NULL)) {
+		char *p = STRBUF(inbuf);
+		p += strspn(p, " \t");
+
+		if (*p == '[') {
+			char *delim = strchr(p, ']');
+			cur = NULL;
+			if (delim) {
+				*delim = '\0';
+				cur = (gdefmeta_t *)calloc(1, sizeof(gdefmeta_t));
+				cur->name = strdup(p+1);
+				cur->next = gdefmetahead;
+				gdefmetahead = cur;
+			}
+		}
+		else if (cur && (strncasecmp(p, "MAXINSTANCESPERIMAGE", 20) == 0) && isspace((int)p[20])) {
+			cur->maxinstancesperimage = atoi(p+20);
+			if (cur->maxinstancesperimage < 0) cur->maxinstancesperimage = 0;
+		}
+	}
+	stackfclose(fd);
+	freestrbuffer(inbuf);
+}
+
+int xymon_gdef_maxinstancesperimage(char *name)
+{
+	gdefmeta_t *walk;
+
+	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	return ((walk && (walk->maxinstancesperimage > 0)) ? walk->maxinstancesperimage : 0);
+}
+
+
+/*
  * Define the mapping between Xymon columns and RRD graphs.
  * Normally they are identical, but some RRD's use different names.
  */
@@ -152,6 +214,14 @@ static void rrd_setup(void)
 		grec++;
 	}
 	xfree(lenv);
+
+	/* Graph metadata from graphs.cfg overrides the env table: the split
+	 * size belongs with the graph definition, not in a second file. */
+	load_gdef_meta();
+	for (grec = xymongraphs; (grec->xymonrrdname); grec++) {
+		int maxinstancesperimage = xymon_gdef_maxinstancesperimage(grec->xymonrrdname);
+		if (maxinstancesperimage > 0) grec->maxgraphs = maxinstancesperimage;
+	}
 
 	setup_done = getcurrenttime(NULL);
 }
@@ -273,7 +343,7 @@ static char *xymon_graph_text(char *hostname, char *dispname, char *service, int
 		 * renders unsliced instead. */
 		if ((itemcount < 0) || (itemcount > 4096)) itemcount = 0;
 
-		step = (graphdef->maxgraphs ? graphdef->maxgraphs : 5);
+		step = (graphdef->maxgraphs > 0 ? graphdef->maxgraphs : 5);
 		if (itemcount) {
 			/* Spread itemcount instances evenly over the needed number of
 			 * graphs. gcount is the graph count (ceil); the per-graph step

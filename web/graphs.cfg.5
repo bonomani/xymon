@@ -23,6 +23,12 @@ A graph definition needs to have a TITLE and a YAXIS setting. These are
 texts shown as the title of the graph, and the YAXIS heading respectively.
 (The X-axis is always time-based).
 
+A definition may also carry "MAXINSTANCESPERIMAGE N": how many of the matched RRD
+files are drawn per image when a status or trends page splits this
+graph. This keeps the split size with the graph it describes; it
+overrides the legacy "name::N" suffix in the GRAPHS environment
+variable (see xymonserver.cfg(5)), which remains supported.
+
 If a fixed set of RRD files are used for the graph, you just write those
 in the RRDtool definitions. Note that Xymon keeps all RRD files for a host 
 in a separate directory per host, so you need not worry about the hostname 

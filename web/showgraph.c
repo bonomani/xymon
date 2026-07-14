@@ -683,6 +683,11 @@ void load_gdefs(char *fn)
 			}
 			if (newitem->dscount < 0) newitem->dscount = 0;
 		}
+		else if (strncasecmp(p, "MAXINSTANCESPERIMAGE", 9) == 0) {
+			/* Page-renderer metadata (instances per image when paging);
+			 * consumed by lib/xymonrrd.c, not an rrdtool argument. */
+			continue;
+		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
 			p += 12; p += strspn(p, " \t");
 			newitem->graphopts = strdup(p);
