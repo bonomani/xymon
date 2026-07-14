@@ -286,6 +286,53 @@ documentation of "How to create graph custom data" available in
 the Help menu section on your Xymon server.
 
 
+.SH SELF-DESCRIBING STATUS MESSAGES (XYMON METRICS MARKERS)
+A status message may carry its own RRD storage schema in a hidden
+block, with no TEST2RRD setting needed - the message is routed to the
+RRD writer by content:
+
+.nf
+   <!--XYMON METRICS: diskio_ops
+   DS:reads:GAUGE:600:0:U DS:writes:GAUGE:600:0:U
+   ada0 10:20
+   ada1 5:6
+   \-\->
+.fi
+
+This creates or updates one multi-dataset RRD file per instance line,
+named "diskio_ops.ada0.rrd" etc. The block name is restricted to
+letters, digits, "_" and "-" (max 64 characters); an invalid name
+skips the whole block. A message may carry several blocks. The block
+is invisible on the rendered status page.
+
+To display graphs of these files on the status page, add one
+
+.nf
+   <!--XYMON GRAPH: diskio_ops \-\->
+.fi
+
+marker per graph. The graph paging count is exact by construction:
+it is taken from the instance-line count of the same-named METRICS
+block in the same message. A marker may instead specify "count=N"
+explicitly (for graphs whose files are written elsewhere) or
+"count=all" to render one unsliced image regardless of any ::N
+split size (useful for stacked-total graphs, which must never be
+split). Graph appearance comes from the graphs.cfg(5) entry of the
+same name; if none exists,
+.I showgraph.cgi(1)
+synthesizes a generic definition (one line per dataset) from the
+files themselves, so no server-side configuration is required.
+
+The legacy "<!--DEVMON RRD:" banner emitted by the devmon SNMP
+collector is the ancestor of this mechanism and is accepted forever;
+it implies both store and show, and is now also routed by content
+(previously it required TEST2RRD="<column>=devmon", which still
+works). Explicit TEST2RRD mappings always take precedence over
+content routing - as does a column name that matches a built-in
+handler (disk, memory, ncv, ...), so give marker-carrying columns
+names of their own.
+
+
 .SH SENDING METRIC DATA TO AN ADDITIONAL PROCESS
 xymond_rrd provides a mechanism to send a copy of isolated metric 
 data to a single external processor for further processing. This can

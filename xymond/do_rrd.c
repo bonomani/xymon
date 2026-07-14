@@ -766,6 +766,13 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 	 */
 	else if (strcmp(id, "devmon") == 0)      do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 
+	/*
+	 * Self-describing statuses: a message carrying an embedded
+	 * XYMON METRICS (or legacy DEVMON RRD) block is routed by content,
+	 * with no TEST2RRD mapping needed. Explicit mappings above win.
+	 */
+	else if (xymon_markers_have_store(msg)) do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+
 	else if (extids && exthandler) {
 		int i;
 

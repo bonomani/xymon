@@ -38,17 +38,49 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		long long aused = 0;
 		char *dsval;
 		int i;
+		int rrdvalused;
 
 		eoln = strchr(curline, '\n'); if (eoln) *eoln = '\0';
 		lineno++;
 
+		/* Tolerate CRLF messages: values and banner names must not
+		 * carry a trailing CR into RRD updates or filenames. */
+		i = strlen(curline);
+		if (i && (curline[i-1] == '\r')) curline[i-1] = '\0';
+
 		if(!strncmp(curline, "<!--DEVMON RRD: ",16)) {
+			char *slash;
+
 			in_devmon = 0;
 			/*if(rrdbasename) {xfree(rrdbasename);rrdbasename = NULL;}*/
 			rrdbasename = strtok(curline+16," ");
 			if (rrdbasename == NULL) rrdbasename = xstrdup(testname);
+			/* The banner name becomes an RRD filename prefix; setupfn2()
+			 * only sanitizes the instance part, so strip path separators
+			 * here - devmon's own names never contain them. */
+			while ((slash = strchr(rrdbasename, '/')) != NULL) *slash = ',';
 			dbgprintf("DEVMON: changing testname from %s to %s\n",testname,rrdbasename);
 			numds = 0;
+			goto nextline;
+		}
+		if(!strncmp(curline, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER))) {
+			/* Same block format as the devmon banner, but the name becomes
+			 * an RRD filename prefix from an arbitrary status message, so
+			 * it is restricted to [A-Za-z0-9_-]. An invalid name opens no
+			 * block (if an earlier block is still unclosed, its lines keep
+			 * accumulating there - same as the legacy banner behaves). */
+			char *name = strtok(curline + strlen(XYMON_METRICS_MARKER), " ");
+			int namelen = (name ? strspn(name, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") : 0);
+
+			if (name && (namelen > 0) && (namelen <= XYMON_MARKER_NAMELEN_MAX) && (name[namelen] == '\0')) {
+				in_devmon = 0;
+				rrdbasename = name;
+				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
+				numds = 0;
+			}
+			else {
+				dbgprintf("METRICS: invalid block name, skipping block\n");
+			}
 			goto nextline;
 		}
 		if(in_devmon == 0 && !strncmp(curline, "-->",3)) {
@@ -91,16 +123,27 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			dbgprintf("Skipping line %d, line is malformed\n",lineno);
 			goto nextline;
 		}
-		snprintf(rrdvalues, sizeof(rrdvalues), "%d:", (int)tstamp);
-		strcat(rrdvalues,dsval);
+		/* Values come from the message, so every append is bounded -
+		 * rrdvalues is a fixed static buffer and messages can be far
+		 * larger than it. An oversized line is skipped, not truncated. */
+		rrdvalused = snprintf(rrdvalues, sizeof(rrdvalues), "%d:", (int)tstamp);
+		if ((rrdvalused < 0) || (rrdvalused + strlen(dsval) + 1 > sizeof(rrdvalues))) {
+			dbgprintf("Skipping line %d, values too long\n",lineno);
+			goto nextline;
+		}
+		strcpy(rrdvalues + rrdvalused, dsval); rrdvalused += strlen(dsval);
 		for (i=1;i < numds;i++) {
 			dsval = strtok(NULL,":");
 			if (dsval == NULL) {
 				dbgprintf("Skipping line %d, %d tokens present, expecting %d\n",lineno,i,numds);
 				goto nextline;
 			}
-			strcat(rrdvalues,":");
-			strcat(rrdvalues,dsval);
+			if (rrdvalused + strlen(dsval) + 2 > sizeof(rrdvalues)) {
+				dbgprintf("Skipping line %d, values too long\n",lineno);
+				goto nextline;
+			}
+			rrdvalues[rrdvalused++] = ':';
+			strcpy(rrdvalues + rrdvalused, dsval); rrdvalused += strlen(dsval);
 		}
 		/* File names in the format if_load.eth0.0.rrd */
 		setupfn2("%s.%s.rrd", rrdbasename, ifname);
