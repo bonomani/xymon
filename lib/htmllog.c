@@ -167,8 +167,28 @@ static void textwithcolorimg(char *msg, FILE *output)
 	} while (restofmsg);
 }
 
+/* Is "name" one of the comma-separated entries in "csv" (ignoring any
+ * ::N split-size suffix on the entry)? Used to avoid rendering a
+ * marker-declared graph twice when GRAPHS_<service> already lists it. */
+static int name_in_csv(char *csv, char *name)
+{
+	char *p = csv;
+	int namelen = strlen(name);
 
-void generate_html_log(char *hostname, char *displayname, char *service, char *ip, 
+	while (p && *p) {
+		int entrylen = strcspn(p, ",:");
+
+		if ((entrylen == namelen) && (strncmp(p, name, namelen) == 0)) return 1;
+		p += entrylen;
+		p += strcspn(p, ",");
+		if (*p == ',') p++;
+	}
+
+	return 0;
+}
+
+
+void generate_html_log(char *hostname, char *displayname, char *service, char *ip,
 		       int color, int flapping, char *sender, char *flags, 
 		       time_t logtime, char *timesincechange, 
 		       char *firstline, char *restofmsg, char *modifiers,
@@ -188,6 +208,8 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 	SBUF_DEFINE(graphs);
 	char *graphsenv = NULL;
 	char *graphsptr;
+	xymonmarker_t *markers = NULL;
+	int markershow = 0;
 	time_t now = getcurrenttime(NULL);
 
 	if (graphtime == 0) {
@@ -431,8 +453,18 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 		if (graphsenv && (*graphsenv == '\0')) graphsenv = NULL;	/* set-but-empty = not set */
 		if (flags && strchr(flags, 'R')) graphsenv = NULL;
 		xfree(graphs);
+
+		/* Self-describing statuses: XYMON GRAPH markers in the message
+		 * declare the graphs this page shows, each with its own paging
+		 * count. Reverse tests collect no RRD data here either. */
+		if (restofmsg && !(flags && strchr(flags, 'R'))) {
+			xymonmarker_t *mwalk;
+
+			markers = xymon_markers_parse(restofmsg);
+			for (mwalk = markers; (mwalk); mwalk = mwalk->next) markershow += (mwalk->show != 0);
+		}
 	}
-	if ((rrd && graph) || graphsenv) {
+	if ((rrd && graph) || graphsenv || markershow) {
 		int may_have_rrd = 1;
 
 		/*
@@ -510,11 +542,11 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 			xfree(multikey);
 		}
 
-		if (may_have_rrd) {
+		if (may_have_rrd || markershow) {
 			fprintf(output, "<!-- linecount=%d -->\n", linecount);
 			fprintf(output, "<a name=\"begingraph\">&nbsp;</a>\n");
 
-			if (graphsenv) {
+			if (may_have_rrd && graphsenv) {
 				/* strtok on a copy - the getenv() result is the live environment */
 				char *graphscopy = strdup(graphsenv);
 
@@ -540,11 +572,40 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				}
 				xfree(graphscopy);
 			}
-			else {
+			else if (may_have_rrd && rrd && graph) {
 				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, linecount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+			}
+
+			if (markershow) {
+				xymonmarker_t *mwalk;
+
+				for (mwalk = markers; (mwalk); mwalk = mwalk->next) {
+					xymongraph_t localgraph, *owngdef;
+
+					if (!mwalk->show) continue;
+
+					/* Skip graphs the config-driven paths above already rendered */
+					if (may_have_rrd && graphsenv && name_in_csv(graphsenv, mwalk->name)) continue;
+					if (may_have_rrd && !graphsenv && rrd && graph &&
+					    ((strcmp(mwalk->name, service) == 0) || (strcmp(mwalk->name, graph->xymonrrdname) == 0))) continue;
+
+					/* Same stack-local gdef pattern as the GRAPHS_ entries
+					 * above; the paging count is the marker's own - the
+					 * count= attribute, else the instance count of the
+					 * message's METRICS block, else 0 = unsliced. The
+					 * lookup is effectively exact for marker names: its
+					 * prefix matching applies only across a '.' or ','
+					 * boundary, which the marker charset cannot contain. */
+					owngdef = find_xymon_graph(mwalk->name);
+					memset(&localgraph, 0, sizeof(localgraph));
+					localgraph.xymonrrdname = mwalk->name;
+					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : 0);
+					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, xymon_marker_instancecount(mwalk), HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+				}
 			}
 		}
 	}
+	xymon_markers_free(markers);
 
 	if (histlocation == HIST_BOTTOM) {
 		historybutton(cgibinurl, hostname, service, ip, displayname,

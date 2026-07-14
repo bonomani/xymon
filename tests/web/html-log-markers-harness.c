@@ -1,0 +1,228 @@
+/* Self-describing statuses: XYMON GRAPH markers in a status message declare
+ * the graphs its page shows, each with its own paging count - derived from
+ * the message's METRICS block, overridden by instances=N, or instances=all for an
+ * unsliced render. Legacy DEVMON RRD banners imply store+show. */
+#include <stdio.h>
+#include <stdlib.h>
+#include <string.h>
+
+#include "libxymon.h"
+
+static int failures = 0;
+
+static void expect_contains(const char *label, const char *text, const char *needle)
+{
+	if (!text || !strstr(text, needle)) {
+		fprintf(stderr, "%s: missing '%s'\n", label, needle);
+		failures++;
+	}
+}
+
+static void expect_not_contains(const char *label, const char *text, const char *needle)
+{
+	if (text && strstr(text, needle)) {
+		fprintf(stderr, "%s: unexpected '%s'\n", label, needle);
+		failures++;
+	}
+}
+
+static void expect_count(const char *label, const char *text, const char *needle, int wanted)
+{
+	int n = 0;
+	const char *p = text;
+
+	while (p && (p = strstr(p, needle)) != NULL) { n++; p += strlen(needle); }
+	if (n != wanted) {
+		fprintf(stderr, "%s: found '%s' %d times, wanted %d\n", label, needle, n, wanted);
+		failures++;
+	}
+}
+
+static char *render_log_msg(const char *service, int is_history, const char *flags, const char *restofmsg)
+{
+	char *html = NULL;
+	size_t htmlsz = 0;
+	FILE *out;
+	char *msgcopy = strdup(restofmsg);	/* the marker parser may read a mutable buffer */
+
+	out = open_memstream(&html, &htmlsz);
+	if (!out) { perror("open_memstream"); exit(2); }
+
+	generate_html_log("testhost", "Test Host", (char *)service, "127.0.0.1",
+			  COL_GREEN, 0, "tester", (char *)flags,
+			  0, "0 minutes", "green status ok", msgcopy,
+			  NULL, 0, NULL, NULL, 0, NULL,
+			  is_history, 1, 0, 0, NULL, NULL,
+			  NULL, NULL, NULL, 3600, out);
+
+	fclose(out);
+	free(msgcopy);
+	return html;
+}
+
+static const char *diskio_msg =
+	"<!--XYMON METRICS: diskio_ops\n"
+	"DS:reads:GAUGE:600:0:U DS:writes:GAUGE:600:0:U\n"
+	"ada0 10:20\n"
+	"ada1 5:6\n"
+	"da0 118:302\n"
+	"-->\n"
+	"<!--XYMON METRICS: diskio_busy\n"
+	"DS:busy:GAUGE:600:0:100\n"
+	"ada0 5\n"
+	"ada1 10\n"
+	"da0 42\n"
+	"-->\n"
+	"<!--XYMON METRICS: diskio_hidden\n"
+	"DS:v:GAUGE:600:0:U\n"
+	"x 1\n"
+	"-->\n"
+	"<!--XYMON GRAPH: diskio_ops -->\n"
+	"<!--XYMON GRAPH: diskio_busy -->\n"
+	"<!--XYMON GRAPH: diskio_sum instances=all -->\n"
+	"<!--XYMON GRAPH: diskio_lat instances=10 -->\n"
+	"\n"
+	"Disk I/O Status\n"
+	"ada0: 10 r/s, 20 w/s\n";
+
+int main(void)
+{
+	char *html;
+
+	histlocation = HIST_NONE;
+
+	/* A marker-only column: no TEST2RRD, no GRAPHS_diskio - everything
+	 * (graph list and paging counts) comes from the message itself. */
+	html = render_log_msg("diskio", 0, "", diskio_msg);
+	expect_contains("marker page has a graph section", html, "<a name=\"begingraph\">");
+	/* count derived from the METRICS block: 3 instances, default base 5 -> one slice of 3 */
+	expect_contains("derived count", html, "service=diskio_ops&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	/* GRAPHS lists diskio_busy::2; 3 instances at cap 2 fill 2 images of
+	 * step 2 - the step rounds up to fill images, the last one holds the
+	 * remainder */
+	expect_contains("::N split applies", html, "service=diskio_busy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	expect_contains("::N split applies", html, "service=diskio_busy&amp;graph_width=576&amp;graph_height=120&amp;first=3&amp;count=2");
+	/* instances=all renders unsliced: no first/count in the URL */
+	expect_contains("instances=all renders unsliced", html, "service=diskio_sum&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("instances=all renders unsliced", html, "service=diskio_sum&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	/* explicit count=10 pages on the default base: 2 slices of 5 */
+	expect_contains("explicit count", html, "service=diskio_lat&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=5");
+	expect_contains("explicit count", html, "service=diskio_lat&amp;graph_width=576&amp;graph_height=120&amp;first=6&amp;count=5");
+	/* store-only block: no GRAPH marker, no link */
+	expect_not_contains("METRICS without GRAPH is not shown", html, "service=diskio_hidden");
+	free(html);
+
+	/* The legacy devmon banner is store+show combined, count from its block. */
+	html = render_log_msg("devtest", 0, "",
+		"<!--DEVMON RRD: if_load 0 0\n"
+		"DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U\n"
+		"eth0.0 4678222:9966777\n"
+		"eth1.0 123:456\n"
+		"-->\n"
+		"status text\n");
+	expect_contains("legacy DEVMON banner renders its graph", html, "service=if_load&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	free(html);
+
+	/* A marker naming a graph GRAPHS_<service> already lists renders once. */
+	html = render_log_msg("smart", 0, "",
+		"<!--XYMON GRAPH: smart-temp -->\n"
+		"<!--XYMON GRAPH: smart-extra -->\n"
+		"status text\n");
+	/* One rendered graph = 3 URL occurrences (href, img src, zoom link) */
+	expect_count("marker deduped against GRAPHS_ list", html, "service=smart-temp&amp;", 3);
+	expect_contains("non-listed marker still renders", html, "service=smart-extra&amp;");
+	free(html);
+
+	/* A marker naming the column's default graph renders once; other
+	 * markers add graphs next to the default one. */
+	html = render_log_msg("cpu", 0, "",
+		"<!--XYMON GRAPH: la -->\n"
+		"<!--XYMON GRAPH: extra_cpu -->\n"
+		"status text\n");
+	expect_count("marker deduped against default graph", html, "service=la&amp;", 3);
+	expect_contains("marker adds a graph beside the default", html, "service=extra_cpu&amp;");
+	free(html);
+
+	/* Marker names are exact identities: "diskio_busy2" must not inherit
+	 * the ::2 split of the GRAPHS entry "diskio_busy" it prefix-matches -
+	 * it pages on the default base (3 instances -> one slice of 3). */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_busy2\n"
+		"DS:busy:GAUGE:600:0:100\n"
+		"a 1\nb 2\nc 3\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_busy2 -->\n"
+		"status text\n");
+	expect_contains("prefix-matched GRAPHS entry lends no split size", html,
+		"service=diskio_busy2&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	free(html);
+
+	/* Only "instance value" lines create RRD files, so only those count:
+	 * three-field lines (which the writer skips) must not inflate the
+	 * paging into empty slices. 2 valid + 2 invalid lines -> count 2. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_mixed\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"ada0 10\n"
+		"disk one 50\n"
+		"lonely\n"
+		"ada1 20\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_mixed -->\n"
+		"status text\n");
+	expect_contains("count matches what the writer writes", html, "service=diskio_mixed&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	free(html);
+
+	/* A hostile count= must not drive the renderer into building a
+	 * giant page: absurd values render unsliced. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON GRAPH: diskio_huge instances=2000000000 -->\n"
+		"status text\n");
+	expect_contains("absurd count renders unsliced", html, "service=diskio_huge&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("absurd count renders unsliced", html, "service=diskio_huge&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* An unclosed METRICS block is malformed: its count is unknown, so
+	 * the graph renders unsliced instead of slicing on the status text. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_broken\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"<!--XYMON GRAPH: diskio_broken -->\n"
+		"line one of status text\n"
+		"line two of status text\n");
+	expect_contains("unclosed block renders unsliced", html, "service=diskio_broken&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("unclosed block renders unsliced", html, "service=diskio_broken&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* Invalid names are ignored; a page with only invalid markers has no
+	 * graph section at all. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON GRAPH: ../evil -->\n"
+		"<!--XYMON GRAPH: aaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaa -->\n"
+		"status text\n");
+	/* The raw body (including the marker text) is echoed into the page,
+	 * so assert on the absence of links, not of the text itself. */
+	expect_not_contains("invalid marker names ignored", html, "service=");
+	expect_not_contains("invalid marker names ignored", html, "begingraph");
+	free(html);
+
+	/* Markers quoted mid-line are body text, not markers. */
+	html = render_log_msg("diskio", 0, "",
+		"the docs mention <!--XYMON GRAPH: quoted --> in passing\n");
+	expect_not_contains("mid-line marker text ignored", html, "begingraph");
+	free(html);
+
+	/* Reverse tests collect no RRD data: no marker graphs either. */
+	html = render_log_msg("diskio", 0, "oRdastle", diskio_msg);
+	expect_not_contains("reverse test has no marker graphs", html, "begingraph");
+	free(html);
+
+	/* History pages never render graphs. */
+	html = render_log_msg("diskio", 1, "", diskio_msg);
+	expect_not_contains("history page has no marker graphs", html, "begingraph");
+	free(html);
+
+	printf(failures ? "FAILED\n" : "ALL OK\n");
+	return failures ? 1 : 0;
+}
