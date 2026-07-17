@@ -239,6 +239,26 @@ that file does not have. Same family as the heartbeat watch-item:
 declarations changed after creation only affect new files, and the
 reader tolerates the mix.
 
+## Units and gdef scaffolding (candidates)
+
+- Unit as a declared fact (DS dialect extension, candidate): the unit is
+  metric semantics - producer knowledge, like type and bounds - and the one
+  fact whose absence caps auto-generated graphs at YAXIS "Value". Declare it
+  PER DS, as an optional suffix after the RRD-valid spec
+  ("DS:read_ms:GAUGE:600:0:U ms"); the parser detaches it, the writer feeds
+  rrdtool the pure spec, an unsuffixed line stays legal. Never a per-block
+  unit declaration: a block may legitimately mix units (bytes/s + packets/s
+  + errors), and a second declaration surface invites contradiction. The
+  graph axis is DERIVED, not declared: all DSes of an image share a unit ->
+  that is the YAXIS; mixed units -> the synthetic gdef groups DSes by unit
+  (one image per unit); hand-written gdefs decide for themselves. New wire
+  surface -> high bar; goes with the markers slice review, not before.
+- Gdef scaffold mode (candidate, ~20 lines): the runtime synthesizer
+  (synthetic_gdef/synthetic_defs) IS the generator - add a print mode
+  (showgraph --emit-gdef <name>) that writes the synthesized block for the
+  admin to capture into graphs.d/ and customize. One-shot scaffold, never a
+  sync: once edited the file is the admin's (hand-written already wins).
+
 ## Display-window keywords (candidate)
 
 - STALE <seconds>, per graphs.cfg block (next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/
