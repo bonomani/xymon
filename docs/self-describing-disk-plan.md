@@ -174,3 +174,15 @@ inheriting the old collision unchanged.
   ONE feature branch (self-describing-metrics), not yet merged upstream.
   Sequence after that lands, or keep as a proving branch. test-cfg is optional
   and only for the config-driven HANDLER refinement.
+- Instance sort order: showgraph's rrd_name_compare knows only two regimes -
+  pure-integer keys (numeric sort) and everything else (case-sensitive strcmp).
+  Multi-component numeric keys sort wrongly: strcmp puts "1.10.1" before
+  "1.2.1", the reverse of OID/version order. Harmless today (stock instances
+  are names or plain integers), but once instances are arbitrary keys announced
+  by a METRICS block (SNMP collectors -> OIDs, composed indexes), display order
+  and first/count paging stability depend on this comparator. Before that
+  lands, replace it with ONE version-aware compare (split on separators,
+  compare digit runs numerically, strcmp fallback per component - strverscmp
+  semantics): it subsumes all three cases (plain integers unchanged, OIDs
+  fixed, names unchanged), so it is a drop-in replacement, not a new special
+  case.
