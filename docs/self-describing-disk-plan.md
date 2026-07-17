@@ -210,6 +210,35 @@ counts:
 This reinstates the sound half of PR #246 (count what will actually render)
 while keeping its env-var config surface retired.
 
+## Archive consolidations derived from graph DEFs (candidate design)
+
+An RRA line bundles two decisions that belong to different owners:
+WHICH consolidations exist (AVERAGE/MAX/...) is the consumer's need -
+the graph knows it reads DEF:...:MAX; the retention ladder (resolutions,
+depth, disk budget) is the admin's policy. Split them accordingly:
+
+- rrddefinitions.cfg keeps ONLY the ladder (steps x rows per resolution).
+- The needed consolidations are DERIVED, no new keyword: at file creation
+  the writer collects the gdefs whose FNPATTERN match the file (the gdef
+  meta scanner already parses graphs.cfg) and unions the consolidation
+  functions their DEF lines read. Ladder x union = the RRA set. Adding
+  DEF:...:MAX to a graph is what causes MAX archives for future files -
+  one source of truth per decision, in its owner's file.
+- Motivation: AVERAGE-only archives flatten peaks on long ranges (a
+  20-minute 98% disk spike averages invisible on the yearly view), and
+  legend GPRINT:...:MAX only shows the max of the averaged points. A MAX
+  archive read by DEF:...:MAX preserves true peaks - today unused and
+  unreachable without hand-syncing two config files.
+
+DECIDED: no back-migration - new archives start today. Old files keep
+AVERAGE only, forever (no rrdtool create --source pass). Consequence the
+renderer must absorb: DEF:...:MAX against a file lacking the archive
+fails the whole rrdtool graph, so showgraph must probe each file's
+available consolidations (rrd_info) and omit DEFs referencing an archive
+that file does not have. Same family as the heartbeat watch-item:
+declarations changed after creation only affect new files, and the
+reader tolerates the mix.
+
 ## Display-window keywords (candidate)
 
 - STALE <seconds>, per graphs.cfg block (next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/
