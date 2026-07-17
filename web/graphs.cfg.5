@@ -10,6 +10,24 @@ graphs.cfg \- Configuration of the showgraph CGI
 uses the configuration file $XYMONHOME/etc/graphs.cfg to
 build graphs from the RRD files collected by Xymon.
 
+.SH VOCABULARY
+Four terms are used consistently in this page and in the keywords below:
+.IP "metric"
+one measured quantity (one DS: line of an RRD) - the curves drawn on an image.
+.IP "instance"
+one measured object (a filesystem, a disk, an interface) - one RRD file.
+Instances are what filters match, counts count, and paging slices.
+.IP "graph"
+one [section] definition in this file.
+.IP "image"
+one rendered picture (a paging slice). MAXINSTANCESPERIMAGE instances fill one image.
+.PP
+Historical names are kept as frozen aliases and documented against these
+terms: the third field of a GRAPHS environment entry ("name:partname:N",
+internally "maxgraphs") is the historical spelling of MAXINSTANCESPERIMAGE; the
+"<!-- linecount=N -->" status hint is the historical spelling of an
+instance count.
+
 .SH FILE FORMAT
 Each definition of a graph type begins with a "[SERVICE]" indicator,
 this is the name passed as the "service" parameter to 

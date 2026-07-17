@@ -141,6 +141,19 @@ inheriting the old collision unchanged.
   declared metric - one less bespoke code path, the general model absorbing a
   legacy one.
 
+## Vocabulary (binding for all new surface)
+
+Four nouns, used with one meaning everywhere: **metric** (a DS - the curves
+of an image), **instance** (a measured object - one RRD file; the unit of
+filters, counts and paging), **graph** (a graphs.cfg definition), **image**
+(one rendered slice). Rules: every new name states its unit (instances=,
+MAXINSTANCESPERIMAGE as instances-per-image, STALEAFTER seconds); legacy names
+(maxgraphs, linecount, GRAPHS ::N, FNPATTERN) are frozen aliases documented
+against the glossary, never removed and never duplicated with a second new
+spelling; new code speaks the glossary (instancespec, instancecount - not
+countspec, itemcount). The marker attribute is instances=N / instances=all
+(renamed from the earlier count= while unshipped, history rewritten).
+
 ## Counting / display doctrine (amended)
 
 The branch currently answers "how many graphs?" with the fileset-unknown
