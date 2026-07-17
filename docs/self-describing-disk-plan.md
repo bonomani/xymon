@@ -244,14 +244,16 @@ reader tolerates the mix.
 - Unit as a declared fact (DS dialect extension, candidate): the unit is
   metric semantics - producer knowledge, like type and bounds - and the one
   fact whose absence caps auto-generated graphs at YAXIS "Value". Declare it
-  PER DS, as an optional suffix after the RRD-valid spec
-  ("DS:read_ms:GAUGE:600:0:U ms"); the parser detaches it, the writer feeds
-  rrdtool the pure spec, an unsuffixed line stays legal. Separator choice:
-  a 7th colon field would be positionally unambiguous too (arity is fixed;
-  see COMPUTE below) - the space is an ecosystem-compat preference, not a
-  necessity: everything left of the space stays a literally valid rrdtool
-  DS spec, so third-party parsers and copy-paste keep working unchanged
-  ("extend outside the inherited dialect, never inside").
+  PER DS, as an optional 7th colon-separated field
+  ("DS:read_ms:GAUGE:600:0:U:ms"); the parser consumes field 7, the writer
+  reconstructs the 6-field spec for rrdtool, an unsuffixed line stays
+  legal. DECIDED: colon, one separator for the whole line - simplicity and
+  coherence outrank the alternative (a space suffix would have kept the
+  left part a verbatim rrdtool spec for third-party parsers/copy-paste).
+  Positionally unambiguous because the arity is fixed (see COMPUTE below).
+  Accepted cost: a suffixed line is no longer a paste-able rrdtool DS
+  spec, and strict 6-field parsers must tolerate a 7th field - the writer
+  is unaffected since it revalidates and rebuilds the spec anyway.
   COMPUTE is excluded from the wire dialect on three grounds, none of them
   taste: it is structurally redundant (the producer computes its instance
   values, so any derived DS is expressible as a plain DS with computed
