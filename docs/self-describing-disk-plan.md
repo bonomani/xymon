@@ -141,6 +141,42 @@ inheriting the old collision unchanged.
   declared metric - one less bespoke code path, the general model absorbing a
   legacy one.
 
+## Counting / display doctrine (amended)
+
+The branch currently answers "how many graphs?" with the fileset-unknown
+predicate: when a store filter (STOREPATTERN/EXSTOREPATTERN) makes the file
+set diverge from the message, the count is set to 0 and the graph renders
+UNSLICED. That is a stopgap, not a design: a host with 150 filesystems and
+one filter gets a single page of 150 graph images - the exact problem paging
+exists to solve. Replace it with a hierarchy where every level knows what it
+counts:
+
+1. An explicit instances= on a XYMON GRAPH marker wins - the producer of the
+   MESSAGE knows its own graphs.
+2. Otherwise, a per-host fileset index maintained by the WRITER: xymond_rrd
+   is the single creator of RRD files, so it keeps "instance -> last write"
+   up to date as it writes (bookkeeping at event time, not recounting at
+   render time). The renderer reads that one small file and applies the
+   staleness rule to its entries - no readdir, no per-file stat. Two
+   obligations: freshness is time-based, so the index stores last-write
+   timestamps (not a bare counter); external deletions (trimhistory, manual
+   rm) bypass the writer, so a missing/inconsistent index triggers a one-off
+   rebuild scan and drift is tolerated between rebuilds.
+3. Unsliced rendering remains ONLY as the last resort when neither message
+   nor files are reachable (locator-based remote RRD storage).
+
+This reinstates the sound half of PR #246 (count what will actually render)
+while keeping its env-var config surface retired.
+
+## Display-window keywords (candidate)
+
+- STALE <seconds>, per graphs.cfg block (next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/
+  STOREPATTERN): the freshness window showgraph uses instead of the
+  hard-coded 86400 at showgraph.c (mtime cutoff behind &nostale). Needed for
+  legitimately periodic instances (weekly job, backup mount) whose graphs
+  must stay visible between appearances; per-graph granularity is enough -
+  freshness is a display property of the graph, not of each DS.
+
 ## Phasing (commits on this branch)
 
 1. Feature 2 first (smallest): a block-bearing status routes to the marker
@@ -174,6 +210,11 @@ inheriting the old collision unchanged.
   ONE feature branch (self-describing-metrics), not yet merged upstream.
   Sequence after that lands, or keep as a proving branch. test-cfg is optional
   and only for the config-driven HANDLER refinement.
+- Declared heartbeats only act at file creation: the DS heartbeat lives in
+  the RRD file once created, so a producer changing its DS:<hb> declaration
+  affects new files only - existing files need an rrdtool tune pass. Either
+  the writer detects the mismatch and tunes, or the limitation is documented;
+  silently ignoring the new declaration is the one wrong option.
 - Instance sort order: showgraph's rrd_name_compare knows only two regimes -
   pure-integer keys (numeric sort) and everything else (case-sensitive strcmp).
   Multi-component numeric keys sort wrongly: strcmp puts "1.10.1" before
