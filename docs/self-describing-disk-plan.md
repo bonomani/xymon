@@ -154,6 +154,35 @@ spelling; new code speaks the glossary (instancespec, instancecount - not
 countspec, itemcount). The marker attribute is instances=N / instances=all
 (renamed from the earlier count= while unshipped, history rewritten).
 
+## Marker design doctrine (settled)
+
+Two markers, and the axes on which that decision was made - so it is not
+relitigated:
+
+- XYMON METRICS declares a FACT (schema + instance values); XYMON GRAPH is a
+  display INSTRUCTION (gdef name + instances=). Decomposition is by fact
+  declared, never by consumer: METRICS already serves three readers (writer
+  stores, AGGDS aggregates, paging counts) as projections of one block - one
+  source of truth, and a fourth consumer costs zero wire change. One marker
+  per consumer would triple the data and allow the copies to disagree.
+- No verbs in names (STORE/SHOW): METRICS is multi-verb by design; the verbs
+  live in the contract documentation (xymonmarkers.h). No backend in names
+  (RRD): the block is a neutral contract - naming the backend is the
+  DEVMON RRD mistake this vocabulary supersedes.
+- Schema and values always travel together: a SCHEMA/VALUES split would make
+  the server remember state between messages - statelessness outranks the
+  few DS: lines saved.
+- Markers declare facts, never policy: no thresholds in the wire; policy
+  belongs to the server rule engine (RFC #218, one rule engine).
+- Extension is a new XYMON <WORD>: marker, granted only for a distinct fact
+  with a distinct lifecycle; unknown markers are ignored comments, so the
+  namespace is forward- and backward-compatible for free. The DS: line
+  dialect is documented as a generic schema mini-language (type, heartbeat
+  as validity window, min/max), not an RRDtool allegiance.
+- The only standalone projection of a block is the count, and only where no
+  block exists: the legacy linecount hint, and instances= when display
+  diverges from the block.
+
 ## Counting / display doctrine (amended)
 
 The branch currently answers "how many graphs?" with the fileset-unknown
