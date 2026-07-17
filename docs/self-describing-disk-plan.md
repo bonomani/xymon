@@ -246,7 +246,19 @@ reader tolerates the mix.
   fact whose absence caps auto-generated graphs at YAXIS "Value". Declare it
   PER DS, as an optional suffix after the RRD-valid spec
   ("DS:read_ms:GAUGE:600:0:U ms"); the parser detaches it, the writer feeds
-  rrdtool the pure spec, an unsuffixed line stays legal. Never a per-block
+  rrdtool the pure spec, an unsuffixed line stays legal. Separator choice:
+  a 7th colon field would be positionally unambiguous too (arity is fixed;
+  see COMPUTE below) - the space is an ecosystem-compat preference, not a
+  necessity: everything left of the space stays a literally valid rrdtool
+  DS spec, so third-party parsers and copy-paste keep working unchanged
+  ("extend outside the inherited dialect, never inside").
+  COMPUTE is excluded from the wire dialect on three grounds, none of them
+  taste: it is structurally redundant (the producer computes its instance
+  values, so any derived DS is expressible as a plain DS with computed
+  values, at identical storage cost); it would bake RRD-specific RPN
+  semantics into the backend-neutral contract (a non-RRD writer would need
+  an RPN evaluator); and it is measured-unused in twenty years of xymon
+  code and config. Its exclusion is what makes the DS arity fixed. Never a per-block
   unit declaration: a block may legitimately mix units (bytes/s + packets/s
   + errors), and a second declaration surface invites contradiction. The
   graph axis is DERIVED, not declared: all DSes of an image share a unit ->
