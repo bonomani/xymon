@@ -185,4 +185,12 @@ inheriting the old collision unchanged.
   compare digit runs numerically, strcmp fallback per component - strverscmp
   semantics): it subsumes all three cases (plain integers unchanged, OIDs
   fixed, names unchanged), so it is a drop-in replacement, not a new special
-  case.
+  case. Two hard requirements, both violated by the current comparator: it
+  must be a TOTAL ORDER - (a) a digit run always compares numerically
+  regardless of the partner key; the current per-pair numeric-or-strcmp
+  choice is intransitive (9 < 10 < "1a" but 9 > "1a" directly), so qsort's
+  result depends on readdir order - measured: the three permutations of
+  {9, 10, 1a} produce three different "sorted" outputs; (b) distinct keys
+  must never compare equal ("007" vs "7" returns 0 today) - numerically
+  equal components need a strcmp tie-break, otherwise their order, and the
+  first/count slice containing them, is unspecified.
