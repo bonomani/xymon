@@ -104,6 +104,21 @@ int firstidx = -1;
 int idxcount = -1;
 int lastidx = 0;
 
+static void free_rrddb_table(void)
+{
+	int i;
+
+	if (!rrddbs) return;
+	for (i=0; (i < rrddbcount); i++) {
+		if (rrddbs[i].key) free(rrddbs[i].key);
+		if (rrddbs[i].rrdfn) free(rrddbs[i].rrdfn);
+		if (rrddbs[i].rrdparam) free(rrddbs[i].rrdparam);
+	}
+	free(rrddbs);
+	rrddbs = NULL;
+	rrddbcount = rrddbsize = 0;
+}
+
 void errormsg(char *msg)
 {
 	printf("Content-type: %s\n\n", xgetenv("HTMLCONTENTTYPE"));
@@ -781,6 +796,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	time_t now = getcurrenttime(NULL);
 
 	int argi, pcount;
+	int dynarg_start = -1;
+	const char *grapherr = NULL;
 
 	/* Options for rrd_graph() */
 	int  rrdargcount;
@@ -1101,6 +1118,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			if (fgets(graphtitle, sizeof(graphtitle), pfd) == NULL) *graphtitle = '\0';
 			pclose(pfd);
 		}
+		free(pcmd);
 
 		/* Drop any newline at end of the title */
 		p = strchr(graphtitle, '\n'); if (p) *p = '\0';
@@ -1178,6 +1196,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		rrdargs[argi++] = useropts[useroptidx];
 	}
 
+	dynarg_start = argi;
 	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
 		if ((firstidx == -1) || ((rrdidx >= firstidx) && (rrdidx <= lastidx))) {
 			int i;
@@ -1210,7 +1229,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		if (rrddbcount == 0) {
 			/* No graph */
 			fwrite(blankimg, 1, sizeof(blankimg), stdout);
-			return;
+			goto cleanup;
 		}
 	}
 
@@ -1231,17 +1250,28 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 
 	/* Was it OK ? */
 	if (rrd_test_error() || (result != 0)) {
-		if (calcpr) { 
-			int i;
-			for (i=0; (calcpr[i]); i++) xfree(calcpr[i]);
-			calcpr = NULL;
-		}
-
-		errormsg(rrd_get_error());
+		grapherr = rrd_get_error();
 	}
 
-	if (useroptval) xfree(useroptval);
-	if (useropts) xfree(useropts);
+cleanup:
+	if (calcpr) {
+		int i;
+		for (i=0; (calcpr[i]); i++) free(calcpr[i]);
+		free(calcpr);
+		calcpr = NULL;
+	}
+
+	if ((dynarg_start >= 0) && rrdargs) {
+		for (argi=dynarg_start; (argi < rrdargcount); argi++) {
+			free((void *)rrdargs[argi]);
+		}
+	}
+	if (rrdargs) free(rrdargs);
+	free_rrddb_table();
+
+	if (useroptval) free(useroptval);
+	if (useropts) free(useropts);
+	if (grapherr) errormsg((char *)grapherr);
 }
 
 void generate_zoompage(char *selfURI)
@@ -1283,6 +1313,7 @@ void generate_zoompage(char *selfURI)
 				}
 
 				fwrite(buf, 1, n, stdout);
+				free(buf);
 			}
 		}
 	}

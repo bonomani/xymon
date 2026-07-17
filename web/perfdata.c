@@ -94,16 +94,17 @@ int oneset(char *hostname, char *rrdname, char *starttime, char *endtime, char *
 	static int firsttime = 1;
 	time_t start, end, t;
 	unsigned long step;
-	unsigned long dscount;
-	char **dsnames;
-	rrd_value_t *data;
+	unsigned long dscount = 0;
+	char **dsnames = NULL;
+	rrd_value_t *data = NULL;
 	int columnindex;
 	char tstamp[30];
 	int dataindex, rowcount, havemin, havemax, missingdata;
 	double sum, min = 0.0, max = 0.0, val;
 
 	xymon_rrd_argv_item_t rrdargs[10];
-	int result;
+	int result, rc = 0;
+	unsigned long i;
 
 	rrdargs[0] = "rrdfetch";
 	rrdargs[1] = rrdname;
@@ -117,13 +118,15 @@ int oneset(char *hostname, char *rrdname, char *starttime, char *endtime, char *
 
 	if (result != 0) {
 		errprintf("RRD error: %s\n", rrd_get_error());
-		return 1;
+		rc = 1;
+		goto cleanup;
 	}
 
 	for (columnindex=0; ((columnindex < dscount) && strcmp(dsnames[columnindex], colname)); columnindex++) ;
 	if (columnindex == dscount) {
 		errprintf("RRD error: Cannot find column %s\n", colname);
-		return 1;
+		rc = 1;
+		goto cleanup;
 	}
 
 	sum = 0.0;
@@ -201,7 +204,15 @@ int oneset(char *hostname, char *rrdname, char *starttime, char *endtime, char *
 		printf("  </dataset>\n");
 	}
 
-	return 0;
+cleanup:
+	if (dsnames) {
+		for (i=0; (i < dscount); i++) {
+			free(dsnames[i]);
+		}
+		free(dsnames);
+	}
+	if (data) free(data);
+	return rc;
 }
 
 
@@ -426,4 +437,3 @@ int main(int argc, char **argv)
 
 	return 0;
 }
-
