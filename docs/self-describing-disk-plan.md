@@ -254,6 +254,14 @@ reader tolerates the mix.
   Accepted cost: a suffixed line is no longer a paste-able rrdtool DS
   spec, and strict 6-field parsers must tolerate a 7th field - the writer
   is unaffected since it revalidates and rebuilds the spec anyway.
+  Persistence: an RRD file cannot carry a unit (the format has no metadata
+  slot) and showgraph renders from files without the message in hand, so a
+  declared unit must survive server-side: it rides the writer-kept fileset
+  index (same writer, same cadence - entries extend to instance ->
+  last-write + per-DS units), where the renderer already looks to count.
+  The synthetic gdef reads it for its YAXIS (grouping by unit); a
+  hand-written gdef still wins. Unit absent = exactly today's behaviour:
+  hand-written YAXIS or the generic "Value".
   COMPUTE is excluded from the wire dialect on three grounds, none of them
   taste: it is structurally redundant (the producer computes its instance
   values, so any derived DS is expressible as a plain DS with computed
