@@ -551,20 +551,45 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	int mntcol  = -1;
 	char *p, *bol, *nl;
 	char msgline[4096];
-	strbuffer_t *monmsg, *dfstr_filtered;
+	strbuffer_t *monmsg, *dfstr_filtered, *metricsblk;
 	char *dname;
 	int dmin, dmax, dcount, dcolor;
 	char *group;
+	int usedcol;
 	int fscount = 0;	/* filesystems shown = RRD files created; the exact
 				 * graph-paging count, stated so the renderer need
 				 * not re-count status lines (see below). */
+	static int rrdptnsetup = 0;
+	static pcre2_code *rrdinclpattern = NULL;
+	static pcre2_code *rrdexclpattern = NULL;
 
 	if (!want_msgtype(hinfo, MSG_DISK)) return;
 	if (!dfstr) return;
 
 	dbgprintf("Disk check host %s\n", hostname);
 
+	/* The RRDDISKS/NORRDDISKS storage filters, replicated from do_disk
+	 * (same env, same caseless semantics, compiled once): a filtered
+	 * filesystem stays in the status text but gets no METRICS line, so
+	 * the block stores exactly what do_disk stores today. */
+	if (!rrdptnsetup) {
+		char *ptn;
+
+		rrdptnsetup = 1;
+		ptn = getenv("RRDDISKS");
+		if (ptn && *ptn) rrdinclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
+		ptn = getenv("NORRDDISKS");
+		if (ptn && *ptn) rrdexclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
+	}
+
+	/* do_disk reads the absolute "used" value from df column 2, except
+	 * for the IRIX xfs/efs/cxfs report shape where it is column 3 - the
+	 * same content test do_disk applies. Mirroring do_disk exactly IS
+	 * the spec: same files, same meaning, continuous history. */
+	usedcol = ((strstr(dfstr, " xfs ") || strstr(dfstr, " efs ") || strstr(dfstr, " cxfs ")) ? 3 : 2);
+
 	monmsg = newstrbuffer(0);
+	metricsblk = newstrbuffer(0);
 	dfstr_filtered = newstrbuffer(0);
 	clear_disk_counts(hinfo, clientclass);
 	clearalertgroups();
@@ -649,7 +674,29 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 					addalertgroup(group);
 				}
 				/* A shown filesystem = one disk RRD file. */
-				if (!ignored) fscount++;
+				if (!ignored) {
+					fscount++;
+
+					/* Its METRICS line: the values do_disk
+					 * would store, unless the writer-side
+					 * RRDDISKS/NORRDDISKS filters drop it. */
+					if (levelpct >= 0) {
+						int wanted = 1;
+						char *ustr;
+
+						if (rrdexclpattern && matchregex(fsname, rrdexclpattern)) wanted = 0;
+						if (wanted && rrdinclpattern && !matchregex(fsname, rrdinclpattern)) wanted = 0;
+						if (wanted) {
+							strcpy(p, bol);
+							ustr = getcolumn(p, usedcol);
+							if (ustr && isdigit((unsigned char)*ustr))
+								snprintf(msgline, sizeof(msgline), "%s %ld:%lld\n", fsname, levelpct, str2ll(ustr, NULL));
+							else
+								snprintf(msgline, sizeof(msgline), "%s %ld:U\n", fsname, levelpct);
+							addtobuffer(metricsblk, msgline);
+						}
+					}
+				}
 			}
 
 			xfree(p);
@@ -721,6 +768,19 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	snprintf(msgline, sizeof(msgline), "<!-- linecount=%d -->\n", fscount);
 	addtostatus(msgline);
 
+	/* The self-describing METRICS block: disk as a declared metric, with
+	 * do_disk's exact schema - same files, same meaning, continuous
+	 * history. Its presence routes this status's storage to the block
+	 * writer (the built-in handler never runs for it). The hint above is
+	 * KEPT: the disk column renders through the legacy TEST2RRD/GRAPHS
+	 * path, which reads the hint - the block is a storage cutover only. */
+	if (STRBUFLEN(metricsblk) > 0) {
+		addtostatus("<!--XYMON METRICS: disk\n");
+		addtostatus("DS:pct:GAUGE:600:0:100 DS:used:GAUGE:600:0:U\n");
+		addtostrstatus(metricsblk);
+		addtostatus("-->\n");
+	}
+
 	/* And the full df output */
 	addtostrstatus(dfstr_filtered);
 
@@ -728,6 +788,7 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	finish_status();
 
 	freestrbuffer(monmsg);
+	freestrbuffer(metricsblk);
 	freestrbuffer(dfstr_filtered);
 }
 

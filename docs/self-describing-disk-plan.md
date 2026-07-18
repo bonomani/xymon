@@ -155,8 +155,9 @@ inheriting the old collision unchanged.
    decode) + one-time rename migration; `/a/b` and `/a,b` get distinct RRDs
    and legends show the real mount point.
 3. DONE - HANDLER markers config route (via the test-cfg merge).
-4. `unix_disk_report` emits the METRICS block. Decisions taken (implement
-   next):
+4. DONE for disk (unix_inode_report follow-up pending): `unix_disk_report`
+   emits the METRICS block, end-to-end tested via xymond_client
+   --no-update (tests/server/disk-metrics-block.sh). Decisions taken:
    - DS line identical to do_disk's params: "DS:pct:GAUGE:600:0:100
      DS:used:GAUGE:600:0:U" - same files, same schema, continuous history.
    - The "used" value mirrors do_disk exactly: absolute df column 2
