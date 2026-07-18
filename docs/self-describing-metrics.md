@@ -183,8 +183,8 @@ read; at file creation the writer unions the CFs of every matching gdef
 (FNPATTERN or name-prefix) and clones each AVERAGE archive per extra CF,
 skipping CFs the definition set already carries. Safe by default: a file
 no gdef reads beyond AVERAGE gets a byte-identical stock archive set.
-The reconcile half for late gdef changes is the parked schema-evolution
-tune-pass (forward-only, see below).
+The reconcile half for late gdef changes is the rrdreconcile tune-pass
+(forward-only, see "File schema evolution" below).
 
 An RRA line bundles two decisions that belong to different owners:
 WHICH consolidations exist (AVERAGE/MAX/...) is the consumer's need -
@@ -446,12 +446,25 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
   freshness is a display property of the graph, not of each DS.
 
 
-## File schema evolution (parked, one mechanism for two watch-items)
+## File schema evolution (IMPLEMENTED: the rrdreconcile tool)
+
+Implementation status: xymond/rrdreconcile walks $XYMONRRDS and compares
+every RRD file against the current declarations - archive CFs from the
+gdef meta scanner (xymon_gdef_cfs_forfile, the same derivation the
+writer applies at creation) and heartbeats from the fileset index's h=
+records (the writer captures colon-field 4 of every declared DS spec as
+a complete, strong-replace "h=ds:hb,..." record). Divergence is repaired
+with "rrdtool tune": --heartbeat per mismatched DS, and per missing CF a
+clone of every AVERAGE archive's geometry (the shape the writer would
+have created). Dry-run by default, --apply executes; adding archives via
+tune needs rrdtool >= 1.5. Run it manually or from cron after changing
+graphs.cfg DEFs or producer DS specs - the daemon never mutates existing
+files on its own.
 
 The archive-consolidation derivation (above) and the heartbeat re-tune
-watch-item (below) are the same missing mechanism: a declaration changed
+watch-item (below) are the same mechanism: a declaration changed
 AFTER file creation, and the file must be reconciled with it - a
-tune-pass, not two ad-hoc patches. Build them together, after soak.
+tune-pass, not two ad-hoc patches.
 DECIDED semantics for late-added archives: consolidation functions are
 mutually unrecoverable (PDPs are folded and discarded - stored AVERAGE
 cannot yield MAX, and seeding MAX from AVERAGE data is averages wearing

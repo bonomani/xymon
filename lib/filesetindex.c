@@ -53,6 +53,7 @@ typedef struct fsidx_entry_t {
 	char *fn;
 	time_t ts;
 	char *units;		/* "ds:unit[,ds:unit...]" or NULL */
+	char *heartbeats;	/* "ds:heartbeat[,...]" as currently declared, or NULL */
 	char *thresholds;	/* "base:relop-operand:sev[,...]" or NULL */
 	char *dsnames;		/* "ds1,ds2,...": positional DS names (for flat values) */
 	char *baseline;		/* flat instance: its value string; no RRD file exists */
@@ -64,6 +65,7 @@ static void *fsidx_hosts = NULL;	/* hostname -> fsidx_host_t */
 static char *fsidx_pending_units = NULL;	/* sticky per-block writer state, see fsidx_set_units() */
 static char *fsidx_pending_thresholds = NULL;	/* ditto, see fsidx_set_thresholds() */
 static char *fsidx_pending_dsnames = NULL;	/* ditto: "ds1,ds2" - positional names for flat values */
+static char *fsidx_pending_heartbeats = NULL;	/* ditto: "ds:heartbeat[,...]" - the declared heartbeats */
 
 static void fsidx_path(char *buf, size_t bufsz, const char *rrddir, const char *hostname, const char *suffix)
 {
@@ -114,6 +116,22 @@ static void fsidx_set_entry_thresholds(fsidx_host_t *h, const char *fn, const ch
 	}
 }
 
+static void fsidx_set_entry_heartbeats(fsidx_host_t *h, const char *fn, const char *hb, int strong)
+{
+	xtreePos_t handle = xtreeFind(h->files, (char *)fn);
+	fsidx_entry_t *e;
+
+	if (handle == xtreeEnd(h->files)) return;
+	e = (fsidx_entry_t *)xtreeData(h->files, handle);
+	if (hb && (strong || !e->heartbeats)) {
+		if (!e->heartbeats || strcmp(e->heartbeats, hb)) {
+			if (e->heartbeats) xfree(e->heartbeats);
+			e->heartbeats = strdup(hb);
+			h->dirty_new = 1;
+		}
+	}
+}
+
 /* Merge the on-disk index (possibly written by the other channel's writer)
  * into the in-memory tree. Unknown trailing fields are ignored - future
  * versions carry units/thresholds/baselines there. */
@@ -124,7 +142,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 
 	if (!fd) return;
 	while (fgets(line, sizeof(line), fd)) {
-		char *name, *tsstr, *tok, *units, *thr, *bl, *dsn, *sp = NULL;
+		char *name, *tsstr, *tok, *units, *thr, *bl, *dsn, *hb, *sp = NULL;
 		time_t ts;
 
 		if (line[0] == '#') continue;
@@ -133,15 +151,17 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		if (!name || !tsstr) continue;
 		ts = (time_t)atol(tsstr);
 		if (ts <= 0) continue;
-		units = NULL; thr = NULL; bl = NULL; dsn = NULL;
+		units = NULL; thr = NULL; bl = NULL; dsn = NULL; hb = NULL;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "u=", 2) == 0) units = tok+2;
+			else if (strncmp(tok, "h=", 2) == 0) hb = tok+2;
 			else if (strncmp(tok, "t=", 2) == 0) thr = tok+2;
 			else if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
 			else if (strncmp(tok, "d=", 2) == 0) dsn = tok+2;
 			/* unknown fields: future record extensions, ignored */
 		}
 		fsidx_set(h, name, ts, units, 0);
+		if (hb) fsidx_set_entry_heartbeats(h, name, hb, 0);
 		if (thr) fsidx_set_entry_thresholds(h, name, thr, 0);
 		if (dsn) {
 			xtreePos_t dh = xtreeFind(h->files, name);
@@ -231,6 +251,7 @@ void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 	if (!rrddir || !hostname || !rrdfn || !(*rrdfn)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	fsidx_set(h, rrdfn, ts, fsidx_pending_units, 1);
+	if (fsidx_pending_heartbeats) fsidx_set_entry_heartbeats(h, rrdfn, fsidx_pending_heartbeats, 1);
 	if (fsidx_pending_thresholds) fsidx_set_entry_thresholds(h, rrdfn, fsidx_pending_thresholds, 1);
 	if (fsidx_pending_dsnames) {
 		xtreePos_t dh = xtreeFind(h->files, rrdfn);
@@ -253,6 +274,20 @@ void fsidx_set_dsnames(char *dsnspec)
 	if (fsidx_pending_dsnames) { xfree(fsidx_pending_dsnames); fsidx_pending_dsnames = NULL; }
 	if (dsnspec && (strlen(dsnspec) > FSIDX_SPECMAX)) return;
 	if (dsnspec && *dsnspec) fsidx_pending_dsnames = strdup(dsnspec);
+}
+
+/* Sticky declared heartbeats for following writes, same lifecycle as
+ * fsidx_set_units(). Spec: "ds:heartbeat[,...]", covering EVERY declared
+ * DS (defaults included) so a changed declaration replaces the record
+ * outright - the schema-reconcile tool compares files against this. */
+void fsidx_set_heartbeats(char *hbspec)
+{
+	if (fsidx_pending_heartbeats) { xfree(fsidx_pending_heartbeats); fsidx_pending_heartbeats = NULL; }
+	if (hbspec && (strlen(hbspec) > FSIDX_SPECMAX)) {
+		errprintf("fileset index: heartbeat spec too long (%d), ignored\n", (int)strlen(hbspec));
+		return;
+	}
+	if (hbspec && *hbspec) fsidx_pending_heartbeats = strdup(hbspec);
 }
 
 /* Sticky per-block writer state: the block writer declares the units of
@@ -421,6 +456,7 @@ void fsidx_flush(char *rrddir, char *hostname)
 			fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
 			fprintf(fd, "%s %ld", e->fn, (long)e->ts);
 			if (e->units) fprintf(fd, " u=%s", e->units);
+			if (e->heartbeats) fprintf(fd, " h=%s", e->heartbeats);
 			if (e->dsnames) fprintf(fd, " d=%s", e->dsnames);
 			if (e->thresholds) fprintf(fd, " t=%s", e->thresholds);
 			if (e->baseline) fprintf(fd, " b=%ld,%s", (long)e->since, e->baseline);
@@ -480,6 +516,7 @@ void fsidx_drop(char *rrddir, char *hostname)
 		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
 		xfree(e->fn);
 		if (e->units) xfree(e->units);
+		if (e->heartbeats) xfree(e->heartbeats);
 		if (e->dsnames) xfree(e->dsnames);
 		if (e->thresholds) xfree(e->thresholds);
 		if (e->baseline) xfree(e->baseline);

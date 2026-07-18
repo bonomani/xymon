@@ -282,7 +282,7 @@ assert_not_contains ".rrd" "$out" "plain status without markers creates nothing"
 # no file for it, and the instances around it are written normally.
 cat >"$work/body-dialect" <<'EOF'
 <!--XYMON METRICS: temperature
-DS:temp:GAUGE:600:-30:50:degC DS:hi:GAUGE:600:-30:50
+DS:temp:GAUGE:1200:-30:50:degC DS:hi:GAUGE:600:-30:50
 THRESHOLD:temp:>hi:warn
 cpu 47:70
 ambient 22:35
@@ -293,10 +293,18 @@ out=$(feed_status diskio "$work/body-dialect")
 assert_contains "temperature.cpu.rrd" "$out" "unit-suffixed DS spec still creates the file"
 assert_contains "temperature.ambient.rrd" "$out" "instance after a declaration line written normally"
 assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file"
-# The declared unit AND the THRESHOLD relation land in the fileset index
-# (only the DS that has a unit; the relation validated against the block)
-grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC d=temp,hi t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
-	|| fail "declared unit/threshold not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
+# The declared unit, heartbeats AND the THRESHOLD relation land in the
+# fileset index (units only for the DS that has one; heartbeats for every
+# declared DS; the relation validated against the block)
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:1200,hi:600 d=temp,hi t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "declared unit/heartbeat/threshold not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
+
+# A redeclared heartbeat replaces the record outright (strong, complete
+# spec) - the schema-reconcile tool trusts h= as the CURRENT declaration.
+sed 's/DS:temp:GAUGE:1200/DS:temp:GAUGE:900/' "$work/body-dialect" >"$work/body-dialect2"
+feed_status diskio "$work/body-dialect2" >/dev/null
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:900,hi:600 ' "$work/rrd/testhost/.fileset-index" \
+	|| fail "redeclared heartbeat did not replace h=: $(grep temperature.cpu "$work/rrd/testhost/.fileset-index")"
 
 # Durable lazy baselines: the (value, since) record survives the writer.
 # Process 1 learns the baseline (no file); process 2 - a restart - sees a
@@ -448,7 +456,10 @@ if command -v rrdtool >/dev/null 2>&1; then
 fi
 
 # Crash-leftover rebuild: a zero-length index (interrupted flush) must
-# reseed from the directory scan, exactly like a missing one.
+# reseed from the directory scan, exactly like a missing one. Pin a file
+# that is actually on disk - which set that is depends on whether the
+# (rrdtool-gated) CF section above ran and reset the directory.
+preexisting=$(basename "$(ls "$work/rrd/testhost/"*.rrd | head -1)")
 : >"$idx"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
@@ -456,7 +467,9 @@ fi
 	printf '<!--XYMON METRICS: fsz\nDS:v:GAUGE:600:0:U\nd 4\n-->\ns\n@@\n'
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "empty index file not rebuilt by the scan"
+grep -q "^${preexisting//./\\.} [0-9]" "$idx" \
+	|| fail "empty index file not rebuilt by the scan ($preexisting missing): $(cat "$idx")"
+grep -q '^fsz\.d\.rrd [0-9]' "$idx" || fail "rebuilt index misses the triggering write"
 
 # The block writer carries a pre-cutover legacy file across (do_disk's
 # one-time migration, ported): after the rename, only the encoded file

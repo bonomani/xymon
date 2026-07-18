@@ -89,6 +89,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			setup_lazy(0);
 			fsidx_set_units(NULL);
 			fsidx_set_dsnames(NULL);
+			fsidx_set_heartbeats(NULL);
 			fsidx_set_thresholds(NULL);
 			clearstrbuffer(thrspec);
 			goto nextline;
@@ -116,6 +117,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				setup_lazy(lazydefault());
 				fsidx_set_units(NULL);
 				fsidx_set_dsnames(NULL);
+				fsidx_set_heartbeats(NULL);
 				fsidx_set_thresholds(NULL);
 				clearstrbuffer(thrspec);
 				while ((attr = strtok(NULL, " \t")) != NULL) {
@@ -143,6 +145,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		if (!strncmp(curline, "DS:",3)) {
 			strbuffer_t *unitspec = newstrbuffer(0);
 			strbuffer_t *dsnspec = newstrbuffer(0);
+			strbuffer_t *hbspec = newstrbuffer(0);
 			int startds = numds;
 
 			dbgprintf("Looking for DS definitions in %s\n",curline);
@@ -191,6 +194,28 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 						if (STRBUFLEN(dsnspec)) addtobuffer(dsnspec, ",");
 						addtobufferraw(dsnspec, dsname, dsend - dsname);
 					}
+					/* ... and the declared heartbeat (colon field 4,
+					 * DS:name:type:HB:min:max), recorded so the
+					 * reconcile tool can compare files against the
+					 * current declaration. All-digit or skipped -
+					 * rrdcreate rejects anything else anyway. */
+					if (dsend) {
+						char *hb = strchr(dsend+1, ':');
+						char *hbend = (hb ? strchr(hb+1, ':') : NULL);
+						if (hbend && (hbend > hb+1)) {
+							char *dc;
+							int hbok = 1;
+							for (dc = hb+1; (hbok && (dc < hbend)); dc++) {
+								if (!isdigit((unsigned char)*dc)) hbok = 0;
+							}
+							if (hbok) {
+								if (STRBUFLEN(hbspec)) addtobuffer(hbspec, ",");
+								addtobufferraw(hbspec, dsname, dsend - dsname);
+								addtobuffer(hbspec, ":");
+								addtobufferraw(hbspec, hb+1, hbend - (hb+1));
+							}
+						}
+					}
 				}
 				devmon_params[numds] = spec;
 				numds++;
@@ -203,9 +228,11 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			if (numds > startds) {
 				fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
 				fsidx_set_dsnames(STRBUFLEN(dsnspec) ? STRBUF(dsnspec) : NULL);
+				fsidx_set_heartbeats(STRBUFLEN(hbspec) ? STRBUF(hbspec) : NULL);
 			}
 			freestrbuffer(unitspec);
 			freestrbuffer(dsnspec);
+			freestrbuffer(hbspec);
 
 			goto nextline;
 		}
@@ -377,6 +404,7 @@ nextline:
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */
 	fsidx_set_units(NULL);
 	fsidx_set_dsnames(NULL);
+	fsidx_set_heartbeats(NULL);
 	fsidx_set_thresholds(NULL);
 	freestrbuffer(thrspec);
 
