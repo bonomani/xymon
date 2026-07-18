@@ -322,8 +322,22 @@ reader tolerates the mix.
     relations per base metric - a temperature with low+high warn and
     low+high crit is four lines ("<temp_lo_crit", "<temp_lo_warn:warn",
     ">temp_hi_warn:warn", ">temp_hi_crit"), rendering as an operating band.
-    The held-back literal form unifies for free: ">200" is a number where a
-    DS name may stand - not a second mechanism.
+    The literal form is INCLUDED (promoted from held-back): the operand
+    slot holds either a declared DS name or a number - one grammar, not a
+    second mechanism. Resolution: a token naming a DS declared in the same
+    block is a threshold curve; else a number is a literal; else the line
+    is ignored (the parser's silent-ignore convention). The two forms
+    differ semantically, and that difference IS the producer guidance:
+    a literal is BLOCK-WIDE (one value for every instance - per-instance
+    levels must be DSes) and has NO history (a changed literal moves the
+    flat line for all time; a constant DS shows the step); in exchange it
+    costs nothing - no DS in every file, no value on every instance line,
+    no U case. Per-instance or evolving -> threshold DS; universal and
+    static -> literal. Mixing forms on one base metric is normal (dynamic
+    warn curve + fixed crit literal). A literal renders as a flat HRULE;
+    persistence is uniform - the fileset index carries the full relation
+    (relop, operand, severity) either way, a literal is just a relation
+    with no DS behind it.
     Example: "THRESHOLD:read_ms:>read_ms_warn:warn". The line declares ONLY the
     relation - never a display instruction (display belongs to the graph
     side, same reasoning that put MAXINSTANCESPERIMAGE/TRENDS/STALE in
@@ -384,15 +398,12 @@ reader tolerates the mix.
   The GRAPH marker is not involved: it answers "which images belong to this
   status, how many instances" - graph CONTENT is always derived server-side
   from facts + gdefs, so thresholds never touch it. A producer with a FIXED
-  level needs no separate mechanism either: it emits the level as a
-  constant-valued threshold DS and declares the same relation - one uniform
-  mechanism, and better than a flat rule, because when the producer changes
-  the level the graph shows the step instead of rewriting history. (The
-  grammar leaves room for a later literal form - "THRESHOLD:read_ms:>200:warn",
-  persisted in the fileset index like units - but that is a second
-  mechanism for the same fact; held back unless the extra-DS cost proves to
-  matter.) So the entire wire surface for thresholds is ONE line in ONE
-  marker: THRESHOLD in the METRICS block.
+  level needs no separate mechanism either: a per-instance or evolving
+  fixed level is a constant-valued threshold DS (the step stays visible
+  when it changes); a universal static one is a literal operand
+  ("THRESHOLD:read_ms:>200:warn") in the same grammar slot. So the entire
+  wire surface for thresholds is ONE line in ONE marker: THRESHOLD in the
+  METRICS block.
   Whether the threshold is PLOTTED is the admin's say, not the producer's -
   the declaration never forces a pixel. Control points, coarse to fine:
   the synthetic gdef co-plots by default (most people want to see what
