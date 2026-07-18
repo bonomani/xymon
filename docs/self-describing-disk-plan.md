@@ -239,9 +239,9 @@ that file does not have. Same family as the heartbeat watch-item:
 declarations changed after creation only affect new files, and the
 reader tolerates the mix.
 
-## Units and gdef scaffolding (candidates)
+## Units and gdef scaffolding (decided)
 
-- Unit as a declared fact (DS dialect extension, candidate): the unit is
+- Unit as a declared fact (DS dialect extension, DECIDED): the unit is
   metric semantics - producer knowledge, like type and bounds - and the one
   fact whose absence caps auto-generated graphs at YAXIS "Value". Declare it
   PER DS, as an optional 7th colon-separated field
@@ -275,7 +275,25 @@ reader tolerates the mix.
   that is the YAXIS; mixed units -> the synthetic gdef groups DSes by unit
   (one image per unit); hand-written gdefs decide for themselves. New wire
   surface -> high bar; goes with the markers slice review, not before.
-- Gdef scaffold mode (candidate, ~20 lines): the runtime synthesizer
+- Unit namespace (DECIDED): free text on the wire, never rejected -
+  syntactic constraints only (no colon: it is the separator; no whitespace;
+  printable ASCII; short cap). The reason to know a unit is to RENDER it,
+  not to police it: scaling is knowledge only the renderer can use. So the
+  knowledge lives in a compact built-in table next to the synthesizer
+  (a dozen entries, not a config file - exotic wants a hand-written gdef,
+  which already wins), mapping well-known units to rendering hints:
+  base ("B", "B/s" -> --base 1024, everything else 1000), SI autoscale
+  on/off (on for scalable quantities, off for "%"/counts/ratios where
+  rrdtool would print "0.9 k"), and spelling aliases ("msec"->"ms",
+  "bytes"->"B") applied at render time for grouping and axes - the wire
+  keeps what the producer said. An unknown unit is fully legal: verbatim
+  axis label, byte-exact grouping, default rendering. So nobody has to fix
+  a "bad" unit: a known unit renders smartly, an unknown one renders
+  plainly, and both work. Grouping is byte-exact AFTER alias
+  normalization. Our own emitters and docs use the canonical spellings
+  (SHOULD, not MUST). Table entries are addable without ever touching the
+  wire contract.
+- Gdef scaffold mode (DECIDED, ~20 lines): the runtime synthesizer
   (synthetic_gdef/synthetic_defs) IS the generator - add a print mode
   (showgraph --emit-gdef <name>) that writes the synthesized block for the
   admin to capture into graphs.d/ and customize. One-shot scaffold, never a
