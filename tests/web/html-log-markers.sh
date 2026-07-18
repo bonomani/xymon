@@ -70,6 +70,7 @@ now=$(date +%s)
 	echo "diskio_idx.b.rrd $now"
 	echo "diskio_idx.c.rrd $now"
 	echo "diskio_idx.old.rrd $((now - 200000))"
+	echo "diskio_idx.flat.rrd $now b=$now,7"
 	echo "gzyfiles.p.rrd $now"
 	echo "gzyfiles.q.rrd $now"
 	echo "gzyfiles.stale.rrd $((now - 200000))"

@@ -298,6 +298,38 @@ assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file
 grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "declared unit/threshold not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
 
+# Durable lazy baselines: the (value, since) record survives the writer.
+# Process 1 learns the baseline (no file); process 2 - a restart - sees a
+# changed value and creates the file on its FIRST sample, seeded with the
+# baseline one step earlier (a true step edge). The flat record clears on
+# materialization.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lzp lazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -e "$work/rrd/testhost/lzp.x.rrd" ] && fail "baseline learn must not create a file"
+grep -q 'lzp\.x\.rrd [0-9]* b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "baseline not durable in the index: $(grep lzp "$work/rrd/testhost/.fileset-index")"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lzp lazy\nDS:v:GAUGE:600:0:U\nx 9\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/lzp.x.rrd" ] \
+	|| fail "restart lost the baseline - the change was not detected on the first sample"
+grep -q 'lzp\.x\.rrd.* b=' "$work/rrd/testhost/.fileset-index" \
+	&& fail "the flat record must clear when the file materializes"
+if command -v rrdtool >/dev/null 2>&1; then
+	nvals=$(rrdtool fetch "$work/rrd/testhost/lzp.x.rrd" AVERAGE -s $((ts-700)) -e $((ts+400)) 2>/dev/null \
+		| grep -cE ': [0-9]')
+	[ "$nvals" -ge 2 ] || fail "splice seed missing - expected the baseline step edge plus the change (got $nvals values)"
+fi
+
 # Deep-review regressions: (1) a legacy DEVMON block may carry instances
 # named like a declaration keyword - the METRICS-only contract must not
 # drop them; (2) a METRICS block without a DS line writes nothing and

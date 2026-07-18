@@ -91,7 +91,24 @@ falling back to the "<name>.<instance>.rrd" prefix rule when the gdef has
 no pattern. Unsliced rendering now happens ONLY without an index - the
 doctrine's level 3, as designed.
 
-## Lazy endgame: always-on flat-instance economy (candidate, gated on the index)
+## Lazy endgame: always-on flat-instance economy (writer half IMPLEMENTED)
+
+Implementation status: lazy baselines are DURABLE - flat instances live
+as (value, since) fileset-index records ("b=<since>,<values>"), so a
+restart no longer forgets them: a change that happened while the writer
+was down is detected on the next sample instead of silently becoming the
+new baseline. The old in-memory baseline tree is gone (drop/rename
+invalidation rides fsidx_drop). The decided cheap splice is in: at first
+change the file is created with an early start and seeded with the
+baseline value one step before the change - a true step edge, no RRA
+backfill. A materialized record tombstones so the two-channel weak merge
+cannot resurrect its b= field. Paging counters skip flat records
+(nothing renders for them yet).
+NOT yet implemented: the renderer's flat-segment (HRULE from the index -
+requires showgraph to enumerate instances from the index, since an
+entirely-flat fileset has no files), AGGDS/count() reading baselines as
+first-class values, and the always-on default flip - which stays a
+separate decision with soak evidence in hand.
 
 Lazy today is an opt-in policy because it TRADES flat history for file
 economy - correct only where flat means uninteresting (spare disks, idle

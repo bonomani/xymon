@@ -58,42 +58,16 @@ static char rrdvalues[MAX_LINE_LEN];
  * it is - 0 for an idle disk, 100 for an always-full filesystem), and
  * the file is created when a later sample differs from it. */
 static int lazy_banner = 0;
-typedef struct lazybaseline_t { char *val; } lazybaseline_t;
-static void *lazybaselines = NULL;	/* host/file -> lazybaseline_t (val=NULL: relearn) */
 
 void setup_lazy(int lazy)
 {
 	lazy_banner = lazy;
 }
 
-/* Invalidate a host's lazy baselines (drophost/renamehost), so a re-added
- * or renamed instance re-learns its baseline instead of comparing against a
- * stale one - which could otherwise silently drop a genuinely active
- * instance forever. Entries are reset in place (val=NULL); the small tree
- * nodes stay, avoiding xtree deletion tombstone hazards. */
-void drop_lazy_baselines(char *hostname)
-{
-	char prefix[PATH_MAX];
-	size_t plen;
-	xtreePos_t h;
-
-	if (!lazybaselines) return;
-	plen = snprintf(prefix, sizeof(prefix), "/%s/", hostname);
-
-	for (h = xtreeFirst(lazybaselines); (h != xtreeEnd(lazybaselines)); h = xtreeNext(lazybaselines, h)) {
-		char *key = xtreeKey(lazybaselines, h);
-		lazybaseline_t *bl = (lazybaseline_t *)xtreeData(lazybaselines, h);
-
-		/* The tree stores keys case-insensitively (xtreeNew(strcasecmp)),
-		 * so the prefix match must be case-insensitive too - a drophost
-		 * whose case differs from the reporting case must not leave
-		 * stale baselines behind. */
-		if (bl && bl->val && (strncasecmp(key, prefix, plen) == 0)) {
-			xfree(bl->val);
-			bl->val = NULL;
-		}
-	}
-}
+/* Lazy baselines are durable fileset-index records (lib/filesetindex.c):
+ * they survive restarts, so a change that happened while the writer was
+ * down is detected on the next sample; drophost/renamehost invalidation
+ * rides fsidx_drop(). */
 
 /* Does any component of the colon-separated value list differ from the
  * baseline? A change in component count is a difference too. Numeric
@@ -422,6 +396,9 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		char **rrddefinitions;
 		char *cfextras[16];
 		int cfextracount = 0;
+		char *seedvals = NULL;
+		char seedstart[32];
+		time_t datats = (time_t)atol(rrdvalues);	/* the sample's own timestamp */
 		int rrddefcount, i;
 		char *rrakey = NULL;
 		char stepsetting[10];
@@ -429,46 +406,40 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 		/* A lazy instance begins existing when its values first
 		 * change: the first-seen sample is the baseline, and only a
-		 * later sample that differs from it creates the file.
-		 * Flat instances - idle at zero or pinned at any constant -
-		 * get no file, no graph, no paging slot. Existing files
-		 * always update (this is the create branch only). The
-		 * baseline lives in memory: after a restart it is re-learned
-		 * from the next sample, which for a flat instance is the
-		 * same value. */
+		 * later sample that differs from it creates the file. Flat
+		 * instances - idle at zero or pinned at any constant - get no
+		 * file: they live as (value, since) records in the fileset
+		 * index, which survives restarts, so a change that happens
+		 * while the writer was down is detected on the next sample
+		 * instead of silently becoming the new baseline. When the
+		 * file materializes, one seed update (the baseline value one
+		 * step earlier) gives the curve a true step edge - the
+		 * decided cheap splice, no RRA backfill. */
 		if (lazyforced) lazygate = 0;
 		else if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
 		if (lazygate) {
 			char *values = strchr(rrdvalues, ':');
-			lazybaseline_t *bl;
-			xtreePos_t lh;
+			char *bl;
 
 			if (values) values++;
-			if (!lazybaselines) lazybaselines = xtreeNew(strcasecmp);
-			lh = xtreeFind(lazybaselines, updcachekey);
-			bl = (lh == xtreeEnd(lazybaselines)) ? NULL : (lazybaseline_t *)xtreeData(lazybaselines, lh);
+			bl = fsidx_baseline_get(rrddir, hostname, rrdfn, NULL);
 			if (!bl) {
-				bl = (lazybaseline_t *)calloc(1, sizeof(lazybaseline_t));
-				bl->val = strdup(values ? values : "");
-				xtreeAdd(lazybaselines, strdup(updcachekey), bl);
+				fsidx_baseline_set(rrddir, hostname, rrdfn, (values ? values : ""), datats);
 				dbgprintf("Lazy baseline learned for absent %s\n", rrdfn);
 				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 				return 0;
 			}
-			if (!bl->val) {	/* invalidated by a host drop - relearn */
-				bl->val = strdup(values ? values : "");
-				dbgprintf("Lazy baseline re-learned for %s\n", rrdfn);
-				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
-				return 0;
-			}
-			if (!lazy_deviates(values, bl->val)) {
+			if (!lazy_deviates(values, bl)) {
+				/* still flat: refresh last-seen, keep since */
+				fsidx_baseline_set(rrddir, hostname, rrdfn, bl, datats);
 				dbgprintf("Lazy skip: %s still at its baseline\n", rrdfn);
 				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 				return 0;
 			}
-			/* Deviation: fall through and create. The baseline entry
-			 * stays behind unused - the file now exists, so this
-			 * gate is never consulted for it again. */
+			/* Deviation: create, seeded with the baseline value one
+			 * step before this sample for a true step edge. */
+			seedvals = strdup(bl);
+			fsidx_baseline_clear(rrddir, hostname, rrdfn);
 		}
 
 		dbgprintf("Creating rrd %s\n", filedir);
@@ -521,7 +492,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			}
 		}
 
-		rrdcreate_params = calloc(4 + pcount + rrddefcount + cfextracount + 1, sizeof(*rrdcreate_params));
+		rrdcreate_params = calloc(6 + pcount + rrddefcount + cfextracount + 1, sizeof(*rrdcreate_params));
 		rrdcreate_params[0] = "rrdcreate";
 		rrdcreate_params[1] = filedir;
 
@@ -532,6 +503,12 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			rrdcreate_params[2] = "-s";
 			rrdcreate_params[3] = stepsetting;
 			fixcount = 4;
+		}
+		if (seedvals) {
+			/* Start the file early enough to accept the seed update */
+			snprintf(seedstart, sizeof(seedstart), "%d", (int)(datats - 2*pollinterval));
+			rrdcreate_params[fixcount++] = "-b";
+			rrdcreate_params[fixcount++] = seedstart;
 		}
 
 		for (i=0; (i < pcount); i++)
@@ -552,10 +529,26 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		 * we MUST reset this before every call.
 		 */
 		optind = opterr = 0; rrd_clear_error();
-		result = xymon_rrd_create(4+pcount, rrdcreate_params);
+		result = xymon_rrd_create(fixcount+pcount, rrdcreate_params);
 		xfree(rrdcreate_params);
 		for (i=0; (i < cfextracount); i++) xfree(cfextras[i]);
 		if (rrakey) xfree(rrakey);
+
+		if (seedvals && (result == 0)) {
+			/* The splice seed: baseline value one step before the
+			 * change. DS order matches the create params, so no
+			 * template is needed. */
+			char seedbuf[MAX_LINE_LEN];
+			xymon_rrd_argv_item_t seedparams[4];
+
+			snprintf(seedbuf, sizeof(seedbuf), "%d:%s", (int)(datats - pollinterval), seedvals);
+			seedparams[0] = "rrdupdate"; seedparams[1] = filedir;
+			seedparams[2] = seedbuf; seedparams[3] = NULL;
+			optind = opterr = 0; rrd_clear_error();
+			if (xymon_rrd_update(3, seedparams) != 0)
+				dbgprintf("Seed update for %s failed: %s\n", filedir, rrd_get_error());
+		}
+		if (seedvals) { xfree(seedvals); seedvals = NULL; }
 
 		if (result != 0) {
 			errprintf("RRD error creating %s: %s\n", filedir, rrd_get_error());

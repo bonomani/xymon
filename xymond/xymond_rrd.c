@@ -442,7 +442,6 @@ int main(int argc, char *argv[])
 			sprintf(hostdir, "%s/%s", rrddir, basename(hostname));
 			dropdirectory(hostdir, 1);
 			flush_aggds_store(hostname);
-			drop_lazy_baselines(hostname);
 			fsidx_drop(rrddir, hostname);
 
 			MEMUNDEFINE(hostdir);
@@ -468,7 +467,6 @@ int main(int argc, char *argv[])
 			sprintf(newhostdir, "%s/%s", rrddir, newhostname);
 			rename(oldhostdir, newhostdir);
 			flush_aggds_store(hostname);	/* repopulates under the new name */
-			drop_lazy_baselines(hostname);
 			/* The index file moved with the directory; only the old
 			 * name's in-memory tree must go (its file path is gone). */
 			fsidx_drop(rrddir, hostname);

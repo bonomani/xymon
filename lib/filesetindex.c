@@ -51,6 +51,9 @@ typedef struct fsidx_entry_t {
 	time_t ts;
 	char *units;		/* "ds:unit[,ds:unit...]" or NULL */
 	char *thresholds;	/* "base:relop-operand:sev[,...]" or NULL */
+	char *baseline;		/* flat instance: its value string; no RRD file exists */
+	time_t since;		/* ... unchanged since this data timestamp */
+	int bl_cleared;		/* materialized this run: weak merges must not re-add b= */
 } fsidx_entry_t;
 
 static void *fsidx_hosts = NULL;	/* hostname -> fsidx_host_t */
@@ -116,7 +119,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 
 	if (!fd) return;
 	while (fgets(line, sizeof(line), fd)) {
-		char *name, *tsstr, *tok, *units, *thr, *sp = NULL;
+		char *name, *tsstr, *tok, *units, *thr, *bl, *sp = NULL;
 		time_t ts;
 
 		if (line[0] == '#') continue;
@@ -125,14 +128,31 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		if (!name || !tsstr) continue;
 		ts = (time_t)atol(tsstr);
 		if (ts <= 0) continue;
-		units = NULL; thr = NULL;
+		units = NULL; thr = NULL; bl = NULL;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "u=", 2) == 0) units = tok+2;
 			else if (strncmp(tok, "t=", 2) == 0) thr = tok+2;
+			else if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
 			/* unknown fields: future record extensions, ignored */
 		}
 		fsidx_set(h, name, ts, units, 0);
 		if (thr) fsidx_set_entry_thresholds(h, name, thr, 0);
+		if (bl) {
+			/* "b=<since>,<values>": a flat instance's baseline. Weak
+			 * merge - live writer state wins over the file's copy. */
+			char *comma = strchr(bl, ',');
+			if (comma) {
+				xtreePos_t bh = xtreeFind(h->files, name);
+				if (bh != xtreeEnd(h->files)) {
+					fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, bh);
+					if (!e->baseline && !e->bl_cleared) {
+						*comma = '\0';
+						e->since = (time_t)atol(bl);
+						e->baseline = strdup(comma+1);
+					}
+				}
+			}
+		}
 	}
 	fclose(fd);
 }
@@ -231,6 +251,71 @@ void fsidx_set_thresholds(char *thrspec)
 	if (thrspec && *thrspec) fsidx_pending_thresholds = strdup(thrspec);
 }
 
+/* The lazy gate's durable baseline: a flat instance is an index entry
+ * with a (value, since) record and NO RRD file. The writer consults and
+ * maintains it here (in the loaded host tree - no file IO per update);
+ * flushes persist it as "b=<since>,<values>". */
+char *fsidx_baseline_get(char *rrddir, char *hostname, char *rrdfn, time_t *since)
+{
+	fsidx_host_t *h;
+	xtreePos_t handle;
+	fsidx_entry_t *e;
+
+	if (!rrddir || !hostname || !rrdfn) return NULL;
+	h = fsidx_gethost(rrddir, hostname);
+	handle = xtreeFind(h->files, rrdfn);
+	if (handle == xtreeEnd(h->files)) return NULL;
+	e = (fsidx_entry_t *)xtreeData(h->files, handle);
+	if (!e->baseline) return NULL;
+	if (since) *since = e->since;
+	return e->baseline;
+}
+
+void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values, time_t ts)
+{
+	fsidx_host_t *h;
+	xtreePos_t handle;
+	fsidx_entry_t *e;
+
+	if (!rrddir || !hostname || !rrdfn || !values) return;
+	h = fsidx_gethost(rrddir, hostname);
+	fsidx_set(h, rrdfn, ts, NULL, 0);	/* ensure the entry; refresh last-seen */
+	handle = xtreeFind(h->files, rrdfn);
+	if (handle == xtreeEnd(h->files)) return;
+	e = (fsidx_entry_t *)xtreeData(h->files, handle);
+	if (!e->baseline) {
+		e->baseline = strdup(values);
+		e->since = ts;
+		h->dirty_new = 1;
+	}
+	else if (e->ts < ts) {
+		/* still flat: keep since, refresh the entry's last-seen */
+		e->ts = ts;
+		h->dirty_ts = 1;
+	}
+}
+
+void fsidx_baseline_clear(char *rrddir, char *hostname, char *rrdfn)
+{
+	fsidx_host_t *h;
+	xtreePos_t handle;
+	fsidx_entry_t *e;
+
+	if (!rrddir || !hostname || !rrdfn) return;
+	h = fsidx_gethost(rrddir, hostname);
+	handle = xtreeFind(h->files, rrdfn);
+	if (handle == xtreeEnd(h->files)) return;
+	e = (fsidx_entry_t *)xtreeData(h->files, handle);
+	if (e->baseline) {
+		xfree(e->baseline); e->baseline = NULL;
+		e->since = 0;
+		h->dirty_new = 1;	/* the record changed kind: flush now */
+	}
+	/* Tombstone either way: the file exists now, so the on-disk b= (ours
+	 * or the other channel's) must not weak-merge back in. */
+	e->bl_cleared = 1;
+}
+
 void fsidx_flush(char *rrddir, char *hostname)
 {
 	xtreePos_t handle, fh;
@@ -288,6 +373,7 @@ void fsidx_flush(char *rrddir, char *hostname)
 			fprintf(fd, "%s %ld", e->fn, (long)e->ts);
 			if (e->units) fprintf(fd, " u=%s", e->units);
 			if (e->thresholds) fprintf(fd, " t=%s", e->thresholds);
+			if (e->baseline) fprintf(fd, " b=%ld,%s", (long)e->since, e->baseline);
 			fprintf(fd, "\n");
 		}
 		ok = (fclose(fd) == 0);
@@ -345,6 +431,7 @@ void fsidx_drop(char *rrddir, char *hostname)
 		xfree(e->fn);
 		if (e->units) xfree(e->units);
 		if (e->thresholds) xfree(e->thresholds);
+		if (e->baseline) xfree(e->baseline);
 		xfree(e);
 	}
 	xtreeDestroy(h->files);
@@ -440,6 +527,12 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
 		if (!name || !tsstr) continue;
 		if (!matchregex(name, (pcre2_code *)pattern)) continue;
+		{
+			char *tok2; int isflat = 0;
+			while ((tok2 = strtok_r(NULL, " \t\r\n", &sp)) != NULL)
+				if (strncmp(tok2, "b=", 2) == 0) isflat = 1;
+			if (isflat) continue;
+		}
 
 		ts = (time_t)atol(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
@@ -478,6 +571,14 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		nlen = strlen(name);
 		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) || (name[plen] != '.')) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
+		/* A flat (baseline) record has no file behind it: nothing
+		 * renders for it yet, so it must not inflate the paging. */
+		{
+			char *tok2; int isflat = 0;
+			while ((tok2 = strtok_r(NULL, " \t\r\n", &sp)) != NULL)
+				if (strncmp(tok2, "b=", 2) == 0) isflat = 1;
+			if (isflat) continue;
+		}
 
 		ts = (time_t)atol(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
