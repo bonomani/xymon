@@ -1738,9 +1738,20 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					 * otherwise turn back into "/a/b"). A plain capture with no
 					 * escapes decodes to itself and keeps the old behaviour, so
 					 * legacy backends (iostat, ...) are unaffected. */
-					char *dec = rrdinstance_decode(param);
+					char *raw = param;
+					char *dec;
+
+					/* The stock disk/inode FNPATTERN ("^disk(.*).rrd") was
+					 * written for the old "disk,var" names, so on encoded
+					 * files it captures the "." separator too (".%2Fvar").
+					 * The separator is not part of the instance - absorb it
+					 * here, because deployed graphs.cfg copies are not
+					 * rewritten by an upgrade. */
+					if (((strncmp(gdef->name, "disk", 4) == 0) || (strncmp(gdef->name, "inode", 5) == 0)) &&
+					    (raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
+					dec = rrdinstance_decode(raw);
 					rrddbs[rrddbcount].rrdparam = dec;
-					rrddbs[rrddbcount].rrdparamfinal = (strcmp(dec, param) != 0);
+					rrddbs[rrddbcount].rrdparamfinal = (strcmp(dec, raw) != 0);
 				}
 
 				if (strlen(rrddbs[rrddbcount].rrdparam) > paramlen) {

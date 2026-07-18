@@ -120,4 +120,17 @@ env XYMONHOME="$work" "$work/showgraph" --emit-gdef=nosuch --rrddir="$work/rrd" 
 	>"$work/gdef2.out" 2>"$work/gdef2.err" && fail "--emit-gdef for a missing fileset must exit nonzero"
 grep -q "No RRD files matching" "$work/gdef2.err" || fail "--emit-gdef missing-fileset error not on stderr"
 
+# Disk legend end-to-end: the stock [disk] FNPATTERN ("^disk(.*).rrd")
+# captures the "." separator of encoded files, and the decode path must
+# absorb it - a migrated disk.%2Fvar.rrd must legend as "/var", never
+# "./var"; root (disk.%2F.rrd) as "/"; a not-yet-migrated legacy
+# disk,olddisk.rrd keeps the comma->slash legend "/olddisk".
+cp "$rrds/diskio_ops.ada0.rrd" "$rrds/disk.%2Fvar.rrd"
+cp "$rrds/diskio_ops.ada0.rrd" "$rrds/disk.%2F.rrd"
+cp "$rrds/diskio_ops.ada0.rrd" "$rrds/disk,olddisk.rrd"
+render "disk"
+grep -aq '\./var' "$work/out" && fail "encoded disk legend shows './var' - separator not absorbed"
+grep -aq ':/var' "$work/out" || fail "encoded disk legend '/var' missing: $(grep -a 'disk' "$work/out" | head -3)"
+grep -aq ':/olddisk' "$work/out" || fail "legacy comma-encoded disk legend '/olddisk' missing"
+
 pass "showgraph synthesizes a working gdef for marker-created RRD files"
