@@ -307,7 +307,14 @@ reader tolerates the mix.
     read_ms AND read_ms_warn): the VALUE is the producer's policy, but the
     RELATION - "this DS is the warn level of that DS" - is a fact only the
     producer knows, so it is declared in the METRICS block on its own line:
-    "THRESHOLD read_ms warn read_ms_warn". The line declares ONLY the
+    "THRESHOLD <base-ds> <level> <threshold-ds> [above|below]" (direction
+    defaults to above). The same level may appear in multiple relations per
+    base metric - a temperature with low+high warn and low+high crit is
+    four lines, rendering as an operating band. Direction exists for the
+    ALERT consumer only (breach = below the low thresholds, above the high
+    ones - a producer fact the rule engine must not guess); the renderer
+    ignores it, a line is a line.
+    Example: "THRESHOLD read_ms warn read_ms_warn". The line declares ONLY the
     relation - never a display instruction (display belongs to the graph
     side, same reasoning that put MAXINSTANCESPERIMAGE/TRENDS/STALE in
     graphs.cfg, not in the block). Rendering is DERIVED from the fact,
