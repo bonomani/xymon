@@ -148,17 +148,37 @@ inheriting the old collision unchanged.
 
 ## Phasing (commits on this branch)
 
-1. Feature 2 first (smallest): a block-bearing status routes to the marker
-   writer ahead of the built-in handler; test: a disk status with a block
-   writes once, no do_disk double-write; a block-less disk status is unchanged.
-2. Feature 1: reversible instance encoding (writer encode + showgraph decode)
-   + one-time rename migration; test: `/a/b` and `/a,b` get distinct RRDs and
-   legends show the real mount point. (Deferrable - see Feature 1.)
-3. Feature 2: HANDLER routes a column to the marker writer, retiring the
-   built-in; test: a disk status with a block writes once (no do_disk double).
-4. `unix_disk_report` emits the METRICS block (DS matching the gdef); drop the
-   linecount hint for block-bearing disk; end-to-end test: files, DS, graph,
-   and an AGGDS/DS alert on disk% all work; old-client df-only path unchanged.
+1. DONE - Feature 2 first (smallest): a block-bearing status routes to the
+   marker writer ahead of the built-in handler; tested both ways (block
+   writes once, no do_disk double-write; block-less disk unchanged).
+2. DONE - Feature 1: reversible instance encoding (writer encode + showgraph
+   decode) + one-time rename migration; `/a/b` and `/a,b` get distinct RRDs
+   and legends show the real mount point.
+3. DONE - HANDLER markers config route (via the test-cfg merge).
+4. `unix_disk_report` emits the METRICS block. Decisions taken (implement
+   next):
+   - DS line identical to do_disk's params: "DS:pct:GAUGE:600:0:100
+     DS:used:GAUGE:600:0:U" - same files, same schema, continuous history.
+   - The "used" value mirrors do_disk exactly: absolute df column 2
+     (do_disk treats every unix df as DT_UNIX and hardcodes columns[2]);
+     non-numeric -> "U". Faithful-to-do_disk IS the spec, not per-OS
+     cleverness.
+   - RRDDISKS/NORRDDISKS filtering is replicated at synthesis time (same
+     exclude-then-include semantics, compiled once): a filtered filesystem
+     stays in the df text but gets no block line - matching what do_disk
+     stores today, and fixing the hint's overcount under these filters.
+   - The linecount hint is KEPT alongside the block, not dropped: the disk
+     column renders through the legacy TEST2RRD/GRAPHS path, which reads
+     the hint, not block counts - dropping it would regress paging back to
+     df-line counting. The block is a STORAGE cutover only; display is
+     unchanged until the fileset index lands. (Amends the earlier "drop
+     the hint" note, which presumed display derives from the block.)
+   - End-to-end test route: xymond_client --local/--test mode feeding a
+     synthetic linux client message, grep the emitted status for the block
+     (verify the local-mode output path first); then the existing marker
+     writer tests cover storage.
+   - unix_inode_report gets the same treatment as a follow-up commit
+     (block name "inode").
 5. Docs: test.cfg disk example; note disk is now a declared metric.
 
 ## Risks / watch-items
