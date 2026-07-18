@@ -82,11 +82,14 @@ later). Flushes are atomic (tmp+rename) and merge under flock because the
 status- and data-channel writers share the file; timestamp-only changes
 flush at most every 5 minutes; a missing index reseeds from a one-off
 directory scan; drophost/renamehost hooks parallel the AGGDS/lazy ones.
-Consumer so far: lazy/store-filtered MARKER graphs count index entries by
-name prefix (staleness cutoff 86400, matching showgraph). Stock LAZY
-columns and GRAPHS entries still fall back to unsliced - their filesets
-are defined by arbitrary FNPATTERNs, so counting them needs the pattern,
-not a prefix; that is the index's next consumer.
+Consumers: ALL of htmllog's graph paths - marker graphs, GRAPHS_<service>
+entries and the legacy default-graph link - count lazy/store-filtered
+filesets from the index (staleness cutoff 86400, matching showgraph).
+Counting is FNPATTERN-aware: gdef metadata captures the pattern (INCLUDE
+inherits it) and xymon_gdef_fileset_count() matches index entries by it,
+falling back to the "<name>.<instance>.rrd" prefix rule when the gdef has
+no pattern. Unsliced rendering now happens ONLY without an index - the
+doctrine's level 3, as designed.
 
 ## Lazy endgame: always-on flat-instance economy (candidate, gated on the index)
 
