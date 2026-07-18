@@ -351,6 +351,34 @@ reader tolerates the mix.
     draws HRULEs (flat lines; a TIME-conditional rule renders its currently
     effective level). Gated on RFC #218's unified rule engine - re-parsing
     analysis.cfg inside showgraph would be a second, drift-prone matcher.
+  Deep-pass amendments (candidate, with the rest):
+  - Precedence - the honest answer to "is this policy on the wire?": relop +
+    color IS a rule, so the declared form is the producer's DEFAULT, never
+    the last word. In the #218 engine, analysis.cfg matches first (first-match,
+    as always); the declared rule fires only when server policy says nothing
+    about that metric. The exact alerting mirror of "hand-written gdef wins".
+    Without this, two rule sources fire independently - the contradiction
+    trap this doc warns about elsewhere.
+  - Multi-instance images: co-plot thresholds ONLY when the image shows a
+    single instance. With MAXINSTANCESPERIMAGE > 1, per-instance threshold
+    curves belong to different instances and drown the image - such images
+    behave as THRESHOLDS OFF; a hand-written gdef can still do anything.
+  - Unknown values: a threshold DS at U makes its rule SILENT (no alert,
+    gap in the curve). No path may compare U as 0 - that would fire every
+    "<" rule the moment a producer misses a baseline cycle.
+  - Colors: yellow|red only (the two alert severities); parse_color also
+    knows green/clear/purple/blue, all rejected here - a crossing that
+    means green is not a threshold.
+  - Scope: both operands name DSes declared in the SAME block. Cross-file
+    references stay out (that is analysis.cfg/#218 territory). In-block
+    scope buys timestamp coherence: metric and thresholds land in the same
+    RRD write, so evaluation always compares same-cycle values - a DS rule
+    across two files can race a collection cycle, the declared form
+    structurally cannot.
+  - Precision: threshold DSes are not "excluded from instance counting"
+    (instances are lines; counting never saw DSes) - the real exclusions
+    are: the synthetic gdef must not plot them as peer metrics, and
+    aggregates over "all DSes of a fileset" must skip them.
   The GRAPH marker is not involved: it answers "which images belong to this
   status, how many instances" - graph CONTENT is always derived server-side
   from facts + gdefs, so thresholds never touch it. A producer with a FIXED
