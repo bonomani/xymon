@@ -21,6 +21,9 @@ command -v make >/dev/null 2>&1 || skip "make not available"
 
 require_bin XYMOND_RRD "xymond/xymond_rrd"
 
+# These sections assert eager file creation; the default is lazy.
+export LAZYDEFAULT=off
+
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; the post-build CI suite covers this)"
 [ -f "$ROOT/web/showgraph.cgi" ] || skip "tree built without RRD support (no showgraph.cgi)"

@@ -17,6 +17,12 @@ require_bin XYMOND_RRD "xymond/xymond_rrd"
 
 work=$(mktempdir)
 
+# METRICS blocks are lazy by default (no file until the values change).
+# Most sections below assert the EAGER path's mechanics - creation,
+# units, dispatch, migration - so they pin the opt-out; the default-lazy
+# behavior has its own section, which drops this override.
+export LAZYDEFAULT=off
+
 feed_status() {  # feed_status <testname> <bodyfile> -- send one status message
 	local ts; ts=$(date +%s)
 	rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
@@ -333,13 +339,19 @@ grep -q 'lzp\.x\.rrd [0-9]* d=v b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index"
 grep -q 'lzp\.x\.rrd.* b=' "$work/rrd/testhost/.fileset-index" \
 	&& fail "the flat record must clear when the file materializes"
 if command -v rrdtool >/dev/null 2>&1; then
-	nvals=$(rrdtool fetch "$work/rrd/testhost/lzp.x.rrd" AVERAGE -s $((ts-700)) -e $((ts+400)) 2>/dev/null \
+	# Window covers every bucket the seed + change can land in: rrd
+	# consolidates on step-aligned boundaries, so with an unaligned ts
+	# the change's bucket can end as late as ts+600 (a narrower window
+	# made this assertion flaky, passing only for ts % 300 <= 100).
+	nvals=$(rrdtool fetch "$work/rrd/testhost/lzp.x.rrd" AVERAGE -s $((ts-700)) -e $((ts+700)) 2>/dev/null \
 		| grep -cE ': [0-9]')
 	[ "$nvals" -ge 2 ] || fail "splice seed missing - expected the baseline step edge plus the change (got $nvals values)"
 fi
 
-# LAZYDEFAULT=on makes every METRICS block lazy unless it opts out with
-# "nolazy" - the always-on flat-state economics as an admin opt-in.
+# The shipped default (no LAZYDEFAULT in the environment): every METRICS
+# block is lazy - a flat first sample becomes an index record, not a
+# file - and "nolazy" opts a block out. (The export at the top pins
+# LAZYDEFAULT=off for the eager sections; drop it here.)
 ts=$(date +%s)
 rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 {
@@ -347,13 +359,23 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 		"$ts" $((ts+1800)) "$ts" "$ts"
 	printf '<!--XYMON METRICS: ld\nDS:v:GAUGE:600:0:U\nx 5\n-->\n'
 	printf '<!--XYMON METRICS: ldno nolazy\nDS:v:GAUGE:600:0:U\ny 6\n-->\ns\n@@\n'
-} | env XYMONHOME="$work" XYMONTMP="$work/tmp" LAZYDEFAULT=on \
+} | env -u LAZYDEFAULT XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-[ -e "$work/rrd/testhost/ld.x.rrd" ] && fail "LAZYDEFAULT=on: a plain block must be lazy"
+[ -e "$work/rrd/testhost/ld.x.rrd" ] && fail "default: a plain METRICS block must be lazy"
 grep -q 'ld\.x\.rrd .* b=' "$work/rrd/testhost/.fileset-index" \
-	|| fail "LAZYDEFAULT=on: flat record missing"
+	|| fail "default-lazy flat record missing"
 [ -f "$work/rrd/testhost/ldno.y.rrd" ] \
-	|| fail "nolazy must opt a block out of LAZYDEFAULT"
+	|| fail "nolazy must opt a block out of the lazy default"
+# ... and a legacy DEVMON banner stays eager under the default.
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--DEVMON RRD: lddev\nDS:v:GAUGE:600:0:U\nz 7\n-->\ns\n@@\n'
+} | env -u LAZYDEFAULT XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/lddev.z.rrd" ] \
+	|| fail "legacy DEVMON banner must stay eager under the lazy default"
 
 # Deep-review regressions: (1) a legacy DEVMON block may carry instances
 # named like a declaration keyword - the METRICS-only contract must not

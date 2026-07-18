@@ -12,6 +12,11 @@ set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
 . "$(dirname "$0")/../lib/assert.sh"
 
+# The harness pins message-derived paging counts, which a (default) lazy
+# block never trusts - the fileset-index count is the lazy authority and
+# has its own cases. Pin the eager opt-out for the derived-count cases.
+export LAZYDEFAULT=off
+
 ROOT=$(find_root)
 here=$(dirname "$0")
 

@@ -121,15 +121,23 @@ every per-file emitter skips it, and it renders as one HRULE per value
 component with a "flat since <date>" legend. An ENTIRELY-flat fileset
 renders too (HRULEs only, empty def list). Freshness = the graph's
 STALEAFTER window; a stale flat record is a gone instance.
-NOT yet implemented: AGGDS/count() reading baselines as first-class
-values (needs DS names on the record - a future d= field). The always-on
-default is now CONFIG-SELECTABLE ahead of any flip: LAZYDEFAULT=on
-(xymonserver.cfg env) makes every METRICS block lazy unless it declares
-"nolazy" (writer and parser agree; legacy DEVMON banners unaffected).
-The default remains off - flipping it stays a separate decision, now
-reduced to changing one shipped default with soak evidence in hand.
+DEFAULT FLIPPED (2026-07, decided): METRICS blocks are lazy BY DEFAULT.
+Per-block "nolazy" or LAZYDEFAULT=off (xymonserver.cfg env) restore
+eager creation; writer and parser agree; legacy DEVMON banners stay
+eager forever - their installed base expects files. The flip rationale:
+the METRICS dialect ships for the first time in this feature, so no
+consumer depends on eager files from a marker block - a default chosen
+at introduction is free, while flipping it after producers exist is the
+expensive move. Internally the flat state is first-class everywhere
+(HRULE rendering, fileset counts, AGGDS, thresholds). The residual cost
+is external: out-of-tree scripts scanning <host>/*.rrd do not see flat
+instances (that state lives in the index), and "where is my RRD file"
+becomes a FAQ answered by nolazy. Parser side, the same default means a
+plain block's message-derived paging count is untrusted (the ever-active
+set can exceed the current message), so counting falls to the fileset
+index - which was already the lazy authority.
 
-Lazy today is an opt-in policy because it TRADES flat history for file
+Lazy began as an opt-in policy because it TRADES flat history for file
 economy - correct only where flat means uninteresting (spare disks, idle
 interfaces). The better model reframes it: a flat instance's entire history
 is losslessly "(value, since-timestamp)" - it needs no round-robin archives
@@ -138,7 +146,8 @@ actual CURVE to store, and flat instances live as index records. Then lazy
 stops being a policy flag and becomes the storage engine's normal
 economics, always on.
 
-Two prerequisites, both missing today (which is WHY lazy must stay opt-in):
+Two prerequisites, both now SATISFIED (which is what unlocked the
+default flip above):
 
 1. Durability: the baseline (value, since) lives in xymond_rrd memory and a
    restart forgets it. It must ride the writer-kept fileset index - the

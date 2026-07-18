@@ -11,17 +11,18 @@
 
 static char devmon_rcsid[] = "$Id $";
 
-/* LAZYDEFAULT=on (xymonserver.cfg env) makes every METRICS block lazy
- * unless it declares "nolazy" - the always-on flat-state economics as an
- * admin opt-in, ahead of any default flip. Legacy DEVMON banners are
- * never affected. */
+/* METRICS blocks are lazy BY DEFAULT: a flat instance is a (value,
+ * since) record in the fileset index, no RRD file until the value first
+ * changes. Per-block "nolazy" or LAZYDEFAULT=off (xymonserver.cfg env)
+ * restore eager file creation. Legacy DEVMON banners are never affected
+ * - their installed base expects eager files. */
 static int lazydefault(void)
 {
 	static int val = -1;
 
 	if (val < 0) {
 		char *p = getenv("LAZYDEFAULT");
-		val = (p && ((strcasecmp(p, "on") == 0) || (strcasecmp(p, "1") == 0) || (strcasecmp(p, "true") == 0)));
+		val = !(p && ((strcasecmp(p, "off") == 0) || (strcasecmp(p, "0") == 0) || (strcasecmp(p, "false") == 0)));
 	}
 	return val;
 }
@@ -358,8 +359,11 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		 * point, a name with a comma - round-trips to one unambiguous file;
 		 * the legacy banner keeps setupfn2()'s lossy '/'->',' so its
 		 * existing files are untouched. */
+		{
+		char *encinst = NULL;
+
 		if (metrics_block) {
-			char *encinst = rrdinstance_encode(ifname);
+			encinst = rrdinstance_encode(ifname);
 
 			/* One-time legacy migration, ported from do_disk: a block
 			 * that replaced a legacy handler (disk, inode) must carry
@@ -385,14 +389,18 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			}
 
 			setupfn2("%s.%s.rrd", rrdbasename, encinst);
-			xfree(encinst);
 		}
 		else {
 			setupfn2("%s.%s.rrd", rrdbasename, ifname);
 		}
 		dbgprintf("Sending from devmon to RRD for %s %s: %s\n",rrdbasename,ifname,rrdvalues);
 		create_and_update_rrd(hostname, testname, classname, pagepaths, devmon_params, NULL);
+		/* setupfn2() published encinst/ifname in fnparams[], which the
+		 * external-processor branch of create_and_update_rrd() reads -
+		 * neither may be freed before the call returns. */
+		if (encinst) { xfree(encinst); }
 		if (ifname) { xfree(ifname); ifname = NULL; }
+		}
 
 		if (eoln) *eoln = '\n';
 

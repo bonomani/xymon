@@ -20,20 +20,51 @@ static char xymonmarkers_rcsid[] = "$Id$";
 #include "libxymon.h"
 
 /* Copy and validate a marker name: [A-Za-z0-9_-]{1,NAMELEN_MAX}, terminated
- * by whitespace or end-of-line. Returns a malloc'ed copy, or NULL. */
+ * by whitespace or end-of-line. Leading blanks are skipped - the block
+ * writer tokenizes with strtok(" \t") and so accepts them; this parser
+ * must accept exactly what the writer accepts, or a routed block stores
+ * nothing / a storable block is never routed. A CR counts as a terminator
+ * only at end-of-line (the writer sees "name\r-->" as one invalid token).
+ * Returns a malloc'ed copy, or NULL. */
 static char *marker_name(char *p)
 {
 	char *result;
 	int len = 0;
 
+	p += strspn(p, " \t");
 	len = strspn(p, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
 	if ((len == 0) || (len > XYMON_MARKER_NAMELEN_MAX)) return NULL;
-	if (p[len] && (p[len] != ' ') && (p[len] != '\t') && (p[len] != '\n') && (p[len] != '\r')) return NULL;
+	if (p[len] && (p[len] != ' ') && (p[len] != '\t') && (p[len] != '\n') &&
+	    !((p[len] == '\r') && ((p[len+1] == '\n') || (p[len+1] == '\0')))) return NULL;
 
 	result = (char *)malloc(len + 1);
 	memcpy(result, p, len); result[len] = '\0';
 
 	return result;
+}
+
+/* Does a banner attribute word end here? Space/tab/EOL - matching the
+ * block writer's strtok(" \t") tokens, where a CR disappears only as part
+ * of a CRLF line ending. */
+static int marker_attr_end(const char *q)
+{
+	return ((*q == '\0') || (*q == ' ') || (*q == '\t') || (*q == '\n') ||
+		((*q == '\r') && ((q[1] == '\n') || (q[1] == '\0'))));
+}
+
+/* strstr bounded to the current line: statuses run to hundreds of KB, and
+ * an unbounded search from every line would make parsing quadratic. */
+static char *line_strstr(char *bol, char *eoln, const char *needle)
+{
+	size_t nlen = strlen(needle);
+	char *end = (eoln ? eoln : bol + strlen(bol));
+	char *p;
+
+	if ((size_t)(end - bol) < nlen) return NULL;
+	for (p = bol; (p <= end - nlen); p++) {
+		if ((*p == *needle) && (strncmp(p, needle, nlen) == 0)) return p;
+	}
+	return NULL;
 }
 
 static xymonmarker_t *find_or_add(xymonmarker_t **head, xymonmarker_t **tail, int *count, char *name)
@@ -72,8 +103,8 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 
 		eoln = strchr(bol, '\n');
 		/* A banner carrying its own "-->" is an empty, self-closed block. */
-		close = strstr(bol, "-->");
-		selfclosed = (close && ((eoln == NULL) || (close < eoln)));
+		close = line_strstr(bol, eoln, "-->");
+		selfclosed = (close != NULL);
 
 		/* Marker banners are recognized even inside an open block, like
 		 * the block writer does - a new banner simply starts the next
@@ -90,16 +121,22 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 
 					if (lazydef < 0) {
 						char *ld = getenv("LAZYDEFAULT");
-						lazydef = (ld && ((strcasecmp(ld, "on") == 0) || (strcasecmp(ld, "1") == 0) || (strcasecmp(ld, "true") == 0)));
+						lazydef = !(ld && ((strcasecmp(ld, "off") == 0) || (strcasecmp(ld, "0") == 0) || (strcasecmp(ld, "false") == 0)));
 					}
 					block->store = 1;
-					block->lazy = lazydef;	/* LAZYDEFAULT=on: lazy unless nolazy */
-					/* banner attributes, up to end-of-line */
-					while (*p && (*p != '\n')) {
-						if ((strncmp(p, " lazy", 5) == 0) &&
-						    ((p[5] == ' ') || (p[5] == '\n') || (p[5] == '\r') || (p[5] == '\0'))) block->lazy = 1;
-						if ((strncmp(p, " nolazy", 7) == 0) &&
-						    ((p[7] == ' ') || (p[7] == '\n') || (p[7] == '\r') || (p[7] == '\0'))) block->lazy = 0;
+					block->lazy = lazydef;	/* lazy by default; nolazy or LAZYDEFAULT=off opt out */
+					/* banner attributes, up to end-of-line or the
+					 * closing marker - text after a self-closing
+					 * "-->" is status content, not attributes (the
+					 * block writer stops there too). Writer parity:
+					 * it tokenizes on " \t" and matches the word
+					 * exactly, with a CR vanishing only at EOL. */
+					while (*p && (*p != '\n') && strncmp(p, "-->", 3)) {
+						if ((*p == ' ') || (*p == '\t')) {
+							char *a = p + 1;
+							if ((strncmp(a, "lazy", 4) == 0) && marker_attr_end(a+4)) block->lazy = 1;
+							if ((strncmp(a, "nolazy", 6) == 0) && marker_attr_end(a+6)) block->lazy = 0;
+						}
 						p++;
 					}
 				}
