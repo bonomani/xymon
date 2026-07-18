@@ -509,6 +509,10 @@ void load_gdefs(char *fn)
 			/* Threshold co-plot gate; consumed by lib/xymonrrd.c */
 			continue;
 		}
+		else if ((strncasecmp(p, "STALEAFTER", 10) == 0) && isspace((int)p[10])) {
+			/* Freshness window; consumed by lib/xymonrrd.c */
+			continue;
+		}
 		else if ((strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* Inherit an earlier-defined gdef: header keywords copied
 			 * now (later keywords in this section override), its
@@ -1697,7 +1701,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			 * Has it been updated recently (within the past 24 hours) ? 
 			 * We don't want old graphs to mess up multi-displays.
 			 */
-			if (ignorestalerrds && (stat(d->d_name, &st) == 0) && ((now - st.st_mtime) > 86400)) {
+			if (ignorestalerrds && (stat(d->d_name, &st) == 0) && ((now - st.st_mtime) > xymon_gdef_staleafter(gdef->name))) {
 				continue;
 			}
 

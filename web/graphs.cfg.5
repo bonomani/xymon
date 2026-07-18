@@ -82,6 +82,15 @@ once at xymond_rrd startup, so a change to them takes effect only
 after xymond_rrd is restarted; the presentation keywords are re-read
 by the CGIs on every page request.
 .sp
+A "STALEAFTER <seconds>" keyword sets the graph's freshness window,
+replacing the built-in default of 86400 seconds (one day): RRD files
+older than the window are hidden from the rendered graph, and the
+writer-kept fileset index applies the same window to its paging
+counts, so the count always equals what renders. Use it for
+legitimately periodic instances - a weekly backup job or a
+monthly-mounted volume whose graph must stay visible between
+appearances (e.g. "STALEAFTER 700000" for a weekly cadence).
+.sp
 A "THRESHOLDS OFF" keyword suppresses the automatic co-plot of
 threshold relations a self-describing METRICS block declared (see
 xymond_rrd(8)): the threshold curves and HRULEs disappear from the

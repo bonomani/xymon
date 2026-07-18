@@ -389,13 +389,16 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
   hardcoding. One declaration, two consumers (graph and alert), neither
   owns it - the marker doctrine working as intended.
 
-## Display-window keywords (candidate)
+## Display-window keywords (IMPLEMENTED)
 
-- STALE <seconds>, per graphs.cfg block (next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/
-  STOREPATTERN): the freshness window showgraph uses instead of the
-  hard-coded 86400 at showgraph.c (mtime cutoff behind &nostale). Needed for
-  legitimately periodic instances (weekly job, backup mount) whose graphs
-  must stay visible between appearances; per-graph granularity is enough -
+- STALEAFTER <seconds> (named per the glossary rule - every new name
+  states its unit; the earlier "STALE" draft violated it), per graphs.cfg
+  block next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/THRESHOLDS, INCLUDE
+  inherits, default 86400: the graph's freshness window. Governs BOTH the
+  showgraph stale-file filter and the fileset-index paging counts - one
+  window, so the count always equals what renders. For legitimately
+  periodic instances (weekly job, backup mount) whose graphs must stay
+  visible between appearances; per-graph granularity is enough -
   freshness is a display property of the graph, not of each DS.
 
 

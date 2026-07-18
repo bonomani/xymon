@@ -255,6 +255,20 @@ int main(void)
 	expect_not_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;first=");
 	free(html);
 
+	/* STALEAFTER widens the graph's freshness window: the same index
+	 * entries that count 3 at the default 86400 count 4 for a graph
+	 * declaring STALEAFTER 300000 (the stale entry included). */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_slow lazy\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_slow -->\n"
+		"status text\n");
+	expect_contains("STALEAFTER widens the count window", html,
+		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
+	free(html);
+
 	/* The GRAPHS_<service> config path takes the same index count: a
 	 * GRAPHS-listed LAZY gdef pages on the pattern-derived fileset. */
 	html = render_log_msg("gzycol", 0, "", "plain status text\n");

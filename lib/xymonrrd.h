@@ -55,6 +55,7 @@ extern int xymon_gdef_store_allowed(char *fn, int *forced);
 extern int xymon_gdef_fileset_unknown(char *name);
 extern int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage);
 extern int xymon_gdef_thresholds_off(char *name);
+extern int xymon_gdef_staleafter(char *name);
 extern void xymon_gdef_meta_source(char *fn);
 extern char *xymon_graph_data(char *hostname, char *dispname, char *service, int bgcolor,
 		xymongraph_t *graphdef, int itemcount, 
