@@ -34,4 +34,9 @@ extern void fsidx_drop(char *rrddir, char *hostname);
  * (callers keep their previous behaviour). maxage 0 = no freshness cut. */
 extern int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage);
 
+/* Same, but entries matched by a compiled regex (a gdef's FNPATTERN).
+ * `pattern` is a pcre2_code* passed as void* to keep this header free of
+ * the PCRE include-order dance. */
+extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage);
+
 #endif

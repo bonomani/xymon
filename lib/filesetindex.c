@@ -256,6 +256,38 @@ void fsidx_drop(char *rrddir, char *hostname)
 	h->lastflush = 0;
 }
 
+int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
+{
+	char fn[PATH_MAX];
+	FILE *fd;
+	char line[PATH_MAX + 64];
+	int count = 0;
+	time_t now = getcurrenttime(NULL);
+
+	if (!hostname || !pattern) return -1;
+	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	fd = fopen(fn, "r");
+	if (!fd) return -1;
+
+	while (fgets(line, sizeof(line), fd)) {
+		char *name, *tsstr, *sp = NULL;
+		time_t ts;
+
+		if (line[0] == '#') continue;
+		name = strtok_r(line, " \t\r\n", &sp);
+		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
+		if (!name || !tsstr) continue;
+		if (!matchregex(name, (pcre2_code *)pattern)) continue;
+
+		ts = (time_t)atol(tsstr);
+		if (maxage && ((now - ts) > maxage)) continue;
+		count++;
+	}
+	fclose(fd);
+
+	return count;
+}
+
 int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 {
 	char fn[PATH_MAX];

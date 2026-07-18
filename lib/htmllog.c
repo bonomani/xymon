@@ -578,10 +578,14 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					localgraph.xymonrrdname = graphsptr;
 					if (!owngdef) localgraph.maxgraphs = xymon_gdef_maxinstancesperimage(graphsptr);
 					if (localgraph.maxgraphs == 0) localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : (graph ? graph->maxgraphs : 0));
-					/* A LAZY graph's file set is the ever-active
-					 * instances - a line-derived count would hide
-					 * trailing files, so render unsliced. */
-					if (xymon_gdef_fileset_unknown(graphsptr)) gcount = 0;
+					/* A LAZY/store-filtered graph's file set is not
+					 * derivable from the message - the writer-kept
+					 * fileset index knows it exactly (FNPATTERN-
+					 * matched); without an index, render unsliced. */
+					if (xymon_gdef_fileset_unknown(graphsptr)) {
+						int n = xymon_gdef_fileset_count(hostname, graphsptr, 86400);
+						gcount = (n > 0 ? n : 0);
+					}
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 					graphsptr = strtok(NULL,",");
 				}
@@ -594,7 +598,11 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				 * banners say exactly which graphs this status holds,
 				 * with exact counts - this service-level fallback link
 				 * would render a second, imprecise copy of each. */
-				int gcount = (xymon_gdef_fileset_unknown(graph->xymonrrdname) ? 0 : linecount);
+				int gcount = linecount;
+				if (xymon_gdef_fileset_unknown(graph->xymonrrdname)) {
+					int n = xymon_gdef_fileset_count(hostname, graph->xymonrrdname, 86400);
+					gcount = (n > 0 ? n : 0);
+				}
 				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 			}
 
@@ -633,8 +641,10 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 						int gcount = xymon_marker_instancecount(mwalk);
 						if ((mwalk->instancespec < 0) && (mwalk->lazy || xymon_gdef_fileset_unknown(mwalk->name))) {
 							/* 86400 matches showgraph's stale-file cutoff,
-							 * so the count equals what actually renders */
-							int n = fsidx_count_prefix(hostname, mwalk->name, 86400);
+							 * so the count equals what actually renders.
+							 * FNPATTERN-aware: a hand-written gdef's
+							 * fileset counts by its own pattern. */
+							int n = xymon_gdef_fileset_count(hostname, mwalk->name, 86400);
 							gcount = (n > 0 ? n : 0);
 						}
 						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));

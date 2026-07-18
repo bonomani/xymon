@@ -39,6 +39,7 @@ cat >"$work/etc/graphs.cfg" <<'GDEFS'
 	MAXINSTANCESPERIMAGE 2
 [diskio_gzy]
 	LAZY
+	FNPATTERN ^gzyfiles\..+\.rrd
 [diskio_filt]
 	EXSTOREPATTERN x
 GDEFS
@@ -65,6 +66,9 @@ now=$(date +%s)
 	echo "diskio_idx.b.rrd $now"
 	echo "diskio_idx.c.rrd $now"
 	echo "diskio_idx.old.rrd $((now - 200000))"
+	echo "gzyfiles.p.rrd $now"
+	echo "gzyfiles.q.rrd $now"
+	echo "gzyfiles.stale.rrd $((now - 200000))"
 } >"$work/rrd/testhost/.fileset-index"
 
 XYMONHOME="$work" \
@@ -78,6 +82,7 @@ IMAGEFILETYPE="gif" \
 TEST2RRD="cpu=la,disk,if_load=devmon" \
 GRAPHS="la,disk,tcp,devmon,diskio_busy::2,diskio_split::4" \
 GRAPHS_smart="smart-temp" \
+GRAPHS_gzycol="diskio_gzy" \
 INFOCOLUMN="info" \
 TRENDSCOLUMN="trends" \
 ACKUNTILMSG="until %H:%M" \

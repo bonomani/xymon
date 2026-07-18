@@ -65,9 +65,11 @@ typedef struct gdefmeta_t {
 	int lazy;		/* LAZY: no file until the values first change */
 	char *exstorepat;	/* EXSTOREPATTERN: instances never stored */
 	char *storepat;		/* STOREPATTERN: only these stored; forces past LAZY */
+	char *fnpat;		/* FNPATTERN: the fileset's filename regex */
 	pcre2_code *exstore;	/* compiled on demand (NULL after a failed compile too) */
 	pcre2_code *store;
-	int exstore_tried, store_tried;
+	pcre2_code *fnpat_re;
+	int exstore_tried, store_tried, fnpat_tried;
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -123,6 +125,11 @@ static void load_gdef_meta(void)
 			pat[strcspn(pat, " \t\r\n")] = '\0';
 			if (*pat) { if (cur->storepat) xfree(cur->storepat); cur->storepat = strdup(pat); }
 		}
+		else if (cur && (strncasecmp(p, "FNPATTERN", 9) == 0) && isspace((int)p[9])) {
+			char *pat = p + 9 + strspn(p+9, " \t");
+			pat[strcspn(pat, " \t\r\n")] = '\0';
+			if (*pat) { if (cur->fnpat) xfree(cur->fnpat); cur->fnpat = strdup(pat); }
+		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own keywords
 			 * override - later wins. The base must be defined EARLIER
@@ -137,6 +144,7 @@ static void load_gdef_meta(void)
 				if (cur->maxinstancesperimage == 0) cur->maxinstancesperimage = base->maxinstancesperimage;
 				if (base->trends) cur->trends = 1;
 				if (base->lazy) cur->lazy = 1;
+				if (base->fnpat && !cur->fnpat) cur->fnpat = strdup(base->fnpat);
 				if (base->exstorepat && !cur->exstorepat) cur->exstorepat = strdup(base->exstorepat);
 				if (base->storepat && !cur->storepat) cur->storepat = strdup(base->storepat);
 			}
@@ -249,6 +257,31 @@ int xymon_gdef_fileset_unknown(char *name)
 
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
 	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
+}
+
+/* The exact fileset size of a graph for one host, from the writer-kept
+ * fileset index: entries matched by the gdef's FNPATTERN when it has one,
+ * else by the "<name>.<instance>.rrd" prefix rule (the synthetic-gdef
+ * default). -1 = no index (or a broken pattern) - callers keep their
+ * previous fallback behaviour. */
+int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
+{
+	gdefmeta_t *walk;
+
+	load_gdef_meta();
+	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+
+	if (walk && walk->fnpat) {
+		if (!walk->fnpat_tried) {
+			walk->fnpat_tried = 1;
+			walk->fnpat_re = compileregex(walk->fnpat);
+			if (!walk->fnpat_re) errprintf("Invalid FNPATTERN '%s' in graph definition [%s]\n", walk->fnpat, walk->name);
+		}
+		if (!walk->fnpat_re) return -1;
+		return fsidx_count_pattern(hostname, walk->fnpat_re, maxage);
+	}
+
+	return fsidx_count_prefix(hostname, name, maxage);
 }
 
 

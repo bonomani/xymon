@@ -226,22 +226,24 @@ int main(void)
 		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
 	free(html);
 
-	/* gdef LAZY (graphs.cfg) makes the graph render unsliced even
-	 * without any banner attribute. */
+	/* gdef LAZY (graphs.cfg): the message cannot know the fileset, but
+	 * the writer-kept index can - [diskio_gzy] has FNPATTERN ^gzyfiles
+	 * and the harness index holds two fresh gzyfiles entries, so the
+	 * count is pattern-derived (2), not prefix- or message-derived. */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_gzy\n"
 		"DS:v:GAUGE:600:0:U\n"
-		"a 1\nb 2\n"
+		"a 1\nb 2\nc 3\n"
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_gzy -->\n"
 		"status text\n");
-	expect_contains("gdef LAZY renders unsliced", html, "service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;disp=");
-	expect_not_contains("gdef LAZY renders unsliced", html, "service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	expect_contains("gdef LAZY count is FNPATTERN-derived from the index", html,
+		"service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
-	/* A store-filtered graph (EXSTOREPATTERN/STOREPATTERN) also renders
-	 * unsliced: its file set diverges from the message, so a derived
-	 * count cannot be trusted. */
+	/* A store-filtered graph (EXSTOREPATTERN/STOREPATTERN) with no index
+	 * entries matching it still renders unsliced: its file set diverges
+	 * from the message and nothing else knows it. */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_filt\n"
 		"DS:v:GAUGE:600:0:U\n"
@@ -251,6 +253,13 @@ int main(void)
 		"status text\n");
 	expect_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;disp=");
 	expect_not_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* The GRAPHS_<service> config path takes the same index count: a
+	 * GRAPHS-listed LAZY gdef pages on the pattern-derived fileset. */
+	html = render_log_msg("gzycol", 0, "", "plain status text\n");
+	expect_contains("GRAPHS-listed LAZY gdef counts from the index", html,
+		"service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
 	/* A hostile count= must not drive the renderer into building a
