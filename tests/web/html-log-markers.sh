@@ -55,7 +55,20 @@ make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 	$pcre_libs -lssl -lcrypto 2>"$work/cc.log" \
 	|| { cat "$work/cc.log" >&2; fail "harness does not compile"; }
 
+# A writer-kept fileset index for the diskio_idx lazy graph: three fresh
+# entries and one stale one (the staleness cutoff must exclude it).
+mkdir -p "$work/rrd/testhost"
+now=$(date +%s)
+{
+	echo "# xymon fileset index v1"
+	echo "diskio_idx.a.rrd $now"
+	echo "diskio_idx.b.rrd $now"
+	echo "diskio_idx.c.rrd $now"
+	echo "diskio_idx.old.rrd $((now - 200000))"
+} >"$work/rrd/testhost/.fileset-index"
+
 XYMONHOME="$work" \
+XYMONRRDS="$work/rrd" \
 CGIBINURL="/xymon-cgi" \
 RRDWIDTH=576 \
 RRDHEIGHT=120 \

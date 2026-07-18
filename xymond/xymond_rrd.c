@@ -379,6 +379,7 @@ int main(int argc, char *argv[])
 					strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
 					if (aggmsg) combo_add(aggmsg);
 				}
+				fsidx_flush(rrddir, hostname);
 				break;
 
 			  default:
@@ -401,6 +402,7 @@ int main(int argc, char *argv[])
 				strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
 				if (aggmsg) combo_add(aggmsg);
 			}
+			fsidx_flush(rrddir, hostname);
 		}
 		else if (strncmp(metadata[0], "@@shutdown", 10) == 0) {
 			running = 0;
@@ -431,6 +433,7 @@ int main(int argc, char *argv[])
 			dropdirectory(hostdir, 1);
 			flush_aggds_store(hostname);
 			drop_lazy_baselines(hostname);
+			fsidx_drop(rrddir, hostname);
 
 			MEMUNDEFINE(hostdir);
 		}
@@ -456,6 +459,9 @@ int main(int argc, char *argv[])
 			rename(oldhostdir, newhostdir);
 			flush_aggds_store(hostname);	/* repopulates under the new name */
 			drop_lazy_baselines(hostname);
+			/* The index file moved with the directory; only the old
+			 * name's in-memory tree must go (its file path is gone). */
+			fsidx_drop(rrddir, hostname);
 
 			if (net_worker_locatorbased()) locator_rename_host(hostname, newhostname, ST_RRD);
 
@@ -478,6 +484,7 @@ int main(int argc, char *argv[])
 	/* Flush all cached updates to disk */
 	errprintf("Shutting down, flushing cached updates to disk\n");
 	rrdcacheflushall();
+	fsidx_flush_all(rrddir);
 	errprintf("Cache flush completed\n");
 
 	/* Close the external processor */

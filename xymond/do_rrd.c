@@ -599,6 +599,11 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	/* Are we actually handling the writing of RRD files? */
 	if (no_rrd) return 0;
 
+	/* Bookkeep the fileset index: this file received data now. The data
+	 * timestamp (not the disk flush time) is the freshness that display
+	 * and staleness rules care about. */
+	fsidx_note_write(rrddir, hostname, rrdfn, (time_t)updtime);
+
 	/* 
 	 * We cannot just cache data every time because then after CACHESZ updates
 	 * of each RRD, we will flush all of the data at once (all of the caches 

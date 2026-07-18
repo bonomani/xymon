@@ -624,10 +624,19 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : xymon_gdef_maxinstancesperimage(mwalk->name));
 					/* gdef LAZY overrides a derived count (explicit
 					 * instances= still wins) - same reasoning as the
-					 * banner attribute */
+					 * banner attribute. When the fileset is not
+					 * derivable from the message (lazy, store
+					 * filters), the writer-kept fileset index knows
+					 * it exactly - only without an index does the
+					 * graph fall back to an unsliced render. */
 					{
 						int gcount = xymon_marker_instancecount(mwalk);
-						if ((mwalk->instancespec < 0) && xymon_gdef_fileset_unknown(mwalk->name)) gcount = 0;
+						if ((mwalk->instancespec < 0) && (mwalk->lazy || xymon_gdef_fileset_unknown(mwalk->name))) {
+							/* 86400 matches showgraph's stale-file cutoff,
+							 * so the count equals what actually renders */
+							int n = fsidx_count_prefix(hostname, mwalk->name, 86400);
+							gcount = (n > 0 ? n : 0);
+						}
 						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 					}
 				}

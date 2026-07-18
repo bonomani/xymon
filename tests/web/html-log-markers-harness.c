@@ -211,6 +211,21 @@ int main(void)
 	expect_contains("explicit count= still slices a lazy graph", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=4&amp;count=3");
 	free(html);
 
+	/* With a writer-kept fileset index available, a lazy graph gets the
+	 * exact ever-active count from the index instead of the unsliced
+	 * fallback. The harness index holds 3 fresh diskio_idx entries and
+	 * one stale one: 3 -> one slice of 3, staleness cut applied. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_idx lazy\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_idx -->\n"
+		"status text\n");
+	expect_contains("lazy count from the fileset index", html,
+		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	free(html);
+
 	/* gdef LAZY (graphs.cfg) makes the graph render unsliced even
 	 * without any banner attribute. */
 	html = render_log_msg("diskio", 0, "",

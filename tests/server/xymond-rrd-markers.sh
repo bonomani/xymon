@@ -340,6 +340,33 @@ assert_not_contains "nodsblock" "$out" "block without a DS line writes nothing"
 assert_not_contains "selfclosed" "$out" "self-closed banner opens no block"
 assert_not_contains ".oops." "$out" "status text after a self-closed banner is not instance data"
 
+# The writer-kept fileset index: every RRD write is bookkept into
+# <host>/.fileset-index (a durable home for display counts and, later,
+# units/thresholds/lazy baselines). A deleted index is reseeded from a
+# one-off directory scan, so pre-existing files reappear in it.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: fsx\nDS:v:GAUGE:600:0:U\na 1\nb 2\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+idx="$work/rrd/testhost/.fileset-index"
+[ -f "$idx" ] || fail "fileset index not written"
+grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "index misses a written file: $(cat "$idx")"
+grep -q '^fsx\.b\.rrd [0-9]' "$idx" || fail "index misses a written file"
+
+rm -f "$idx"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: fsy\nDS:v:GAUGE:600:0:U\nc 3\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+grep -q '^fsy\.c\.rrd [0-9]' "$idx" || fail "rebuilt index misses the new write"
+grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "rebuilt index misses pre-existing files (scan seed): $(cat "$idx")"
+
 # Dispatch precedence (self-describing beats built-in): a status whose
 # column has a built-in handler but which carries a store block is
 # written by the block writer ONLY - the built-in must not double-write.

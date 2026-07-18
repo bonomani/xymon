@@ -75,6 +75,19 @@ counts:
 This reinstates the sound half of PR #246 (count what will actually render)
 while keeping its env-var config surface retired.
 
+IMPLEMENTED (lib/filesetindex.c): the writer bookkeeps every accepted RRD
+update into <host>/.fileset-index ("<rrdfn> <ts> [k=v ...]" lines, readers
+ignore trailing fields - units/thresholds/baselines extend the record
+later). Flushes are atomic (tmp+rename) and merge under flock because the
+status- and data-channel writers share the file; timestamp-only changes
+flush at most every 5 minutes; a missing index reseeds from a one-off
+directory scan; drophost/renamehost hooks parallel the AGGDS/lazy ones.
+Consumer so far: lazy/store-filtered MARKER graphs count index entries by
+name prefix (staleness cutoff 86400, matching showgraph). Stock LAZY
+columns and GRAPHS entries still fall back to unsliced - their filesets
+are defined by arbitrary FNPATTERNs, so counting them needs the pattern,
+not a prefix; that is the index's next consumer.
+
 ## Lazy endgame: always-on flat-instance economy (candidate, gated on the index)
 
 Lazy today is an opt-in policy because it TRADES flat history for file
