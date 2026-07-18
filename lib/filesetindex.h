@@ -26,6 +26,7 @@
 /* Writer side (xymond_rrd) */
 extern void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */
+extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:sev[,...]"; NULL clears */
 extern void fsidx_flush(char *rrddir, char *hostname);
 extern void fsidx_flush_all(char *rrddir);
 extern void fsidx_drop(char *rrddir, char *hostname);
@@ -43,5 +44,9 @@ extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage);
 /* The per-DS units recorded for one file: malloc'd "ds:unit[,...]" spec,
  * or NULL (no index, or no units declared). Caller frees. */
 extern char *fsidx_units(char *hostname, char *rrdfn);
+
+/* The threshold relations recorded for one file: malloc'd
+ * "base:relop-operand:sev[,...]" spec, or NULL. Caller frees. */
+extern char *fsidx_thresholds(char *hostname, char *rrdfn);
 
 #endif

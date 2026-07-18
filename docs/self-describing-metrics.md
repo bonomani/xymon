@@ -219,7 +219,18 @@ NOT yet implemented: mixed-unit blocks still get the generic "Value" axis
   admin to capture into graphs.d/ and customize. One-shot scaffold, never a
   sync: once edited the file is the admin's (hand-written already wins).
 
-## Threshold rendering (candidate)
+## Threshold rendering (rendering half IMPLEMENTED; alert half gated on #218)
+
+Implementation status: the writer parses THRESHOLD: declarations (grammar
+below, validated against the block's DSes, invalid lines ignored with a
+debug note) and records the relations on the fileset-index entry
+("t=base:relop-operand:sev,..."). The renderer derives: threshold-DS
+operands never plot as peer metrics; on a single-instance image they
+co-plot threshold-styled (warn yellow, crit red) and literal operands
+become HRULEs; THRESHOLDS ON|OFF in graphs.cfg (meta-only section works,
+INCLUDE inherits) is the admin's say; --emit-gdef scaffolds it all.
+NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
+#218 engine, under analysis.cfg precedence) - blocked on #218 itself.
 
 - A metric's thresholds have two origins with two owners, and each gets its
   own mechanism - never mixed:

@@ -81,6 +81,15 @@ Writer-side keywords (LAZY, EXSTOREPATTERN, STOREPATTERN) are read
 once at xymond_rrd startup, so a change to them takes effect only
 after xymond_rrd is restarted; the presentation keywords are re-read
 by the CGIs on every page request.
+.sp
+A "THRESHOLDS OFF" keyword suppresses the automatic co-plot of
+threshold relations a self-describing METRICS block declared (see
+xymond_rrd(8)): the threshold curves and HRULEs disappear from the
+synthesized graph, while the threshold datasets still never plot as
+peer metrics. The default (no keyword, or "THRESHOLDS ON") co-plots
+on single-instance images. A section may carry only this keyword -
+the graph definition itself stays synthesized; a hand-written
+definition always has the last word.
 
 A "TRENDS" keyword makes the graph a member of the trends-column page
 without an entry in the GRAPHS environment variable - the membership

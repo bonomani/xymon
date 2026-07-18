@@ -154,6 +154,57 @@ grep -aq "Content-type: image/png" "$work/out" || fail "unit-labelled graph does
 grep -a -A1 -- ' -v$' "$work/out" | grep -aq ' ms$' \
 	|| fail "derived YAXIS 'ms' missing from render args: $(grep -a -A1 -- ' -v$' "$work/out" | head -4)"
 
+# Declared THRESHOLD relations: the operand DS is a threshold curve, not a
+# peer metric - threshold-styled on a single-instance image; a literal
+# operand renders as an HRULE. THRESHOLDS OFF (a meta-only graphs.cfg
+# section) suppresses the co-plot; the operand still never plots as a peer.
+ts=$(date +%s)
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: thr\n'
+	printf 'DS:val:GAUGE:600:0:U:ms DS:val_warn:GAUGE:600:0:U:ms\n'
+	printf 'THRESHOLD:val:>val_warn:warn\n'
+	printf 'THRESHOLD:val:>500\n'
+	printf 'api 42:187\n'
+	printf -- '-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/thr.api.rrd" ] || fail "threshold-declaring block files not created"
+grep -q 'thr\.api\.rrd [0-9]* u=val:ms,val_warn:ms t=val:>val_warn:warn,val:>500:crit$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "threshold relations not in the index: $(grep thr.api "$work/rrd/testhost/.fileset-index")"
+
+env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=thr --rrddir="$work/rrd" \
+	>"$work/gdeft.out" 2>"$work/gdeft.err" \
+	|| fail "--emit-gdef with thresholds exited nonzero: $(cat "$work/gdeft.err")"
+grep -q 'LINE1:t0@RRDIDX@#FFCC00:val_warn warn' "$work/gdeft.out" \
+	|| fail "threshold DS not threshold-styled: $(cat "$work/gdeft.out")"
+grep -q 'HRULE:500#FF0000:val crit (500)' "$work/gdeft.out" \
+	|| fail "literal threshold not an HRULE: $(cat "$work/gdeft.out")"
+grep -q '#@COLOR@:@RRDPARAM@ val_warn' "$work/gdeft.out" \
+	&& fail "threshold DS must not plot as a peer metric"
+
+render_thr() {
+	REQUEST_METHOD=GET \
+	QUERY_STRING="host=testhost&service=thr&graph=hourly&action=view" \
+	XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+		"$work/showgraph" --debug --config="$work/graphs.cfg" \
+		--rrddir="$rrds" >"$work/out" 2>&1 || true
+}
+render_thr
+grep -aq "Content-type: image/png" "$work/out" || fail "threshold graph does not render: $(grep -a 'ERROR' "$work/out" | head -2)"
+grep -aq "HRULE:500#FF0000" "$work/out" || fail "HRULE missing from render args"
+
+# The admin's say: THRESHOLDS OFF suppresses the co-plot.
+mkdir -p "$work/etc"
+printf '[thr]\n\tTHRESHOLDS OFF\n' >"$work/etc/graphs.cfg"
+render_thr
+grep -aq "Content-type: image/png" "$work/out" || fail "THRESHOLDS OFF graph does not render"
+grep -aq "FFCC00" "$work/out" && fail "THRESHOLDS OFF must suppress the threshold curves"
+grep -aq "HRULE:500" "$work/out" && fail "THRESHOLDS OFF must suppress literal HRULEs too"
+grep -aq "@RRDPARAM@ val_warn\|:val_warn$" "$work/out" && fail "operand still must not plot as a peer"
+rm -f "$work/etc/graphs.cfg"
+
 # Disk legend end-to-end: the stock [disk] FNPATTERN ("^disk(.*).rrd")
 # captures the "." separator of encoded files, and the decode path must
 # absorb it - a migrated disk.%2Fvar.rrd must legend as "/var", never

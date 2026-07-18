@@ -25,6 +25,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 	int numds = 0;
 	char *rrdbasename;
 	int lineno = 0;
+	strbuffer_t *thrspec = newstrbuffer(0);	/* the current block's THRESHOLD relations */
 
 	rrdbasename = NULL;
 	curline = msg;
@@ -72,6 +73,8 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			numds = 0;
 			setup_lazy(0);
 			fsidx_set_units(NULL);
+			fsidx_set_thresholds(NULL);
+			clearstrbuffer(thrspec);
 			goto nextline;
 		}
 		if(!strncmp(curline, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER))) {
@@ -96,6 +99,8 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				numds = 0;
 				setup_lazy(0);
 				fsidx_set_units(NULL);
+				fsidx_set_thresholds(NULL);
+				clearstrbuffer(thrspec);
 				while ((attr = strtok(NULL, " \t")) != NULL) {
 					if (strcmp(attr, "-->") == 0) break;
 					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
@@ -156,6 +161,63 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
 			freestrbuffer(unitspec);
 
+			goto nextline;
+		}
+
+		/* THRESHOLD:<base-ds>:<relop><operand>[:<severity>] - a declared
+		 * relation between a metric and its threshold (a DS of the same
+		 * block, or a literal). Validated against the declared DSes and
+		 * recorded in the fileset index for the renderer; severity is
+		 * the generic warn|crit (default crit). Invalid lines are
+		 * ignored with a debug note - wire content, not config. */
+		if (metrics_block && !strncmp(curline, "THRESHOLD:", 10)) {
+			/* columns[0] is the whole declaration (the grammar has no
+			 * spaces) in a mutable copy - curline stays intact. */
+			char *base = columns[0] + 10;
+			char *expr = strchr(base, ':');
+			char *sev = NULL, *operand;
+			size_t rlen;
+			int i, baseok = 0, opok = 0;
+
+			if (expr) {
+				*expr = '\0'; expr++;
+				sev = strchr(expr, ':');
+				if (sev) { *sev = '\0'; sev++; }
+			}
+			operand = (expr ? expr + strspn(expr, "<>=") : NULL);
+			rlen = (expr ? (size_t)(operand - expr) : 0);
+			if (!expr || !(*operand) ||
+			    !(((rlen == 1) && ((*expr == '>') || (*expr == '<'))) ||
+			      ((rlen == 2) && ((*expr == '>') || (*expr == '<')) && (expr[1] == '='))) ||
+			    (sev && strcasecmp(sev, "warn") && strcasecmp(sev, "crit"))) {
+				dbgprintf("Skipping malformed THRESHOLD on line %d\n", lineno);
+				goto nextline;
+			}
+			for (i = 0; devmon_params[i]; i++) {
+				char *dsname = devmon_params[i] + 3;
+				char *dsend = strchr(dsname, ':');
+				size_t dlen = (dsend ? (size_t)(dsend - dsname) : strlen(dsname));
+
+				if ((strlen(base) == dlen) && (strncmp(base, dsname, dlen) == 0)) baseok = 1;
+				if ((strlen(operand) == dlen) && (strncmp(operand, dsname, dlen) == 0)) opok = 1;
+			}
+			if (!opok) {
+				/* Not a declared DS: legal only as a number */
+				char *endp;
+				strtod(operand, &endp);
+				opok = ((endp != operand) && (*endp == '\0'));
+			}
+			if (!baseok || !opok) {
+				dbgprintf("Skipping THRESHOLD on line %d: base or operand not declared in this block\n", lineno);
+				goto nextline;
+			}
+			if (STRBUFLEN(thrspec)) addtobuffer(thrspec, ",");
+			addtobuffer(thrspec, base);
+			addtobuffer(thrspec, ":");
+			addtobuffer(thrspec, expr);
+			addtobuffer(thrspec, ":");
+			addtobuffer(thrspec, ((sev && (strcasecmp(sev, "warn") == 0)) ? "warn" : "crit"));
+			fsidx_set_thresholds(STRBUF(thrspec));
 			goto nextline;
 		}
 
@@ -243,6 +305,8 @@ nextline:
 	}
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */
 	fsidx_set_units(NULL);
+	fsidx_set_thresholds(NULL);
+	freestrbuffer(thrspec);
 
 	{
 		int i;

@@ -66,6 +66,7 @@ typedef struct gdefmeta_t {
 	char *exstorepat;	/* EXSTOREPATTERN: instances never stored */
 	char *storepat;		/* STOREPATTERN: only these stored; forces past LAZY */
 	char *fnpat;		/* FNPATTERN: the fileset's filename regex */
+	int thresholds;		/* THRESHOLDS ON|OFF: 0 unset, 1 on, -1 off */
 	pcre2_code *exstore;	/* compiled on demand (NULL after a failed compile too) */
 	pcre2_code *store;
 	pcre2_code *fnpat_re;
@@ -130,6 +131,12 @@ static void load_gdef_meta(void)
 			pat[strcspn(pat, " \t\r\n")] = '\0';
 			if (*pat) { if (cur->fnpat) xfree(cur->fnpat); cur->fnpat = strdup(pat); }
 		}
+		else if (cur && (strncasecmp(p, "THRESHOLDS", 10) == 0) && isspace((int)p[10])) {
+			char *arg = p + 10 + strspn(p+10, " \t");
+			arg[strcspn(arg, " \t\r\n")] = '\0';
+			if (strcasecmp(arg, "OFF") == 0) cur->thresholds = -1;
+			else if (strcasecmp(arg, "ON") == 0) cur->thresholds = 1;
+		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* A variant inherits the base's metadata; its own keywords
 			 * override - later wins. The base must be defined EARLIER
@@ -145,6 +152,7 @@ static void load_gdef_meta(void)
 				if (base->trends) cur->trends = 1;
 				if (base->lazy) cur->lazy = 1;
 				if (base->fnpat && !cur->fnpat) cur->fnpat = strdup(base->fnpat);
+				if (base->thresholds && !cur->thresholds) cur->thresholds = base->thresholds;
 				if (base->exstorepat && !cur->exstorepat) cur->exstorepat = strdup(base->exstorepat);
 				if (base->storepat && !cur->storepat) cur->storepat = strdup(base->storepat);
 			}
@@ -257,6 +265,17 @@ int xymon_gdef_fileset_unknown(char *name)
 
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
 	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
+}
+
+/* THRESHOLDS OFF in the graph definition: the admin's say on whether
+ * declared threshold relations are co-plotted. Default (unset/ON) plots. */
+int xymon_gdef_thresholds_off(char *name)
+{
+	gdefmeta_t *walk;
+
+	load_gdef_meta();
+	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	return (walk && (walk->thresholds == -1));
 }
 
 /* The exact fileset size of a graph for one host, from the writer-kept

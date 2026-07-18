@@ -311,11 +311,26 @@ The writer strips the suffix before the spec reaches rrdtool, so a
 declared unit never affects storage; a spec without it is unchanged.
 
 Inside a block, any line whose first token is an ALL-CAPS keyword
-ending in ":" is a declaration line - "DS:" is the one this version
-knows. Unknown declarations are ignored, and declaration lines are
-never instances, so the block dialect can grow new keyword lines
-without breaking deployed servers. Consequently, an instance name
-must not have the form of a declaration keyword.
+ending in ":" is a declaration line. Unknown declarations are ignored,
+and declaration lines are never instances, so the block dialect can
+grow new keyword lines without breaking deployed servers. Consequently,
+an instance name must not have the form of a declaration keyword.
+This version knows two: "DS:" (above) and
+
+.nf
+   THRESHOLD:<base\-ds>:<relop><operand>[:<severity>]
+.fi
+
+which declares that crossing <operand> (another DS of the same block,
+or a literal number) in the <relop> direction (one of > < >= <=, glued
+to the operand) means <severity> ("warn" or "crit", default crit) for
+<base\-ds>. The relation is a declared fact, never a display command:
+the graph renderer derives from it - the threshold DS plots as a
+threshold-styled curve instead of a peer metric (single\-instance
+images only), a literal becomes a flat HRULE, and "THRESHOLDS OFF" in
+the graphs.cfg(5) definition suppresses the co-plot entirely. Both
+DS names must be declared in the same block; invalid relations are
+ignored.
 
 The server itself uses this mechanism: the disk and inode statuses
 generated from client data carry METRICS blocks with the same

@@ -505,6 +505,10 @@ void load_gdefs(char *fn)
 		else if ((strncasecmp(p, "STOREPATTERN", 12) == 0) && isspace((int)p[12])) {
 			continue;
 		}
+		else if ((strncasecmp(p, "THRESHOLDS", 10) == 0) && isspace((int)p[10])) {
+			/* Threshold co-plot gate; consumed by lib/xymonrrd.c */
+			continue;
+		}
 		else if ((strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
 			/* Inherit an earlier-defined gdef: header keywords copied
 			 * now (later keywords in this section override), its
@@ -1255,14 +1259,83 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 		}
 	}
 
-	defs = (char **)calloc(2*dscount + 1, sizeof(char *));
-	for (i=0; (i < dscount); i++) {
-		snprintf(buf, sizeof(buf), "DEF:v%d@RRDIDX@=@RRDFN@:%s:AVERAGE", i, dsnames[i]);
-		defs[2*i] = strdup(buf);
-		snprintf(buf, sizeof(buf), "LINE1:v%d@RRDIDX@#@COLOR@:@RRDPARAM@ %s", i, dsnames[i]);
-		defs[2*i + 1] = strdup(buf);
-		xfree(dsnames[i]);
+	/* Declared threshold relations (fileset index): an operand DS is a
+	 * threshold curve, never a peer metric - excluded from the peer
+	 * plot always, and co-plotted threshold-styled only on a
+	 * single-instance image (multi-instance images would drown in other
+	 * instances' thresholds) unless the gdef says THRESHOLDS OFF.
+	 * Literal operands become HRULEs. The declaration never forces a
+	 * pixel: this is all derivation, and a hand-written gdef wins. */
+	{
+		struct threl_t { char *base; char *operand; int warn; int isds; } rel[16];
+		int nrel = 0, is_thr[SYNTHETIC_DSMAX] = { 0, };
+		int coplot, outi = 0, ndefs, j;
+		char *thr = NULL;
+
+		if (gd && hostname && rrdfn) {
+			char *bn = strrchr(rrdfn, '/');
+			thr = fsidx_thresholds(hostname, (bn ? bn+1 : rrdfn));
+		}
+		if (thr) {
+			char *tok, *sp = NULL;
+
+			for (tok = strtok_r(thr, ",", &sp); (tok && (nrel < 16)); tok = strtok_r(NULL, ",", &sp)) {
+				char *c1 = strchr(tok, ':');
+				char *c2 = (c1 ? strrchr(tok, ':') : NULL);
+				char *expr, *operand, *endp;
+
+				if (!c1 || (c2 == c1)) continue;
+				*c1 = '\0'; *c2 = '\0';
+				expr = c1+1;
+				operand = expr + strspn(expr, "<>=");
+				if (!(*operand)) continue;
+				rel[nrel].base = tok;
+				rel[nrel].operand = operand;
+				rel[nrel].warn = (strcasecmp(c2+1, "warn") == 0);
+				rel[nrel].isds = 0;
+				for (i = 0; (i < dscount); i++) {
+					if (strcmp(dsnames[i], operand) == 0) { rel[nrel].isds = 1; is_thr[i] = 1; break; }
+				}
+				if (!rel[nrel].isds) {
+					strtod(operand, &endp);
+					if ((endp == operand) || (*endp != '\0')) continue;	/* neither DS nor number */
+				}
+				nrel++;
+			}
+		}
+		coplot = ((nrel > 0) && (rrddbcount <= 1) && !(gd && xymon_gdef_thresholds_off(gd->name)));
+
+		ndefs = 2*dscount + 1;
+		if (coplot) ndefs += 2*nrel;
+		defs = (char **)calloc(ndefs, sizeof(char *));
+		for (i=0; (i < dscount); i++) {
+			if (is_thr[i]) continue;	/* a threshold, not a peer metric */
+			snprintf(buf, sizeof(buf), "DEF:v%d@RRDIDX@=@RRDFN@:%s:AVERAGE", i, dsnames[i]);
+			defs[outi++] = strdup(buf);
+			snprintf(buf, sizeof(buf), "LINE1:v%d@RRDIDX@#@COLOR@:@RRDPARAM@ %s", i, dsnames[i]);
+			defs[outi++] = strdup(buf);
+		}
+		if (coplot) {
+			for (j = 0; (j < nrel); j++) {
+				char *color = (rel[j].warn ? "FFCC00" : "FF0000");
+				char *sevname = (rel[j].warn ? "warn" : "crit");
+
+				if (rel[j].isds) {
+					snprintf(buf, sizeof(buf), "DEF:t%d@RRDIDX@=@RRDFN@:%s:AVERAGE", j, rel[j].operand);
+					defs[outi++] = strdup(buf);
+					snprintf(buf, sizeof(buf), "LINE1:t%d@RRDIDX@#%s:%s %s", j, color, rel[j].operand, sevname);
+					defs[outi++] = strdup(buf);
+				}
+				else {
+					snprintf(buf, sizeof(buf), "HRULE:%s#%s:%s %s (%s)", rel[j].operand, color, rel[j].base, sevname, rel[j].operand);
+					defs[outi++] = strdup(buf);
+				}
+			}
+		}
+		defs[outi] = NULL;
+		if (thr) free(thr);
 	}
+	for (i=0; (i < dscount); i++) xfree(dsnames[i]);
 
 	return defs;
 }
