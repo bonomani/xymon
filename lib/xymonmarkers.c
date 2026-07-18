@@ -86,12 +86,20 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 				blockds = 0;
 				if (block) {
 					char *p = bol + strlen(XYMON_METRICS_MARKER);
+					static int lazydef = -1;
 
+					if (lazydef < 0) {
+						char *ld = getenv("LAZYDEFAULT");
+						lazydef = (ld && ((strcasecmp(ld, "on") == 0) || (strcasecmp(ld, "1") == 0) || (strcasecmp(ld, "true") == 0)));
+					}
 					block->store = 1;
+					block->lazy = lazydef;	/* LAZYDEFAULT=on: lazy unless nolazy */
 					/* banner attributes, up to end-of-line */
 					while (*p && (*p != '\n')) {
 						if ((strncmp(p, " lazy", 5) == 0) &&
 						    ((p[5] == ' ') || (p[5] == '\n') || (p[5] == '\r') || (p[5] == '\0'))) block->lazy = 1;
+						if ((strncmp(p, " nolazy", 7) == 0) &&
+						    ((p[7] == ' ') || (p[7] == '\n') || (p[7] == '\r') || (p[7] == '\0'))) block->lazy = 0;
 						p++;
 					}
 				}

@@ -113,9 +113,12 @@ component with a "flat since <date>" legend. An ENTIRELY-flat fileset
 renders too (HRULEs only, empty def list). Freshness = the graph's
 STALEAFTER window; a stale flat record is a gone instance.
 NOT yet implemented: AGGDS/count() reading baselines as first-class
-values (needs DS names on the record - a future d= field), and the
-always-on default flip - which stays a separate decision with soak
-evidence in hand.
+values (needs DS names on the record - a future d= field). The always-on
+default is now CONFIG-SELECTABLE ahead of any flip: LAZYDEFAULT=on
+(xymonserver.cfg env) makes every METRICS block lazy unless it declares
+"nolazy" (writer and parser agree; legacy DEVMON banners unaffected).
+The default remains off - flipping it stays a separate decision, now
+reduced to changing one shipped default with soak evidence in hand.
 
 Lazy today is an opt-in policy because it TRADES flat history for file
 economy - correct only where flat means uninteresting (spare disks, idle

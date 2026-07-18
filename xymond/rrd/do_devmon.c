@@ -11,6 +11,21 @@
 
 static char devmon_rcsid[] = "$Id $";
 
+/* LAZYDEFAULT=on (xymonserver.cfg env) makes every METRICS block lazy
+ * unless it declares "nolazy" - the always-on flat-state economics as an
+ * admin opt-in, ahead of any default flip. Legacy DEVMON banners are
+ * never affected. */
+static int lazydefault(void)
+{
+	static int val = -1;
+
+	if (val < 0) {
+		char *p = getenv("LAZYDEFAULT");
+		val = (p && ((strcasecmp(p, "on") == 0) || (strcasecmp(p, "1") == 0) || (strcasecmp(p, "true") == 0)));
+	}
+	return val;
+}
+
 int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
 {
 #define MAXCOLS 20
@@ -97,13 +112,14 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				rrdbasename = name;
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
-				setup_lazy(0);
+				setup_lazy(lazydefault());
 				fsidx_set_units(NULL);
 				fsidx_set_thresholds(NULL);
 				clearstrbuffer(thrspec);
 				while ((attr = strtok(NULL, " \t")) != NULL) {
 					if (strcmp(attr, "-->") == 0) break;
 					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
+					if (strcmp(attr, "nolazy") == 0) setup_lazy(0);
 				}
 			}
 			else {

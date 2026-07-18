@@ -330,6 +330,23 @@ if command -v rrdtool >/dev/null 2>&1; then
 	[ "$nvals" -ge 2 ] || fail "splice seed missing - expected the baseline step edge plus the change (got $nvals values)"
 fi
 
+# LAZYDEFAULT=on makes every METRICS block lazy unless it opts out with
+# "nolazy" - the always-on flat-state economics as an admin opt-in.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: ld\nDS:v:GAUGE:600:0:U\nx 5\n-->\n'
+	printf '<!--XYMON METRICS: ldno nolazy\nDS:v:GAUGE:600:0:U\ny 6\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" LAZYDEFAULT=on \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -e "$work/rrd/testhost/ld.x.rrd" ] && fail "LAZYDEFAULT=on: a plain block must be lazy"
+grep -q 'ld\.x\.rrd .* b=' "$work/rrd/testhost/.fileset-index" \
+	|| fail "LAZYDEFAULT=on: flat record missing"
+[ -f "$work/rrd/testhost/ldno.y.rrd" ] \
+	|| fail "nolazy must opt a block out of LAZYDEFAULT"
+
 # Deep-review regressions: (1) a legacy DEVMON block may carry instances
 # named like a declaration keyword - the METRICS-only contract must not
 # drop them; (2) a METRICS block without a DS line writes nothing and

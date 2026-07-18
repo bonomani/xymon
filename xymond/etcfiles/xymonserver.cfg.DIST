@@ -149,6 +149,10 @@ NETFAILTEXT="not OK"				# Text indicating a network test failed
 
 # Top level directory for the RRD files
 XYMONRRDS="$XYMONVAR/rrd"
+# LAZYDEFAULT="on"		# Make every self-describing METRICS block lazy (no RRD file until
+				# the values first change; flat instances live in the fileset index
+				# and render as flat lines) unless the block declares "nolazy".
+				# Default off: blocks are lazy only when they say "lazy".
 
 # Size of the generated graph images
 RRDHEIGHT="120"
