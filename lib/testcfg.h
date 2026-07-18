@@ -8,6 +8,12 @@
 /* (see braceparse.h). This layer is the typed model + loader; it does not     */
 /* yet reroute any existing consumer.                                          */
 /*                                                                            */
+/* Lifetime: the file is read ONCE per process (at first use) and never       */
+/* re-stat'ed - xymond_rrd and the CGIs must be restarted to pick up edits.   */
+/* Unlike the env-derived tables (rebuilt every 5 minutes), and the same as   */
+/* graphs.cfg's writer-side keywords. Deliberate for now; revisit if test.cfg */
+/* ever carries settings an admin expects to hot-reload.                      */
+/*                                                                            */
 /* Copyright (C) 2026 Bruno Manzoni                                           */
 /*                                                                            */
 /* This program is released under the GNU General Public License (GPL),       */

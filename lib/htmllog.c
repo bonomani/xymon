@@ -587,7 +587,13 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				}
 				xfree(graphscopy);
 			}
-			else if (may_have_rrd && rrd && graph) {
+			else if (may_have_rrd && rrd && graph &&
+				 !(markershow && (strncmp(rrd->xymonrrdname, "devmon", 6) == 0))) {
+				/* A devmon-mapped column whose message carries DEVMON
+				 * banners renders through the marker path below: the
+				 * banners say exactly which graphs this status holds,
+				 * with exact counts - this service-level fallback link
+				 * would render a second, imprecise copy of each. */
 				int gcount = (xymon_gdef_fileset_unknown(graph->xymonrrdname) ? 0 : linecount);
 				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
 			}

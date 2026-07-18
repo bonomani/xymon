@@ -283,6 +283,22 @@ int main(void)
 	expect_not_contains("block without DS counts nothing", html, "service=diskio_nods&amp;graph_width=576&amp;graph_height=120&amp;first=");
 	free(html);
 
+	/* A devmon-MAPPED column (TEST2RRD if_load=devmon, and if_load is a
+	 * default --multigraphs member so the banner scan runs) renders
+	 * through the marker path only: the legacy service-level fallback
+	 * would add a second, imprecise copy next to the banner's graph. */
+	html = render_log_msg("if_load", 0, "",
+		"<!--DEVMON RRD: if_load2 0 0\n"
+		"DS:ds0:COUNTER:600:0:U\n"
+		"eth0.0 1\n"
+		"eth1.0 2\n"
+		"-->\n"
+		"status text\n");
+	expect_count("devmon column: banner graph rendered once", html, "service=if_load2&amp;", 3);
+	/* the legacy fallback link renders as service=devmon:if_load */
+	expect_not_contains("devmon column: no legacy fallback duplicate", html, "service=devmon");
+	free(html);
+
 	/* Legacy DEVMON block: an instance named like a declaration keyword
 	 * is data - the METRICS-only contract must not skip it. */
 	html = render_log_msg("devtest", 0, "",

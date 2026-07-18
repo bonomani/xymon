@@ -89,7 +89,7 @@ xymonpage: $(WEBPAGEOBJS) $(XYMONCOMMLIB)
 datepage.cgi: $(DATEPAGEOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(DATEPAGEOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
-showgraph.o: showgraph.c aggregate-tokens.inc.c
+showgraph.o: showgraph.c aggregate-tokens.inc.c dsidx.inc.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
 
 # Self-contained golden-output test for the @AVG:/@SUM:/... aggregate
@@ -102,7 +102,7 @@ test-aggregate-tokens: test-aggregate-tokens.c aggregate-tokens.inc.c
 
 # Self-contained golden-output test for @DSIDX@/@PREVDSIDX@/@DSSTART:N@
 # parse-time expansion. Build only; run via "make check" or directly.
-test-dsidx: test-dsidx.c
+test-dsidx: test-dsidx.c dsidx.inc.c
 	$(CC) $(CFLAGS) -o $@ $<
 
 # Need NETLIBS on Solaris for getservbyname(), called by parse_url()

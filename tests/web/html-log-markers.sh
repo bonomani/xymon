@@ -62,8 +62,8 @@ RRDHEIGHT=120 \
 XYMONSKIN="/xymon/gifs" \
 XYMONWEB="/xymon" \
 IMAGEFILETYPE="gif" \
-TEST2RRD="cpu=la,disk" \
-GRAPHS="la,disk,tcp,diskio_busy::2,diskio_split::4" \
+TEST2RRD="cpu=la,disk,if_load=devmon" \
+GRAPHS="la,disk,tcp,devmon,diskio_busy::2,diskio_split::4" \
 GRAPHS_smart="smart-temp" \
 INFOCOLUMN="info" \
 TRENDSCOLUMN="trends" \

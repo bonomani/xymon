@@ -1,10 +1,9 @@
 /*
  * test-dsidx.c
  *
- * Golden-output tests for expand_dsidx_in_block() and its helpers from
- * web/showgraph.c. The helpers are static in showgraph.c so this test
- * carries a faithful copy; if they're ever extracted into a header,
- * fold the test into it.
+ * Golden-output tests for expand_dsidx_in_block() and its helpers,
+ * shared with web/showgraph.c via dsidx.inc.c - the tests always
+ * exercise the production code.
  *
  * Build & run (from web/):
  *   make test-dsidx && ./test-dsidx
@@ -19,162 +18,8 @@
 /* ---- minimal shim mirroring gdef_t (only fields the helpers touch) ---- */
 typedef struct { int dscount; int dsidx_runtime; char **defs; } gdef_t;
 
-/* ---- helpers copied verbatim from showgraph.c (keep in sync) ---- */
-static char *str_replace_all(const char *src, const char *needle, const char *repl)
-{
-	int nlen = strlen(needle), rlen = strlen(repl);
-	const char *p;
-	char *out, *q;
-	int count = 0;
-
-	for (p = src; (p = strstr(p, needle)) != NULL; p += nlen) count++;
-	out = (char *)malloc(strlen(src) + count * (rlen - nlen) + 1);
-
-	q = out;
-	while ((p = strstr(src, needle)) != NULL) {
-		int prefix = p - src;
-		memcpy(q, src, prefix); q += prefix;
-		memcpy(q, repl, rlen); q += rlen;
-		src = p + nlen;
-	}
-	strcpy(q, src);
-	return out;
-}
-
-static int classify_dsidx_line(char *line, char **body, int *start)
-{
-	*body = line;
-	*start = 1;
-
-	if (strncmp(line, "@DSSTART:", 9) == 0) {
-		char *p = line + 9;
-		int s = atoi(p);
-		while (isdigit((int)*p)) p++;
-		if ((*p == '@') && (s > 0)) {
-			*start = s;
-			*body = p + 1;
-		}
-	}
-
-	if (strstr(*body, "@DSIDX@") || strstr(*body, "@PREVDSIDX@")) {
-		if (strstr(*body, "@PREVDSIDX@") && (*start < 2)) *start = 2;
-		return 1;
-	}
-	return 0;
-}
-
-/* Non-destructive: returns a freshly-allocated NULL-terminated array of
- * expanded def lines. defs[] are not freed. n<=0 -> templates passed through. */
-static char **expand_dsidx_array(char *const *defs, int n)
-{
-	int i, newcount = 0, outi = 0;
-	char **newdefs;
-	char idxstr[16], previdxstr[16];
-
-	if (defs == NULL) return NULL;
-
-	if (n <= 0) {
-		for (i = 0; defs[i]; i++) newcount++;
-		newdefs = (char **)calloc(newcount + 1, sizeof(char *));
-		for (i = 0; defs[i]; i++) newdefs[i] = strdup(defs[i]);
-		newdefs[newcount] = NULL;
-		return newdefs;
-	}
-
-	for (i = 0; defs[i]; i++) {
-		char *body; int start;
-		char *line = strdup(defs[i]);
-		if (classify_dsidx_line(line, &body, &start)) {
-			int m = n - start + 1;
-			newcount += (m > 0 ? m : 0);
-		} else newcount++;
-		free(line);
-	}
-
-	newdefs = (char **)calloc(newcount + 1, sizeof(char *));
-	for (i = 0; defs[i]; i++) {
-		char *body; int start;
-		char *line = strdup(defs[i]);
-		if (classify_dsidx_line(line, &body, &start)) {
-			int idx;
-			for (idx = start; idx <= n; idx++) {
-				char *tmp;
-				snprintf(idxstr, sizeof(idxstr), "%d", idx);
-				snprintf(previdxstr, sizeof(previdxstr), "%d", idx - 1);
-				tmp = str_replace_all(body, "@PREVDSIDX@", previdxstr);
-				newdefs[outi++] = str_replace_all(tmp, "@DSIDX@", idxstr);
-				free(tmp);
-			}
-		} else newdefs[outi++] = strdup(defs[i]);
-		free(line);
-	}
-	newdefs[outi] = NULL;
-	return newdefs;
-}
-
-static int defs_use_dsidx(char *const *defs)
-{
-	int i;
-	if (defs == NULL) return 0;
-	for (i = 0; defs[i]; i++) {
-		if (strstr(defs[i], "@DSIDX@") || strstr(defs[i], "@PREVDSIDX@")) return 1;
-	}
-	return 0;
-}
-
-/* Parse-time. dscount>0 -> expand in place. dscount==0 + @DSIDX@ used ->
- * defer to render time (set dsidx_runtime, leave defs as templates). */
-static void expand_dsidx_in_block(gdef_t *gd)
-{
-	if (gd->defs == NULL) return;
-	if (gd->dscount > 0) {
-		char **expanded = expand_dsidx_array(gd->defs, gd->dscount);
-		int i;
-		for (i = 0; gd->defs[i]; i++) free(gd->defs[i]);
-		free(gd->defs);
-		gd->defs = expanded;
-		return;
-	}
-	if (defs_use_dsidx(gd->defs)) gd->dsidx_runtime = 1;
-}
-
-static char *def_rrdfile(const char *defline)
-{
-	const char *eq, *colon;
-	char *out; size_t n;
-	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
-	eq = strchr(defline + 4, '='); if (!eq) return NULL;
-	colon = strchr(eq + 1, ':'); if (!colon || colon == eq + 1) return NULL;
-	n = colon - (eq + 1);
-	out = (char *)malloc(n + 1);
-	memcpy(out, eq + 1, n); out[n] = '\0';
-	return out;
-}
-
-static char *def_dsname(const char *defline)
-{
-	const char *eq, *c1, *c2;
-	char *out; size_t n;
-	if (strncmp(defline, "DEF:", 4) != 0) return NULL;
-	eq = strchr(defline + 4, '='); if (!eq) return NULL;
-	c1 = strchr(eq + 1, ':'); if (!c1) return NULL;
-	c2 = strchr(c1 + 1, ':'); if (!c2 || c2 == c1 + 1) return NULL;
-	n = c2 - (c1 + 1);
-	out = (char *)malloc(n + 1);
-	memcpy(out, c1 + 1, n); out[n] = '\0';
-	return out;
-}
-
-static char *dsname_prefix(const char *tmpl)
-{
-	const char *at = strstr(tmpl, "@DSIDX@");
-	char *out; size_t n;
-	if (!at) return NULL;
-	n = at - tmpl;
-	out = (char *)malloc(n + 1);
-	memcpy(out, tmpl, n); out[n] = '\0';
-	return out;
-}
+/* ---- the production helpers, included so tests always exercise them ---- */
+#include "dsidx.inc.c"
 
 /* ---- test driver ---- */
 static int failures = 0;
