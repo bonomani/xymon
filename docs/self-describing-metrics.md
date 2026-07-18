@@ -114,11 +114,31 @@ Two prerequisites, both missing today (which is WHY lazy must stay opt-in):
    read V like any stored value, and "no file" stops being ambiguous
    because the index entry proves the instance is alive and flat.
 
-The splice: when a value finally changes, the RRD begins at the change; the
-flat prefix stays index-side and the renderer draws prefix-from-index +
-curve-from-file. (Backfilling years of flat samples into RRAs at creation
-is the expensive alternative; rejected.) Until both prerequisites land,
-lazy remains per-block/per-graph opt-in with the documented trade-off.
+UNIFIED (decided): flat is a STATE, not a kind. A never-changed value -
+a metric that happens to be flat, or a fixed threshold emitted as a
+constant DS - is one (value, since) index record, rendered as an HRULE
+with "since <date>" in the legend, costing zero RRD storage; at the
+first change the file materializes and it becomes a curve. This
+dissolves the threshold literal-vs-DS trade-off: a constant threshold
+DS now costs nothing until the level moves (and then shows the step),
+so the producer rule is uniform - ALWAYS emit thresholds as DSes; the
+literal operand survives only as block-wide sugar, rendering the same.
+
+The splice (decided, cheap form): at first change the writer holds
+(V, since) and seeds the new file with ONE extra update - the baseline
+V one step before the change - so the curve starts with a correct step
+edge. No RRA backfill; no index-side prefix rendering. The flat past
+was HRULE-visible while it was the present.
+
+The load-bearing renderer change this exposes: rendering is file-driven
+(FNPATTERN over readdir), so an entirely-flat fileset has NO files and
+today's pipeline would find nothing - showgraph must enumerate
+instances from the INDEX (files and flat records alike), which the
+pattern-aware counting machinery already half-does.
+
+Until implemented, lazy remains per-block/per-graph opt-in with the
+documented trade-off; the always-on default flip stays a separate,
+later decision with evidence in hand.
 
 ## Archive consolidations derived from graph DEFs (candidate design)
 
