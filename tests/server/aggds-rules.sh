@@ -52,6 +52,8 @@ HOST=*
 	AGGDS diskio count(%diskio_ops\..+\.rrd:reads) <3 COLOR=red "TEXT=Disks missing: only &V reporting"
 	AGGDS diskio2 max(%diskio_ops\..+\.rrd:writes) >250 COLOR=yellow
 	AGGDS diskio3 avg(%diskio_ops\..+\.rrd:reads) >100 COLOR=yellow "TEXT=avg &V"
+	AGGDS diskio4 sum(%diskio_ops\.ada.+:reads) >10 COLOR=yellow "TEXT=ada sum &V"
+	AGGDS diskio4 sum(%diskio_ops\.da.+:reads) >10 COLOR=yellow "TEXT=da sum &V"
 EOF
 : >"$work/etc/empty-analysis.cfg"
 

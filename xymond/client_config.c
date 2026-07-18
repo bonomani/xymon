@@ -1644,7 +1644,13 @@ int load_client_config(char *configfn)
 						getnumber = 1;
 					}
 					else if (strncasecmp(tok, "maxage=", 7) == 0) {
-						currule->rule.aggds.maxage = atoi(tok+7);
+						char *endp;
+						long v = strtol(tok+7, &endp, 10);
+
+						if ((*endp != '\0') || (v <= 0))
+							errprintf("Invalid maxage '%s' in AGGDS rule at line %d (want a number of seconds > 0)\n", tok+7, cfid);
+						else
+							currule->rule.aggds.maxage = v;
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
 						int col = parse_color(tok+6);
@@ -1652,6 +1658,9 @@ int load_client_config(char *configfn)
 					}
 
 					if (getnumber) {
+						if (*(tok+getnumber) == '\0')
+							errprintf("AGGDS threshold at line %d: operator '%s' carries no value - operator and value form one token (\">90\", not \"> 90\")\n", cfid, tok);
+
 						if (currule->flags & RRDDSCHK_INTVL)
 							currule->rule.aggds.limitval2 = atof(tok+getnumber);
 						else
@@ -1666,6 +1675,9 @@ int load_client_config(char *configfn)
 						}
 					}
 				} while (tok && (!isqual(tok)));
+
+				if (currule->flags == 0)
+					errprintf("AGGDS rule at line %d has no threshold - it can never fire (needs <relop><value>, e.g. \">90\")\n", cfid);
 			}
 			else if (strcasecmp(tok, "MQ_QUEUE") == 0) {
 				char *p;
@@ -3569,7 +3581,11 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			sum += entry->val;
 			n++;
 		}
-		if (n == 0) goto nextrule;
+		/* With no fresh matching values there is no sum/avg/min/max to
+		 * compute - but count() MUST evaluate as 0: alerting on "the
+		 * instances disappeared" is its primary use, and skipping here
+		 * would silence the rule exactly when it should fire. */
+		if ((n == 0) && (rule->rule.aggds.aggfn != AGGDS_FN_COUNT)) goto nextrule;
 
 		switch (rule->rule.aggds.aggfn) {
 		  case AGGDS_FN_SUM:   val = sum; break;
@@ -3579,7 +3595,12 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		  case AGGDS_FN_COUNT: val = n; break;
 		}
 
-		snprintf(aggname, sizeof(aggname), "%s(%s)", fnnames[rule->rule.aggds.aggfn], rule->rule.aggds.rrdds);
+		/* The aggregate's identity includes the file pattern: two rules
+		 * aggregating the same DS over different filesets are different
+		 * aggregates - they must not shadow each other here, nor share
+		 * one modifier slot in xymond. */
+		snprintf(aggname, sizeof(aggname), "%s(%s:%s)", fnnames[rule->rule.aggds.aggfn],
+			 (rule->rule.aggds.rrdkey ? rule->rule.aggds.rrdkey->pattern : ""), rule->rule.aggds.rrdds);
 
 		/* First match wins per (column, aggregate, severity) - same
 		 * top-to-bottom shadowing semantics as the DS rules. */

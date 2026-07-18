@@ -479,16 +479,22 @@ The aggregate is computed from the most recent value of each matching
 file, and is evaluated once per incoming message after all of its RRD
 updates completed - never per file, so it cannot see a half-updated
 set. Values from files not updated within "maxage" seconds (default
-600) are excluded, so retired instances do not haunt the aggregates;
-a rule with no fresh matching values at all is skipped. In the TEXT
-placeholders, "&N" is the aggregate name, e.g. "sum(reads)". The same
-first-match rule as DS applies, per column, aggregate and color. The
+600, must be a number of seconds > 0) are excluded, so retired
+instances do not haunt the aggregates. With no fresh matching values
+at all, a sum/avg/max/min rule is skipped - but "count" evaluates the
+empty set as 0 and can fire: alerting on "the instances disappeared"
+is what count is for. In the TEXT placeholders, "&N" is the aggregate
+name, e.g. "sum(%diskio_ops\\..+\\.rrd:reads)". The same first-match
+rule as DS applies, per column, aggregate and color; the file pattern
+is part of the aggregate's identity, so two rules aggregating the
+same dataset over different filesets never shadow each other. The
 GAUGE-only note above applies here too, and - as with DS rules - the
 operator and threshold form one token (">90", not "> 90").
 
 Each aggregate recolors the column through its own modifier slot
-("aggds:sum(reads)"), so several AGGDS rules may drive one status
-column without overwriting each other's verdicts.
+("aggds:sum(%diskio_ops\\..+\\.rrd:reads)"), so several AGGDS rules
+may drive one status column without overwriting each other's
+verdicts.
 .sp
 .SH MQ Series SETTINGS
 .sp
