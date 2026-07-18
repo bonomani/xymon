@@ -98,4 +98,26 @@ grep -aq "No RRD files match this graph" "$work/out" \
 render "la"
 grep -aq "diskio_ops" "$work/out" && fail "stock gdef contaminated by fallback"
 
+# --emit-gdef: the runtime synthesizer doubles as a one-shot scaffold - it
+# prints the gdef block it would use, for capture into graphs.d/.
+env XYMONHOME="$work" "$work/showgraph" --emit-gdef=diskio_ops --rrddir="$work/rrd" \
+	>"$work/gdef.out" 2>"$work/gdef.err" \
+	|| fail "--emit-gdef exited nonzero: $(cat "$work/gdef.err")"
+grep -q '^\[diskio_ops\]$' "$work/gdef.out" || fail "--emit-gdef: missing section header"
+grep -q 'FNPATTERN \^diskio_ops' "$work/gdef.out" || fail "--emit-gdef: missing FNPATTERN"
+grep -q 'DEF:v0@RRDIDX@=@RRDFN@:reads:AVERAGE' "$work/gdef.out" || fail "--emit-gdef: missing DEF for dataset 'reads'"
+grep -q 'LINE1:v1@RRDIDX@#@COLOR@:@RRDPARAM@ writes' "$work/gdef.out" || fail "--emit-gdef: missing LINE for dataset 'writes'"
+
+# The emitted block is valid config: captured into graphs.cfg it becomes a
+# hand-written gdef and must render on its own (no synthesis fallback).
+cat "$work/gdef.out" >>"$work/graphs.cfg"
+render "diskio_ops"
+grep -aq "Content-type: image/png" "$work/out" \
+	|| fail "captured gdef does not render: $(grep -a 'error\|Unknown' "$work/out" | head -3)"
+
+# Unknown fileset: a clean CLI error on stderr, not a crash or HTML page.
+env XYMONHOME="$work" "$work/showgraph" --emit-gdef=nosuch --rrddir="$work/rrd" \
+	>"$work/gdef2.out" 2>"$work/gdef2.err" && fail "--emit-gdef for a missing fileset must exit nonzero"
+grep -q "No RRD files matching" "$work/gdef2.err" || fail "--emit-gdef missing-fileset error not on stderr"
+
 pass "showgraph synthesizes a working gdef for marker-created RRD files"
