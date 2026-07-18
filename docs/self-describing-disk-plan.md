@@ -307,11 +307,19 @@ reader tolerates the mix.
     read_ms AND read_ms_warn): the VALUE is the producer's policy, but the
     RELATION - "this DS is the warn level of that DS" - is a fact only the
     producer knows, so it is declared in the METRICS block on its own line:
-    "THRESHOLD read_ms warn read_ms_warn". The synthetic gdef then renders
-    the threshold DS as a threshold line (color/legend semantics, LINE from
-    its DEF - a curve with history, better than any flat rule) instead of a
-    peer metric, and keeps it out of instance counting/aggregation. New wire
-    surface -> high bar; same review gate as the rest of the dialect.
+    "THRESHOLD read_ms warn read_ms_warn". The line declares ONLY the
+    relation - never a display instruction (display belongs to the graph
+    side, same reasoning that put MAXINSTANCESPERIMAGE/TRENDS/STALE in
+    graphs.cfg, not in the block). Rendering is DERIVED from the fact,
+    exactly as YAXIS is derived from the unit: the synthetic gdef's default
+    is to plot the threshold DS on its base metric's image, threshold-styled
+    (LINE from its DEF - a curve with history, better than any flat rule),
+    excluded from instance counting/aggregation; a hand-written gdef wins
+    and may show it separately, differently, or not at all. A renderer that
+    ignores the line entirely still stores and shows the threshold DS as an
+    ordinary curve - storage is unconditional, co-plotting is derivation.
+    New wire surface -> high bar; same review gate as the rest of the
+    dialect.
     NOT a naming convention ("*_warn" suffix magic): names cannot carry the
     relation reliably - false positives (log_warn = a count of warning
     lines, silently demoted to a threshold line with no producer opt-out),
