@@ -297,6 +297,17 @@ reader tolerates the mix.
 
 ## Risks / watch-items
 
+- Unbounded state under instance churn (accepted for now; revisit before
+  SNMP-scale collectors land): the RRD update cache and the lazy-baseline
+  tree keep one entry per instance name EVER seen - upstream updcache
+  behaviour, now reachable by any sender via content routing. Steady
+  fleets are bounded; ephemeral names (container overlay mounts, rotating
+  ids) grow both trees monotonically for the process lifetime. The AGGDS
+  store is gated by rule-relevance (only dataset names some rule
+  aggregates are stored); a comparable eviction policy for
+  updcache/lazybaselines needs a design decision (TTL? LRU cap? drop on
+  fileset-index expiry?), not a quick patch - do not bolt one on without
+  deciding what a "forgotten" instance means for lazy re-learning.
 - Declared heartbeats only act at file creation: the DS heartbeat lives in
   the RRD file once created, so a producer changing its DS:<hb> declaration
   affects new files only - existing files need an rrdtool tune pass. Either

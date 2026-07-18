@@ -84,7 +84,11 @@ void drop_lazy_baselines(char *hostname)
 		char *key = xtreeKey(lazybaselines, h);
 		lazybaseline_t *bl = (lazybaseline_t *)xtreeData(lazybaselines, h);
 
-		if (bl && bl->val && (strncmp(key, prefix, plen) == 0)) {
+		/* The tree stores keys case-insensitively (xtreeNew(strcasecmp)),
+		 * so the prefix match must be case-insensitive too - a drophost
+		 * whose case differs from the reporting case must not leave
+		 * stale baselines behind. */
+		if (bl && bl->val && (strncasecmp(key, prefix, plen) == 0)) {
 			xfree(bl->val);
 			bl->val = NULL;
 		}
@@ -92,14 +96,29 @@ void drop_lazy_baselines(char *hostname)
 }
 
 /* Does any component of the colon-separated value list differ from the
- * baseline? A change in component count is a difference too. */
+ * baseline? A change in component count is a difference too. Numeric
+ * components compare numerically (so "5" == "5.0"); anything else
+ * compares textually - atof would make "U" equal to "0", and an
+ * instance flapping between unknown and zero would never deviate. */
 static int lazy_deviates(char *values, char *baseline)
 {
 	char *v = values, *b = baseline;
 
 	while (v || b) {
+		size_t vlen, blen;
+		char *vend, *bend;
+		double vd, bd;
+		int vnum, bnum;
+
 		if (!v || !b) return 1;	/* different number of components */
-		if (atof(v) != atof(b)) return 1;
+		vlen = strcspn(v, ":"); blen = strcspn(b, ":");
+		vd = strtod(v, &vend); vnum = ((vlen > 0) && (vend == v + vlen));
+		bd = strtod(b, &bend); bnum = ((blen > 0) && (bend == b + blen));
+		if (vnum && bnum) {
+			if (vd != bd) return 1;
+		}
+		else if ((vlen != blen) || (strncmp(v, b, vlen) != 0)) return 1;
+
 		v = strchr(v, ':'); if (v) v++;
 		b = strchr(b, ':'); if (b) b++;
 	}

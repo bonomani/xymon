@@ -3430,6 +3430,21 @@ nextrule:
 }
 
 
+/* Does any loaded AGGDS rule aggregate this dataset name? Without this
+ * gate the store would keep one entry per (file, dataset) for EVERY
+ * dataset every host writes, while the rules can only ever read the
+ * dataset names they mention - a global cost for a per-rule benefit. */
+static int aggds_ds_wanted(const char *dsnam)
+{
+	c_rule_t *rule;
+
+	for (rule = rulehead; (rule); rule = rule->next) {
+		if (rule->ruletype != C_AGGDS) continue;
+		if (strcmp(rule->rule.aggds.rrdds, dsnam) == 0) return 1;
+	}
+	return 0;
+}
+
 /*
  * Record the latest value of every dataset in an RRD update, so AGGDS
  * rules can aggregate over a metric set later. Called by the RRD writer
@@ -3480,6 +3495,7 @@ void update_aggds_store(char *hostname, char *rrdkey, void *valnames, char *vals
 		aggds_val_t *entry;
 
 		if ((tpl->idx < 0) || (tpl->idx > idx)) continue;
+		if (!aggds_ds_wanted(tpl->dsnam)) continue;
 		valstr = vallist[tpl->idx];
 		if (!valstr) continue;
 		val = strtod(valstr, &endptr);

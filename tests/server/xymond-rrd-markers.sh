@@ -316,6 +316,23 @@ oops 7
 status text
 EOF
 out=$(feed_status devtest "$work/body-regress")
+# Lazy gate vs unknown values: "U" and "0" are DIFFERENT samples - an
+# instance whose probe failed (U baseline) and then reports 0 has
+# changed and must get its file (numeric-only comparison equated them).
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lzu lazy\nDS:v:GAUGE:600:0:U\nx U\n-->\ns\n@@\n'
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: lzu lazy\nDS:v:GAUGE:600:0:U\nx 0\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/lzu.x.rrd" ] \
+	|| fail "lazy: a U -> 0 transition is a change and must create the file"
+
 assert_contains "if_load.CPU:1.rrd" "$out" "legacy devmon keyword-named instance still written"
 assert_contains "goodblock.full.rrd" "$out" "normal instance in a 2-DS block written"
 assert_not_contains "goodblock.short" "$out" "instance with too few values skipped"
