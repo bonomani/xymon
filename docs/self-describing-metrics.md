@@ -163,16 +163,17 @@ renderer supports exactly ONE unit per image automatically - and that is
 an engine fact, not a design choice. rrdtool has a single value axis;
 --right-axis is only a fixed linear relabeling of it (scale:shift), so
 independent per-series axes are impossible at any dialect ambition.
-The ladder:
+DECIDED: one unit per image, full stop.
 - 1 unit: automatic (YAXIS + hints derived) - implemented.
-- 2 units: allowed via a HAND-WRITTEN gdef - CDEF-scale the second
-  series and relabel with --right-axis scale:shift. Never automated:
-  the linear ratio is a presentation judgment (data-derived ratios flap
-  per render; fixed ones squash one curve), which is exactly the
-  hand-written tier's job.
-- 3+ units: split the block, one unit per block (producer guidance,
+- 2+ units: SPLIT THE BLOCK, one unit per block (producer guidance,
   SHOULD) - each gets its own image/axis/hints, and stacked same-window
   images preserve the correlation reading (aligned small multiples).
+The two-unit --right-axis overlay (CDEF-scale the second series,
+relabel with a fixed scale:shift) is deliberately NOT a design tier:
+its linear ratio is a presentation judgment (data-derived ratios flap
+per render; fixed ones squash one curve). Hand-written gdefs remain
+free-form as always, so an admin can still build one - unsanctioned,
+unautomated, undocumented as doctrine.
 The wire stays unrestricted: units are facts, never policed. The earlier
 per-unit image-grouping candidate is retired - it would add a second
 image-splitting dimension (instances x unit-groups) through the whole
