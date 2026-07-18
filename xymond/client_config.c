@@ -1606,6 +1606,9 @@ int load_client_config(char *configfn)
 
 				if (!column || (aggfn == -1) || !key || !ds || !(*key) || !(*ds)) {
 					errprintf("Invalid AGGDS definition at line %d (expecting <column> fn(<filepattern>:<dataset>))\n", cfid);
+					/* Swallow the rest of this rule's tokens, or the
+					 * outer loop re-dispatches them as new keywords. */
+					do { tok = wstok(NULL); } while (tok && (!isqual(tok)));
 					continue;
 				}
 
@@ -1658,13 +1661,18 @@ int load_client_config(char *configfn)
 					}
 
 					if (getnumber) {
+						char *endp;
+						double limit = strtod(tok+getnumber, &endp);
+
 						if (*(tok+getnumber) == '\0')
 							errprintf("AGGDS threshold at line %d: operator '%s' carries no value - operator and value form one token (\">90\", not \"> 90\")\n", cfid, tok);
+						else if ((endp == tok+getnumber) || (*endp != '\0'))
+							errprintf("AGGDS threshold at line %d: '%s' is not a number\n", cfid, tok+getnumber);
 
 						if (currule->flags & RRDDSCHK_INTVL)
-							currule->rule.aggds.limitval2 = atof(tok+getnumber);
+							currule->rule.aggds.limitval2 = limit;
 						else
-							currule->rule.aggds.limitval = atof(tok+getnumber);
+							currule->rule.aggds.limitval = limit;
 
 						if ((currule->flags & RRDDSCHK_INTVL) && (currule->rule.aggds.limitval > currule->rule.aggds.limitval2)) {
 							double tmp;
@@ -3556,6 +3564,54 @@ void flush_aggds_store(char *hostname)
  * would aggregate over half-updated values. Values older than the rule's
  * maxage are excluded, so retired instances do not haunt the aggregates.
  */
+struct aggds_flatctx_t {
+	c_rule_t *rule;
+	time_t now;
+	int *n;
+	double *sum, *minval, *maxval;
+};
+
+static void aggds_flat_cb(const char *rrdfn, time_t ts, const char *values, const char *dsnames, void *userdata)
+{
+	struct aggds_flatctx_t *ctx = (struct aggds_flatctx_t *)userdata;
+	c_rule_t *rule = ctx->rule;
+	const char *p, *v;
+	char valbuf[64];
+	char *endp;
+	double val;
+	size_t dlen, vlen;
+	int dsidx = -1, i;
+
+	if (!dsnames) return;
+	if (!rule->rule.aggds.rrdkey || !namematch((char *)rrdfn, rule->rule.aggds.rrdkey->pattern, rule->rule.aggds.rrdkey->exp)) return;
+	if ((ctx->now - ts) > rule->rule.aggds.maxage) return;
+
+	/* find the rule's dataset position in the d= name list */
+	dlen = strlen(rule->rule.aggds.rrdds);
+	for (p = dsnames, i = 0; (p && *p); i++) {
+		size_t clen = strcspn(p, ",");
+		if ((clen == dlen) && (strncmp(p, rule->rule.aggds.rrdds, dlen) == 0)) { dsidx = i; break; }
+		p += clen; if (*p == ',') p++;
+	}
+	if (dsidx < 0) return;
+
+	/* the dsidx-th colon component of the flat value string */
+	for (v = values, i = 0; (i < dsidx) && v; i++) {
+		v = strchr(v, ':'); if (v) v++;
+	}
+	if (!v || !(*v)) return;
+	vlen = strcspn(v, ":");
+	if (vlen >= sizeof(valbuf)) return;
+	memcpy(valbuf, v, vlen); valbuf[vlen] = '\0';
+	val = strtod(valbuf, &endp);
+	if ((endp == valbuf) || (*endp != '\0')) return;	/* U and friends */
+
+	if ((*ctx->n == 0) || (val > *ctx->maxval)) *ctx->maxval = val;
+	if ((*ctx->n == 0) || (val < *ctx->minval)) *ctx->minval = val;
+	*ctx->sum += val;
+	(*ctx->n)++;
+}
+
 strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagepaths)
 {
 	static strbuffer_t *resbuf = NULL;
@@ -3584,6 +3640,7 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		int n = 0, rulematch = 0;
 		double sum = 0.0, minval = 0.0, maxval = 0.0, val = 0.0;
 		xtreePos_t vhandle;
+		struct aggds_flatctx_t flatctx;
 
 		for (vhandle = xtreeFirst(hosttree); (vhandle != xtreeEnd(hosttree)); vhandle = xtreeNext(hosttree, vhandle)) {
 			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vhandle);
@@ -3597,6 +3654,15 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			sum += entry->val;
 			n++;
 		}
+
+		/* Flat instances (lazy baselines) are first-class values too:
+		 * they never update, so they never reach the store - read them
+		 * from the writer's fileset-index state. Their d= names map
+		 * the positional value string to the rule's dataset. */
+		flatctx.rule = rule;
+		flatctx.now = now;
+		flatctx.n = &n; flatctx.sum = &sum; flatctx.minval = &minval; flatctx.maxval = &maxval;
+		fsidx_flat_foreach(hostname, aggds_flat_cb, &flatctx);
 		/* With no fresh matching values there is no sum/avg/min/max to
 		 * compute - but count() MUST evaluate as 0: alerting on "the
 		 * instances disappeared" is its primary use, and skipping here
@@ -3665,12 +3731,16 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		if (rulematch) {
 			char *bot, *marker;
 
-			/* The modify source is per-aggregate: xymond keeps one
-			 * modifier per (column, source), so a shared source would
-			 * let two AGGDS rules on one column clobber each other. */
-			snprintf(msgline, sizeof(msgline), "modify %s.%s %s aggds:%s ",
+			/* The modify source is per-(aggregate, severity): xymond
+			 * keeps ONE modifier per (column, source), last-wins - the
+			 * first-match dedup above runs per severity, so a yellow
+			 * and a red rule on the same aggregate both fire, and with
+			 * a shared source the later one would overwrite the earlier
+			 * one's verdict (red silently downgraded to yellow). */
+			snprintf(msgline, sizeof(msgline), "modify %s.%s %s aggds:%s:%s ",
 				hostname, rule->rule.aggds.column,
-				colorname(rule->rule.aggds.color), aggname);
+				colorname(rule->rule.aggds.color), aggname,
+				colorname(rule->rule.aggds.color));
 			addtobuffer(resbuf, msgline);
 
 			bot = rule->statustext;

@@ -88,6 +88,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			numds = 0;
 			setup_lazy(0);
 			fsidx_set_units(NULL);
+			fsidx_set_dsnames(NULL);
 			fsidx_set_thresholds(NULL);
 			clearstrbuffer(thrspec);
 			goto nextline;
@@ -114,6 +115,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				numds = 0;
 				setup_lazy(lazydefault());
 				fsidx_set_units(NULL);
+				fsidx_set_dsnames(NULL);
 				fsidx_set_thresholds(NULL);
 				clearstrbuffer(thrspec);
 				while ((attr = strtok(NULL, " \t")) != NULL) {
@@ -140,6 +142,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		/* DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U */
 		if (!strncmp(curline, "DS:",3)) {
 			strbuffer_t *unitspec = newstrbuffer(0);
+			strbuffer_t *dsnspec = newstrbuffer(0);
 			int startds = numds;
 
 			dbgprintf("Looking for DS definitions in %s\n",curline);
@@ -180,6 +183,15 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 						addtobuffer(unitspec, unit);
 					}
 				}
+				{
+					/* positional DS names, for flat-record consumers */
+					char *dsname = spec + 3;
+					char *dsend = strchr(dsname, ':');
+					if (dsend) {
+						if (STRBUFLEN(dsnspec)) addtobuffer(dsnspec, ",");
+						addtobufferraw(dsnspec, dsname, dsend - dsname);
+					}
+				}
 				devmon_params[numds] = spec;
 				numds++;
 			}
@@ -188,8 +200,12 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			/* Only a DS line that actually declared something may set
 			 * (or clear) the units - a later, ignored DS line must not
 			 * wipe the first one's declarations. */
-			if (numds > startds) fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
+			if (numds > startds) {
+				fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
+				fsidx_set_dsnames(STRBUFLEN(dsnspec) ? STRBUF(dsnspec) : NULL);
+			}
 			freestrbuffer(unitspec);
+			freestrbuffer(dsnspec);
 
 			goto nextline;
 		}
@@ -360,6 +376,7 @@ nextline:
 	}
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */
 	fsidx_set_units(NULL);
+	fsidx_set_dsnames(NULL);
 	fsidx_set_thresholds(NULL);
 	freestrbuffer(thrspec);
 

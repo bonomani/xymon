@@ -104,6 +104,15 @@ baseline value one step before the change - a true step edge, no RRA
 backfill. A materialized record tombstones so the two-channel weak merge
 cannot resurrect its b= field. Paging counters skip flat records
 (nothing renders for them yet).
+ALSO IMPLEMENTED - flat instances feed the aggregates: the writer
+records positional DS names on entries (d=ds1,ds2 - sticky per block
+like units), and check_aggds_thresholds reads the loaded host's flat
+records alongside the store, mapping the positional baseline values to
+the rule's dataset by name - so a pinned metric still counts as
+reporting and still contributes to sum/min/max, and count() sees every
+live instance, flat or not. The eval reads the writer's own in-memory
+index state (same process), no file IO.
+
 ALSO IMPLEMENTED - the renderer's flat-segment: showgraph enumerates
 instances from the index as well as the directory. A fresh flat record
 matching the graph's patterns joins the set as a VIRTUAL instance

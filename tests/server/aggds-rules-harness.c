@@ -89,15 +89,21 @@ int main(void)
 	 * (1000/5000) must not be inside, or the sum would differ. The
 	 * modify source carries the file pattern: the aggregate's identity
 	 * is fn(pattern:ds), not fn(ds). */
-	expect("sum over fresh matching values", out, "modify testhost.diskio yellow aggds:sum(%diskio_ops\\..+\\.rrd:reads) Total reads high: 133.00", 1);
+	expect("sum over fresh matching values", out, "modify testhost.diskio yellow aggds:sum(%diskio_ops\\..+\\.rrd:reads):yellow Total reads high: 133.00", 1);
 	/* A second aggregate on the SAME column gets its own modify source,
 	 * so the two do not clobber each other in xymond's modifier list */
-	expect("per-aggregate modify source", out, "modify testhost.diskio yellow aggds:max(%diskio_ops\\..+\\.rrd:reads) Max read 118.00", 1);
+	expect("per-aggregate modify source", out, "modify testhost.diskio yellow aggds:max(%diskio_ops\\..+\\.rrd:reads):yellow Max read 118.00", 1);
 	/* count(reads)=3 (stale excluded), rule is < 3 -> no red modify */
 	expect("count excludes stale instances", out, "modify testhost.diskio red", 0);
 	/* max(writes)=302 > 250 -> yellow on another column, default text
 	 * (&N is the pattern-qualified aggregate name) */
-	expect("max with default status text", out, "modify testhost.diskio2 yellow aggds:max(%diskio_ops\\..+\\.rrd:writes) max(%diskio_ops\\..+\\.rrd:writes)=302.00 (> 250.00)", 1);
+	expect("max with default status text", out, "modify testhost.diskio2 yellow aggds:max(%diskio_ops\\..+\\.rrd:writes):yellow max(%diskio_ops\\..+\\.rrd:writes)=302.00 (> 250.00)", 1);
+	/* Two severities on the SAME aggregate: both fire, and each keeps
+	 * its own modifier slot. With a severity-less shared source, xymond's
+	 * last-wins handle_modify would let the later yellow overwrite the
+	 * red modifier - a silent downgrade of the verdict. */
+	expect("red keeps its own modifier slot", out, "modify testhost.diskio5 red aggds:count(%diskio_ops\\..+\\.rrd:reads):red crit few", 1);
+	expect("yellow keeps its own modifier slot", out, "modify testhost.diskio5 yellow aggds:count(%diskio_ops\\..+\\.rrd:reads):yellow warn few", 1);
 	/* avg(reads)=44.33 not > 100 -> nothing for diskio3 */
 	expect("avg below threshold stays quiet", out, "diskio3", 0);
 	/* first-match shadowing: the second, tighter sum rule for the same
@@ -119,7 +125,7 @@ int main(void)
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	out = (res ? STRBUF(res) : NULL);
 	expect("flushed host: value aggregates vanish", out, "Total reads high", 0);
-	expect("flushed host: count fires on the empty fileset", out, "modify testhost.diskio red aggds:count(%diskio_ops\\..+\\.rrd:reads) Disks missing: only 0.00 reporting", 1);
+	expect("flushed host: count fires on the empty fileset", out, "modify testhost.diskio red aggds:count(%diskio_ops\\..+\\.rrd:reads):red Disks missing: only 0.00 reporting", 1);
 	snprintf(vals, sizeof(vals), "%d:200:1", (int)now);
 	update_aggds_store("testhost", "diskio_ops.ada0.rrd", opstree, vals);
 	res = check_aggds_thresholds("testhost", "linux", "/");
@@ -142,6 +148,21 @@ int main(void)
 	update_aggds_store("testhost", "diskio_ops.ada0.rrd", opstree, vals);
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	expect("store rebuilt after rules return", (res ? STRBUF(res) : NULL), "Total reads high: 150.00", 1);
+
+	/* A flat instance (durable lazy baseline) is a first-class
+	 * aggregate value: with its d= positional names it joins sum and
+	 * count like any stored sample - a pinned metric still counts as
+	 * reporting. Store state here: one entry (reads=150). */
+	{
+		char flatdir[1024];
+		snprintf(flatdir, sizeof(flatdir), "%s/rrdflat", getenv("XYMONHOME"));
+		fsidx_set_dsnames("reads,writes");
+		fsidx_baseline_set(flatdir, "testhost", "diskio_ops.flat.rrd", "3:4", getcurrenttime(NULL));
+		fsidx_set_dsnames(NULL);
+	}
+	res = check_aggds_thresholds("testhost", "linux", "/");
+	out = (res ? STRBUF(res) : NULL);
+	expect("flat instance joins the aggregates", out, "Total reads high: 153.00", 1);
 
 	printf(failures ? "FAILED\n" : "ALL OK\n");
 	return failures ? 1 : 0;

@@ -295,7 +295,7 @@ assert_contains "temperature.ambient.rrd" "$out" "instance after a declaration l
 assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file"
 # The declared unit AND the THRESHOLD relation land in the fileset index
 # (only the DS that has a unit; the relation validated against the block)
-grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC d=temp,hi t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "declared unit/threshold not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
 
 # Durable lazy baselines: the (value, since) record survives the writer.
@@ -312,7 +312,7 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -e "$work/rrd/testhost/lzp.x.rrd" ] && fail "baseline learn must not create a file"
-grep -q 'lzp\.x\.rrd [0-9]* b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'lzp\.x\.rrd [0-9]* d=v b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "baseline not durable in the index: $(grep lzp "$work/rrd/testhost/.fileset-index")"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \

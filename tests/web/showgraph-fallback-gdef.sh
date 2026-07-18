@@ -134,7 +134,7 @@ ts=$(date +%s)
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -f "$rrds/resp.api.rrd" ] || fail "unit-declaring block files not created"
-grep -q 'resp\.api\.rrd [0-9]* u=rd:msec,wr:msec$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'resp\.api\.rrd [0-9]* u=rd:msec,wr:msec d=rd,wr$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "units not in the index: $(cat "$work/rrd/testhost/.fileset-index")"
 
 env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=resp --rrddir="$work/rrd" \
@@ -171,7 +171,7 @@ ts=$(date +%s)
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -f "$rrds/thr.api.rrd" ] || fail "threshold-declaring block files not created"
-grep -q 'thr\.api\.rrd [0-9]* u=val:ms,val_warn:ms t=val:>val_warn:warn,val:>500:crit$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'thr\.api\.rrd [0-9]* u=val:ms,val_warn:ms d=val,val_warn t=val:>val_warn:warn,val:>500:crit$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "threshold relations not in the index: $(grep thr.api "$work/rrd/testhost/.fileset-index")"
 
 env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=thr --rrddir="$work/rrd" \

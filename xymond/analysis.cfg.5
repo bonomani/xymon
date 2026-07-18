@@ -491,10 +491,11 @@ same dataset over different filesets never shadow each other. The
 GAUGE-only note above applies here too, and - as with DS rules - the
 operator and threshold form one token (">90", not "> 90").
 
-Each aggregate recolors the column through its own modifier slot
-("aggds:sum(%diskio_ops\\..+\\.rrd:reads)"), so several AGGDS rules
-may drive one status column without overwriting each other's
-verdicts.
+Each (aggregate, severity) pair recolors the column through its own
+modifier slot ("aggds:sum(%diskio_ops\\..+\\.rrd:reads):yellow"), so
+several AGGDS rules - including a warning and a critical rule on the
+same aggregate - may drive one status column without overwriting each
+other's verdicts.
 .sp
 .SH MQ Series SETTINGS
 .sp

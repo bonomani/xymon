@@ -27,6 +27,8 @@
 extern void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */
 extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:sev[,...]"; NULL clears */
+extern void fsidx_set_dsnames(char *dsnspec);	/* sticky "ds1,ds2" positional names; NULL clears */
+extern void fsidx_flat_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata);
 
 /* Durable lazy baselines: a flat instance is an entry with a (value,
  * since) record and no RRD file. get returns the live value string (do

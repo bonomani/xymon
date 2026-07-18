@@ -54,6 +54,8 @@ HOST=*
 	AGGDS diskio3 avg(%diskio_ops\..+\.rrd:reads) >100 COLOR=yellow "TEXT=avg &V"
 	AGGDS diskio4 sum(%diskio_ops\.ada.+:reads) >10 COLOR=yellow "TEXT=ada sum &V"
 	AGGDS diskio4 sum(%diskio_ops\.da.+:reads) >10 COLOR=yellow "TEXT=da sum &V"
+	AGGDS diskio5 count(%diskio_ops\..+\.rrd:reads) <10 COLOR=red "TEXT=crit few"
+	AGGDS diskio5 count(%diskio_ops\..+\.rrd:reads) <20 COLOR=yellow "TEXT=warn few"
 EOF
 : >"$work/etc/empty-analysis.cfg"
 
