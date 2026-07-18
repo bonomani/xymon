@@ -291,4 +291,36 @@ assert_contains "temperature.cpu.rrd" "$out" "unit-suffixed DS spec still create
 assert_contains "temperature.ambient.rrd" "$out" "instance after a declaration line written normally"
 assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file"
 
+# Deep-review regressions: (1) a legacy DEVMON block may carry instances
+# named like a declaration keyword - the METRICS-only contract must not
+# drop them; (2) a METRICS block without a DS line writes nothing and
+# must not inherit the previous block's DS params; (3) a self-closed
+# one-line banner is an empty block - the status text after it must not
+# be consumed as instance data.
+cat >"$work/body-regress" <<'EOF'
+<!--DEVMON RRD: if_load 0 0
+DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U
+CPU:1 47:70
+-->
+<!--XYMON METRICS: goodblock
+DS:v:GAUGE:600:0:U DS:w:GAUGE:600:0:U
+full 1:2
+short 1
+-->
+<!--XYMON METRICS: nodsblock
+x 5
+y 6
+-->
+<!--XYMON METRICS: selfclosed -->
+oops 7
+status text
+EOF
+out=$(feed_status devtest "$work/body-regress")
+assert_contains "if_load.CPU:1.rrd" "$out" "legacy devmon keyword-named instance still written"
+assert_contains "goodblock.full.rrd" "$out" "normal instance in a 2-DS block written"
+assert_not_contains "goodblock.short" "$out" "instance with too few values skipped"
+assert_not_contains "nodsblock" "$out" "block without a DS line writes nothing"
+assert_not_contains "selfclosed" "$out" "self-closed banner opens no block"
+assert_not_contains ".oops." "$out" "status text after a self-closed banner is not instance data"
+
 pass "XYMON METRICS blocks and legacy DEVMON banners are written by content routing"

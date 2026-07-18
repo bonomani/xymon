@@ -64,8 +64,11 @@ static const char *diskio_msg =
 	"<!--XYMON METRICS: diskio_ops\n"
 	"DS:reads:GAUGE:600:0:U DS:writes:GAUGE:600:0:U\n"
 	/* Unknown declaration line with two fields: an ALL-CAPS keyword
-	 * ending in ':' is never an instance, so the count stays 3. */
+	 * ending in ':' is never an instance, so the count stays 3. And an
+	 * instance line with fewer values than declared DSes creates no
+	 * file, so it must not count either. */
 	"THRESHOLD:reads >90\n"
+	"shortline 5\n"
 	"ada0 10:20\n"
 	"ada1 5:6\n"
 	"da0 118:302\n"
@@ -255,6 +258,42 @@ int main(void)
 		"line two of status text\n");
 	expect_contains("unclosed block renders unsliced", html, "service=diskio_broken&amp;graph_width=576&amp;graph_height=120&amp;disp=");
 	expect_not_contains("unclosed block renders unsliced", html, "service=diskio_broken&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* A self-closed one-line banner is an empty block: the status text
+	 * after it is body, not instances - count 0, unsliced render. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_selfclosed -->\n"
+		"<!--XYMON GRAPH: diskio_selfclosed -->\n"
+		"all ok\n"
+		"more ok\n");
+	expect_contains("self-closed banner counts nothing", html, "service=diskio_selfclosed&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("self-closed banner counts nothing", html, "service=diskio_selfclosed&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* A block with no DS line writes no files, so nothing is counted. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_nods\n"
+		"a 1\n"
+		"b 2\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_nods -->\n"
+		"status text\n");
+	expect_contains("block without DS counts nothing", html, "service=diskio_nods&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("block without DS counts nothing", html, "service=diskio_nods&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* Legacy DEVMON block: an instance named like a declaration keyword
+	 * is data - the METRICS-only contract must not skip it. */
+	html = render_log_msg("devtest", 0, "",
+		"<!--DEVMON RRD: if_load 0 0\n"
+		"DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U\n"
+		"CPU:1 47:70\n"
+		"eth0.0 1:2\n"
+		"-->\n"
+		"status text\n");
+	expect_contains("legacy devmon keyword-named instance counted", html,
+		"service=if_load&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
 	/* Invalid names are ignored; a page with only invalid markers has no

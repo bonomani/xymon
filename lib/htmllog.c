@@ -607,7 +607,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 
 					/* Same stack-local gdef pattern as the GRAPHS_ entries
 					 * above; the paging count is the marker's own - the
-					 * count= attribute, else the instance count of the
+					 * instances= attribute, else the instance count of the
 					 * message's METRICS block, else 0 = unsliced. The
 					 * lookup is effectively exact for marker names: its
 					 * prefix matching applies only across a '.' or ','
@@ -617,7 +617,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					localgraph.xymonrrdname = mwalk->name;
 					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : xymon_gdef_maxinstancesperimage(mwalk->name));
 					/* gdef LAZY overrides a derived count (explicit
-					 * count= still wins) - same reasoning as the
+					 * instances= still wins) - same reasoning as the
 					 * banner attribute */
 					{
 						int gcount = xymon_marker_instancecount(mwalk);

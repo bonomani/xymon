@@ -111,6 +111,13 @@ int lastidx = 0;
 
 void errormsg(char *msg)
 {
+	/* Command-line invocation (--emit-gdef): plain error on stderr,
+	 * not an HTML page on stdout. */
+	if (getenv("REQUEST_METHOD") == NULL) {
+		fprintf(stderr, "%s\n", msg);
+		exit(1);
+	}
+
 	printf("Content-type: %s\n\n", xgetenv("HTMLCONTENTTYPE"));
 	printf("<html><head><title>Invalid request</title></head>\n");
 	printf("<body>%s</body></html>\n", msg);
@@ -1320,6 +1327,8 @@ static gdef_t *synthetic_gdef(char *name)
 	return newitem;
 }
 
+static int synthetic_ds_skipped = 0;	/* nonzero: last synthesis omitted datasets beyond SYNTHETIC_DSMAX */
+
 static char **synthetic_defs(char *rrdfn)
 {
 	rrd_info_t *info, *iwalk;
@@ -1333,7 +1342,8 @@ static char **synthetic_defs(char *rrdfn)
 	info = rrd_info_r(rrdfn);
 	if (!info) errormsg("Cannot read RRD file for this graph");
 
-	for (iwalk = info; (iwalk && (dscount < SYNTHETIC_DSMAX)); iwalk = iwalk->next) {
+	synthetic_ds_skipped = 0;
+	for (iwalk = info; (iwalk); iwalk = iwalk->next) {
 		char *bracket;
 		size_t nlen;
 
@@ -1349,6 +1359,13 @@ static char **synthetic_defs(char *rrdfn)
 		}
 		if (i < dscount) continue;
 
+		if (dscount >= SYNTHETIC_DSMAX) {
+			/* Keep scanning so the truncation is known, not silent.
+			 * (A flag, not a count: unstored names cannot be deduped
+			 * across their several info keys.) */
+			synthetic_ds_skipped = 1;
+			continue;
+		}
 		dsnames[dscount] = (char *)malloc(nlen+1);
 		memcpy(dsnames[dscount], iwalk->key+3, nlen); dsnames[dscount][nlen] = '\0';
 		dscount++;
@@ -1437,6 +1454,8 @@ static int emit_gdef(char *name, char *rrddir)
 	printf("\tTITLE %s\n", gdef->title);
 	printf("\tYAXIS %s\n", gdef->yaxis);
 	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
+	if (synthetic_ds_skipped)
+		printf("\t# NOTE: the file has more datasets; only the first %d are scaffolded\n", SYNTHETIC_DSMAX);
 	return 0;
 }
 

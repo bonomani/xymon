@@ -26,7 +26,7 @@ static char *marker_name(char *p)
 	char *result;
 	int len = 0;
 
-	while (p[len] && (isalnum((int)p[len]) || (p[len] == '_') || (p[len] == '-'))) len++;
+	len = strspn(p, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
 	if ((len == 0) || (len > XYMON_MARKER_NAMELEN_MAX)) return NULL;
 	if (p[len] && (p[len] != ' ') && (p[len] != '\t') && (p[len] != '\n') && (p[len] != '\r')) return NULL;
 
@@ -61,11 +61,19 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 	int count = 0;
 	char *bol, *eoln;
 	xymonmarker_t *block = NULL;	/* non-NULL while inside a METRICS/DEVMON block */
+	int block_metrics = 0;		/* current block opened by METRICS, not the legacy banner */
+	int blockds = 0;		/* DS specs declared by the current block's first DS line */
 
 	if (!msg) return NULL;
 
 	for (bol = msg; (bol && *bol); bol = (eoln ? eoln+1 : NULL)) {
+		char *close;
+		int selfclosed;
+
 		eoln = strchr(bol, '\n');
+		/* A banner carrying its own "-->" is an empty, self-closed block. */
+		close = strstr(bol, "-->");
+		selfclosed = (close && ((eoln == NULL) || (close < eoln)));
 
 		/* Marker banners are recognized even inside an open block, like
 		 * the block writer does - a new banner simply starts the next
@@ -74,6 +82,8 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 			char *name = marker_name(bol + strlen(XYMON_METRICS_MARKER));
 			if (name) {
 				block = find_or_add(&head, &tail, &count, name);
+				block_metrics = 1;
+				blockds = 0;
 				if (block) {
 					char *p = bol + strlen(XYMON_METRICS_MARKER);
 
@@ -85,6 +95,7 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 						p++;
 					}
 				}
+				if (selfclosed) block = NULL;
 			}
 		}
 		else if (strncmp(bol, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) {
@@ -92,7 +103,10 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 			char *name = marker_name(bol + strlen(DEVMON_RRD_MARKER));
 			if (name) {
 				block = find_or_add(&head, &tail, &count, name);
+				block_metrics = 0;
+				blockds = 0;
 				if (block) { block->store = 1; block->show = 1; }
+				if (selfclosed) block = NULL;
 			}
 		}
 		else if (strncmp(bol, XYMON_GRAPH_MARKER, strlen(XYMON_GRAPH_MARKER)) == 0) {
@@ -109,9 +123,9 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 							marker->instancespec = 0;
 							p += 9;
 						}
-						else if ((strncmp(p, "instances=", 10) == 0) && isdigit((int)p[10])) {
+						else if ((strncmp(p, "instances=", 10) == 0) && isdigit((unsigned char)p[10])) {
 							marker->instancespec = atoi(p+10);
-							p += 6; while (isdigit((int)*p)) p++;
+							p += 6; while (isdigit((unsigned char)*p)) p++;
 						}
 						else p++;
 					}
@@ -127,24 +141,51 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 				block = NULL;
 			}
 			else if (strncmp(bol, "DS:", 3) == 0) {
-				/* dataset definitions, not an instance */
+				/* Dataset definitions, not an instance. The leading run
+				 * of DS: tokens on the block's FIRST DS line is how many
+				 * values an instance line must carry to create a file -
+				 * exactly what the writer requires (it ignores later DS
+				 * lines and stops at the first non-DS token). */
+				if (blockds == 0) {
+					char *p = bol;
+					char *end = (eoln ? eoln : bol + strlen(bol));
+					while (p < end) {
+						while ((p < end) && (*p == ' ')) p++;
+						if ((p >= end) || (strncmp(p, "DS:", 3) != 0)) break;
+						blockds++;
+						while ((p < end) && (*p != ' ')) p++;
+					}
+				}
 			}
 			else {
 				char *p = bol + strspn(bol, " ");
 				size_t kwlen = strspn(p, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 				size_t f1;
 
-				/* An ALL-CAPS keyword ending in ':' opens a declaration
-				 * line (DS: is the known one) - never an instance, even
-				 * for keywords this parser has never heard of. Same
-				 * contract as the block writer. */
-				if ((kwlen > 0) && (p[kwlen] == ':')) continue;
+				/* In a METRICS block, an ALL-CAPS keyword ending in ':'
+				 * opens a declaration line (DS: is the known one) - never
+				 * an instance, even for keywords this parser has never
+				 * heard of. Same contract as the block writer. Legacy
+				 * DEVMON blocks predate the contract and may carry
+				 * instances named like a keyword ("CPU:1"). */
+				if (block_metrics && (kwlen > 0) && (p[kwlen] == ':')) continue;
 				f1 = strcspn(p, " \r\n");
 				if ((f1 > 0) && (p[f1] == ' ')) {
 					char *q = p + f1 + strspn(p + f1, " ");
 					size_t f2 = strcspn(q, " \r\n");
 					char *rest = q + f2 + strspn(q + f2, " ");
-					if ((f2 > 0) && ((*rest == '\0') || (*rest == '\n') || (*rest == '\r'))) block->blockinstances++;
+					if ((f2 > 0) && ((*rest == '\0') || (*rest == '\n') || (*rest == '\r'))) {
+						/* Count only lines the writer will actually
+						 * write: one non-empty colon-separated value
+						 * per declared DS, and a DS line must exist. */
+						int vals = 0;
+						size_t vi = 0;
+						while (vi < f2) {
+							while ((vi < f2) && (q[vi] == ':')) vi++;
+							if (vi < f2) { vals++; while ((vi < f2) && (q[vi] != ':')) vi++; }
+						}
+						if ((blockds > 0) && (vals >= blockds)) block->blockinstances++;
+					}
 				}
 			}
 		}

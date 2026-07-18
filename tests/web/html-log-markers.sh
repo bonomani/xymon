@@ -5,7 +5,7 @@
 #
 # Self-describing statuses: XYMON GRAPH markers declare the graphs a status
 # page shows, with per-graph paging counts (derived from the message's own
-# METRICS block, count=N, or count=all). Drives the real generate_html_log()
+# METRICS block, instances=N, or instances=all). Drives the real generate_html_log()
 # through a small C harness; see the harness for the full assertion list.
 
 set -euo pipefail
