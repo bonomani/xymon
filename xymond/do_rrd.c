@@ -801,7 +801,18 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 	if (ldef) id = ldef->xymonrrdname; else id = testname;
 	senderip = sender;
 
-	if      (strcmp(id, "bbgen") == 0)       do_xymongen_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+	/*
+	 * Self-describing beats built-in: a status carrying a store block
+	 * (XYMON METRICS / legacy DEVMON RRD) is written by the block
+	 * writer, and ONLY by it - falling through to a built-in handler
+	 * would write the same samples twice under two schemas. Emitting a
+	 * block is deliberate: a column only reroutes when its producer
+	 * chose to add one, so block-less statuses hit the exact same
+	 * built-in chain as before.
+	 */
+	if      (xymon_markers_have_store(msg)) do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
+
+	else if (strcmp(id, "bbgen") == 0)       do_xymongen_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "xymongen") == 0)    do_xymongen_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "bbtest") == 0)      do_xymonnet_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 	else if (strcmp(id, "xymonnet") == 0)    do_xymonnet_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
@@ -879,13 +890,6 @@ void update_rrd(char *hostname, char *testname, char *msg, time_t tstamp, char *
 	 * This is from the devmon SNMP collector
 	 */
 	else if (strcmp(id, "devmon") == 0)      do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
-
-	/*
-	 * Self-describing statuses: a message carrying an embedded
-	 * XYMON METRICS (or legacy DEVMON RRD) block is routed by content,
-	 * with no TEST2RRD mapping needed. Explicit mappings above win.
-	 */
-	else if (xymon_markers_have_store(msg)) do_devmon_rrd(hostname, testname, classname, pagepaths, msg, tstamp);
 
 	else if (extids && exthandler) {
 		int i;

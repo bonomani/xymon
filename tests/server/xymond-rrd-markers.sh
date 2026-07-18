@@ -323,4 +323,27 @@ assert_not_contains "nodsblock" "$out" "block without a DS line writes nothing"
 assert_not_contains "selfclosed" "$out" "self-closed banner opens no block"
 assert_not_contains ".oops." "$out" "status text after a self-closed banner is not instance data"
 
+# Dispatch precedence (self-describing beats built-in): a status whose
+# column has a built-in handler but which carries a store block is
+# written by the block writer ONLY - the built-in must not double-write.
+# A block-less status on the same column hits the built-in unchanged.
+cat >"$work/body-diskblock" <<'EOF'
+Filesystem 1024-blocks Used Available Capacity Mounted on
+/dev/sda1 100 50 50 50% /var
+<!--XYMON METRICS: diskpct
+DS:pct:GAUGE:600:0:100
+/var 50
+-->
+EOF
+out=$(feed_status disk "$work/body-diskblock")
+assert_contains "diskpct.%2Fvar.rrd" "$out" "block on a built-in column is written by the block writer"
+assert_not_contains "disk.%2Fvar.rrd" "$out" "built-in disk handler must not double-write a block-bearing status"
+
+cat >"$work/body-diskplain" <<'EOF'
+Filesystem 1024-blocks Used Available Capacity Mounted on
+/dev/sda1 100 50 50 50% /var
+EOF
+out=$(feed_status disk "$work/body-diskplain")
+assert_contains "disk.%2Fvar.rrd" "$out" "block-less disk status hits the built-in handler unchanged"
+
 pass "XYMON METRICS blocks and legacy DEVMON banners are written by content routing"
