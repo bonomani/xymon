@@ -417,6 +417,12 @@ event. Both CFs in one file is standard and useful - identical at the
 finest resolution, divergent where buckets aggregate (a daily AVERAGE
 erases a 30-minute spike; MAX preserves the worst moment), which is
 exactly what a gdef reading DEF:...:MAX declares it needs.
+Heartbeat, same decided shape, even milder: it stores nothing (a
+validity rule applied at update time), rrdtool tune changes it
+instantly and losslessly for the FUTURE, and only the past
+interpretation is fixed - gaps already marked UNKNOWN under the old
+heartbeat stay UNKNOWN (the raw samples are gone). Forward-only, rare,
+accepted. No dual-value concept exists for heartbeat.
 
 ## Risks / watch-items
 
