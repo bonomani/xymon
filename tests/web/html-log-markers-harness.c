@@ -63,6 +63,9 @@ static char *render_log_msg(const char *service, int is_history, const char *fla
 static const char *diskio_msg =
 	"<!--XYMON METRICS: diskio_ops\n"
 	"DS:reads:GAUGE:600:0:U DS:writes:GAUGE:600:0:U\n"
+	/* Unknown declaration line with two fields: an ALL-CAPS keyword
+	 * ending in ':' is never an instance, so the count stays 3. */
+	"THRESHOLD:reads >90\n"
 	"ada0 10:20\n"
 	"ada1 5:6\n"
 	"da0 118:302\n"

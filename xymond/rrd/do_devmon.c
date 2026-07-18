@@ -104,15 +104,40 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		if (!strncmp(curline, "DS:",3)) {
 			dbgprintf("Looking for DS definitions in %s\n",curline);
 			while ( numds < MAXCOLS) {
+				char *spec, *cp;
+				int ncolon = 0;
+
 				dbgprintf("Seeing if column %d that has %s is a DS\n",numds,columns[numds]);
 				if (strncmp(columns[numds],"DS:",3)) break;
-				devmon_params[numds] = xstrdup(columns[numds]);
+				spec = xstrdup(columns[numds]);
+				/* A DS spec may declare a unit as an optional 7th
+				 * colon field (DS:name:GAUGE:600:0:U:ms). rrdtool
+				 * accepts only the 6-field spec, so cut the suffix
+				 * before it reaches rrdcreate. */
+				for (cp = spec; (*cp); cp++) {
+					if (*cp != ':') continue;
+					if (++ncolon == 6) { *cp = '\0'; break; }
+				}
+				devmon_params[numds] = spec;
 				numds++;
 			}
 			dbgprintf("Found %d DS definitions\n",numds);
 			devmon_params[numds] = NULL;
 
 			goto nextline;
+		}
+
+		/* A block line whose first token is an ALL-CAPS keyword ending in
+		 * ':' is a declaration - DS: is one, handled above. Declarations
+		 * the writer does not know are ignored by contract, so the block
+		 * dialect can grow keyword lines without breaking deployed
+		 * writers; instance names must not look like one. */
+		{
+			int kwlen = strspn(columns[0], "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+			if ((kwlen > 0) && (columns[0][kwlen] == ':')) {
+				dbgprintf("Skipping unknown declaration on line %d (%s)\n",lineno,columns[0]);
+				goto nextline;
+			}
 		}
 
 		dbgprintf("Found %d columns in devmon rrd data\n",columncount);

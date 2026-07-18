@@ -131,7 +131,15 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 			}
 			else {
 				char *p = bol + strspn(bol, " ");
-				size_t f1 = strcspn(p, " \r\n");
+				size_t kwlen = strspn(p, "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
+				size_t f1;
+
+				/* An ALL-CAPS keyword ending in ':' opens a declaration
+				 * line (DS: is the known one) - never an instance, even
+				 * for keywords this parser has never heard of. Same
+				 * contract as the block writer. */
+				if ((kwlen > 0) && (p[kwlen] == ':')) continue;
+				f1 = strcspn(p, " \r\n");
 				if ((f1 > 0) && (p[f1] == ' ')) {
 					char *q = p + f1 + strspn(p + f1, " ");
 					size_t f2 = strcspn(q, " \r\n");

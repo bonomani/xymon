@@ -272,4 +272,23 @@ printf 'all green\n' >"$work/body-plain"
 out=$(feed_status diskio "$work/body-plain")
 assert_not_contains ".rrd" "$out" "plain status without markers creates nothing"
 
+# Dialect extensibility: a DS spec may declare a unit as an optional 7th
+# colon field - the writer must strip it before rrdtool sees the spec, or
+# file creation fails. A declaration line the writer does not know (an
+# ALL-CAPS keyword ending in ':', here a future THRESHOLD:) is ignored:
+# no file for it, and the instances around it are written normally.
+cat >"$work/body-dialect" <<'EOF'
+<!--XYMON METRICS: temperature
+DS:temp:GAUGE:600:-30:50:degC DS:hi:GAUGE:600:-30:50
+THRESHOLD:temp:>hi:warn
+cpu 47:70
+ambient 22:35
+-->
+temperatures OK
+EOF
+out=$(feed_status diskio "$work/body-dialect")
+assert_contains "temperature.cpu.rrd" "$out" "unit-suffixed DS spec still creates the file"
+assert_contains "temperature.ambient.rrd" "$out" "instance after a declaration line written normally"
+assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file"
+
 pass "XYMON METRICS blocks and legacy DEVMON banners are written by content routing"

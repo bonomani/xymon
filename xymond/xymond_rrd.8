@@ -305,6 +305,18 @@ letters, digits, "_" and "-" (max 64 characters); an invalid name
 skips the whole block. A message may carry several blocks. The block
 is invisible on the rendered status page.
 
+A DS spec may carry an optional seventh colon-separated field
+declaring the metric's unit, e.g. "DS:temp:GAUGE:600:\-30:50:degC".
+The writer strips the suffix before the spec reaches rrdtool, so a
+declared unit never affects storage; a spec without it is unchanged.
+
+Inside a block, any line whose first token is an ALL-CAPS keyword
+ending in ":" is a declaration line - "DS:" is the one this version
+knows. Unknown declarations are ignored, and declaration lines are
+never instances, so the block dialect can grow new keyword lines
+without breaking deployed servers. Consequently, an instance name
+must not have the form of a declaration keyword.
+
 A block may declare itself "lazy":
 
 .nf
