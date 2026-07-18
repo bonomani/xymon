@@ -22,9 +22,24 @@
 #define __FILESETINDEX_H__
 
 #include <time.h>
+#include <limits.h>
 
-/* Writer side (xymond_rrd) */
-extern void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts);
+/* Schema specs are wire-fed; longer than this and a reader's line buffer
+ * would truncate them mid-token on the way back in. Reject loudly. */
+#define FSIDX_SPECMAX 1024
+/* Worst-case record: filename (PATH_MAX) + timestamp + generation + four
+ * capped specs + a "b=<since>,<values>" baseline whose value string is
+ * bounded by the channel line length (MAX_LINE_LEN, stackio.h) + field
+ * prefixes and separators. Every reader's line buffer must hold this, or
+ * a long record splits and its tail parses as bogus extra records. */
+#define FSIDX_LINEMAX (PATH_MAX + 4*(FSIDX_SPECMAX + 8) + 16384 + 128)
+
+/* Writer side (xymond_rrd). Event time and commit time are split: schema
+ * declarations (and a new entry's existence) are noted when the sample is
+ * processed; the freshness timestamp advances only after rrdtool ACCEPTS
+ * the update, so rejected updates never look fresh. */
+extern void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts);
+extern void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */
 extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:sev[,...]"; NULL clears */
 extern void fsidx_set_dsnames(char *dsnspec);	/* sticky "ds1,ds2" positional names; NULL clears */
@@ -39,6 +54,7 @@ extern char *fsidx_baseline_get(char *rrddir, char *hostname, char *rrdfn, time_
 extern void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values, time_t ts);
 extern void fsidx_baseline_clear(char *rrddir, char *hostname, char *rrdfn);
 extern void fsidx_flush(char *rrddir, char *hostname);
+extern void fsidx_flush_now(char *rrddir, char *hostname);	/* bypasses the timestamp-only throttle */
 extern void fsidx_flush_all(char *rrddir);
 extern void fsidx_drop(char *rrddir, char *hostname);
 

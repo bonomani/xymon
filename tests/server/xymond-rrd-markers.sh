@@ -302,7 +302,7 @@ assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file
 # The declared unit, heartbeats AND the THRESHOLD relation land in the
 # fileset index (units only for the DS that has one; heartbeats for every
 # declared DS; the relation validated against the block)
-grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:1200,hi:600 d=temp,hi t=temp:>hi:warn$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:1200,hi:600 d=temp,hi t=temp:>hi:warn g=[0-9]*$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "declared unit/heartbeat/threshold not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
 
 # A redeclared heartbeat replaces the record outright (strong, complete
@@ -316,8 +316,10 @@ grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:900,hi:600 ' "$work/rrd
 # Process 1 learns the baseline (no file); process 2 - a restart - sees a
 # changed value and creates the file on its FIRST sample, seeded with the
 # baseline one step earlier (a true step edge). The flat record clears on
-# materialization.
-ts=$(date +%s)
+# materialization. ts is step-aligned: the seed's consolidated bucket is
+# >= 50% covered (xff) only when ts % 300 <= 150, so an arbitrary ts
+# makes the splice-fetch assertion below a coin flip.
+ts=$(( $(date +%s) / 300 * 300 ))
 rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
@@ -326,7 +328,7 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -e "$work/rrd/testhost/lzp.x.rrd" ] && fail "baseline learn must not create a file"
-grep -q 'lzp\.x\.rrd [0-9]* d=v b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'lzp\.x\.rrd [0-9]* h=v:600 d=v g=[0-9]* b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "baseline not durable in the index: $(grep lzp "$work/rrd/testhost/.fileset-index")"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
@@ -339,14 +341,42 @@ grep -q 'lzp\.x\.rrd [0-9]* d=v b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index"
 grep -q 'lzp\.x\.rrd.* b=' "$work/rrd/testhost/.fileset-index" \
 	&& fail "the flat record must clear when the file materializes"
 if command -v rrdtool >/dev/null 2>&1; then
-	# Window covers every bucket the seed + change can land in: rrd
-	# consolidates on step-aligned boundaries, so with an unaligned ts
-	# the change's bucket can end as late as ts+600 (a narrower window
-	# made this assertion flaky, passing only for ts % 300 <= 100).
+	# With the step-aligned ts above, the seed bucket (value 5, ending
+	# at ts) and the change bucket (9, ending ts+300) are both fully
+	# covered - deterministic, where an arbitrary ts left the seed
+	# bucket under the xff threshold half the time.
 	nvals=$(rrdtool fetch "$work/rrd/testhost/lzp.x.rrd" AVERAGE -s $((ts-700)) -e $((ts+700)) 2>/dev/null \
 		| grep -cE ': [0-9]')
 	[ "$nvals" -ge 2 ] || fail "splice seed missing - expected the baseline step edge plus the change (got $nvals values)"
 fi
+
+# Freshness follows COMMIT, not receipt: an update rrdtool rejects (a
+# timestamp behind the file's last update) must not advance the entry's
+# index timestamp, or a chronically broken producer looks fresh forever.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+feed_at() {  # feed_at <statusts> <value> -- one committed-or-rejected sample
+	{
+		printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+			"$1" $(($1+1800)) "$ts" "$ts"
+		printf '<!--XYMON METRICS: frsh\nDS:v:GAUGE:600:0:U\nx %s\n-->\ns\n@@\n' "$2"
+	} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+		"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+}
+feed_at "$ts" 5
+ts1=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
+[ -n "$ts1" ] || fail "committed update did not stamp the index"
+feed_at $((ts-600)) 6	# behind the file's last update: rrdtool rejects it
+ts2=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
+[ "$ts2" = "$ts1" ] || fail "rejected update advanced freshness ($ts1 -> $ts2)"
+# The discriminating case: a NEWER timestamp whose value rrdtool rejects
+# (the max-merge hides the older-timestamp case, this one it cannot).
+feed_at $((ts+150)) not-a-number
+ts2=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
+[ "$ts2" = "$ts1" ] || fail "rejected garbage value advanced freshness ($ts1 -> $ts2)"
+feed_at $((ts+300)) 7
+ts3=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
+[ "$ts3" -gt "$ts1" ] || fail "accepted update did not advance freshness ($ts1 -> $ts3)"
 
 # The shipped default (no LAZYDEFAULT in the environment): every METRICS
 # block is lazy - a flat first sample becomes an index record, not a

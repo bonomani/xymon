@@ -493,13 +493,16 @@ accepted. No dual-value concept exists for heartbeat.
 ## Risks / watch-items
 
 - Second consolidation review: deferred findings, each with its reason.
-  (a) The two channel writers' weak merges each hold a full copy of the
-  other's entries, so a changed unit/threshold spec can ping-pong until
-  the non-owning process restarts - real filesets arrive via one channel,
-  so accepted; versioned schema fields would fix it properly. (b) The
-  index freshness timestamp advances even when rrdtool later rejects the
-  update - needs the update result plumbed back to the note; a chronic
-  failure can look permanently fresh. (c) xtreeDestroy leaks the tsearch
+  (a) RESOLVED - schema fields now carry a declaration timestamp (g=):
+  a live declaration stamps now(), the flush merge adopts a NEWER
+  on-disk bundle outright and ignores an older one (g-less legacy
+  entries keep the weak fill), so a stale writer converges in one flush
+  instead of ping-ponging its old spec back. (b) RESOLVED - event time
+  and commit time are split: fsidx_note_schema records the entry and
+  its declarations when the sample is processed, fsidx_note_commit
+  advances freshness only after rrdtool ACCEPTS the batch (every flush
+  path funnels through flush_cached_updates), so a chronically rejected
+  producer goes stale on schedule. (c) xtreeDestroy leaks the tsearch
   node wrappers on drophost (pre-existing tree-API limitation, drops are
   rare). (d) drophost forks the directory deletion, and queued in-flight
   messages for the host can recreate the index inside the dying dir -

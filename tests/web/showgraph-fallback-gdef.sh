@@ -137,7 +137,7 @@ ts=$(date +%s)
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -f "$rrds/resp.api.rrd" ] || fail "unit-declaring block files not created"
-grep -q 'resp\.api\.rrd [0-9]* u=rd:msec,wr:msec h=rd:600,wr:600 d=rd,wr$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'resp\.api\.rrd [0-9]* u=rd:msec,wr:msec h=rd:600,wr:600 d=rd,wr g=[0-9]*$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "units not in the index: $(cat "$work/rrd/testhost/.fileset-index")"
 
 env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=resp --rrddir="$work/rrd" \
@@ -174,7 +174,7 @@ ts=$(date +%s)
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -f "$rrds/thr.api.rrd" ] || fail "threshold-declaring block files not created"
-grep -q 'thr\.api\.rrd [0-9]* u=val:ms,val_warn:ms h=val:600,val_warn:600 d=val,val_warn t=val:>val_warn:warn,val:>500:crit$' "$work/rrd/testhost/.fileset-index" \
+grep -q 'thr\.api\.rrd [0-9]* u=val:ms,val_warn:ms h=val:600,val_warn:600 d=val,val_warn t=val:>val_warn:warn,val:>500:crit g=[0-9]*$' "$work/rrd/testhost/.fileset-index" \
 	|| fail "threshold relations not in the index: $(grep thr.api "$work/rrd/testhost/.fileset-index")"
 
 env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=thr --rrddir="$work/rrd" \
@@ -213,7 +213,7 @@ mv "$work/graphs.cfg.bak" "$work/graphs.cfg"
 # A corrupt index relation (relop-less: the producer would reject it) must
 # not suppress datasets: the renderer applies the producer's validation,
 # and both DSes plot as peers.
-sed -i 's/ t=val:>val_warn:warn,val:>500:crit$/ t=val:val_warn:warn/' "$work/rrd/testhost/.fileset-index"
+sed -i 's/ t=val:>val_warn:warn,val:>500:crit/ t=val:val_warn:warn/' "$work/rrd/testhost/.fileset-index"
 render_thr
 grep -aq "Content-type: image/png" "$work/out" || fail "corrupt-relation graph does not render"
 grep -aq "FFCC00" "$work/out" && fail "corrupt relation must not be threshold-styled"

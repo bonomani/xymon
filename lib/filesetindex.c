@@ -38,9 +38,13 @@ static char filesetindex_rcsid[] = "$Id$";
 #define FSIDX_NAME ".fileset-index"
 #define FSIDX_HEADER "# xymon fileset index v1"
 #define FSIDX_FLUSHIVL 300
-/* Schema specs are wire-fed; longer than this and a reader's line buffer
- * would truncate them mid-token on the way back in. Reject loudly. */
-#define FSIDX_SPECMAX 1024
+
+/* FSIDX_SPECMAX / FSIDX_LINEMAX live in filesetindex.h (readers outside
+ * this file need the line bound too). The baseline field is bounded by
+ * the channel line length; keep the header's literal in sync with it. */
+#if defined(MAX_LINE_LEN) && (MAX_LINE_LEN > 16384)
+#error "FSIDX_LINEMAX (filesetindex.h) assumes MAX_LINE_LEN <= 16384"
+#endif
 
 typedef struct fsidx_host_t {
 	void *files;		/* rrdfn (char*) -> (time_t) last data write, cast in a slot */
@@ -59,6 +63,7 @@ typedef struct fsidx_entry_t {
 	char *baseline;		/* flat instance: its value string; no RRD file exists */
 	time_t since;		/* ... unchanged since this data timestamp */
 	int bl_cleared;		/* materialized this run: weak merges must not re-add b= */
+	time_t gen;		/* when the schema fields (u/h/d/t) were last declared live */
 } fsidx_entry_t;
 
 static void *fsidx_hosts = NULL;	/* hostname -> fsidx_host_t */
@@ -132,18 +137,34 @@ static void fsidx_set_entry_heartbeats(fsidx_host_t *h, const char *fn, const ch
 	}
 }
 
+/* Replace one schema field outright (newer declaration adopted from the
+ * other writer's disk state). Returns 1 when the value changed. */
+static int fsidx_adopt_field(char **slot, const char *val)
+{
+	if (!val && !*slot) return 0;
+	if (val && *slot && (strcmp(*slot, val) == 0)) return 0;
+	if (*slot) xfree(*slot);
+	*slot = (val ? strdup(val) : NULL);
+	return 1;
+}
+
 /* Merge the on-disk index (possibly written by the other channel's writer)
- * into the in-memory tree. Unknown trailing fields are ignored - future
- * versions carry units/thresholds/baselines there. */
+ * into the in-memory tree. The schema fields (u/h/d/t) merge by their
+ * declaration timestamp (g=): a NEWER disk bundle replaces ours outright,
+ * an older one is ignored, equal generations weak-fill empty slots (the
+ * legacy g-less behavior). This is what stops the two writers from
+ * ping-ponging a changed spec: the stale process adopts instead of
+ * republishing. Unknown trailing fields are ignored - future versions
+ * carry record extensions there. */
 static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 {
 	FILE *fd = fopen(fn, "r");
-	char line[PATH_MAX + 64];
+	char line[FSIDX_LINEMAX];
 
 	if (!fd) return;
 	while (fgets(line, sizeof(line), fd)) {
 		char *name, *tsstr, *tok, *units, *thr, *bl, *dsn, *hb, *sp = NULL;
-		time_t ts;
+		time_t ts, gen;
 
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
@@ -151,24 +172,50 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		if (!name || !tsstr) continue;
 		ts = (time_t)atol(tsstr);
 		if (ts <= 0) continue;
-		units = NULL; thr = NULL; bl = NULL; dsn = NULL; hb = NULL;
+		units = NULL; thr = NULL; bl = NULL; dsn = NULL; hb = NULL; gen = 0;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "u=", 2) == 0) units = tok+2;
 			else if (strncmp(tok, "h=", 2) == 0) hb = tok+2;
 			else if (strncmp(tok, "t=", 2) == 0) thr = tok+2;
 			else if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
 			else if (strncmp(tok, "d=", 2) == 0) dsn = tok+2;
+			else if (strncmp(tok, "g=", 2) == 0) gen = (time_t)atol(tok+2);
 			/* unknown fields: future record extensions, ignored */
 		}
-		fsidx_set(h, name, ts, units, 0);
-		if (hb) fsidx_set_entry_heartbeats(h, name, hb, 0);
-		if (thr) fsidx_set_entry_thresholds(h, name, thr, 0);
-		if (dsn) {
-			xtreePos_t dh = xtreeFind(h->files, name);
-			if (dh != xtreeEnd(h->files)) {
-				fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, dh);
-				if (!e->dsnames) e->dsnames = strdup(dsn);
+		/* The writers cap every spec at FSIDX_SPECMAX and the baseline
+		 * at the channel line length - that is what makes FSIDX_LINEMAX
+		 * an invariant. A hand-edited/corrupt file must not smuggle an
+		 * oversized field back in, or the NEXT flush writes a record
+		 * that splits on every later read. */
+		if (units && (strlen(units) > FSIDX_SPECMAX)) units = NULL;
+		if (hb && (strlen(hb) > FSIDX_SPECMAX)) hb = NULL;
+		if (thr && (strlen(thr) > FSIDX_SPECMAX)) thr = NULL;
+		if (dsn && (strlen(dsn) > FSIDX_SPECMAX)) dsn = NULL;
+		if (bl && (strlen(bl) > MAX_LINE_LEN)) bl = NULL;	/* the writer's bound, see FSIDX_LINEMAX */
+		fsidx_set(h, name, ts, NULL, 0);
+		{
+			xtreePos_t eh = xtreeFind(h->files, name);
+			fsidx_entry_t *e;
+
+			if (eh == xtreeEnd(h->files)) continue;
+			e = (fsidx_entry_t *)xtreeData(h->files, eh);
+			if (gen > e->gen) {
+				/* Newer declaration on disk: adopt the bundle */
+				int changed = 0;
+				changed |= fsidx_adopt_field(&e->units, units);
+				changed |= fsidx_adopt_field(&e->heartbeats, hb);
+				changed |= fsidx_adopt_field(&e->dsnames, dsn);
+				changed |= fsidx_adopt_field(&e->thresholds, thr);
+				e->gen = gen;
+				if (changed) h->dirty_new = 1;
 			}
+			else if (gen == e->gen) {
+				if (units) fsidx_set(h, name, ts, units, 0);
+				if (hb) fsidx_set_entry_heartbeats(h, name, hb, 0);
+				if (thr) fsidx_set_entry_thresholds(h, name, thr, 0);
+				if (dsn && !e->dsnames) e->dsnames = strdup(dsn);
+			}
+			/* gen < e->gen: ours is the newer declaration, ignore disk */
 		}
 		if (bl) {
 			/* "b=<since>,<values>": a flat instance's baseline. Weak
@@ -244,26 +291,54 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 	return h;
 }
 
-void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts)
+/* Strong-apply the sticky live declarations to one entry and stamp its
+ * declaration generation - the merge authority for the schema bundle. */
+static void fsidx_apply_pendings(fsidx_host_t *h, fsidx_entry_t *e)
+{
+	int declared = 0;
+
+	if (fsidx_pending_units) { if (fsidx_adopt_field(&e->units, fsidx_pending_units)) h->dirty_new = 1; declared = 1; }
+	if (fsidx_pending_heartbeats) { if (fsidx_adopt_field(&e->heartbeats, fsidx_pending_heartbeats)) h->dirty_new = 1; declared = 1; }
+	if (fsidx_pending_dsnames) { if (fsidx_adopt_field(&e->dsnames, fsidx_pending_dsnames)) h->dirty_new = 1; declared = 1; }
+	if (fsidx_pending_thresholds) { if (fsidx_adopt_field(&e->thresholds, fsidx_pending_thresholds)) h->dirty_new = 1; declared = 1; }
+	if (declared) e->gen = getcurrenttime(NULL);
+}
+
+/* Event-time bookkeeping: ensure the entry exists (a new one is stamped
+ * with the sample's own timestamp, once) and record the live schema
+ * declarations. Does NOT advance an existing entry's freshness - that
+ * belongs to fsidx_note_commit, after rrdtool accepts the data. */
+void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts)
+{
+	fsidx_host_t *h;
+	xtreePos_t handle;
+	fsidx_entry_t *e;
+
+	if (!rrddir || !hostname || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	h = fsidx_gethost(rrddir, hostname);
+	handle = xtreeFind(h->files, rrdfn);
+	if (handle == xtreeEnd(h->files)) {
+		e = (fsidx_entry_t *)calloc(1, sizeof(fsidx_entry_t));
+		e->fn = strdup(rrdfn);
+		e->ts = ts;
+		xtreeAdd(h->files, e->fn, e);
+		h->dirty_new = 1;
+	}
+	else e = (fsidx_entry_t *)xtreeData(h->files, handle);
+	fsidx_apply_pendings(h, e);
+}
+
+/* Commit-time freshness: the update was ACCEPTED by rrdtool, so the
+ * entry's last-write advances to the applied data timestamp. A rejected
+ * update never reaches here - a chronically broken producer goes stale
+ * on schedule instead of looking forever fresh. */
+void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 {
 	fsidx_host_t *h;
 
-	if (!rrddir || !hostname || !rrdfn || !(*rrdfn)) return;
+	if (!rrddir || !hostname || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
 	h = fsidx_gethost(rrddir, hostname);
-	fsidx_set(h, rrdfn, ts, fsidx_pending_units, 1);
-	if (fsidx_pending_heartbeats) fsidx_set_entry_heartbeats(h, rrdfn, fsidx_pending_heartbeats, 1);
-	if (fsidx_pending_thresholds) fsidx_set_entry_thresholds(h, rrdfn, fsidx_pending_thresholds, 1);
-	if (fsidx_pending_dsnames) {
-		xtreePos_t dh = xtreeFind(h->files, rrdfn);
-		if (dh != xtreeEnd(h->files)) {
-			fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, dh);
-			if (!e->dsnames || strcmp(e->dsnames, fsidx_pending_dsnames)) {
-				if (e->dsnames) xfree(e->dsnames);
-				e->dsnames = strdup(fsidx_pending_dsnames);
-				h->dirty_new = 1;
-			}
-		}
-	}
+	fsidx_set(h, rrdfn, ts, NULL, 0);
 }
 
 /* Sticky positional DS names for following writes, same lifecycle as
@@ -344,11 +419,13 @@ void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values,
 
 	if (!rrddir || !hostname || !rrdfn || !values) return;
 	h = fsidx_gethost(rrddir, hostname);
-	fsidx_set(h, rrdfn, ts, fsidx_pending_units, 1);	/* ensure the entry; refresh last-seen */
+	/* Ensure the entry and refresh last-seen: no rrdtool involved for a
+	 * baseline, so event time IS commit time here. */
+	fsidx_set(h, rrdfn, ts, NULL, 0);
 	handle = xtreeFind(h->files, rrdfn);
 	if (handle == xtreeEnd(h->files)) return;
 	e = (fsidx_entry_t *)xtreeData(h->files, handle);
-	if (fsidx_pending_dsnames && !e->dsnames) e->dsnames = strdup(fsidx_pending_dsnames);
+	fsidx_apply_pendings(h, e);
 	if (!e->baseline) {
 		e->baseline = strdup(values);
 		e->since = ts;
@@ -459,6 +536,7 @@ void fsidx_flush(char *rrddir, char *hostname)
 			if (e->heartbeats) fprintf(fd, " h=%s", e->heartbeats);
 			if (e->dsnames) fprintf(fd, " d=%s", e->dsnames);
 			if (e->thresholds) fprintf(fd, " t=%s", e->thresholds);
+			if (e->gen) fprintf(fd, " g=%ld", (long)e->gen);
 			if (e->baseline) fprintf(fd, " b=%ld,%s", (long)e->since, e->baseline);
 			fprintf(fd, "\n");
 		}
@@ -493,6 +571,23 @@ void fsidx_flush_all(char *rrddir)
 		if (h->dirty_ts) h->dirty_new = 1;
 		fsidx_flush(rrddir, (char *)xtreeKey(fsidx_hosts, handle));
 	}
+}
+
+/* Must-write flush for one host: promotes timestamp-only dirt past the
+ * FLUSHIVL throttle. For the moments when the file must be current NOW -
+ * a rename is about to move it, and the in-memory tree that holds the
+ * newer timestamps is about to be dropped. */
+void fsidx_flush_now(char *rrddir, char *hostname)
+{
+	fsidx_host_t *h;
+	xtreePos_t handle;
+
+	if (!fsidx_hosts || !hostname) return;
+	handle = xtreeFind(fsidx_hosts, hostname);
+	if (handle == xtreeEnd(fsidx_hosts)) return;
+	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
+	if (h->dirty_ts) h->dirty_new = 1;
+	fsidx_flush(rrddir, hostname);
 }
 
 void fsidx_drop(char *rrddir, char *hostname)
@@ -533,7 +628,7 @@ static char *fsidx_field(char *hostname, char *rrdfn, const char *fieldtag)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
-	char line[PATH_MAX + 64];
+	char line[FSIDX_LINEMAX];
 	char *result = NULL;
 	size_t taglen = strlen(fieldtag);
 
@@ -569,7 +664,7 @@ char *fsidx_units(char *hostname, char *rrdfn)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
-	char line[PATH_MAX + 64];
+	char line[FSIDX_LINEMAX];
 	char *result = NULL;
 
 	if (!hostname || !rrdfn) return NULL;
@@ -597,7 +692,7 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
-	char line[PATH_MAX + 64];
+	char line[FSIDX_LINEMAX];
 	int count = 0;
 	time_t now = getcurrenttime(NULL);
 
@@ -628,7 +723,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
-	char line[PATH_MAX + 64];
+	char line[FSIDX_LINEMAX];
 	size_t plen;
 	int count = 0;
 	time_t now = getcurrenttime(NULL);
@@ -650,7 +745,11 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		if (!name || !tsstr) continue;
 
 		nlen = strlen(name);
-		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) || (name[plen] != '.')) continue;
+		/* '.' is the instance separator; ',' is its legacy spelling
+		 * (pre-encode disk/devmon files) - both are real instances of
+		 * this prefix, and the gdef-side matchers accept both. */
+		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) ||
+		    ((name[plen] != '.') && (name[plen] != ','))) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
 		ts = (time_t)atol(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;

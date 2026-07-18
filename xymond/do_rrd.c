@@ -270,6 +270,16 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 	/* Flush any updates we've cached */
 	xymon_rrd_argv_item_t updparams[5+CACHESZ+1] = { "rrdupdate", filedir, "-t", NULL, NULL, NULL, };
 	int i, pcount, result;
+	time_t maxts = 0;
+
+	/* The newest data timestamp in this batch - committed to the fileset
+	 * index below IF rrdtool accepts the batch. */
+	for (i=0; (i < cacheitem->valcount); i++)
+		if (cacheitem->updtime[i] > maxts) maxts = cacheitem->updtime[i];
+	if (newdata) {
+		time_t newts = (time_t)atol(newdata);
+		if (newts > maxts) maxts = newts;
+	}
 
 	dbgprintf("Flushing '%s' with %d updates pending, template '%s'\n", 
 		  cacheitem->key, (newdata ? 1 : 0) + cacheitem->valcount, cacheitem->tpl->template);
@@ -309,6 +319,24 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 		if (cacheitem->vals[i]) xfree(cacheitem->vals[i]);
 	}
 	cacheitem->valcount = 0;
+
+	/* Accepted data advances the fileset index's freshness; a rejected
+	 * batch (dropped above either way) leaves it alone. The cache key is
+	 * "/<host>/<rrdfn>" - split it back apart for the note. */
+	if ((result == 0) && maxts) {
+		char *keyhost = cacheitem->key + 1;
+		char *slash = strchr(keyhost, '/');
+
+		if (slash) {
+			char savedhost[PATH_MAX];
+			size_t hlen = slash - keyhost;
+
+			if (hlen < sizeof(savedhost)) {
+				memcpy(savedhost, keyhost, hlen); savedhost[hlen] = '\0';
+				fsidx_note_commit(rrddir, savedhost, slash+1, maxts);
+			}
+		}
+	}
 
 	return result;
 }
@@ -636,10 +664,11 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	/* Are we actually handling the writing of RRD files? */
 	if (no_rrd) return 0;
 
-	/* Bookkeep the fileset index: this file received data now. The data
-	 * timestamp (not the disk flush time) is the freshness that display
-	 * and staleness rules care about. */
-	fsidx_note_write(rrddir, hostname, rrdfn, (time_t)updtime);
+	/* Bookkeep the fileset index: the entry and its declared schema are
+	 * noted now; the freshness timestamp advances only when the update
+	 * COMMITS (flush_cached_updates), so a chronically rejected update
+	 * cannot keep an instance looking fresh forever. */
+	fsidx_note_schema(rrddir, hostname, rrdfn, (time_t)updtime);
 
 	/* 
 	 * We cannot just cache data every time because then after CACHESZ updates

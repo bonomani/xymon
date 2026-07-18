@@ -204,7 +204,7 @@ static void process_host(char *rrddir, char *hostname)
 {
 	char hostdir[PATH_MAX], idxfn[PATH_MAX];
 	FILE *fd;
-	char line[PATH_MAX + 1200];
+	char line[FSIDX_LINEMAX];
 
 	snprintf(hostdir, sizeof(hostdir), "%s/%s", rrddir, hostname);
 	snprintf(idxfn, sizeof(idxfn), "%s/.fileset-index", hostdir);
