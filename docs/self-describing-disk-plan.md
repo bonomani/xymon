@@ -336,6 +336,18 @@ reader tolerates the mix.
     draws HRULEs (flat lines; a TIME-conditional rule renders its currently
     effective level). Gated on RFC #218's unified rule engine - re-parsing
     analysis.cfg inside showgraph would be a second, drift-prone matcher.
+  The GRAPH marker is not involved: it answers "which images belong to this
+  status, how many instances" - graph CONTENT is always derived server-side
+  from facts + gdefs, so thresholds never touch it. A producer with a FIXED
+  level needs no separate mechanism either: it emits the level as a
+  constant-valued threshold DS and declares the same relation - one uniform
+  mechanism, and better than a flat rule, because when the producer changes
+  the level the graph shows the step instead of rewriting history. (The
+  grammar leaves room for a later literal form - "THRESHOLD read_ms warn
+  200", persisted in the fileset index like units - but that is a second
+  mechanism for the same fact; held back unless the extra-DS cost proves to
+  matter.) So the entire wire surface for thresholds is ONE line in ONE
+  marker: THRESHOLD in the METRICS block.
   Both compose on one image. Bonus: the declared THRESHOLD relation is
   exactly what #218 wants too - "alert when a metric crosses its declared
   threshold metric" becomes a generic DS-vs-DS rule instead of per-handler
