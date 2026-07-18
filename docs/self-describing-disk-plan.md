@@ -179,28 +179,6 @@ inheriting the old collision unchanged.
   ONE feature branch (self-describing-metrics), not yet merged upstream.
   Sequence after that lands, or keep as a proving branch. test-cfg is optional
   and only for the config-driven HANDLER refinement.
-- Declared heartbeats only act at file creation: the DS heartbeat lives in
-  the RRD file once created, so a producer changing its DS:<hb> declaration
-  affects new files only - existing files need an rrdtool tune pass. Either
-  the writer detects the mismatch and tunes, or the limitation is documented;
-  silently ignoring the new declaration is the one wrong option.
-- Instance sort order: showgraph's rrd_name_compare knows only two regimes -
-  pure-integer keys (numeric sort) and everything else (case-sensitive strcmp).
-  Multi-component numeric keys sort wrongly: strcmp puts "1.10.1" before
-  "1.2.1", the reverse of OID/version order. Harmless today (stock instances
-  are names or plain integers), but once instances are arbitrary keys announced
-  by a METRICS block (SNMP collectors -> OIDs, composed indexes), display order
-  and first/count paging stability depend on this comparator. Before that
-  lands, replace it with ONE version-aware compare (split on separators,
-  compare digit runs numerically, strcmp fallback per component - strverscmp
-  semantics): it subsumes all three cases (plain integers unchanged, OIDs
-  fixed, names unchanged), so it is a drop-in replacement, not a new special
-  case. Two hard requirements, both violated by the current comparator: it
-  must be a TOTAL ORDER - (a) a digit run always compares numerically
-  regardless of the partner key; the current per-pair numeric-or-strcmp
-  choice is intransitive (9 < 10 < "1a" but 9 > "1a" directly), so qsort's
-  result depends on readdir order - measured: the three permutations of
-  {9, 10, 1a} produce three different "sorted" outputs; (b) distinct keys
-  must never compare equal ("007" vs "7" returns 0 today) - numerically
-  equal components need a strcmp tie-break, otherwise their order, and the
-  first/count slice containing them, is unspecified.
+- Dialect-level watch-items the disk migration depends on (declared
+  heartbeats acting only at file creation; the rrd_name_compare total-order
+  rewrite): see "Risks / watch-items" in `self-describing-metrics.md`.
