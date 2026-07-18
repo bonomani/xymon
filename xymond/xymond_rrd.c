@@ -251,10 +251,18 @@ int main(int argc, char *argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGPIPE, &sa, NULL);
 
-	/* Setup the control socket that receives cache-flush commands */
+	/* Setup the control socket that receives cache-flush commands. The
+	 * AF_UNIX path is limited to sizeof(sun_path) (typically 108): a
+	 * long $XYMONTMP overflowed the sprintf and aborted the daemon at
+	 * startup - check it and run without the socket instead. */
 	memset(&ctlsockaddr, 0, sizeof(ctlsockaddr));
-	sprintf(ctlsockaddr.sun_path, "%s/rrdctl.%lu", xgetenv("XYMONTMP"), (unsigned long)getpid());
-	unlink(ctlsockaddr.sun_path);     /* In case it was accidentally left behind */
+	if ((size_t)snprintf(ctlsockaddr.sun_path, sizeof(ctlsockaddr.sun_path), "%s/rrdctl.%lu",
+			     xgetenv("XYMONTMP"), (unsigned long)getpid()) >= sizeof(ctlsockaddr.sun_path)) {
+		errprintf("XYMONTMP path too long for the cache-control socket (max %d) - cache flushing on demand disabled\n",
+			  (int)sizeof(ctlsockaddr.sun_path) - 20);
+		ctlsockaddr.sun_path[0] = '\0';
+	}
+	if (ctlsockaddr.sun_path[0]) unlink(ctlsockaddr.sun_path);     /* In case it was accidentally left behind */
 	ctlsockaddr.sun_family = AF_UNIX;
 	ctlsocket = socket(AF_UNIX, SOCK_DGRAM, 0);
 	if (ctlsocket == -1) {
@@ -262,13 +270,15 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	fcntl(ctlsocket, F_SETFL, O_NONBLOCK);
-	if (bind(ctlsocket, (struct sockaddr *)&ctlsockaddr, sizeof(ctlsockaddr)) == -1) {
-		errprintf("Cannot bind to cache-control socket (%s)\n", strerror(errno));
-		return 1;
-	}
-	/* Linux obeys filesystem permissions on the socket file, so make it world-accessible */
-	if (chmod(ctlsockaddr.sun_path, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) == -1) {
-		errprintf("Setting permissions on cache-control socket failed: %s\n", strerror(errno));
+	if (ctlsockaddr.sun_path[0]) {
+		if (bind(ctlsocket, (struct sockaddr *)&ctlsockaddr, sizeof(ctlsockaddr)) == -1) {
+			errprintf("Cannot bind to cache-control socket (%s)\n", strerror(errno));
+			return 1;
+		}
+		/* Linux obeys filesystem permissions on the socket file, so make it world-accessible */
+		if (chmod(ctlsockaddr.sun_path, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) == -1) {
+			errprintf("Setting permissions on cache-control socket failed: %s\n", strerror(errno));
+		}
 	}
 
 	/* Load the RRD definitions */
