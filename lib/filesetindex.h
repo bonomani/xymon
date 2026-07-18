@@ -25,6 +25,7 @@
 
 /* Writer side (xymond_rrd) */
 extern void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts);
+extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */
 extern void fsidx_flush(char *rrddir, char *hostname);
 extern void fsidx_flush_all(char *rrddir);
 extern void fsidx_drop(char *rrddir, char *hostname);
@@ -38,5 +39,9 @@ extern int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage);
  * `pattern` is a pcre2_code* passed as void* to keep this header free of
  * the PCRE include-order dance. */
 extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage);
+
+/* The per-DS units recorded for one file: malloc'd "ds:unit[,...]" spec,
+ * or NULL (no index, or no units declared). Caller frees. */
+extern char *fsidx_units(char *hostname, char *rrdfn);
 
 #endif

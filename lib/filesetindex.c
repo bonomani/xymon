@@ -49,16 +49,20 @@ typedef struct fsidx_host_t {
 typedef struct fsidx_entry_t {
 	char *fn;
 	time_t ts;
+	char *units;		/* "ds:unit[,ds:unit...]" or NULL */
 } fsidx_entry_t;
 
 static void *fsidx_hosts = NULL;	/* hostname -> fsidx_host_t */
+static char *fsidx_pending_units = NULL;	/* sticky per-block writer state, see fsidx_set_units() */
 
 static void fsidx_path(char *buf, size_t bufsz, const char *rrddir, const char *hostname, const char *suffix)
 {
 	snprintf(buf, bufsz, "%s/%s/%s%s", rrddir, hostname, FSIDX_NAME, suffix);
 }
 
-static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts)
+/* strong units (a live write's declaration) replace what the entry has;
+ * weak units (merged from the on-disk file) only fill an empty slot. */
+static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts, const char *units, int strongunits)
 {
 	xtreePos_t handle = xtreeFind(h->files, (char *)fn);
 	fsidx_entry_t *e;
@@ -74,6 +78,14 @@ static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts)
 		e = (fsidx_entry_t *)xtreeData(h->files, handle);
 		if (ts > e->ts) { e->ts = ts; h->dirty_ts = 1; }
 	}
+
+	if (units && (strongunits || !e->units)) {
+		if (!e->units || strcmp(e->units, units)) {
+			if (e->units) xfree(e->units);
+			e->units = strdup(units);
+			h->dirty_new = 1;	/* schema info: flush immediately */
+		}
+	}
 }
 
 /* Merge the on-disk index (possibly written by the other channel's writer)
@@ -86,7 +98,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 
 	if (!fd) return;
 	while (fgets(line, sizeof(line), fd)) {
-		char *name, *tsstr, *sp = NULL;
+		char *name, *tsstr, *tok, *units, *sp = NULL;
 		time_t ts;
 
 		if (line[0] == '#') continue;
@@ -95,7 +107,12 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		if (!name || !tsstr) continue;
 		ts = (time_t)atol(tsstr);
 		if (ts <= 0) continue;
-		fsidx_set(h, name, ts);
+		units = NULL;
+		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
+			if (strncmp(tok, "u=", 2) == 0) units = tok+2;
+			/* unknown fields: future record extensions, ignored */
+		}
+		fsidx_set(h, name, ts, units, 0);
 	}
 	fclose(fd);
 }
@@ -119,7 +136,7 @@ static void fsidx_scan_dir(fsidx_host_t *h, const char *rrddir, const char *host
 		if ((len < 5) || (strcmp(d->d_name + len - 4, ".rrd") != 0)) continue;
 		snprintf(fpath, sizeof(fpath), "%s/%s", dirname, d->d_name);
 		if ((stat(fpath, &st) != 0) || !S_ISREG(st.st_mode)) continue;
-		fsidx_set(h, d->d_name, st.st_mtime);
+		fsidx_set(h, d->d_name, st.st_mtime, NULL, 0);
 	}
 	closedir(dir);
 }
@@ -158,7 +175,17 @@ void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 
 	if (!rrddir || !hostname || !rrdfn || !(*rrdfn)) return;
 	h = fsidx_gethost(rrddir, hostname);
-	fsidx_set(h, rrdfn, ts);
+	fsidx_set(h, rrdfn, ts, fsidx_pending_units, 1);
+}
+
+/* Sticky per-block writer state: the block writer declares the units of
+ * the DS specs it is about to create files from; every note_write until
+ * the next call carries them. NULL clears (a block without units, another
+ * handler's writes). Same pattern as the writer's lazy gate. */
+void fsidx_set_units(char *unitspec)
+{
+	if (fsidx_pending_units) { xfree(fsidx_pending_units); fsidx_pending_units = NULL; }
+	if (unitspec && *unitspec) fsidx_pending_units = strdup(unitspec);
 }
 
 void fsidx_flush(char *rrddir, char *hostname)
@@ -197,7 +224,8 @@ void fsidx_flush(char *rrddir, char *hostname)
 		fprintf(fd, "%s\n", FSIDX_HEADER);
 		for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
 			fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
-			fprintf(fd, "%s %ld\n", e->fn, (long)e->ts);
+			if (e->units) fprintf(fd, "%s %ld u=%s\n", e->fn, (long)e->ts, e->units);
+			else fprintf(fd, "%s %ld\n", e->fn, (long)e->ts);
 		}
 		fclose(fd);
 		if (rename(tmpfn, fn) != 0) {
@@ -248,12 +276,43 @@ void fsidx_drop(char *rrddir, char *hostname)
 	for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
 		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
 		xfree(e->fn);
+		if (e->units) xfree(e->units);
 		xfree(e);
 	}
 	xtreeDestroy(h->files);
 	h->files = xtreeNew(strcmp);
 	h->dirty_new = h->dirty_ts = 0;
 	h->lastflush = 0;
+}
+
+/* The per-DS units recorded for one file: a malloc'd "ds:unit[,...]"
+ * spec, or NULL when the host has no index or the file no units. */
+char *fsidx_units(char *hostname, char *rrdfn)
+{
+	char fn[PATH_MAX];
+	FILE *fd;
+	char line[PATH_MAX + 64];
+	char *result = NULL;
+
+	if (!hostname || !rrdfn) return NULL;
+	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	fd = fopen(fn, "r");
+	if (!fd) return NULL;
+
+	while (!result && fgets(line, sizeof(line), fd)) {
+		char *name, *tok, *sp = NULL;
+
+		if (line[0] == '#') continue;
+		name = strtok_r(line, " \t\r\n", &sp);
+		if (!name || strcmp(name, rrdfn)) continue;
+		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
+			if (strncmp(tok, "u=", 2) == 0) { result = strdup(tok+2); break; }
+		}
+		break;
+	}
+	fclose(fd);
+
+	return result;
 }
 
 int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)

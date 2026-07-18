@@ -71,6 +71,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			dbgprintf("DEVMON: changing testname from %s to %s\n",testname,rrdbasename);
 			numds = 0;
 			setup_lazy(0);
+			fsidx_set_units(NULL);
 			goto nextline;
 		}
 		if(!strncmp(curline, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER))) {
@@ -94,6 +95,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
 				setup_lazy(0);
+				fsidx_set_units(NULL);
 				while ((attr = strtok(NULL, " \t")) != NULL) {
 					if (strcmp(attr, "-->") == 0) break;
 					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
@@ -116,9 +118,11 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 
 		/* DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U */
 		if (!strncmp(curline, "DS:",3)) {
+			strbuffer_t *unitspec = newstrbuffer(0);
+
 			dbgprintf("Looking for DS definitions in %s\n",curline);
 			while ( numds < MAXCOLS) {
-				char *spec, *cp;
+				char *spec, *cp, *unit = NULL;
 				int ncolon = 0;
 
 				dbgprintf("Seeing if column %d that has %s is a DS\n",numds,columns[numds]);
@@ -127,16 +131,30 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				/* A DS spec may declare a unit as an optional 7th
 				 * colon field (DS:name:GAUGE:600:0:U:ms). rrdtool
 				 * accepts only the 6-field spec, so cut the suffix
-				 * before it reaches rrdcreate. */
+				 * before it reaches rrdcreate - and record the unit
+				 * in the fileset index, where the renderer looks. */
 				for (cp = spec; (*cp); cp++) {
 					if (*cp != ':') continue;
-					if (++ncolon == 6) { *cp = '\0'; break; }
+					if (++ncolon == 6) { *cp = '\0'; unit = cp+1; break; }
+				}
+				if (unit && *unit) {
+					char *dsname = spec + 3;
+					char *dsend = strchr(dsname, ':');
+
+					if (dsend) {
+						if (STRBUFLEN(unitspec)) addtobuffer(unitspec, ",");
+						addtobufferraw(unitspec, dsname, dsend - dsname);
+						addtobuffer(unitspec, ":");
+						addtobuffer(unitspec, unit);
+					}
 				}
 				devmon_params[numds] = spec;
 				numds++;
 			}
 			dbgprintf("Found %d DS definitions\n",numds);
 			devmon_params[numds] = NULL;
+			fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
+			freestrbuffer(unitspec);
 
 			goto nextline;
 		}
@@ -224,6 +242,7 @@ nextline:
 		curline = (eoln ? (eoln+1) : NULL);
 	}
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */
+	fsidx_set_units(NULL);
 
 	{
 		int i;

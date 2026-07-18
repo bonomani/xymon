@@ -149,7 +149,17 @@ that file does not have. Same family as the heartbeat watch-item:
 declarations changed after creation only affect new files, and the
 reader tolerates the mix.
 
-## Units and gdef scaffolding (decided)
+## Units and gdef scaffolding (decided; IMPLEMENTED except mixed-unit grouping)
+
+Implementation status: the writer records declared units into the fileset
+index ("u=ds:unit,..." on the file's entry, live declarations replacing
+stale ones); the synthetic gdef derives YAXIS when every dataset shares
+one unit after alias normalization, applying the renderer hint table
+(canonical spelling, "-b 1024" for byte quantities, "--units-exponent 0"
+for percentages) - an unknown unit labels the axis verbatim with default
+rendering, and --emit-gdef scaffolds the derived YAXIS and options.
+NOT yet implemented: mixed-unit blocks still get the generic "Value" axis
+(the per-unit image grouping below remains a candidate).
 
 - Unit as a declared fact (DS dialect extension, DECIDED): the unit is
   metric semantics - producer knowledge, like type and bounds - and the one

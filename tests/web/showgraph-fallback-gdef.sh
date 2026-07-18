@@ -120,6 +120,40 @@ env XYMONHOME="$work" "$work/showgraph" --emit-gdef=nosuch --rrddir="$work/rrd" 
 	>"$work/gdef2.out" 2>"$work/gdef2.err" && fail "--emit-gdef for a missing fileset must exit nonzero"
 grep -q "No RRD files matching" "$work/gdef2.err" || fail "--emit-gdef missing-fileset error not on stderr"
 
+# Declared units drive the synthesized YAXIS: a block whose DSes all carry
+# "msec" (an alias) renders and scaffolds with YAXIS "ms" (the canonical
+# spelling) - units flow producer -> writer -> fileset index -> renderer.
+ts=$(date +%s)
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: resp\n'
+	printf 'DS:rd:GAUGE:600:0:U:msec DS:wr:GAUGE:600:0:U:msec\n'
+	printf 'api 42:187\n'
+	printf -- '-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/resp.api.rrd" ] || fail "unit-declaring block files not created"
+grep -q 'resp\.api\.rrd [0-9]* u=rd:msec,wr:msec$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "units not in the index: $(cat "$work/rrd/testhost/.fileset-index")"
+
+env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=resp --rrddir="$work/rrd" \
+	>"$work/gdefu.out" 2>"$work/gdefu.err" \
+	|| fail "--emit-gdef with units exited nonzero: $(cat "$work/gdefu.err")"
+grep -q '	YAXIS ms$' "$work/gdefu.out" \
+	|| fail "YAXIS not derived from declared units (alias msec->ms): $(cat "$work/gdefu.out")"
+
+# And the live render uses the same derived axis (present in the args dump).
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=resp&graph=hourly&action=view" \
+XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "Content-type: image/png" "$work/out" || fail "unit-labelled graph does not render"
+# (--debug prefixes each dumped arg with pid+timestamp, so match suffixes)
+grep -a -A1 -- ' -v$' "$work/out" | grep -aq ' ms$' \
+	|| fail "derived YAXIS 'ms' missing from render args: $(grep -a -A1 -- ' -v$' "$work/out" | head -4)"
+
 # Disk legend end-to-end: the stock [disk] FNPATTERN ("^disk(.*).rrd")
 # captures the "." separator of encoded files, and the decode path must
 # absorb it - a migrated disk.%2Fvar.rrd must legend as "/var", never

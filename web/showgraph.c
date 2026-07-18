@@ -1119,9 +1119,63 @@ static gdef_t *synthetic_gdef(char *name)
 	return newitem;
 }
 
+/* Renderer knowledge about well-known units: never policy, only rendering
+ * hints. Aliases converge spellings at render time (the wire keeps what the
+ * producer said), canon becomes the YAXIS label, and graphopts carries the
+ * rrdtool options the unit implies (base 1024 for byte quantities, a fixed
+ * exponent for percentages that must not print as "0.9 k"). An unknown
+ * unit is fully legal: verbatim label, default rendering. */
+static struct unithint_t {
+	char *name, *canon, *graphopts;
+} unithints[] = {
+	{ "B",      "B",      "-b 1024" },
+	{ "bytes",  "B",      "-b 1024" },
+	{ "KB",     "KB",     "-b 1024" },
+	{ "MB",     "MB",     "-b 1024" },
+	{ "B/s",    "B/s",    "-b 1024" },
+	{ "ms",     "ms",     NULL },
+	{ "msec",   "ms",     NULL },
+	{ "s",      "s",      NULL },
+	{ "sec",    "s",      NULL },
+	{ "%",      "%",      "--units-exponent 0" },
+	{ "pct",    "%",      "--units-exponent 0" },
+	{ NULL, NULL, NULL }
+};
+
+static struct unithint_t *unithint_lookup(const char *unit)
+{
+	int i;
+	for (i = 0; (unithints[i].name); i++) {
+		if (strcmp(unithints[i].name, unit) == 0) return &unithints[i];
+	}
+	return NULL;
+}
+
+/* The unit declared for `dsname` in a "ds:unit[,...]" spec; malloc'd, or
+ * NULL when the spec has no entry for it. */
+static char *unitspec_for(const char *spec, const char *dsname)
+{
+	const char *p = spec;
+	size_t dlen = strlen(dsname);
+
+	while (p && *p) {
+		const char *colon = strchr(p, ':');
+		const char *end = p + strcspn(p, ",");
+
+		if (colon && (colon < end) && ((size_t)(colon - p) == dlen) && (strncmp(p, dsname, dlen) == 0)) {
+			char *out = (char *)malloc(end - colon);
+			memcpy(out, colon+1, end - colon - 1);
+			out[end - colon - 1] = '\0';
+			return out;
+		}
+		p = ((*end == ',') ? end+1 : NULL);
+	}
+	return NULL;
+}
+
 static int synthetic_ds_skipped = 0;	/* nonzero: last synthesis omitted datasets beyond SYNTHETIC_DSMAX */
 
-static char **synthetic_defs(char *rrdfn)
+static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 {
 	rrd_info_t *info, *iwalk;
 	char *dsnames[SYNTHETIC_DSMAX];
@@ -1166,6 +1220,41 @@ static char **synthetic_defs(char *rrdfn)
 
 	if (dscount == 0) errormsg("RRD file has no datasets");
 
+	/* Derived YAXIS: when the writer recorded units for this fileset and
+	 * every dataset shares one (after alias normalization), that unit is
+	 * the axis, and its hint may add rrdtool options (base 1024, fixed
+	 * exponent). Absent or disagreeing units = the generic "Value" axis,
+	 * exactly as before. */
+	if (gd && hostname) {
+		char *base = strrchr(rrdfn, '/');
+		char *spec = fsidx_units(hostname, (base ? base+1 : rrdfn));
+
+		if (spec) {
+			char *common = NULL;
+			int agreed = 1;
+
+			for (i = 0; (agreed && (i < dscount)); i++) {
+				char *u = unitspec_for(spec, dsnames[i]);
+				struct unithint_t *hint = (u ? unithint_lookup(u) : NULL);
+				char *canon = (hint ? hint->canon : u);
+
+				if (!u) agreed = 0;
+				else if (!common) common = strdup(canon);
+				else if (strcmp(common, canon)) agreed = 0;
+				if (u) free(u);
+			}
+			if (agreed && common) {
+				struct unithint_t *hint = unithint_lookup(common);
+
+				if (gd->yaxis) free(gd->yaxis);
+				gd->yaxis = strdup(common);
+				if (hint && hint->graphopts && !gd->graphopts) gd->graphopts = strdup(hint->graphopts);
+			}
+			if (common) free(common);
+			free(spec);
+		}
+	}
+
 	defs = (char **)calloc(2*dscount + 1, sizeof(char *));
 	for (i=0; (i < dscount); i++) {
 		snprintf(buf, sizeof(buf), "DEF:v%d@RRDIDX@=@RRDFN@:%s:AVERAGE", i, dsnames[i]);
@@ -1207,6 +1296,9 @@ static char *emit_find_rrd(char *rrddir, char *name)
 			    (strncmp(fent->d_name, name, plen) == 0) && (fent->d_name[plen] == '.') &&
 			    (strcmp(fent->d_name + flen - 4, ".rrd") == 0)) {
 				snprintf(result, sizeof(result), "%s/%s", hostdir, fent->d_name);
+				/* Remember which host the file belongs to, so the
+				 * unit lookup (fileset index) works in emit mode */
+				if (!hostname) hostname = strdup(hent->d_name);
 				closedir(hd); closedir(tld);
 				return result;
 			}
@@ -1240,11 +1332,12 @@ static int emit_gdef(char *name, char *rrddir)
 		return 1;
 	}
 
-	defs = synthetic_defs(rrdfn);
+	defs = synthetic_defs(rrdfn, gdef);
 	printf("[%s]\n", name);
 	printf("\tFNPATTERN %s\n", gdef->fnpat);
 	printf("\tTITLE %s\n", gdef->title);
 	printf("\tYAXIS %s\n", gdef->yaxis);
+	if (gdef->graphopts) printf("\t%s\n", gdef->graphopts);
 	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
 	if (synthetic_ds_skipped)
 		printf("\t# NOTE: the file has more datasets; only the first %d are scaffolded\n", SYNTHETIC_DSMAX);
@@ -1648,7 +1741,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	if (gdef->defs == NULL) {
 		/* Synthetic gdef: definition lines come from the datasets of the
 		 * first RRD file matching the graph's filename pattern. */
-		gdef->defs = synthetic_defs((rrddbcount > 0) ? rrddbs[0].rrdfn : NULL);
+		gdef->defs = synthetic_defs(((rrddbcount > 0) ? rrddbs[0].rrdfn : NULL), gdef);
 	}
 
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;

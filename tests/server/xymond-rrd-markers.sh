@@ -290,6 +290,9 @@ out=$(feed_status diskio "$work/body-dialect")
 assert_contains "temperature.cpu.rrd" "$out" "unit-suffixed DS spec still creates the file"
 assert_contains "temperature.ambient.rrd" "$out" "instance after a declaration line written normally"
 assert_not_contains "THRESHOLD" "$out" "unknown declaration line creates no file"
+# The declared unit lands in the fileset index (only the DS that has one)
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "declared unit not recorded in the fileset index: $(cat "$work/rrd/testhost/.fileset-index")"
 
 # Deep-review regressions: (1) a legacy DEVMON block may carry instances
 # named like a declaration keyword - the METRICS-only contract must not
