@@ -158,8 +158,25 @@ one unit after alias normalization, applying the renderer hint table
 (canonical spelling, "-b 1024" for byte quantities, "--units-exponent 0"
 for percentages) - an unknown unit labels the axis verbatim with default
 rendering, and --emit-gdef scaffolds the derived YAXIS and options.
-NOT yet implemented: mixed-unit blocks still get the generic "Value" axis
-(the per-unit image grouping below remains a candidate).
+Mixed units RESOLVED (2026-07, verified against rrdtool 1.10.3): the
+renderer supports exactly ONE unit per image automatically - and that is
+an engine fact, not a design choice. rrdtool has a single value axis;
+--right-axis is only a fixed linear relabeling of it (scale:shift), so
+independent per-series axes are impossible at any dialect ambition.
+The ladder:
+- 1 unit: automatic (YAXIS + hints derived) - implemented.
+- 2 units: allowed via a HAND-WRITTEN gdef - CDEF-scale the second
+  series and relabel with --right-axis scale:shift. Never automated:
+  the linear ratio is a presentation judgment (data-derived ratios flap
+  per render; fixed ones squash one curve), which is exactly the
+  hand-written tier's job.
+- 3+ units: split the block, one unit per block (producer guidance,
+  SHOULD) - each gets its own image/axis/hints, and stacked same-window
+  images preserve the correlation reading (aligned small multiples).
+The wire stays unrestricted: units are facts, never policed. The earlier
+per-unit image-grouping candidate is retired - it would add a second
+image-splitting dimension (instances x unit-groups) through the whole
+paging stack to automate what block-splitting gives for free.
 
 - Unit as a declared fact (DS dialect extension, DECIDED): the unit is
   metric semantics - producer knowledge, like type and bounds - and the one
