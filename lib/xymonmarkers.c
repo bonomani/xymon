@@ -241,7 +241,14 @@ int xymon_markers_have_store(char *msg)
 		p = strstr(p, "<!--");
 		if (!p) return 0;
 		if ((p == msg) || (*(p-1) == '\n')) {
-			if (strncmp(p, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER)) == 0) return 1;
+			/* Apply the writer's own name validation: a banner the
+			 * writer will reject must not divert the status away from
+			 * its built-in handler - that would store NOTHING, where
+			 * either storing or falling back would be correct. */
+			if (strncmp(p, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER)) == 0) {
+				char *name = marker_name(p + strlen(XYMON_METRICS_MARKER));
+				if (name) { xfree(name); return 1; }
+			}
 			if (strncmp(p, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) return 1;
 		}
 		p += 4;

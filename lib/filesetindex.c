@@ -181,7 +181,9 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 
 		fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
 		if (stat(fn, &st) == 0) fsidx_load_file(h, fn);
-		else fsidx_scan_dir(h, rrddir, hostname);
+		/* An absent file - or one that yielded no entries (crash
+		 * leftovers, corruption) - triggers the one-off rebuild scan */
+		if (xtreeFirst(h->files) == xtreeEnd(h->files)) fsidx_scan_dir(h, rrddir, hostname);
 		/* Seeding counts as new content so the file materializes */
 		h->dirty_new = 1;
 	}
@@ -203,9 +205,17 @@ void fsidx_note_write(char *rrddir, char *hostname, char *rrdfn, time_t ts)
  * the DS specs it is about to create files from; every note_write until
  * the next call carries them. NULL clears (a block without units, another
  * handler's writes). Same pattern as the writer's lazy gate. */
+/* Schema specs are wire-fed; longer than this and a reader's line buffer
+ * would truncate them mid-token on the way back in. Reject loudly. */
+#define FSIDX_SPECMAX 1024
+
 void fsidx_set_units(char *unitspec)
 {
 	if (fsidx_pending_units) { xfree(fsidx_pending_units); fsidx_pending_units = NULL; }
+	if (unitspec && (strlen(unitspec) > FSIDX_SPECMAX)) {
+		errprintf("fileset index: unit spec too long (%d), ignored\n", (int)strlen(unitspec));
+		return;
+	}
 	if (unitspec && *unitspec) fsidx_pending_units = strdup(unitspec);
 }
 
@@ -214,6 +224,10 @@ void fsidx_set_units(char *unitspec)
 void fsidx_set_thresholds(char *thrspec)
 {
 	if (fsidx_pending_thresholds) { xfree(fsidx_pending_thresholds); fsidx_pending_thresholds = NULL; }
+	if (thrspec && (strlen(thrspec) > FSIDX_SPECMAX)) {
+		errprintf("fileset index: threshold spec too long (%d), ignored\n", (int)strlen(thrspec));
+		return;
+	}
 	if (thrspec && *thrspec) fsidx_pending_thresholds = strdup(thrspec);
 }
 
@@ -235,21 +249,39 @@ void fsidx_flush(char *rrddir, char *hostname)
 	if (!h->dirty_new && ((now - h->lastflush) < FSIDX_FLUSHIVL)) return;
 
 	fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
-	fsidx_path(tmpfn, sizeof(tmpfn), rrddir, hostname, ".tmp");
+	/* Per-process tmp name: even unserialized writers must never share one */
+	{
+		char pidsuf[32];
+		snprintf(pidsuf, sizeof(pidsuf), ".tmp.%d", (int)getpid());
+		fsidx_path(tmpfn, sizeof(tmpfn), rrddir, hostname, pidsuf);
+	}
 
 	/* The status- and data-channel writers share this file: serialize the
-	 * read-merge-write, or one channel's entries vanish. */
-	lockfd = open(fn, O_RDWR | O_CREAT, 0644);
+	 * read-merge-write. The lock lives on a DEDICATED lockfile - locking
+	 * the index itself would be meaningless after the rename replaces it
+	 * (the blocked process would acquire the orphaned inode's lock while
+	 * the file it guards is already a different one). */
+	{
+		char lockfn[PATH_MAX];
+		fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock");
+		lockfd = open(lockfn, O_RDWR | O_CREAT, 0644);
+	}
 	if (lockfd == -1) {
 		/* Host directory may not exist yet (no file ever created) */
 		return;
 	}
-	flock(lockfd, LOCK_EX);
+	if (flock(lockfd, LOCK_EX) != 0) {
+		errprintf("fileset index: cannot lock %s/%s: %s - skipping flush\n", hostname, FSIDX_NAME, strerror(errno));
+		close(lockfd);
+		return;
+	}
 
 	fsidx_load_file(h, fn);
 
 	fd = fopen(tmpfn, "w");
 	if (fd) {
+		int ok;
+
 		fprintf(fd, "%s\n", FSIDX_HEADER);
 		for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
 			fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
@@ -258,13 +290,17 @@ void fsidx_flush(char *rrddir, char *hostname)
 			if (e->thresholds) fprintf(fd, " t=%s", e->thresholds);
 			fprintf(fd, "\n");
 		}
-		fclose(fd);
-		if (rename(tmpfn, fn) != 0) {
-			errprintf("fileset index: cannot rename %s: %s\n", tmpfn, strerror(errno));
+		ok = (fclose(fd) == 0);
+		if (ok && (rename(tmpfn, fn) == 0)) {
+			/* Only a published file clears the dirty state - a failed
+			 * flush must retry, or a one-shot change is lost */
+			h->dirty_new = h->dirty_ts = 0;
+			h->lastflush = now;
+		}
+		else {
+			errprintf("fileset index: cannot publish %s: %s\n", tmpfn, strerror(errno));
 			unlink(tmpfn);
 		}
-		h->dirty_new = h->dirty_ts = 0;
-		h->lastflush = now;
 	}
 	else {
 		errprintf("fileset index: cannot write %s: %s\n", tmpfn, strerror(errno));

@@ -75,6 +75,18 @@ typedef struct gdefmeta_t {
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
 
+static char *gdefmeta_srcfn = NULL;
+
+/* Point the metadata reader at a non-default graphs.cfg - showgraph's
+ * --config option must govern the meta (THRESHOLDS, FNPATTERN, ...) too,
+ * or a custom config's keywords would be silently ignored. Must be called
+ * before the first metadata lookup. */
+void xymon_gdef_meta_source(char *fn)
+{
+	if (gdefmeta_srcfn) xfree(gdefmeta_srcfn);
+	gdefmeta_srcfn = (fn ? strdup(fn) : NULL);
+}
+
 static void load_gdef_meta(void)
 {
 	static int done = 0;
@@ -86,7 +98,8 @@ static void load_gdef_meta(void)
 	if (done) return;
 	done = 1;
 
-	snprintf(fn, sizeof(fn), "%s/etc/graphs.cfg", xgetenv("XYMONHOME"));
+	if (gdefmeta_srcfn) snprintf(fn, sizeof(fn), "%s", gdefmeta_srcfn);
+	else snprintf(fn, sizeof(fn), "%s/etc/graphs.cfg", xgetenv("XYMONHOME"));
 	fd = stackfopen(fn, "r", NULL);
 	if (fd == NULL) return;
 
@@ -166,6 +179,7 @@ int xymon_gdef_maxinstancesperimage(char *name)
 {
 	gdefmeta_t *walk;
 
+	load_gdef_meta();
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
 	return ((walk && (walk->maxinstancesperimage > 0)) ? walk->maxinstancesperimage : 0);
 }
@@ -263,6 +277,7 @@ int xymon_gdef_fileset_unknown(char *name)
 {
 	gdefmeta_t *walk;
 
+	load_gdef_meta();
 	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
 	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
 }

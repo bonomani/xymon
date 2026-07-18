@@ -1242,7 +1242,7 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				struct unithint_t *hint = (u ? unithint_lookup(u) : NULL);
 				char *canon = (hint ? hint->canon : u);
 
-				if (!u) agreed = 0;
+				if (!u || !(*u)) agreed = 0;	/* absent or empty unit */
 				else if (!common) common = strdup(canon);
 				else if (strcmp(common, canon)) agreed = 0;
 				if (u) free(u);
@@ -1284,11 +1284,20 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				char *c2 = (c1 ? strrchr(tok, ':') : NULL);
 				char *expr, *operand, *endp;
 
+				size_t rlen;
+
 				if (!c1 || (c2 == c1)) continue;
 				*c1 = '\0'; *c2 = '\0';
 				expr = c1+1;
 				operand = expr + strspn(expr, "<>=");
-				if (!(*operand)) continue;
+				rlen = (size_t)(operand - expr);
+				/* Same relop validation as the producer: a corrupt or
+				 * hand-edited index must not smuggle in relations the
+				 * wire would reject (they would silently suppress
+				 * datasets from the graph). */
+				if (!(*operand) ||
+				    !(((rlen == 1) && ((*expr == '>') || (*expr == '<'))) ||
+				      ((rlen == 2) && ((*expr == '>') || (*expr == '<')) && (expr[1] == '=')))) continue;
 				rel[nrel].base = tok;
 				rel[nrel].operand = operand;
 				rel[nrel].warn = (strcasecmp(c2+1, "warn") == 0);
@@ -1297,13 +1306,24 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 					if (strcmp(dsnames[i], operand) == 0) { rel[nrel].isds = 1; is_thr[i] = 1; break; }
 				}
 				if (!rel[nrel].isds) {
+					/* Finite decimal only: "inf"/"nan"/hex would make
+					 * rrd_graph reject the whole graph as an HRULE */
+					if (strspn(operand, "0123456789.+-") != strlen(operand)) continue;
 					strtod(operand, &endp);
 					if ((endp == operand) || (*endp != '\0')) continue;	/* neither DS nor number */
 				}
 				nrel++;
 			}
 		}
-		coplot = ((nrel > 0) && (rrddbcount <= 1) && !(gd && xymon_gdef_thresholds_off(gd->name)));
+		/* Co-plot on single-instance IMAGES: count the files selected
+		 * for this render slice, not the whole fileset - a paged view
+		 * at one instance per image deserves its thresholds. In emit
+		 * mode nothing is selected (0), which is the single-file case. */
+		{
+			int nsel = 0;
+			for (i = 0; (i < rrddbcount); i++) if (selected_rrdidx(i)) nsel++;
+			coplot = ((nrel > 0) && (nsel <= 1) && !(gd && xymon_gdef_thresholds_off(gd->name)));
+		}
 
 		ndefs = 2*dscount + 1;
 		if (coplot) ndefs += 2*nrel;
@@ -1330,6 +1350,17 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 					snprintf(buf, sizeof(buf), "HRULE:%s#%s:%s %s (%s)", rel[j].operand, color, rel[j].base, sevname, rel[j].operand);
 					defs[outi++] = strdup(buf);
 				}
+			}
+		}
+		if (outi == 0) {
+			/* Corrupt or self-referential relations excluded every
+			 * dataset: ignore them and plot all datasets as peers -
+			 * an empty def list would break the whole graph. */
+			for (i=0; (i < dscount); i++) {
+				snprintf(buf, sizeof(buf), "DEF:v%d@RRDIDX@=@RRDFN@:%s:AVERAGE", i, dsnames[i]);
+				defs[outi++] = strdup(buf);
+				snprintf(buf, sizeof(buf), "LINE1:v%d@RRDIDX@#@COLOR@:@RRDPARAM@ %s", i, dsnames[i]);
+				defs[outi++] = strdup(buf);
 			}
 		}
 		defs[outi] = NULL;
@@ -1785,7 +1816,28 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	snprintf(widthopt, sizeof(widthopt), "-w%d", graphwidth);
 
 	/*
-	 * Grab user-provided additional rrd_graph options from RRDGRAPHOPTS
+	 * Setup the arguments for calling rrd_graph. 
+	 * There's up to 16 standard arguments, plus the 
+	 * graph-specific ones (which may be repeated if
+	 * there are multiple RRD-files to handle).
+	 */
+	if (gdef->defs == NULL) {
+		/* Synthetic gdef: definition lines come from the datasets of the
+		 * first SELECTED RRD file - the slice actually being rendered -
+		 * so a paged render never references another page's schema. */
+		char *synfn = NULL;
+
+		for (rrdidx = 0; (rrdidx < rrddbcount); rrdidx++) {
+			if (selected_rrdidx(rrdidx)) { synfn = rrddbs[rrdidx].rrdfn; break; }
+		}
+		if (!synfn && (rrddbcount > 0)) synfn = rrddbs[0].rrdfn;
+		gdef->defs = synthetic_defs(synfn, gdef);
+	}
+
+	/*
+	 * Grab additional rrd_graph options: the gdef's own (which synthesis
+	 * above may just have derived from the declared unit - this capture
+	 * MUST follow it), else the RRDGRAPHOPTS environment.
 	 */
 	useroptcount = 0;
 	useroptval = gdef->graphopts;
@@ -1803,18 +1855,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			useropts[useroptcount] = NULL;
 			tok = strtok(NULL, " ");
 		}
-	}
-
-	/*
-	 * Setup the arguments for calling rrd_graph. 
-	 * There's up to 16 standard arguments, plus the 
-	 * graph-specific ones (which may be repeated if
-	 * there are multiple RRD-files to handle).
-	 */
-	if (gdef->defs == NULL) {
-		/* Synthetic gdef: definition lines come from the datasets of the
-		 * first RRD file matching the graph's filename pattern. */
-		gdef->defs = synthetic_defs(((rrddbcount > 0) ? rrddbs[0].rrdfn : NULL), gdef);
 	}
 
 	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
@@ -2109,6 +2149,9 @@ int main(int argc, char *argv[])
 		else if (argnmatch(argv[argi], "--config=")) {
 			char *p = strchr(argv[argi], '=');
 			gdeffn = strdup(p+1);
+			/* The graph METADATA (THRESHOLDS, FNPATTERN, ...) must
+			 * come from the same file as the definitions */
+			xymon_gdef_meta_source(gdeffn);
 		}
 		else if (strcmp(argv[argi], "--save=") == 0) {
 			char *p = strchr(argv[argi], '=');

@@ -124,6 +124,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		/* DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U */
 		if (!strncmp(curline, "DS:",3)) {
 			strbuffer_t *unitspec = newstrbuffer(0);
+			int startds = numds;
 
 			dbgprintf("Looking for DS definitions in %s\n",curline);
 			while ( numds < MAXCOLS) {
@@ -145,8 +146,18 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				if (unit && *unit) {
 					char *dsname = spec + 3;
 					char *dsend = strchr(dsname, ':');
+					char *uc;
+					int unitok = (strlen(unit) <= 15);
 
-					if (dsend) {
+					/* Unit syntax: printable, no ':' ',' or blank -
+					 * anything else would corrupt the index spec */
+					for (uc = unit; (unitok && *uc); uc++) {
+						if (!isprint((unsigned char)*uc) || (*uc == ':') || (*uc == ',') || (*uc == ' ')) unitok = 0;
+					}
+					if (!unitok) {
+						dbgprintf("Ignoring invalid unit on DS %s\n", spec);
+					}
+					else if (dsend) {
 						if (STRBUFLEN(unitspec)) addtobuffer(unitspec, ",");
 						addtobufferraw(unitspec, dsname, dsend - dsname);
 						addtobuffer(unitspec, ":");
@@ -158,7 +169,10 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			}
 			dbgprintf("Found %d DS definitions\n",numds);
 			devmon_params[numds] = NULL;
-			fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
+			/* Only a DS line that actually declared something may set
+			 * (or clear) the units - a later, ignored DS line must not
+			 * wipe the first one's declarations. */
+			if (numds > startds) fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
 			freestrbuffer(unitspec);
 
 			goto nextline;
@@ -287,6 +301,30 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		 * existing files are untouched. */
 		if (metrics_block) {
 			char *encinst = rrdinstance_encode(ifname);
+
+			/* One-time legacy migration, ported from do_disk: a block
+			 * that replaced a legacy handler (disk, inode) must carry
+			 * the pre-cutover file across, or every mount graphs twice
+			 * (frozen legacy curve + restarting encoded one). Legacy
+			 * name: '/'->',' with bare "/" as ",root", appended with NO
+			 * separator. Only instances containing '/' can have one. */
+			if (strchr(ifname, '/')) {
+				char legacy[PATH_MAX], oldpath[PATH_MAX], newpath[PATH_MAX];
+				char *lp;
+				struct stat st;
+
+				snprintf(legacy, sizeof(legacy), "%s", ifname);
+				for (lp = legacy; ((lp = strchr(lp, '/')) != NULL); ) *lp = ',';
+				if (strcmp(legacy, ",") == 0) strcpy(legacy, ",root");
+				snprintf(oldpath, sizeof(oldpath), "%s/%s/%s%s.rrd", rrddir, hostname, rrdbasename, legacy);
+				snprintf(newpath, sizeof(newpath), "%s/%s/%s.%s.rrd", rrddir, hostname, rrdbasename, encinst);
+				if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
+					if (rename(oldpath, newpath) != 0)
+						errprintf("block RRD migrate: rename %s -> %s failed: %s\n",
+							  oldpath, newpath, strerror(errno));
+				}
+			}
+
 			setupfn2("%s.%s.rrd", rrdbasename, encinst);
 			xfree(encinst);
 		}
@@ -301,6 +339,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 
 nextline:
 		if (fsline) { xfree(fsline); fsline = NULL; }
+		if (ifname) { xfree(ifname); ifname = NULL; }
 		curline = (eoln ? (eoln+1) : NULL);
 	}
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */

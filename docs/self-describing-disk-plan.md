@@ -185,6 +185,13 @@ inheriting the old collision unchanged.
    test.cfg's own documentation surface (it has no man page yet - by
    design, while it is experimental).
 
+Review decision (FreeBSD/Darwin inode): the raw 9-column df -i shape made
+do_disk store GARBAGE for these OSes (the iused count as the instance
+name - a new junk RRD every poll). The block emitter is header-driven and
+stores instance=mount, pct=%iused - a deliberate divergence-as-improvement,
+not a mirror bug. The 'used' DS still carries disk-blocks for that shape
+(do_disk's wart, half-kept); acceptable, the pct DS is the graphed one.
+
 The endpoint is reached: disk and inode are declared metrics. do_disk_rrd
 remains as the fallback for producers that do not carry a block (netapp/
 dbcheck data messages, NT clients not routed through unix_disk_report) -

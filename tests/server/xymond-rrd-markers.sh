@@ -371,6 +371,39 @@ rm -f "$idx"
 grep -q '^fsy\.c\.rrd [0-9]' "$idx" || fail "rebuilt index misses the new write"
 grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "rebuilt index misses pre-existing files (scan seed): $(cat "$idx")"
 
+# Crash-leftover rebuild: a zero-length index (interrupted flush) must
+# reseed from the directory scan, exactly like a missing one.
+: >"$idx"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+600)) $((ts+2400)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: fsz\nDS:v:GAUGE:600:0:U\nd 4\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "empty index file not rebuilt by the scan"
+
+# The block writer carries a pre-cutover legacy file across (do_disk's
+# one-time migration, ported): after the rename, only the encoded file
+# remains - no frozen legacy curve graphing next to a restarted one.
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: mig\nDS:v:GAUGE:600:0:U\n/var 1\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/mig.%2Fvar.rrd" ] || fail "migration setup: encoded file not created"
+mv "$work/rrd/testhost/mig.%2Fvar.rrd" "$work/rrd/testhost/mig,var.rrd"
+rm -f "$work/rrd/testhost/.fileset-index"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: mig\nDS:v:GAUGE:600:0:U\n/var 2\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/mig.%2Fvar.rrd" ] || fail "legacy block file not migrated to the encoded name"
+[ -e "$work/rrd/testhost/mig,var.rrd" ] && fail "legacy file left behind - every mount would graph twice"
+
 # Dispatch precedence (self-describing beats built-in): a status whose
 # column has a built-in handler but which carries a store block is
 # written by the block writer ONLY - the built-in must not double-write.
@@ -393,5 +426,18 @@ Filesystem 1024-blocks Used Available Capacity Mounted on
 EOF
 out=$(feed_status disk "$work/body-diskplain")
 assert_contains "disk.%2Fvar.rrd" "$out" "block-less disk status hits the built-in handler unchanged"
+
+# A banner the writer would REJECT (invalid name) must not divert routing:
+# the built-in handler still runs, instead of storing nothing at all.
+cat >"$work/body-badname" <<'EOF'
+Filesystem 1024-blocks Used Available Capacity Mounted on
+/dev/sda1 100 50 50 50% /var
+<!--XYMON METRICS: ../evil
+DS:v:GAUGE:600:0:U
+x 1
+-->
+EOF
+out=$(feed_status disk "$work/body-badname")
+assert_contains "disk.%2Fvar.rrd" "$out" "invalid-name block falls back to the built-in handler"
 
 pass "XYMON METRICS blocks and legacy DEVMON banners are written by content routing"

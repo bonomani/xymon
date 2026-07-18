@@ -195,15 +195,27 @@ render_thr
 grep -aq "Content-type: image/png" "$work/out" || fail "threshold graph does not render: $(grep -a 'ERROR' "$work/out" | head -2)"
 grep -aq "HRULE:500#FF0000" "$work/out" || fail "HRULE missing from render args"
 
-# The admin's say: THRESHOLDS OFF suppresses the co-plot.
-mkdir -p "$work/etc"
-printf '[thr]\n\tTHRESHOLDS OFF\n' >"$work/etc/graphs.cfg"
+# The admin's say: THRESHOLDS OFF suppresses the co-plot. The meta-only
+# section lives in the SAME file --config points at - the metadata reader
+# must follow --config, not the default path.
+cp "$work/graphs.cfg" "$work/graphs.cfg.bak"
+printf '\n[thr]\n\tTHRESHOLDS OFF\n' >>"$work/graphs.cfg"
 render_thr
 grep -aq "Content-type: image/png" "$work/out" || fail "THRESHOLDS OFF graph does not render"
 grep -aq "FFCC00" "$work/out" && fail "THRESHOLDS OFF must suppress the threshold curves"
 grep -aq "HRULE:500" "$work/out" && fail "THRESHOLDS OFF must suppress literal HRULEs too"
 grep -aq "@RRDPARAM@ val_warn\|:val_warn$" "$work/out" && fail "operand still must not plot as a peer"
-rm -f "$work/etc/graphs.cfg"
+mv "$work/graphs.cfg.bak" "$work/graphs.cfg"
+
+# A corrupt index relation (relop-less: the producer would reject it) must
+# not suppress datasets: the renderer applies the producer's validation,
+# and both DSes plot as peers.
+sed -i 's/ t=val:>val_warn:warn,val:>500:crit$/ t=val:val_warn:warn/' "$work/rrd/testhost/.fileset-index"
+render_thr
+grep -aq "Content-type: image/png" "$work/out" || fail "corrupt-relation graph does not render"
+grep -aq "FFCC00" "$work/out" && fail "corrupt relation must not be threshold-styled"
+[ "$(grep -ac 'DEF:v[0-9]' "$work/out")" = "2" ] \
+	|| fail "corrupt relation suppressed a dataset from the peer plot: $(grep -a DEF: "$work/out" | head -3)"
 
 # Disk legend end-to-end: the stock [disk] FNPATTERN ("^disk(.*).rrd")
 # captures the "." separator of encoded files, and the decode path must

@@ -576,9 +576,13 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	int dmin, dmax, dcount, dcolor;
 	char *group;
 	int usedcol;
-	int fscount = 0;	/* filesystems shown = RRD files created; the exact
-				 * graph-paging count, stated so the renderer need
-				 * not re-count status lines (see below). */
+	int fscount = 0;	/* filesystems shown in the status - the graph-paging
+				 * count, stated so the renderer need not re-count
+				 * status lines (see below). Matches the legacy df-line
+				 * recount exactly, which means filesystems excluded
+				 * from trending (NORRDDISKS etc.) are still counted:
+				 * paging may allocate a short trailing page under
+				 * storage filters, same as it always has. */
 
 	if (!want_msgtype(hinfo, MSG_DISK)) return;
 	if (!dfstr) return;
@@ -684,20 +688,30 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 
 					/* Its METRICS line: the values do_disk
 					 * would store, unless the writer-side
-					 * RRDDISKS/NORRDDISKS filters drop it. */
-					if (levelpct >= 0) {
+					 * RRDDISKS/NORRDDISKS filters drop it.
+					 * capacol must have matched - getcolumn(-1)
+					 * aliases to column 0, and a block full of
+					 * pct=0 would reroute storage away from a
+					 * do_disk that parsed correctly. Windows
+					 * shapes get do_disk's leading '/' (DT_NT
+					 * stored "/C", and the filters match that). */
+					if ((levelpct >= 0) && (capacol >= 0)) {
+						int winos = ((os == OS_WIN32) || (os == OS_WIN32_BBWIN) ||
+							     (os == OS_WIN32_HMDC) || (os == OS_WIN_POWERSHELL));
+						char instname[1024];
 						int wanted = 1;
 						char *ustr;
 
-						if (rrdexclpattern && matchregex(fsname, rrdexclpattern)) wanted = 0;
-						if (wanted && rrdinclpattern && !matchregex(fsname, rrdinclpattern)) wanted = 0;
+						snprintf(instname, sizeof(instname), "%s%s", ((winos && (*fsname != '/')) ? "/" : ""), fsname);
+						if (rrdexclpattern && matchregex(instname, rrdexclpattern)) wanted = 0;
+						if (wanted && rrdinclpattern && !matchregex(instname, rrdinclpattern)) wanted = 0;
 						if (wanted) {
 							strcpy(p, bol);
 							ustr = getcolumn(p, usedcol);
 							if (ustr && isdigit((unsigned char)*ustr))
-								snprintf(msgline, sizeof(msgline), "%s %ld:%lld\n", fsname, levelpct, str2ll(ustr, NULL));
+								snprintf(msgline, sizeof(msgline), "%s %ld:%lld\n", instname, levelpct, str2ll(ustr, NULL));
 							else
-								snprintf(msgline, sizeof(msgline), "%s %ld:U\n", fsname, levelpct);
+								snprintf(msgline, sizeof(msgline), "%s %ld:U\n", instname, levelpct);
 							addtobuffer(metricsblk, msgline);
 						}
 					}
@@ -915,8 +929,11 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 					 * would store for the inode column (df -i
 					 * IUsed is column 2), unless the writer-
 					 * side RRDDISKS/NORRDDISKS filters drop
-					 * it - they apply to inode files too. */
-					if (levelpct >= 0) {
+					 * it - they apply to inode files too.
+					 * capacol guard as in unix_disk_report:
+					 * an unmatched header must not emit a
+					 * block of zeros (HP-UX "iused%"). */
+					if ((levelpct >= 0) && (capacol >= 0)) {
 						int wanted = 1;
 						char *ustr;
 

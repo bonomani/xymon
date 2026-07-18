@@ -363,6 +363,23 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
 
 ## Risks / watch-items
 
+- Second consolidation review: deferred findings, each with its reason.
+  (a) The two channel writers' weak merges each hold a full copy of the
+  other's entries, so a changed unit/threshold spec can ping-pong until
+  the non-owning process restarts - real filesets arrive via one channel,
+  so accepted; versioned schema fields would fix it properly. (b) The
+  index freshness timestamp advances even when rrdtool later rejects the
+  update - needs the update result plumbed back to the note; a chronic
+  failure can look permanently fresh. (c) xtreeDestroy leaks the tsearch
+  node wrappers on drophost (pre-existing tree-API limitation, drops are
+  rare). (d) drophost forks the directory deletion, and queued in-flight
+  messages for the host can recreate the index inside the dying dir -
+  same race family as the pre-existing update cache. (e) Scan-seeded
+  entries use file mtime, which lags the data timestamp by up to a cache
+  interval. (f) Synthetic schema/units come from the first SELECTED file;
+  a fileset whose instances disagree on schema shows that file's axis.
+  (g) --emit-gdef picks the first host readdir yields for its index
+  lookup - documented, nondeterministic across hosts by design.
 - Unbounded state under instance churn (accepted for now; revisit before
   SNMP-scale collectors land): the RRD update cache and the lazy-baseline
   tree keep one entry per instance name EVER seen - upstream updcache
