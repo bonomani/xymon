@@ -104,11 +104,18 @@ baseline value one step before the change - a true step edge, no RRA
 backfill. A materialized record tombstones so the two-channel weak merge
 cannot resurrect its b= field. Paging counters skip flat records
 (nothing renders for them yet).
-NOT yet implemented: the renderer's flat-segment (HRULE from the index -
-requires showgraph to enumerate instances from the index, since an
-entirely-flat fileset has no files), AGGDS/count() reading baselines as
-first-class values, and the always-on default flip - which stays a
-separate decision with soak evidence in hand.
+ALSO IMPLEMENTED - the renderer's flat-segment: showgraph enumerates
+instances from the index as well as the directory. A fresh flat record
+matching the graph's patterns joins the set as a VIRTUAL instance
+(rrdfn NULL): it occupies its paging slot (counters include it again),
+every per-file emitter skips it, and it renders as one HRULE per value
+component with a "flat since <date>" legend. An ENTIRELY-flat fileset
+renders too (HRULEs only, empty def list). Freshness = the graph's
+STALEAFTER window; a stale flat record is a gone instance.
+NOT yet implemented: AGGDS/count() reading baselines as first-class
+values (needs DS names on the record - a future d= field), and the
+always-on default flip - which stays a separate decision with soak
+evidence in hand.
 
 Lazy today is an opt-in policy because it TRADES flat history for file
 economy - correct only where flat means uninteresting (spare disks, idle

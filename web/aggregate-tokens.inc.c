@@ -42,6 +42,15 @@ static int aggregate_dscount = 0;
 
 static int selected_rrdidx(int idx)
 {
+	/* Virtual flat instances occupy their slice position (paging counts
+	 * them) but have no file: every per-file emitter must skip them.
+	 * Their HRULE rendering has its own loop (slice_includes). */
+	if (rrddbs[idx].flatvals) return 0;
+	return ((firstidx == -1) || ((idx >= firstidx) && (idx <= lastidx)));
+}
+
+static int slice_includes(int idx)
+{
 	return ((firstidx == -1) || ((idx >= firstidx) && (idx <= lastidx)));
 }
 

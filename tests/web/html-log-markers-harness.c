@@ -213,8 +213,9 @@ int main(void)
 
 	/* With a writer-kept fileset index available, a lazy graph gets the
 	 * exact ever-active count from the index instead of the unsliced
-	 * fallback. The harness index holds 3 fresh diskio_idx entries and
-	 * one stale one: 3 -> one slice of 3, staleness cut applied. */
+	 * fallback. The harness index holds 3 fresh file entries, one fresh
+	 * FLAT record (renders as an HRULE, so it counts) and one stale
+	 * entry: 4, staleness cut applied. */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_idx lazy\n"
 		"DS:v:GAUGE:600:0:U\n"
@@ -223,7 +224,7 @@ int main(void)
 		"<!--XYMON GRAPH: diskio_idx -->\n"
 		"status text\n");
 	expect_contains("lazy count from the fileset index", html,
-		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
 	free(html);
 
 	/* gdef LAZY (graphs.cfg): the message cannot know the fileset, but
@@ -256,7 +257,7 @@ int main(void)
 	free(html);
 
 	/* STALEAFTER widens the graph's freshness window: the same index
-	 * entries that count 3 at the default 86400 count 4 for a graph
+	 * entries that count 4 at the default 86400 count 5 for a graph
 	 * declaring STALEAFTER 300000 (the stale entry included). */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_slow lazy\n"
@@ -266,7 +267,7 @@ int main(void)
 		"<!--XYMON GRAPH: diskio_slow -->\n"
 		"status text\n");
 	expect_contains("STALEAFTER widens the count window", html,
-		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
+		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=5");
 	free(html);
 
 	/* The GRAPHS_<service> config path takes the same index count: a

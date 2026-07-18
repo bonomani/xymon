@@ -98,6 +98,9 @@ typedef struct rrddb_t {
 	char *rrdparam;
 	int   rrdparamfinal;	/* rrdparam is the final legend already (rrdinstance-decoded);
 				 * skip the legacy comma->slash un-mangling at render time. */
+	char *flatvals;		/* virtual flat instance (lazy baseline): its value string,
+				 * no RRD file exists - renders as HRULEs, never as DEFs */
+	time_t flatsince;
 } rrddb_t;
 
 rrddb_t *rrddbs = NULL;
@@ -1708,6 +1711,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			/* We have a matching file! */
 			rrddbs[rrddbcount].rrdfn = strdup(d->d_name);
 			rrddbs[rrddbcount].rrdparamfinal = 0;
+			rrddbs[rrddbcount].flatvals = NULL; rrddbs[rrddbcount].flatsince = 0;
 			if (haveparam) {
 				/*
 				 * This is ugly, but I cannot find a pretty way of un-mangling
@@ -1767,12 +1771,82 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				rrddbs = (rrddb_t *)realloc(rrddbs, (rrddbsize+1) * sizeof(rrddb_t));
 			}
 		}
+		/* Flat instances from the fileset index: lazy baselines have no
+		 * RRD file, but they are live instances - matched against the
+		 * same patterns, they join the set as VIRTUAL entries (rrdfn
+		 * NULL) that render as HRULEs and count toward paging. Only
+		 * fresh records join: a stale flat record is a gone instance. */
+		{
+			FILE *idxfd = fopen(".fileset-index", "r");
+
+			if (idxfd) {
+				char idxline[PATH_MAX + 64];
+				time_t idxnow = getcurrenttime(NULL);
+				int stalewin = xymon_gdef_staleafter(gdef->name);
+
+				while (fgets(idxline, sizeof(idxline), idxfd)) {
+					char *name, *tsstr, *tok, *bl, *sp = NULL;
+					char vparam[PATH_MAX];
+					PCRE2_SIZE vl = sizeof(vparam);
+					int havevparam;
+					time_t its;
+
+					if (idxline[0] == '#') continue;
+					name = strtok_r(idxline, " \t\r\n", &sp);
+					tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
+					if (!name || !tsstr) continue;
+					bl = NULL;
+					while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
+						if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
+					}
+					if (!bl) continue;
+					its = (time_t)atol(tsstr);
+					if ((its <= 0) || ((idxnow - its) > stalewin)) continue;
+
+					if (expat && (pcre2_match(expat, name, strlen(name), 0, 0, ovector, NULL) >= 0)) continue;
+					vl = sizeof(vparam);
+					if (pcre2_match(pat, name, strlen(name), 0, 0, ovector, NULL) < 0) continue;
+					havevparam = (pcre2_substring_copy_bynumber(ovector, 1, vparam, &vl) == 0);
+					if (rrdparamisservice && havevparam) {
+						if (!rrd_param_matches_service(vparam, service)) continue;
+					}
+					else if (wantsingle) {
+						if (strstr(name, service) == NULL) continue;
+					}
+
+					{
+						char *comma = strchr(bl, ',');
+						char *raw, *dec;
+
+						if (!comma) continue;
+						rrddbs[rrddbcount].rrdfn = NULL;
+						rrddbs[rrddbcount].flatsince = (time_t)atol(bl);
+						rrddbs[rrddbcount].flatvals = strdup(comma+1);
+						raw = (havevparam ? vparam : name);
+						if ((raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
+						dec = rrdinstance_decode(raw);
+						rrddbs[rrddbcount].rrdparam = dec;
+						rrddbs[rrddbcount].rrdparamfinal = 1;
+						if (strlen(dec) > paramlen) paramlen = strlen(dec);
+						rrddbs[rrddbcount].key = strdup(dec);
+						rrddbcount++;
+						if (rrddbcount == rrddbsize) {
+							rrddbsize += 5;
+							rrddbs = (rrddb_t *)realloc(rrddbs, (rrddbsize+1) * sizeof(rrddb_t));
+						}
+					}
+				}
+				fclose(idxfd);
+			}
+		}
+
 		pcre2_code_free(pat);
 		if (expat) pcre2_code_free(expat);
 		pcre2_match_data_free(ovector);
 		closedir(dir);
 	}
 	rrddbs[rrddbcount].key = rrddbs[rrddbcount].rrdfn = rrddbs[rrddbcount].rrdparam = NULL;
+	rrddbs[rrddbcount].flatvals = NULL;
 
 	if ((rrddbcount == 0) && svcrejects) {
 		if (rrdparamisservice)
@@ -1794,13 +1868,13 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		char *param_str = "%s \"%s\" %s \"%s\"";
 
 		pcmdlen += (strlen(gdef->title+5) + strlen(displayname) + strlen(service) + strlen(glegend));
-		for (i=0; (i<rrddbcount); i++) pcmdlen += (strlen(rrddbs[i].rrdfn) + 3);
+		for (i=0; (i<rrddbcount); i++) if (rrddbs[i].rrdfn) pcmdlen += (strlen(rrddbs[i].rrdfn) + 3);
 
 		p = pcmd = (char *)malloc(pcmdlen+1);
 		p += snprintf(p, pcmdlen+1, param_str, gdef->title+5, displayname, service, glegend);
 		for (i=0; (i<rrddbcount); i++) {
 			if ((firstidx == -1) || ((i >= firstidx) && (i <= lastidx))) {
-				p += snprintf(p, (pcmdlen - (p - pcmd) + 1), " \"%s\"", rrddbs[i].rrdfn);
+				if (rrddbs[i].rrdfn) p += snprintf(p, (pcmdlen - (p - pcmd) + 1), " \"%s\"", rrddbs[i].rrdfn);
 			}
 		}
 		pfd = popen(pcmd, "r");
@@ -1830,12 +1904,19 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		 * first SELECTED RRD file - the slice actually being rendered -
 		 * so a paged render never references another page's schema. */
 		char *synfn = NULL;
+		int i;
 
 		for (rrdidx = 0; (rrdidx < rrddbcount); rrdidx++) {
-			if (selected_rrdidx(rrdidx)) { synfn = rrddbs[rrdidx].rrdfn; break; }
+			if (selected_rrdidx(rrdidx) && rrddbs[rrdidx].rrdfn) { synfn = rrddbs[rrdidx].rrdfn; break; }
 		}
-		if (!synfn && (rrddbcount > 0)) synfn = rrddbs[0].rrdfn;
-		gdef->defs = synthetic_defs(synfn, gdef);
+		for (i = 0; (!synfn && (i < rrddbcount)); i++) synfn = rrddbs[i].rrdfn;
+		if (!synfn && (rrddbcount > 0)) {
+			/* An entirely-flat fileset: every instance is a virtual
+			 * baseline record. Nothing to DEF - the graph is drawn
+			 * from HRULEs alone. */
+			gdef->defs = (char **)calloc(1, sizeof(char *));
+		}
+		else gdef->defs = synthetic_defs(synfn, gdef);
 	}
 
 	/*
@@ -2001,6 +2082,37 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		aggregate_dscount = gdef->dscount;
 		add_graphdef_args(rrdargs, &argi, gdef);
 		aggregate_dscount = 0;
+	}
+
+	/* Flat instances (durable lazy baselines): no file, no DEFs - each
+	 * selected one renders as an HRULE per value component at its
+	 * baseline, legend carrying the since-date, so an idle-but-alive
+	 * instance stays visible without costing any storage. */
+	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+		char *fvals, *ftok, *fsp = NULL;
+		char sincetxt[64];
+		struct tm *stm;
+
+		if (!slice_includes(rrdidx) || !rrddbs[rrdidx].flatvals) continue;
+		stm = localtime(&rrddbs[rrdidx].flatsince);
+		strftime(sincetxt, sizeof(sincetxt), "%d-%b-%Y", stm);
+		fvals = strdup(rrddbs[rrdidx].flatvals);
+		for (ftok = strtok_r(fvals, ":", &fsp); (ftok); ftok = strtok_r(NULL, ":", &fsp)) {
+			char hrule[512];
+			size_t need;
+
+			if (strspn(ftok, "0123456789.+-") != strlen(ftok)) continue;	/* U and friends */
+			need = (size_t)(argi + 3);
+			if (need > rrdargs_cap) {
+				rrdargs_cap = need;
+				rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
+				if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
+			}
+			snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], rrddbs[rrdidx].rrdparam, sincetxt);
+			coloridx++; if (colorlist[coloridx] == NULL) coloridx = 0;
+			rrdargs[argi++] = strdup(hrule);
+		}
+		free(fvals);
 	}
 
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));

@@ -527,13 +527,6 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
 		if (!name || !tsstr) continue;
 		if (!matchregex(name, (pcre2_code *)pattern)) continue;
-		{
-			char *tok2; int isflat = 0;
-			while ((tok2 = strtok_r(NULL, " \t\r\n", &sp)) != NULL)
-				if (strncmp(tok2, "b=", 2) == 0) isflat = 1;
-			if (isflat) continue;
-		}
-
 		ts = (time_t)atol(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;
@@ -571,15 +564,6 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		nlen = strlen(name);
 		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) || (name[plen] != '.')) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
-		/* A flat (baseline) record has no file behind it: nothing
-		 * renders for it yet, so it must not inflate the paging. */
-		{
-			char *tok2; int isflat = 0;
-			while ((tok2 = strtok_r(NULL, " \t\r\n", &sp)) != NULL)
-				if (strncmp(tok2, "b=", 2) == 0) isflat = 1;
-			if (isflat) continue;
-		}
-
 		ts = (time_t)atol(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;

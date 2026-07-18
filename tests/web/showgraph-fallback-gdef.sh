@@ -217,6 +217,28 @@ grep -aq "FFCC00" "$work/out" && fail "corrupt relation must not be threshold-st
 [ "$(grep -ac 'DEF:v[0-9]' "$work/out")" = "2" ] \
 	|| fail "corrupt relation suppressed a dataset from the peer plot: $(grep -a DEF: "$work/out" | head -3)"
 
+# Flat instances render: a lazy baseline is a virtual instance - it joins
+# the graph as an HRULE at its value with a "flat since" legend, and an
+# ENTIRELY-flat fileset still renders (no "No RRD files match" error).
+ts=$(date +%s)
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: flatset lazy\nDS:v:GAUGE:600:0:U\nidle 42\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -e "$rrds/flatset.idle.rrd" ] && fail "flat instance must not create a file"
+grep -q 'flatset\.idle\.rrd .* b=' "$work/rrd/testhost/.fileset-index" || fail "flat record missing"
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=flatset&graph=hourly&action=view" \
+XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "HRULE:42#" "$work/out" || fail "flat instance HRULE missing: $(grep -a 'HRULE\|No RRD' "$work/out" | head -3)"
+grep -aq "idle flat since" "$work/out" || fail "flat legend missing"
+grep -aq "Content-type: image/png" "$work/out" \
+	|| fail "entirely-flat fileset does not render: $(grep -a 'ERROR\|error' "$work/out" | head -3)"
+
 # Disk legend end-to-end: the stock [disk] FNPATTERN ("^disk(.*).rrd")
 # captures the "." separator of encoded files, and the decode path must
 # absorb it - a migrated disk.%2Fvar.rrd must legend as "/var", never

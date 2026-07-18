@@ -44,6 +44,12 @@ static int rrddbcount = 0;
 static int firstidx = -1;
 static int lastidx = 0;
 
+/* Minimal rrddb shim: selected_rrdidx() consults flatvals (virtual flat
+ * instances are skipped by per-file emitters). The unit tests use real
+ * (non-flat) slots only, so a NULL-filled table suffices. */
+typedef struct { char *flatvals; } rrddb_shim_t;
+static rrddb_shim_t rrddbs[64];
+
 /* Helpers under test come from the same source web/showgraph.c uses.
  * Including the .inc.c (rather than maintaining a copy) keeps the test
  * locked to the production parser; any future fix in
