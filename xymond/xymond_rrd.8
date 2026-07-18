@@ -317,6 +317,13 @@ never instances, so the block dialect can grow new keyword lines
 without breaking deployed servers. Consequently, an instance name
 must not have the form of a declaration keyword.
 
+The server itself uses this mechanism: the disk and inode statuses
+generated from client data carry METRICS blocks with the same
+datasets the built-in disk handler stores, so disk is an ordinary
+declared metric written by the block writer - same files, continuous
+history. The built-in handler remains as the fallback for statuses
+without a block.
+
 A block may declare itself "lazy":
 
 .nf

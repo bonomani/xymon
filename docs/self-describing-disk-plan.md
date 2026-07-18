@@ -155,9 +155,9 @@ inheriting the old collision unchanged.
    decode) + one-time rename migration; `/a/b` and `/a,b` get distinct RRDs
    and legends show the real mount point.
 3. DONE - HANDLER markers config route (via the test-cfg merge).
-4. DONE for disk (unix_inode_report follow-up pending): `unix_disk_report`
-   emits the METRICS block, end-to-end tested via xymond_client
-   --no-update (tests/server/disk-metrics-block.sh). Decisions taken:
+4. DONE (disk AND inode): `unix_disk_report`/`unix_inode_report` emit the
+   METRICS blocks, end-to-end tested via xymond_client --no-update
+   (tests/server/disk-metrics-block.sh). Decisions taken:
    - DS line identical to do_disk's params: "DS:pct:GAUGE:600:0:100
      DS:used:GAUGE:600:0:U" - same files, same schema, continuous history.
    - The "used" value mirrors do_disk exactly: absolute df column 2
@@ -180,7 +180,15 @@ inheriting the old collision unchanged.
      writer tests cover storage.
    - unix_inode_report gets the same treatment as a follow-up commit
      (block name "inode").
-5. Docs: test.cfg disk example; note disk is now a declared metric.
+5. DONE: xymond_rrd.8 notes that server-generated disk/inode statuses carry
+   blocks (disk is a declared metric); the test.cfg disk example waits for
+   test.cfg's own documentation surface (it has no man page yet - by
+   design, while it is experimental).
+
+The endpoint is reached: disk and inode are declared metrics. do_disk_rrd
+remains as the fallback for producers that do not carry a block (netapp/
+dbcheck data messages, NT clients not routed through unix_disk_report) -
+"fallback forever", as designed.
 
 ## Risks / watch-items
 
