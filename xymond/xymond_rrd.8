@@ -338,7 +338,7 @@ recorded as usual - an instance that goes flat again keeps its file
 and its history. Because the file set is therefore the EVER-changed
 instances, which no single message can know, the graph of a lazy
 block renders unsliced by default (nothing is ever hidden); give the
-GRAPH marker an explicit count= to slice it. Two things to know: a
+GRAPH marker an explicit instances= to slice it. Two things to know: a
 constant-but-meaningful metric never graphs under lazy (that is the
 point - do not use it where flat history matters), and creation
 happens at the first CHANGED sample, so a varying instance appears
@@ -352,9 +352,9 @@ To display graphs of these files on the status page, add one
 
 marker per graph. The graph paging count is exact by construction:
 it is taken from the instance-line count of the same-named METRICS
-block in the same message. A marker may instead specify "count=N"
+block in the same message. A marker may instead specify "instances=N"
 explicitly (for graphs whose files are written elsewhere) or
-"count=all" to render one unsliced image regardless of any ::N
+"instances=all" to render one unsliced image regardless of any ::N
 split size (useful for stacked-total graphs, which must never be
 split). Graph appearance comes from the graphs.cfg(5) entry of the
 same name; if none exists,

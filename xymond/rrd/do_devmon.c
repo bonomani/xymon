@@ -21,6 +21,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 	static pcre2_code *inclpattern = NULL;
 	static pcre2_code *exclpattern = NULL;
 	int in_devmon = 1;
+	int metrics_block = 0;	/* current block was opened by XYMON METRICS, not the legacy banner */
 	int numds = 0;
 	char *rrdbasename;
 	int lineno = 0;
@@ -50,8 +51,16 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 
 		if(!strncmp(curline, "<!--DEVMON RRD: ",16)) {
 			char *slash;
+			/* A banner carrying its own "-->" is an empty, self-closed
+			 * block: it must not leave the block open and consume the
+			 * rest of the status text as instance data. */
+			int selfclosed = (strstr(curline, "-->") != NULL);
 
-			in_devmon = 0;
+			in_devmon = (selfclosed ? 1 : 0);
+			metrics_block = 0;
+			/* A new block never inherits the previous block's creation
+			 * params: a block without its own DS line writes nothing. */
+			for (i = 0; (devmon_params[i]); i++) { xfree(devmon_params[i]); devmon_params[i] = NULL; }
 			/*if(rrdbasename) {xfree(rrdbasename);rrdbasename = NULL;}*/
 			rrdbasename = strtok(curline+16," ");
 			if (rrdbasename == NULL) rrdbasename = xstrdup(testname);
@@ -70,18 +79,23 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			 * it is restricted to [A-Za-z0-9_-]. An invalid name opens no
 			 * block (if an earlier block is still unclosed, its lines keep
 			 * accumulating there - same as the legacy banner behaves). */
-			char *name = strtok(curline + strlen(XYMON_METRICS_MARKER), " ");
+			int selfclosed = (strstr(curline, "-->") != NULL);
+			char *name = strtok(curline + strlen(XYMON_METRICS_MARKER), " \t");
 			int namelen = (name ? strspn(name, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-") : 0);
 
 			if (name && (namelen > 0) && (namelen <= XYMON_MARKER_NAMELEN_MAX) && (name[namelen] == '\0')) {
 				char *attr;
 
-				in_devmon = 0;
+				/* Self-closed one-line banner: an empty block. */
+				in_devmon = (selfclosed ? 1 : 0);
+				metrics_block = (selfclosed ? 0 : 1);
+				for (i = 0; (devmon_params[i]); i++) { xfree(devmon_params[i]); devmon_params[i] = NULL; }
 				rrdbasename = name;
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
 				setup_lazy(0);
-				while ((attr = strtok(NULL, " ")) != NULL) {
+				while ((attr = strtok(NULL, " \t")) != NULL) {
+					if (strcmp(attr, "-->") == 0) break;
 					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
 				}
 			}
@@ -127,12 +141,14 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			goto nextline;
 		}
 
-		/* A block line whose first token is an ALL-CAPS keyword ending in
-		 * ':' is a declaration - DS: is one, handled above. Declarations
-		 * the writer does not know are ignored by contract, so the block
-		 * dialect can grow keyword lines without breaking deployed
-		 * writers; instance names must not look like one. */
-		{
+		/* A METRICS block line whose first token is an ALL-CAPS keyword
+		 * ending in ':' is a declaration - DS: is one, handled above.
+		 * Declarations the writer does not know are ignored by contract,
+		 * so the block dialect can grow keyword lines without breaking
+		 * deployed writers; instance names must not look like one.
+		 * METRICS only: legacy DEVMON blocks predate the contract and
+		 * may carry instances named like a keyword (e.g. "CPU:1"). */
+		if (metrics_block) {
 			int kwlen = strspn(columns[0], "ABCDEFGHIJKLMNOPQRSTUVWXYZ");
 			if ((kwlen > 0) && (columns[0][kwlen] == ':')) {
 				dbgprintf("Skipping unknown declaration on line %d (%s)\n",lineno,columns[0]);
@@ -149,6 +165,11 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		/* Now we should be on to values:
 		 * eth0.0 4678222:9966777
 		 */
+		if (numds == 0) {
+			/* No DS line in this block: nothing can be created. */
+			dbgprintf("Skipping line %d, block has no DS definitions\n",lineno);
+			goto nextline;
+		}
 		ifname = xstrdup(columns[0]);
 		dsval = strtok(columns[1],":");
 		if (dsval == NULL) {
@@ -203,6 +224,11 @@ nextline:
 		curline = (eoln ? (eoln+1) : NULL);
 	}
 	setup_lazy(0);	/* the banner flag must not leak into other handlers */
+
+	{
+		int i;
+		for (i = 0; (devmon_params[i]); i++) xfree(devmon_params[i]);
+	}
 
 	return 0;
 }
