@@ -482,6 +482,11 @@ static void expand_dsidx_in_block(gdef_t *gd)
 		for (i = 0; gd->defs[i]; i++) free(gd->defs[i]);
 		free(gd->defs);
 		gd->defs = expanded;
+		/* Fully expanded: render takes the standard path. An INCLUDE
+		 * variant of a runtime base may have inherited dsidx_runtime -
+		 * leaving it set would re-emit the already-expanded defs once
+		 * per matched file (duplicate vnames, rrd_graph error). */
+		gd->dsidx_runtime = 0;
 		return;
 	}
 
@@ -1920,38 +1925,85 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 *   defs into per-RRD-context vs aggregate (the aggregate is
 	 *   emitted once, the rest are emitted per RRD). */
 	if (gdef->dsidx_runtime) {
+		/* Per LINE, in definition order: a line that is dsidx-templated
+		 * or uses per-RRD context (@RRDFN@/@RRDIDX@/...) is emitted once
+		 * per selected file, expanded with THAT file's DS count; any
+		 * other line - plain CDEFs, aggregates, comments - is emitted
+		 * exactly once. Re-emitting those per file would duplicate their
+		 * vnames, and rrd_graph rejects the whole graph. */
+		int i, j;
+		int nmax = 0;
+		int *fcount = (int *)calloc((rrddbcount > 0 ? rrddbcount : 1), sizeof(int));
+
 		for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
 			if (!selected_rrdidx(rrdidx)) continue;
-			{
-				int i, per_this = 0, j;
-				size_t need;
-				int n = derive_dscount_for_file(gdef->defs, rrddbs[rrdidx].rrdfn);
-				char **rt_defs = expand_dsidx_array(gdef->defs, n);
+			fcount[rrdidx] = derive_dscount_for_file(gdef->defs, rrddbs[rrdidx].rrdfn);
+			if (fcount[rrdidx] > nmax) nmax = fcount[rrdidx];
+		}
 
-				for (j = 0; rt_defs[j]; j++) per_this++;
-				need = (size_t)(argi + per_this * (rrddbcount - rrdidx) + 2 /* timestamp + NULL */);
+		for (i = 0; gdef->defs[i]; i++) {
+			char *body;
+			int start, templated;
+			char *line = strdup(gdef->defs[i]);
+
+			templated = classify_dsidx_line(line, &body, &start);
+			free(line);
+
+			if (templated || def_uses_rrd_context(gdef->defs[i])) {
+				for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
+					char *one[2];
+					char **rt_defs;
+					int per_this = 0;
+					size_t need;
+
+					if (!selected_rrdidx(rrdidx)) continue;
+					one[0] = gdef->defs[i]; one[1] = NULL;
+					rt_defs = expand_dsidx_array(one, fcount[rrdidx]);
+					for (j = 0; rt_defs[j]; j++) per_this++;
+					need = (size_t)(argi + per_this + 2 /* timestamp + NULL */);
+					if (need > rrdargs_cap) {
+						rrdargs_cap = need;
+						rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
+						if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
+					}
+
+					/* Expose this file's DS count to the aggregate parser
+					 * so within-file tokens (@DSMEDIAN:) emit a 1..N
+					 * indexed RPN matching the @DSIDX@-produced DEFs. */
+					aggregate_dscount = fcount[rrdidx];
+					for (j = 0; rt_defs[j]; j++) {
+						rrdargs[argi++] = strdup(expand_aggregate_tokens(rt_defs[j]));
+					}
+					aggregate_dscount = 0;
+
+					for (j = 0; rt_defs[j]; j++) free(rt_defs[j]);
+					free(rt_defs);
+				}
+			}
+			else {
+				size_t need = (size_t)(argi + 3);
 				if (need > rrdargs_cap) {
 					rrdargs_cap = need;
 					rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
 					if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
 				}
-
-				/* Expose this file's DS count to the aggregate parser
-				 * so within-file tokens (@DSMEDIAN:) emit a 1..N
-				 * indexed RPN matching the @DSIDX@-produced DEFs. */
-				aggregate_dscount = n;
-				for (i = 0; rt_defs[i]; i++) {
-					rrdargs[argi++] = strdup(expand_aggregate_tokens(rt_defs[i]));
-				}
+				/* Emit-once aggregates see the largest per-file count;
+				 * with one matched file (the common runtime shape) that
+				 * is exactly that file's count. */
+				aggregate_dscount = nmax;
+				rrdargs[argi++] = strdup(expand_aggregate_tokens(gdef->defs[i]));
 				aggregate_dscount = 0;
-
-				for (j = 0; rt_defs[j]; j++) free(rt_defs[j]);
-				free(rt_defs);
 			}
 		}
+		free(fcount);
 	}
 	else {
+		/* A parse-time-expanded DSCOUNT block may still carry within-file
+		 * aggregate tokens (@DSMEDIAN:) - they need the declared count,
+		 * or their RPN silently becomes UNKN. */
+		aggregate_dscount = gdef->dscount;
 		add_graphdef_args(rrdargs, &argi, gdef);
+		aggregate_dscount = 0;
 	}
 
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));

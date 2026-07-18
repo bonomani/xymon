@@ -112,4 +112,51 @@ grep -a "CDEF:rtotal=" "$work/out" | grep -aq "rt0" \
 grep -a "CDEF:rtotal=" "$work/out" | grep -aq "rt1" \
 	&& fail "sliced render must aggregate only its window"
 
+# Runtime @DSIDX@ over MULTIPLE files: templated and per-RRD-context
+# lines are emitted per file, expanded with that file's DS count;
+# anything else - plain CDEFs, comments - exactly once, or the
+# duplicated vnames would make rrd_graph reject the whole graph.
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: pingm\n'
+	printf 'DS:s1:GAUGE:600:0:U DS:s2:GAUGE:600:0:U\n'
+	printf 'alpha 1:2\n'
+	printf 'beta 3:4\n'
+	printf -- '-->\n'
+	printf 's\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/pingm.alpha.rrd" ] && [ -f "$rrds/pingm.beta.rrd" ] \
+	|| fail "xymond_rrd did not create the runtime-dsidx files"
+
+cat >>"$work/graphs.cfg" <<'EOF'
+
+[pingm_rt]
+	FNPATTERN ^pingm\.(.+)\.rrd
+	TITLE Runtime dsidx
+	YAXIS ms
+	DEF:p@RRDIDX@x@DSIDX@=@RRDFN@:s@DSIDX@:AVERAGE
+	LINE1:p@RRDIDX@x@DSIDX@#@COLOR@:@RRDPARAM@ s@DSIDX@
+	CDEF:kzero=p0x1,0,*
+	LINE1:kzero#000000:zero
+	COMMENT:emitted-once
+EOF
+
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=pingm_rt&graph=hourly&action=view" \
+XYMONHOME="$work" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "DEF:p0x1=" "$work/out" || fail "runtime dsidx: missing file-0 dataset-1 DEF"
+grep -aq "DEF:p0x2=" "$work/out" || fail "runtime dsidx: missing file-0 dataset-2 DEF"
+grep -aq "DEF:p1x1=" "$work/out" || fail "runtime dsidx: missing file-1 dataset-1 DEF"
+grep -aq "DEF:p1x2=" "$work/out" || fail "runtime dsidx: missing file-1 dataset-2 DEF"
+[ "$(grep -ac "CDEF:kzero=" "$work/out")" = "1" ] \
+	|| fail "plain CDEF must be emitted exactly once, not per file"
+[ "$(grep -ac "COMMENT:emitted-once" "$work/out")" = "1" ] \
+	|| fail "COMMENT must be emitted exactly once, not per file"
+grep -aq "Content-type: image/png" "$work/out" \
+	|| fail "runtime-dsidx multi-file graph rejected by rrdtool: $(grep -a 'ERROR\|error' "$work/out" | head -3)"
+
 pass "aggregate tokens sum across matched files into one CDEF"
