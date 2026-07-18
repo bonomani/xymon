@@ -540,8 +540,28 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 }
 
 
+/* The RRDDISKS/NORRDDISKS storage filters, replicated from do_disk (same
+ * env, same caseless semantics, compiled once): a filtered filesystem
+ * stays in the status text but gets no METRICS line, so the disk/inode
+ * blocks store exactly what do_disk stores today. */
+static int rrdptnsetup = 0;
+static pcre2_code *rrdinclpattern = NULL;
+static pcre2_code *rrdexclpattern = NULL;
+
+static void setup_rrddisk_patterns(void)
+{
+	char *ptn;
+
+	if (rrdptnsetup) return;
+	rrdptnsetup = 1;
+	ptn = getenv("RRDDISKS");
+	if (ptn && *ptn) rrdinclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
+	ptn = getenv("NORRDDISKS");
+	if (ptn && *ptn) rrdexclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
+}
+
 void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
-		      void *hinfo, char *fromline, char *timestr, 
+		      void *hinfo, char *fromline, char *timestr,
 		      char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
 {
 	int diskcolor = COL_GREEN;
@@ -559,28 +579,13 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	int fscount = 0;	/* filesystems shown = RRD files created; the exact
 				 * graph-paging count, stated so the renderer need
 				 * not re-count status lines (see below). */
-	static int rrdptnsetup = 0;
-	static pcre2_code *rrdinclpattern = NULL;
-	static pcre2_code *rrdexclpattern = NULL;
 
 	if (!want_msgtype(hinfo, MSG_DISK)) return;
 	if (!dfstr) return;
 
 	dbgprintf("Disk check host %s\n", hostname);
 
-	/* The RRDDISKS/NORRDDISKS storage filters, replicated from do_disk
-	 * (same env, same caseless semantics, compiled once): a filtered
-	 * filesystem stays in the status text but gets no METRICS line, so
-	 * the block stores exactly what do_disk stores today. */
-	if (!rrdptnsetup) {
-		char *ptn;
-
-		rrdptnsetup = 1;
-		ptn = getenv("RRDDISKS");
-		if (ptn && *ptn) rrdinclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
-		ptn = getenv("NORRDDISKS");
-		if (ptn && *ptn) rrdexclpattern = compileregex_opts(ptn, PCRE2_CASELESS);
-	}
+	setup_rrddisk_patterns();
 
 	/* do_disk reads the absolute "used" value from df column 2, except
 	 * for the IRIX xfs/efs/cxfs report shape where it is column 3 - the
@@ -803,7 +808,7 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	int mntcol  = -1;
 	char *p, *bol, *nl;
 	char msgline[4096];
-	strbuffer_t *monmsg, *dfstr_filtered;
+	strbuffer_t *monmsg, *dfstr_filtered, *metricsblk;
 	char *iname;
 	int imin, imax, icount, icolor;
 	char *group;
@@ -815,7 +820,10 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	dbgprintf("Inode check host %s\n", hostname);
 
+	setup_rrddisk_patterns();
+
 	monmsg = newstrbuffer(0);
+	metricsblk = newstrbuffer(0);
 	dfstr_filtered = newstrbuffer(0);
 	clear_inode_counts(hinfo, clientclass);
 	clearalertgroups();
@@ -900,7 +908,31 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 					addalertgroup(group);
 				}
 				/* A shown filesystem = one inode RRD file. */
-				if (!ignored) fscount++;
+				if (!ignored) {
+					fscount++;
+
+					/* Its METRICS line: the values do_disk
+					 * would store for the inode column (df -i
+					 * IUsed is column 2), unless the writer-
+					 * side RRDDISKS/NORRDDISKS filters drop
+					 * it - they apply to inode files too. */
+					if (levelpct >= 0) {
+						int wanted = 1;
+						char *ustr;
+
+						if (rrdexclpattern && matchregex(fsname, rrdexclpattern)) wanted = 0;
+						if (wanted && rrdinclpattern && !matchregex(fsname, rrdinclpattern)) wanted = 0;
+						if (wanted) {
+							strcpy(p, bol);
+							ustr = getcolumn(p, 2);
+							if (ustr && isdigit((unsigned char)*ustr))
+								snprintf(msgline, sizeof(msgline), "%s %ld:%lld\n", fsname, levelpct, str2ll(ustr, NULL));
+							else
+								snprintf(msgline, sizeof(msgline), "%s %ld:U\n", fsname, levelpct);
+							addtobuffer(metricsblk, msgline);
+						}
+					}
+				}
 			}
 
 			xfree(p);
@@ -979,6 +1011,15 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	snprintf(msgline, sizeof(msgline), "<!-- linecount=%d -->\n", fscount);
 	addtostatus(msgline);
 
+	/* The self-describing METRICS block, exactly as unix_disk_report
+	 * does for disk: storage cutover only, hint kept for display. */
+	if (STRBUFLEN(metricsblk) > 0) {
+		addtostatus("<!--XYMON METRICS: inode\n");
+		addtostatus("DS:pct:GAUGE:600:0:100 DS:used:GAUGE:600:0:U\n");
+		addtostrstatus(metricsblk);
+		addtostatus("-->\n");
+	}
+
 	/* And the full df output */
 	addtostrstatus(dfstr_filtered);
 
@@ -986,6 +1027,7 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	finish_status();
 
 	freestrbuffer(monmsg);
+	freestrbuffer(metricsblk);
 	freestrbuffer(dfstr_filtered);
 }
 

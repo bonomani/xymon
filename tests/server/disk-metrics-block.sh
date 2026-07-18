@@ -32,6 +32,9 @@ feed_client() {  # feed_client [ENV=val...] -- one linux client message on stdin
 		printf 'Filesystem 1024-blocks Used Available Capacity Mounted on\n'
 		printf '/dev/sda1 1000 500 500 50%% /var\n'
 		printf '/dev/sdb1 1000 900 100 90%% /data\n'
+		printf '[inode]\n'
+		printf 'Filesystem Inodes IUsed IFree IUse%% Mounted on\n'
+		printf '/dev/sda1 65536 6553 58983 10%% /var\n'
 		printf '@@\n'
 	} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 		HOSTSCFG="!$work/etc/hosts.cfg" MACHINE=testhost "$@" \
@@ -47,6 +50,8 @@ assert_contains "DS:pct:GAUGE:600:0:100 DS:used:GAUGE:600:0:U" "$out" "DS line m
 assert_contains "/var 50:500" "$out" "instance line carries do_disk's values (pct:used)"
 assert_contains "/data 90:900" "$out" "every shown filesystem gets an instance line"
 assert_contains "<!-- linecount=2 -->" "$out" "the linecount hint is kept for the legacy render path"
+assert_contains "<!--XYMON METRICS: inode" "$out" "the inode status carries its METRICS block too"
+assert_contains "/var 10:6553" "$out" "inode instance line carries pct:iused"
 
 # NORRDDISKS drops a filesystem from STORAGE only: no block line, but the
 # status text and the display count keep it - matching what do_disk

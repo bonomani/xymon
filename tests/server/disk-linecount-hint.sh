@@ -24,9 +24,11 @@ FILE="$ROOT/xymond/xymond_client.c"
 src=$(cat "$FILE")
 
 # The count is incremented once per shown (non-ignored) filesystem - so it
-# equals the RRD-file count and excludes IGNORE'd mounts and the df header.
-assert_contains "if (!ignored) fscount++;" "$src" \
-	"filesystem count must increment per shown (non-ignored) filesystem"
+# equals the display count and excludes IGNORE'd mounts and the df header.
+# (Since the METRICS-block emission the increment lives inside the
+# "if (!ignored) {" block, next to the block-line synthesis.)
+n=$(printf '%s\n' "$src" | grep -c 'fscount++;' || true)
+[ "$n" -ge 2 ] || fail "both disk and inode reports must count per shown filesystem (found $n)"
 
 # Each report emits the linecount comment from that count.
 n=$(printf '%s\n' "$src" | grep -c 'linecount=%d -->' || true)
