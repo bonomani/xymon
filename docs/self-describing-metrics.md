@@ -402,6 +402,22 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
   freshness is a display property of the graph, not of each DS.
 
 
+## File schema evolution (parked, one mechanism for two watch-items)
+
+The archive-consolidation derivation (above) and the heartbeat re-tune
+watch-item (below) are the same missing mechanism: a declaration changed
+AFTER file creation, and the file must be reconciled with it - a
+tune-pass, not two ad-hoc patches. Build them together, after soak.
+DECIDED semantics for late-added archives: consolidation functions are
+mutually unrecoverable (PDPs are folded and discarded - stored AVERAGE
+cannot yield MAX, and seeding MAX from AVERAGE data is averages wearing
+a MAX label), so an RRA added by the tune-pass fills FORWARD ONLY: no
+backfill, no approximate seeding, a documented history gap on a rare
+event. Both CFs in one file is standard and useful - identical at the
+finest resolution, divergent where buckets aggregate (a daily AVERAGE
+erases a 30-minute spike; MAX preserves the worst moment), which is
+exactly what a gdef reading DEF:...:MAX declares it needs.
+
 ## Risks / watch-items
 
 - Second consolidation review: deferred findings, each with its reason.
