@@ -307,22 +307,24 @@ reader tolerates the mix.
     read_ms AND read_ms_warn): the VALUE is the producer's policy, but the
     RELATION - "this DS is the warn level of that DS" - is a fact only the
     producer knows, so it is declared in the METRICS block on its own line:
-    "THRESHOLD <base-ds> <relop><threshold-ds> [COLOR=<color>]" (default
-    red). The grammar is the EXISTING DS/AGGDS rule language with a DS name
-    in the operand position - not a new vocabulary: severity is a xymon
-    color (never "warn"/"crit" words; DS rules default COL_RED, override
-    COLOR=), direction is the comparison operator glued to its operand as
-    one token (">resp_ms_warn", as ">90" in DS rules - AGGDS documents the
-    one-token form). One severity may appear in multiple relations per base
-    metric - a temperature with low+high yellow and low+high red is four
-    lines ("<temp_lo_crit", "<temp_lo_warn COLOR=yellow", ">temp_hi_warn
-    COLOR=yellow", ">temp_hi_crit"), rendering as an operating band. The
-    operator exists for the ALERT consumer (#218 already speaks this shape);
-    the renderer ignores it and styles the line by its color - one
-    vocabulary for severity, style and alert state. The held-back literal
-    form unifies for free: ">200" is exactly a DS-rule operand, a number
-    where a DS name may stand - not a second mechanism.
-    Example: "THRESHOLD read_ms >read_ms_warn COLOR=yellow". The line declares ONLY the
+    "THRESHOLD:<base-ds>:<relop><threshold-ds>[:<severity>]" - severity
+    warn|crit, default crit. The line speaks the BLOCK's dialect, not
+    analysis.cfg's: colon fields with a keyword prefix and an optional
+    trailing field, the same shape as a DS line (one separator for the
+    whole line - the unit decision's principle). Severity is the generic
+    warn|crit, NOT a xymon color: the wire is backend-neutral (the COMPUTE
+    exclusion's reason), and yellow/red is one consumer's vocabulary - the
+    xymon consumer maps warn->yellow, crit->red, exactly as it derives
+    YAXIS from the unit; analysis.cfg keeps speaking colors on its own
+    layer. The comparison operator IS kept, glued to its operand as one
+    token (">resp_ms_warn") - comparison is universal, not xymon-specific,
+    and #218 ingests it directly. One severity may appear in multiple
+    relations per base metric - a temperature with low+high warn and
+    low+high crit is four lines ("<temp_lo_crit", "<temp_lo_warn:warn",
+    ">temp_hi_warn:warn", ">temp_hi_crit"), rendering as an operating band.
+    The held-back literal form unifies for free: ">200" is a number where a
+    DS name may stand - not a second mechanism.
+    Example: "THRESHOLD:read_ms:>read_ms_warn:warn". The line declares ONLY the
     relation - never a display instruction (display belongs to the graph
     side, same reasoning that put MAXINSTANCESPERIMAGE/TRENDS/STALE in
     graphs.cfg, not in the block). Rendering is DERIVED from the fact,
@@ -353,7 +355,7 @@ reader tolerates the mix.
     analysis.cfg inside showgraph would be a second, drift-prone matcher.
   Deep-pass amendments (candidate, with the rest):
   - Precedence - the honest answer to "is this policy on the wire?": relop +
-    color IS a rule, so the declared form is the producer's DEFAULT, never
+    severity IS a rule, so the declared form is the producer's DEFAULT, never
     the last word. In the #218 engine, analysis.cfg matches first (first-match,
     as always); the declared rule fires only when server policy says nothing
     about that metric. The exact alerting mirror of "hand-written gdef wins".
@@ -366,9 +368,9 @@ reader tolerates the mix.
   - Unknown values: a threshold DS at U makes its rule SILENT (no alert,
     gap in the curve). No path may compare U as 0 - that would fire every
     "<" rule the moment a producer misses a baseline cycle.
-  - Colors: yellow|red only (the two alert severities); parse_color also
-    knows green/clear/purple/blue, all rejected here - a crossing that
-    means green is not a threshold.
+  - Severities: warn|crit only, nothing else - a crossing that means
+    "fine" is not a threshold. The color mapping (warn->yellow, crit->red)
+    lives in the xymon consumer, never on the wire.
   - Scope: both operands name DSes declared in the SAME block. Cross-file
     references stay out (that is analysis.cfg/#218 territory). In-block
     scope buys timestamp coherence: metric and thresholds land in the same
@@ -386,8 +388,8 @@ reader tolerates the mix.
   constant-valued threshold DS and declares the same relation - one uniform
   mechanism, and better than a flat rule, because when the producer changes
   the level the graph shows the step instead of rewriting history. (The
-  grammar leaves room for a later literal form - "THRESHOLD read_ms warn
-  200", persisted in the fileset index like units - but that is a second
+  grammar leaves room for a later literal form - "THRESHOLD:read_ms:>200:warn",
+  persisted in the fileset index like units - but that is a second
   mechanism for the same fact; held back unless the extra-DS cost proves to
   matter.) So the entire wire surface for thresholds is ONE line in ONE
   marker: THRESHOLD in the METRICS block.
