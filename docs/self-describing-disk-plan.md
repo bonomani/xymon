@@ -299,6 +299,41 @@ reader tolerates the mix.
   admin to capture into graphs.d/ and customize. One-shot scaffold, never a
   sync: once edited the file is the admin's (hand-written already wins).
 
+## Threshold rendering (candidate)
+
+- A metric's thresholds have two origins with two owners, and each gets its
+  own mechanism - never mixed:
+  - Producer-emitted threshold metrics (the usual case: the producer emits
+    read_ms AND read_ms_warn): the VALUE is the producer's policy, but the
+    RELATION - "this DS is the warn level of that DS" - is a fact only the
+    producer knows, so it is declared in the METRICS block on its own line:
+    "THRESHOLD read_ms warn read_ms_warn". The synthetic gdef then renders
+    the threshold DS as a threshold line (color/legend semantics, LINE from
+    its DEF - a curve with history, better than any flat rule) instead of a
+    peer metric, and keeps it out of instance counting/aggregation. New wire
+    surface -> high bar; same review gate as the rest of the dialect.
+    NOT a naming convention ("*_warn" suffix magic): names cannot carry the
+    relation reliably - false positives (log_warn = a count of warning
+    lines, silently demoted to a threshold line with no producer opt-out),
+    false negatives (rrdtool caps DS names at 19 chars, so exactly the
+    longer names truncate and the pairing breaks silently), it grows into a
+    name-encoded mini-language (crit, multiple levels, direction, ambiguous
+    base-name stripping), and it retroactively reinterprets every existing
+    file that happens to match. A fact is stated, not inferred. The
+    convention survives as a SPELLING habit: our emitters name the DS
+    read_ms_warn AND declare it - the name for humans, the line for
+    machines.
+  - analysis.cfg thresholds: policy, stays server-side, never on the wire.
+    The renderer asks the rule engine what applies to (host, metric) and
+    draws HRULEs (flat lines; a TIME-conditional rule renders its currently
+    effective level). Gated on RFC #218's unified rule engine - re-parsing
+    analysis.cfg inside showgraph would be a second, drift-prone matcher.
+  Both compose on one image. Bonus: the declared THRESHOLD relation is
+  exactly what #218 wants too - "alert when a metric crosses its declared
+  threshold metric" becomes a generic DS-vs-DS rule instead of per-handler
+  hardcoding. One declaration, two consumers (graph and alert), neither
+  owns it - the marker doctrine working as intended.
+
 ## Display-window keywords (candidate)
 
 - STALE <seconds>, per graphs.cfg block (next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/
