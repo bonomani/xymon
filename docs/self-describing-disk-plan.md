@@ -307,14 +307,22 @@ reader tolerates the mix.
     read_ms AND read_ms_warn): the VALUE is the producer's policy, but the
     RELATION - "this DS is the warn level of that DS" - is a fact only the
     producer knows, so it is declared in the METRICS block on its own line:
-    "THRESHOLD <base-ds> <level> <threshold-ds> [above|below]" (direction
-    defaults to above). The same level may appear in multiple relations per
-    base metric - a temperature with low+high warn and low+high crit is
-    four lines, rendering as an operating band. Direction exists for the
-    ALERT consumer only (breach = below the low thresholds, above the high
-    ones - a producer fact the rule engine must not guess); the renderer
-    ignores it, a line is a line.
-    Example: "THRESHOLD read_ms warn read_ms_warn". The line declares ONLY the
+    "THRESHOLD <base-ds> <relop><threshold-ds> [COLOR=<color>]" (default
+    red). The grammar is the EXISTING DS/AGGDS rule language with a DS name
+    in the operand position - not a new vocabulary: severity is a xymon
+    color (never "warn"/"crit" words; DS rules default COL_RED, override
+    COLOR=), direction is the comparison operator glued to its operand as
+    one token (">resp_ms_warn", as ">90" in DS rules - AGGDS documents the
+    one-token form). One severity may appear in multiple relations per base
+    metric - a temperature with low+high yellow and low+high red is four
+    lines ("<temp_lo_crit", "<temp_lo_warn COLOR=yellow", ">temp_hi_warn
+    COLOR=yellow", ">temp_hi_crit"), rendering as an operating band. The
+    operator exists for the ALERT consumer (#218 already speaks this shape);
+    the renderer ignores it and styles the line by its color - one
+    vocabulary for severity, style and alert state. The held-back literal
+    form unifies for free: ">200" is exactly a DS-rule operand, a number
+    where a DS name may stand - not a second mechanism.
+    Example: "THRESHOLD read_ms >read_ms_warn COLOR=yellow". The line declares ONLY the
     relation - never a display instruction (display belongs to the graph
     side, same reasoning that put MAXINSTANCESPERIMAGE/TRENDS/STALE in
     graphs.cfg, not in the block). Rendering is DERIVED from the fact,
