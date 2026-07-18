@@ -390,6 +390,17 @@ int main(int argc, char *argv[])
 					if (aggmsg) combo_add(aggmsg);
 				}
 				fsidx_flush(rrddir, hostname);
+				/* Hourly: evict cache entries idle > 6h (bounds
+				 * memory under instance churn; pending values are
+				 * flushed first, so nothing is lost). */
+				{
+					static time_t nextevict = 0;
+					time_t enow = gettimer();
+					if (enow > nextevict) {
+						updcache_evict_idle(6*3600);
+						nextevict = enow + 3600;
+					}
+				}
 				break;
 
 			  default:

@@ -119,6 +119,7 @@ typedef struct updcacheitem_t {
 	char *vals[CACHESZ];
 	int updseq[CACHESZ];
 	time_t updtime[CACHESZ];
+	time_t lasttouch;	/* for idle eviction under instance churn */
 } updcacheitem_t;
 
 static void * flushtree;
@@ -388,6 +389,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
 		if (!template) template = cacheitem->tpl;
 	}
+	cacheitem->lasttouch = gettimer();
 
 	/* If the RRD file doesn't exist, create it immediately */
 	if (stat(filedir, &st) == -1) {
@@ -685,6 +687,50 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	MEMUNDEFINE(rrdvalues);
 
 	return 0;
+}
+
+/* Evict update-cache entries idle beyond maxage. With lazy baselines
+ * living in the fileset index, the cache is pure batching: flushing an
+ * idle entry's pending values and dropping it loses nothing - this
+ * bounds the memory that instance churn (container mounts, rotating
+ * names) used to grow forever. Keys are collected first: deleting
+ * while traversing the tree is not safe. The template is shared and
+ * never freed here. */
+void updcache_evict_idle(time_t maxage)
+{
+	xtreePos_t handle;
+	time_t now = gettimer();
+	char **keys = NULL;
+	int nkeys = 0, i;
+
+	if (updcache_keyofs == -1) return;
+
+	for (handle = xtreeFirst(updcache); (handle != xtreeEnd(updcache)); handle = xtreeNext(updcache, handle)) {
+		updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+		if ((now - cacheitem->lasttouch) <= maxage) continue;
+		keys = (char **)realloc(keys, (nkeys+1) * sizeof(char *));
+		keys[nkeys++] = cacheitem->key;
+	}
+
+	for (i = 0; (i < nkeys); i++) {
+		handle = xtreeFind(updcache, keys[i]);
+		if (handle != xtreeEnd(updcache)) {
+			updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+			int v;
+
+			if (cacheitem->valcount > 0) {
+				sprintf(filedir, "%s%s", rrddir, cacheitem->key);
+				flush_cached_updates(cacheitem, NULL);
+			}
+			xtreeDelete(updcache, cacheitem->key);
+			for (v = 0; (v < cacheitem->valcount); v++)
+				if (cacheitem->vals[v]) xfree(cacheitem->vals[v]);
+			xfree(cacheitem->key);
+			xfree(cacheitem);
+		}
+	}
+	if (nkeys) dbgprintf("updcache: evicted %d idle entries\n", nkeys);
+	if (keys) xfree(keys);
 }
 
 void rrdcacheflushall(void)

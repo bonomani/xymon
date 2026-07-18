@@ -478,7 +478,13 @@ accepted. No dual-value concept exists for heartbeat.
   a fileset whose instances disagree on schema shows that file's axis.
   (g) --emit-gdef picks the first host readdir yields for its index
   lookup - documented, nondeterministic across hosts by design.
-- Unbounded state under instance churn (accepted for now; revisit before
+- PARTLY RESOLVED - update-cache churn: entries idle beyond 6h are
+  evicted hourly (pending values flushed first - the cache is pure
+  batching now that lazy baselines live in the index, so eviction loses
+  nothing). Remaining growth is only the index entries themselves (one
+  small line per instance ever seen), plus xtree tombstones per
+  eviction. The original note, for the record:
+- (historical) Unbounded state under instance churn (accepted for now; revisit before
   SNMP-scale collectors land): the RRD update cache and the lazy-baseline
   tree keep one entry per instance name EVER seen - upstream updcache
   behaviour, now reachable by any sender via content routing. Steady
