@@ -56,6 +56,13 @@ extern int xymon_gdef_fileset_unknown(char *name);
 extern int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage);
 extern int xymon_gdef_thresholds_off(char *name);
 extern int xymon_gdef_staleafter(char *name);
+
+/* Consolidation-function bits for xymon_gdef_cfs_forfile() */
+#define XYMON_CF_AVERAGE 1
+#define XYMON_CF_MIN     2
+#define XYMON_CF_MAX     4
+#define XYMON_CF_LAST    8
+extern int xymon_gdef_cfs_forfile(char *fn);
 extern void xymon_gdef_meta_source(char *fn);
 extern char *xymon_graph_data(char *hostname, char *dispname, char *service, int bgcolor,
 		xymongraph_t *graphdef, int itemcount, 

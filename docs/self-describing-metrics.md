@@ -140,7 +140,15 @@ Until implemented, lazy remains per-block/per-graph opt-in with the
 documented trade-off; the always-on default flip stays a separate,
 later decision with evidence in hand.
 
-## Archive consolidations derived from graph DEFs (candidate design)
+## Archive consolidations derived from graph DEFs (creation half IMPLEMENTED)
+
+Implementation status: gdef metadata collects the CF set its DEF lines
+read; at file creation the writer unions the CFs of every matching gdef
+(FNPATTERN or name-prefix) and clones each AVERAGE archive per extra CF,
+skipping CFs the definition set already carries. Safe by default: a file
+no gdef reads beyond AVERAGE gets a byte-identical stock archive set.
+The reconcile half for late gdef changes is the parked schema-evolution
+tune-pass (forward-only, see below).
 
 An RRA line bundles two decisions that belong to different owners:
 WHICH consolidations exist (AVERAGE/MAX/...) is the consumer's need -

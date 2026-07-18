@@ -420,6 +420,8 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		xymon_rrd_argv_item_t *rrdcreate_params;
 		int lazygate = lazy_banner;
 		char **rrddefinitions;
+		char *cfextras[16];
+		int cfextracount = 0;
 		int rrddefcount, i;
 		char *rrakey = NULL;
 		char stepsetting[10];
@@ -482,7 +484,44 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		sprintf(stepsetting, "%d", pollinterval);
 
 		rrddefinitions = get_rrd_definition((rrakey ? rrakey : testname), &rrddefcount);
-		rrdcreate_params = calloc(4 + pcount + rrddefcount + 1, sizeof(*rrdcreate_params));
+
+		/* Derived consolidations: gdefs matching this file may read
+		 * MIN/MAX/LAST DEFs - clone each AVERAGE archive per extra CF
+		 * the gdefs declare, unless the definition set already carries
+		 * that CF. A file no gdef reads beyond AVERAGE gets exactly
+		 * the stock archive set (safe by default). Late gdef changes
+		 * are the parked schema-evolution tune-pass, forward-only. */
+		{
+			int cfs = xymon_gdef_cfs_forfile(rrdfn) & ~XYMON_CF_AVERAGE;
+			struct { int bit; char *name; } cfnames[] = {
+				{ XYMON_CF_MIN, "MIN" }, { XYMON_CF_MAX, "MAX" }, { XYMON_CF_LAST, "LAST" }, { 0, NULL }
+			};
+			int c;
+
+			cfextracount = 0;
+			for (c = 0; (cfs && cfnames[c].name); c++) {
+				int have = 0;
+				char prefix[32];
+
+				if (!(cfs & cfnames[c].bit)) continue;
+				snprintf(prefix, sizeof(prefix), "RRA:%s:", cfnames[c].name);
+				for (i = 0; (!have && (i < rrddefcount)); i++)
+					have = (strncmp(rrddefinitions[i], prefix, strlen(prefix)) == 0);
+				if (have) continue;
+				for (i = 0; (i < rrddefcount); i++) {
+					if (strncmp(rrddefinitions[i], "RRA:AVERAGE:", 12) != 0) continue;
+					if (cfextracount >= (int)(sizeof(cfextras)/sizeof(cfextras[0]))) break;
+					{
+						size_t xlen = strlen(cfnames[c].name) + strlen(rrddefinitions[i]) + 8;
+						cfextras[cfextracount] = (char *)malloc(xlen);
+						snprintf(cfextras[cfextracount], xlen, "RRA:%s:%s", cfnames[c].name, rrddefinitions[i] + 12);
+						cfextracount++;
+					}
+				}
+			}
+		}
+
+		rrdcreate_params = calloc(4 + pcount + rrddefcount + cfextracount + 1, sizeof(*rrdcreate_params));
 		rrdcreate_params[0] = "rrdcreate";
 		rrdcreate_params[1] = filedir;
 
@@ -499,6 +538,8 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			rrdcreate_params[fixcount+i]      = creparams[i];
 		for (i=0; (i < rrddefcount); i++, pcount++)
 			rrdcreate_params[fixcount+pcount] = rrddefinitions[i];
+		for (i=0; (i < cfextracount); i++, pcount++)
+			rrdcreate_params[fixcount+pcount] = cfextras[i];
 
 		if (debug) {
 			for (i = 0; (rrdcreate_params[i]); i++) {
@@ -513,6 +554,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		optind = opterr = 0; rrd_clear_error();
 		result = xymon_rrd_create(4+pcount, rrdcreate_params);
 		xfree(rrdcreate_params);
+		for (i=0; (i < cfextracount); i++) xfree(cfextras[i]);
 		if (rrakey) xfree(rrakey);
 
 		if (result != 0) {

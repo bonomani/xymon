@@ -183,6 +183,9 @@ cat >"$work/etc/graphs.cfg" <<'GDEFS'
 [flz]
 	LAZY
 	STOREPATTERN pinned
+[cfmax]
+	FNPATTERN ^cfx\..+\.rrd
+	DEF:m=x.rrd:v:MAX
 GDEFS
 lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
 	local ts; ts=$(date +%s)
@@ -370,6 +373,30 @@ rm -f "$idx"
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 grep -q '^fsy\.c\.rrd [0-9]' "$idx" || fail "rebuilt index misses the new write"
 grep -q '^fsx\.a\.rrd [0-9]' "$idx" || fail "rebuilt index misses pre-existing files (scan seed): $(cat "$idx")"
+
+# Derived consolidations: a gdef whose FNPATTERN matches the file and
+# whose DEFs read :MAX makes the writer clone the AVERAGE archives as
+# MAX at creation; a file no gdef reads beyond AVERAGE gets exactly the
+# stock set. (Requires the rrdtool CLI to inspect the created file.)
+if command -v rrdtool >/dev/null 2>&1; then
+	ts=$(date +%s)
+	rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+	{
+		printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+			"$ts" $((ts+1800)) "$ts" "$ts"
+		printf '<!--XYMON METRICS: cfx\nDS:v:GAUGE:600:0:U\na 1\n-->\ns\n@@\n'
+		printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+			$((ts+1)) $((ts+1801)) "$ts" "$ts"
+		printf '<!--XYMON METRICS: cfplain\nDS:v:GAUGE:600:0:U\nx 1\n-->\ns\n@@\n'
+	} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+		"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+	rrdtool info "$work/rrd/testhost/cfx.a.rrd" | grep -q 'cf = "MAX"' \
+		|| fail "gdef-declared MAX archives not derived at creation"
+	rrdtool info "$work/rrd/testhost/cfx.a.rrd" | grep -q 'cf = "AVERAGE"' \
+		|| fail "AVERAGE archives must remain alongside derived ones"
+	rrdtool info "$work/rrd/testhost/cfplain.x.rrd" | grep -q 'cf = "MAX"' \
+		&& fail "a file no gdef reads beyond AVERAGE must keep the stock archive set"
+fi
 
 # Crash-leftover rebuild: a zero-length index (interrupted flush) must
 # reseed from the directory scan, exactly like a missing one.

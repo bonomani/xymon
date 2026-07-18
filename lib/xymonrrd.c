@@ -68,6 +68,7 @@ typedef struct gdefmeta_t {
 	char *fnpat;		/* FNPATTERN: the fileset's filename regex */
 	int thresholds;		/* THRESHOLDS ON|OFF: 0 unset, 1 on, -1 off */
 	int staleafter;		/* STALEAFTER seconds: freshness window; 0 = default */
+	int cfset;		/* XYMON_CF_* bits: consolidations this gdef's DEFs read */
 	pcre2_code *exstore;	/* compiled on demand (NULL after a failed compile too) */
 	pcre2_code *store;
 	pcre2_code *fnpat_re;
@@ -145,6 +146,20 @@ static void load_gdef_meta(void)
 			pat[strcspn(pat, " \t\r\n")] = '\0';
 			if (*pat) { if (cur->fnpat) xfree(cur->fnpat); cur->fnpat = strdup(pat); }
 		}
+		else if (cur && (strncmp(p, "DEF:", 4) == 0)) {
+			/* A definition line: note which consolidation function it
+			 * reads (the last colon field) - the writer derives the
+			 * archives a new file needs from these. */
+			char *cf = strrchr(p, ':');
+			if (cf) {
+				cf++;
+				cf[strcspn(cf, " \t\r\n")] = '\0';
+				if (strcmp(cf, "AVERAGE") == 0) cur->cfset |= XYMON_CF_AVERAGE;
+				else if (strcmp(cf, "MIN") == 0) cur->cfset |= XYMON_CF_MIN;
+				else if (strcmp(cf, "MAX") == 0) cur->cfset |= XYMON_CF_MAX;
+				else if (strcmp(cf, "LAST") == 0) cur->cfset |= XYMON_CF_LAST;
+			}
+		}
 		else if (cur && (strncasecmp(p, "STALEAFTER", 10) == 0) && isspace((int)p[10])) {
 			cur->staleafter = atoi(p+10);
 			if (cur->staleafter < 0) cur->staleafter = 0;
@@ -172,6 +187,7 @@ static void load_gdef_meta(void)
 				if (base->fnpat && !cur->fnpat) cur->fnpat = strdup(base->fnpat);
 				if (base->thresholds && !cur->thresholds) cur->thresholds = base->thresholds;
 				if (base->staleafter && !cur->staleafter) cur->staleafter = base->staleafter;
+				cur->cfset |= base->cfset;
 				if (base->exstorepat && !cur->exstorepat) cur->exstorepat = strdup(base->exstorepat);
 				if (base->storepat && !cur->storepat) cur->storepat = strdup(base->storepat);
 			}
@@ -181,12 +197,25 @@ static void load_gdef_meta(void)
 	freestrbuffer(inbuf);
 }
 
+/* Match a gdefmeta entry against a GRAPHS/test.cfg token. The token may
+ * carry a "::N" split-size suffix ("disk::8") - renderer paging syntax,
+ * not part of the graph's name; ignoring it here would silently bypass
+ * LAZY/STALEAFTER/MAXINSTANCESPERIMAGE for such entries. Returns 0 on
+ * match, following the strcmp find-loop idiom. */
+static int gdefmeta_namecmp(const char *gdefname, const char *entry)
+{
+	size_t n = strlen(gdefname);
+
+	return !((strncmp(gdefname, entry, n) == 0) &&
+		 ((entry[n] == '\0') || ((entry[n] == ':') && (entry[n+1] == ':'))));
+}
+
 int xymon_gdef_maxinstancesperimage(char *name)
 {
 	gdefmeta_t *walk;
 
 	load_gdef_meta();
-	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
 	return ((walk && (walk->maxinstancesperimage > 0)) ? walk->maxinstancesperimage : 0);
 }
 
@@ -284,8 +313,37 @@ int xymon_gdef_fileset_unknown(char *name)
 	gdefmeta_t *walk;
 
 	load_gdef_meta();
-	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
 	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
+}
+
+/* Union of the consolidation functions read by the DEF lines of every
+ * graph definition matching this file - FNPATTERN when the gdef has one,
+ * else the name-prefix boundary rule. 0 = no matching gdef declares any;
+ * the writer then creates exactly the stock archive set. */
+int xymon_gdef_cfs_forfile(char *fn)
+{
+	gdefmeta_t *walk;
+	int cfs = 0;
+
+	load_gdef_meta();
+	for (walk = gdefmetahead; (walk); walk = walk->next) {
+		if (!walk->cfset) continue;
+		if (walk->fnpat) {
+			if (!walk->fnpat_tried) {
+				walk->fnpat_tried = 1;
+				walk->fnpat_re = compileregex(walk->fnpat);
+				if (!walk->fnpat_re) errprintf("Invalid FNPATTERN '%s' in graph definition [%s]\n", walk->fnpat, walk->name);
+			}
+			if (walk->fnpat_re && matchregex(fn, walk->fnpat_re)) cfs |= walk->cfset;
+		}
+		else {
+			int nlen = strlen(walk->name);
+			if ((strncmp(walk->name, fn, nlen) == 0) &&
+			    ((fn[nlen] == '.') || (fn[nlen] == ',') || (fn[nlen] == '\0'))) cfs |= walk->cfset;
+		}
+	}
+	return cfs;
 }
 
 /* The graph's freshness window (STALEAFTER seconds), defaulting to the
@@ -296,7 +354,7 @@ int xymon_gdef_staleafter(char *name)
 	gdefmeta_t *walk;
 
 	load_gdef_meta();
-	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
 	return ((walk && (walk->staleafter > 0)) ? walk->staleafter : 86400);
 }
 
@@ -307,7 +365,7 @@ int xymon_gdef_thresholds_off(char *name)
 	gdefmeta_t *walk;
 
 	load_gdef_meta();
-	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
 	return (walk && (walk->thresholds == -1));
 }
 
@@ -321,7 +379,7 @@ int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
 	gdefmeta_t *walk;
 
 	load_gdef_meta();
-	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
 
 	if (walk && walk->fnpat) {
 		if (!walk->fnpat_tried) {
@@ -333,7 +391,20 @@ int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
 		return fsidx_count_pattern(hostname, walk->fnpat_re, maxage);
 	}
 
-	return fsidx_count_prefix(hostname, name, maxage);
+	{
+		/* Prefix rule: strip a "::N" split-size suffix, it is not part
+		 * of the filename prefix. */
+		char base[PATH_MAX];
+		char *sfx = strstr(name, "::");
+
+		if (sfx) {
+			size_t n = (size_t)(sfx - name);
+			if (n >= sizeof(base)) return -1;
+			memcpy(base, name, n); base[n] = '\0';
+			name = base;
+		}
+		return fsidx_count_prefix(hostname, name, maxage);
+	}
 }
 
 
