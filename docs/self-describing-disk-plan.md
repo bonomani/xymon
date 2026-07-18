@@ -348,6 +348,16 @@ reader tolerates the mix.
   mechanism for the same fact; held back unless the extra-DS cost proves to
   matter.) So the entire wire surface for thresholds is ONE line in ONE
   marker: THRESHOLD in the METRICS block.
+  Whether the threshold is PLOTTED is the admin's say, not the producer's -
+  the declaration never forces a pixel. Control points, coarse to fine:
+  the synthetic gdef co-plots by default (most people want to see what
+  would alert); a per-graph display keyword in graphs.cfg - THRESHOLDS
+  ON|OFF, default ON, next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/STALE -
+  suppresses the threshold curves without writing a full gdef; a
+  hand-written gdef has the last word (pick, style, or split them onto
+  their own image). Possible later: a &nothresholds URL toggle in
+  showgraph (per-view, same family as &nostale) - not needed for the
+  model to be complete.
   Both compose on one image. Bonus: the declared THRESHOLD relation is
   exactly what #218 wants too - "alert when a metric crosses its declared
   threshold metric" becomes a generic DS-vs-DS rule instead of per-handler
