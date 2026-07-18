@@ -16,6 +16,7 @@ static char testcfg_rcsid[] = "$Id$";
 #include <stdlib.h>
 #include <string.h>
 #include <ctype.h>
+#include <errno.h>
 
 #include "libxymon.h"
 
@@ -64,11 +65,13 @@ static void load_backend_block(tc_backend_t *b, bracenode_t *blk)
 			apply_rrd_verb(b, v);
 		}
 		else {
-			/* other backend (graphite, ...): keep raw words */
+			/* other backend (graphite, ...): keep raw words,
+			 * NULL-terminated as testcfg.h promises */
 			int j;
 			for (j = 0; j < v->nwords; j++) {
-				b->kv = (char **)realloc(b->kv, (b->nkv + 1) * sizeof(char *));
+				b->kv = (char **)realloc(b->kv, (b->nkv + 2) * sizeof(char *));
 				b->kv[b->nkv++] = strdup(v->words[j]);
+				b->kv[b->nkv] = NULL;
 			}
 		}
 	}
@@ -108,9 +111,16 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 				if (STRBUFLEN(sb)) addtobuffer(sb, ",");
 				for (k = 0; k < e->nwords; k++) { if (k) addtobuffer(sb, ":"); addtobuffer(sb, e->words[k]); }
 			}
-			if (m->ncv) xfree(m->ncv);
-			m->ncv = strdup(STRBUF(sb));
-			m->ncv_split = (strcasecmp(c->words[0], "SPLITNCV") == 0);
+			if (m->ncv) { xfree(m->ncv); m->ncv = NULL; }
+			if (STRBUFLEN(sb) > 0) {
+				m->ncv = strdup(STRBUF(sb));
+				m->ncv_split = (strcasecmp(c->words[0], "SPLITNCV") == 0);
+			}
+			else {
+				/* A bare NCV would otherwise override a working
+				 * NCV_<col> env with an empty spec - loudly ignore. */
+				errprintf("test.cfg: %s with no name:type pairs at line %d - ignored\n", c->words[0], c->line);
+			}
 			freestrbuffer(sb);
 		}
 		else if (is_rrd_verb(c->words[0])) {
@@ -132,6 +142,7 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 static tc_test_t *load_test(bracenode_t *tnode)
 {
 	tc_test_t *t = (tc_test_t *)calloc(1, sizeof(tc_test_t));
+	tc_metric_t *mtail = NULL;
 	int i;
 
 	t->name = strdup((tnode->nwords >= 2) ? tnode->words[1] : "");
@@ -140,11 +151,11 @@ static tc_test_t *load_test(bracenode_t *tnode)
 		bracenode_t *c = tnode->children[i];
 		if (c->nwords < 1) continue;
 
-		if ((strcasecmp(c->words[0], "SOURCE") == 0) && (c->nwords >= 2)) t->source = strdup(c->words[1]);
-		else if ((strcasecmp(c->words[0], "CMD") == 0) && (c->nwords >= 2)) t->cmd = strdup(c->words[1]);
-		else if ((strcasecmp(c->words[0], "INTERVAL") == 0) && (c->nwords >= 2)) t->interval = strdup(c->words[1]);
-		else if ((strcasecmp(c->words[0], "PORT") == 0) && (c->nwords >= 2)) t->port = strdup(c->words[1]);
-		else if ((strcasecmp(c->words[0], "HANDLER") == 0) && (c->nwords >= 2)) t->handler = strdup(c->words[1]);
+		if ((strcasecmp(c->words[0], "SOURCE") == 0) && (c->nwords >= 2)) { if (t->source) xfree(t->source); t->source = strdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "CMD") == 0) && (c->nwords >= 2)) { if (t->cmd) xfree(t->cmd); t->cmd = strdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "INTERVAL") == 0) && (c->nwords >= 2)) { if (t->interval) xfree(t->interval); t->interval = strdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "PORT") == 0) && (c->nwords >= 2)) { if (t->port) xfree(t->port); t->port = strdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "HANDLER") == 0) && (c->nwords >= 2)) { if (t->handler) xfree(t->handler); t->handler = strdup(c->words[1]); }
 		else if (strcasecmp(c->words[0], "GRAPHS") == 0) {
 			/* Comma-separated for the downstream consumer; tolerate both
 			 * "GRAPHS a b" and "GRAPHS a, b" by stripping trailing commas. */
@@ -158,12 +169,16 @@ static tc_test_t *load_test(bracenode_t *tnode)
 				if (STRBUFLEN(sb)) addtobuffer(sb, ",");
 				addtobufferraw(sb, w, wl);
 			}
+			if (t->graphs) xfree(t->graphs);
 			t->graphs = strdup(STRBUF(sb));
 			freestrbuffer(sb);
 		}
 		else if (strcasecmp(c->words[0], "METRIC") == 0) {
+			/* Append: the metric list keeps file order, so "the first
+			 * metric that carries X" means the first one WRITTEN */
 			tc_metric_t *m = load_metric(c);
-			m->next = t->metrics; t->metrics = m;
+			if (mtail) mtail->next = m; else t->metrics = m;
+			mtail = m;
 		}
 	}
 	return t;
@@ -240,8 +255,16 @@ tc_test_t *testcfg_load(void)
 	loaded = 1;
 
 	snprintf(fn, sizeof(fn), "%s/etc/test.cfg", xgetenv("XYMONHOME"));
+	errno = 0;
 	fd = stackfopen(fn, "r", NULL);
-	if (fd == NULL) return NULL;
+	if (fd == NULL) {
+		/* A present-but-unreadable file must not be silently identical
+		 * to an absent one: a permissions mistake would quietly turn
+		 * the whole feature off. */
+		if ((errno != 0) && (errno != ENOENT))
+			errprintf("test.cfg exists but cannot be read (%s): %s - falling back to env settings\n", fn, strerror(errno));
+		return NULL;
+	}
 
 	inbuf = newstrbuffer(0); all = newstrbuffer(0);
 	while (stackfgets(inbuf, NULL)) addtobuffer(all, STRBUF(inbuf));
@@ -258,7 +281,10 @@ tc_test_t *testcfg_load(void)
 tc_test_t *testcfg_find(tc_test_t *head, const char *name)
 {
 	tc_test_t *t;
-	for (t = head; (t && strcmp(t->name, name)); t = t->next) ;
+	/* Case-insensitive like the column->RRD tree (lib/xymonrrd.c), or a
+	 * wrong-case section would change the RRD binding but silently miss
+	 * the NCV/COUNTLINES overlays. */
+	for (t = head; (t && strcasecmp(t->name, name)); t = t->next) ;
 	return t;
 }
 
@@ -266,7 +292,7 @@ tc_metric_t *testcfg_metric(tc_test_t *test, const char *name)
 {
 	tc_metric_t *m;
 	if (!test) return NULL;
-	for (m = test->metrics; (m && strcmp(m->name, name)); m = m->next) ;
+	for (m = test->metrics; (m && strcasecmp(m->name, name)); m = m->next) ;
 	return m;
 }
 

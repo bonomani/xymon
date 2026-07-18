@@ -1,6 +1,8 @@
 /* test.cfg overlays the TEST2RRD column->RRD mapping: a single-metric TEST
- * binds its column to that metric, overriding the env for the same column
- * and adding new ones, while columns with no section fall back to the env. */
+ * binds its column to that metric and adds new columns - but an IMPLICIT
+ * binding (no HANDLER, no NCV) never overrides a conflicting env mapping;
+ * only explicit intent rebinds. Columns with no section fall back to the
+ * env. */
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -21,10 +23,12 @@ static void expect_rrd(const char *service, const char *want)
 
 int main(void)
 {
-	/* TEST2RRD env: http maps to tcp, cpu to la. test.cfg then overrides
-	 * cpu (to cpu2) and adds a fresh column diskquick (-> diskfam). */
+	/* TEST2RRD env: http->tcp, cpu->la, vmtemp->ncv. test.cfg implies
+	 * cpu->cpu2 (implicit: env wins, loud warning), explicitly rebinds
+	 * vmtemp via HANDLER, and adds a fresh column diskquick (-> diskfam). */
 	expect_rrd("http", "tcp");          /* env only, no test.cfg section: fallback */
-	expect_rrd("cpu", "cpu2");          /* test.cfg overrides env "cpu=la" */
+	expect_rrd("cpu", "la");            /* implicit METRIC binding never overrides env "cpu=la" */
+	expect_rrd("vmtemp", "vm_thermal"); /* explicit HANDLER overrides env "vmtemp=ncv" */
 	expect_rrd("diskquick", "diskfam"); /* test.cfg adds a column absent from env */
 
 	/* A multi-metric test binds no single RRD name: it must NOT create a

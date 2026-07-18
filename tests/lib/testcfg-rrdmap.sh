@@ -4,9 +4,10 @@
 # tests/lib/testcfg-rrdmap.sh
 #
 # test.cfg overlays the column->RRD mapping that TEST2RRD provides: a
-# single-metric TEST binds its column to that metric (overriding the env for
-# the same column, adding new columns), while columns with no section fall
-# back to the TEST2RRD environment. Drives the real find_xymon_rrd().
+# single-metric TEST binds its column to that metric and adds new columns,
+# but an IMPLICIT binding never overrides a conflicting env mapping (that
+# takes an explicit HANDLER); columns with no section fall back to the
+# TEST2RRD environment. Drives the real find_xymon_rrd().
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -41,6 +42,7 @@ make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 mkdir -p "$work/etc"
 cat >"$work/etc/test.cfg" <<'EOF'
 TEST cpu       { SOURCE client; METRIC cpu2 }
+TEST vmtemp    { SOURCE client; METRIC vm_thermal; HANDLER vm_thermal }
 TEST diskquick { SOURCE script; METRIC diskfam }
 TEST diskio {
         SOURCE script
@@ -50,7 +52,7 @@ TEST diskio {
 EOF
 
 XYMONHOME="$work" \
-TEST2RRD="cpu=la,http=tcp,disk" \
+TEST2RRD="cpu=la,http=tcp,disk,vmtemp=ncv" \
 GRAPHS="la,disk" \
 	"$work/harness" 2>"$work/stderr.log" || fail "rrdmap assertions failed: $(cat "$work/stderr.log")"
 

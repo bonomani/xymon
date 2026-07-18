@@ -84,6 +84,12 @@ static bp_tok_t bp_next(bp_state_t *st)
 			c[0] = *st->p++; addtobuffer(sb, c);
 		}
 		if (*st->p == '"') st->p++;
+		else {
+			/* An unterminated quote would silently swallow the rest
+			 * of the file into one word - reject the whole config. */
+			snprintf(st->err, sizeof(st->err), "unterminated quote (opened at line %d)", tok.line);
+			st->failed = 1;
+		}
 		tok.word = strdup(STRBUF(sb));
 		freestrbuffer(sb);
 	}
@@ -98,8 +104,10 @@ static bp_tok_t bp_next(bp_state_t *st)
 	return tok;
 }
 
+#define BP_MAXDEPTH 64
+
 /* Parse statements until CLOSE (when inblock) or EOF (top level). */
-static void bp_parse_body(bp_state_t *st, bracenode_t *parent, int inblock)
+static void bp_parse_body(bp_state_t *st, bracenode_t *parent, int inblock, int depth)
 {
 	for (;;) {
 		bracenode_t *stmt = NULL;
@@ -128,11 +136,19 @@ static void bp_parse_body(bp_state_t *st, bracenode_t *parent, int inblock)
 			if (tok.type == BP_WORD) { bp_addword(stmt, tok.word); continue; }
 			if (tok.type == BP_SEMI || tok.type == BP_EOF) { break; }  /* a verb */
 			if (tok.type == BP_OPEN) {                                  /* a block */
-				bp_parse_body(st, stmt, 1);
+				if (depth >= BP_MAXDEPTH) {
+					snprintf(st->err, sizeof(st->err), "blocks nested too deeply at line %d (max %d)", tok.line, BP_MAXDEPTH);
+					st->failed = 1;
+				}
+				else bp_parse_body(st, stmt, 1, depth+1);
 				break;
 			}
 			if (tok.type == BP_CLOSE) {  /* verb ended by the block's close - push it back conceptually */
 				bp_addchild(parent, stmt);
+				/* At top level a '}' is never legal: erroring here,
+				 * instead of returning quietly, is what keeps a stray
+				 * '}' from silently discarding the rest of the file. */
+				if (!inblock) { snprintf(st->err, sizeof(st->err), "unexpected '}' at line %d", tok.line); st->failed = 1; }
 				return;  /* caller (the CLOSE) is consumed here; body ends */
 			}
 		}
@@ -148,7 +164,7 @@ bracenode_t *braceparse(const char *text, char *errbuf, int errbufsz)
 
 	st.p = text; st.line = 1; st.err[0] = '\0'; st.failed = 0;
 	root = bp_newnode(0);
-	bp_parse_body(&st, root, 0);
+	bp_parse_body(&st, root, 0, 0);
 	if (st.failed) {
 		if (errbuf && errbufsz) { strncpy(errbuf, st.err, errbufsz - 1); errbuf[errbufsz - 1] = '\0'; }
 		braceparse_free(root);

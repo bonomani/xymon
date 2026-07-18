@@ -110,6 +110,35 @@ int main(void)
 	/* Syntax error: unbalanced brace is reported, not crashed. */
 	ck("unbalanced brace fails", testcfg_parse("TEST x { SOURCE client", err, sizeof(err)) == NULL);
 
+	/* Silent-loss regressions: each of these must FAIL LOUDLY (NULL
+	 * result + populated errbuf), never quietly drop config. */
+	err[0] = '\0';
+	ck("stray top-level } after words fails",
+	   testcfg_parse("TEST a { SOURCE client }\nfoo }\nTEST b { SOURCE client }", err, sizeof(err)) == NULL);
+	ck("stray top-level } is reported", err[0] != '\0');
+	err[0] = '\0';
+	ck("unterminated quote fails",
+	   testcfg_parse("CMD \"oops\nTEST b { SOURCE client }", err, sizeof(err)) == NULL);
+	ck("unterminated quote is reported", strstr(err, "quote") != NULL);
+
+	/* Metric order: the FIRST metric in file order that carries an NCV
+	 * spec wins - the list must not be reversed by the loader. */
+	tests = testcfg_parse(
+		"TEST multi {\n"
+		"  METRIC m1 { NCV a:GAUGE }\n"
+		"  METRIC m2 { NCV b:GAUGE }\n"
+		"}\n", err, sizeof(err));
+	t = testcfg_find(tests, "multi");
+	ck("metric list keeps file order", t && t->metrics && strcmp(t->metrics->name, "m1") == 0);
+	testcfg_free(tests);
+
+	/* A bare NCV (no pairs) is absent, not an empty spec that would
+	 * override a working NCV_<col> env with nothing. */
+	tests = testcfg_parse("TEST bare { METRIC bare { NCV } }", err, sizeof(err));
+	t = testcfg_find(tests, "bare");
+	ck("bare NCV is absent", t && testcfg_metric(t, "bare") && testcfg_metric(t, "bare")->ncv == NULL);
+	testcfg_free(tests);
+
 	printf(failures ? "FAILED\n" : "ALL OK\n");
 	return failures ? 1 : 0;
 }

@@ -73,4 +73,18 @@ if command -v rrdtool >/dev/null 2>&1; then
 	[ "$t" = "DERIVE" ] || fail "test.cfg NCV type not applied: queries is '$t', wanted DERIVE"
 fi
 
+# The must-not-change requirement: the env path is untouched when test.cfg
+# does not mention the column (envstat below) - and when test.cfg is absent
+# entirely. Both must store via NCV_<col> exactly as upstream does.
+cat >"$work/body3" <<'EOF'
+Env statistics
+hits : 42
+EOF
+out=$(feed envstat "$work/body3" TEST2RRD="envstat=ncv" NCV_envstat="hits:GAUGE")
+assert_contains "envstat.rrd" "$out" "column absent from test.cfg falls back to NCV_<col> env"
+mv "$work/etc/test.cfg" "$work/etc/test.cfg.away"
+out=$(feed envstat "$work/body3" TEST2RRD="envstat=ncv" NCV_envstat="hits:GAUGE")
+assert_contains "envstat.rrd" "$out" "no test.cfg at all falls back to NCV_<col> env"
+mv "$work/etc/test.cfg.away" "$work/etc/test.cfg"
+
 pass "test.cfg NCV/SPLITNCV specs override the environment for the RRD writer"

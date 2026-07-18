@@ -124,8 +124,10 @@ static void load_gdef_meta(void)
 			if (*pat) { if (cur->storepat) xfree(cur->storepat); cur->storepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
-			/* A variant inherits the base's metadata; its own
-			 * keywords (before or after) override - later wins. */
+			/* A variant inherits the base's metadata; its own keywords
+			 * override - later wins. The base must be defined EARLIER
+			 * in the file (gdefmetahead holds only prior sections); a
+			 * forward reference inherits nothing. */
 			char *bname = p + 7; 
 			gdefmeta_t *base;
 			bname += strspn(bname, " \t");
@@ -353,6 +355,18 @@ static void rrd_setup(void)
 		h = xtreeFind(xymonrrdtree, tc->name);
 		if (h != xtreeEnd(xymonrrdtree)) {
 			xymonrrd_t *ex = (xymonrrd_t *)xtreeData(xymonrrdtree, h);
+
+			/* An IMPLICIT binding - no HANDLER, no NCV, just the
+			 * metric's name - never overrides a working env mapping:
+			 * a documentation-only "TEST myapp { METRIC myapp }" next
+			 * to TEST2RRD="myapp=ncv" would silently rebind the
+			 * column to a nonexistent handler and kill collection.
+			 * Explicit intent (HANDLER, NCV) still wins. */
+			if (!tc->handler && !(tc->metrics && tc->metrics->ncv) && (strcasecmp(ex->xymonrrdname, rrdname) != 0)) {
+				errprintf("test.cfg: TEST %s implies handler '%s' but the environment maps it to '%s' - keeping the env mapping (use HANDLER to override)\n",
+					  tc->name, rrdname, ex->xymonrrdname);
+				continue;
+			}
 			if (ex->xymonrrdname != ex->svcname) xfree(ex->xymonrrdname);
 			ex->xymonrrdname = strdup(rrdname);
 		}

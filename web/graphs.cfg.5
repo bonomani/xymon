@@ -92,7 +92,11 @@ keywords (TITLE, YAXIS, FNPATTERN, MAXINSTANCESPERIMAGE, TRENDS, ...) are copied
 and its definition lines are copied in place. The variant's own
 keywords override the inherited ones, wherever they appear relative
 to the INCLUDE line, and its definition lines append - so a variant can retitle, retune the split
-size, or add curves without repeating the base:
+size, or add curves without repeating the base. Two caveats: the base
+must be defined earlier in the file (a forward reference inherits
+nothing), and the keyword must be written in upper case - a lowercase
+"include" is the configuration reader's file-inclusion directive
+(include <filename>), processed before graphs are parsed:
 .sp
 [diskio_ops_wide]
 .br
