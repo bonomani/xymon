@@ -75,6 +75,35 @@ counts:
 This reinstates the sound half of PR #246 (count what will actually render)
 while keeping its env-var config surface retired.
 
+## Lazy endgame: always-on flat-instance economy (candidate, gated on the index)
+
+Lazy today is an opt-in policy because it TRADES flat history for file
+economy - correct only where flat means uninteresting (spare disks, idle
+interfaces). The better model reframes it: a flat instance's entire history
+is losslessly "(value, since-timestamp)" - it needs no round-robin archives
+at four resolutions. Let the RRD file materialize only when there is an
+actual CURVE to store, and flat instances live as index records. Then lazy
+stops being a policy flag and becomes the storage engine's normal
+economics, always on.
+
+Two prerequisites, both missing today (which is WHY lazy must stay opt-in):
+
+1. Durability: the baseline (value, since) lives in xymond_rrd memory and a
+   restart forgets it. It must ride the writer-kept fileset index - the
+   entry extends to (instance -> last-write, per-DS units, baseline value,
+   since). One more convergence on the index: units, thresholds, exact
+   counts and lazy-always-on all persist through the same record.
+2. Consumer visibility: a baseline must be first-class for every consumer -
+   the synthetic gdef draws the flat segment from (V, since), AGGDS/count()
+   read V like any stored value, and "no file" stops being ambiguous
+   because the index entry proves the instance is alive and flat.
+
+The splice: when a value finally changes, the RRD begins at the change; the
+flat prefix stays index-side and the renderer draws prefix-from-index +
+curve-from-file. (Backfilling years of flat samples into RRAs at creation
+is the expensive alternative; rejected.) Until both prerequisites land,
+lazy remains per-block/per-graph opt-in with the documented trade-off.
+
 ## Archive consolidations derived from graph DEFs (candidate design)
 
 An RRA line bundles two decisions that belong to different owners:
