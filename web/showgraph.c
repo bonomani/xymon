@@ -953,25 +953,11 @@ static void add_graphdef_args(char **rrdargs, int *argi, gdef_t *gdef)
 	}
 }
 
+#include "namecompare.inc.c"
+
 int rrd_name_compare(const void *v1, const void *v2)
 {
-	rrddb_t *r1 = (rrddb_t *)v1;
-	rrddb_t *r2 = (rrddb_t *)v2;
-	char *endptr;
-	long numkey1, numkey2;
-	int key1isnumber, key2isnumber;
-
-	/* See if the keys are all numeric; if yes, then do a numeric sort */
-	numkey1 = strtol(r1->key, &endptr, 10); key1isnumber = (*endptr == '\0');
-	numkey2 = strtol(r2->key, &endptr, 10); key2isnumber = (*endptr == '\0');
-
-	if (key1isnumber && key2isnumber) {
-		if (numkey1 < numkey2) return -1;
-		else if (numkey1 > numkey2) return 1;
-		else return 0;
-	}
-
-	return strcmp(r1->key, r2->key);
+	return instance_key_compare(((rrddb_t *)v1)->key, ((rrddb_t *)v2)->key);
 }
 
 static int rrd_param_matches_service(const char *param, const char *svc)

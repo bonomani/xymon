@@ -491,7 +491,13 @@ accepted. No dual-value concept exists for heartbeat.
   affects new files only - existing files need an rrdtool tune pass. Either
   the writer detects the mismatch and tunes, or the limitation is documented;
   silently ignoring the new declaration is the one wrong option.
-- Instance sort order: showgraph's rrd_name_compare knows only two regimes -
+- IMPLEMENTED - instance sort order: rrd_name_compare is now ONE
+  version-aware total order (web/namecompare.inc.c, unit-tested for the
+  measured counterexamples below): digit runs compare numerically with a
+  leading-zero tie-break, everything else byte-wise. Plain integers,
+  OID/version keys and names all sort stably; the historical notes stay
+  for the record:
+- (historical) showgraph's rrd_name_compare knew only two regimes -
   pure-integer keys (numeric sort) and everything else (case-sensitive strcmp).
   Multi-component numeric keys sort wrongly: strcmp puts "1.10.1" before
   "1.2.1", the reverse of OID/version order. Harmless today (stock instances

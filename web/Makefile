@@ -89,7 +89,7 @@ xymonpage: $(WEBPAGEOBJS) $(XYMONCOMMLIB)
 datepage.cgi: $(DATEPAGEOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(DATEPAGEOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
-showgraph.o: showgraph.c aggregate-tokens.inc.c dsidx.inc.c
+showgraph.o: showgraph.c aggregate-tokens.inc.c dsidx.inc.c namecompare.inc.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<
 
 # Self-contained golden-output test for the @AVG:/@SUM:/... aggregate
@@ -102,6 +102,9 @@ test-aggregate-tokens: test-aggregate-tokens.c aggregate-tokens.inc.c
 
 # Self-contained golden-output test for @DSIDX@/@PREVDSIDX@/@DSSTART:N@
 # parse-time expansion. Build only; run via "make check" or directly.
+test-namecompare: test-namecompare.c namecompare.inc.c
+	$(CC) $(CFLAGS) -o $@ test-namecompare.c
+
 test-dsidx: test-dsidx.c dsidx.inc.c
 	$(CC) $(CFLAGS) -o $@ $<
 
@@ -173,12 +176,13 @@ appfeed.cgi: $(APPFEEDOBJS) $(XYMONLIB)
 
 
 .PHONY: clean check
-check: test-aggregate-tokens test-dsidx
+check: test-aggregate-tokens test-dsidx test-namecompare
 	./test-aggregate-tokens
 	./test-dsidx
+	./test-namecompare
 
 clean:
-	rm -f $(PROGRAMS) *.o *~ test-aggregate-tokens test-dsidx
+	rm -f $(PROGRAMS) *.o *~ test-aggregate-tokens test-dsidx test-namecompare
 
 install: install-bin install-cgi install-man
 
