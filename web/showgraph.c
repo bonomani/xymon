@@ -1369,6 +1369,77 @@ static char **synthetic_defs(char *rrdfn)
 	return defs;
 }
 
+/* One-shot scaffold mode (--emit-gdef): find the first RRD file of the
+ * fileset so the synthesizer can read its datasets. */
+static char *emit_find_rrd(char *rrddir, char *name)
+{
+	DIR *tld;
+	struct dirent *hent;
+	size_t plen = strlen(name);
+	static char result[4096];
+
+	tld = opendir(rrddir);
+	if (!tld) return NULL;
+	while ((hent = readdir(tld)) != NULL) {
+		char hostdir[4096];
+		DIR *hd;
+		struct dirent *fent;
+		struct stat st;
+
+		if (hent->d_name[0] == '.') continue;
+		snprintf(hostdir, sizeof(hostdir), "%s/%s", rrddir, hent->d_name);
+		if ((stat(hostdir, &st) != 0) || !S_ISDIR(st.st_mode)) continue;
+		hd = opendir(hostdir);
+		if (!hd) continue;
+		while ((fent = readdir(hd)) != NULL) {
+			size_t flen = strlen(fent->d_name);
+
+			if ((flen > plen + 5) &&
+			    (strncmp(fent->d_name, name, plen) == 0) && (fent->d_name[plen] == '.') &&
+			    (strcmp(fent->d_name + flen - 4, ".rrd") == 0)) {
+				snprintf(result, sizeof(result), "%s/%s", hostdir, fent->d_name);
+				closedir(hd); closedir(tld);
+				return result;
+			}
+		}
+		closedir(hd);
+	}
+	closedir(tld);
+	return NULL;
+}
+
+/* Print the gdef the runtime synthesizer would use for a marker-created
+ * fileset, for the admin to capture into graphs.d/ and customize. A
+ * one-shot scaffold, never a sync: once edited the definition is the
+ * admin's - a hand-written gdef always wins over the synthesized one. */
+static int emit_gdef(char *name, char *rrddir)
+{
+	gdef_t *gdef;
+	char *rrdfn;
+	char **defs;
+	int i;
+
+	gdef = synthetic_gdef(name);
+	if (!gdef) {
+		fprintf(stderr, "Invalid graph name '%s'\n", name);
+		return 1;
+	}
+	if (!rrddir) rrddir = xgetenv("XYMONRRDS");
+	rrdfn = emit_find_rrd(rrddir, name);
+	if (!rrdfn) {
+		fprintf(stderr, "No RRD files matching '%s.*.rrd' under %s\n", name, rrddir);
+		return 1;
+	}
+
+	defs = synthetic_defs(rrdfn);
+	printf("[%s]\n", name);
+	printf("\tFNPATTERN %s\n", gdef->fnpat);
+	printf("\tTITLE %s\n", gdef->title);
+	printf("\tYAXIS %s\n", gdef->yaxis);
+	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
+	return 0;
+}
+
 void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 {
 	gdef_t *gdef = NULL, *gdefuser = NULL;
@@ -1966,6 +2037,7 @@ int main(int argc, char *argv[])
 	char *rrddir  = NULL;		/* RRD files top-level directory */
 	char *gdeffn  = NULL;		/* graphs.cfg file */
 	char *graphfn = "-";		/* Output filename, default is stdout */
+	char *emitgdef = NULL;		/* --emit-gdef: print the synthesized gdef and exit */
 
 	char *selfURI;
 
@@ -1973,8 +2045,14 @@ int main(int argc, char *argv[])
 	graphwidth = atoi(xgetenv("RRDWIDTH"));
 	graphheight = atoi(xgetenv("RRDHEIGHT"));
 
+	/* --emit-gdef is a command-line scaffold mode, not a web request:
+	 * skip CGI query parsing (which rejects host-less requests). */
+	for (argi=1; (argi < argc); argi++) {
+		if (argnmatch(argv[argi], "--emit-gdef=")) emitgdef = strdup(strchr(argv[argi], '=')+1);
+	}
+
 	/* See what we want to do - i.e. get hostname, service and graph-type */
-	parse_query();
+	if (!emitgdef) parse_query();
 
 	/* Handle any command-line args */
 	for (argi=1; (argi < argc); argi++) {
@@ -2002,6 +2080,8 @@ int main(int argc, char *argv[])
 			graphfn = strdup(p+1);
 		}
 	}
+
+	if (emitgdef) return emit_gdef(emitgdef, rrddir);
 
 	redirect_cgilog("showgraph");
 
