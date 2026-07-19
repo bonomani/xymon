@@ -89,6 +89,28 @@ static int fsidx_valid_hostname(const char *hostname)
 		errprintf("fileset index: hostname '%s' contains '/', ignored\n", hostname);
 		return 0;
 	}
+	/* "." and ".." need no '/' to escape: they would make the parent
+	 * (or the RRD root itself) the lock/unlink/rewrite target. */
+	if ((strcmp(hostname, ".") == 0) || (strcmp(hostname, "..") == 0)) {
+		errprintf("fileset index: hostname '%s' is not a host directory, ignored\n", hostname);
+		return 0;
+	}
+	return 1;
+}
+
+/* rrdfns become the first token of a space-separated index record; one
+ * carrying a blank or line break would split the record on the way back
+ * in (its tail parsing as bogus extra records), and a leading '#' reads
+ * back as a comment. No writer produces such names (setupfn maps blanks,
+ * instances are percent-encoded), so reject loudly at the entry points
+ * rather than corrupt the file. */
+static int fsidx_valid_rrdfn(const char *rrdfn)
+{
+	if (!rrdfn || !(*rrdfn)) return 0;
+	if ((*rrdfn == '#') || (strpbrk(rrdfn, " \t\r\n") != NULL)) {
+		errprintf("fileset index: rrd filename '%s' cannot be indexed, ignored\n", rrdfn);
+		return 0;
+	}
 	return 1;
 }
 
@@ -100,8 +122,8 @@ static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts, const char *un
 	fsidx_entry_t *e;
 
 	if (handle == xtreeEnd(h->files)) {
-		e = (fsidx_entry_t *)calloc(1, sizeof(fsidx_entry_t));
-		e->fn = strdup(fn);
+		e = (fsidx_entry_t *)xcalloc(1, sizeof(fsidx_entry_t));
+		e->fn = xstrdup(fn);
 		e->ts = ts;
 		xtreeAdd(h->files, e->fn, e);
 		h->dirty_new = 1;
@@ -114,7 +136,7 @@ static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts, const char *un
 	if (units && (strongunits || !e->units)) {
 		if (!e->units || strcmp(e->units, units)) {
 			if (e->units) xfree(e->units);
-			e->units = strdup(units);
+			e->units = xstrdup(units);
 			h->dirty_new = 1;	/* schema info: flush immediately */
 		}
 	}
@@ -130,7 +152,7 @@ static void fsidx_set_entry_thresholds(fsidx_host_t *h, const char *fn, const ch
 	if (thr && (strong || !e->thresholds)) {
 		if (!e->thresholds || strcmp(e->thresholds, thr)) {
 			if (e->thresholds) xfree(e->thresholds);
-			e->thresholds = strdup(thr);
+			e->thresholds = xstrdup(thr);
 			h->dirty_new = 1;
 		}
 	}
@@ -146,28 +168,29 @@ static void fsidx_set_entry_heartbeats(fsidx_host_t *h, const char *fn, const ch
 	if (hb && (strong || !e->heartbeats)) {
 		if (!e->heartbeats || strcmp(e->heartbeats, hb)) {
 			if (e->heartbeats) xfree(e->heartbeats);
-			e->heartbeats = strdup(hb);
+			e->heartbeats = xstrdup(hb);
 			h->dirty_new = 1;
 		}
 	}
 }
 
-/* Replace one schema field outright (newer declaration adopted from the
- * other writer's disk state). Returns 1 when the value changed. */
+/* Replace one schema field outright with a declaration's value - NULL
+ * retracts the field. Returns 1 when the value changed. */
 static int fsidx_adopt_field(char **slot, const char *val)
 {
 	if (!val && !*slot) return 0;
 	if (val && *slot && (strcmp(*slot, val) == 0)) return 0;
 	if (*slot) xfree(*slot);
-	*slot = (val ? strdup(val) : NULL);
+	*slot = (val ? xstrdup(val) : NULL);
 	return 1;
 }
 
 /* Merge the on-disk index (possibly written by the other channel's writer)
  * into the in-memory tree. The schema fields (u/h/d/t) merge by their
- * declaration timestamp (g=): a NEWER disk bundle replaces ours outright,
- * an older one is ignored, equal generations weak-fill empty slots (the
- * legacy g-less behavior). This is what stops the two writers from
+ * declaration timestamp (g=): a NEWER disk bundle replaces ours outright
+ * - including fields it no longer carries, which are retracted - an
+ * older or equal one is ignored, and only g-LESS entries keep the legacy
+ * weak-fill of empty slots. This is what stops the two writers from
  * ping-ponging a changed spec: the stale process adopts instead of
  * republishing. Unknown trailing fields are ignored - future versions
  * carry record extensions there. */
@@ -224,13 +247,20 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 				e->gen = gen;
 				if (changed) h->dirty_new = 1;
 			}
-			else if (gen == e->gen) {
+			else if ((gen == e->gen) && (gen == 0)) {
+				/* Legacy g-less entries only. A NONZERO equal
+				 * generation owns its whole bundle just like a newer
+				 * one, so it must not weak-fill: a field retracted in
+				 * the same wall-clock second it was declared (the
+				 * generation is second-granular) would be resurrected
+				 * from our own just-published copy. */
 				if (units) fsidx_set(h, name, ts, units, 0);
 				if (hb) fsidx_set_entry_heartbeats(h, name, hb, 0);
 				if (thr) fsidx_set_entry_thresholds(h, name, thr, 0);
-				if (dsn && !e->dsnames) e->dsnames = strdup(dsn);
+				if (dsn && !e->dsnames) e->dsnames = xstrdup(dsn);
 			}
-			/* gen < e->gen: ours is the newer declaration, ignore disk */
+			/* gen < e->gen (or a nonzero tie): ours is the current
+			 * declaration, ignore disk */
 		}
 		if (bl) {
 			/* "b=<since>,<values>": a flat instance's baseline. Weak
@@ -243,7 +273,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 					if (!e->baseline && !e->bl_cleared) {
 						*comma = '\0';
 						e->since = (time_t)atol(bl);
-						e->baseline = strdup(comma+1);
+						e->baseline = xstrdup(comma+1);
 					}
 				}
 			}
@@ -292,9 +322,9 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 		h->needseed = 0;
 	}
 	else {
-		h = (fsidx_host_t *)calloc(1, sizeof(fsidx_host_t));
+		h = (fsidx_host_t *)xcalloc(1, sizeof(fsidx_host_t));
 		h->files = xtreeNew(strcmp);
-		xtreeAdd(fsidx_hosts, strdup(hostname), h);
+		xtreeAdd(fsidx_hosts, xstrdup(hostname), h);
 	}
 
 	/* Seed: prefer the existing index; else scan the directory once */
@@ -315,16 +345,23 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 }
 
 /* Strong-apply the sticky live declarations to one entry and stamp its
- * declaration generation - the merge authority for the schema bundle. */
+ * declaration generation - the merge authority for the schema bundle.
+ * A declaring sample carries the WHOLE truth: the block writer resets
+ * every pending at block open, so a field with no pending was dropped
+ * from the declaration and is retracted here - keeping it would
+ * republish the stale value under the fresh generation forever. A
+ * sample with no pendings at all (a legacy handler's write) declares
+ * nothing and leaves the fields alone. */
 static void fsidx_apply_pendings(fsidx_host_t *h, fsidx_entry_t *e)
 {
-	int declared = 0;
+	if (!fsidx_pending_units && !fsidx_pending_heartbeats &&
+	    !fsidx_pending_dsnames && !fsidx_pending_thresholds) return;
 
-	if (fsidx_pending_units) { if (fsidx_adopt_field(&e->units, fsidx_pending_units)) h->dirty_new = 1; declared = 1; }
-	if (fsidx_pending_heartbeats) { if (fsidx_adopt_field(&e->heartbeats, fsidx_pending_heartbeats)) h->dirty_new = 1; declared = 1; }
-	if (fsidx_pending_dsnames) { if (fsidx_adopt_field(&e->dsnames, fsidx_pending_dsnames)) h->dirty_new = 1; declared = 1; }
-	if (fsidx_pending_thresholds) { if (fsidx_adopt_field(&e->thresholds, fsidx_pending_thresholds)) h->dirty_new = 1; declared = 1; }
-	if (declared) e->gen = getcurrenttime(NULL);
+	if (fsidx_adopt_field(&e->units, fsidx_pending_units)) h->dirty_new = 1;
+	if (fsidx_adopt_field(&e->heartbeats, fsidx_pending_heartbeats)) h->dirty_new = 1;
+	if (fsidx_adopt_field(&e->dsnames, fsidx_pending_dsnames)) h->dirty_new = 1;
+	if (fsidx_adopt_field(&e->thresholds, fsidx_pending_thresholds)) h->dirty_new = 1;
+	e->gen = getcurrenttime(NULL);
 }
 
 /* Event-time bookkeeping: ensure the entry exists (a new one is stamped
@@ -337,13 +374,13 @@ void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!rrddir || !fsidx_valid_rrdfn(rrdfn) || (ts <= 0)) return;
 	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	handle = xtreeFind(h->files, rrdfn);
 	if (handle == xtreeEnd(h->files)) {
-		e = (fsidx_entry_t *)calloc(1, sizeof(fsidx_entry_t));
-		e->fn = strdup(rrdfn);
+		e = (fsidx_entry_t *)xcalloc(1, sizeof(fsidx_entry_t));
+		e->fn = xstrdup(rrdfn);
 		e->ts = ts;
 		xtreeAdd(h->files, e->fn, e);
 		h->dirty_new = 1;
@@ -360,7 +397,7 @@ void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 {
 	fsidx_host_t *h;
 
-	if (!rrddir || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!rrddir || !fsidx_valid_rrdfn(rrdfn) || (ts <= 0)) return;
 	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	fsidx_set(h, rrdfn, ts, NULL, 0);
@@ -380,7 +417,7 @@ void fsidx_set_dsnames(char *dsnspec)
 {
 	if (fsidx_pending_dsnames) { xfree(fsidx_pending_dsnames); fsidx_pending_dsnames = NULL; }
 	if (dsnspec && (strlen(dsnspec) > FSIDX_SPECMAX)) return;
-	if (dsnspec && *dsnspec) fsidx_pending_dsnames = strdup(dsnspec);
+	if (dsnspec && *dsnspec) fsidx_pending_dsnames = xstrdup(dsnspec);
 }
 
 /* Sticky declared heartbeats for following writes, same lifecycle as
@@ -394,7 +431,7 @@ void fsidx_set_heartbeats(char *hbspec)
 		errprintf("fileset index: heartbeat spec too long (%d), ignored\n", (int)strlen(hbspec));
 		return;
 	}
-	if (hbspec && *hbspec) fsidx_pending_heartbeats = strdup(hbspec);
+	if (hbspec && *hbspec) fsidx_pending_heartbeats = xstrdup(hbspec);
 }
 
 /* Sticky per-block writer state: the block writer declares the units of
@@ -408,7 +445,7 @@ void fsidx_set_units(char *unitspec)
 		errprintf("fileset index: unit spec too long (%d), ignored\n", (int)strlen(unitspec));
 		return;
 	}
-	if (unitspec && *unitspec) fsidx_pending_units = strdup(unitspec);
+	if (unitspec && *unitspec) fsidx_pending_units = xstrdup(unitspec);
 }
 
 /* Sticky threshold relations for following writes, same lifecycle as
@@ -420,7 +457,7 @@ void fsidx_set_thresholds(char *thrspec)
 		errprintf("fileset index: threshold spec too long (%d), ignored\n", (int)strlen(thrspec));
 		return;
 	}
-	if (thrspec && *thrspec) fsidx_pending_thresholds = strdup(thrspec);
+	if (thrspec && *thrspec) fsidx_pending_thresholds = xstrdup(thrspec);
 }
 
 /* The lazy gate's durable baseline: a flat instance is an index entry
@@ -450,7 +487,7 @@ void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values,
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !rrdfn || !values || (ts <= 0)) return;
+	if (!rrddir || !fsidx_valid_rrdfn(rrdfn) || !values || (ts <= 0)) return;
 	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	/* Ensure the entry and refresh last-seen: no rrdtool involved for a
@@ -461,7 +498,7 @@ void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values,
 	e = (fsidx_entry_t *)xtreeData(h->files, handle);
 	fsidx_apply_pendings(h, e);
 	if (!e->baseline) {
-		e->baseline = strdup(values);
+		e->baseline = xstrdup(values);
 		e->since = ts;
 		h->dirty_new = 1;
 	}
@@ -609,6 +646,20 @@ void fsidx_flush(char *rrddir, char *hostname)
 			 * flush must retry, or a one-shot change is lost */
 			h->dirty_new = h->dirty_ts = 0;
 			h->lastflush = now;
+			/* The file's data is synced, but the rename lives in the
+			 * DIRECTORY - a crash before its metadata hits disk can
+			 * still lose the publish. Some filesystems refuse fsync
+			 * on a directory fd, so failure only logs. */
+			{
+				char hostdir[PATH_MAX];
+				int dirfd;
+
+				snprintf(hostdir, sizeof(hostdir), "%s/%s", rrddir, hostname);
+				dirfd = open(hostdir, O_RDONLY);
+				if ((dirfd == -1) || (fsync(dirfd) != 0))
+					errprintf("fileset index: cannot sync %s: %s\n", hostdir, strerror(errno));
+				if (dirfd != -1) close(dirfd);
+			}
 		}
 		else {
 			errprintf("fileset index: cannot publish %s: %s\n", tmpfn, strerror(errno));
@@ -730,7 +781,7 @@ static char *fsidx_field(char *hostname, char *rrdfn, const char *fieldtag)
 		name = strtok_r(line, " \t\r\n", &sp);
 		if (!name || strcmp(name, rrdfn)) continue;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
-			if (strncmp(tok, fieldtag, taglen) == 0) { result = strdup(tok+taglen); break; }
+			if (strncmp(tok, fieldtag, taglen) == 0) { result = xstrdup(tok+taglen); break; }
 		}
 		break;
 	}
@@ -765,7 +816,7 @@ char *fsidx_units(char *hostname, char *rrdfn)
 		name = strtok_r(line, " \t\r\n", &sp);
 		if (!name || strcmp(name, rrdfn)) continue;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
-			if (strncmp(tok, "u=", 2) == 0) { result = strdup(tok+2); break; }
+			if (strncmp(tok, "u=", 2) == 0) { result = xstrdup(tok+2); break; }
 		}
 		break;
 	}

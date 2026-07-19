@@ -40,7 +40,7 @@ static char *marker_name(char *p, const char *blanks)
 	if (p[len] && !strchr(blanks, p[len]) && (p[len] != '\n') &&
 	    !((p[len] == '\r') && ((p[len+1] == '\n') || (p[len+1] == '\0')))) return NULL;
 
-	result = (char *)malloc(len + 1);
+	result = (char *)xmalloc(len + 1);
 	memcpy(result, p, len); result[len] = '\0';
 
 	return result;
@@ -79,7 +79,7 @@ static xymonmarker_t *find_or_add(xymonmarker_t **head, xymonmarker_t **tail, in
 
 	if (*count >= XYMON_MARKER_MAX) { xfree(name); return NULL; }
 
-	walk = (xymonmarker_t *)calloc(1, sizeof(xymonmarker_t));
+	walk = (xymonmarker_t *)xcalloc(1, sizeof(xymonmarker_t));
 	walk->name = name;
 	walk->instancespec = -1;
 	if (*tail) (*tail)->next = walk; else *head = walk;

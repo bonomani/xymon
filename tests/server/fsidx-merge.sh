@@ -70,6 +70,21 @@ out=$(run live-wins)
 echo "$out" | grep -q 'u=v:live' || fail "live declaration lost to on-disk generation: $out"
 echo "$out" | grep -q 'u=v:stale' && fail "stale disk spec survived a live declaration: $out"
 
+# Retraction: a sample's declaration bundle is the whole truth - a field
+# the block stopped declaring must leave the record instead of being
+# republished under every fresh generation. The undeclared (legacy
+# handler) path in the same scenario must leave seeded fields alone.
+out=$(run retract-live)
+echo "$out" | grep -q 'u=v:ms' || fail "declared field lost by the retraction sample: $out"
+echo "$out" | grep -q 'h=v:600' || fail "declared field lost by the retraction sample: $out"
+echo "$out" | grep -q 't=' && fail "retracted threshold republished: $out"
+
+# ... and retraction crosses the two-writer merge: adopting a newer disk
+# bundle clears the fields it no longer carries.
+out=$(run adopt-retract)
+echo "$out" | grep -q 'g=200' || fail "newer disk bundle not adopted: $out"
+echo "$out" | grep -q 't=' && fail "retraction lost in the cross-writer merge: $out"
+
 # A channel-fed hostname carrying '/' must be rejected by every fsidx
 # entry point: the decoy index planted OUTSIDE the RRD tree (where the
 # "../outside" hostname would resolve) must survive untouched - no
@@ -81,6 +96,13 @@ out=$(run reject-slash 2>/dev/null)
 echo "$out" | grep -q 'get=null' || fail "baseline API honored a '/' hostname: $out"
 grep -q 'sentinel' "$work/outside/.fileset-index" 2>/dev/null \
 	|| fail "'/' hostname escaped the RRD tree (outside index removed or rewritten)"
+
+# An rrdfn the space-separated record format cannot carry (blank, line
+# break, leading '#') is refused at every recording entry point.
+out=$(run reject-badfn 2>/dev/null)
+echo "$out" | grep -q 'f\.a\.rrd 1000' || fail "valid entry missing from the flush: $out"
+echo "$out" | grep -q 'bad' && fail "record-corrupting rrdfn was indexed: $out"
+echo "$out" | grep -q 'lead' && fail "leading-# rrdfn was indexed: $out"
 
 # A baseline set with ts<=0 must be refused up front: every loader
 # discards ts<=0 records, so flushing one would silently lose it.

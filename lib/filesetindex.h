@@ -39,7 +39,8 @@
  * processed; the freshness timestamp advances only after rrdtool ACCEPTS
  * the update, so rejected updates never look fresh. Hostnames reach this
  * API raw off the channel; every call that builds a path from one rejects
- * hostnames containing '/' (they would escape the RRD tree). */
+ * hostnames containing '/' and the literal "."/".." (they would escape
+ * the RRD tree), and rrdfns that cannot survive the record format. */
 extern void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */

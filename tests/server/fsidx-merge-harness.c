@@ -11,7 +11,10 @@
  *   ignore-older  memory holds gen 200, disk regresses to gen 50 -> keep
  *   legacy-fill   no generations anywhere -> weak fill (old behavior)
  *   live-wins     live declaration outranks any on-disk generation
+ *   retract-live  a live bundle no longer declaring a field retracts it
+ *   adopt-retract a newer disk bundle without a field clears ours
  *   reject-slash  a '/' in the hostname must not escape the RRD tree
+ *   reject-badfn  an rrdfn the record format cannot carry is refused
  *   baseline-zerots  a ts<=0 baseline is refused, not written-then-lost
  */
 
@@ -95,6 +98,33 @@ int main(int argc, char *argv[])
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}
+	else if (strcmp(scenario, "retract-live") == 0) {
+		/* The sample's declaration bundle is the whole truth: a field
+		 * the block stopped declaring (here t=) must leave the record,
+		 * not ride every fresh generation forever. The first
+		 * note_schema carries no pendings at all (a legacy handler's
+		 * write) and must leave the seeded fields alone. */
+		writeindex("h1", "f.a.rrd 1000 u=v:ms h=v:600 t=v:>5:warn g=100\n");
+		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* undeclared: hands off */
+		fsidx_set_units("v:ms");
+		fsidx_set_heartbeats("v:600");
+		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1001);	/* declares u+h, retracts t */
+		fsidx_set_units(NULL);
+		fsidx_set_heartbeats(NULL);
+		fsidx_flush(rrddir, "h1");
+		dumpindex("h1");
+	}
+	else if (strcmp(scenario, "adopt-retract") == 0) {
+		/* Retraction must cross the two-writer merge too: the other
+		 * writer publishes a NEWER bundle without t= - adopting it
+		 * means clearing our copy, or a retraction on one channel
+		 * would resurrect from the other's memory. */
+		writeindex("h1", "f.a.rrd 1000 u=v:ms t=v:>5:warn g=100\n");
+		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);
+		writeindex("h1", "f.a.rrd 1500 u=v:ms g=200\n");
+		fsidx_flush(rrddir, "h1");
+		dumpindex("h1");
+	}
 	else if (strcmp(scenario, "reject-slash") == 0) {
 		/* Hostnames come off the channel raw; one carrying '/' is a
 		 * path escape (a drophost could flock/unlink outside the RRD
@@ -106,6 +136,17 @@ int main(int argc, char *argv[])
 		fsidx_flush_now(rrddir, "../outside");
 		fsidx_drop(rrddir, "../outside");
 		printf("get=%s\n", fsidx_baseline_get(rrddir, "../outside", "flat.a.rrd", NULL) ? "leaked" : "null");
+	}
+	else if (strcmp(scenario, "reject-badfn") == 0) {
+		/* A blank, line break or leading '#' in an rrdfn would split
+		 * the space-separated record on the way back in (or read back
+		 * as a comment) - every recording entry point refuses them. */
+		fsidx_note_schema(rrddir, "h1", "bad\tname.rrd", 1000);
+		fsidx_note_commit(rrddir, "h1", "bad\nname.rrd", 1000);
+		fsidx_baseline_set(rrddir, "h1", "#lead.rrd", "1:2", 1000);
+		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* a valid entry to publish */
+		fsidx_flush(rrddir, "h1");
+		dumpindex("h1");
 	}
 	else if (strcmp(scenario, "baseline-zerots") == 0) {
 		/* Every loader discards ts<=0 records, so a baseline set with

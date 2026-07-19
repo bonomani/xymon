@@ -36,20 +36,23 @@ typedef struct bp_tok_t {
 
 static bracenode_t *bp_newnode(int line)
 {
-	bracenode_t *n = (bracenode_t *)calloc(1, sizeof(bracenode_t));
+	bracenode_t *n = (bracenode_t *)xcalloc(1, sizeof(bracenode_t));
 	n->line = line;
 	return n;
 }
 
 static void bp_addword(bracenode_t *n, char *w)
 {
-	n->words = (char **)realloc(n->words, (n->nwords + 1) * sizeof(char *));
+	/* xrealloc refuses a NULL pointer, so the first growth mallocs */
+	n->words = (char **)(n->words ? xrealloc(n->words, (n->nwords + 1) * sizeof(char *))
+				      : xmalloc(sizeof(char *)));
 	n->words[n->nwords++] = w;
 }
 
 static void bp_addchild(bracenode_t *n, bracenode_t *c)
 {
-	n->children = (bracenode_t **)realloc(n->children, (n->nchildren + 1) * sizeof(bracenode_t *));
+	n->children = (bracenode_t **)(n->children ? xrealloc(n->children, (n->nchildren + 1) * sizeof(bracenode_t *))
+						   : xmalloc(sizeof(bracenode_t *)));
 	n->children[n->nchildren++] = c;
 }
 
@@ -64,7 +67,9 @@ static bp_tok_t bp_next(bp_state_t *st)
 		/* Skip blanks and comments; a newline is a statement separator. */
 		while (*st->p && (*st->p != '\n') && isspace((int)*st->p)) st->p++;
 		if (*st->p == '#') { while (*st->p && (*st->p != '\n')) st->p++; }
-		if (*st->p == '\n') { st->line++; st->p++; tok.type = BP_SEMI; tok.line = st->line; return tok; }
+		/* The separator belongs to the line the newline ENDS - error
+		 * messages naming it must not point one line past it. */
+		if (*st->p == '\n') { tok.type = BP_SEMI; tok.line = st->line; st->line++; st->p++; return tok; }
 		if (*st->p == '\0') { tok.type = BP_EOF; tok.line = st->line; return tok; }
 		break;
 	}
@@ -90,14 +95,14 @@ static bp_tok_t bp_next(bp_state_t *st)
 			snprintf(st->err, sizeof(st->err), "unterminated quote (opened at line %d)", tok.line);
 			st->failed = 1;
 		}
-		tok.word = strdup(STRBUF(sb));
+		tok.word = xstrdup(STRBUF(sb));
 		freestrbuffer(sb);
 	}
 	else {
 		const char *start = st->p;
 		while (*st->p && !isspace((int)*st->p) &&
 		       (*st->p != '{') && (*st->p != '}') && (*st->p != ';') && (*st->p != '#')) st->p++;
-		tok.word = (char *)malloc(st->p - start + 1);
+		tok.word = (char *)xmalloc(st->p - start + 1);
 		memcpy(tok.word, start, st->p - start);
 		tok.word[st->p - start] = '\0';
 	}

@@ -27,8 +27,8 @@ static tc_backend_t *ensure_backend(tc_metric_t *m, const char *name)
 
 	for (b = m->backends; (b && strcasecmp(b->name, name)); b = b->next) ;
 	if (b) return b;
-	b = (tc_backend_t *)calloc(1, sizeof(tc_backend_t));
-	b->name = strdup(name);
+	b = (tc_backend_t *)xcalloc(1, sizeof(tc_backend_t));
+	b->name = xstrdup(name);
 	b->next = m->backends;
 	m->backends = b;
 	return b;
@@ -40,11 +40,11 @@ static void apply_rrd_verb(tc_backend_t *b, bracenode_t *v)
 	if (strcasecmp(v->words[0], "LAZY") == 0) b->lazy = 1;
 	else if ((strcasecmp(v->words[0], "EXCLUDE") == 0) && (v->nwords >= 2)) {
 		if (b->excludepat) xfree(b->excludepat);
-		b->excludepat = strdup(v->words[1]);
+		b->excludepat = xstrdup(v->words[1]);
 	}
 	else if ((strcasecmp(v->words[0], "STOREPATTERN") == 0) && (v->nwords >= 2)) {
 		if (b->storepat) xfree(b->storepat);
-		b->storepat = strdup(v->words[1]);
+		b->storepat = xstrdup(v->words[1]);
 	}
 }
 
@@ -69,8 +69,10 @@ static void load_backend_block(tc_backend_t *b, bracenode_t *blk)
 			 * NULL-terminated as testcfg.h promises */
 			int j;
 			for (j = 0; j < v->nwords; j++) {
-				b->kv = (char **)realloc(b->kv, (b->nkv + 2) * sizeof(char *));
-				b->kv[b->nkv++] = strdup(v->words[j]);
+				/* xrealloc refuses a NULL pointer: first growth mallocs */
+				b->kv = (char **)(b->kv ? xrealloc(b->kv, (b->nkv + 2) * sizeof(char *))
+							: xmalloc(2 * sizeof(char *)));
+				b->kv[b->nkv++] = xstrdup(v->words[j]);
 				b->kv[b->nkv] = NULL;
 			}
 		}
@@ -79,10 +81,10 @@ static void load_backend_block(tc_backend_t *b, bracenode_t *blk)
 
 static tc_metric_t *load_metric(bracenode_t *mnode)
 {
-	tc_metric_t *m = (tc_metric_t *)calloc(1, sizeof(tc_metric_t));
+	tc_metric_t *m = (tc_metric_t *)xcalloc(1, sizeof(tc_metric_t));
 	int i;
 
-	m->name = strdup((mnode->nwords >= 2) ? mnode->words[1] : "");
+	m->name = xstrdup((mnode->nwords >= 2) ? mnode->words[1] : "");
 
 	for (i = 0; i < mnode->nchildren; i++) {
 		bracenode_t *c = mnode->children[i];
@@ -113,7 +115,7 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 			}
 			if (m->ncv) { xfree(m->ncv); m->ncv = NULL; }
 			if (STRBUFLEN(sb) > 0) {
-				m->ncv = strdup(STRBUF(sb));
+				m->ncv = xstrdup(STRBUF(sb));
 				m->ncv_split = (strcasecmp(c->words[0], "SPLITNCV") == 0);
 			}
 			else {
@@ -141,21 +143,21 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 
 static tc_test_t *load_test(bracenode_t *tnode)
 {
-	tc_test_t *t = (tc_test_t *)calloc(1, sizeof(tc_test_t));
+	tc_test_t *t = (tc_test_t *)xcalloc(1, sizeof(tc_test_t));
 	tc_metric_t *mtail = NULL;
 	int i;
 
-	t->name = strdup((tnode->nwords >= 2) ? tnode->words[1] : "");
+	t->name = xstrdup((tnode->nwords >= 2) ? tnode->words[1] : "");
 
 	for (i = 0; i < tnode->nchildren; i++) {
 		bracenode_t *c = tnode->children[i];
 		if (c->nwords < 1) continue;
 
-		if ((strcasecmp(c->words[0], "SOURCE") == 0) && (c->nwords >= 2)) { if (t->source) xfree(t->source); t->source = strdup(c->words[1]); }
-		else if ((strcasecmp(c->words[0], "CMD") == 0) && (c->nwords >= 2)) { if (t->cmd) xfree(t->cmd); t->cmd = strdup(c->words[1]); }
-		else if ((strcasecmp(c->words[0], "INTERVAL") == 0) && (c->nwords >= 2)) { if (t->interval) xfree(t->interval); t->interval = strdup(c->words[1]); }
-		else if ((strcasecmp(c->words[0], "PORT") == 0) && (c->nwords >= 2)) { if (t->port) xfree(t->port); t->port = strdup(c->words[1]); }
-		else if ((strcasecmp(c->words[0], "HANDLER") == 0) && (c->nwords >= 2)) { if (t->handler) xfree(t->handler); t->handler = strdup(c->words[1]); }
+		if ((strcasecmp(c->words[0], "SOURCE") == 0) && (c->nwords >= 2)) { if (t->source) xfree(t->source); t->source = xstrdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "CMD") == 0) && (c->nwords >= 2)) { if (t->cmd) xfree(t->cmd); t->cmd = xstrdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "INTERVAL") == 0) && (c->nwords >= 2)) { if (t->interval) xfree(t->interval); t->interval = xstrdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "PORT") == 0) && (c->nwords >= 2)) { if (t->port) xfree(t->port); t->port = xstrdup(c->words[1]); }
+		else if ((strcasecmp(c->words[0], "HANDLER") == 0) && (c->nwords >= 2)) { if (t->handler) xfree(t->handler); t->handler = xstrdup(c->words[1]); }
 		else if (strcasecmp(c->words[0], "GRAPHS") == 0) {
 			/* Comma-separated for the downstream consumer; tolerate both
 			 * "GRAPHS a b" and "GRAPHS a, b" by stripping trailing commas. */
@@ -170,7 +172,7 @@ static tc_test_t *load_test(bracenode_t *tnode)
 				addtobufferraw(sb, w, wl);
 			}
 			if (t->graphs) xfree(t->graphs);
-			t->graphs = strdup(STRBUF(sb));
+			t->graphs = xstrdup(STRBUF(sb));
 			freestrbuffer(sb);
 		}
 		else if (strcasecmp(c->words[0], "METRIC") == 0) {

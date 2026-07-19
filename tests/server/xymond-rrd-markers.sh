@@ -312,6 +312,26 @@ feed_status diskio "$work/body-dialect2" >/dev/null
 grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:900,hi:600 ' "$work/rrd/testhost/.fileset-index" \
 	|| fail "redeclared heartbeat did not replace h=: $(grep temperature.cpu "$work/rrd/testhost/.fileset-index")"
 
+# ... and a block that STOPS declaring a field retracts it: the next
+# sample's bundle is the whole truth, so a dropped THRESHOLD line must
+# leave the record instead of riding every fresh generation forever.
+sed '/^THRESHOLD:/d' "$work/body-dialect" >"$work/body-dialect3"
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	cat "$work/body-dialect"
+	printf '@@\n'
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
+	cat "$work/body-dialect3"
+	printf '@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:1200,hi:600 d=temp,hi g=[0-9]*$' "$work/rrd/testhost/.fileset-index" \
+	|| fail "dropped THRESHOLD not retracted from the index: $(grep temperature.cpu "$work/rrd/testhost/.fileset-index")"
+
 # The writer reads at most MAXCOLS (20) columns per line: a block declaring
 # 21 DS specs still creates files for instance lines carrying 20 values
 # (the marker parser caps its DS count at the same 20 for paging parity).

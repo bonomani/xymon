@@ -148,12 +148,20 @@ static void load_gdef_meta(void)
 		}
 		else if (cur && (strncmp(p, "DEF:", 4) == 0)) {
 			/* A definition line: note which consolidation function it
-			 * reads (the last colon field) - the writer derives the
-			 * archives a new file needs from these. */
-			char *cf = strrchr(p, ':');
-			if (cf) {
-				cf++;
-				cf[strcspn(cf, " \t\r\n")] = '\0';
+			 * reads - the writer derives the archives a new file needs
+			 * from these. The spec is DEF:vname=rrdfile:ds-name:CF
+			 * [:step=...:reduce=...], so the CF is the THIRD colon
+			 * field, not the last (options may follow it), and a "\:"
+			 * in the rrdfile is an escaped colon, not a separator. */
+			char *cf = p + 4;
+			int field = 0;
+
+			while (*cf && (field < 2)) {
+				if ((*cf == '\\') && cf[1]) cf += 2;
+				else { if (*cf == ':') field++; cf++; }
+			}
+			if (field == 2) {
+				cf[strcspn(cf, ": \t\r\n")] = '\0';
 				if (strcmp(cf, "AVERAGE") == 0) cur->cfset |= XYMON_CF_AVERAGE;
 				else if (strcmp(cf, "MIN") == 0) cur->cfset |= XYMON_CF_MIN;
 				else if (strcmp(cf, "MAX") == 0) cur->cfset |= XYMON_CF_MAX;
@@ -264,6 +272,7 @@ static int storepat_match(pcre2_code *pat, char *fn, size_t fnlen)
 	int result;
 
 	md = pcre2_match_data_create_from_pattern(pat, NULL);
+	if (!md) return 0;	/* allocation failed: no match, not a crash */
 	result = pcre2_match(pat, (PCRE2_SPTR)fn, fnlen, 0, 0, md, NULL);
 	pcre2_match_data_free(md);
 	return (result >= 0);
