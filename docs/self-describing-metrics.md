@@ -102,8 +102,9 @@ invalidation rides fsidx_drop). The decided cheap splice is in: at first
 change the file is created with an early start and seeded with the
 baseline value one step before the change - a true step edge, no RRA
 backfill. A materialized record tombstones so the two-channel weak merge
-cannot resurrect its b= field. Paging counters skip flat records
-(nothing renders for them yet).
+cannot resurrect its b= field. Paging counters include fresh flat
+records - the renderer's flat-segment below gives them something to
+render.
 ALSO IMPLEMENTED - flat instances feed the aggregates: the writer
 records positional DS names on entries (d=ds1,ds2 - sticky per block
 like units), and check_aggds_thresholds reads the loaded host's flat
@@ -116,7 +117,7 @@ index state (same process), no file IO.
 ALSO IMPLEMENTED - the renderer's flat-segment: showgraph enumerates
 instances from the index as well as the directory. A fresh flat record
 matching the graph's patterns joins the set as a VIRTUAL instance
-(rrdfn NULL): it occupies its paging slot (counters include it again),
+(rrdfn NULL): it occupies its paging slot (counters include it),
 every per-file emitter skips it, and it renders as one HRULE per value
 component with a "flat since <date>" legend. An ENTIRELY-flat fileset
 renders too (HRULEs only, empty def list). Freshness = the graph's

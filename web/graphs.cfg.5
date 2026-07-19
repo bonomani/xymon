@@ -50,14 +50,18 @@ variable (see xymonserver.cfg(5)), which remains supported.
 A "LAZY" keyword makes file creation lazy for every writer path
 targeting this graph's files: the first sample seen for an instance
 becomes its baseline - whatever the value is - and the RRD file is
-created only when a later sample differs. Flat instances produce no files
-and no graphs, whether they idle at zero (spare disks, unused
+created only when a later sample differs. Flat instances produce no files,
+whether they idle at zero (spare disks, unused
 interfaces) or sit pinned at a constant (an always-full database
-filesystem). Existing files always update, and such graphs render
-unsliced (their file set is the ever-changed instances, which no
-single status can know). The baseline is held in memory: after a
-daemon restart it is re-learned from the next sample, which for a
-flat instance is the same value. The same gate is available per
+filesystem); they still graph, drawn as flat lines from their fileset-index
+records while fresh. Existing files always update. Such a graph's file set is the
+ever-changed instances, which no single status can know - the paging
+count is taken from the writer-kept fileset index instead, so the
+graph still pages with an exact count; only when no index is
+reachable does it render unsliced. Baselines are durable records in
+that same index, so they survive a daemon restart: a change that
+happens while the writer is down is detected on the next sample
+instead of silently becoming the new baseline. The same gate is available per
 message via the METRICS banner's "lazy" attribute - see
 xymond_rrd(8).
 
@@ -71,9 +75,11 @@ and "$" for a whole-name match) against the RRD filename minus its
 EXFNPATTERN, which match the full name including ".rrd". A
 STOREPATTERN match also forces the instance past a LAZY gate, so a
 deliberately named flat instance can be graphed anyway. Graphs with
-storage filters render unsliced - their file set diverges from what
-a status message shows, so a message-derived paging count cannot be
-trusted. (These keywords replace the drafted RRDEXCLUDE/RRDINCLUDE
+storage filters page like LAZY graphs do - their file set diverges
+from what a status message shows, so a message-derived paging count
+cannot be trusted and the count comes from the fileset index instead,
+with an unsliced render only when no index is
+reachable. (These keywords replace the drafted RRDEXCLUDE/RRDINCLUDE
 environment variables; analysis.cfg's "DISK ... IGNORE" remains the
 tool when the status line should disappear too.)
 .sp
@@ -84,7 +90,10 @@ by the CGIs on every page request.
 .sp
 A "STALEAFTER <seconds>" keyword sets the graph's freshness window,
 replacing the built-in default of 86400 seconds (one day): RRD files
-older than the window are hidden from the rendered graph, and the
+older than the window are hidden from graphs requested with
+showgraph.cgi's "nostale" option - the graph links Xymon's own pages
+generate always pass it; a hand-written URL without it shows every
+file - and the
 writer-kept fileset index applies the same window to its paging
 counts, so the count always equals what renders. Use it for
 legitimately periodic instances - a weekly backup job or a

@@ -63,7 +63,7 @@ EOF
 out=$(feed splitstat "$work/body2")
 assert_contains "splitstat,alpha.rrd" "$out" "test.cfg SPLITNCV makes one file per variable"
 assert_contains "splitstat,beta.rrd" "$out" "test.cfg SPLITNCV makes one file per variable"
-assert_not_contains "splitstat.rrd:" "$out:" "SPLITNCV did not collapse into one file"
+assert_not_contains "splitstat.rrd" "$out" "SPLITNCV did not collapse into one file"
 
 # When an rrdtool CLI is present, also verify the NCV dataset TYPES came from
 # test.cfg (queries as DERIVE, not the default GAUGE).

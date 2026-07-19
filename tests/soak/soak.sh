@@ -48,7 +48,9 @@ cp xymond/etcfiles/xymonserver.cfg "$LIVE/etc/"
 cp xymond/etcfiles/graphs.cfg "$LIVE/etc/graphs.cfg" 2>/dev/null || cp xymond/etcfiles/graphs.cfg.DIST "$LIVE/etc/graphs.cfg"
 cp xymond/etcfiles/rrddefinitions.cfg "$LIVE/etc/" 2>/dev/null || true
 : >"$LIVE/etc/analysis.cfg"
-sed -i "s|^XYMONHOME=.*|XYMONHOME=\"$LIVE\"|; s|^XYMONVAR=.*|XYMONVAR=\"$LIVE/data\"|; s|^FQDN=.*|FQDN=\"FALSE\"|; s|^XYMONLOGDIR=.*|XYMONLOGDIR=\"$LIVE/log\"|" "$LIVE/etc/xymonserver.cfg"
+sed "s|^XYMONHOME=.*|XYMONHOME=\"$LIVE\"|; s|^XYMONVAR=.*|XYMONVAR=\"$LIVE/data\"|; s|^FQDN=.*|FQDN=\"FALSE\"|; s|^XYMONLOGDIR=.*|XYMONLOGDIR=\"$LIVE/log\"|" \
+	"$LIVE/etc/xymonserver.cfg" >"$LIVE/etc/xymonserver.cfg.tmp" \
+	&& mv "$LIVE/etc/xymonserver.cfg.tmp" "$LIVE/etc/xymonserver.cfg"
 
 HOSTS="soak1 soak2 soak3"
 {

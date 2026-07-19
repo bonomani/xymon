@@ -359,15 +359,19 @@ In a lazy block an instance begins existing when its values first
 CHANGE: the first sample seen becomes the instance's baseline -
 whatever the value is - and the RRD file is created only when a
 later sample differs from it. Flat
-instances produce no files and no graphs, whether they idle at zero
+instances produce no files, whether they idle at zero
 (spare disks, unused interfaces) or sit pinned at a constant (an
-always-full filesystem). From the moment of creation every sample is
+always-full filesystem); their index records still draw as flat
+lines while fresh. From the moment of creation every sample is
 recorded as usual - an instance that goes flat again keeps its file
 and its history. Because the file set is therefore the EVER-changed
-instances, which no single message can know, the graph of a lazy
-block renders unsliced by default (nothing is ever hidden); give the
-GRAPH marker an explicit instances= to slice it. Two things to know: a
-constant-but-meaningful metric never graphs under lazy (that is the
+instances, which no single message can know, the paging count of a
+lazy block's graph is taken from the writer-kept fileset index, so it
+is exact; only when no index is reachable does the graph render
+unsliced. An explicit instances= on the GRAPH marker still overrides
+the derived count. Two things to know: a
+constant-but-meaningful metric accumulates no history under lazy, only
+the current flat line (that is the
 point - do not use it where flat history matters), and creation
 happens at the first CHANGED sample, so a varying instance appears
 one reporting cycle after its birth.
