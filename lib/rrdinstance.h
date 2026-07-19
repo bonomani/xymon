@@ -18,6 +18,8 @@
 
 /* All return a newly malloc()'d string the caller must free. */
 extern char *rrdinstance_encode(const char *s);
+/* Invalid escapes pass through verbatim; so does "%00" (the encoder never
+ * emits it, and a decoded NUL would truncate the result mid-string). */
 extern char *rrdinstance_decode(const char *s);
 /* NULL when s is not canonical encoder output (see the .c rationale) */
 extern char *rrdinstance_decode_ifencoded(const char *s);

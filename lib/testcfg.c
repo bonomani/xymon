@@ -133,7 +133,7 @@ static tc_metric_t *load_metric(bracenode_t *mnode)
 			/* a named backend block: RRD { ... } / GRAPHITE { ... } */
 			char bname[64];
 			int n = 0;
-			while (c->words[0][n] && (n < 63)) { bname[n] = tolower((int)c->words[0][n]); n++; }
+			while (c->words[0][n] && (n < 63)) { bname[n] = tolower((int)(unsigned char)c->words[0][n]); n++; }
 			bname[n] = '\0';
 			load_backend_block(ensure_backend(m, bname), c);
 		}
@@ -172,7 +172,10 @@ static tc_test_t *load_test(bracenode_t *tnode)
 				addtobufferraw(sb, w, wl);
 			}
 			if (t->graphs) xfree(t->graphs);
-			t->graphs = xstrdup(STRBUF(sb));
+			/* A bare "GRAPHS" (or all-comma args) is no override:
+			 * keep the documented "verbatim, or NULL" contract
+			 * instead of handing consumers an empty string. */
+			t->graphs = (STRBUFLEN(sb) ? xstrdup(STRBUF(sb)) : NULL);
 			freestrbuffer(sb);
 		}
 		else if (strcasecmp(c->words[0], "METRIC") == 0) {

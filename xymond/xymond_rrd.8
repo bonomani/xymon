@@ -305,6 +305,12 @@ letters, digits, "_" and "-" (max 64 characters); an invalid name
 skips the whole block. A message may carry several blocks. The block
 is invisible on the rendered status page.
 
+The routing is by content: a status whose text merely QUOTES a marker
+line at the start of a line (a log checker echoing one, for instance)
+is taken for a self-describing status, and the column's built-in RRD
+handler is bypassed for that message. Scripts that may reproduce
+foreign log content verbatim should indent it.
+
 A DS spec may carry an optional seventh colon-separated field
 declaring the metric's unit, e.g. "DS:temp:GAUGE:600:\-30:50:degC".
 The writer strips the suffix before the spec reaches rrdtool, so a

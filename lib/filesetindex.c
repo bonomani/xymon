@@ -32,6 +32,7 @@ static char filesetindex_rcsid[] = "$Id$";
 #include <dirent.h>
 #include <fcntl.h>
 #include <errno.h>
+#include <ctype.h>
 
 #include "libxymon.h"
 
@@ -73,9 +74,46 @@ static char *fsidx_pending_thresholds = NULL;	/* ditto, see fsidx_set_thresholds
 static char *fsidx_pending_dsnames = NULL;	/* ditto: "ds1,ds2" - positional names for flat values */
 static char *fsidx_pending_heartbeats = NULL;	/* ditto: "ds:heartbeat[,...]" - the declared heartbeats */
 
-static void fsidx_path(char *buf, size_t bufsz, const char *rrddir, const char *hostname, const char *suffix)
+static int fsidx_path(char *buf, size_t bufsz, const char *rrddir, const char *hostname, const char *suffix)
 {
-	snprintf(buf, bufsz, "%s/%s/%s%s", rrddir, hostname, FSIDX_NAME, suffix);
+	/* A silently truncated path would make the index, its ".lock" and
+	 * its ".tmp.<pid>" collapse into the SAME name, so rename/unlink
+	 * would hit the wrong file. Refuse instead. */
+	if ((size_t)snprintf(buf, bufsz, "%s/%s/%s%s", rrddir, hostname, FSIDX_NAME, suffix) >= bufsz) {
+		errprintf("fileset index: path for host '%s' exceeds PATH_MAX, ignored\n", hostname);
+		return -1;
+	}
+	return 0;
+}
+
+/* Timestamps off an index file are untrusted digit strings: atol() on
+ * an overflowing value is UB. Garbage or out-of-range parses to 0,
+ * which every caller already treats as invalid. */
+static time_t fsidx_parse_ts(const char *s)
+{
+	char *endp;
+	long v;
+
+	if (!s || !isdigit((int)(unsigned char)*s)) return 0;
+	errno = 0;
+	v = strtol(s, &endp, 10);
+	if ((errno == ERANGE) || (v <= 0) || (*endp != '\0')) return 0;
+	return (time_t)v;
+}
+
+/* fgets() splits a physical line longer than the buffer into chunks, and
+ * a tail chunk can parse as a plausible "name ts" record - which the
+ * loader would then republish durably on the next flush, laundering
+ * corruption into permanence. Returns 1 (and discards the tail) when the
+ * just-read chunk was not a complete line. */
+static int fsidx_line_truncated(char *line, FILE *fd)
+{
+	int ch;
+
+	if (strchr(line, '\n') != NULL) return 0;
+	if (feof(fd)) return 0;	/* last line without newline: complete */
+	while (((ch = fgetc(fd)) != EOF) && (ch != '\n')) ;
+	return 1;
 }
 
 /* Hostnames reach this API raw off the channel and are interpolated into
@@ -204,11 +242,15 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		char *name, *tsstr, *tok, *units, *thr, *bl, *dsn, *hb, *sp = NULL;
 		time_t ts, gen;
 
+		if (fsidx_line_truncated(line, fd)) {
+			errprintf("fileset index: discarding overlong record in %s\n", fn);
+			continue;
+		}
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
 		if (!name || !tsstr) continue;
-		ts = (time_t)atol(tsstr);
+		ts = fsidx_parse_ts(tsstr);
 		if (ts <= 0) continue;
 		units = NULL; thr = NULL; bl = NULL; dsn = NULL; hb = NULL; gen = 0;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
@@ -217,7 +259,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 			else if (strncmp(tok, "t=", 2) == 0) thr = tok+2;
 			else if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
 			else if (strncmp(tok, "d=", 2) == 0) dsn = tok+2;
-			else if (strncmp(tok, "g=", 2) == 0) gen = (time_t)atol(tok+2);
+			else if (strncmp(tok, "g=", 2) == 0) gen = fsidx_parse_ts(tok+2);
 			/* unknown fields: future record extensions, ignored */
 		}
 		/* The writers cap every spec at FSIDX_SPECMAX and the baseline
@@ -272,7 +314,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 					fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, bh);
 					if (!e->baseline && !e->bl_cleared) {
 						*comma = '\0';
-						e->since = (time_t)atol(bl);
+						e->since = fsidx_parse_ts(bl);
 						e->baseline = xstrdup(comma+1);
 					}
 				}
@@ -290,7 +332,7 @@ static void fsidx_scan_dir(fsidx_host_t *h, const char *rrddir, const char *host
 	DIR *dir;
 	struct dirent *d;
 
-	snprintf(dirname, sizeof(dirname), "%s/%s", rrddir, hostname);
+	if ((size_t)snprintf(dirname, sizeof(dirname), "%s/%s", rrddir, hostname) >= sizeof(dirname)) return;
 	dir = opendir(dirname);
 	if (!dir) return;
 	while ((d = readdir(dir)) != NULL) {
@@ -315,6 +357,11 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 	handle = xtreeFind(fsidx_hosts, hostname);
 	if (handle != xtreeEnd(fsidx_hosts)) {
 		h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
+		/* The tree is case-insensitive but paths are not: every FS
+		 * operation for this host must use ONE spelling (the first
+		 * seen), or case-variant senders split the index across
+		 * case-variant files. */
+		hostname = (char *)xtreeKey(fsidx_hosts, handle);
 		/* A dropped host that re-appears (rename back, re-added host)
 		 * must start from what is actually on disk, not from the stale
 		 * emptied tree - fall through to the seed below. */
@@ -332,8 +379,8 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 		char fn[PATH_MAX];
 		struct stat st;
 
-		fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
-		if (stat(fn, &st) == 0) fsidx_load_file(h, fn);
+		if ((fsidx_path(fn, sizeof(fn), rrddir, hostname, "") == 0) &&
+		    (stat(fn, &st) == 0)) fsidx_load_file(h, fn);
 		/* An absent file - or one that yielded no entries (crash
 		 * leftovers, corruption) - triggers the one-off rebuild scan */
 		if (xtreeFirst(h->files) == xtreeEnd(h->files)) fsidx_scan_dir(h, rrddir, hostname);
@@ -489,6 +536,15 @@ void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values,
 
 	if (!rrddir || !fsidx_valid_rrdfn(rrdfn) || !values || (ts <= 0)) return;
 	if (!fsidx_valid_hostname(hostname)) return;
+	/* The flushed record is "b=<since>,<values>" as ONE blank-separated
+	 * token on one line: embedded whitespace would make the tail parse
+	 * as unknown trailing fields, and a value beyond the writer's bound
+	 * breaks the FSIDX_LINEMAX invariant (the record would split at
+	 * fgets on every later read). Same belt as the sibling spec setters. */
+	if ((strlen(values) > MAX_LINE_LEN) || (values[strcspn(values, " \t\r\n")] != '\0')) {
+		errprintf("fileset index: invalid baseline value for %s, ignored\n", rrdfn);
+		return;
+	}
 	h = fsidx_gethost(rrddir, hostname);
 	/* Ensure the entry and refresh last-seen: no rrdtool involved for a
 	 * baseline, so event time IS commit time here. */
@@ -584,16 +640,18 @@ void fsidx_flush(char *rrddir, char *hostname)
 	handle = xtreeFind(fsidx_hosts, hostname);
 	if (handle == xtreeEnd(fsidx_hosts)) return;
 	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
+	/* One spelling for all FS operations, see fsidx_gethost() */
+	hostname = (char *)xtreeKey(fsidx_hosts, handle);
 
 	if (!h->dirty_new && !h->dirty_ts) return;
 	if (!h->dirty_new && ((now - h->lastflush) < FSIDX_FLUSHIVL)) return;
 
-	fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
+	if (fsidx_path(fn, sizeof(fn), rrddir, hostname, "") != 0) return;
 	/* Per-process tmp name: even unserialized writers must never share one */
 	{
 		char pidsuf[32];
 		snprintf(pidsuf, sizeof(pidsuf), ".tmp.%d", (int)getpid());
-		fsidx_path(tmpfn, sizeof(tmpfn), rrddir, hostname, pidsuf);
+		if (fsidx_path(tmpfn, sizeof(tmpfn), rrddir, hostname, pidsuf) != 0) return;
 	}
 
 	/* The status- and data-channel writers share this file: serialize the
@@ -603,7 +661,7 @@ void fsidx_flush(char *rrddir, char *hostname)
 	 * the file it guards is already a different one). */
 	{
 		char lockfn[PATH_MAX];
-		fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock");
+		if (fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock") != 0) return;
 		lockfd = open(lockfn, O_RDWR | O_CREAT, 0644);
 	}
 	if (lockfd == -1) {
@@ -711,7 +769,12 @@ void fsidx_drop(char *rrddir, char *hostname)
 	char fn[PATH_MAX];
 
 	if (!rrddir || !fsidx_valid_hostname(hostname)) return;
-	fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
+	/* One spelling for all FS operations, see fsidx_gethost() */
+	if (fsidx_hosts) {
+		handle = xtreeFind(fsidx_hosts, hostname);
+		if (handle != xtreeEnd(fsidx_hosts)) hostname = (char *)xtreeKey(fsidx_hosts, handle);
+	}
+	if (fsidx_path(fn, sizeof(fn), rrddir, hostname, "") != 0) return;
 	/* Serialize with a flush in flight in the other channel's writer:
 	 * its tmp+rename must land before the unlink, or the rename would
 	 * resurrect the index we just removed. No O_CREAT - if no lockfile
@@ -725,7 +788,7 @@ void fsidx_drop(char *rrddir, char *hostname)
 		char lockfn[PATH_MAX];
 		int lockfd;
 
-		fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock");
+		if (fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock") != 0) return;
 		lockfd = open(lockfn, O_RDWR);
 		if (lockfd != -1) flock(lockfd, LOCK_EX);
 		unlink(fn);
@@ -770,13 +833,14 @@ static char *fsidx_field(char *hostname, char *rrdfn, const char *fieldtag)
 	size_t taglen = strlen(fieldtag);
 
 	if (!rrdfn || !fsidx_valid_hostname(hostname)) return NULL;
-	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	if ((size_t)snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME) >= sizeof(fn)) return NULL;
 	fd = fopen(fn, "r");
 	if (!fd) return NULL;
 
 	while (!result && fgets(line, sizeof(line), fd)) {
 		char *name, *tok, *sp = NULL;
 
+		if (fsidx_line_truncated(line, fd)) continue;
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		if (!name || strcmp(name, rrdfn)) continue;
@@ -805,13 +869,14 @@ char *fsidx_units(char *hostname, char *rrdfn)
 	char *result = NULL;
 
 	if (!rrdfn || !fsidx_valid_hostname(hostname)) return NULL;
-	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	if ((size_t)snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME) >= sizeof(fn)) return NULL;
 	fd = fopen(fn, "r");
 	if (!fd) return NULL;
 
 	while (!result && fgets(line, sizeof(line), fd)) {
 		char *name, *tok, *sp = NULL;
 
+		if (fsidx_line_truncated(line, fd)) continue;
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		if (!name || strcmp(name, rrdfn)) continue;
@@ -834,7 +899,7 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 	time_t now = getcurrenttime(NULL);
 
 	if (!pattern || !fsidx_valid_hostname(hostname)) return -1;
-	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	if ((size_t)snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME) >= sizeof(fn)) return -1;
 	fd = fopen(fn, "r");
 	if (!fd) return -1;
 
@@ -842,12 +907,13 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 		char *name, *tsstr, *sp = NULL;
 		time_t ts;
 
+		if (fsidx_line_truncated(line, fd)) continue;
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
 		if (!name || !tsstr) continue;
 		if (!matchregex(name, (pcre2_code *)pattern)) continue;
-		ts = (time_t)atol(tsstr);
+		ts = fsidx_parse_ts(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;
 	}
@@ -866,7 +932,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 	time_t now = getcurrenttime(NULL);
 
 	if (!prefix || !fsidx_valid_hostname(hostname)) return -1;
-	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
+	if ((size_t)snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME) >= sizeof(fn)) return -1;
 	fd = fopen(fn, "r");
 	if (!fd) return -1;
 
@@ -876,6 +942,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		size_t nlen;
 		time_t ts;
 
+		if (fsidx_line_truncated(line, fd)) continue;
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
@@ -888,7 +955,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) ||
 		    ((name[plen] != '.') && (name[plen] != ','))) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
-		ts = (time_t)atol(tsstr);
+		ts = fsidx_parse_ts(tsstr);
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;
 	}

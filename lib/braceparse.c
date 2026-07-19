@@ -65,7 +65,7 @@ static bp_tok_t bp_next(bp_state_t *st)
 
 	for (;;) {
 		/* Skip blanks and comments; a newline is a statement separator. */
-		while (*st->p && (*st->p != '\n') && isspace((int)*st->p)) st->p++;
+		while (*st->p && (*st->p != '\n') && isspace((int)(unsigned char)*st->p)) st->p++;
 		if (*st->p == '#') { while (*st->p && (*st->p != '\n')) st->p++; }
 		/* The separator belongs to the line the newline ENDS - error
 		 * messages naming it must not point one line past it. */
@@ -100,7 +100,7 @@ static bp_tok_t bp_next(bp_state_t *st)
 	}
 	else {
 		const char *start = st->p;
-		while (*st->p && !isspace((int)*st->p) &&
+		while (*st->p && !isspace((int)(unsigned char)*st->p) &&
 		       (*st->p != '{') && (*st->p != '}') && (*st->p != ';') && (*st->p != '#')) st->p++;
 		tok.word = (char *)xmalloc(st->p - start + 1);
 		memcpy(tok.word, start, st->p - start);

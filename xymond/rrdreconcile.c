@@ -143,6 +143,12 @@ static void process_file(char *hostname, char *hostdir, char *fn, char *hbspec)
 				long declared = atol(colon+1);
 				*colon = '\0';
 				for (i = 0; (i < dscount) && strcmp(ds[i].name, tok); i++) ;
+				/* The name rides an unquoted system() argument. The
+				 * strcmp gate above already limits it to names read
+				 * off the live file (rrdtool constrains those to
+				 * [A-Za-z0-9_]), but enforce the charset HERE so the
+				 * safety is local, not inherited. */
+				if (strspn(tok, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_") != strlen(tok)) i = dscount;
 				if ((declared > 0) && (i < dscount) && (ds[i].heartbeat != declared)) {
 					char arg[80];
 					snprintf(arg, sizeof(arg), " --heartbeat %s:%ld", tok, declared);

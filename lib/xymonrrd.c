@@ -78,6 +78,7 @@ typedef struct gdefmeta_t {
 static gdefmeta_t *gdefmetahead = NULL;
 
 static char *gdefmeta_srcfn = NULL;
+static int gdefmeta_loaded = 0;
 
 /* Point the metadata reader at a non-default graphs.cfg - showgraph's
  * --config option must govern the meta (THRESHOLDS, FNPATTERN, ...) too,
@@ -85,20 +86,25 @@ static char *gdefmeta_srcfn = NULL;
  * before the first metadata lookup. */
 void xymon_gdef_meta_source(char *fn)
 {
+	if (gdefmeta_loaded) {
+		/* The metadata is a load-once cache: a redirect after the
+		 * first lookup would be silently ignored - say so instead. */
+		errprintf("xymon_gdef_meta_source('%s') after the first metadata lookup - ignored\n", (fn ? fn : "(null)"));
+		return;
+	}
 	if (gdefmeta_srcfn) xfree(gdefmeta_srcfn);
 	gdefmeta_srcfn = (fn ? strdup(fn) : NULL);
 }
 
 static void load_gdef_meta(void)
 {
-	static int done = 0;
 	char fn[PATH_MAX];
 	FILE *fd;
 	strbuffer_t *inbuf;
 	gdefmeta_t *cur = NULL;
 
-	if (done) return;
-	done = 1;
+	if (gdefmeta_loaded) return;
+	gdefmeta_loaded = 1;
 
 	if (gdefmeta_srcfn) snprintf(fn, sizeof(fn), "%s", gdefmeta_srcfn);
 	else snprintf(fn, sizeof(fn), "%s/etc/graphs.cfg", xgetenv("XYMONHOME"));
@@ -423,7 +429,7 @@ int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
  */
 static void rrd_setup(void)
 {
-	static int setup_done = 0;
+	static time_t setup_done = 0;
 	SBUF_DEFINE(lenv);
 	char *ldef, *p, *services;
 	SBUF_DEFINE(tcptests);
@@ -472,7 +478,7 @@ static void rrd_setup(void)
 	/* Setup the xymonrrds table, mapping test-names to RRD files */
 	SBUF_MALLOC(lenv, strlen(xgetenv("TEST2RRD")) + strlen(tcptests) + count*strlen(",=tcp") + 1);
 	strncpy(lenv, xgetenv("TEST2RRD"), lenv_buflen); 
-	p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0';	/* Drop a trailing comma */
+	if (*lenv) { p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0'; }	/* Drop a trailing comma */
 	p = strtok(tcptests, " "); 
 	while (p) {
 		unsigned int curlen = strlen(lenv);
@@ -548,7 +554,7 @@ static void rrd_setup(void)
 	 * become table members without a GRAPHS env entry. */
 	load_gdef_meta();
 	lenv = strdup(xgetenv("GRAPHS"));
-	p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0';	/* Drop a trailing comma */
+	if (*lenv) { p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0'; }	/* Drop a trailing comma */
 	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
 	{
 		gdefmeta_t *meta;

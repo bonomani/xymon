@@ -1700,6 +1700,12 @@ int load_client_config(char *configfn)
 
 				if (currule->flags == 0)
 					errprintf("AGGDS rule at line %d has no threshold - it can never fire (needs <relop><value>, e.g. \">90\")\n", cfid);
+				else if ((currule->flags & RRDDSCHK_INTVL) &&
+					 (!(currule->flags & (RRDDSCHK_GT|RRDDSCHK_GE)) || !(currule->flags & (RRDDSCHK_LT|RRDDSCHK_LE))))
+					/* Two relops make an interval, which matches only
+					 * with one bound in EACH direction - ">=10 >=90"
+					 * builds a predicate that is always false. */
+					errprintf("AGGDS rule at line %d combines two same-direction thresholds - it can never fire (an interval needs one of '>'/'>=' and one of '<'/'<=')\n", cfid);
 			}
 			else if (strcasecmp(tok, "MQ_QUEUE") == 0) {
 				char *p;

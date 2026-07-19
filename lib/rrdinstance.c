@@ -74,7 +74,12 @@ char *rrdinstance_decode(const char *s)
 		int hi, lo;
 
 		if ((*in == '%') && ((hi = rrdinstance_unhex(in[1])) >= 0) &&
-		                    ((lo = rrdinstance_unhex(in[2])) >= 0)) {
+		                    ((lo = rrdinstance_unhex(in[2])) >= 0) &&
+		                    (((hi << 4) | lo) != 0)) {
+			/* %00 stays literal: an embedded NUL would silently
+			 * truncate the result for every strlen-based consumer.
+			 * The encoder never emits it, so it cannot be canonical
+			 * output - treat it like any other non-escape. */
 			*o++ = (char)((hi << 4) | lo);
 			in += 3;
 		}

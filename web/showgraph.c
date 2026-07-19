@@ -479,7 +479,7 @@ void load_gdefs(char *fn)
 		else if (strncasecmp(p, "NOVZOOM", 7) == 0) {
 			newitem->novzoom = 1;
 		}
-		else if (strncasecmp(p, "DSCOUNT", 7) == 0) {
+		else if ((strncasecmp(p, "DSCOUNT", 7) == 0) && isspace((int)p[7])) {
 			if (newitem == NULL) {
 				errprintf("graphs.cfg error: DSCOUNT before any [section]\n");
 				continue;
@@ -1377,13 +1377,18 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				nrel++;
 			}
 		}
-		/* Co-plot on single-instance IMAGES: count the files selected
-		 * for this render slice, not the whole fileset - a paged view
-		 * at one instance per image deserves its thresholds. In emit
-		 * mode nothing is selected (0), which is the single-file case. */
+		/* Co-plot on single-instance IMAGES: count the instances on
+		 * this render slice - real files AND virtual flat instances
+		 * (their baseline HRULEs share the image), not the whole
+		 * fileset - a paged view at one instance per image deserves
+		 * its thresholds. In emit mode nothing is selected (0),
+		 * which is the single-file case. */
 		{
 			int nsel = 0;
-			for (i = 0; (i < rrddbcount); i++) if (selected_rrdidx(i)) nsel++;
+			for (i = 0; (i < rrddbcount); i++) {
+				if (selected_rrdidx(i)) nsel++;
+				else if (slice_includes(i) && rrddbs[i].flatvals) nsel++;
+			}
 			coplot = ((nrel > 0) && (nsel <= 1) && !(gd && xymon_gdef_thresholds_off(gd->name)));
 		}
 
@@ -1511,6 +1516,9 @@ static int emit_gdef(char *name, char *rrddir)
 	 * rrd_graph rejects - the captured gdef must round-trip. */
 	if (gdef->graphopts) printf("\tGRAPHOPTIONS %s\n", gdef->graphopts);
 	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
+	printf("\t# Scaffolded from %s only: on multi-file filesets the runtime\n", rrdfn);
+	printf("\t# synthesizer suppresses threshold co-plot and cross-checks YAXIS\n");
+	printf("\t# units across instances - this capture does neither. Edit to taste.\n");
 	if (synthetic_ds_skipped)
 		printf("\t# NOTE: the file has more datasets; only the first %d are scaffolded\n", SYNTHETIC_DSMAX);
 	return 0;
@@ -1622,7 +1630,11 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			}
 		}
 	}
-	if (gdef == NULL) gdef = synthetic_gdef(service);
+	/* Synthesis enumerates ONE host's fileset index; a multi-host
+	 * request has no single index to enumerate, and the synthetic
+	 * fnpat would defeat the -multi lookup below and then be taken
+	 * as a literal filename. Keep the classic failure instead. */
+	if ((gdef == NULL) && (hostlist == NULL)) gdef = synthetic_gdef(service);
 	if (gdef == NULL) errormsg("Unknown graph requested");
 	if (hostlist && (gdef->fnpat == NULL)) {
 		SBUF_DEFINE(multiname);
@@ -2176,7 +2188,10 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			if (!selected_rrdidx(rrdidx)) continue;
 			fcount[rrdidx] = derive_dscount_for_file(gdef->defs, rrddbs[rrdidx].rrdfn);
 			if (fcount[rrdidx] > nmax) nmax = fcount[rrdidx];
-			if ((nmin < 0) || (fcount[rrdidx] < nmin)) nmin = fcount[rrdidx];
+			/* Files with no derivable DS count are skipped below when
+			 * any sibling is usable, so they must not drag the
+			 * emit-once clamp to 0. */
+			if ((fcount[rrdidx] > 0) && ((nmin < 0) || (fcount[rrdidx] < nmin))) nmin = fcount[rrdidx];
 		}
 		if (nmin < 0) nmin = 0;
 		if (nmin != nmax)
@@ -2198,6 +2213,18 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					size_t need;
 
 					if (!selected_rrdidx(rrdidx)) continue;
+					/* A file we cannot derive a DS count for (missing
+					 * DS prefix, unreadable/corrupt file) cannot
+					 * produce valid templated DEFs; emitting its lines
+					 * anyway makes rrd_graph reject the WHOLE image,
+					 * healthy siblings included. Skip it when any
+					 * sibling is usable; if no file is usable, fall
+					 * through so the literal template surfaces the
+					 * error (documented fail-fast). */
+					if ((fcount[rrdidx] == 0) && (nmax > 0)) {
+						dbgprintf("runtime dsidx: skipping %s (no derivable DS count)\n", rrddbs[rrdidx].rrdfn);
+						continue;
+					}
 					one[0] = gdef->defs[i]; one[1] = NULL;
 					rt_defs = expand_dsidx_array(one, fcount[rrdidx]);
 					for (j = 0; rt_defs[j]; j++) per_this++;
