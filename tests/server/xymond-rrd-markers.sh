@@ -378,6 +378,31 @@ feed_at $((ts+300)) 7
 ts3=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
 [ "$ts3" -gt "$ts1" ] || fail "accepted update did not advance freshness ($ts1 -> $ts3)"
 
+# Drop barrier: a straggler message already queued behind @@drophost must
+# not recreate files - or the fileset index - inside the deleted host
+# directory (the deletion itself is forked, so a recreated file also
+# races it). The barrier discards messages for a recently dropped host.
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: dropme\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
+	printf '@@drophost|%s|127.0.0.1|testhost\n@@\n' "$ts"
+	# Give the forked deletion time to FINISH before the straggler
+	# arrives - the losing interleaving, where a recreated file has
+	# nothing left to clean it up. (Without the delay the child's rm
+	# usually runs last and hides the recreation by timing luck.)
+	sleep 2
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		$((ts+1)) $((ts+1801)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: dropme\nDS:v:GAUGE:600:0:U\nx 6\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+sleep 1		# the forked directory deletion
+[ -e "$work/rrd/testhost" ] \
+	&& fail "straggler recreated the dropped host directory: $(ls "$work/rrd/testhost")"
+
 # The shipped default (no LAZYDEFAULT in the environment): every METRICS
 # block is lazy - a flat first sample becomes an index record, not a
 # file - and "nolazy" opts a block out. (The export at the top pins

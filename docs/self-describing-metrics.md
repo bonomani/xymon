@@ -502,14 +502,24 @@ accepted. No dual-value concept exists for heartbeat.
   its declarations when the sample is processed, fsidx_note_commit
   advances freshness only after rrdtool ACCEPTS the batch (every flush
   path funnels through flush_cached_updates), so a chronically rejected
-  producer goes stale on schedule. (c) xtreeDestroy leaks the tsearch
-  node wrappers on drophost (pre-existing tree-API limitation, drops are
-  rare). (d) drophost forks the directory deletion, and queued in-flight
-  messages for the host can recreate the index inside the dying dir -
-  same race family as the pre-existing update cache. (e) Scan-seeded
-  entries use file mtime, which lags the data timestamp by up to a cache
-  interval. (f) Synthetic schema/units come from the first SELECTED file;
-  a fileset whose instances disagree on schema shows that file's axis.
+  producer goes stale on schedule. (c) RESOLVED - the tsearch-variant
+  xtreeDestroy now collects every record via twalk and tdelete-frees the
+  internal nodes and wrappers (it used to free only the handle); keys
+  and userdata stay caller-owned. ASan-verified for both tree variants.
+  (d) RESOLVED - the writer keeps a 300s drop barrier: drophost (and a
+  renamed-away old name) discards straggler status/data messages for
+  the host, and the host's cached updates are purged before the forked
+  deletion starts (renames flush them into the old-named files first,
+  preserving the data). This closes the whole recreate-inside-the-dying-
+  dir race family, index included. (e) Scan-seeded entries use file
+  mtime, which is stamped at FLUSH time - so a rebuilt index can show an
+  entry FRESHER than its newest data by up to a cache-flush delay.
+  Bounded, and self-corrects at the first committed update; accepted.
+  (f) RESOLVED - the derived axis now requires every selected file of
+  the fileset to declare the same canonical unit; any disagreement (or
+  an undeclared file) falls back to the generic axis, which never lies
+  about a curve. --emit-gdef still scaffolds from the first file: it is
+  a one-shot template for the admin to edit, not a rendering.
   (g) --emit-gdef picks the first host readdir yields for its index
   lookup - documented, nondeterministic across hosts by design.
 - PARTLY RESOLVED - update-cache churn: entries idle beyond 6h are

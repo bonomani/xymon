@@ -72,6 +72,47 @@ static void sig_handler(int signum)
 	}
 }
 
+/* Drop barrier: a dropped (or renamed-away) host's directory deletion is
+ * forked off, but messages for it that were already queued in the channel
+ * can still arrive and recreate files - and the fileset index - inside
+ * the dying directory. Remember recent drops and discard those stragglers.
+ * The barrier outlives any realistic channel backlog; a host legitimately
+ * re-added later than that resumes normally (its first samples inside the
+ * window are lost, which is the cost of the race being closed). */
+#define DROPBARRIER 300		/* seconds */
+static void *recentdrops = NULL;
+
+static void note_hostdrop(char *hostname)
+{
+	xtreePos_t handle;
+	time_t now = gettimer();
+
+	if (!recentdrops) recentdrops = xtreeNew(strcasecmp);
+	handle = xtreeFind(recentdrops, hostname);
+	if (handle != xtreeEnd(recentdrops)) {
+		*(time_t *)xtreeData(recentdrops, handle) = now;
+	}
+	else {
+		time_t *ts = (time_t *)malloc(sizeof(time_t));
+		*ts = now;
+		xtreeAdd(recentdrops, strdup(hostname), ts);
+	}
+}
+
+static int hostdrop_barrier(char *hostname)
+{
+	xtreePos_t handle;
+
+	if (!recentdrops) return 0;
+	handle = xtreeFind(recentdrops, hostname);
+	if (handle == xtreeEnd(recentdrops)) return 0;
+	/* An expired entry stays in the tree (one small record per
+	 * ever-dropped hostname - administrative events, bounded) because
+	 * xtreeDelete cannot release the duplicated key; it simply reads
+	 * as "no barrier" and is re-armed by the next drop. */
+	return ((gettimer() - *(time_t *)xtreeData(recentdrops, handle)) < DROPBARRIER);
+}
+
 static void update_locator_hostdata(char *id)
 {
 	DIR *fd;
@@ -376,10 +417,14 @@ int main(int argc, char *argv[])
 			  case COL_CLEAR: /* Clear is OK, because it could still contain valid metric data */
 				tstamp = atoi(metadata[1]);
 				sender = metadata[2];
-				hostname = metadata[4]; 
+				hostname = metadata[4];
 				testname = metadata[5];
 				classname = (metadata[17] ? metadata[17] : "");
 				pagepaths = (metadata[18] ? metadata[18] : "");
+				if (hostdrop_barrier(hostname)) {
+					dbgprintf("Dropping straggler status for recently dropped host %s\n", hostname);
+					break;
+				}
 				ldef = find_xymon_rrd(testname, metadata[8]);
 				update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
 
@@ -412,18 +457,23 @@ int main(int argc, char *argv[])
 			/* @@data|timestamp|sender|origin|hostname|testname|classname|pagepaths */
 			tstamp = atoi(metadata[1]);
 			sender = metadata[2];
-			hostname = metadata[4]; 
+			hostname = metadata[4];
 			testname = metadata[5];
 			classname = (metadata[6] ? metadata[6] : "");
 			pagepaths = (metadata[7] ? metadata[7] : "");
-			ldef = find_xymon_rrd(testname, "");
-			update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
-
-			{
-				strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
-				if (aggmsg) combo_add(aggmsg);
+			if (hostdrop_barrier(hostname)) {
+				dbgprintf("Dropping straggler data for recently dropped host %s\n", hostname);
 			}
-			fsidx_flush(rrddir, hostname);
+			else {
+				ldef = find_xymon_rrd(testname, "");
+				update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
+
+				{
+					strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
+					if (aggmsg) combo_add(aggmsg);
+				}
+				fsidx_flush(rrddir, hostname);
+			}
 		}
 		else if (strncmp(metadata[0], "@@shutdown", 10) == 0) {
 			running = 0;
@@ -451,6 +501,11 @@ int main(int argc, char *argv[])
 			MEMDEFINE(hostdir);
 
 			sprintf(hostdir, "%s/%s", rrddir, basename(hostname));
+			/* Order matters: arm the straggler barrier and discard the
+			 * host's cached updates BEFORE the forked deletion starts,
+			 * so nothing recreates files inside the dying directory. */
+			note_hostdrop(hostname);
+			updcache_purge_host(hostname);
 			dropdirectory(hostdir, 1);
 			flush_aggds_store(hostname);
 			fsidx_drop(rrddir, hostname);
@@ -476,6 +531,11 @@ int main(int argc, char *argv[])
 			newhostname = metadata[4];
 			sprintf(oldhostdir, "%s/%s", rrddir, hostname);
 			sprintf(newhostdir, "%s/%s", rrddir, newhostname);
+			/* Flush pending updates into the old-named files BEFORE the
+			 * rename (preserving the data), then barrier the old name:
+			 * queued messages for it must not recreate the old dir. */
+			rrdcacheflushhost(hostname);
+			note_hostdrop(hostname);
 			rename(oldhostdir, newhostdir);
 			flush_aggds_store(hostname);	/* repopulates under the new name */
 			/* The index file moved with the directory; only the old

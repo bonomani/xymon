@@ -88,6 +88,9 @@ typedef struct gdef_t {
 	int  dsidx_runtime;	/* 1 = block uses @DSIDX@ without explicit DSCOUNT; expand at render time so N
 				 *     can be derived from each RRD file's actual DS list */
 	char **defs;
+	char **rawdefs;	/* pre-DSCOUNT-expansion templates, kept so an INCLUDE
+			 * variant declaring its own DSCOUNT can re-expand; NULL
+			 * when defs was never expanded */
 	struct gdef_t *next;
 } gdef_t;
 gdef_t *gdefs = NULL;
@@ -543,12 +546,21 @@ void load_gdefs(char *fn)
 			if (!newitem->novzoom) newitem->novzoom = base->novzoom;
 			if (!newitem->dscount) newitem->dscount = base->dscount;
 			if (!newitem->dsidx_runtime) newitem->dsidx_runtime = base->dsidx_runtime;
-			for (i = 0; (base->defs[i]); i++) {
-				if (alldefidx == alldefcount) {
-					alldefcount += 5;
-					alldefs = (char **)realloc(alldefs, (alldefcount+1) * sizeof(char *));
+			{
+				/* Copy the base's pre-expansion templates when it has
+				 * them: the variant's own DSCOUNT (even one declared
+				 * later in the section) expands them at section close.
+				 * The expanded lines would pass through expansion
+				 * unchanged, freezing the base's dataset count. */
+				char **srcdefs = (base->rawdefs ? base->rawdefs : base->defs);
+
+				for (i = 0; (srcdefs[i]); i++) {
+					if (alldefidx == alldefcount) {
+						alldefcount += 5;
+						alldefs = (char **)realloc(alldefs, (alldefcount+1) * sizeof(char *));
+					}
+					alldefs[alldefidx++] = strdup(srcdefs[i]);
 				}
-				alldefs[alldefidx++] = strdup(base->defs[i]);
 			}
 		}
 		else if (strncasecmp(p, "GRAPHOPTIONS", 12) == 0) {
@@ -650,6 +662,7 @@ char *colon_escape(char *buf)
 	int count = 0;
 	char *p, *inp, *outp;
 
+	if (!buf) return "";
 	p = buf; while ((p = strchr(p, ':')) != NULL) { count++; p++; }
 	if (count == 0) return buf;
 
@@ -938,6 +951,13 @@ static void add_graphdef_args(char **rrdargs, int *argi, gdef_t *gdef)
 		 * also references @RRDFN@/@RRDIDX@, since looping would produce
 		 * duplicate CDEF names and break rrd_graph. */
 		if (def_uses_aggregate(gdef->defs[i])) {
+			if (def_uses_rrd_context(gdef->defs[i])) {
+				/* Expand @RRDFN@/@RRDIDX@ from the first selected file,
+				 * not from wherever the loops above left the global
+				 * rrdidx (the NULL-filename sentinel, typically). */
+				for (rrdidx = 0; ((rrdidx < rrddbcount) && !selected_rrdidx(rrdidx)); rrdidx++) ;
+				if (rrdidx == rrddbcount) continue;	/* no file: nothing to reference */
+			}
 			add_graphdef_arg(rrdargs, argi, gdef->defs[i]);
 		}
 		else if (def_uses_rrd_context(gdef->defs[i])) {
@@ -1239,6 +1259,35 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				else if (!common) common = strdup(canon);
 				else if (strcmp(common, canon)) agreed = 0;
 				if (u) free(u);
+			}
+			/* The axis must be honest for the whole IMAGE, not just the
+			 * first file: any other selected instance declaring a
+			 * different unit - or none - drops the derivation. The
+			 * generic "Value" axis never lies about a curve. */
+			{
+				int fi;
+
+				for (fi = 0; (agreed && common && (fi < rrddbcount)); fi++) {
+					char *ofn = rrddbs[fi].rrdfn;
+					char *ospec;
+
+					if (!ofn || (strcmp(ofn, (base ? base+1 : rrdfn)) == 0)) continue;
+					ospec = fsidx_units(hostname, ofn);
+					if (!ospec) { agreed = 0; continue; }
+					{
+						char *tok, *osp = NULL;
+
+						for (tok = strtok_r(ospec, ",", &osp); (agreed && tok); tok = strtok_r(NULL, ",", &osp)) {
+							char *colon = strrchr(tok, ':');
+							struct unithint_t *ohint;
+
+							if (!colon || !colon[1]) continue;
+							ohint = unithint_lookup(colon+1);
+							if (strcmp(common, (ohint ? ohint->canon : colon+1))) agreed = 0;
+						}
+					}
+					free(ospec);
+				}
 			}
 			if (agreed && common) {
 				struct unithint_t *hint = unithint_lookup(common);
@@ -1583,6 +1632,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			snprintf(rrddbs[0].rrdfn, buflen, "%s.rrd", gdef->name);
 			rrddbs[0].rrdparam = NULL;
 			rrddbs[0].rrdparamfinal = 0;
+			rrddbs[0].flatvals = NULL; rrddbs[0].flatsince = 0;
 		}
 		else {
 			int i, maxlen;
@@ -1605,6 +1655,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				rrddbs[i].rrdparam = (char *)malloc(buflen);
 				snprintf(rrddbs[i].rrdparam, buflen, paramfmt, hostlist[i]);
 				rrddbs[i].rrdparamfinal = 0;
+				rrddbs[i].flatvals = NULL; rrddbs[i].flatsince = 0;
 			}
 		}
 	}
@@ -1766,7 +1817,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			FILE *idxfd = fopen(".fileset-index", "r");
 
 			if (idxfd) {
-				char idxline[PATH_MAX + 64];
+				char idxline[FSIDX_LINEMAX];
 				time_t idxnow = getcurrenttime(NULL);
 				int stalewin = xymon_gdef_staleafter(gdef->name);
 
@@ -2081,20 +2132,27 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 
 		if (!slice_includes(rrdidx) || !rrddbs[rrdidx].flatvals) continue;
 		stm = localtime(&rrddbs[rrdidx].flatsince);
-		strftime(sincetxt, sizeof(sincetxt), "%d-%b-%Y", stm);
+		if (stm) strftime(sincetxt, sizeof(sincetxt), "%d-%b-%Y", stm);
+		else strcpy(sincetxt, "unknown");
 		fvals = strdup(rrddbs[rrdidx].flatvals);
 		for (ftok = strtok_r(fvals, ":", &fsp); (ftok); ftok = strtok_r(NULL, ":", &fsp)) {
 			char hrule[512];
 			size_t need;
+			char *endp, *legend;
 
-			if (strspn(ftok, "0123456789.+-") != strlen(ftok)) continue;	/* U and friends */
+			/* Numbers only: U and friends have no line to draw, and one
+			 * malformed token would make rrd_graph reject the whole graph. */
+			if (strspn(ftok, "0123456789.+-eE") != strlen(ftok)) continue;
+			strtod(ftok, &endp);
+			if ((endp == ftok) || (*endp != '\0')) continue;
 			need = (size_t)(argi + 3);
 			if (need > rrdargs_cap) {
 				rrdargs_cap = need;
 				rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
 				if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
 			}
-			snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], rrddbs[rrdidx].rrdparam, sincetxt);
+			legend = colon_escape(rrddbs[rrdidx].rrdparam ? rrddbs[rrdidx].rrdparam : rrddbs[rrdidx].key);
+			snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], legend, sincetxt);
 			coloridx++; if (colorlist[coloridx] == NULL) coloridx = 0;
 			rrdargs[argi++] = strdup(hrule);
 		}

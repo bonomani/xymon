@@ -762,6 +762,46 @@ void updcache_evict_idle(time_t maxage)
 	if (keys) xfree(keys);
 }
 
+/* Discard all cached updates for one host WITHOUT flushing - used on
+ * drophost, where flushing would write into the directory a forked
+ * deletion is tearing down. The pending values are the dropped host's
+ * data: discarding them is the point. */
+void updcache_purge_host(char *hostname)
+{
+	xtreePos_t handle;
+	char prefix[PATH_MAX];
+	size_t plen;
+	char **keys = NULL;
+	int nkeys = 0, i;
+
+	if ((updcache_keyofs == -1) || !hostname) return;
+	snprintf(prefix, sizeof(prefix), "/%s/", hostname);
+	plen = strlen(prefix);
+
+	for (handle = xtreeFirst(updcache); (handle != xtreeEnd(updcache)); handle = xtreeNext(updcache, handle)) {
+		updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+		if (strncasecmp(cacheitem->key, prefix, plen) != 0) continue;
+		keys = (char **)realloc(keys, (nkeys+1) * sizeof(char *));
+		keys[nkeys++] = cacheitem->key;
+	}
+
+	for (i = 0; (i < nkeys); i++) {
+		handle = xtreeFind(updcache, keys[i]);
+		if (handle != xtreeEnd(updcache)) {
+			updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+			int v;
+
+			xtreeDelete(updcache, cacheitem->key);
+			for (v = 0; (v < cacheitem->valcount); v++)
+				if (cacheitem->vals[v]) xfree(cacheitem->vals[v]);
+			xfree(cacheitem->key);
+			xfree(cacheitem);
+		}
+	}
+	if (nkeys) dbgprintf("updcache: purged %d entries for dropped host %s\n", nkeys, hostname);
+	if (keys) xfree(keys);
+}
+
 void rrdcacheflushall(void)
 {
 	xtreePos_t handle;

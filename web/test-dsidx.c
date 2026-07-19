@@ -16,7 +16,7 @@
 #include <stdarg.h>
 
 /* ---- minimal shim mirroring gdef_t (only fields the helpers touch) ---- */
-typedef struct { int dscount; int dsidx_runtime; char **defs; } gdef_t;
+typedef struct { int dscount; int dsidx_runtime; char **defs; char **rawdefs; } gdef_t;
 
 /* ---- the production helpers, included so tests always exercise them ---- */
 #include "dsidx.inc.c"

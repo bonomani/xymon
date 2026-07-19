@@ -23,6 +23,7 @@ extern void setup_exthandler(char *handlerpath, char *ids);
 extern void update_rrd(char *hostname, char *testname, char *restofmsg, time_t tstamp, char *sender, xymonrrd_t *ldef, char *classname, char *pagepaths);
 extern void rrdcacheflushall(void);
 extern void updcache_evict_idle(time_t maxage);
+extern void updcache_purge_host(char *hostname);
 extern void rrdcacheflushhost(char *hostname);
 extern void setup_extprocessor(char *cmd);
 extern void shutdown_extprocessor(void);

@@ -151,9 +151,10 @@ static void expand_dsidx_in_block(gdef_t *gd)
 
 	if (gd->dscount > 0) {
 		char **expanded = expand_dsidx_array(gd->defs, gd->dscount);
-		int i;
-		for (i = 0; gd->defs[i]; i++) free(gd->defs[i]);
-		free(gd->defs);
+		/* Keep the templates: an INCLUDE variant declaring its own
+		 * DSCOUNT must re-expand from these - the expanded lines have
+		 * no @DSIDX@ left to substitute. */
+		gd->rawdefs = gd->defs;
 		gd->defs = expanded;
 		/* Fully expanded: render takes the standard path. An INCLUDE
 		 * variant of a runtime base may have inherited dsidx_runtime -

@@ -157,6 +157,31 @@ grep -aq "Content-type: image/png" "$work/out" || fail "unit-labelled graph does
 grep -a -A1 -- ' -v$' "$work/out" | grep -aq ' ms$' \
 	|| fail "derived YAXIS 'ms' missing from render args: $(grep -a -A1 -- ' -v$' "$work/out" | head -4)"
 
+# The axis must be honest for the whole image: a second instance of the
+# same fileset declaring DIFFERENT units (seconds vs milliseconds) drops
+# the derivation - the image renders with the generic axis rather than
+# labelling one curve with the other's unit.
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: resp\n'
+	printf 'DS:rd:GAUGE:600:0:U:s DS:wr:GAUGE:600:0:U:s\n'
+	printf 'api2 1:2\n'
+	printf -- '-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/resp.api2.rrd" ] || fail "second-unit instance not created"
+grep -q 'resp\.api2\.rrd .* u=rd:s,wr:s' "$work/rrd/testhost/.fileset-index" \
+	|| fail "second instance's units not recorded: $(grep resp.api2 "$work/rrd/testhost/.fileset-index")"
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=resp&graph=hourly&action=view" \
+XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "Content-type: image/png" "$work/out" || fail "mixed-unit fileset does not render"
+grep -a -A1 -- ' -v$' "$work/out" | grep -aq ' ms$' \
+	&& fail "mixed-unit fileset still labelled with the first file's axis"
+
 # Declared THRESHOLD relations: the operand DS is a threshold curve, not a
 # peer metric - threshold-styled on a single-instance image; a literal
 # operand renders as an HRULE. THRESHOLDS OFF (a meta-only graphs.cfg
