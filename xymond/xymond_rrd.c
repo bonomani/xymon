@@ -109,6 +109,21 @@ static int hostdrop_barrier(char *hostname)
 	return ((gettimer() - *(time_t *)xtreeData(recentdrops, handle)) < DROPBARRIER);
 }
 
+/* Hourly: evict cache entries idle > 6h (bounds memory under instance
+ * churn; pending values are flushed first, so nothing is lost). Called
+ * from both the status- and data-channel message paths - each worker
+ * process has its own cache. */
+static void cache_evict_hourly(void)
+{
+	static time_t nextevict = 0;
+	time_t enow = gettimer();
+
+	if (enow > nextevict) {
+		rrdcache_evict_idle(6*3600);
+		nextevict = enow + 3600;
+	}
+}
+
 static void update_locator_hostdata(char *id)
 {
 	DIR *fd;
@@ -431,17 +446,7 @@ int main(int argc, char *argv[])
 					if (aggmsg) combo_add(aggmsg);
 				}
 				fsidx_flush(rrddir, hostname);
-				/* Hourly: evict cache entries idle > 6h (bounds
-				 * memory under instance churn; pending values are
-				 * flushed first, so nothing is lost). */
-				{
-					static time_t nextevict = 0;
-					time_t enow = gettimer();
-					if (enow > nextevict) {
-						updcache_evict_idle(6*3600);
-						nextevict = enow + 3600;
-					}
-				}
+				cache_evict_hourly();
 				break;
 
 			  default:
@@ -469,6 +474,7 @@ int main(int argc, char *argv[])
 					if (aggmsg) combo_add(aggmsg);
 				}
 				fsidx_flush(rrddir, hostname);
+				cache_evict_hourly();
 			}
 		}
 		else if (strncmp(metadata[0], "@@shutdown", 10) == 0) {
@@ -500,7 +506,7 @@ int main(int argc, char *argv[])
 			/* Barrier and discard cached updates BEFORE the forked
 			 * deletion starts - nothing may write into the dying dir. */
 			note_hostdrop(hostname);
-			updcache_drop_host(hostname, 0);
+			rrdcache_drop_host(hostname, 0);
 			dropdirectory(hostdir, 1);
 			flush_aggds_store(hostname);
 			fsidx_drop(rrddir, hostname);
@@ -528,13 +534,26 @@ int main(int argc, char *argv[])
 			sprintf(newhostdir, "%s/%s", rrddir, newhostname);
 			/* Flush pending updates into the old-named files BEFORE
 			 * they move, then barrier the old name against stragglers. */
-			updcache_drop_host(hostname, 1);
+			rrdcache_drop_host(hostname, 1);
+			/* The flush's freshness must reach the index file before it
+			 * moves - _now bypasses the timestamp-only throttle that
+			 * would otherwise skip it (the in-memory tree holding the
+			 * newer timestamps is dropped below). */
+			fsidx_flush_now(rrddir, hostname);
 			note_hostdrop(hostname);
-			rename(oldhostdir, newhostdir);
 			flush_aggds_store(hostname);	/* repopulates under the new name */
-			/* The index file moved with the directory; only the old
-			 * name's in-memory tree must go (its file path is gone). */
-			fsidx_drop(rrddir, hostname);
+			if ((rename(oldhostdir, newhostdir) == -1) && (errno != ENOENT)) {
+				/* ENOENT = the host never wrote RRD data: nothing to
+				 * move, nothing to keep. Anything else leaves the old
+				 * files in place - keep their live index too. */
+				errprintf("renamehost: cannot rename %s to %s: %s - keeping the old name's index\n",
+					  oldhostdir, newhostdir, strerror(errno));
+			}
+			else {
+				/* The index file moved with the directory; only the old
+				 * name's in-memory tree must go (its file path is gone). */
+				fsidx_drop(rrddir, hostname);
+			}
 
 			if (net_worker_locatorbased()) locator_rename_host(hostname, newhostname, ST_RRD);
 

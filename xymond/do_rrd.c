@@ -725,7 +725,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
  * names) used to grow forever. Keys are collected first: deleting
  * while traversing the tree is not safe. The template is shared and
  * never freed here. */
-void updcache_evict_idle(time_t maxage)
+void rrdcache_evict_idle(time_t maxage)
 {
 	xtreePos_t handle;
 	time_t now = gettimer();
@@ -768,7 +768,7 @@ void updcache_evict_idle(time_t maxage)
  * forked deletion is tearing down, and the values are the dropped
  * host's data anyway. (rrdcacheflushhost() is not usable here: it
  * expects "/host"-shaped keys and rate-limits to one flush per 60s.) */
-void updcache_drop_host(char *hostname, int flushfirst)
+void rrdcache_drop_host(char *hostname, int flushfirst)
 {
 	xtreePos_t handle;
 	char prefix[PATH_MAX];
