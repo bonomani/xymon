@@ -312,6 +312,20 @@ feed_status diskio "$work/body-dialect2" >/dev/null
 grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:900,hi:600 ' "$work/rrd/testhost/.fileset-index" \
 	|| fail "redeclared heartbeat did not replace h=: $(grep temperature.cpu "$work/rrd/testhost/.fileset-index")"
 
+# The writer reads at most MAXCOLS (20) columns per line: a block declaring
+# 21 DS specs still creates files for instance lines carrying 20 values
+# (the marker parser caps its DS count at the same 20 for paging parity).
+{
+	printf '<!--XYMON METRICS: wide\n'
+	printf 'DS:d%d:GAUGE:600:0:U ' $(seq 0 19)
+	printf 'DS:d20:GAUGE:600:0:U\n'
+	printf 'w0 1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1\n'
+	printf -- '-->\n'
+	printf 'status text\n'
+} >"$work/body-wide"
+out=$(feed_status diskio "$work/body-wide")
+assert_contains "wide.w0.rrd" "$out" "21st DS spec is ignored (MAXCOLS): a 20-value line still writes"
+
 # Durable lazy baselines: the (value, since) record survives the writer.
 # Process 1 learns the baseline (no file); process 2 - a restart - sees a
 # changed value and creates the file on its FIRST sample, seeded with the
@@ -389,17 +403,25 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 		"$ts" $((ts+1800)) "$ts" "$ts"
 	printf '<!--XYMON METRICS: dropme\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
 	printf '@@drophost|%s|127.0.0.1|testhost\n@@\n' "$ts"
-	# Give the forked deletion time to FINISH before the straggler
+	# Wait for the forked deletion to FINISH before the straggler
 	# arrives - the losing interleaving, where a recreated file has
-	# nothing left to clean it up. (Without the delay the child's rm
-	# usually runs last and hides the recreation by timing luck.)
-	sleep 2
+	# nothing left to clean it up. (A fixed sleep would let the child's
+	# rm run last on a loaded box and hide the recreation by timing
+	# luck.) Bounded: ~10s, then the straggler goes in regardless.
+	i=0
+	while [ -e "$work/rrd/testhost" ] && [ $i -lt 100 ]; do sleep 0.1; i=$((i+1)); done
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
 		$((ts+1)) $((ts+1801)) "$ts" "$ts"
 	printf '<!--XYMON METRICS: dropme\nDS:v:GAUGE:600:0:U\nx 6\n-->\ns\n@@\n'
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-sleep 1		# the forked directory deletion
+# A deletion forked for a recreated directory may still be running when
+# xymond_rrd exits - wait for the condition, not a wall-clock guess. A
+# directory recreated AFTER the deletion finished (the barrier bug this
+# guards) has nothing left to remove it, so it persists past the timeout
+# and fails below.
+i=0
+while [ -e "$work/rrd/testhost" ] && [ $i -lt 50 ]; do sleep 0.1; i=$((i+1)); done
 [ -e "$work/rrd/testhost" ] \
 	&& fail "straggler recreated the dropped host directory: $(ls "$work/rrd/testhost")"
 

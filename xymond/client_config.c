@@ -314,6 +314,7 @@ typedef struct aggds_val_t {
 
 static void *aggds_store = NULL;	/* host -> tree of "rrdfn|ds" -> aggds_val_t */
 static int aggds_rules_exist = 0;
+static time_t aggds_rules_loadtime = 0;	/* store warm-up starts here, see check_aggds_thresholds */
 
 /* Full teardown, used when a config reload leaves no AGGDS rules - the
  * store would otherwise be dead weight kept until process exit. */
@@ -1607,7 +1608,12 @@ int load_client_config(char *configfn)
 				if (!column || (aggfn == -1) || !key || !ds || !(*key) || !(*ds)) {
 					errprintf("Invalid AGGDS definition at line %d (expecting <column> fn(<filepattern>:<dataset>))\n", cfid);
 					/* Swallow the rest of this rule's tokens, or the
-					 * outer loop re-dispatches them as new keywords. */
+					 * outer loop re-dispatches them as new keywords.
+					 * Flag the line as consumed: with currule still
+					 * NULL, the end-of-line handler would otherwise
+					 * take it for a NEW CRITERIA line and wipe the
+					 * active section's HOST/PAGE/... scope. */
+					unknowntok = 1;
 					do { tok = wstok(NULL); } while (tok && (!isqual(tok)));
 					continue;
 				}
@@ -1622,9 +1628,10 @@ int load_client_config(char *configfn)
 				aggds_rules_exist = 1;
 
 				do {
-					int getnumber = 0;
+					int getnumber = 0, flagsbefore;
 
 					tok = wstok(NULL); if (!tok || isqual(tok)) continue;
+					flagsbefore = currule->flags;
 
 					if (strncasecmp(tok, ">=", 2) == 0) {
 						if (currule->flags) currule->flags |= RRDDSCHK_INTVL;
@@ -1664,10 +1671,17 @@ int load_client_config(char *configfn)
 						char *endp;
 						double limit = strtod(tok+getnumber, &endp);
 
-						if (*(tok+getnumber) == '\0')
-							errprintf("AGGDS threshold at line %d: operator '%s' carries no value - operator and value form one token (\">90\", not \"> 90\")\n", cfid, tok);
-						else if ((endp == tok+getnumber) || (*endp != '\0'))
-							errprintf("AGGDS threshold at line %d: '%s' is not a number\n", cfid, tok+getnumber);
+						if ((*(tok+getnumber) == '\0') || (endp == tok+getnumber) || (*endp != '\0')) {
+							if (*(tok+getnumber) == '\0')
+								errprintf("AGGDS threshold at line %d: operator '%s' carries no value - operator and value form one token (\">90\", not \"> 90\")\n", cfid, tok);
+							else
+								errprintf("AGGDS threshold at line %d: '%s' is not a number\n", cfid, tok+getnumber);
+							/* Un-arm this comparison: keeping the flag
+							 * with the failed-strtod 0.0 would make the
+							 * rule fire as ">0". */
+							currule->flags = flagsbefore;
+							continue;
+						}
 
 						if (currule->flags & RRDDSCHK_INTVL)
 							currule->rule.aggds.limitval2 = limit;
@@ -1802,6 +1816,9 @@ int load_client_config(char *configfn)
 
 	/* If the reload removed the last AGGDS rule, the store is dead weight */
 	if (!aggds_rules_exist) destroy_aggds_store();
+	/* The memory store starts (re)filling now - a restart lost it, and a
+	 * reload can add rules whose datasets were not stored before */
+	aggds_rules_loadtime = getcurrenttime(NULL);
 
 	MEMUNDEFINE(fn);
 	return 1;
@@ -3319,12 +3336,13 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 			vallist[0] = valscopy;
 
 			for (p = strchr(valscopy, ':'); (p); p = strchr(p+1, ':')) {
+				if (idx == 126) break;	/* leave slot 127 NULL as terminator */
 				vallist[++idx] = p+1;
 				*p = '\0';
 			}
 		}
 
-		if (vallist[tpl->idx] == NULL) goto nextrule;
+		if ((tpl->idx < 0) || (tpl->idx > 126) || (vallist[tpl->idx] == NULL)) goto nextrule;
 		val = atof(vallist[tpl->idx]);
 
 		/*
@@ -3612,12 +3630,49 @@ static void aggds_flat_cb(const char *rrdfn, time_t ts, const char *values, cons
 	(*ctx->n)++;
 }
 
+/* Census of one rule's fileset in the writer-kept index: fresh entries
+ * (real files and flat records alike) whose filename matches the rule's
+ * pattern - restricted to entries declaring the rule's dataset when the
+ * d= names are known. This is the restart-durable "how many instances
+ * exist" answer the memory store cannot give until it has re-seen every
+ * instance's update. */
+struct aggds_censusctx_t {
+	c_rule_t *rule;
+	time_t now;
+	int count;
+};
+
+static void aggds_census_cb(const char *rrdfn, time_t ts, const char *values, const char *dsnames, void *userdata)
+{
+	struct aggds_censusctx_t *ctx = (struct aggds_censusctx_t *)userdata;
+	c_rule_t *rule = ctx->rule;
+
+	if (!rule->rule.aggds.rrdkey || !namematch((char *)rrdfn, rule->rule.aggds.rrdkey->pattern, rule->rule.aggds.rrdkey->exp)) return;
+	if ((ctx->now - ts) > rule->rule.aggds.maxage) return;
+	if (dsnames) {
+		const char *p;
+		size_t dlen = strlen(rule->rule.aggds.rrdds);
+		int found = 0;
+
+		for (p = dsnames; (p && *p); ) {
+			size_t clen = strcspn(p, ",");
+			if ((clen == dlen) && (strncmp(p, rule->rule.aggds.rrdds, dlen) == 0)) { found = 1; break; }
+			p += clen; if (*p == ',') p++;
+		}
+		if (!found) return;
+	}
+	ctx->count++;
+}
+
 strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagepaths)
 {
 	static strbuffer_t *resbuf = NULL;
 	static char *fnnames[] = { "sum", "avg", "max", "min", "count" };
-	char msgline[1024];
-	char aggname[256];
+	/* aggname carries the rule's file pattern and is embedded in msgline:
+	 * both must hold a full config line, or two long patterns differing
+	 * only in the truncated tail would alias into one aggregate. */
+	char msgline[4096];
+	char aggname[4096];
 	c_rule_t *rule;
 	void *hinfo;
 	void *hosttree;
@@ -3625,10 +3680,17 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 	strbuffer_t *seen;
 	time_t now = getcurrenttime(NULL);
 
-	if (!aggds_rules_exist || !aggds_store) return NULL;
-	handle = xtreeFind(aggds_store, hostname);
-	if (handle == xtreeEnd(aggds_store)) return NULL;
-	hosttree = xtreeData(aggds_store, handle);
+	if (!aggds_rules_exist) return NULL;
+	hosttree = NULL;
+	if (aggds_store) {
+		handle = xtreeFind(aggds_store, hostname);
+		if (handle != xtreeEnd(aggds_store)) hosttree = xtreeData(aggds_store, handle);
+	}
+	/* A host with no store slice normally means "no data - no result".
+	 * But a host the fileset index knows CAN be all-flat (every instance
+	 * a lazy baseline, no update ever stored): its rules must evaluate
+	 * from the flat records alone. */
+	if (!hosttree && (fsidx_entry_foreach(hostname, NULL, NULL) < 0)) return NULL;
 
 	if (!resbuf) resbuf = newstrbuffer(0);
 	clearstrbuffer(resbuf);
@@ -3642,7 +3704,7 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		xtreePos_t vhandle;
 		struct aggds_flatctx_t flatctx;
 
-		for (vhandle = xtreeFirst(hosttree); (vhandle != xtreeEnd(hosttree)); vhandle = xtreeNext(hosttree, vhandle)) {
+		if (hosttree) for (vhandle = xtreeFirst(hosttree); (vhandle != xtreeEnd(hosttree)); vhandle = xtreeNext(hosttree, vhandle)) {
 			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vhandle);
 
 			if (strcmp(entry->dsnam, rule->rule.aggds.rrdds) != 0) continue;
@@ -3663,6 +3725,22 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		flatctx.now = now;
 		flatctx.n = &n; flatctx.sum = &sum; flatctx.minval = &minval; flatctx.maxval = &maxval;
 		fsidx_flat_foreach(hostname, aggds_flat_cb, &flatctx);
+
+		/* Warm-up guard: the store is memory-only, so right after a
+		 * restart (or a reload that added this rule) it is empty while
+		 * every instance file sits fresh on disk - count() would fire
+		 * a false "instances disappeared" red and sum/avg would
+		 * under-aggregate. The writer-kept index is restart-durable:
+		 * while the rules are younger than the rule's own freshness
+		 * window, an index census larger than the values in hand means
+		 * "incomplete, not gone" - skip, the next updates fill it. */
+		if ((now - aggds_rules_loadtime) <= rule->rule.aggds.maxage) {
+			struct aggds_censusctx_t cctx;
+
+			cctx.rule = rule; cctx.now = now; cctx.count = 0;
+			if ((fsidx_entry_foreach(hostname, aggds_census_cb, &cctx) >= 0) && (cctx.count > n)) goto nextrule;
+		}
+
 		/* With no fresh matching values there is no sum/avg/min/max to
 		 * compute - but count() MUST evaluate as 0: alerting on "the
 		 * instances disappeared" is its primary use, and skipping here

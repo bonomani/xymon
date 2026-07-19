@@ -11,6 +11,8 @@
  *   ignore-older  memory holds gen 200, disk regresses to gen 50 -> keep
  *   legacy-fill   no generations anywhere -> weak fill (old behavior)
  *   live-wins     live declaration outranks any on-disk generation
+ *   reject-slash  a '/' in the hostname must not escape the RRD tree
+ *   baseline-zerots  a ts<=0 baseline is refused, not written-then-lost
  */
 
 #include <stdio.h>
@@ -90,6 +92,28 @@ int main(int argc, char *argv[])
 		fsidx_set_units("v:live");
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);
 		fsidx_set_units(NULL);
+		fsidx_flush(rrddir, "h1");
+		dumpindex("h1");
+	}
+	else if (strcmp(scenario, "reject-slash") == 0) {
+		/* Hostnames come off the channel raw; one carrying '/' is a
+		 * path escape (a drophost could flock/unlink outside the RRD
+		 * tree). Every entry point must reject it - the shell asserts
+		 * the decoy index planted outside the tree survives intact. */
+		fsidx_note_schema(rrddir, "../outside", "f.a.rrd", 1000);
+		fsidx_baseline_set(rrddir, "../outside", "flat.a.rrd", "1:2", 1000);
+		fsidx_flush(rrddir, "../outside");
+		fsidx_flush_now(rrddir, "../outside");
+		fsidx_drop(rrddir, "../outside");
+		printf("get=%s\n", fsidx_baseline_get(rrddir, "../outside", "flat.a.rrd", NULL) ? "leaked" : "null");
+	}
+	else if (strcmp(scenario, "baseline-zerots") == 0) {
+		/* Every loader discards ts<=0 records, so a baseline set with
+		 * such a stamp would flush as "<fn> 0 b=..." and silently never
+		 * load back - it must be refused up front like the note_* calls. */
+		fsidx_baseline_set(rrddir, "h1", "flat.a.rrd", "1:2", 0);
+		fsidx_baseline_set(rrddir, "h1", "flat.b.rrd", "3:4", (time_t)-1);
+		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* a valid entry to publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}

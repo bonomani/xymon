@@ -37,7 +37,9 @@
 /* Writer side (xymond_rrd). Event time and commit time are split: schema
  * declarations (and a new entry's existence) are noted when the sample is
  * processed; the freshness timestamp advances only after rrdtool ACCEPTS
- * the update, so rejected updates never look fresh. */
+ * the update, so rejected updates never look fresh. Hostnames reach this
+ * API raw off the channel; every call that builds a path from one rejects
+ * hostnames containing '/' (they would escape the RRD tree). */
 extern void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts);
 extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for following writes; NULL clears */
@@ -45,6 +47,10 @@ extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:s
 extern void fsidx_set_dsnames(char *dsnspec);	/* sticky "ds1,ds2" positional names; NULL clears */
 extern void fsidx_set_heartbeats(char *hbspec);	/* sticky "ds:heartbeat[,...]"; NULL clears */
 extern void fsidx_flat_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata);
+/* Every loaded entry, real or flat (baseline arg NULL for a real file);
+ * cb may be NULL to only probe. Returns -1 when the host is not loaded
+ * (no knowledge - distinct from zero entries), else the entry count. */
+extern int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata);
 
 /* Durable lazy baselines: a flat instance is an entry with a (value,
  * since) record and no RRD file. get returns the live value string (do

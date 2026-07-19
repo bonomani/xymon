@@ -17,7 +17,7 @@ require_bin RRDRECONCILE "xymond/rrdreconcile"
 command -v rrdtool >/dev/null 2>&1 || skip "rrdtool CLI not available"
 
 work=$(mktempdir)
-mkdir -p "$work/rrd/testhost" "$work/etc"
+mkdir -p "$work/rrd/testhost" "$work/rrd/bighost" "$work/etc"
 now=$(date +%s)
 
 # A file created "before the declarations changed": AVERAGE-only archives,
@@ -33,6 +33,14 @@ EOF
 # A file already matching its declaration: untouched.
 rrdtool create "$work/rrd/testhost/stock.x.rrd" --start $((now-600)) --step 300 \
 	DS:val:GAUGE:600:0:U RRA:AVERAGE:0.5:1:100
+# A file with more RRAs than the tool's fixed rra[] table (64), its MAX
+# archive past index 63. The truncated view must NOT be treated as "MAX
+# is missing" - that would append duplicate archives on every run.
+bigrras=""
+for i in $(seq 1 64); do bigrras="$bigrras RRA:AVERAGE:0.5:$i:10"; done
+# shellcheck disable=SC2086
+rrdtool create "$work/rrd/bighost/lat.big.rrd" --start $((now-600)) --step 300 \
+	DS:val:GAUGE:600:0:U $bigrras RRA:MAX:0.5:1:10
 cat >"$work/graphs.cfg" <<'EOF'
 [lat]
 	FNPATTERN ^lat\..*\.rrd$
@@ -50,10 +58,16 @@ echo "$out" | grep -q "would run:.*RRA:MAX:0.5:1:100" \
 	|| fail "missing-CF archive not planned (per-AVERAGE clone): $out"
 echo "$out" | grep -q "RRA:MAX:0.5:12:50" \
 	|| fail "second AVERAGE geometry not cloned: $out"
-echo "$out" | grep -q "2 files scanned, 1 diverged" \
+echo "$out" | grep -q "3 files scanned, 1 diverged" \
 	|| fail "matching file not left alone in the summary: $out"
 rrdtool info "$work/rrd/testhost/lat.api.rrd" | grep -q 'minimal_heartbeat = 600' \
 	|| fail "dry run modified the file"
+# The >64-RRA file: warned about, and no archive changes planned for it.
+echo "$out" | grep -q "lat.big.rrd: more than 64 RRAs" \
+	|| fail "truncated RRA view not warned about: $out"
+if echo "$out" | grep "would run:" | grep -q "lat.big.rrd"; then
+	fail "archive changes planned from a truncated RRA view: $out"
+fi
 
 # Apply: the file now carries the declared heartbeat and the MAX archives.
 "$RRDRECONCILE" --rrddir="$work/rrd" --config="$work/graphs.cfg" --apply >/dev/null 2>&1 \
@@ -63,7 +77,10 @@ echo "$info" | grep -q 'minimal_heartbeat = 1200' || fail "heartbeat not reconci
 [ "$(echo "$info" | grep -c 'cf = "MAX"')" = 2 ] || fail "MAX archives not added: $info"
 # Reconciled state is stable: a second pass finds nothing to do.
 "$RRDRECONCILE" --rrddir="$work/rrd" --config="$work/graphs.cfg" 2>&1 \
-	| grep -q "2 files scanned, 0 diverged" || fail "reconciliation did not converge"
+	| grep -q "3 files scanned, 0 diverged" || fail "reconciliation did not converge"
+# ...and never grows the >64-RRA file.
+[ "$(rrdtool info "$work/rrd/bighost/lat.big.rrd" | grep -c '\.cf = ')" = 65 ] \
+	|| fail ">64-RRA file was modified"
 # The untouched file really is untouched.
 rrdtool info "$work/rrd/testhost/stock.x.rrd" | grep -q 'minimal_heartbeat = 600' \
 	|| fail "conforming file was modified"

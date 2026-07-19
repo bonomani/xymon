@@ -33,6 +33,7 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+[ -w "$ROOT/lib" ] || skip "source tree not writable (cannot refresh libxymoncomm.a)"
 make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 	|| { cat "$work/libbuild.log" >&2; fail "cannot refresh libxymoncomm.a"; }
 
@@ -52,7 +53,7 @@ out=$(run adopt-newer)
 echo "$out" | grep -q 'u=v:msec' || fail "newer disk spec not adopted: $out"
 echo "$out" | grep -q 'h=v:300' || fail "newer bundle not adopted wholesale: $out"
 echo "$out" | grep -q 'g=200' || fail "adopted generation not recorded: $out"
-echo "$out" | grep -q 'u=v:ms ' && fail "stale spec republished (the ping-pong): $out"
+echo "$out" | grep -Eq 'u=v:ms( |$)' && fail "stale spec republished (the ping-pong): $out"
 
 # The reverse: an older on-disk generation must not beat our newer one.
 out=$(run ignore-older)
@@ -68,5 +69,23 @@ echo "$out" | grep -q 'u=v:legacy' || fail "legacy weak fill broken: $out"
 out=$(run live-wins)
 echo "$out" | grep -q 'u=v:live' || fail "live declaration lost to on-disk generation: $out"
 echo "$out" | grep -q 'u=v:stale' && fail "stale disk spec survived a live declaration: $out"
+
+# A channel-fed hostname carrying '/' must be rejected by every fsidx
+# entry point: the decoy index planted OUTSIDE the RRD tree (where the
+# "../outside" hostname would resolve) must survive untouched - no
+# flock/rewrite from a flush, no unlink from a drop.
+mkdir -p "$work/outside"
+echo "sentinel" >"$work/outside/.fileset-index"
+: >"$work/outside/.fileset-index.lock"
+out=$(run reject-slash 2>/dev/null)
+echo "$out" | grep -q 'get=null' || fail "baseline API honored a '/' hostname: $out"
+grep -q 'sentinel' "$work/outside/.fileset-index" 2>/dev/null \
+	|| fail "'/' hostname escaped the RRD tree (outside index removed or rewritten)"
+
+# A baseline set with ts<=0 must be refused up front: every loader
+# discards ts<=0 records, so flushing one would silently lose it.
+out=$(run baseline-zerots)
+echo "$out" | grep -q 'f\.a\.rrd 1000' || fail "valid entry missing from the flush: $out"
+echo "$out" | grep -q 'flat' && fail "ts<=0 baseline was published: $out"
 
 echo "OK $(basename "$0")"

@@ -186,6 +186,82 @@ int main(void)
 	expect_contains("count matches what the writer writes", html, "service=diskio_mixed&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
+	/* GRAPH attributes are writer-style words - blank-delimited, matched
+	 * whole: "note_instances=4" is not an instances= attribute, and
+	 * neither "instances=allergic" (not =all) nor "instances=2x" (junk
+	 * after the number) is valid. The first two page on their block's
+	 * derived count of 2; the block-less third renders unsliced. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_tok\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"b 2\n"
+		"-->\n"
+		"<!--XYMON METRICS: diskio_allg\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"b 2\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_tok note_instances=4 -->\n"
+		"<!--XYMON GRAPH: diskio_allg instances=allergic -->\n"
+		"<!--XYMON GRAPH: diskio_numx instances=2x -->\n"
+		"status text\n");
+	expect_contains("note_instances=4 is not instances=4", html,
+		"service=diskio_tok&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	expect_not_contains("note_instances=4 is not instances=4", html, "count=4");
+	expect_contains("instances=allergic is not instances=all", html,
+		"service=diskio_allg&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	expect_not_contains("instances=allergic is not instances=all", html,
+		"service=diskio_allg&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_contains("instances=2x is malformed and ignored", html,
+		"service=diskio_numx&amp;graph_width=576&amp;graph_height=120&amp;disp=");
+	expect_not_contains("instances=2x is malformed and ignored", html,
+		"service=diskio_numx&amp;graph_width=576&amp;graph_height=120&amp;first=");
+	free(html);
+
+	/* The block writer switches blocks on EVERY devmon banner - it
+	 * accepts any name - so a banner whose name the parser rejects must
+	 * still close the open block: the count stays 2 (a, b), instead of
+	 * the next block's lines inflating it to 5. */
+	html = render_log_msg("diskio", 0, "",
+		"<!--XYMON METRICS: diskio_cut\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"a 1\n"
+		"b 2\n"
+		"<!--DEVMON RRD: foo:bar 0 0\n"
+		"DS:v:GAUGE:600:0:U\n"
+		"c 3\n"
+		"d 4\n"
+		"e 5\n"
+		"-->\n"
+		"<!--XYMON GRAPH: diskio_cut -->\n"
+		"status text\n");
+	expect_contains("invalid devmon banner still closes the open block", html,
+		"service=diskio_cut&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+	free(html);
+
+	/* The writer reads at most MAXCOLS (20) columns per line, so a 21st
+	 * DS spec never becomes a dataset - instance lines carrying the 20
+	 * values the writer stores must count: 2, not 0 (unsliced). */
+	{
+		char widemsg[2048];
+		int n, i;
+
+		n = snprintf(widemsg, sizeof(widemsg), "<!--XYMON METRICS: diskio_wide\n");
+		for (i = 0; (i < 21); i++)
+			n += snprintf(widemsg+n, sizeof(widemsg)-n, "%sDS:d%d:GAUGE:600:0:U", (i ? " " : ""), i);
+		snprintf(widemsg+n, sizeof(widemsg)-n,
+			"\nw0 1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1"
+			"\nw1 1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1:1"
+			"\n-->\n"
+			"<!--XYMON GRAPH: diskio_wide -->\n"
+			"status text\n");
+		html = render_log_msg("diskio", 0, "", widemsg);
+		expect_contains("DS count capped at the writer's MAXCOLS", html,
+			"service=diskio_wide&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
+		free(html);
+	}
+
 	/* A lazy block's file set is the EVER-active instances - the message
 	 * cannot know it (an instance that goes idle keeps its file), so the
 	 * graph renders unsliced: nothing is ever hidden. Explicit count=
@@ -336,6 +412,20 @@ int main(void)
 	expect_count("devmon column: banner graph rendered once", html, "service=if_load2&amp;", 3);
 	/* the legacy fallback link renders as service=devmon:if_load */
 	expect_not_contains("devmon column: no legacy fallback duplicate", html, "service=devmon");
+	free(html);
+
+	/* The legacy writer splits the devmon banner with strtok(" ") - space
+	 * only - so a tab after "DEVMON RRD:" is part of the basename. Such a
+	 * name is unparseable here: no marker for it, and the legacy fallback
+	 * must stay, or the block's graphs would be lost. */
+	html = render_log_msg("if_load", 0, "",
+		"<!--DEVMON RRD: \tfoo 0 0\n"
+		"DS:ds0:COUNTER:600:0:U\n"
+		"eth0.0 1\n"
+		"-->\n"
+		"status text\n");
+	expect_not_contains("tab-named devmon banner yields no marker", html, "service=foo&amp;");
+	expect_contains("tab-named devmon banner keeps the legacy fallback", html, "service=devmon");
 	free(html);
 
 	/* Legacy DEVMON block: an instance named like a declaration keyword

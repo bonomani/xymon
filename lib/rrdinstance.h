@@ -16,8 +16,10 @@
 #ifndef __RRDINSTANCE_H__
 #define __RRDINSTANCE_H__
 
-/* Both return a newly malloc()'d string the caller must free. */
+/* All return a newly malloc()'d string the caller must free. */
 extern char *rrdinstance_encode(const char *s);
 extern char *rrdinstance_decode(const char *s);
+/* NULL when s is not canonical encoder output (see the .c rationale) */
+extern char *rrdinstance_decode_ifencoded(const char *s);
 
 #endif

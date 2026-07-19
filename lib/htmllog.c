@@ -473,6 +473,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 	}
 	if ((rrd && graph) || graphsenv || markershow) {
 		int may_have_rrd = 1;
+		int fallbackrendered = 0;
 
 		/*
 		 * See if there is already a linecount in the report.
@@ -592,18 +593,25 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				xfree(graphscopy);
 			}
 			else if (may_have_rrd && rrd && graph &&
-				 !(markershow && (strncmp(rrd->xymonrrdname, "devmon", 6) == 0))) {
+				 !(markershow && (strncmp(rrd->xymonrrdname, "devmon", 6) == 0) &&
+				   !xymon_markers_devmon_unparsed(restofmsg))) {
 				/* A devmon-mapped column whose message carries DEVMON
 				 * banners renders through the marker path below: the
 				 * banners say exactly which graphs this status holds,
 				 * with exact counts - this service-level fallback link
-				 * would render a second, imprecise copy of each. */
+				 * would render a second, imprecise copy of each.
+				 * Exception: a banner name outside the marker charset
+				 * stores RRDs (the writer accepts any name) but parses
+				 * to no marker - suppressing the fallback would lose
+				 * that block's graphs, so it stays; the parsed markers'
+				 * graphs then render twice, which beats vanishing. */
 				int gcount = linecount;
 				if (xymon_gdef_fileset_unknown(graph->xymonrrdname)) {
 					int n = xymon_gdef_fileset_count(hostname, graph->xymonrrdname, xymon_gdef_staleafter(graph->xymonrrdname));
 					gcount = (n > 0 ? n : 0);
 				}
 				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
+				fallbackrendered = 1;
 			}
 
 			if (markershow) {
@@ -614,9 +622,14 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 
 					if (!mwalk->show) continue;
 
-					/* Skip graphs the config-driven paths above already rendered */
+					/* Skip graphs the config-driven paths above already
+					 * rendered. The service-level fallback only counts
+					 * when it actually ran - when it was suppressed in
+					 * favour of this marker path (devmon banners), the
+					 * marker is the sole renderer and must not be
+					 * deduplicated against it. */
 					if (may_have_rrd && graphsenv && name_in_csv(graphsenv, mwalk->name)) continue;
-					if (may_have_rrd && !graphsenv && rrd && graph &&
+					if (fallbackrendered &&
 					    ((strcmp(mwalk->name, service) == 0) || (strcmp(mwalk->name, graph->xymonrrdname) == 0))) continue;
 
 					/* Same stack-local gdef pattern as the GRAPHS_ entries

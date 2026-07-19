@@ -18,8 +18,11 @@ command -v make >/dev/null 2>&1 || skip "make not available"
 [ -f "$ROOT/include/config.h" ] \
 	|| skip "tree not configured (run configure/make first; the post-build CI suite covers this)"
 
-make -C "$ROOT/web" check >/tmp/aggcheck.$$ 2>&1 \
-	|| { tail -20 /tmp/aggcheck.$$ >&2; rm -f /tmp/aggcheck.$$; fail "aggregate-token unit tests failed"; }
-rm -f /tmp/aggcheck.$$
+work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-aggcheck.XXXXXX")
+trap 'rm -rf "$work"' EXIT HUP INT TERM
+
+[ -w "$ROOT/web" ] || skip "source tree not writable (cannot rebuild the checkers)"
+make -C "$ROOT/web" check >"$work/build.log" 2>&1 \
+	|| { tail -20 "$work/build.log" >&2; fail "aggregate-token unit tests failed"; }
 
 pass "aggregate-token and @DSIDX@ unit tests pass"

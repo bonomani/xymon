@@ -113,6 +113,21 @@ int main(void)
 	 * neither shadows the other, and each gets its own modify source */
 	expect("different patterns are different aggregates", out, "ada sum 15.00", 1);
 	expect("different patterns are different aggregates", out, "da sum 118.00", 1);
+	/* A malformed AGGDS line (missing :dataset) must not wipe the active
+	 * rule-section criteria: the "scoped" rule that follows it stays
+	 * bound to HOST=scopedhost, so it must not fire for testhost. */
+	expect("malformed AGGDS keeps section criteria", out, "scoped fired", 0);
+	/* An unparseable threshold (">notanumber") must not arm the rule
+	 * with the failed-strtod 0.0 - i.e. never behave as ">0" */
+	expect("garbage threshold cannot fire", out, "garbage limit fired", 0);
+
+	/* ...and the section-scoped rule still works where it belongs */
+	snprintf(vals, sizeof(vals), "%d:50:1", (int)now);
+	update_aggds_store("scopedhost", "diskio_ops.sda0.rrd", opstree, vals);
+	res = check_aggds_thresholds("scopedhost", "linux", "/");
+	out = (res ? STRBUF(res) : NULL);
+	expect("section rule fires for its own host", out, "scoped fired: 50.00", 1);
+	expect("garbage threshold cannot fire", out, "garbage limit fired", 0);
 
 	/* A host with no stored values: no result at all */
 	res = check_aggds_thresholds("otherhost", "linux", "/");
@@ -163,6 +178,21 @@ int main(void)
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	out = (res ? STRBUF(res) : NULL);
 	expect("flat instance joins the aggregates", out, "Total reads high: 153.00", 1);
+
+	/* Warm-up guard: the store is memory-only, the fileset index is
+	 * durable. When the index knows more fresh matching instances than
+	 * the store has re-seen values for (= just after a restart/reload),
+	 * count() must skip - not fire a false "instances disappeared". */
+	{
+		char flatdir[1024];
+		const char *xh = getenv("XYMONHOME");
+		snprintf(flatdir, sizeof(flatdir), "%s/rrdflat", (xh ? xh : "."));
+		fsidx_note_commit(flatdir, "testhost", "diskio_ops.warm.rrd", getcurrenttime(NULL));
+	}
+	flush_aggds_store("testhost");
+	res = check_aggds_thresholds("testhost", "linux", "/");
+	out = (res ? STRBUF(res) : NULL);
+	expect("restart warm-up: count skips while the index knows more", out, "Disks missing", 0);
 
 	printf(failures ? "FAILED\n" : "ALL OK\n");
 	return failures ? 1 : 0;

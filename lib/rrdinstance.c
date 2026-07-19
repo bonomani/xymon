@@ -87,3 +87,25 @@ char *rrdinstance_decode(const char *s)
 	*o = '\0';
 	return out;
 }
+
+/* Decode s only if it is canonical encoder output (decode(s) re-encodes to
+ * exactly s, and s holds at least one escape). Legacy filenames can carry
+ * literal %XX byte runs that were never our escapes - URLs in tcp.http
+ * captures are the common case - but those names also carry raw bytes
+ * outside the safe set (':' and friends), so the round-trip rejects them
+ * and the caller keeps the name verbatim.
+ * Returns a newly malloc()'d decoded string, or NULL for "not encoded". */
+char *rrdinstance_decode_ifencoded(const char *s)
+{
+	char *dec, *enc;
+	int canonical;
+
+	dec = rrdinstance_decode(s);
+	if (dec == NULL) return NULL;
+	if (strcmp(dec, s) == 0) { free(dec); return NULL; }	/* no escapes */
+	enc = rrdinstance_encode(dec);
+	canonical = (enc != NULL) && (strcmp(enc, s) == 0);
+	if (enc) free(enc);
+	if (!canonical) { free(dec); return NULL; }
+	return dec;
+}

@@ -56,5 +56,6 @@ extern xymonmarker_t *xymon_markers_parse(char *msg);
 extern void xymon_markers_free(xymonmarker_t *head);
 extern int xymon_marker_instancecount(xymonmarker_t *marker);
 extern int xymon_markers_have_store(char *msg);
+extern int xymon_markers_devmon_unparsed(char *msg);
 
 #endif

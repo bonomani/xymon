@@ -362,7 +362,9 @@ int main(int argc, char *argv[])
 
 		/* See if we have any cache-control messages pending */
 		do {
-			n = recv(ctlsocket, ctlbuf, sizeof(ctlbuf), 0);
+			/* Leave room for the NUL below: a datagram of exactly
+			 * sizeof(ctlbuf) bytes must not terminate past the end */
+			n = recv(ctlsocket, ctlbuf, sizeof(ctlbuf)-1, 0);
 			gotcachectlmessage = (n > 0);
 			if (gotcachectlmessage) {
 				/* We have a control message */

@@ -66,6 +66,25 @@ int main(void)
 	order("alpha", "beta");
 	order("eth1", "eth1x");
 
+	/* a leading '-' shared by both keys is a sign, as in the old
+	 * strtol()-based sort: larger magnitude sorts first */
+	order("-5", "-3");
+	order("-10", "-9");
+	order("-10", "-09");
+	order("-2", "1");
+	order("-5", "0");
+
+	/* an embedded '-' is an ordinary byte (the old code fell back to
+	 * strcmp() for such keys); the run after it compares unsigned */
+	order("temp-3", "temp-5");
+	order("temp-9", "temp-10");
+
+	/* leading-zero negatives are distinct and antisymmetric */
+	if (instance_key_compare("-007", "-7") == 0) { fprintf(stderr, "FAIL: -007 == -7\n"); failures++; }
+	if (instance_key_compare("-007", "-7") != -instance_key_compare("-7", "-007")) {
+		fprintf(stderr, "FAIL: -007/-7 asymmetric\n"); failures++;
+	}
+
 	/* equal keys are equal */
 	if (instance_key_compare("1.2.3", "1.2.3") != 0) { fprintf(stderr, "FAIL: reflexivity\n"); failures++; }
 

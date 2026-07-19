@@ -30,6 +30,7 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+[ -w "$ROOT/lib" ] || skip "source tree not writable (cannot refresh libxymoncomm.a)"
 make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 	|| { cat "$work/libbuild.log" >&2; fail "cannot refresh libxymoncomm.a"; }
 
@@ -43,6 +44,7 @@ mkdir -p "$work/etc"
 cat >"$work/etc/hosts.cfg" <<'EOF'
 0.0.0.0 testhost # linux
 0.0.0.0 otherhost # linux
+0.0.0.0 scopedhost # linux
 EOF
 cat >"$work/etc/analysis.cfg" <<'EOF'
 HOST=*
@@ -56,6 +58,10 @@ HOST=*
 	AGGDS diskio4 sum(%diskio_ops\.da.+:reads) >10 COLOR=yellow "TEXT=da sum &V"
 	AGGDS diskio5 count(%diskio_ops\..+\.rrd:reads) <10 COLOR=red "TEXT=crit few"
 	AGGDS diskio5 count(%diskio_ops\..+\.rrd:reads) <20 COLOR=yellow "TEXT=warn few"
+	AGGDS diskio6 sum(%diskio_ops\..+\.rrd:reads) >notanumber COLOR=red "TEXT=garbage limit fired"
+HOST=scopedhost
+	AGGDS broken sum(no-dataset) >1 COLOR=red
+	AGGDS scoped sum(%diskio_ops\..+\.rrd:reads) >1 COLOR=yellow "TEXT=scoped fired: &V"
 EOF
 : >"$work/etc/empty-analysis.cfg"
 

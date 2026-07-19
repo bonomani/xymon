@@ -62,8 +62,10 @@ static void shellquote(strbuffer_t *out, const char *s)
 }
 
 /* Read one file's live schema via "rrdtool info". Returns 0 when the
- * file cannot be inspected (not an RRD, unreadable, rrdtool missing). */
-static int read_schema(char *fpath, dsinfo_t *ds, int *dscount, rrainfo_t *rra, int *rracount)
+ * file cannot be inspected (not an RRD, unreadable, rrdtool missing).
+ * Sets *rraoverflow when the file has archives past MAXRRA, i.e. the
+ * rra[] view is incomplete. */
+static int read_schema(char *fpath, dsinfo_t *ds, int *dscount, rrainfo_t *rra, int *rracount, int *rraoverflow)
 {
 	strbuffer_t *cmd = newstrbuffer(0);
 	FILE *fd;
@@ -74,7 +76,7 @@ static int read_schema(char *fpath, dsinfo_t *ds, int *dscount, rrainfo_t *rra, 
 	shellquote(cmd, fpath);
 	addtobuffer(cmd, " 2>/dev/null");
 
-	*dscount = *rracount = 0;
+	*dscount = *rracount = *rraoverflow = 0;
 	fd = popen(STRBUF(cmd), "r");
 	freestrbuffer(cmd);
 	if (!fd) return 0;
@@ -82,7 +84,10 @@ static int read_schema(char *fpath, dsinfo_t *ds, int *dscount, rrainfo_t *rra, 
 		char name[32], cf[20];
 		int idx; long lval; double dval;
 
-		if ((sscanf(line, "ds[%31[^]]].minimal_heartbeat = %ld", name, &lval) == 2) && (*dscount < MAXDS)) {
+		if ((sscanf(line, "rra[%d]", &idx) == 1) && (idx >= MAXRRA)) {
+			*rraoverflow = 1;
+		}
+		else if ((sscanf(line, "ds[%31[^]]].minimal_heartbeat = %ld", name, &lval) == 2) && (*dscount < MAXDS)) {
 			strncpy(ds[*dscount].name, name, sizeof(ds[0].name)); ds[*dscount].name[sizeof(ds[0].name)-1] = '\0';
 			ds[*dscount].heartbeat = lval;
 			(*dscount)++;
@@ -114,17 +119,18 @@ static void process_file(char *hostname, char *hostdir, char *fn, char *hbspec)
 	char fpath[PATH_MAX];
 	dsinfo_t ds[MAXDS];
 	rrainfo_t rra[MAXRRA];
-	int dscount, rracount, i;
+	int dscount, rracount, rraoverflow, i;
 	int existing = 0, wanted, missing;
-	strbuffer_t *tuneargs = newstrbuffer(0);
+	strbuffer_t *tuneargs;
 
 	snprintf(fpath, sizeof(fpath), "%s/%s", hostdir, fn);
 	memset(rra, 0, sizeof(rra));
 	nfiles++;
-	if (!read_schema(fpath, ds, &dscount, rra, &rracount)) {
+	if (!read_schema(fpath, ds, &dscount, rra, &rracount, &rraoverflow)) {
 		errprintf("%s/%s: cannot read schema, skipped\n", hostname, fn);
 		return;
 	}
+	tuneargs = newstrbuffer(0);
 
 	/* Heartbeats: the recorded declaration is authoritative */
 	if (hbspec) {
@@ -156,7 +162,13 @@ static void process_file(char *hostname, char *hostdir, char *fn, char *hbspec)
 		else if (strcmp(rra[i].cf, "MAX") == 0) existing |= XYMON_CF_MAX;
 		else if (strcmp(rra[i].cf, "LAST") == 0) existing |= XYMON_CF_LAST;
 	}
-	wanted = xymon_gdef_cfs_forfile(fn);
+	if (rraoverflow) {
+		/* Archives past MAXRRA make this an incomplete view - deriving
+		 * "missing" CFs from it would append duplicates on every run. */
+		errprintf("%s/%s: more than %d RRAs, archive reconciliation skipped\n", hostname, fn, MAXRRA);
+		wanted = 0;
+	}
+	else wanted = xymon_gdef_cfs_forfile(fn);
 	missing = (wanted & ~existing);
 	if (missing) {
 		struct { int bit; char *name; } cfmap[] = {

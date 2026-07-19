@@ -1,12 +1,13 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# tests/lib/testcfg-countlines.sh
+# tests/server/testcfg-rrdmap.sh
 #
-# A test.cfg COUNTLINES metric joins the line-counting (--multigraphs) set:
-# the status page derives its graph-paging linecount from the body lines for
-# a column absent from the built-in list. A column without COUNTLINES keeps
-# linecount 0. Drives the real generate_html_log().
+# test.cfg overlays the column->RRD mapping that TEST2RRD provides: a
+# single-metric TEST binds its column to that metric and adds new columns,
+# but an IMPLICIT binding never overrides a conflicting env mapping (that
+# takes an explicit HANDLER); columns with no section fall back to the
+# TEST2RRD environment. Drives the real find_xymon_rrd().
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -25,36 +26,35 @@ if [ -z "$pcre_libs" ] && command -v pkg-config >/dev/null 2>&1; then
 fi
 [ -n "$pcre_libs" ] || pcre_libs="-lpcre2-8"
 
-work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tccount.XXXXXX")
+work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-tcrrd.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+[ -w "$ROOT/lib" ] || skip "source tree not writable (cannot refresh libxymoncomm.a)"
 make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 	|| { cat "$work/libbuild.log" >&2; fail "cannot refresh libxymoncomm.a"; }
 
 "$CC" -I"$ROOT/include" -I"$ROOT/lib" -o "$work/harness" \
-	"$here/testcfg-countlines-harness.c" "$ROOT/lib/libxymoncomm.a" \
+	"$here/testcfg-rrdmap-harness.c" "$ROOT/lib/libxymoncomm.a" \
 	$pcre_libs -lssl -lcrypto 2>"$work/cc.log" \
 	|| { cat "$work/cc.log" >&2; fail "harness does not compile"; }
 
 mkdir -p "$work/etc"
 cat >"$work/etc/test.cfg" <<'EOF'
-TEST clx {
-        SOURCE client
-        METRIC clx { COUNTLINES }
+TEST cpu       { SOURCE client; METRIC cpu2 }
+TEST vmtemp    { SOURCE client; METRIC vm_thermal; HANDLER vm_thermal }
+TEST diskquick { SOURCE script; METRIC diskfam }
+TEST diskio {
+        SOURCE script
+        METRIC diskio_ops  { LAZY }
+        METRIC diskio_busy
 }
 EOF
 
-# clx and plain both have a graph (self-mapped, listed in GRAPHS), neither is
-# in the built-in multigraphs list. Only clx has COUNTLINES via test.cfg.
 XYMONHOME="$work" \
-CGIBINURL="/xymon-cgi" \
-RRDWIDTH=576 RRDHEIGHT=120 \
-XYMONSKIN="/xymon/gifs" XYMONWEB="/xymon" IMAGEFILETYPE="gif" \
-TEST2RRD="plain" \
-GRAPHS="clx,plain" \
-INFOCOLUMN="info" TRENDSCOLUMN="trends" ACKUNTILMSG="until %H:%M" \
-	"$work/harness" 2>"$work/stderr.log" || fail "countlines assertions failed: $(cat "$work/stderr.log")"
+TEST2RRD="cpu=la,http=tcp,disk,vmtemp=ncv" \
+GRAPHS="la,disk" \
+	"$work/harness" 2>"$work/stderr.log" || fail "rrdmap assertions failed: $(cat "$work/stderr.log")"
 
-pass "test.cfg COUNTLINES joins the line-counting set for graph paging"
+pass "test.cfg overlays column->RRD mapping over TEST2RRD, with env fallback"

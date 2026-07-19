@@ -20,21 +20,24 @@ static char xymonmarkers_rcsid[] = "$Id$";
 #include "libxymon.h"
 
 /* Copy and validate a marker name: [A-Za-z0-9_-]{1,NAMELEN_MAX}, terminated
- * by whitespace or end-of-line. Leading blanks are skipped - the block
- * writer tokenizes with strtok(" \t") and so accepts them; this parser
- * must accept exactly what the writer accepts, or a routed block stores
- * nothing / a storable block is never routed. A CR counts as a terminator
- * only at end-of-line (the writer sees "name\r-->" as one invalid token).
- * Returns a malloc'ed copy, or NULL. */
-static char *marker_name(char *p)
+ * by a blank or end-of-line. Leading blanks are skipped - the block
+ * writer tokenizes the banner and so accepts them; this parser must
+ * accept exactly what the writer accepts, or a routed block stores
+ * nothing / a storable block is never routed. The blank set is the
+ * writer's tokenizer set: strtok(" \t") for METRICS blocks, but the
+ * legacy devmon banner splits with strtok(" ") only - a tab there is
+ * part of the (then unparseable) name, not a separator around it. A CR
+ * counts as a terminator only at end-of-line (the writer sees
+ * "name\r-->" as one invalid token). Returns a malloc'ed copy, or NULL. */
+static char *marker_name(char *p, const char *blanks)
 {
 	char *result;
 	int len = 0;
 
-	p += strspn(p, " \t");
+	p += strspn(p, blanks);
 	len = strspn(p, "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ0123456789_-");
 	if ((len == 0) || (len > XYMON_MARKER_NAMELEN_MAX)) return NULL;
-	if (p[len] && (p[len] != ' ') && (p[len] != '\t') && (p[len] != '\n') &&
+	if (p[len] && !strchr(blanks, p[len]) && (p[len] != '\n') &&
 	    !((p[len] == '\r') && ((p[len+1] == '\n') || (p[len+1] == '\0')))) return NULL;
 
 	result = (char *)malloc(len + 1);
@@ -110,7 +113,7 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 		 * the block writer does - a new banner simply starts the next
 		 * block. Everything else on block lines is content. */
 		if (strncmp(bol, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER)) == 0) {
-			char *name = marker_name(bol + strlen(XYMON_METRICS_MARKER));
+			char *name = marker_name(bol + strlen(XYMON_METRICS_MARKER), " \t");
 			if (name) {
 				block = find_or_add(&head, &tail, &count, name);
 				block_metrics = 1;
@@ -130,7 +133,13 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 					 * "-->" is status content, not attributes (the
 					 * block writer stops there too). Writer parity:
 					 * it tokenizes on " \t" and matches the word
-					 * exactly, with a CR vanishing only at EOL. */
+					 * exactly, with a CR vanishing only at EOL. The
+					 * scan starts AFTER the name token, like the
+					 * writer's strtok does - or a block named
+					 * "nolazy" behind doubled whitespace would parse
+					 * as its own attribute. */
+					p += strspn(p, " \t");
+					p += strlen(name);
 					while (*p && (*p != '\n') && strncmp(p, "-->", 3)) {
 						if ((*p == ' ') || (*p == '\t')) {
 							char *a = p + 1;
@@ -144,35 +153,45 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 			}
 		}
 		else if (strncmp(bol, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) {
-			/* Legacy devmon banner: store and show combined */
-			char *name = marker_name(bol + strlen(DEVMON_RRD_MARKER));
+			/* Legacy devmon banner: store and show combined. The block
+			 * writer accepts ANY name here and switches blocks
+			 * unconditionally, so even a banner whose name this parser
+			 * rejects must close the open block - or its instance
+			 * lines would count into the PREVIOUS marker. */
+			char *name = marker_name(bol + strlen(DEVMON_RRD_MARKER), " ");
+			block = NULL;
+			block_metrics = 0;
+			blockds = 0;
 			if (name) {
 				block = find_or_add(&head, &tail, &count, name);
-				block_metrics = 0;
-				blockds = 0;
 				if (block) { block->store = 1; block->show = 1; }
 				if (selfclosed) block = NULL;
 			}
 		}
 		else if (strncmp(bol, XYMON_GRAPH_MARKER, strlen(XYMON_GRAPH_MARKER)) == 0) {
 			char *p = bol + strlen(XYMON_GRAPH_MARKER);
-			char *name = marker_name(p);
+			char *name = marker_name(p, " \t");
 			if (name) {
 				xymonmarker_t *marker = find_or_add(&head, &tail, &count, name);
 				if (marker) {
 					marker->show = 1;
 
-					/* Optional attributes up to end-of-line / closing marker */
+					/* Optional attributes up to end-of-line / closing
+					 * marker. Same tokens as the METRICS scan above:
+					 * an attribute starts after a blank and ends at
+					 * one, so "note_instances=4" is no instances=
+					 * and "instances=allergic" is no instances=all. */
 					while (*p && (*p != '\n') && strncmp(p, "-->", 3)) {
-						if (strncmp(p, "instances=all", 13) == 0) {
-							marker->instancespec = 0;
-							p += 9;
+						if ((*p == ' ') || (*p == '\t')) {
+							char *a = p + 1;
+							if ((strncmp(a, "instances=all", 13) == 0) && marker_attr_end(a+13)) marker->instancespec = 0;
+							else if ((strncmp(a, "instances=", 10) == 0) && isdigit((unsigned char)a[10])) {
+								char *e = a + 10;
+								while (isdigit((unsigned char)*e)) e++;
+								if (marker_attr_end(e)) marker->instancespec = atoi(a+10);
+							}
 						}
-						else if ((strncmp(p, "instances=", 10) == 0) && isdigit((unsigned char)p[10])) {
-							marker->instancespec = atoi(p+10);
-							p += 6; while (isdigit((unsigned char)*p)) p++;
-						}
-						else p++;
+						p++;
 					}
 				}
 			}
@@ -186,20 +205,32 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 				block = NULL;
 			}
 			else if (strncmp(bol, "DS:", 3) == 0) {
-				/* Dataset definitions, not an instance. The leading run
-				 * of DS: tokens on the block's FIRST DS line is how many
-				 * values an instance line must carry to create a file -
-				 * exactly what the writer requires (it ignores later DS
-				 * lines and stops at the first non-DS token). */
-				if (blockds == 0) {
-					char *p = bol;
-					char *end = (eoln ? eoln : bol + strlen(bol));
-					while (p < end) {
-						while ((p < end) && (*p == ' ')) p++;
-						if ((p >= end) || (strncmp(p, "DS:", 3) != 0)) break;
+				/* Dataset definitions, not an instance. The DS count is
+				 * how many values an instance line must carry to create
+				 * a file - exactly what the writer requires. The writer
+				 * resumes its scan at column [numds] on EVERY DS line,
+				 * so a later DS line can extend the declaration from
+				 * that position; mirror it exactly, or the two would
+				 * disagree on which lines create files. */
+				char *p = bol;
+				char *end = (eoln ? eoln : bol + strlen(bol));
+				int col = 0;
+
+				while (p < end) {
+					while ((p < end) && (*p == ' ')) p++;
+					if (p >= end) break;
+					if (col >= blockds) {
+						/* The writer reads at most MAXCOLS (20)
+						 * columns per line (do_devmon.c), so a
+						 * 21st DS spec never becomes a dataset -
+						 * cap identically, or an instance line
+						 * carrying the 20 values the writer DOES
+						 * store would not count here. */
+						if ((blockds >= 20) || (strncmp(p, "DS:", 3) != 0)) break;
 						blockds++;
-						while ((p < end) && (*p != ' ')) p++;
 					}
+					col++;
+					while ((p < end) && (*p != ' ')) p++;
 				}
 			}
 			else {
@@ -291,10 +322,38 @@ int xymon_markers_have_store(char *msg)
 			 * its built-in handler - that would store NOTHING, where
 			 * either storing or falling back would be correct. */
 			if (strncmp(p, XYMON_METRICS_MARKER, strlen(XYMON_METRICS_MARKER)) == 0) {
-				char *name = marker_name(p + strlen(XYMON_METRICS_MARKER));
+				char *name = marker_name(p + strlen(XYMON_METRICS_MARKER), " \t");
 				if (name) { xfree(name); return 1; }
 			}
 			if (strncmp(p, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) return 1;
+		}
+		p += 4;
+	}
+
+	return 0;
+}
+
+/* Show-side parity guard: does the message carry a legacy DEVMON banner
+ * whose name the marker parser rejects? The block writer accepts ANY
+ * banner name (it only maps '/' to ','), so such a block still stores
+ * RRD files - but it gets no marker, and marker-driven rendering would
+ * silently lose its graphs. The caller must then keep the legacy
+ * service-level fallback rendering alongside the markers it did parse. */
+int xymon_markers_devmon_unparsed(char *msg)
+{
+	char *p;
+
+	if (!msg) return 0;
+
+	for (p = msg; (p); ) {
+		p = strstr(p, "<!--");
+		if (!p) return 0;
+		if ((p == msg) || (*(p-1) == '\n')) {
+			if (strncmp(p, DEVMON_RRD_MARKER, strlen(DEVMON_RRD_MARKER)) == 0) {
+				char *name = marker_name(p + strlen(DEVMON_RRD_MARKER), " ");
+				if (!name) return 1;
+				xfree(name);
+			}
 		}
 		p += 4;
 	}

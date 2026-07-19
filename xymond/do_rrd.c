@@ -270,6 +270,22 @@ static void setupfn2(char *format, char *param1, char *param2)
 	}
 }
 
+/* Finish a caller-reconstructed LEGACY basename the way setupfn2() would
+ * have when the file was originally created: space mangling plus the md5
+ * shortening of over-long names. Migration paths that stat the legacy file
+ * raw would miss any file that was stored shortened. */
+static void legacyfn_finish(char *fn)
+{
+	char *p;
+
+	while ((p = strchr(fn, ' ')) != NULL) *p = '_';
+	if (strlen(fn) >= (NAME_MAX - 50)) {
+		char *hash = md5hash(fn+(NAME_MAX-50));
+
+		sprintf(fn+(NAME_MAX-50), "_%s.rrd", hash);
+	}
+}
+
 static void setupfn3(char *format, char *param1, char *param2, char *param3)
 {
 	char *p;
@@ -552,7 +568,11 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 				if (have) continue;
 				for (i = 0; (i < rrddefcount); i++) {
 					if (strncmp(rrddefinitions[i], "RRA:AVERAGE:", 12) != 0) continue;
-					if (cfextracount >= (int)(sizeof(cfextras)/sizeof(cfextras[0]))) break;
+					if (cfextracount >= (int)(sizeof(cfextras)/sizeof(cfextras[0]))) {
+						errprintf("%s: derived-RRA cap (%d) reached, some %s archives skipped - rrdreconcile --apply can add them later\n",
+							  rrdfn, cfextracount, cfnames[c].name);
+						break;
+					}
 					{
 						size_t xlen = strlen(cfnames[c].name) + strlen(rrddefinitions[i]) + 8;
 						cfextras[cfextracount] = (char *)malloc(xlen);
@@ -775,6 +795,8 @@ void rrdcache_evict_idle(time_t maxage)
 	time_t now = gettimer();
 	char **keys = NULL;
 	int nkeys = 0, i;
+	char **hosts = NULL;
+	int nhosts = 0;
 
 	if (updcache_keyofs == -1) return;
 
@@ -794,6 +816,28 @@ void rrdcache_evict_idle(time_t maxage)
 			if (cacheitem->valcount > 0) {
 				sprintf(filedir, "%s%s", rrddir, cacheitem->key);
 				flush_cached_updates(cacheitem, NULL);
+
+				/* That flush noted a freshness commit in the in-memory
+				 * index only. An idle host gets no later message-driven
+				 * fsidx_flush(), so remember the host ("/<host>/<rrdfn>"
+				 * key) and push its index to disk below. */
+				{
+					char *keyhost = cacheitem->key + 1;
+					char *slash = strchr(keyhost, '/');
+
+					if (slash) {
+						size_t hlen = slash - keyhost;
+
+						for (v = 0; (v < nhosts); v++)
+							if ((strncasecmp(hosts[v], keyhost, hlen) == 0) && (hosts[v][hlen] == '\0')) break;
+						if (v == nhosts) {
+							hosts = (char **)realloc(hosts, (nhosts+1) * sizeof(char *));
+							hosts[nhosts] = (char *)malloc(hlen + 1);
+							memcpy(hosts[nhosts], keyhost, hlen); hosts[nhosts][hlen] = '\0';
+							nhosts++;
+						}
+					}
+				}
 			}
 			xtreeDelete(updcache, cacheitem->key);
 			for (v = 0; (v < cacheitem->valcount); v++)
@@ -805,6 +849,30 @@ void rrdcache_evict_idle(time_t maxage)
 	}
 	if (nkeys) dbgprintf("updcache: evicted %d idle entries\n", nkeys);
 	if (keys) xfree(keys);
+
+	for (i = 0; (i < nhosts); i++) {
+		fsidx_flush_now(rrddir, hosts[i]);
+		xfree(hosts[i]);
+	}
+	if (hosts) xfree(hosts);
+
+	if (nkeys) {
+		/* The fallback array-backed xtree reclaims a deleted slot only
+		 * when the same key is re-added, and churned instance names never
+		 * return - each eviction would leave a tombstone (slot + private
+		 * key copy) forever, defeating the point of evicting. Rebuild the
+		 * tree with the survivors; xtreeDestroy frees only tombstone
+		 * copies, never live keys, so moving the entries is safe on both
+		 * xtree variants. */
+		void *rebuilt = xtreeNew(strcasecmp);
+
+		for (handle = xtreeFirst(updcache); (handle != xtreeEnd(updcache)); handle = xtreeNext(updcache, handle)) {
+			updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+			xtreeAdd(rebuilt, cacheitem->key, cacheitem);
+		}
+		xtreeDestroy(updcache);
+		updcache = rebuilt;
+	}
 }
 
 /* Remove one host's cache entries. Flushed first on rename - the files

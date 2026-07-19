@@ -14,6 +14,7 @@
 static char rcsid[] = "$Id$";
 
 #include <limits.h>
+#include <math.h>
 #include <stdio.h>
 #include <string.h>
 #include <unistd.h>
@@ -1348,11 +1349,17 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 					if (strcmp(dsnames[i], operand) == 0) { rel[nrel].isds = 1; is_thr[i] = 1; break; }
 				}
 				if (!rel[nrel].isds) {
+					double hv;
+
 					/* Finite decimal only: "inf"/"nan"/hex would make
 					 * rrd_graph reject the whole graph as an HRULE */
 					if (strspn(operand, "0123456789.+-") != strlen(operand)) continue;
-					strtod(operand, &endp);
+					errno = 0;
+					hv = strtod(operand, &endp);
 					if ((endp == operand) || (*endp != '\0')) continue;	/* neither DS nor number */
+					/* Overflow only: ERANGE also flags underflow, but a
+					 * denormal draws fine as ~0 - only inf is rejected */
+					if ((errno == ERANGE) && ((hv == HUGE_VAL) || (hv == -HUGE_VAL))) continue;
 				}
 				nrel++;
 			}
@@ -1383,13 +1390,16 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				char *sevname = (rel[j].warn ? "warn" : "crit");
 
 				if (rel[j].isds) {
-					snprintf(buf, sizeof(buf), "DEF:t%d@RRDIDX@=@RRDFN@:%s:AVERAGE", j, rel[j].operand);
+					if (snprintf(buf, sizeof(buf), "DEF:t%d@RRDIDX@=@RRDFN@:%s:AVERAGE", j, rel[j].operand) >= (int)sizeof(buf)) continue;
 					defs[outi++] = strdup(buf);
 					snprintf(buf, sizeof(buf), "LINE1:t%d@RRDIDX@#%s:%s %s", j, color, rel[j].operand, sevname);
 					defs[outi++] = strdup(buf);
 				}
 				else {
-					snprintf(buf, sizeof(buf), "HRULE:%s#%s:%s %s (%s)", rel[j].operand, color, rel[j].base, sevname, rel[j].operand);
+					/* Index fields are unbounded short of FSIDX_LINEMAX; a
+					 * truncated def would make rrd_graph reject the whole
+					 * image, so an oversized token is dropped instead. */
+					if (snprintf(buf, sizeof(buf), "HRULE:%s#%s:%s %s (%s)", rel[j].operand, color, rel[j].base, sevname, rel[j].operand) >= (int)sizeof(buf)) continue;
 					defs[outi++] = strdup(buf);
 				}
 			}
@@ -1420,7 +1430,7 @@ static char *emit_find_rrd(char *rrddir, char *name)
 	DIR *tld;
 	struct dirent *hent;
 	size_t plen = strlen(name);
-	static char result[4096];
+	static char result[4096 + NAME_MAX + 2];	/* hostdir + "/" + d_name always fit */
 
 	tld = opendir(rrddir);
 	if (!tld) return NULL;
@@ -1487,6 +1497,28 @@ static int emit_gdef(char *name, char *rrddir)
 	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
 	if (synthetic_ds_skipped)
 		printf("\t# NOTE: the file has more datasets; only the first %d are scaffolded\n", SYNTHETIC_DSMAX);
+	return 0;
+}
+
+/* The disk-handler family: every file these services write since the
+ * encoding cutover carries a canonically ENCODED instance name (the
+ * mount/qtree/volume is rrdinstance_encode()d into the filename). For
+ * any other service, a capture that merely looks like encoder output
+ * (a tcp.http URL with a literal %XX run) is a legacy name and must
+ * keep the legacy un-mangling. */
+static int gdef_is_diskfamily(char *name)
+{
+	return ((strncmp(name, "disk", 4) == 0) || (strncmp(name, "inode", 5) == 0) ||
+		(strncmp(name, "qtree", 5) == 0) || (strncmp(name, "quotas", 6) == 0) ||
+		(strncmp(name, "snapshot", 8) == 0) || (strncmp(name, "tablespace", 10) == 0));
+}
+
+static int name_in_list(char **list, int count, char *name)
+{
+	int i;
+
+	for (i = 0; (i < count); i++)
+		if (strcmp(list[i], name) == 0) return 1;
 	return 0;
 }
 
@@ -1668,9 +1700,41 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		pcre2_match_data *ovector;
 		struct stat st;
 		time_t now = getcurrenttime(NULL);
+		char **decfiles = NULL;
+		int decfilecount = 0;
 
 		/* Scan the directory to see what RRD files are there that match */
 		dir = opendir("."); if (dir == NULL) errormsg("Unexpected error while accessing RRD directory");
+
+		/* Filenames whose fileset-index record carries a declaration
+		 * generation (g=). Only the block writers (XYMON METRICS /
+		 * DEVMON RRD) stamp one, and everything they write has a
+		 * canonically encoded instance name - so g= membership decides
+		 * the decode below where the name shape alone cannot: the
+		 * directory-scan seeding puts LEGACY files in the index too,
+		 * just without declarations. */
+		{
+			FILE *idxfd = fopen(".fileset-index", "r");
+
+			if (idxfd) {
+				char idxline[FSIDX_LINEMAX];
+
+				while (fgets(idxline, sizeof(idxline), idxfd)) {
+					char *nm, *tok, *sp = NULL;
+
+					if (idxline[0] == '#') continue;
+					nm = strtok_r(idxline, " \t\r\n", &sp);
+					if (!nm) continue;
+					while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
+						if (strncmp(tok, "g=", 2) != 0) continue;
+						decfiles = (char **)realloc(decfiles, (decfilecount+1) * sizeof(char *));
+						decfiles[decfilecount++] = strdup(nm);
+						break;
+					}
+				}
+				fclose(idxfd);
+			}
+		}
 
 		/* Setup the pattern to match filenames against */
 		pat = pcre2_compile(gdef->fnpat, strlen(gdef->fnpat), PCRE2_CASELESS, &err, &errofs, NULL);
@@ -1766,12 +1830,19 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				else {
 					/* Reverse rrdinstance_encode() for encoded files (disk,
 					 * inode, METRICS blocks): %XX -> original byte. If the
-					 * capture actually held an escape, the decoded value is the
-					 * final legend and must NOT be run through the legacy
-					 * comma->slash un-mangling below (a mount like "/a,b" would
-					 * otherwise turn back into "/a/b"). A plain capture with no
-					 * escapes decodes to itself and keeps the old behaviour, so
-					 * legacy backends (iostat, ...) are unaffected. */
+					 * capture is canonical encoder output, the decoded value
+					 * is the final legend and must NOT be run through the
+					 * legacy comma->slash un-mangling below (a mount like
+					 * "/a,b" would otherwise turn back into "/a/b").
+					 * "Encoded" is decided by evidence, not name shape: a
+					 * g=-declared index record proves a block writer made
+					 * the file (decode even escape-free names - the legend
+					 * must not flip when a flat instance materializes); the
+					 * disk family always encodes, so its captures may take
+					 * the canonical-shape probe. Everything else keeps the
+					 * old behaviour untouched - a legacy name that merely
+					 * looks like encoder output (a URL with a literal %XX
+					 * run in a tcp.http filename) is NOT decoded. */
 					char *raw = param;
 					char *dec;
 
@@ -1783,9 +1854,17 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					 * rewritten by an upgrade. */
 					if (((strncmp(gdef->name, "disk", 4) == 0) || (strncmp(gdef->name, "inode", 5) == 0)) &&
 					    (raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
-					dec = rrdinstance_decode(raw);
-					rrddbs[rrddbcount].rrdparam = dec;
-					rrddbs[rrddbcount].rrdparamfinal = (strcmp(dec, raw) != 0);
+					if (name_in_list(decfiles, decfilecount, d->d_name)) dec = rrdinstance_decode(raw);
+					else if (gdef_is_diskfamily(gdef->name)) dec = rrdinstance_decode_ifencoded(raw);
+					else dec = NULL;
+					if (dec) {
+						rrddbs[rrddbcount].rrdparam = dec;
+						rrddbs[rrddbcount].rrdparamfinal = 1;
+					}
+					else {
+						rrddbs[rrddbcount].rrdparam = strdup(raw);
+						rrddbs[rrddbcount].rrdparamfinal = 0;
+					}
 				}
 
 				if (strlen(rrddbs[rrddbcount].rrdparam) > paramlen) {
@@ -1839,6 +1918,11 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					if (!bl) continue;
 					its = (time_t)atol(tsstr);
 					if ((its <= 0) || ((idxnow - its) > stalewin)) continue;
+					/* A b= record whose RRD file exists is stale index
+					 * state (writer died between file-create and flush):
+					 * the readdir scan above already collected the real
+					 * file, a virtual entry would render it twice. */
+					if (access(name, F_OK) == 0) continue;
 
 					if (expat && (pcre2_match(expat, name, strlen(name), 0, 0, ovector, NULL) >= 0)) continue;
 					vl = sizeof(vparam);
@@ -1860,8 +1944,24 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 						rrddbs[rrddbcount].flatsince = (time_t)atol(bl);
 						rrddbs[rrddbcount].flatvals = strdup(comma+1);
 						raw = (havevparam ? vparam : name);
-						if ((raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
+						/* Same stock-pattern separator absorb as the
+						 * real-file path above - and with the same
+						 * disk/inode restriction, or an instance whose
+						 * name legitimately starts with '.' would change
+						 * legend and sort key when its RRD file
+						 * materializes (flat -> file transition). */
+						if (((strncmp(gdef->name, "disk", 4) == 0) || (strncmp(gdef->name, "inode", 5) == 0)) &&
+						    (raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
+						/* Unconditional decode - no canonical gate as in
+						 * the real-file path above: flat records are only
+						 * ever written by the METRICS encoder, so a legacy
+						 * literal-%XX name cannot appear here. */
 						dec = rrdinstance_decode(raw);
+						if (!dec) {	/* decode allocates; treat failure as a skipped record */
+							xfree(rrddbs[rrddbcount].flatvals);
+							rrddbs[rrddbcount].flatvals = NULL;
+							continue;
+						}
 						rrddbs[rrddbcount].rrdparam = dec;
 						rrddbs[rrddbcount].rrdparamfinal = 1;
 						if (strlen(dec) > paramlen) paramlen = strlen(dec);
@@ -1881,6 +1981,12 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		if (expat) pcre2_code_free(expat);
 		pcre2_match_data_free(ovector);
 		closedir(dir);
+		{
+			int di;
+
+			for (di = 0; (di < decfilecount); di++) xfree(decfiles[di]);
+			if (decfiles) xfree(decfiles);
+		}
 	}
 	rrddbs[rrddbcount].key = rrddbs[rrddbcount].rrdfn = rrddbs[rrddbcount].rrdparam = NULL;
 	rrddbs[rrddbcount].flatvals = NULL;
@@ -1979,7 +2085,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		}
 	}
 
-	for (pcount = 0; (gdef->defs[pcount]); pcount++) ;
+	for (pcount = 0; (gdef->defs[pcount]); pcount++) { /* count only */ }
 
 	/* The emit-once aggregate pass adds at most one extra slot per def
 	 * (the +1 in pcount*(rrddbcount+1)). Runtime @DSIDX@ expansion can
@@ -2139,12 +2245,17 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			char hrule[512];
 			size_t need;
 			char *endp, *legend;
+			double fv;
 
 			/* Numbers only: U and friends have no line to draw, and one
 			 * malformed token would make rrd_graph reject the whole graph. */
 			if (strspn(ftok, "0123456789.+-eE") != strlen(ftok)) continue;
-			strtod(ftok, &endp);
+			errno = 0;
+			fv = strtod(ftok, &endp);
 			if ((endp == ftok) || (*endp != '\0')) continue;
+			/* Overflow only ("1e999" -> inf, which rrd_graph rejects):
+			 * ERANGE also flags underflow, but a denormal draws as ~0 */
+			if ((errno == ERANGE) && ((fv == HUGE_VAL) || (fv == -HUGE_VAL))) continue;
 			need = (size_t)(argi + 3);
 			if (need > rrdargs_cap) {
 				rrdargs_cap = need;

@@ -50,6 +50,7 @@ typedef struct fsidx_host_t {
 	void *files;		/* rrdfn (char*) -> (time_t) last data write, cast in a slot */
 	int dirty_new;		/* an entry was added since the last flush */
 	int dirty_ts;		/* only timestamps moved since the last flush */
+	int needseed;		/* dropped host: reseed from disk on next touch */
 	time_t lastflush;
 } fsidx_host_t;
 
@@ -75,6 +76,20 @@ static char *fsidx_pending_heartbeats = NULL;	/* ditto: "ds:heartbeat[,...]" - t
 static void fsidx_path(char *buf, size_t bufsz, const char *rrddir, const char *hostname, const char *suffix)
 {
 	snprintf(buf, bufsz, "%s/%s/%s%s", rrddir, hostname, FSIDX_NAME, suffix);
+}
+
+/* Hostnames reach this API raw off the channel and are interpolated into
+ * "$XYMONRRDS/<hostname>/...": one carrying '/' would walk out of the RRD
+ * tree and flock()/unlink()/rewrite foreign files. Every public entry
+ * point that turns a hostname into a path rejects it here. */
+static int fsidx_valid_hostname(const char *hostname)
+{
+	if (!hostname || !(*hostname)) return 0;
+	if (strchr(hostname, '/') != NULL) {
+		errprintf("fileset index: hostname '%s' contains '/', ignored\n", hostname);
+		return 0;
+	}
+	return 1;
 }
 
 /* strong units (a live write's declaration) replace what the entry has;
@@ -268,11 +283,19 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 
 	if (!fsidx_hosts) fsidx_hosts = xtreeNew(strcasecmp);
 	handle = xtreeFind(fsidx_hosts, hostname);
-	if (handle != xtreeEnd(fsidx_hosts)) return (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
-
-	h = (fsidx_host_t *)calloc(1, sizeof(fsidx_host_t));
-	h->files = xtreeNew(strcmp);
-	xtreeAdd(fsidx_hosts, strdup(hostname), h);
+	if (handle != xtreeEnd(fsidx_hosts)) {
+		h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
+		/* A dropped host that re-appears (rename back, re-added host)
+		 * must start from what is actually on disk, not from the stale
+		 * emptied tree - fall through to the seed below. */
+		if (!h->needseed) return h;
+		h->needseed = 0;
+	}
+	else {
+		h = (fsidx_host_t *)calloc(1, sizeof(fsidx_host_t));
+		h->files = xtreeNew(strcmp);
+		xtreeAdd(fsidx_hosts, strdup(hostname), h);
+	}
 
 	/* Seed: prefer the existing index; else scan the directory once */
 	{
@@ -314,7 +337,8 @@ void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !hostname || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!rrddir || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	handle = xtreeFind(h->files, rrdfn);
 	if (handle == xtreeEnd(h->files)) {
@@ -336,9 +360,17 @@ void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 {
 	fsidx_host_t *h;
 
-	if (!rrddir || !hostname || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!rrddir || !rrdfn || !(*rrdfn) || (ts <= 0)) return;
+	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	fsidx_set(h, rrdfn, ts, NULL, 0);
+	/* An accepted update proves the RRD file exists, so this instance is
+	 * not flat. Normally the create path already cleared the baseline;
+	 * this catches a b= record resurrected by the on-disk weak-merge
+	 * after a crash between file-create and flush - without it the
+	 * stale record would be refreshed here forever and the renderer
+	 * would draw the instance twice. */
+	fsidx_baseline_clear(rrddir, hostname, rrdfn);
 }
 
 /* Sticky positional DS names for following writes, same lifecycle as
@@ -401,7 +433,8 @@ char *fsidx_baseline_get(char *rrddir, char *hostname, char *rrdfn, time_t *sinc
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !hostname || !rrdfn) return NULL;
+	if (!rrddir || !rrdfn) return NULL;
+	if (!fsidx_valid_hostname(hostname)) return NULL;
 	h = fsidx_gethost(rrddir, hostname);
 	handle = xtreeFind(h->files, rrdfn);
 	if (handle == xtreeEnd(h->files)) return NULL;
@@ -417,7 +450,8 @@ void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values,
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !hostname || !rrdfn || !values) return;
+	if (!rrddir || !rrdfn || !values || (ts <= 0)) return;
+	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	/* Ensure the entry and refresh last-seen: no rrdtool involved for a
 	 * baseline, so event time IS commit time here. */
@@ -444,7 +478,8 @@ void fsidx_baseline_clear(char *rrddir, char *hostname, char *rrdfn)
 	xtreePos_t handle;
 	fsidx_entry_t *e;
 
-	if (!rrddir || !hostname || !rrdfn) return;
+	if (!rrddir || !rrdfn) return;
+	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	handle = xtreeFind(h->files, rrdfn);
 	if (handle == xtreeEnd(h->files)) return;
@@ -477,6 +512,28 @@ void fsidx_flat_foreach(char *hostname, void (*cb)(const char *, time_t, const c
 	}
 }
 
+/* Iterate every loaded entry - real files and flat records alike (the
+ * baseline argument is NULL for a real file). cb may be NULL to only
+ * probe/count. Returns -1 when the host is not loaded at all ("no
+ * knowledge", distinct from "zero entries"), else the entry count. */
+int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata)
+{
+	xtreePos_t handle, fh;
+	fsidx_host_t *h;
+	int n = 0;
+
+	if (!fsidx_hosts || !hostname) return -1;
+	handle = xtreeFind(fsidx_hosts, hostname);
+	if (handle == xtreeEnd(fsidx_hosts)) return -1;
+	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
+	for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
+		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
+		if (cb) cb(e->fn, e->ts, e->baseline, e->dsnames, userdata);
+		n++;
+	}
+	return n;
+}
+
 void fsidx_flush(char *rrddir, char *hostname)
 {
 	xtreePos_t handle, fh;
@@ -486,7 +543,7 @@ void fsidx_flush(char *rrddir, char *hostname)
 	int lockfd;
 	time_t now = getcurrenttime(NULL);
 
-	if (!fsidx_hosts || !rrddir || !hostname) return;
+	if (!fsidx_hosts || !rrddir || !fsidx_valid_hostname(hostname)) return;
 	handle = xtreeFind(fsidx_hosts, hostname);
 	if (handle == xtreeEnd(fsidx_hosts)) return;
 	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
@@ -540,7 +597,13 @@ void fsidx_flush(char *rrddir, char *hostname)
 			if (e->baseline) fprintf(fd, " b=%ld,%s", (long)e->since, e->baseline);
 			fprintf(fd, "\n");
 		}
-		ok = (fclose(fd) == 0);
+		/* fclose alone is not enough: a write error at an intermediate
+		 * stdio flush (ENOSPC) only sets the stream error flag, and a
+		 * truncated file must never replace the good one. fsync before
+		 * the rename, or a crash right after it can publish an empty
+		 * file - and this file is the durable baseline store. */
+		ok = ((fflush(fd) == 0) && !ferror(fd) && (fsync(fileno(fd)) == 0));
+		ok = (fclose(fd) == 0) && ok;
 		if (ok && (rename(tmpfn, fn) == 0)) {
 			/* Only a published file clears the dirty state - a failed
 			 * flush must retry, or a one-shot change is lost */
@@ -596,17 +659,39 @@ void fsidx_drop(char *rrddir, char *hostname)
 	fsidx_host_t *h;
 	char fn[PATH_MAX];
 
+	if (!rrddir || !fsidx_valid_hostname(hostname)) return;
 	fsidx_path(fn, sizeof(fn), rrddir, hostname, "");
-	unlink(fn);
+	/* Serialize with a flush in flight in the other channel's writer:
+	 * its tmp+rename must land before the unlink, or the rename would
+	 * resurrect the index we just removed. No O_CREAT - if no lockfile
+	 * exists there is no flush to wait for, and creating one here would
+	 * drop a fresh file into a directory being deleted. The lockfile
+	 * itself is left in place: unlinking it would hand a flusher still
+	 * blocked in flock() a lock on the orphaned inode while a third
+	 * writer re-creates the name, letting two flushes run unserialized.
+	 * The drophost directory teardown removes it with everything else. */
+	{
+		char lockfn[PATH_MAX];
+		int lockfd;
+
+		fsidx_path(lockfn, sizeof(lockfn), rrddir, hostname, ".lock");
+		lockfd = open(lockfn, O_RDWR);
+		if (lockfd != -1) flock(lockfd, LOCK_EX);
+		unlink(fn);
+		if (lockfd != -1) {
+			flock(lockfd, LOCK_UN);
+			close(lockfd);
+		}
+	}
 
 	if (!fsidx_hosts) return;
 	handle = xtreeFind(fsidx_hosts, hostname);
 	if (handle == xtreeEnd(fsidx_hosts)) return;
 	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
 
-	/* Reset in place: xtree deletion leaves tombstones. The host tree is
-	 * reseeded (scan) on its next write, so a re-added host starts from
-	 * what is actually on disk. */
+	/* Reset in place: xtree deletion leaves tombstones. needseed makes
+	 * fsidx_gethost reseed (index load / scan) on the next touch, so a
+	 * re-added host starts from what is actually on disk. */
 	for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
 		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
 		xfree(e->fn);
@@ -620,6 +705,7 @@ void fsidx_drop(char *rrddir, char *hostname)
 	xtreeDestroy(h->files);
 	h->files = xtreeNew(strcmp);
 	h->dirty_new = h->dirty_ts = 0;
+	h->needseed = 1;
 	h->lastflush = 0;
 }
 
@@ -632,7 +718,7 @@ static char *fsidx_field(char *hostname, char *rrdfn, const char *fieldtag)
 	char *result = NULL;
 	size_t taglen = strlen(fieldtag);
 
-	if (!hostname || !rrdfn) return NULL;
+	if (!rrdfn || !fsidx_valid_hostname(hostname)) return NULL;
 	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
 	fd = fopen(fn, "r");
 	if (!fd) return NULL;
@@ -667,7 +753,7 @@ char *fsidx_units(char *hostname, char *rrdfn)
 	char line[FSIDX_LINEMAX];
 	char *result = NULL;
 
-	if (!hostname || !rrdfn) return NULL;
+	if (!rrdfn || !fsidx_valid_hostname(hostname)) return NULL;
 	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
 	fd = fopen(fn, "r");
 	if (!fd) return NULL;
@@ -696,7 +782,7 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 	int count = 0;
 	time_t now = getcurrenttime(NULL);
 
-	if (!hostname || !pattern) return -1;
+	if (!pattern || !fsidx_valid_hostname(hostname)) return -1;
 	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
 	fd = fopen(fn, "r");
 	if (!fd) return -1;
@@ -728,7 +814,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 	int count = 0;
 	time_t now = getcurrenttime(NULL);
 
-	if (!hostname || !prefix) return -1;
+	if (!prefix || !fsidx_valid_hostname(hostname)) return -1;
 	snprintf(fn, sizeof(fn), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, FSIDX_NAME);
 	fd = fopen(fn, "r");
 	if (!fd) return -1;

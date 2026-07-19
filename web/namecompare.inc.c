@@ -14,14 +14,28 @@
 /* bytes compare directly. Subsumes all prior cases: plain integers sort      */
 /* numerically, OID/version keys ("1.2.10" vs "1.10.1") sort by component,   */
 /* names sort byte-wise.                                                      */
+/*                                                                            */
+/* A '-' shared at the very start of both keys is a sign, as in the old      */
+/* strtol()-based numeric sort: the digit runs it precedes compare with the  */
+/* result inverted, so "-5" < "-3" and "-10" < "-9". Only there - the old    */
+/* code fell back to strcmp() for any key that was not one whole number, so  */
+/* a '-' anywhere else is an ordinary byte and the run after it compares     */
+/* unsigned ("temp-9" < "temp-10"). Inverting the run comparison in that     */
+/* one prefix-determined context reverses a total order on the run tokens,   */
+/* so the whole comparison remains a total order.                            */
 /*----------------------------------------------------------------------------*/
 
 static int instance_key_compare(const char *a, const char *b)
 {
+	const char *a0 = a;
+
 	while (*a && *b) {
 		if (isdigit((unsigned char)*a) && isdigit((unsigned char)*b)) {
 			const char *as = a, *bs = b;
 			size_t araw = 0, braw = 0, alen, blen, i;
+			/* both keys start "-<digits>": a sign, invert the run */
+			int neg = ((a == a0 + 1) && (*a0 == '-'));
+			int r = 0;
 
 			while (isdigit((unsigned char)a[araw])) araw++;
 			while (isdigit((unsigned char)b[braw])) braw++;
@@ -31,13 +45,14 @@ static int instance_key_compare(const char *a, const char *b)
 			blen = (size_t)(b + braw - bs);
 
 			/* numeric magnitude: more significant digits = greater */
-			if (alen != blen) return (alen < blen ? -1 : 1);
-			for (i = 0; (i < alen); i++) {
-				if (as[i] != bs[i]) return (as[i] < bs[i] ? -1 : 1);
+			if (alen != blen) r = (alen < blen ? -1 : 1);
+			for (i = 0; (r == 0) && (i < alen); i++) {
+				if (as[i] != bs[i]) r = (as[i] < bs[i] ? -1 : 1);
 			}
 			/* equal magnitude: tie-break on leading zeros (fewer
 			 * first), so "007" and "7" never compare equal */
-			if (araw != braw) return (araw < braw ? -1 : 1);
+			if ((r == 0) && (araw != braw)) r = (araw < braw ? -1 : 1);
+			if (r) return (neg ? -r : r);
 			a += araw; b += braw;
 		}
 		else if (*a != *b) {

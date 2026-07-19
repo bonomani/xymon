@@ -191,7 +191,7 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 
 		if (wanteddisk && diskname && (pused != -1)) {
 			char *encname;
-			char oldpath[PATH_MAX], newpath[PATH_MAX];
+			char oldfn[PATH_MAX], oldpath[PATH_MAX], newpath[PATH_MAX];
 			struct stat st;
 
 			/*
@@ -223,15 +223,20 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 			 * Use testname as the prefix: the disk-handler also stores inode,
 			 * qtree, quotas, snapshot and tablespace data, all keyed by testname.
 			 */
-			snprintf(oldpath, sizeof(oldpath), "%s/%s/%s%s.rrd", rrddir, hostname, testname, diskname);
-			snprintf(newpath, sizeof(newpath), "%s/%s/%s.%s.rrd", rrddir, hostname, testname, encname);
+			/* setupfn2() first: it owns the final filename, including
+			 * the md5 shortening of over-long encoded names - deriving
+			 * the target here from the raw encoded name would migrate
+			 * onto a file the writer then never updates. */
+			setupfn2("%s.%s.rrd", testname, encname);
+			snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", testname, diskname);
+			legacyfn_finish(oldfn);
+			snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
+			snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn);
 			if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
 				if (rename(oldpath, newpath) != 0)
 					errprintf("disk RRD migrate: rename %s -> %s failed: %s\n",
 						  oldpath, newpath, strerror(errno));
 			}
-
-			setupfn2("%s.%s.rrd", testname, encname);
 			snprintf(rrdvalues, sizeof(rrdvalues), "%d:%d:%lld", (int)tstamp, pused, aused);
 			create_and_update_rrd(hostname, testname, classname, pagepaths, disk_params, disk_tpl);
 			xfree(encname);

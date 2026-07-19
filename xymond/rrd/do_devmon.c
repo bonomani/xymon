@@ -40,6 +40,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 	int metrics_block = 0;	/* current block was opened by XYMON METRICS, not the legacy banner */
 	int numds = 0;
 	char *rrdbasename;
+	char *ownedbasename = NULL;	/* xstrdup'ed fallback name, freed here; rrdbasename otherwise points into msg */
 	int lineno = 0;
 	strbuffer_t *thrspec = newstrbuffer(0);	/* the current block's THRESHOLD relations */
 
@@ -78,9 +79,11 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			/* A new block never inherits the previous block's creation
 			 * params: a block without its own DS line writes nothing. */
 			for (i = 0; (devmon_params[i]); i++) { xfree(devmon_params[i]); devmon_params[i] = NULL; }
-			/*if(rrdbasename) {xfree(rrdbasename);rrdbasename = NULL;}*/
 			rrdbasename = strtok(curline+16," ");
-			if (rrdbasename == NULL) rrdbasename = xstrdup(testname);
+			if (rrdbasename == NULL) {
+				if (ownedbasename) xfree(ownedbasename);
+				ownedbasename = rrdbasename = xstrdup(testname);
+			}
 			/* The banner name becomes an RRD filename prefix; setupfn2()
 			 * only sanitizes the instance part, so strip path separators
 			 * here - devmon's own names never contain them. */
@@ -365,6 +368,12 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		if (metrics_block) {
 			encinst = rrdinstance_encode(ifname);
 
+			/* setupfn2() before the migration below: it owns the final
+			 * filename, including the md5 shortening of over-long
+			 * encoded names - the rename target must be the file the
+			 * writer will actually update. */
+			setupfn2("%s.%s.rrd", rrdbasename, encinst);
+
 			/* One-time legacy migration, ported from do_disk: a block
 			 * that replaced a legacy handler (disk, inode) must carry
 			 * the pre-cutover file across, or every mount graphs twice
@@ -372,23 +381,23 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			 * name: '/'->',' with bare "/" as ",root", appended with NO
 			 * separator. Only instances containing '/' can have one. */
 			if (strchr(ifname, '/')) {
-				char legacy[PATH_MAX], oldpath[PATH_MAX], newpath[PATH_MAX];
+				char legacy[PATH_MAX], oldfn[PATH_MAX], oldpath[PATH_MAX], newpath[PATH_MAX];
 				char *lp;
 				struct stat st;
 
 				snprintf(legacy, sizeof(legacy), "%s", ifname);
 				for (lp = legacy; ((lp = strchr(lp, '/')) != NULL); ) *lp = ',';
 				if (strcmp(legacy, ",") == 0) strcpy(legacy, ",root");
-				snprintf(oldpath, sizeof(oldpath), "%s/%s/%s%s.rrd", rrddir, hostname, rrdbasename, legacy);
-				snprintf(newpath, sizeof(newpath), "%s/%s/%s.%s.rrd", rrddir, hostname, rrdbasename, encinst);
+				snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", rrdbasename, legacy);
+				legacyfn_finish(oldfn);
+				snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
+				snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn);
 				if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
 					if (rename(oldpath, newpath) != 0)
 						errprintf("block RRD migrate: rename %s -> %s failed: %s\n",
 							  oldpath, newpath, strerror(errno));
 				}
 			}
-
-			setupfn2("%s.%s.rrd", rrdbasename, encinst);
 		}
 		else {
 			setupfn2("%s.%s.rrd", rrdbasename, ifname);
@@ -415,6 +424,7 @@ nextline:
 	fsidx_set_heartbeats(NULL);
 	fsidx_set_thresholds(NULL);
 	freestrbuffer(thrspec);
+	if (ownedbasename) xfree(ownedbasename);
 
 	{
 		int i;

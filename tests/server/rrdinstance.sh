@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # SPDX-License-Identifier: GPL-2.0-or-later
 #
-# tests/lib/rrdinstance.sh
+# tests/server/rrdinstance.sh
 #
 # Reversible, collision-free RRD instance encoding. A metrics-block instance
 # (a mount point, a name with a comma or a space) must round-trip to exactly

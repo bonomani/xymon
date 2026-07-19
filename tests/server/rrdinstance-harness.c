@@ -69,6 +69,20 @@ int main(void)
 	a = rrdinstance_decode("%2");     expect_eq("truncated", a, "%2");       free(a);
 	a = rrdinstance_decode("%zz");    expect_eq("nonhex", a, "%zz");         free(a);
 
+	/* decode_ifencoded() only fires on canonical encoder output: legacy
+	 * names that merely contain %XX byte runs (URLs in tcp.http captures)
+	 * carry raw bytes outside the safe set and must stay verbatim. */
+	a = rrdinstance_decode_ifencoded("%2Fvar");
+	expect_eq("ifenc-mount", a, "/var"); free(a);
+	a = rrdinstance_decode_ifencoded("eth0");
+	if (a) { fprintf(stderr, "ifenc-plain: no-escape name decoded to '%s'\n", a); failures++; free(a); }
+	a = rrdinstance_decode_ifencoded("https:,,host,a%20b");
+	if (a) { fprintf(stderr, "ifenc-url: legacy URL name decoded to '%s'\n", a); failures++; free(a); }
+	a = rrdinstance_decode_ifencoded("a%2fb");
+	if (a) { fprintf(stderr, "ifenc-lowercase: non-canonical escape decoded to '%s'\n", a); failures++; free(a); }
+	a = rrdinstance_decode_ifencoded("50%");
+	if (a) { fprintf(stderr, "ifenc-stray: stray %% decoded to '%s'\n", a); failures++; free(a); }
+
 	/* Round-trip a range of awkward instances... */
 	expect_roundtrip("rt-empty", "");
 	expect_roundtrip("rt-mount", "/var/log/xymon");
