@@ -6,10 +6,10 @@
 # xtreeDestroy must release everything the tree allocated. The tsearch
 # variant (HAVE_BINARY_TREE) used to free only the handle, leaking every
 # internal node and record wrapper of the destroyed tree - the fileset
-# index hits this on every drophost. Compile lib/tree.c BOTH ways (a
-# config.h shim forces the tsearch variant regardless of this build's
-# configure result) and run an insert/find/delete/destroy workload under
-# AddressSanitizer's leak checker.
+# index hits this on every drophost. Compile lib/tree.c BOTH ways - a
+# config.h shim per variant, so the test needs no built tree and is
+# independent of this platform's configure result - and run an
+# insert/find/delete/destroy workload under ASan's leak checker.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -67,17 +67,20 @@ int main(void)
 }
 EOF
 
-# The tsearch variant, forced via a config.h shim that shadows the real one.
-mkdir -p "$work/shim"
-echo '#define HAVE_BINARY_TREE 1' >"$work/shim/config.h"
-"$CC" -g -fsanitize=address -I"$work/shim" -I"$ROOT/lib" -I"$ROOT/include" \
+# One config.h shim per variant: never the build's real config.h, so
+# (a) the suite's no-build lane can run this test, and (b) each compile
+# is guaranteed to be the variant it claims, whatever configure decided.
+mkdir -p "$work/shim-tsearch" "$work/shim-fallback"
+echo '#define HAVE_BINARY_TREE 1' >"$work/shim-tsearch/config.h"
+echo '#undef HAVE_BINARY_TREE' >"$work/shim-fallback/config.h"
+
+"$CC" -g -fsanitize=address -I"$work/shim-tsearch" -I"$ROOT/lib" \
 	-o "$work/t-tsearch" "$work/harness.c" "$ROOT/lib/tree.c" 2>"$work/cc1.log" \
 	|| { cat "$work/cc1.log" >&2; fail "tsearch-variant harness does not compile"; }
 "$work/t-tsearch" >"$work/out1" 2>&1 \
 	|| fail "tsearch variant leaks or fails (rc=$?): $(tail -15 "$work/out1")"
 
-# The fallback (array) variant, as configured builds without search.h use it.
-"$CC" -g -fsanitize=address -I"$ROOT/lib" -I"$ROOT/include" \
+"$CC" -g -fsanitize=address -I"$work/shim-fallback" -I"$ROOT/lib" \
 	-o "$work/t-fallback" "$work/harness.c" "$ROOT/lib/tree.c" 2>"$work/cc2.log" \
 	|| { cat "$work/cc2.log" >&2; fail "fallback-variant harness does not compile"; }
 "$work/t-fallback" >"$work/out2" 2>&1 \
