@@ -163,4 +163,45 @@ grep -aq "DEF:p1x2=" "$work/out" || fail "runtime dsidx: missing file-1 dataset-
 grep -aq "Content-type: image/png" "$work/out" \
 	|| fail "runtime-dsidx multi-file graph rejected by rrdtool: $(grep -a 'ERROR\|error' "$work/out" | head -3)"
 
+# Unequal DS counts across matched files: an emit-once within-file
+# aggregate must reference only datasets EVERY file's DEFs define (the
+# smallest per-file count) - the largest count would reference datasets
+# the smaller file never DEFs and rrd_graph would reject the whole image.
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: pingm\n'
+	printf 'DS:s1:GAUGE:600:0:U\n'
+	printf 'gamma 9\n'
+	printf -- '-->\n'
+	printf 's\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/pingm.gamma.rrd" ] || fail "single-DS instance not created"
+
+cat >>"$work/graphs.cfg" <<'EOF'
+
+[pingm_med]
+	FNPATTERN ^pingm\.(.+)\.rrd
+	TITLE Runtime dsidx median
+	YAXIS ms
+	DEF:p@RRDIDX@x@DSIDX@=@RRDFN@:s@DSIDX@:AVERAGE
+	LINE1:p@RRDIDX@x@DSIDX@#@COLOR@:@RRDPARAM@ s@DSIDX@
+	CDEF:med=@DSMEDIAN:p2x@
+	LINE1:med#000000:median
+EOF
+
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=pingm_med&graph=hourly&action=view" \
+XYMONHOME="$work" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "DEF:p0x2=" "$work/out" || fail "larger file lost its second dataset"
+grep -aq "CDEF:med=p2x1,1,MEDIAN" "$work/out" \
+	|| fail "emit-once aggregate not clamped to the smallest per-file DS count: $(grep -a CDEF:med "$work/out")"
+grep -aq "disagree on DS count" "$work/out" \
+	|| fail "DS-count clamp not visible in the debug output"
+grep -aq "Content-type: image/png" "$work/out" \
+	|| fail "unequal-DS-count graph rejected by rrdtool: $(grep -a 'ERROR\|error' "$work/out" | head -3)"
+
 pass "aggregate tokens sum across matched files into one CDEF"

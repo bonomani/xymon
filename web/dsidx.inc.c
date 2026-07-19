@@ -12,6 +12,31 @@
 /*----------------------------------------------------------------------------*/
 
 
+#ifndef __LIBXYMON_H__
+/* The standalone test TU (test-dsidx.c) does not link libxymon: provide
+ * the aborting allocators locally, same semantics as lib/memory.c. */
+static void *xmalloc(size_t size)
+{
+	void *result = malloc(size);
+	if (result == NULL) { fprintf(stderr, "xmalloc: Out of memory!\n"); abort(); }
+	return result;
+}
+
+static void *xcalloc(size_t nmemb, size_t size)
+{
+	void *result = calloc(nmemb, size);
+	if (result == NULL) { fprintf(stderr, "xcalloc: Out of memory!\n"); abort(); }
+	return result;
+}
+
+static char *xstrdup(const char *s)
+{
+	char *result = strdup(s);
+	if (result == NULL) { fprintf(stderr, "xstrdup: Out of memory\n"); abort(); }
+	return result;
+}
+#endif
+
 /* Replace all occurrences of `needle` in `src` with `repl`. Returns a
  * malloc'd string; caller frees. */
 static char *str_replace_all(const char *src, const char *needle, const char *repl)
@@ -22,7 +47,7 @@ static char *str_replace_all(const char *src, const char *needle, const char *re
 	int count = 0;
 
 	for (p = src; (p = strstr(p, needle)) != NULL; p += nlen) count++;
-	out = (char *)malloc(strlen(src) + count * (rlen - nlen) + 1);
+	out = (char *)xmalloc(strlen(src) + count * (rlen - nlen) + 1);
 
 	q = out;
 	while ((p = strstr(src, needle)) != NULL) {
@@ -79,8 +104,8 @@ static char **expand_dsidx_array(char *const *defs, int n)
 
 	if (n <= 0) {
 		for (i = 0; defs[i]; i++) newcount++;
-		newdefs = (char **)calloc(newcount + 1, sizeof(char *));
-		for (i = 0; defs[i]; i++) newdefs[i] = strdup(defs[i]);
+		newdefs = (char **)xcalloc(newcount + 1, sizeof(char *));
+		for (i = 0; defs[i]; i++) newdefs[i] = xstrdup(defs[i]);
 		newdefs[newcount] = NULL;
 		return newdefs;
 	}
@@ -88,7 +113,7 @@ static char **expand_dsidx_array(char *const *defs, int n)
 	for (i = 0; defs[i]; i++) {
 		char *body;
 		int start;
-		char *line = strdup(defs[i]);
+		char *line = xstrdup(defs[i]);
 		if (classify_dsidx_line(line, &body, &start)) {
 			int m = n - start + 1;
 			newcount += (m > 0 ? m : 0);
@@ -99,11 +124,11 @@ static char **expand_dsidx_array(char *const *defs, int n)
 		free(line);
 	}
 
-	newdefs = (char **)calloc(newcount + 1, sizeof(char *));
+	newdefs = (char **)xcalloc(newcount + 1, sizeof(char *));
 	for (i = 0; defs[i]; i++) {
 		char *body;
 		int start;
-		char *line = strdup(defs[i]);
+		char *line = xstrdup(defs[i]);
 		if (classify_dsidx_line(line, &body, &start)) {
 			int idx;
 			for (idx = start; idx <= n; idx++) {
@@ -119,7 +144,7 @@ static char **expand_dsidx_array(char *const *defs, int n)
 			}
 		}
 		else {
-			newdefs[outi++] = strdup(defs[i]);
+			newdefs[outi++] = xstrdup(defs[i]);
 		}
 		free(line);
 	}
@@ -183,7 +208,7 @@ static char *def_rrdfile(const char *defline)
 	colon = strchr(eq + 1, ':');
 	if (!colon || colon == eq + 1) return NULL;
 	n = colon - (eq + 1);
-	out = (char *)malloc(n + 1);
+	out = (char *)xmalloc(n + 1);
 	memcpy(out, eq + 1, n);
 	out[n] = '\0';
 	return out;
@@ -198,7 +223,7 @@ static char *dsname_prefix(const char *tmpl)
 	size_t n;
 	if (!at) return NULL;
 	n = at - tmpl;
-	out = (char *)malloc(n + 1);
+	out = (char *)xmalloc(n + 1);
 	memcpy(out, tmpl, n);
 	out[n] = '\0';
 	return out;
@@ -221,7 +246,7 @@ static char *def_dsname(const char *defline)
 	c2 = strchr(c1 + 1, ':');
 	if (!c2 || c2 == c1 + 1) return NULL;
 	n = c2 - (c1 + 1);
-	out = (char *)malloc(n + 1);
+	out = (char *)xmalloc(n + 1);
 	memcpy(out, c1 + 1, n);
 	out[n] = '\0';
 	return out;

@@ -183,6 +183,45 @@ grep -aq "Content-type: image/png" "$work/out" || fail "mixed-unit fileset does 
 grep -a -A1 -- ' -v$' "$work/out" | grep -aq ' ms$' \
 	&& fail "mixed-unit fileset still labelled with the first file's axis"
 
+# A "%" unit implies rrdtool options (--units-exponent 0), and the scaffold
+# must carry them as a GRAPHOPTIONS line: a bare definition line would
+# reload as ONE rrdtool argument, which rrd_graph rejects - the captured
+# gdef must round-trip.
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: cpuuse\n'
+	printf 'DS:usr:GAUGE:600:0:U:%% DS:sys:GAUGE:600:0:U:%%\n'
+	printf 'cpu0 42:7\n'
+	printf -- '-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$rrds/cpuuse.cpu0.rrd" ] || fail "percent-unit block files not created"
+env XYMONHOME="$work" XYMONRRDS="$work/rrd" "$work/showgraph" --emit-gdef=cpuuse --rrddir="$work/rrd" \
+	>"$work/gdefp.out" 2>"$work/gdefp.err" \
+	|| fail "--emit-gdef with %-unit exited nonzero: $(cat "$work/gdefp.err")"
+grep -q '	GRAPHOPTIONS --units-exponent 0$' "$work/gdefp.out" \
+	|| fail "derived graphopts not emitted as a GRAPHOPTIONS line: $(cat "$work/gdefp.out")"
+
+# Round-trip: captured into graphs.cfg, the emitted text must reload into
+# graphopts - separate rrdtool argv tokens - not into the definition lines.
+cat "$work/gdefp.out" >>"$work/graphs.cfg"
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=cpuuse&graph=hourly&action=view" \
+XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq -- '--units-exponent 0$' "$work/out" \
+	&& fail "captured graphopts reached rrd_graph as one token"
+grep -aq -- '--units-exponent$' "$work/out" \
+	|| fail "captured graphopts missing from render args: $(grep -a 'exponent\|GRAPHOPT' "$work/out" | head -3)"
+# (the image/png header is printed before rrd_graph runs, so also check
+# that no option-parse error followed it)
+grep -aq "invalid option" "$work/out" \
+	&& fail "captured %-unit gdef rejected by rrd_graph: $(grep -a 'invalid option' "$work/out" | head -1)"
+grep -aq "Content-type: image/png" "$work/out" \
+	|| fail "captured %-unit gdef does not render: $(grep -a 'ERROR\|error' "$work/out" | head -3)"
+
 # Declared THRESHOLD relations: the operand DS is a threshold curve, not a
 # peer metric - threshold-styled on a single-instance image; a literal
 # operand renders as an HRULE. THRESHOLDS OFF (a meta-only graphs.cfg
@@ -239,7 +278,8 @@ mv "$work/graphs.cfg.bak" "$work/graphs.cfg"
 # A corrupt index relation (relop-less: the producer would reject it) must
 # not suppress datasets: the renderer applies the producer's validation,
 # and both DSes plot as peers.
-sed -i 's/ t=val:>val_warn:warn,val:>500:crit/ t=val:val_warn:warn/' "$work/rrd/testhost/.fileset-index"
+sed 's/ t=val:>val_warn:warn,val:>500:crit/ t=val:val_warn:warn/' "$work/rrd/testhost/.fileset-index" \
+	>"$work/fsidx.tmp" && mv "$work/fsidx.tmp" "$work/rrd/testhost/.fileset-index"
 render_thr
 grep -aq "Content-type: image/png" "$work/out" || fail "corrupt-relation graph does not render"
 grep -aq "FFCC00" "$work/out" && fail "corrupt relation must not be threshold-styled"
@@ -279,6 +319,7 @@ cp "$rrds/diskio_ops.ada0.rrd" "$rrds/disk,olddisk.rrd"
 render "disk"
 grep -aq '\./var' "$work/out" && fail "encoded disk legend shows './var' - separator not absorbed"
 grep -aq ':/var' "$work/out" || fail "encoded disk legend '/var' missing: $(grep -a 'disk' "$work/out" | head -3)"
+grep -aq ':/ ' "$work/out" || fail "root disk legend '/' missing: $(grep -a 'disk' "$work/out" | head -3)"
 grep -aq ':/olddisk' "$work/out" || fail "legacy comma-encoded disk legend '/olddisk' missing"
 
 pass "showgraph synthesizes a working gdef for marker-created RRD files"

@@ -480,6 +480,10 @@ void load_gdefs(char *fn)
 			newitem->novzoom = 1;
 		}
 		else if (strncasecmp(p, "DSCOUNT", 7) == 0) {
+			if (newitem == NULL) {
+				errprintf("graphs.cfg error: DSCOUNT before any [section]\n");
+				continue;
+			}
 			p += 7; p += strspn(p, " \t");
 			if (*p == '$') {
 				/* DSCOUNT $VAR -- read from xymonserver.cfg env */
@@ -528,6 +532,10 @@ void load_gdefs(char *fn)
 			gdef_t *base;
 			int i;
 
+			if (newitem == NULL) {
+				errprintf("graphs.cfg error: INCLUDE before any [section]\n");
+				continue;
+			}
 			bname += strspn(bname, " \t");
 			bname[strcspn(bname, " \t\r\n")] = '\0';
 			for (base = gdefs; (base && strcmp(bname, base->name)); base = base->next) ;
@@ -1262,9 +1270,11 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 				if (u) free(u);
 			}
 			/* The axis must be honest for the whole IMAGE, not just the
-			 * first file: any other selected instance declaring a
-			 * different unit - or none - drops the derivation. The
-			 * generic "Value" axis never lies about a curve. */
+			 * first file: any other RENDERED instance declaring a
+			 * different unit - or none - drops the derivation, but an
+			 * off-image instance never vetoes an image whose own
+			 * instances agree. The generic "Value" axis never lies
+			 * about a curve. */
 			{
 				int fi;
 
@@ -1272,6 +1282,7 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 					char *ofn = rrddbs[fi].rrdfn;
 					char *ospec;
 
+					if (!selected_rrdidx(fi)) continue;
 					if (!ofn || (strcmp(ofn, (base ? base+1 : rrdfn)) == 0)) continue;
 					ospec = fsidx_units(hostname, ofn);
 					if (!ospec) { agreed = 0; continue; }
@@ -1282,7 +1293,9 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 							char *colon = strrchr(tok, ':');
 							struct unithint_t *ohint;
 
-							if (!colon || !colon[1]) continue;
+							/* An absent or empty unit vetoes here just as
+							 * it does on the first file above */
+							if (!colon || !colon[1]) { agreed = 0; continue; }
 							ohint = unithint_lookup(colon+1);
 							if (strcmp(common, (ohint ? ohint->canon : colon+1))) agreed = 0;
 						}
@@ -1493,7 +1506,10 @@ static int emit_gdef(char *name, char *rrddir)
 	printf("\tFNPATTERN %s\n", gdef->fnpat);
 	printf("\tTITLE %s\n", gdef->title);
 	printf("\tYAXIS %s\n", gdef->yaxis);
-	if (gdef->graphopts) printf("\t%s\n", gdef->graphopts);
+	/* As a GRAPHOPTIONS line: a bare definition line would reload as ONE
+	 * rrdtool argument ("--units-exponent 0" as a single token), which
+	 * rrd_graph rejects - the captured gdef must round-trip. */
+	if (gdef->graphopts) printf("\tGRAPHOPTIONS %s\n", gdef->graphopts);
 	for (i = 0; (defs[i]); i++) printf("\t%s\n", defs[i]);
 	if (synthetic_ds_skipped)
 		printf("\t# NOTE: the file has more datasets; only the first %d are scaffolded\n", SYNTHETIC_DSMAX);
@@ -2153,14 +2169,18 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		 * exactly once. Re-emitting those per file would duplicate their
 		 * vnames, and rrd_graph rejects the whole graph. */
 		int i, j;
-		int nmax = 0;
+		int nmin = -1, nmax = 0;
 		int *fcount = (int *)calloc((rrddbcount > 0 ? rrddbcount : 1), sizeof(int));
 
 		for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
 			if (!selected_rrdidx(rrdidx)) continue;
 			fcount[rrdidx] = derive_dscount_for_file(gdef->defs, rrddbs[rrdidx].rrdfn);
 			if (fcount[rrdidx] > nmax) nmax = fcount[rrdidx];
+			if ((nmin < 0) || (fcount[rrdidx] < nmin)) nmin = fcount[rrdidx];
 		}
+		if (nmin < 0) nmin = 0;
+		if (nmin != nmax)
+			dbgprintf("runtime dsidx: matched files disagree on DS count (min %d, max %d); emit-once aggregates clamp to %d\n", nmin, nmax, nmin);
 
 		for (i = 0; gdef->defs[i]; i++) {
 			char *body;
@@ -2193,7 +2213,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					 * indexed RPN matching the @DSIDX@-produced DEFs. */
 					aggregate_dscount = fcount[rrdidx];
 					for (j = 0; rt_defs[j]; j++) {
-						rrdargs[argi++] = strdup(expand_aggregate_tokens(rt_defs[j]));
+						rrdargs[argi++] = xstrdup(expand_aggregate_tokens(rt_defs[j]));
 					}
 					aggregate_dscount = 0;
 
@@ -2208,11 +2228,12 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 					rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
 					if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
 				}
-				/* Emit-once aggregates see the largest per-file count;
-				 * with one matched file (the common runtime shape) that
-				 * is exactly that file's count. */
-				aggregate_dscount = nmax;
-				rrdargs[argi++] = strdup(expand_aggregate_tokens(gdef->defs[i]));
+				/* Emit-once aggregates see the SMALLEST per-file count,
+				 * so their RPN only references datasets every file's
+				 * DEFs define; with one matched file (the common runtime
+				 * shape) that is exactly that file's count. */
+				aggregate_dscount = nmin;
+				rrdargs[argi++] = xstrdup(expand_aggregate_tokens(gdef->defs[i]));
 				aggregate_dscount = 0;
 			}
 		}
@@ -2263,7 +2284,10 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
 			}
 			legend = colon_escape(rrddbs[rrdidx].rrdparam ? rrddbs[rrdidx].rrdparam : rrddbs[rrdidx].key);
-			snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], legend, sincetxt);
+			/* Legends are unbounded; truncation could split a "\:"
+			 * escape and make rrd_graph reject the whole image, so an
+			 * oversized record is dropped instead. */
+			if (snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], legend, sincetxt) >= (int)sizeof(hrule)) continue;
 			coloridx++; if (colorlist[coloridx] == NULL) coloridx = 0;
 			rrdargs[argi++] = strdup(hrule);
 		}

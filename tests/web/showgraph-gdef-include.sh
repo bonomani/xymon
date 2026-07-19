@@ -109,6 +109,17 @@ render "incbase"
 grep -aq "Base title" "$work/out" || fail "base gdef no longer renders on its own"
 grep -aq "GPRINT:v0:LAST:extra" "$work/out" && fail "variant line leaked into the base"
 
+# DSCOUNT/INCLUDE before any [section] are config errors, not crashes: the
+# parser must skip them and still serve the rest of the file.
+{ printf 'DSCOUNT 3\nINCLUDE incbase\n'; cat "$work/graphs.cfg"; } >"$work/graphs-preamble.cfg"
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=incvar&graph=hourly&action=view" \
+XYMONHOME="$work" \
+	"$work/showgraph" --debug --config="$work/graphs-preamble.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "Variant title" "$work/out" \
+	|| fail "pre-section keyword broke the parser: $(head -3 "$work/out")"
+
 # STOREPATTERN written after INCLUDE overrides the inherited one (own-wins),
 # checked through the metadata API rather than the rrd_graph dump.
 cat >"$work/spprobe.c" <<'CEOF'
