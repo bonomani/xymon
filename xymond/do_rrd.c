@@ -115,12 +115,35 @@ static void * updcache;
 typedef struct updcacheitem_t {
 	char *key;
 	rrdtpldata_t *tpl;
+	int tplowned;		/* tpl was built by setup_template() for this entry
+				 * (handler passed none) - evict/drop must free it.
+				 * Built-in handlers pass a shared static template. */
 	int valcount;
 	char *vals[CACHESZ];
 	int updseq[CACHESZ];
 	time_t updtime[CACHESZ];
 	time_t lasttouch;	/* for idle eviction under instance churn */
 } updcacheitem_t;
+
+/* Free a cache entry's owned template: the per-entry rrdtpldata_t that
+ * setup_template() built (template string, dsnames tree and its records).
+ * Shared static templates (tplowned == 0) are left alone. */
+static void free_owned_tpl(updcacheitem_t *cacheitem)
+{
+	rrdtpldata_t *tpl = cacheitem->tpl;
+	xtreePos_t handle;
+
+	if (!cacheitem->tplowned || !tpl) return;
+	for (handle = xtreeFirst(tpl->dsnames); (handle != xtreeEnd(tpl->dsnames)); handle = xtreeNext(tpl->dsnames, handle)) {
+		rrdtplnames_t *nam = (rrdtplnames_t *)xtreeData(tpl->dsnames, handle);
+		if (nam->dsnam) xfree(nam->dsnam);
+		xfree(nam);
+	}
+	xtreeDestroy(tpl->dsnames);
+	if (tpl->template) xfree(tpl->template);
+	xfree(tpl);
+	cacheitem->tpl = NULL;
+}
 
 static void * flushtree;
 static int have_flushtree = 0;
@@ -233,6 +256,18 @@ static void setupfn2(char *format, char *param1, char *param2)
 	snprintf(rrdfn, sizeof(rrdfn)-1, format, param1, param2);
 	rrdfn[sizeof(rrdfn)-1] = '\0';
 	while ((p = strchr(rrdfn, ' ')) != NULL) *p = '_';
+
+	if (strlen(rrdfn) >= (NAME_MAX - 50)) {
+		/*
+		 * Filename is too long for one directory entry (instance names
+		 * reach here from arbitrary status content, and the reversible
+		 * encoding can triple their length). Same md5 fallback as
+		 * setupfn3(): a bounded, stable, collision-free name.
+		 */
+		char *hash = md5hash(rrdfn+(NAME_MAX-50));
+
+		sprintf(rrdfn+(NAME_MAX-50), "_%s.rrd", hash);
+	}
 }
 
 static void setupfn3(char *format, char *param1, char *param2, char *param3)
@@ -400,10 +435,12 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	updcachekey = filedir + updcache_keyofs;
 	handle = xtreeFind(updcache, updcachekey);
 	if (handle == xtreeEnd(updcache)) {
-		if (!template) template = setup_template(creparams);
+		int tplowned = 0;
+
+		if (!template) { template = setup_template(creparams); tplowned = 1; }
 		if (!template) {
 			errprintf("BUG: setup_template() returns NULL! host=%s,test=%s,cp[0]=%s, cp[1]=%s\n",
-				  hostname, testname, 
+				  hostname, testname,
 				  (creparams[0] ? creparams[0] : "NULL"),
 				  (creparams[1] ? creparams[1] : "NULL"));
 			return -1;
@@ -411,6 +448,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		cacheitem = (updcacheitem_t *)calloc(1, sizeof(updcacheitem_t));
 		cacheitem->key = strdup(updcachekey);
 		cacheitem->tpl = template;
+		cacheitem->tplowned = tplowned;
 		xtreeAdd(updcache, cacheitem->key, cacheitem);
 	}
 	else {
@@ -467,9 +505,12 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 				return 0;
 			}
 			/* Deviation: create, seeded with the baseline value one
-			 * step before this sample for a true step edge. */
+			 * step before this sample for a true step edge. The
+			 * baseline record is retired only after the create
+			 * SUCCEEDS - a transient create failure retries with the
+			 * same baseline instead of re-learning and losing both
+			 * the change signal and the since-date. */
 			seedvals = strdup(bl);
-			fsidx_baseline_clear(rrddir, hostname, rrdfn);
 		}
 
 		dbgprintf("Creating rrd %s\n", filedir);
@@ -577,6 +618,8 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			optind = opterr = 0; rrd_clear_error();
 			if (xymon_rrd_update(3, seedparams) != 0)
 				dbgprintf("Seed update for %s failed: %s\n", filedir, rrd_get_error());
+			/* The file exists: retire the flat-instance record */
+			fsidx_baseline_clear(rrddir, hostname, rrdfn);
 		}
 		if (seedvals) { xfree(seedvals); seedvals = NULL; }
 
@@ -723,8 +766,9 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
  * idle entry's pending values and dropping it loses nothing - this
  * bounds the memory that instance churn (container mounts, rotating
  * names) used to grow forever. Keys are collected first: deleting
- * while traversing the tree is not safe. The template is shared and
- * never freed here. */
+ * while traversing the tree is not safe. A per-entry template (built by
+ * setup_template for handlers that pass none) is freed with the entry;
+ * shared static templates are not. */
 void rrdcache_evict_idle(time_t maxage)
 {
 	xtreePos_t handle;
@@ -754,6 +798,7 @@ void rrdcache_evict_idle(time_t maxage)
 			xtreeDelete(updcache, cacheitem->key);
 			for (v = 0; (v < cacheitem->valcount); v++)
 				if (cacheitem->vals[v]) xfree(cacheitem->vals[v]);
+			free_owned_tpl(cacheitem);
 			xfree(cacheitem->key);
 			xfree(cacheitem);
 		}
@@ -780,6 +825,7 @@ void rrdcache_drop_host(char *hostname, int flushfirst)
 	snprintf(prefix, sizeof(prefix), "/%s/", hostname);
 	plen = strlen(prefix);
 
+	/* Two phases: deleting while traversing the tree is not safe */
 	for (handle = xtreeFirst(updcache); (handle != xtreeEnd(updcache)); handle = xtreeNext(updcache, handle)) {
 		updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
 		if (strncasecmp(cacheitem->key, prefix, plen) != 0) continue;
@@ -800,6 +846,7 @@ void rrdcache_drop_host(char *hostname, int flushfirst)
 			xtreeDelete(updcache, cacheitem->key);
 			for (v = 0; (v < cacheitem->valcount); v++)
 				if (cacheitem->vals[v]) xfree(cacheitem->vals[v]);
+			free_owned_tpl(cacheitem);
 			xfree(cacheitem->key);
 			xfree(cacheitem);
 		}
