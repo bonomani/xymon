@@ -270,20 +270,17 @@ static void setupfn2(char *format, char *param1, char *param2)
 	}
 }
 
-/* Finish a caller-reconstructed LEGACY basename the way setupfn2() would
- * have when the file was originally created: space mangling plus the md5
- * shortening of over-long names. Migration paths that stat the legacy file
- * raw would miss any file that was stored shortened. */
+/* Finish a caller-reconstructed LEGACY basename the way setupfn2() did
+ * when the file was originally created: space mangling, nothing more. The
+ * legacy writer never shortened names - anything up to NAME_MAX landed on
+ * disk verbatim - so the migration candidate must be the raw name;
+ * applying today's md5 shortening here would miss every legacy file in
+ * the [NAME_MAX-50, NAME_MAX) range and silently restart its history. */
 static void legacyfn_finish(char *fn)
 {
 	char *p;
 
 	while ((p = strchr(fn, ' ')) != NULL) *p = '_';
-	if (strlen(fn) >= (NAME_MAX - 50)) {
-		char *hash = md5hash(fn+(NAME_MAX-50));
-
-		sprintf(fn+(NAME_MAX-50), "_%s.rrd", hash);
-	}
 }
 
 static void setupfn3(char *format, char *param1, char *param2, char *param3)

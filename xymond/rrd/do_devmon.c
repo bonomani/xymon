@@ -375,27 +375,38 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			setupfn2("%s.%s.rrd", rrdbasename, encinst);
 
 			/* One-time legacy migration, ported from do_disk: a block
-			 * that replaced a legacy handler (disk, inode) must carry
-			 * the pre-cutover file across, or every mount graphs twice
-			 * (frozen legacy curve + restarting encoded one). Legacy
-			 * name: '/'->',' with bare "/" as ",root", appended with NO
-			 * separator. Only instances containing '/' can have one. */
-			if (strchr(ifname, '/')) {
+			 * that replaced a legacy writer must carry the pre-cutover
+			 * file across, or every instance graphs twice (frozen legacy
+			 * curve + restarting encoded one). Two writers produced
+			 * legacy names for these blocks - do_disk appended the
+			 * mangled mount with NO separator ('/'->',' and bare "/" as
+			 * ",root"), a legacy DEVMON block went through setupfn2()
+			 * dot-separated - so both shapes are candidates. Whenever
+			 * the encoded name differs from a legacy shape (any unsafe
+			 * character, not just '/') the legacy file may exist. */
+			{
 				char legacy[PATH_MAX], oldfn[PATH_MAX], oldpath[PATH_MAX], newpath[PATH_MAX];
 				char *lp;
 				struct stat st;
+				int shape;
 
 				snprintf(legacy, sizeof(legacy), "%s", ifname);
 				for (lp = legacy; ((lp = strchr(lp, '/')) != NULL); ) *lp = ',';
-				if (strcmp(legacy, ",") == 0) strcpy(legacy, ",root");
-				snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", rrdbasename, legacy);
-				legacyfn_finish(oldfn);
-				snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
 				snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn);
-				if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
-					if (rename(oldpath, newpath) != 0)
-						errprintf("block RRD migrate: rename %s -> %s failed: %s\n",
-							  oldpath, newpath, strerror(errno));
+				for (shape = 0; (shape < 2); shape++) {
+					if (shape == 0)
+						snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", rrdbasename,
+							 ((strcmp(legacy, ",") == 0) ? ",root" : legacy));
+					else
+						snprintf(oldfn, sizeof(oldfn), "%s.%s.rrd", rrdbasename, legacy);
+					legacyfn_finish(oldfn);
+					if (strcmp(oldfn, rrdfn) == 0) continue;	/* same name - nothing to migrate */
+					snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
+					if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
+						if (rename(oldpath, newpath) != 0)
+							errprintf("block RRD migrate: rename %s -> %s failed: %s\n",
+								  oldpath, newpath, strerror(errno));
+					}
 				}
 			}
 		}

@@ -246,6 +246,13 @@ static void process_host(char *rrddir, char *hostname)
 		if (line[0] == '#') continue;
 		name = strtok_r(line, " \t\r\n", &sp);
 		if (!name || !strtok_r(NULL, " \t\r\n", &sp)) continue;
+		/* Index entries are bare basenames by construction; a corrupt
+		 * line containing '/' (which also covers "..") would escape the
+		 * host directory once spliced into the path below. */
+		if (strchr(name, '/')) {
+			errprintf("%s: index entry '%s' contains '/', skipped\n", hostname, name);
+			continue;
+		}
 		hb = NULL;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "h=", 2) == 0) hb = tok+2;

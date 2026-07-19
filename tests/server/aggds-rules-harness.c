@@ -21,6 +21,11 @@ static void touch_future(const char *path, int offset)
 	utime(path, &t);
 }
 
+/* Not in client_config.h - the idle-eviction sweep is driven by the
+ * hourly housekeeping inside check_aggds_thresholds(); linking against
+ * client_config.c lets the test call it with its own horizon. */
+extern int aggds_evict_idle(time_t maxage);
+
 static int failures = 0;
 
 static void expect(const char *label, const char *text, const char *needle, int want)
@@ -30,6 +35,14 @@ static void expect(const char *label, const char *text, const char *needle, int 
 	if (have != want) {
 		fprintf(stderr, "%s: '%s' %s in:\n%s\n", label, needle,
 			(want ? "missing" : "unexpected"), (text ? text : "(null)"));
+		failures++;
+	}
+}
+
+static void expectn(const char *label, int have, int want)
+{
+	if (have != want) {
+		fprintf(stderr, "%s: got %d, want %d\n", label, have, want);
 		failures++;
 	}
 }
@@ -164,6 +177,22 @@ int main(void)
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	expect("store rebuilt after rules return", (res ? STRBUF(res) : NULL), "Total reads high: 150.00", 1);
 
+	/* Idle eviction: churned instances (rotating container mounts) leave
+	 * store entries nothing else deletes. The sweep frees any entry idle
+	 * past the horizon - one per (file, dataset), so a two-DS update is
+	 * two entries - and really deletes it: a second sweep finds nothing. */
+	snprintf(vals, sizeof(vals), "%d:1:1", (int)(now - 7200));
+	update_aggds_store("testhost", "diskio_ops.churned.rrd", opstree, vals);
+	expectn("idle entries are evicted", aggds_evict_idle(3600), 2);
+	expectn("eviction deletes, not skips", aggds_evict_idle(3600), 0);
+	/* ... and the same key re-enters cleanly through the rebuilt tree */
+	snprintf(vals, sizeof(vals), "%d:1:1", (int)(now - 7200));
+	update_aggds_store("testhost", "diskio_ops.churned.rrd", opstree, vals);
+	expectn("evicted keys can re-enter the store", aggds_evict_idle(3600), 2);
+	/* fresh survivors are untouched by the sweeps above */
+	res = check_aggds_thresholds("testhost", "linux", "/");
+	expect("fresh entries survive the sweep", (res ? STRBUF(res) : NULL), "Total reads high: 150.00", 1);
+
 	/* A flat instance (durable lazy baseline) is a first-class
 	 * aggregate value: with its d= positional names it joins sum and
 	 * count like any stored sample - a pinned metric still counts as
@@ -187,12 +216,37 @@ int main(void)
 		char flatdir[1024];
 		const char *xh = getenv("XYMONHOME");
 		snprintf(flatdir, sizeof(flatdir), "%s/rrdflat", (xh ? xh : "."));
-		fsidx_note_commit(flatdir, "testhost", "diskio_ops.warm.rrd", getcurrenttime(NULL));
+		fsidx_set_dsnames("reads,writes");
+		fsidx_note_schema(flatdir, "testhost", "diskio_ops.warm.rrd", getcurrenttime(NULL));
+		fsidx_set_dsnames(NULL);
 	}
 	flush_aggds_store("testhost");
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	out = (res ? STRBUF(res) : NULL);
 	expect("restart warm-up: count skips while the index knows more", out, "Disks missing", 0);
+
+	/* Once the store has re-seen a value for every countable instance
+	 * the census no longer exceeds it: the guard lifts inside the
+	 * warm-up window and count() evaluates the real fileset (the flat
+	 * instance plus the one re-seen file = 2). */
+	snprintf(vals, sizeof(vals), "%d:6:1", (int)now);
+	update_aggds_store("testhost", "diskio_ops.warm.rrd", opstree, vals);
+	res = check_aggds_thresholds("testhost", "linux", "/");
+	out = (res ? STRBUF(res) : NULL);
+	expect("warm-up guard lifts once the census is covered", out, "Disks missing: only 2.00 reporting", 1);
+
+	/* An index entry with no d= names (legacy handlers record none)
+	 * cannot be tied to any dataset: it must not inflate the census, or
+	 * every rule would sit silently skipped for the whole window. */
+	{
+		char flatdir[1024];
+		const char *xh = getenv("XYMONHOME");
+		snprintf(flatdir, sizeof(flatdir), "%s/rrdflat", (xh ? xh : "."));
+		fsidx_note_commit(flatdir, "testhost", "diskio_ops.legacy.rrd", getcurrenttime(NULL));
+	}
+	res = check_aggds_thresholds("testhost", "linux", "/");
+	out = (res ? STRBUF(res) : NULL);
+	expect("no-d= index entry does not inflate the census", out, "Disks missing: only 2.00 reporting", 1);
 
 	printf(failures ? "FAILED\n" : "ALL OK\n");
 	return failures ? 1 : 0;

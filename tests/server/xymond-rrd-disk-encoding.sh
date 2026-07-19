@@ -82,4 +82,27 @@ printf 'legacy-rrd-history\n' >"$work/rrd/testhost/disk,var.rrd"
 grep -q 'legacy-rrd-history' "$work/rrd/testhost/disk.%2Fvar.rrd" \
 	|| fail "auto-rename: the original file content (history) was not preserved"
 
+# The legacy writer never shortened filenames - names up to NAME_MAX went
+# to disk verbatim. A legacy file in the [NAME_MAX-50, NAME_MAX) range must
+# be found under its raw name (the new writer's md5 shortening applies only
+# to the rename TARGET), or its history silently restarts.
+longtail=$(printf 'v%.0s' $(seq 1 220))
+longmount="/$longtail"
+legacyfn="disk,$longtail.rrd"	# 229 chars: shorten-threshold (205) < len < NAME_MAX
+ts=$(date +%s)
+rm -rf "$work/rrd"; mkdir -p "$work/rrd/testhost" "$work/tmp"
+printf 'long-legacy-history\n' >"$work/rrd/testhost/$legacyfn"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|disk|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf 'disk report\n/dev/sdd1 1000000 400000 600000 40%% %s\n' "$longmount"
+	printf '@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+
+[ -e "$work/rrd/testhost/$legacyfn" ] \
+	&& fail "auto-rename: long legacy name was not matched raw (shortened reconstruction misses it)"
+grep -rq 'long-legacy-history' "$work/rrd/testhost" \
+	|| fail "auto-rename: the long legacy file's history was not carried across"
+
 pass "do_disk encodes mounts reversibly and migrates legacy files by auto-rename"

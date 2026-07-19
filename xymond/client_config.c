@@ -3577,6 +3577,86 @@ void flush_aggds_store(char *hostname)
 
 
 /*
+ * Evict store entries idle beyond maxage. Instance churn (rotating
+ * container mounts, short-lived filesystems) creates one entry per
+ * instance and nothing else ever deletes them - without this sweep the
+ * store grows forever. An entry idle that long can never satisfy any
+ * rule's maxage (validated > 0 at parse time), so dropping it changes no
+ * aggregate; flushed entries (ts=0) age out the same way. Returns the
+ * number of entries evicted - and is non-static for the same reason.
+ * Keys are collected first: deleting while traversing is not safe.
+ */
+int aggds_evict_idle(time_t maxage)
+{
+	xtreePos_t hpos, vpos;
+	time_t now = getcurrenttime(NULL);
+	int evicted = 0;
+
+	if (!aggds_store) return 0;
+
+	for (hpos = xtreeFirst(aggds_store); (hpos != xtreeEnd(aggds_store)); hpos = xtreeNext(aggds_store, hpos)) {
+		void *hosttree = xtreeData(aggds_store, hpos);
+		char **keys = NULL;
+		int nkeys = 0, i;
+
+		for (vpos = xtreeFirst(hosttree); (vpos != xtreeEnd(hosttree)); vpos = xtreeNext(hosttree, vpos)) {
+			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vpos);
+
+			if ((now - entry->ts) <= maxage) continue;
+			keys = (char **)realloc(keys, (nkeys+1) * sizeof(char *));
+			keys[nkeys++] = xtreeKey(hosttree, vpos);
+		}
+
+		for (i = 0; (i < nkeys); i++) {
+			aggds_val_t *entry = (aggds_val_t *)xtreeDelete(hosttree, keys[i]);
+
+			if (!entry) continue;
+			xfree(entry->rrdfn);
+			xfree(entry->dsnam);
+			xfree(entry);
+			xfree(keys[i]);
+			evicted++;
+		}
+		if (keys) xfree(keys);
+	}
+
+	if (evicted) {
+		/* The fallback array-backed xtree reclaims a deleted slot only
+		 * when the same key is re-added, and churned instance names never
+		 * return - each eviction would leave a tombstone (slot + private
+		 * key copy) forever, defeating the point of evicting. Rebuild
+		 * both levels with the survivors, dropping hosts whose slice
+		 * emptied; xtreeDestroy frees only tombstone copies, never live
+		 * keys, so moving the entries is safe on both xtree variants. */
+		void *rebuiltstore = xtreeNew(strcasecmp);
+
+		for (hpos = xtreeFirst(aggds_store); (hpos != xtreeEnd(aggds_store)); hpos = xtreeNext(aggds_store, hpos)) {
+			void *hosttree = xtreeData(aggds_store, hpos);
+			char *hostkey = xtreeKey(aggds_store, hpos);
+			void *rebuilt;
+
+			if (xtreeFirst(hosttree) == xtreeEnd(hosttree)) {
+				xtreeDestroy(hosttree);
+				xfree(hostkey);
+				continue;
+			}
+			rebuilt = xtreeNew(strcmp);
+			for (vpos = xtreeFirst(hosttree); (vpos != xtreeEnd(hosttree)); vpos = xtreeNext(hosttree, vpos))
+				xtreeAdd(rebuilt, xtreeKey(hosttree, vpos), xtreeData(hosttree, vpos));
+			xtreeDestroy(hosttree);
+			xtreeAdd(rebuiltstore, hostkey, rebuilt);
+		}
+		xtreeDestroy(aggds_store);
+		aggds_store = rebuiltstore;
+
+		dbgprintf("aggds store: evicted %d idle entries\n", evicted);
+	}
+
+	return evicted;
+}
+
+
+/*
  * Evaluate AGGDS rules for one host. Called once per incoming message
  * after its whole batch of RRD updates completed - never per file, which
  * would aggregate over half-updated values. Values older than the rule's
@@ -3632,10 +3712,14 @@ static void aggds_flat_cb(const char *rrdfn, time_t ts, const char *values, cons
 
 /* Census of one rule's fileset in the writer-kept index: fresh entries
  * (real files and flat records alike) whose filename matches the rule's
- * pattern - restricted to entries declaring the rule's dataset when the
- * d= names are known. This is the restart-durable "how many instances
- * exist" answer the memory store cannot give until it has re-seen every
- * instance's update. */
+ * pattern AND whose d= names declare the rule's dataset. This is the
+ * restart-durable "how many instances exist" answer the memory store
+ * cannot give until it has re-seen every instance's update. Entries with
+ * no declared names (legacy handlers record none) are NOT counted:
+ * whether they carry the dataset is unknowable here, and counting them
+ * pins the census above the store for the whole warm-up window whenever
+ * the pattern matches a file without the dataset - silently skipping the
+ * rule for maxage seconds after every reload. */
 struct aggds_censusctx_t {
 	c_rule_t *rule;
 	time_t now;
@@ -3649,7 +3733,8 @@ static void aggds_census_cb(const char *rrdfn, time_t ts, const char *values, co
 
 	if (!rule->rule.aggds.rrdkey || !namematch((char *)rrdfn, rule->rule.aggds.rrdkey->pattern, rule->rule.aggds.rrdkey->exp)) return;
 	if ((ctx->now - ts) > rule->rule.aggds.maxage) return;
-	if (dsnames) {
+	if (!dsnames) return;	/* no d= names: cannot be tied to the dataset */
+	{
 		const char *p;
 		size_t dlen = strlen(rule->rule.aggds.rrdds);
 		int found = 0;
@@ -3681,6 +3766,20 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 	time_t now = getcurrenttime(NULL);
 
 	if (!aggds_rules_exist) return NULL;
+
+	/* Hourly housekeeping from the evaluation path (this module has no
+	 * timer of its own): sweep out entries idle past 6h, mirroring the
+	 * writer cache's rrdcache_evict_idle() horizon. Before the host
+	 * slice is looked up - the sweep may free or rebuild it. */
+	{
+		static time_t nextsweep = 0;
+
+		if (now > nextsweep) {
+			aggds_evict_idle(6*3600);
+			nextsweep = now + 3600;
+		}
+	}
+
 	hosttree = NULL;
 	if (aggds_store) {
 		handle = xtreeFind(aggds_store, hostname);
@@ -3738,7 +3837,13 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			struct aggds_censusctx_t cctx;
 
 			cctx.rule = rule; cctx.now = now; cctx.count = 0;
-			if ((fsidx_entry_foreach(hostname, aggds_census_cb, &cctx) >= 0) && (cctx.count > n)) goto nextrule;
+			if ((fsidx_entry_foreach(hostname, aggds_census_cb, &cctx) >= 0) && (cctx.count > n)) {
+				dbgprintf("aggds warm-up: %s %s(%s:%s) skipped, index census %d > %d values in hand\n",
+					  hostname, fnnames[rule->rule.aggds.aggfn],
+					  (rule->rule.aggds.rrdkey ? rule->rule.aggds.rrdkey->pattern : ""),
+					  rule->rule.aggds.rrdds, cctx.count, n);
+				goto nextrule;
+			}
 		}
 
 		/* With no fresh matching values there is no sum/avg/min/max to

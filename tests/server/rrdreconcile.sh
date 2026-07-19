@@ -29,7 +29,13 @@ cat >"$work/rrd/testhost/.fileset-index" <<EOF
 # xymon fileset index v1
 lat.api.rrd $now u=val:ms h=val:1200 d=val
 stock.x.rrd $now h=val:600
+../../lat.escape.rrd $now h=val:1200
 EOF
+# The corrupt index entry above points outside the host directory; the
+# file it would resolve to exists and would diverge - it must be rejected
+# by name, never inspected or tuned.
+rrdtool create "$work/lat.escape.rrd" --start $((now-600)) --step 300 \
+	DS:val:GAUGE:600:0:U RRA:AVERAGE:0.5:1:100
 # A file already matching its declaration: untouched.
 rrdtool create "$work/rrd/testhost/stock.x.rrd" --start $((now-600)) --step 300 \
 	DS:val:GAUGE:600:0:U RRA:AVERAGE:0.5:1:100
@@ -62,6 +68,13 @@ echo "$out" | grep -q "3 files scanned, 1 diverged" \
 	|| fail "matching file not left alone in the summary: $out"
 rrdtool info "$work/rrd/testhost/lat.api.rrd" | grep -q 'minimal_heartbeat = 600' \
 	|| fail "dry run modified the file"
+# The index entry escaping the host directory: warned about and skipped -
+# never scanned (the "3 files" summaries above would count it) or planned.
+echo "$out" | grep -q "index entry '../../lat.escape.rrd' contains '/', skipped" \
+	|| fail "path-escaping index entry not rejected: $out"
+if echo "$out" | grep "would run:" | grep -q "lat.escape.rrd"; then
+	fail "path-escaping index entry was planned for tuning: $out"
+fi
 # The >64-RRA file: warned about, and no archive changes planned for it.
 echo "$out" | grep -q "lat.big.rrd: more than 64 RRAs" \
 	|| fail "truncated RRA view not warned about: $out"
@@ -84,5 +97,8 @@ echo "$info" | grep -q 'minimal_heartbeat = 1200' || fail "heartbeat not reconci
 # The untouched file really is untouched.
 rrdtool info "$work/rrd/testhost/stock.x.rrd" | grep -q 'minimal_heartbeat = 600' \
 	|| fail "conforming file was modified"
+# ...and the file outside the host directory was never tuned by --apply.
+rrdtool info "$work/lat.escape.rrd" | grep -q 'minimal_heartbeat = 600' \
+	|| fail "path-escaping index entry reached a file outside the host directory"
 
 echo "OK $(basename "$0")"
