@@ -403,6 +403,22 @@ sleep 1		# the forked directory deletion
 [ -e "$work/rrd/testhost" ] \
 	&& fail "straggler recreated the dropped host directory: $(ls "$work/rrd/testhost")"
 
+# renamehost: pending CACHED updates must flush into the old-named files
+# before the rename moves them (rrdcacheflushhost cannot do this: it
+# expects "/host"-shaped keys and rate-limits; a call with a bare
+# hostname is a silent no-op).
+rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: renm nolazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
+	printf '@@renamehost|%s|127.0.0.1|testhost|newhost\n@@\n' "$ts"
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --debug >"$work/dbg.log" 2>&1
+[ -d "$work/rrd/newhost" ] || fail "rename did not move the host directory"
+grep -q "flushed and dropped 1 entries for host testhost" "$work/dbg.log" \
+	|| fail "pending update not flushed before the rename: $(grep -i updcache "$work/dbg.log")"
+
 # The shipped default (no LAZYDEFAULT in the environment): every METRICS
 # block is lazy - a flat first sample becomes an index record, not a
 # file - and "nolazy" opts a block out. (The export at the top pins

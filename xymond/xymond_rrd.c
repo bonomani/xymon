@@ -72,13 +72,11 @@ static void sig_handler(int signum)
 	}
 }
 
-/* Drop barrier: a dropped (or renamed-away) host's directory deletion is
- * forked off, but messages for it that were already queued in the channel
- * can still arrive and recreate files - and the fileset index - inside
- * the dying directory. Remember recent drops and discard those stragglers.
- * The barrier outlives any realistic channel backlog; a host legitimately
- * re-added later than that resumes normally (its first samples inside the
- * window are lost, which is the cost of the race being closed). */
+/* Drop barrier: the forked directory deletion races messages for the
+ * host still queued in the channel, which would recreate files - and
+ * the fileset index - inside the dying directory. Remember recent drops
+ * and discard the stragglers. A host re-added after the window resumes
+ * normally. */
 #define DROPBARRIER 300		/* seconds */
 static void *recentdrops = NULL;
 
@@ -106,10 +104,8 @@ static int hostdrop_barrier(char *hostname)
 	if (!recentdrops) return 0;
 	handle = xtreeFind(recentdrops, hostname);
 	if (handle == xtreeEnd(recentdrops)) return 0;
-	/* An expired entry stays in the tree (one small record per
-	 * ever-dropped hostname - administrative events, bounded) because
-	 * xtreeDelete cannot release the duplicated key; it simply reads
-	 * as "no barrier" and is re-armed by the next drop. */
+	/* Expired entries stay (one record per ever-dropped name - bounded;
+	 * xtreeDelete cannot release the key) and re-arm on the next drop. */
 	return ((gettimer() - *(time_t *)xtreeData(recentdrops, handle)) < DROPBARRIER);
 }
 
@@ -501,11 +497,10 @@ int main(int argc, char *argv[])
 			MEMDEFINE(hostdir);
 
 			sprintf(hostdir, "%s/%s", rrddir, basename(hostname));
-			/* Order matters: arm the straggler barrier and discard the
-			 * host's cached updates BEFORE the forked deletion starts,
-			 * so nothing recreates files inside the dying directory. */
+			/* Barrier and discard cached updates BEFORE the forked
+			 * deletion starts - nothing may write into the dying dir. */
 			note_hostdrop(hostname);
-			updcache_purge_host(hostname);
+			updcache_drop_host(hostname, 0);
 			dropdirectory(hostdir, 1);
 			flush_aggds_store(hostname);
 			fsidx_drop(rrddir, hostname);
@@ -531,10 +526,9 @@ int main(int argc, char *argv[])
 			newhostname = metadata[4];
 			sprintf(oldhostdir, "%s/%s", rrddir, hostname);
 			sprintf(newhostdir, "%s/%s", rrddir, newhostname);
-			/* Flush pending updates into the old-named files BEFORE the
-			 * rename (preserving the data), then barrier the old name:
-			 * queued messages for it must not recreate the old dir. */
-			rrdcacheflushhost(hostname);
+			/* Flush pending updates into the old-named files BEFORE
+			 * they move, then barrier the old name against stragglers. */
+			updcache_drop_host(hostname, 1);
 			note_hostdrop(hostname);
 			rename(oldhostdir, newhostdir);
 			flush_aggds_store(hostname);	/* repopulates under the new name */
