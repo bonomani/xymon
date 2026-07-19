@@ -58,39 +58,28 @@ void *xtreeNew(int(*xtreeCompare)(const char *a, const char *b))
 	return newtree;
 }
 
-static treerec_t **xtree_dlist = NULL;
-static int xtree_dcount = 0, xtree_dsize = 0;
-
-static void xtree_i_collect(const void *nodep, VISIT which, int depth)
+static int xtree_i_matchroot(const void *pa, const void *pb)
 {
-	if ((which == postorder) || (which == leaf)) {
-		if (xtree_dcount == xtree_dsize) {
-			xtree_dsize += 512;
-			xtree_dlist = (treerec_t **)realloc(xtree_dlist, xtree_dsize * sizeof(treerec_t *));
-		}
-		xtree_dlist[xtree_dcount++] = *(treerec_t **)nodep;
-	}
+	/* Always "found": makes tdelete remove whatever node it looks at
+	 * first (the root) without ever dereferencing the record keys -
+	 * callers may already have freed them before destroying the tree. */
+	return 0;
 }
 
 void xtreeDestroy(void *treehandle)
 {
 	xtree_t *tree = treehandle;
-	int i;
 
 	if (!tree) return;
-	/* tdestroy() is glibc-only, so: collect every record via twalk (the
-	 * *(rec **)nodep access is the POSIX-documented node layout), then
-	 * tdelete each - which frees the search tree's internal nodes - and
-	 * free the record wrappers. This used to free only the handle,
-	 * leaking every node and wrapper of the destroyed tree. Keys and
-	 * userdata belong to the caller, as always. */
-	xtree_dcount = 0;
-	if (tree->root) twalk(tree->root, xtree_i_collect);
-	for (i = 0; (i < xtree_dcount); i++) {
-		tdelete(xtree_dlist[i], &tree->root, xtree_i_compare);
-		free(xtree_dlist[i]);
+	/* No tdestroy() outside glibc, so delete the root record until the
+	 * tree is empty (*(rec **)root is the POSIX-documented node layout):
+	 * tdelete frees the internal nodes, we free the record wrappers.
+	 * Keys and userdata belong to the caller, as always. */
+	while (tree->root) {
+		treerec_t *rec = *(treerec_t **)tree->root;
+		tdelete(rec, &tree->root, xtree_i_matchroot);
+		free(rec);
 	}
-	if (xtree_dlist) { free(xtree_dlist); xtree_dlist = NULL; xtree_dsize = 0; }
 	free(tree);
 }
 
