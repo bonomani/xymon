@@ -72,6 +72,21 @@ static void sig_handler(int signum)
 	}
 }
 
+/* Hourly: evict cache entries idle > 6h (bounds memory under instance
+ * churn; pending values are flushed first, so nothing is lost). Called
+ * from both the status- and data-channel message paths - each worker
+ * process has its own cache. */
+static void cache_evict_hourly(void)
+{
+	static time_t nextevict = 0;
+	time_t enow = gettimer();
+
+	if (enow > nextevict) {
+		rrdcache_evict_idle(6*3600);
+		nextevict = enow + 3600;
+	}
+}
+
 static void update_locator_hostdata(char *id)
 {
 	DIR *fd;
@@ -168,6 +183,14 @@ loaddone:
 	}
 }
 
+/* Has rrddefinitions.cfg a section of this name? get_rrd_definition()
+ * falls back to the default one, so a caller choosing between keys asks
+ * this first. */
+int have_rrd_definition(char *key)
+{
+	return (rrddeftree && (xtreeFind(rrddeftree, key) != xtreeEnd(rrddeftree)));
+}
+
 char **get_rrd_definition(char *key, int *count)
 {
 	xtreePos_t handle;
@@ -251,7 +274,10 @@ int main(int argc, char *argv[])
 	sigaction(SIGINT, &sa, NULL);
 	sigaction(SIGPIPE, &sa, NULL);
 
-	/* Setup the control socket that receives cache-flush commands */
+	/* Setup the control socket that receives cache-flush commands. The
+	 * AF_UNIX path is limited to sizeof(sun_path) (typically 108): a
+	 * long $XYMONTMP overflowed the sprintf and aborted the daemon at
+	 * startup - check it and run without the socket instead. */
 	memset(&ctlsockaddr, 0, sizeof(ctlsockaddr));
 	{
 		/* sun_path is tiny (~108 bytes); refuse an XYMONTMP that cannot
@@ -276,13 +302,15 @@ int main(int argc, char *argv[])
 		return 1;
 	}
 	fcntl(ctlsocket, F_SETFL, O_NONBLOCK);
-	if (bind(ctlsocket, (struct sockaddr *)&ctlsockaddr, sizeof(ctlsockaddr)) == -1) {
-		errprintf("Cannot bind to cache-control socket (%s)\n", strerror(errno));
-		return 1;
-	}
-	/* Linux obeys filesystem permissions on the socket file, so make it world-accessible */
-	if (chmod(ctlsockaddr.sun_path, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) == -1) {
-		errprintf("Setting permissions on cache-control socket failed: %s\n", strerror(errno));
+	if (ctlsockaddr.sun_path[0]) {
+		if (bind(ctlsocket, (struct sockaddr *)&ctlsockaddr, sizeof(ctlsockaddr)) == -1) {
+			errprintf("Cannot bind to cache-control socket (%s)\n", strerror(errno));
+			return 1;
+		}
+		/* Linux obeys filesystem permissions on the socket file, so make it world-accessible */
+		if (chmod(ctlsockaddr.sun_path, S_IRUSR|S_IWUSR|S_IRGRP|S_IWGRP|S_IROTH|S_IWOTH) == -1) {
+			errprintf("Setting permissions on cache-control socket failed: %s\n", strerror(errno));
+		}
 	}
 
 	/* Load the RRD definitions */
@@ -314,7 +342,9 @@ int main(int argc, char *argv[])
 
 		/* See if we have any cache-control messages pending */
 		do {
-			n = recv(ctlsocket, ctlbuf, sizeof(ctlbuf), 0);
+			/* Leave room for the NUL below: a datagram of exactly
+			 * sizeof(ctlbuf) bytes must not terminate past the end */
+			n = recv(ctlsocket, ctlbuf, sizeof(ctlbuf)-1, 0);
 			gotcachectlmessage = (n > 0);
 			if (gotcachectlmessage) {
 				/* We have a control message */
@@ -380,12 +410,21 @@ int main(int argc, char *argv[])
 			  case COL_CLEAR: /* Clear is OK, because it could still contain valid metric data */
 				tstamp = atoi(metadata[1]);
 				sender = metadata[2];
-				hostname = metadata[4]; 
+				hostname = metadata[4];
 				testname = metadata[5];
 				classname = (metadata[17] ? metadata[17] : "");
 				pagepaths = (metadata[18] ? metadata[18] : "");
 				ldef = find_xymon_rrd(testname, metadata[8]);
 				update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
+
+				/* AGGDS aggregate rules run once per message, after
+				 * its whole batch of RRD updates completed */
+				{
+					strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
+					if (aggmsg) combo_add(aggmsg);
+				}
+				fsidx_flush(rrddir, hostname);
+				cache_evict_hourly();
 				break;
 
 			  default:
@@ -397,12 +436,19 @@ int main(int argc, char *argv[])
 			/* @@data|timestamp|sender|origin|hostname|testname|classname|pagepaths */
 			tstamp = atoi(metadata[1]);
 			sender = metadata[2];
-			hostname = metadata[4]; 
+			hostname = metadata[4];
 			testname = metadata[5];
 			classname = (metadata[6] ? metadata[6] : "");
 			pagepaths = (metadata[7] ? metadata[7] : "");
 			ldef = find_xymon_rrd(testname, "");
 			update_rrd(hostname, testname, restofmsg, tstamp, sender, ldef, classname, pagepaths);
+
+			{
+				strbuffer_t *aggmsg = check_aggds_thresholds(hostname, classname, pagepaths);
+				if (aggmsg) combo_add(aggmsg);
+			}
+			fsidx_flush(rrddir, hostname);
+			cache_evict_hourly();
 		}
 		else if (strncmp(metadata[0], "@@shutdown", 10) == 0) {
 			running = 0;
@@ -462,6 +508,10 @@ int main(int argc, char *argv[])
 				 * already blocks on rrd_update for every sample it
 				 * writes. */
 				dropdirectory(hostdir, 0);
+				/* The host's AGGDS values and its fileset index go
+				 * with its files. */
+				flush_aggds_store(safehost);
+				fsidx_drop(rrddir, safehost);
 			}
 
 			MEMUNDEFINE(hostdir);
@@ -514,6 +564,10 @@ int main(int argc, char *argv[])
 				 * failure and an error line on every rename. */
 				if (stat(oldhostdir, &st) == 0) {
 					rrdcache_drop_host(safeold, 1);
+					/* The flush's freshness must reach the index file
+					 * before it moves - _now bypasses the timestamp-only
+					 * throttle that would otherwise skip it. */
+					fsidx_flush_now(rrddir, safeold);
 				}
 				else {
 					/* The peer worker has already moved the directory. These
@@ -545,6 +599,14 @@ int main(int argc, char *argv[])
 					}
 				}
 
+				/* AGGDS values repopulate under the new name. The index
+				 * file moved with the directory, so only the old name's
+				 * in-memory tree goes - once the old directory is gone,
+				 * moved or never written. A failed rename leaves the old
+				 * files, and their index, in place. */
+				flush_aggds_store(safeold);
+				if (renamed || (stat(oldhostdir, &st) != 0)) fsidx_drop(rrddir, safeold);
+
 				if (renamed && net_worker_locatorbased()) locator_rename_host(safeold, safenew, ST_RRD);
 			}
 
@@ -567,6 +629,7 @@ int main(int argc, char *argv[])
 	/* Flush all cached updates to disk */
 	errprintf("Shutting down, flushing cached updates to disk\n");
 	rrdcacheflushall();
+	fsidx_flush_all(rrddir);
 	errprintf("Cache flush completed\n");
 
 	/* Close the external processor */

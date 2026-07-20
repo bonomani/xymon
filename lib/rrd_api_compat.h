@@ -40,6 +40,11 @@ static int xymon_rrd_create(int argc, xymon_rrd_argv_item_t *argv)
 	return rrd_create(argc, xymon_rrd_api_argv(argv));
 }
 
+static int xymon_rrd_tune(int argc, xymon_rrd_argv_item_t *argv)
+{
+	return rrd_tune(argc, xymon_rrd_api_argv(argv));
+}
+
 static int xymon_rrd_fetch(int argc, xymon_rrd_argv_item_t *argv,
 				  time_t *start, time_t *end, unsigned long *step,
 				  unsigned long *dscount, char ***dsnames, rrd_value_t **data)
