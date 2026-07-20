@@ -362,6 +362,21 @@ to the operand) means <severity> ("warn" or "crit", default crit) for
 records it with the file's schema. Both DS names must be declared in
 the same block; invalid relations are ignored.
 
+The server itself uses this mechanism: the disk and inode statuses
+generated from client data carry METRICS blocks with the same datasets
+the built-in disk handler stores, so disk is an ordinary declared
+metric written by the block writer. The built-in handler remains as
+the fallback for statuses without a block. Their file names use the
+encoding above ("disk.%2Fvar.rrd"); a file with the earlier name
+("disk,var.rrd") is renamed to it the first time it is written, so its
+history carries over. One exception: a df row listed before the first
+device whose name contains a "/" (on Linux, often "udev" or "tmpfs")
+was named after the device rather than the mount ("disk,tmpfs.rrd"),
+and several such mounts shared that file. Those mounts start a new
+history; the earlier file is left in place. See
+.I analysis.cfg(5)
+for rules written against the earlier names.
+
 File creation is eager: every instance's RRD file is created on the
 first sample. Unknown banner attributes are ignored, so the dialect
 stays forward-compatible.

@@ -575,8 +575,6 @@ rm -f "$work/rrd/testhost/.fileset-index"
 # column has a built-in handler but which carries a store block is
 # written by the block writer ONLY - the built-in must not double-write.
 # A block-less status on the same column hits the built-in unchanged.
-# The built-in disk handler still names its files the legacy way
-# ("disk,var.rrd") until it moves to the encoded names.
 cat >"$work/body-diskblock" <<'EOF'
 Filesystem 1024-blocks Used Available Capacity Mounted on
 /dev/sda1 100 50 50 50% /var
@@ -587,14 +585,14 @@ DS:pct:GAUGE:600:0:100
 EOF
 out=$(feed_status disk "$work/body-diskblock")
 assert_contains "diskpct.%2Fvar.rrd" "$out" "block on a built-in column is written by the block writer"
-assert_not_contains "disk,var.rrd" "$out" "built-in disk handler must not double-write a block-bearing status"
+assert_not_contains "disk.%2Fvar.rrd" "$out" "built-in disk handler must not double-write a block-bearing status"
 
 cat >"$work/body-diskplain" <<'EOF'
 Filesystem 1024-blocks Used Available Capacity Mounted on
 /dev/sda1 100 50 50 50% /var
 EOF
 out=$(feed_status disk "$work/body-diskplain")
-assert_contains "disk,var.rrd" "$out" "block-less disk status hits the built-in handler unchanged"
+assert_contains "disk.%2Fvar.rrd" "$out" "block-less disk status hits the built-in handler unchanged"
 
 # A banner the writer would REJECT (invalid name) must not divert routing:
 # the built-in handler still runs, instead of storing nothing at all.
@@ -607,7 +605,7 @@ x 1
 -->
 EOF
 out=$(feed_status disk "$work/body-badname")
-assert_contains "disk,var.rrd" "$out" "invalid-name block falls back to the built-in handler"
+assert_contains "disk.%2Fvar.rrd" "$out" "invalid-name block falls back to the built-in handler"
 
 # A block that gains a column keeps its file updating, in a running
 # writer (one process, its template cached) and after a restart (a new

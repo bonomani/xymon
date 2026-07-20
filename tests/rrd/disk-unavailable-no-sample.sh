@@ -90,7 +90,7 @@ $2
 first=$(date +%s)
 send_disk "$first" "srv:/exp 200000 50000 150000 25% /remote/nfs"
 
-rrd="$work/rrd/unix.test/disk,remote,nfs.rrd"
+rrd="$work/rrd/unix.test/disk.%2Fremote%2Fnfs.rrd"
 assert_file_exists "$rrd" "the measured remote mount is trended"
 before=$("$work/rrd-lastupdate" "$rrd")
 assert_match "${first}:[[:space:]]+25([.]0+)?[[:space:]]+50000([.]0+)?" "$before" \
@@ -108,7 +108,7 @@ assert_equal "$before" "$after" \
 
 # The local filesystem must be unaffected -- the skip is for the sentinel row,
 # not for the message that carries it.
-localrrd="$work/rrd/unix.test/disk,root.rrd"
+localrrd="$work/rrd/unix.test/disk.%2F.rrd"
 assert_file_exists "$localrrd" "the local filesystem is still trended"
 assert_match "${second}:" "$("$work/rrd-lastupdate" "$localrrd")" \
 	"the local filesystem took the second cycle's sample"
@@ -135,7 +135,7 @@ $2
 }
 
 send_inode "$first" "srv:/exp 259070 41020 218050 15% /remote/nfs"
-irrd="$work/rrd/unix.test/inode,remote,nfs.rrd"
+irrd="$work/rrd/unix.test/inode.%2Fremote%2Fnfs.rrd"
 assert_file_exists "$irrd" "the measured remote mount is trended for inodes"
 ibefore=$("$work/rrd-lastupdate" "$irrd")
 assert_match "${first}:[[:space:]]+15([.]0+)?[[:space:]]+41020([.]0+)?" "$ibefore" \
@@ -153,7 +153,7 @@ assert_equal "$ibefore" "$("$work/rrd-lastupdate" "$irrd")" \
 # would lose the graph for a filesystem that is up and answering.
 third=$((second + 300))
 send_disk "$third" "unavailable:/export 200000 50000 150000 25% /real/nfs"
-realrrd="$work/rrd/unix.test/disk,real,nfs.rrd"
+realrrd="$work/rrd/unix.test/disk.%2Freal%2Fnfs.rrd"
 assert_file_exists "$realrrd" \
 	"a genuine reading from a server named 'unavailable' was mistaken for an unmeasured row and dropped"
 assert_match "${third}:[[:space:]]+25([.]0+)?[[:space:]]+50000([.]0+)?" \
