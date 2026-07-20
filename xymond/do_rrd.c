@@ -51,55 +51,6 @@ static char **extids = NULL;
 
 static char rrdvalues[MAX_LINE_LEN];
 
-/* Lazy creation, set per data block by the block writer. The graph
- * definition's LAZY keyword provides the same gate for every handler,
- * looked up by target filename. An instance begins existing when its
- * values first CHANGE: the first-seen sample is the baseline (whatever
- * it is - 0 for an idle disk, 100 for an always-full filesystem), and
- * the file is created when a later sample differs from it. */
-static int lazy_banner = 0;
-
-void setup_lazy(int lazy)
-{
-	lazy_banner = lazy;
-}
-
-/* Lazy baselines are durable fileset-index records (lib/filesetindex.c):
- * they survive restarts, so a change that happened while the writer was
- * down is detected on the next sample; drophost/renamehost invalidation
- * rides fsidx_drop(). */
-
-/* Does any component of the colon-separated value list differ from the
- * baseline? A change in component count is a difference too. Numeric
- * components compare numerically (so "5" == "5.0"); anything else
- * compares textually - atof would make "U" equal to "0", and an
- * instance flapping between unknown and zero would never deviate. */
-static int lazy_deviates(char *values, char *baseline)
-{
-	char *v = values, *b = baseline;
-
-	while (v || b) {
-		size_t vlen, blen;
-		char *vend, *bend;
-		double vd, bd;
-		int vnum, bnum;
-
-		if (!v || !b) return 1;	/* different number of components */
-		vlen = strcspn(v, ":"); blen = strcspn(b, ":");
-		vd = strtod(v, &vend); vnum = ((vlen > 0) && (vend == v + vlen));
-		bd = strtod(b, &bend); bnum = ((blen > 0) && (bend == b + blen));
-		if (vnum && bnum) {
-			if (vd != bd) return 1;
-		}
-		else if ((vlen != blen) || (strncmp(v, b, vlen) != 0)) return 1;
-
-		v = strchr(v, ':'); if (v) v++;
-		b = strchr(b, ':'); if (b) b++;
-	}
-
-	return 0;
-}
-
 static char *senderip = NULL;
 static char rrdfn[PATH_MAX];   /* Base filename without directories, from setupfn() */
 static char filedir[PATH_MAX]; /* Full path filename */
@@ -355,9 +306,12 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 	/*
 	 * RRDtool 1.2+ uses mmap'ed I/O, but the Linux kernel does not update timestamps when
 	 * doing file I/O on mmap'ed files. This breaks our check for stale/nostale RRD's.
-	 * So do an explicit timestamp update on the file here.
+	 * So do an explicit timestamp update on the file here - but only for an ACCEPTED
+	 * update: the mtime is the file's durable freshness (stale filters, fileset-index
+	 * readers), and touching it for a rejected batch would make a chronically broken
+	 * producer look fresh forever.
 	 */
-	utimes(filedir, NULL);
+	if (result == 0) utimes(filedir, NULL);
 #endif
 
 	/* Clear the cached data */
@@ -393,7 +347,6 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 {
 	static int callcounter = 0;
 	struct stat st;
-	int lazyforced = 0;
 	int pcount, result;
 	char *updcachekey;
 	xtreePos_t handle;
@@ -428,9 +381,8 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	filedir[sizeof(filedir)-1] = '\0'; /* Make sure it is null terminated */
 
 	/* The graph definition's storage filters: EXSTOREPATTERN drops the
-	 * instance entirely, STOREPATTERN keeps only matching instances
-	 * (and a match forces creation past the LAZY gate below). */
-	if (!xymon_gdef_store_allowed(rrdfn, &lazyforced)) {
+	 * instance entirely, STOREPATTERN keeps only matching instances. */
+	if (!xymon_gdef_store_allowed(rrdfn)) {
 		dbgprintf("Store filter drops %s\n", rrdfn);
 		MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
 		return 0;
@@ -473,58 +425,13 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	/* If the RRD file doesn't exist, create it immediately */
 	if (stat(filedir, &st) == -1) {
 		xymon_rrd_argv_item_t *rrdcreate_params;
-		int lazygate = lazy_banner;
 		char **rrddefinitions;
 		char *cfextras[16];
 		int cfextracount = 0;
-		char *seedvals = NULL;
-		char seedstart[32];
-		time_t datats = (time_t)atol(rrdvalues);	/* the sample's own timestamp */
 		int rrddefcount, i;
 		char *rrakey = NULL;
 		char stepsetting[10];
 		int havestepsetting = 0, fixcount = 2;
-
-		/* A lazy instance begins existing when its values first
-		 * change: the first-seen sample is the baseline, and only a
-		 * later sample that differs from it creates the file. Flat
-		 * instances - idle at zero or pinned at any constant - get no
-		 * file: they live as (value, since) records in the fileset
-		 * index, which survives restarts, so a change that happens
-		 * while the writer was down is detected on the next sample
-		 * instead of silently becoming the new baseline. When the
-		 * file materializes, one seed update (the baseline value one
-		 * step earlier) gives the curve a true step edge - the
-		 * decided cheap splice, no RRA backfill. */
-		if (lazyforced) lazygate = 0;
-		else if (!lazygate) lazygate = xymon_gdef_lazy_forfile(rrdfn);
-		if (lazygate) {
-			char *values = strchr(rrdvalues, ':');
-			char *bl;
-
-			if (values) values++;
-			bl = fsidx_baseline_get(rrddir, hostname, rrdfn, NULL);
-			if (!bl) {
-				fsidx_baseline_set(rrddir, hostname, rrdfn, (values ? values : ""), datats);
-				dbgprintf("Lazy baseline learned for absent %s\n", rrdfn);
-				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
-				return 0;
-			}
-			if (!lazy_deviates(values, bl)) {
-				/* still flat: refresh last-seen, keep since */
-				fsidx_baseline_set(rrddir, hostname, rrdfn, bl, datats);
-				dbgprintf("Lazy skip: %s still at its baseline\n", rrdfn);
-				MEMUNDEFINE(filedir); MEMUNDEFINE(rrdvalues);
-				return 0;
-			}
-			/* Deviation: create, seeded with the baseline value one
-			 * step before this sample for a true step edge. The
-			 * baseline record is retired only after the create
-			 * SUCCEEDS - a transient create failure retries with the
-			 * same baseline instead of re-learning and losing both
-			 * the change signal and the since-date. */
-			seedvals = strdup(bl);
-		}
 
 		dbgprintf("Creating rrd %s\n", filedir);
 
@@ -592,12 +499,6 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			rrdcreate_params[3] = stepsetting;
 			fixcount = 4;
 		}
-		if (seedvals) {
-			/* Start the file early enough to accept the seed update */
-			snprintf(seedstart, sizeof(seedstart), "%d", (int)(datats - 2*pollinterval));
-			rrdcreate_params[fixcount++] = "-b";
-			rrdcreate_params[fixcount++] = seedstart;
-		}
 
 		for (i=0; (i < pcount); i++)
 			rrdcreate_params[fixcount+i]      = creparams[i];
@@ -621,24 +522,6 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 		xfree(rrdcreate_params);
 		for (i=0; (i < cfextracount); i++) xfree(cfextras[i]);
 		if (rrakey) xfree(rrakey);
-
-		if (seedvals && (result == 0)) {
-			/* The splice seed: baseline value one step before the
-			 * change. DS order matches the create params, so no
-			 * template is needed. */
-			char seedbuf[MAX_LINE_LEN];
-			xymon_rrd_argv_item_t seedparams[4];
-
-			snprintf(seedbuf, sizeof(seedbuf), "%d:%s", (int)(datats - pollinterval), seedvals);
-			seedparams[0] = "rrdupdate"; seedparams[1] = filedir;
-			seedparams[2] = seedbuf; seedparams[3] = NULL;
-			optind = opterr = 0; rrd_clear_error();
-			if (xymon_rrd_update(3, seedparams) != 0)
-				dbgprintf("Seed update for %s failed: %s\n", filedir, rrd_get_error());
-			/* The file exists: retire the flat-instance record */
-			fsidx_baseline_clear(rrddir, hostname, rrdfn);
-		}
-		if (seedvals) { xfree(seedvals); seedvals = NULL; }
 
 		if (result != 0) {
 			errprintf("RRD error creating %s: %s\n", filedir, rrd_get_error());
@@ -778,9 +661,9 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	return 0;
 }
 
-/* Evict update-cache entries idle beyond maxage. With lazy baselines
- * living in the fileset index, the cache is pure batching: flushing an
- * idle entry's pending values and dropping it loses nothing - this
+/* Evict update-cache entries idle beyond maxage. The cache is pure
+ * batching: flushing an idle entry's pending values and dropping it
+ * loses nothing - this
  * bounds the memory that instance churn (container mounts, rotating
  * names) used to grow forever. Keys are collected first: deleting
  * while traversing the tree is not safe. A per-entry template (built by

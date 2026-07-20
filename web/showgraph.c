@@ -102,9 +102,6 @@ typedef struct rrddb_t {
 	char *rrdparam;
 	int   rrdparamfinal;	/* rrdparam is the final legend already (rrdinstance-decoded);
 				 * skip the legacy comma->slash un-mangling at render time. */
-	char *flatvals;		/* virtual flat instance (lazy baseline): its value string,
-				 * no RRD file exists - renders as HRULEs, never as DEFs */
-	time_t flatsince;
 } rrddb_t;
 
 rrddb_t *rrddbs = NULL;
@@ -502,11 +499,6 @@ void load_gdefs(char *fn)
 		}
 		else if ((strncasecmp(p, "TRENDS", 6) == 0) && ((p[6] == '\0') || isspace((int)p[6]))) {
 			/* Trends-page membership; consumed by lib/xymonrrd.c */
-			continue;
-		}
-		else if ((strncasecmp(p, "LAZY", 4) == 0) && ((p[4] == '\0') || isspace((int)p[4]))) {
-			/* Lazy file creation; consumed by lib/xymonrrd.c and
-			 * the RRD writer */
 			continue;
 		}
 		else if ((strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
@@ -1378,16 +1370,13 @@ static char **synthetic_defs(char *rrdfn, gdef_t *gd)
 			}
 		}
 		/* Co-plot on single-instance IMAGES: count the instances on
-		 * this render slice - real files AND virtual flat instances
-		 * (their baseline HRULEs share the image), not the whole
-		 * fileset - a paged view at one instance per image deserves
-		 * its thresholds. In emit mode nothing is selected (0),
-		 * which is the single-file case. */
+		 * this render slice, not the whole fileset - a paged view at
+		 * one instance per image deserves its thresholds. In emit mode
+		 * nothing is selected (0), which is the single-file case. */
 		{
 			int nsel = 0;
 			for (i = 0; (i < rrddbcount); i++) {
 				if (selected_rrdidx(i)) nsel++;
-				else if (slice_includes(i) && rrddbs[i].flatvals) nsel++;
 			}
 			coplot = ((nrel > 0) && (nsel <= 1) && !(gd && xymon_gdef_thresholds_off(gd->name)));
 		}
@@ -1692,7 +1681,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			snprintf(rrddbs[0].rrdfn, buflen, "%s.rrd", gdef->name);
 			rrddbs[0].rrdparam = NULL;
 			rrddbs[0].rrdparamfinal = 0;
-			rrddbs[0].flatvals = NULL; rrddbs[0].flatsince = 0;
 		}
 		else {
 			int i, maxlen;
@@ -1715,7 +1703,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				rrddbs[i].rrdparam = (char *)malloc(buflen);
 				snprintf(rrddbs[i].rrdparam, buflen, paramfmt, hostlist[i]);
 				rrddbs[i].rrdparamfinal = 0;
-				rrddbs[i].flatvals = NULL; rrddbs[i].flatsince = 0;
 			}
 		}
 	}
@@ -1840,7 +1827,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			/* We have a matching file! */
 			rrddbs[rrddbcount].rrdfn = strdup(d->d_name);
 			rrddbs[rrddbcount].rrdparamfinal = 0;
-			rrddbs[rrddbcount].flatvals = NULL; rrddbs[rrddbcount].flatsince = 0;
 			if (haveparam) {
 				/*
 				 * This is ugly, but I cannot find a pretty way of un-mangling
@@ -1915,95 +1901,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				rrddbs = (rrddb_t *)realloc(rrddbs, (rrddbsize+1) * sizeof(rrddb_t));
 			}
 		}
-		/* Flat instances from the fileset index: lazy baselines have no
-		 * RRD file, but they are live instances - matched against the
-		 * same patterns, they join the set as VIRTUAL entries (rrdfn
-		 * NULL) that render as HRULEs and count toward paging. Only
-		 * fresh records join: a stale flat record is a gone instance. */
-		{
-			FILE *idxfd = fopen(".fileset-index", "r");
-
-			if (idxfd) {
-				char idxline[FSIDX_LINEMAX];
-				time_t idxnow = getcurrenttime(NULL);
-				int stalewin = xymon_gdef_staleafter(gdef->name);
-
-				while (fgets(idxline, sizeof(idxline), idxfd)) {
-					char *name, *tsstr, *tok, *bl, *sp = NULL;
-					char vparam[PATH_MAX];
-					PCRE2_SIZE vl = sizeof(vparam);
-					int havevparam;
-					time_t its;
-
-					if (idxline[0] == '#') continue;
-					name = strtok_r(idxline, " \t\r\n", &sp);
-					tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
-					if (!name || !tsstr) continue;
-					bl = NULL;
-					while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
-						if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
-					}
-					if (!bl) continue;
-					its = (time_t)atol(tsstr);
-					if ((its <= 0) || ((idxnow - its) > stalewin)) continue;
-					/* A b= record whose RRD file exists is stale index
-					 * state (writer died between file-create and flush):
-					 * the readdir scan above already collected the real
-					 * file, a virtual entry would render it twice. */
-					if (access(name, F_OK) == 0) continue;
-
-					if (expat && (pcre2_match(expat, name, strlen(name), 0, 0, ovector, NULL) >= 0)) continue;
-					vl = sizeof(vparam);
-					if (pcre2_match(pat, name, strlen(name), 0, 0, ovector, NULL) < 0) continue;
-					havevparam = (pcre2_substring_copy_bynumber(ovector, 1, vparam, &vl) == 0);
-					if (rrdparamisservice && havevparam) {
-						if (!rrd_param_matches_service(vparam, service)) continue;
-					}
-					else if (wantsingle) {
-						if (strstr(name, service) == NULL) continue;
-					}
-
-					{
-						char *comma = strchr(bl, ',');
-						char *raw, *dec;
-
-						if (!comma) continue;
-						rrddbs[rrddbcount].rrdfn = NULL;
-						rrddbs[rrddbcount].flatsince = (time_t)atol(bl);
-						rrddbs[rrddbcount].flatvals = strdup(comma+1);
-						raw = (havevparam ? vparam : name);
-						/* Same stock-pattern separator absorb as the
-						 * real-file path above - and with the same
-						 * disk/inode restriction, or an instance whose
-						 * name legitimately starts with '.' would change
-						 * legend and sort key when its RRD file
-						 * materializes (flat -> file transition). */
-						if (((strncmp(gdef->name, "disk", 4) == 0) || (strncmp(gdef->name, "inode", 5) == 0)) &&
-						    (raw[0] == '.') && (strchr(raw, '%') != NULL)) raw++;
-						/* Unconditional decode - no canonical gate as in
-						 * the real-file path above: flat records are only
-						 * ever written by the METRICS encoder, so a legacy
-						 * literal-%XX name cannot appear here. */
-						dec = rrdinstance_decode(raw);
-						if (!dec) {	/* decode allocates; treat failure as a skipped record */
-							xfree(rrddbs[rrddbcount].flatvals);
-							rrddbs[rrddbcount].flatvals = NULL;
-							continue;
-						}
-						rrddbs[rrddbcount].rrdparam = dec;
-						rrddbs[rrddbcount].rrdparamfinal = 1;
-						if (strlen(dec) > paramlen) paramlen = strlen(dec);
-						rrddbs[rrddbcount].key = strdup(dec);
-						rrddbcount++;
-						if (rrddbcount == rrddbsize) {
-							rrddbsize += 5;
-							rrddbs = (rrddb_t *)realloc(rrddbs, (rrddbsize+1) * sizeof(rrddb_t));
-						}
-					}
-				}
-				fclose(idxfd);
-			}
-		}
 
 		pcre2_code_free(pat);
 		if (expat) pcre2_code_free(expat);
@@ -2017,7 +1914,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		}
 	}
 	rrddbs[rrddbcount].key = rrddbs[rrddbcount].rrdfn = rrddbs[rrddbcount].rrdparam = NULL;
-	rrddbs[rrddbcount].flatvals = NULL;
 
 	if ((rrddbcount == 0) && svcrejects) {
 		if (rrdparamisservice)
@@ -2273,52 +2169,6 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 		aggregate_dscount = gdef->dscount;
 		add_graphdef_args(rrdargs, &argi, gdef);
 		aggregate_dscount = 0;
-	}
-
-	/* Flat instances (durable lazy baselines): no file, no DEFs - each
-	 * selected one renders as an HRULE per value component at its
-	 * baseline, legend carrying the since-date, so an idle-but-alive
-	 * instance stays visible without costing any storage. */
-	for (rrdidx=0; (rrdidx < rrddbcount); rrdidx++) {
-		char *fvals, *ftok, *fsp = NULL;
-		char sincetxt[64];
-		struct tm *stm;
-
-		if (!slice_includes(rrdidx) || !rrddbs[rrdidx].flatvals) continue;
-		stm = localtime(&rrddbs[rrdidx].flatsince);
-		if (stm) strftime(sincetxt, sizeof(sincetxt), "%d-%b-%Y", stm);
-		else strcpy(sincetxt, "unknown");
-		fvals = strdup(rrddbs[rrdidx].flatvals);
-		for (ftok = strtok_r(fvals, ":", &fsp); (ftok); ftok = strtok_r(NULL, ":", &fsp)) {
-			char hrule[512];
-			size_t need;
-			char *endp, *legend;
-			double fv;
-
-			/* Numbers only: U and friends have no line to draw, and one
-			 * malformed token would make rrd_graph reject the whole graph. */
-			if (strspn(ftok, "0123456789.+-eE") != strlen(ftok)) continue;
-			errno = 0;
-			fv = strtod(ftok, &endp);
-			if ((endp == ftok) || (*endp != '\0')) continue;
-			/* Overflow only ("1e999" -> inf, which rrd_graph rejects):
-			 * ERANGE also flags underflow, but a denormal draws as ~0 */
-			if ((errno == ERANGE) && ((fv == HUGE_VAL) || (fv == -HUGE_VAL))) continue;
-			need = (size_t)(argi + 3);
-			if (need > rrdargs_cap) {
-				rrdargs_cap = need;
-				rrdargs = realloc(rrdargs, rrdargs_cap * sizeof(*rrdargs));
-				if (rrdargs == NULL) errormsg("Out of memory expanding graph arguments");
-			}
-			legend = colon_escape(rrddbs[rrdidx].rrdparam ? rrddbs[rrdidx].rrdparam : rrddbs[rrdidx].key);
-			/* Legends are unbounded; truncation could split a "\:"
-			 * escape and make rrd_graph reject the whole image, so an
-			 * oversized record is dropped instead. */
-			if (snprintf(hrule, sizeof(hrule), "HRULE:%s#%s:%s flat since %s", ftok, colorlist[coloridx], legend, sincetxt) >= (int)sizeof(hrule)) continue;
-			coloridx++; if (colorlist[coloridx] == NULL) coloridx = 0;
-			rrdargs[argi++] = strdup(hrule);
-		}
-		free(fvals);
 	}
 
 	strftime(timestamp, sizeof(timestamp), "COMMENT:Updated\\: %d-%b-%Y %H\\:%M\\:%S", localtime(&now));

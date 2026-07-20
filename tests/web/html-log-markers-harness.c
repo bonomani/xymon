@@ -262,12 +262,10 @@ int main(void)
 		free(html);
 	}
 
-	/* A lazy block's file set is the EVER-active instances - the message
-	 * cannot know it (an instance that goes idle keeps its file), so the
-	 * graph renders unsliced: nothing is ever hidden. Explicit count=
-	 * still slices. */
+	/* An unknown banner attribute is ignored: the block's own instance
+	 * lines drive the paging count. Explicit instances= wins. */
 	html = render_log_msg("diskio", 0, "",
-		"<!--XYMON METRICS: diskio_lazy lazy\n"
+		"<!--XYMON METRICS: diskio_lazy futureattr\n"
 		"DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n"
 		"a 0:0\n"
 		"b 3:0\n"
@@ -276,37 +274,35 @@ int main(void)
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_lazy -->\n"
 		"<!--XYMON GRAPH: diskio_lazysliced instances=6 -->\n"
-		"<!--XYMON METRICS: diskio_lazysliced lazy\n"
+		"<!--XYMON METRICS: diskio_lazysliced\n"
 		"DS:v:GAUGE:600:0:U\n"
 		"x 1\n"
 		"-->\n"
 		"status text\n");
-	expect_contains("lazy blocks render unsliced", html, "service=diskio_lazy&amp;graph_width=576&amp;graph_height=120&amp;disp=");
-	expect_not_contains("lazy blocks render unsliced", html, "service=diskio_lazy&amp;graph_width=576&amp;graph_height=120&amp;first=");
-	expect_contains("explicit count= still slices a lazy graph", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
-	expect_contains("explicit count= still slices a lazy graph", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=4&amp;count=3");
+	expect_contains("unknown banner attribute ignored: block instances drive the count", html, "service=diskio_lazy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
+	expect_contains("explicit count= still slices", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
+	expect_contains("explicit count= still slices", html, "service=diskio_lazysliced&amp;graph_width=576&amp;graph_height=120&amp;first=4&amp;count=3");
 	free(html);
 
-	/* With a writer-kept fileset index available, a lazy graph gets the
-	 * exact ever-active count from the index instead of the unsliced
-	 * fallback. The harness index holds 3 fresh file entries, one fresh
-	 * FLAT record (renders as an HRULE, so it counts) and one stale
-	 * entry: 4, staleness cut applied. */
+	/* A store-filtered graph's file set diverges from the message, and
+	 * the writer-kept fileset index knows it exactly: [diskio_idx] has
+	 * STOREPATTERN and the harness index holds 3 fresh file entries plus
+	 * one stale: 3, staleness cut applied. */
 	html = render_log_msg("diskio", 0, "",
-		"<!--XYMON METRICS: diskio_idx lazy\n"
+		"<!--XYMON METRICS: diskio_idx\n"
 		"DS:v:GAUGE:600:0:U\n"
 		"a 1\n"
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_idx -->\n"
 		"status text\n");
-	expect_contains("lazy count from the fileset index", html,
-		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
+	expect_contains("store-filtered count from the fileset index", html,
+		"service=diskio_idx&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=3");
 	free(html);
 
-	/* gdef LAZY (graphs.cfg): the message cannot know the fileset, but
-	 * the writer-kept index can - [diskio_gzy] has FNPATTERN ^gzyfiles
-	 * and the harness index holds two fresh gzyfiles entries, so the
-	 * count is pattern-derived (2), not prefix- or message-derived. */
+	/* FNPATTERN-derived counting: [diskio_gzy] is store-filtered with
+	 * FNPATTERN ^gzyfiles, and the harness index holds two fresh
+	 * gzyfiles entries, so the count is pattern-derived (2), not
+	 * prefix- or message-derived. */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_gzy\n"
 		"DS:v:GAUGE:600:0:U\n"
@@ -314,7 +310,7 @@ int main(void)
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_gzy -->\n"
 		"status text\n");
-	expect_contains("gdef LAZY count is FNPATTERN-derived from the index", html,
+	expect_contains("store-filter count is FNPATTERN-derived from the index", html,
 		"service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 
@@ -333,23 +329,24 @@ int main(void)
 	free(html);
 
 	/* STALEAFTER widens the graph's freshness window: the same index
-	 * entries that count 4 at the default 86400 count 5 for a graph
+	 * entries that count 3 at the default 86400 count 4 for a graph
 	 * declaring STALEAFTER 300000 (the stale entry included). */
 	html = render_log_msg("diskio", 0, "",
-		"<!--XYMON METRICS: diskio_slow lazy\n"
+		"<!--XYMON METRICS: diskio_slow\n"
 		"DS:v:GAUGE:600:0:U\n"
 		"a 1\n"
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_slow -->\n"
 		"status text\n");
 	expect_contains("STALEAFTER widens the count window", html,
-		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=5");
+		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
 	free(html);
 
 	/* The GRAPHS_<service> config path takes the same index count: a
-	 * GRAPHS-listed LAZY gdef pages on the pattern-derived fileset. */
+	 * GRAPHS-listed store-filtered gdef pages on the pattern-derived
+	 * fileset. */
 	html = render_log_msg("gzycol", 0, "", "plain status text\n");
-	expect_contains("GRAPHS-listed LAZY gdef counts from the index", html,
+	expect_contains("GRAPHS-listed store-filtered gdef counts from the index", html,
 		"service=diskio_gzy&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=2");
 	free(html);
 

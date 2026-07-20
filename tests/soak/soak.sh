@@ -10,13 +10,13 @@
 # It launches a real xymond + client-channel worker + status-channel worker
 # (update cache ENABLED), then drives synthetic hosts through full client
 # messages and marker statuses each cycle: values vary, one mount flaps in
-# and out of existence, one instance stays flat forever (lazy), one goes
-# flat-then-changes (the splice), units and thresholds are declared. The
+# and out of existence, one instance stays at a constant, one changes
+# value mid-run, units and thresholds are declared. The
 # RRD worker is restarted every 20 cycles and xymond HUPed every 50.
 #
 # Each cycle a checker asserts: worker processes alive, logs free of
 # overflow/assertion/segfault markers, the fileset index parses, every
-# non-flat index entry has its file and every file its entry, and worker
+# index entry has its file and every file its entry, and worker
 # RSS is sampled for growth. Anomalies are appended to $HOME_DIR/ANOMALIES
 # and counted; the run exits nonzero if any occurred.
 
@@ -97,8 +97,8 @@ send_host() {  # send_host <host> <cycle>
 		printf '/dev/sda1 65536 %s %s %s%% /\n' $((pct*100)) $((65536-pct*100)) "$pct"
 	} | XYMONHOME="$LIVE" ./client/xymon 127.0.0.1 "@" 2>>"$LIVE/soak.log"
 
-	# marker status: units + thresholds + lazy (one flat forever, one that
-	# changes at cycle 30 - the splice)
+	# marker status: units + thresholds; one steady instance, one that
+	# changes value at cycle 30
 	local lz2=5; [ "$c" -ge 30 ] && lz2=9
 	{
 		printf 'status %s.soakm green marker metrics\n' "$h"
@@ -107,9 +107,9 @@ send_host() {  # send_host <host> <cycle>
 		printf 'THRESHOLD:val:>val_warn:warn\n'
 		printf 'a %s:%s\n' $((c % 40 + 10)) 45
 		printf -- '-->\n'
-		printf '<!--XYMON METRICS: soaklazy lazy\n'
+		printf '<!--XYMON METRICS: soakst\n'
 		printf 'DS:v:GAUGE:600:0:U\n'
-		printf 'flat 7\n'
+		printf 'steady 7\n'
 		printf 'wakes %s\n' "$lz2"
 		printf -- '-->\n'
 	} | XYMONHOME="$LIVE" ./client/xymon 127.0.0.1 "@" 2>>"$LIVE/soak.log"
@@ -130,10 +130,9 @@ check() {  # per-cycle invariants
 		idx="$LIVE/data/rrd/$h/.fileset-index"
 		[ -d "$LIVE/data/rrd/$h" ] || continue
 		if [ -f "$idx" ]; then
-			# every non-flat entry has its file; every file its entry
+			# every entry has its file; every file its entry
 			while read -r fn rest; do
 				case "$fn" in \#*|'') continue ;; esac
-				case "$rest" in *" b="*|*"b="*) continue ;; esac
 				[ -f "$LIVE/data/rrd/$h/$fn" ] || anomaly "$h: index entry $fn has no file"
 			done <"$idx"
 			for f in "$LIVE/data/rrd/$h"/*.rrd; do

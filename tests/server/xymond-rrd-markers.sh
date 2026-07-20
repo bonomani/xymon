@@ -17,11 +17,9 @@ require_bin XYMOND_RRD "xymond/xymond_rrd"
 
 work=$(mktempdir)
 
-# METRICS blocks are lazy by default (no file until the values change).
-# Most sections below assert the EAGER path's mechanics - creation,
-# units, dispatch, migration - so they pin the opt-out; the default-lazy
-# behavior has its own section, which drops this override.
-export LAZYDEFAULT=off
+# METRICS blocks create files eagerly on the first sample. Unknown
+# banner attributes are ignored (the dialect's generic forward
+# compatibility) - a section below pins that.
 
 feed_status() {  # feed_status <testname> <bodyfile> -- send one status message
 	local ts; ts=$(date +%s)
@@ -143,57 +141,40 @@ out=$(feed_status diskio "$work/body-long")
 assert_not_contains "longline.huge.rrd" "$out" "oversized value line is skipped"
 assert_contains "longline.ok.rrd" "$out" "lines after an oversized one are still written"
 
-# A "lazy" METRICS block: an instance begins existing when its values
-# first change. The first frame only teaches baselines (idle 0:0,
-# live 5:0); the second frame's live 0:0 deviates from its baseline and
-# creates the file, while idle stays at baseline and never does. Once
-# created, every later sample updates the file as usual.
+# Unknown banner attributes are ignored (forward compatibility): a
+# block carrying one still creates every instance's file normally.
 ts=$(date +%s)
 rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
 		"$ts" $((ts+1800)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lazydemo lazy\n'
+	printf '<!--XYMON METRICS: lazydemo futureattr=on\n'
 	printf 'DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n'
 	printf 'idle 0:0\n'
 	printf 'live 5:0\n'
 	printf -- '-->\n'
 	printf 'status text\n'
 	printf '@@\n'
-	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		$((ts+300)) $((ts+2100)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lazydemo lazy\n'
-	printf 'DS:r:GAUGE:600:0:U DS:w:GAUGE:600:0:U\n'
-	printf 'idle 0:0\n'
-	printf 'live 0:0\n'
-	printf -- '-->\n'
-	printf 'status text\n'
-	printf '@@\n'
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
 [ -f "$work/rrd/testhost/lazydemo.live.rrd" ] \
-	|| fail "lazy block: an instance whose values changed must get a file"
-[ -e "$work/rrd/testhost/lazydemo.idle.rrd" ] \
-	&& fail "lazy block: a baseline-steady instance must not create a file"
+	|| fail "unknown banner attribute: first sample must create the file"
+[ -f "$work/rrd/testhost/lazydemo.idle.rrd" ] \
+	|| fail "unknown banner attribute: a steady instance gets its file too"
 
-# The same gate from the graph definition: [lazygdef] carries LAZY in
-# graphs.cfg, so a block WITHOUT any banner attribute is still lazy.
 mkdir -p "$work/etc"
 cat >"$work/etc/graphs.cfg" <<'GDEFS'
-[lazygdef]
-	LAZY
 [filt]
 	EXSTOREPATTERN bad
 [only]
 	STOREPATTERN keep
 [flz]
-	LAZY
 	STOREPATTERN pinned
 [cfmax]
 	FNPATTERN ^cfx\..+\.rrd
 	DEF:m=x.rrd:v:MAX
 GDEFS
-lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
+feed2() {  # feed2 <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
 	local ts; ts=$(date +%s)
 	rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 	{
@@ -211,8 +192,7 @@ lazyfeed() {  # lazyfeed <blockheader> <inst1 val1a val1b> <inst2 val2a val2b>
 }
 
 # EXSTOREPATTERN drops matching instances at the writer; STOREPATTERN
-# keeps only matching ones; and a STOREPATTERN match forces an instance
-# past the LAZY gate - a steady value stores immediately when named.
+# keeps only matching ones.
 cat >"$work/body-storefilters" <<'BODY'
 <!--XYMON METRICS: filt
 DS:v:GAUGE:600:0:U
@@ -236,37 +216,13 @@ assert_not_contains "filt.bad.rrd" "$out" "EXSTOREPATTERN drops the matching ins
 assert_contains "filt.good.rrd" "$out" "EXSTOREPATTERN leaves the others"
 assert_contains "only.keep.rrd" "$out" "STOREPATTERN keeps the matching instance"
 assert_not_contains "only.other.rrd" "$out" "STOREPATTERN drops non-matching instances"
-assert_contains "flz.pinned.rrd" "$out" "a STOREPATTERN match forces storage past the LAZY gate"
-assert_not_contains "flz.rest.rrd" "$out" "unforced flat instances stay lazy"
+assert_contains "flz.pinned.rrd" "$out" "STOREPATTERN keeps the matching instance across blocks"
+assert_not_contains "flz.rest.rrd" "$out" "STOREPATTERN drops the non-matching instance"
 
-# gdef LAZY: the first sample is the baseline, whatever its value - the
-# steady instance (4 -> 4) gets no file, the changing one (4 -> 9) does.
-out=$(lazyfeed lazygdef steady 4 4 changing 4 9)
-assert_not_contains "lazygdef.steady.rrd" "$out" "a steady instance never gets a file, even at a nonzero baseline"
-assert_contains "lazygdef.changing.rrd" "$out" "an instance is created when its value first changes"
-
-# A dropped host re-learns lazy baselines instead of comparing against
-# stale ones. In one xymond_rrd process: learn baseline 5 for a lazy
-# instance, drop the host, then re-report a NEW steady value 8 twice.
-# With the drop hook the baseline is re-learned (8 is the new baseline,
-# no file); without it the stale 5 makes 8 look like a deviation and a
-# file is created spuriously.
-ts=$(date +%s)
-rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
-{
-	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		"$ts" $((ts+1800)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
-	printf '@@drophost|%s|127.0.0.1|dh\n@@\n' $((ts+60))
-	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		$((ts+120)) $((ts+1920)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 8\n-->\ns\n@@\n'
-	printf '@@status|%s|127.0.0.1|origin|dh|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		$((ts+180)) $((ts+1980)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lz lazy\nDS:v:GAUGE:600:0:U\nx 8\n-->\ns\n@@\n'
-} | env XYMONHOME="$work" XYMONTMP="$work/tmp" "$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-[ -e "$work/rrd/dh/lz.x.rrd" ] \
-	&& fail "drop hook: re-added instance steady at a new value must re-learn, not create"
+# Creation is eager for every instance, steady or changing.
+out=$(feed2 plaingdef steady 4 4 changing 4 9)
+assert_contains "plaingdef.steady.rrd" "$out" "the steady instance gets its file"
+assert_contains "plaingdef.changing.rrd" "$out" "the changing instance gets its file"
 
 # Markers are line-anchored: a banner quoted mid-line must not trigger the
 # writer, and a plain status creates nothing.
@@ -346,47 +302,13 @@ grep -q 'temperature\.cpu\.rrd [0-9]* u=temp:degC h=temp:1200,hi:600 d=temp,hi g
 out=$(feed_status diskio "$work/body-wide")
 assert_contains "wide.w0.rrd" "$out" "21st DS spec is ignored (MAXCOLS): a 20-value line still writes"
 
-# Durable lazy baselines: the (value, since) record survives the writer.
-# Process 1 learns the baseline (no file); process 2 - a restart - sees a
-# changed value and creates the file on its FIRST sample, seeded with the
-# baseline one step earlier (a true step edge). The flat record clears on
-# materialization. ts is step-aligned: the seed's consolidated bucket is
-# >= 50% covered (xff) only when ts % 300 <= 150, so an arbitrary ts
-# makes the splice-fetch assertion below a coin flip.
-ts=$(( $(date +%s) / 300 * 300 ))
-rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
-{
-	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		"$ts" $((ts+1800)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lzp lazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
-} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
-	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-[ -e "$work/rrd/testhost/lzp.x.rrd" ] && fail "baseline learn must not create a file"
-grep -q 'lzp\.x\.rrd [0-9]* h=v:600 d=v g=[0-9]* b=[0-9]*,5$' "$work/rrd/testhost/.fileset-index" \
-	|| fail "baseline not durable in the index: $(grep lzp "$work/rrd/testhost/.fileset-index")"
-{
-	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		$((ts+300)) $((ts+2100)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: lzp lazy\nDS:v:GAUGE:600:0:U\nx 9\n-->\ns\n@@\n'
-} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
-	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-[ -f "$work/rrd/testhost/lzp.x.rrd" ] \
-	|| fail "restart lost the baseline - the change was not detected on the first sample"
-grep -q 'lzp\.x\.rrd.* b=' "$work/rrd/testhost/.fileset-index" \
-	&& fail "the flat record must clear when the file materializes"
-if command -v rrdtool >/dev/null 2>&1; then
-	# With the step-aligned ts above, the seed bucket (value 5, ending
-	# at ts) and the change bucket (9, ending ts+300) are both fully
-	# covered - deterministic, where an arbitrary ts left the seed
-	# bucket under the xff threshold half the time.
-	nvals=$(rrdtool fetch "$work/rrd/testhost/lzp.x.rrd" AVERAGE -s $((ts-700)) -e $((ts+700)) 2>/dev/null \
-		| grep -cE ': [0-9]')
-	[ "$nvals" -ge 2 ] || fail "splice seed missing - expected the baseline step edge plus the change (got $nvals values)"
-fi
-
-# Freshness follows COMMIT, not receipt: an update rrdtool rejects (a
-# timestamp behind the file's last update) must not advance the entry's
-# index timestamp, or a chronically broken producer looks fresh forever.
+# Freshness follows COMMIT, not receipt - and for a real file it lives
+# in the file's own mtime, not the index: rrdtool only touches the file
+# when it accepts the update, so a rejected one (a timestamp behind the
+# file's last update, a garbage value) leaves the mtime alone and a
+# chronically broken producer goes stale on schedule. The index's
+# persisted ts is deliberately NOT rewritten by plain commits (write
+# economics): it stays at its creation-flush value.
 ts=$(date +%s)
 rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 feed_at() {  # feed_at <statusts> <value> -- one committed-or-rejected sample
@@ -400,17 +322,20 @@ feed_at() {  # feed_at <statusts> <value> -- one committed-or-rejected sample
 feed_at "$ts" 5
 ts1=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
 [ -n "$ts1" ] || fail "committed update did not stamp the index"
+touch -r "$work/rrd/testhost/frsh.x.rrd" "$work/tmp/frsh-ref"
+sleep 1	# mtime comparisons below discriminate at second granularity
 feed_at $((ts-600)) 6	# behind the file's last update: rrdtool rejects it
-ts2=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
-[ "$ts2" = "$ts1" ] || fail "rejected update advanced freshness ($ts1 -> $ts2)"
-# The discriminating case: a NEWER timestamp whose value rrdtool rejects
-# (the max-merge hides the older-timestamp case, this one it cannot).
+[ "$work/rrd/testhost/frsh.x.rrd" -nt "$work/tmp/frsh-ref" ] \
+	&& fail "rejected update advanced the file's freshness (mtime)"
+# The discriminating case: a NEWER timestamp whose value rrdtool rejects.
 feed_at $((ts+150)) not-a-number
-ts2=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
-[ "$ts2" = "$ts1" ] || fail "rejected garbage value advanced freshness ($ts1 -> $ts2)"
+[ "$work/rrd/testhost/frsh.x.rrd" -nt "$work/tmp/frsh-ref" ] \
+	&& fail "rejected garbage value advanced the file's freshness (mtime)"
 feed_at $((ts+300)) 7
-ts3=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
-[ "$ts3" -gt "$ts1" ] || fail "accepted update did not advance freshness ($ts1 -> $ts3)"
+[ "$work/rrd/testhost/frsh.x.rrd" -nt "$work/tmp/frsh-ref" ] \
+	|| fail "accepted update did not advance the file's freshness (mtime)"
+ts2=$(awk '/^frsh\.x\.rrd /{print $2}' "$work/rrd/testhost/.fileset-index")
+[ "$ts2" = "$ts1" ] || fail "a plain commit rewrote the index ($ts1 -> $ts2): write economics regressed"
 
 # Drop barrier: a straggler message already queued behind @@drophost must
 # not recreate files - or the fileset index - inside the deleted host
@@ -453,7 +378,7 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
 		"$ts" $((ts+1800)) "$ts" "$ts"
-	printf '<!--XYMON METRICS: renm nolazy\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
+	printf '<!--XYMON METRICS: renm\nDS:v:GAUGE:600:0:U\nx 5\n-->\ns\n@@\n'
 	printf '@@renamehost|%s|127.0.0.1|testhost|newhost\n@@\n' "$ts"
 } | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --debug >"$work/dbg.log" 2>&1
@@ -461,34 +386,26 @@ rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 grep -q "flushed and dropped 1 entries for host testhost" "$work/dbg.log" \
 	|| fail "pending update not flushed before the rename: $(grep -i updcache "$work/dbg.log")"
 
-# The shipped default (no LAZYDEFAULT in the environment): every METRICS
-# block is lazy - a flat first sample becomes an index record, not a
-# file - and "nolazy" opts a block out. (The export at the top pins
-# LAZYDEFAULT=off for the eager sections; drop it here.)
+# Every block form creates eagerly: plain METRICS, one carrying an
+# unknown attribute (ignored), and the legacy DEVMON banner alike.
 ts=$(date +%s)
 rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
 {
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
 		"$ts" $((ts+1800)) "$ts" "$ts"
 	printf '<!--XYMON METRICS: ld\nDS:v:GAUGE:600:0:U\nx 5\n-->\n'
-	printf '<!--XYMON METRICS: ldno nolazy\nDS:v:GAUGE:600:0:U\ny 6\n-->\ns\n@@\n'
-} | env -u LAZYDEFAULT XYMONHOME="$work" XYMONTMP="$work/tmp" \
-	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
-[ -e "$work/rrd/testhost/ld.x.rrd" ] && fail "default: a plain METRICS block must be lazy"
-grep -q 'ld\.x\.rrd .* b=' "$work/rrd/testhost/.fileset-index" \
-	|| fail "default-lazy flat record missing"
-[ -f "$work/rrd/testhost/ldno.y.rrd" ] \
-	|| fail "nolazy must opt a block out of the lazy default"
-# ... and a legacy DEVMON banner stays eager under the default.
-rm -rf "$work/rrd"; mkdir -p "$work/rrd" "$work/tmp"
-{
+	printf '<!--XYMON METRICS: ldno opt=later\nDS:v:GAUGE:600:0:U\ny 6\n-->\ns\n@@\n'
 	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
-		"$ts" $((ts+1800)) "$ts" "$ts"
+		$((ts+300)) $((ts+2100)) "$ts" "$ts"
 	printf '<!--DEVMON RRD: lddev\nDS:v:GAUGE:600:0:U\nz 7\n-->\ns\n@@\n'
-} | env -u LAZYDEFAULT XYMONHOME="$work" XYMONTMP="$work/tmp" \
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+[ -f "$work/rrd/testhost/ld.x.rrd" ] \
+	|| fail "a plain METRICS block must create its file on the first sample"
+[ -f "$work/rrd/testhost/ldno.y.rrd" ] \
+	|| fail "an unknown banner attribute must be ignored, not break the block"
 [ -f "$work/rrd/testhost/lddev.z.rrd" ] \
-	|| fail "legacy DEVMON banner must stay eager under the lazy default"
+	|| fail "legacy DEVMON banner must create eagerly"
 
 # Deep-review regressions: (1) a legacy DEVMON block may carry instances
 # named like a declaration keyword - the METRICS-only contract must not

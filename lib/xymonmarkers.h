@@ -46,7 +46,6 @@ typedef struct xymonmarker_t {
 	char *name;
 	int store;		/* METRICS (or DEVMON RRD) block present */
 	int show;		/* GRAPH marker (or DEVMON RRD) present */
-	int lazy;		/* METRICS "lazy" attribute: all-zero samples create no file */
 	int blockinstances;		/* instance lines in the METRICS block(s) */
 	int instancespec;		/* instances= attribute: N, 0 = all, -1 = absent */
 	struct xymonmarker_t *next;

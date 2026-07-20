@@ -5,8 +5,8 @@
 /* RRD file the writer maintains, with its last data-write timestamp.        */
 /* Bookkeeping happens at event time in xymond_rrd (the single creator of    */
 /* RRD files); renderers read the one file instead of re-counting status     */
-/* lines or scanning directories. The record format is extensible: units,    */
-/* threshold relations and lazy baselines ride the same entries later.       */
+/* lines or scanning directories. The record format is extensible: units     */
+/* and threshold relations ride the same entries.                            */
 /*                                                                            */
 /* File: $XYMONRRDS/<host>/.fileset-index, "<rrdfn> <ts> [k=v ...]" lines.   */
 /* Readers must ignore fields beyond the first two.                          */
@@ -28,10 +28,11 @@
  * would truncate them mid-token on the way back in. Reject loudly. */
 #define FSIDX_SPECMAX 1024
 /* Worst-case record: filename (PATH_MAX) + timestamp + generation + four
- * capped specs + a "b=<since>,<values>" baseline whose value string is
- * bounded by the channel line length (MAX_LINE_LEN, stackio.h) + field
- * prefixes and separators. Every reader's line buffer must hold this, or
- * a long record splits and its tail parses as bogus extra records. */
+ * capped specs + field prefixes and separators. The 16384 reserve keeps
+ * the bound compatible with pre-existing index files whose records could
+ * carry a retired b= baseline up to MAX_LINE_LEN (stackio.h). Every
+ * reader's line buffer must hold this, or a long record splits and its
+ * tail parses as bogus extra records. */
 #define FSIDX_LINEMAX (PATH_MAX + 4*(FSIDX_SPECMAX + 8) + 16384 + 128)
 
 /* Writer side (xymond_rrd). Event time and commit time are split: schema
@@ -47,21 +48,12 @@ extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for follo
 extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:sev[,...]"; NULL clears */
 extern void fsidx_set_dsnames(char *dsnspec);	/* sticky "ds1,ds2" positional names; NULL clears */
 extern void fsidx_set_heartbeats(char *hbspec);	/* sticky "ds:heartbeat[,...]"; NULL clears */
-extern void fsidx_flat_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata);
-/* Every loaded entry, real or flat (baseline arg NULL for a real file);
- * cb may be NULL to only probe. Returns -1 when the host is not loaded
- * (no knowledge - distinct from zero entries), else the entry count. */
-extern int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata);
-
-/* Durable lazy baselines: a flat instance is an entry with a (value,
- * since) record and no RRD file. get returns the live value string (do
- * not free) or NULL; set learns or refreshes last-seen (keeping since);
- * clear removes it when the file materializes. */
-extern char *fsidx_baseline_get(char *rrddir, char *hostname, char *rrdfn, time_t *since);
-extern void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values, time_t ts);
-extern void fsidx_baseline_clear(char *rrddir, char *hostname, char *rrdfn);
+/* Every loaded entry; cb may be NULL to only probe. Returns -1 when the
+ * host is not loaded (no knowledge - distinct from zero entries), else
+ * the entry count. */
+extern int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, void *), void *userdata);
 extern void fsidx_flush(char *rrddir, char *hostname);
-extern void fsidx_flush_now(char *rrddir, char *hostname);	/* bypasses the timestamp-only throttle */
+extern void fsidx_flush_now(char *rrddir, char *hostname);	/* the file must be current NOW (rename, drop) */
 extern void fsidx_flush_all(char *rrddir);
 extern void fsidx_drop(char *rrddir, char *hostname);
 

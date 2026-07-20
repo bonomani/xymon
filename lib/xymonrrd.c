@@ -62,9 +62,8 @@ typedef struct gdefmeta_t {
 	char *name;
 	int maxinstancesperimage;		/* MAXINSTANCESPERIMAGE N: instances per image when paging */
 	int trends;		/* TRENDS: show on the trends page */
-	int lazy;		/* LAZY: no file until the values first change */
 	char *exstorepat;	/* EXSTOREPATTERN: instances never stored */
-	char *storepat;		/* STOREPATTERN: only these stored; forces past LAZY */
+	char *storepat;		/* STOREPATTERN: only these stored */
 	char *fnpat;		/* FNPATTERN: the fileset's filename regex */
 	int thresholds;		/* THRESHOLDS ON|OFF: 0 unset, 1 on, -1 off */
 	int staleafter;		/* STALEAFTER seconds: freshness window; 0 = default */
@@ -134,9 +133,6 @@ static void load_gdef_meta(void)
 		else if (cur && (strncasecmp(p, "TRENDS", 6) == 0) && ((p[6] == '\0') || isspace((int)p[6]))) {
 			cur->trends = 1;
 		}
-		else if (cur && (strncasecmp(p, "LAZY", 4) == 0) && ((p[4] == '\0') || isspace((int)p[4]))) {
-			cur->lazy = 1;
-		}
 		else if (cur && (strncasecmp(p, "EXSTOREPATTERN", 14) == 0) && isspace((int)p[14])) {
 			char *pat = p + 14 + strspn(p+14, " \t");
 			pat[strcspn(pat, " \t\r\n")] = '\0';
@@ -197,7 +193,6 @@ static void load_gdef_meta(void)
 			if (base && (base != cur)) {
 				if (cur->maxinstancesperimage == 0) cur->maxinstancesperimage = base->maxinstancesperimage;
 				if (base->trends) cur->trends = 1;
-				if (base->lazy) cur->lazy = 1;
 				if (base->fnpat && !cur->fnpat) cur->fnpat = strdup(base->fnpat);
 				if (base->thresholds && !cur->thresholds) cur->thresholds = base->thresholds;
 				if (base->staleafter && !cur->staleafter) cur->staleafter = base->staleafter;
@@ -214,7 +209,7 @@ static void load_gdef_meta(void)
 /* Match a gdefmeta entry against a GRAPHS/test.cfg token. The token may
  * carry a "::N" split-size suffix ("disk::8") - renderer paging syntax,
  * not part of the graph's name; ignoring it here would silently bypass
- * LAZY/STALEAFTER/MAXINSTANCESPERIMAGE for such entries. Returns 0 on
+ * STALEAFTER/MAXINSTANCESPERIMAGE for such entries. Returns 0 on
  * match, following the strcmp find-loop idiom. */
 static int gdefmeta_namecmp(const char *gdefname, const char *entry)
 {
@@ -251,13 +246,6 @@ static gdefmeta_t *gdefmeta_forfile(char *fn)
 	return NULL;
 }
 
-int xymon_gdef_lazy_forfile(char *fn)
-{
-	gdefmeta_t *walk = gdefmeta_forfile(fn);
-
-	return (walk && walk->lazy);
-}
-
 static pcre2_code *storepat_compile(char *pattern)
 {
 	int err;
@@ -285,17 +273,15 @@ static int storepat_match(pcre2_code *pat, char *fn, size_t fnlen)
 }
 
 /*
- * The RRD writer's storage gate: may this file be written at all, and if
- * so, does a STOREPATTERN match force it past the LAZY creation gate?
+ * The RRD writer's storage gate: may this file be written at all?
  * Patterns match the filename minus its ".rrd" suffix, case-insensitively.
  * Returns 0 = drop, 1 = store.
  */
-int xymon_gdef_store_allowed(char *fn, int *forced)
+int xymon_gdef_store_allowed(char *fn)
 {
 	gdefmeta_t *walk = gdefmeta_forfile(fn);
 	size_t fnlen;
 
-	if (forced) *forced = 0;
 	if (!walk || (!walk->exstorepat && !walk->storepat)) return 1;
 
 	fnlen = strlen(fn);
@@ -313,10 +299,7 @@ int xymon_gdef_store_allowed(char *fn, int *forced)
 			walk->store = storepat_compile(walk->storepat);
 			walk->store_tried = 1;
 		}
-		if (walk->store) {
-			if (!storepat_match(walk->store, fn, fnlen)) return 0;
-			if (forced) *forced = 1;
-		}
+		if (walk->store && !storepat_match(walk->store, fn, fnlen)) return 0;
 	}
 	return 1;
 }
@@ -329,7 +312,7 @@ int xymon_gdef_fileset_unknown(char *name)
 
 	load_gdef_meta();
 	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
-	return (walk && (walk->lazy || walk->exstorepat || walk->storepat));
+	return (walk && (walk->exstorepat || walk->storepat));
 }
 
 /* Union of the consolidation functions read by the DEF lines of every

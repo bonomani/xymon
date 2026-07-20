@@ -12,11 +12,6 @@ set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
 . "$(dirname "$0")/../lib/assert.sh"
 
-# The harness pins message-derived paging counts, which a (default) lazy
-# block never trusts - the fileset-index count is the lazy authority and
-# has its own cases. Pin the eager opt-out for the derived-count cases.
-export LAZYDEFAULT=off
-
 ROOT=$(find_root)
 here=$(dirname "$0")
 
@@ -43,12 +38,14 @@ cat >"$work/etc/graphs.cfg" <<'GDEFS'
 [diskio_split]
 	MAXINSTANCESPERIMAGE 2
 [diskio_gzy]
-	LAZY
+	STOREPATTERN .
 	FNPATTERN ^gzyfiles\..+\.rrd
+[diskio_idx]
+	STOREPATTERN .
 [diskio_filt]
 	EXSTOREPATTERN x
 [diskio_slow]
-	LAZY
+	STOREPATTERN .
 	FNPATTERN ^diskio_idx\..+\.rrd
 	STALEAFTER 300000
 GDEFS
@@ -66,8 +63,9 @@ make -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
 	$pcre_libs -lssl -lcrypto 2>"$work/cc.log" \
 	|| { cat "$work/cc.log" >&2; fail "harness does not compile"; }
 
-# A writer-kept fileset index for the diskio_idx lazy graph: three fresh
-# entries and one stale one (the staleness cutoff must exclude it).
+# A writer-kept fileset index for the store-filtered diskio_idx graph:
+# three fresh entries and one stale one (the staleness cutoff must
+# exclude it).
 mkdir -p "$work/rrd/testhost"
 now=$(date +%s)
 {
@@ -76,7 +74,6 @@ now=$(date +%s)
 	echo "diskio_idx.b.rrd $now"
 	echo "diskio_idx.c.rrd $now"
 	echo "diskio_idx.old.rrd $((now - 200000))"
-	echo "diskio_idx.flat.rrd $now b=$now,7"
 	echo "gzyfiles.p.rrd $now"
 	echo "gzyfiles.q.rrd $now"
 	echo "gzyfiles.stale.rrd $((now - 200000))"

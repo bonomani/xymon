@@ -93,7 +93,7 @@ mkdir -p "$work/outside"
 echo "sentinel" >"$work/outside/.fileset-index"
 : >"$work/outside/.fileset-index.lock"
 out=$(run reject-slash 2>/dev/null)
-echo "$out" | grep -q 'get=null' || fail "baseline API honored a '/' hostname: $out"
+echo "$out" | grep -q 'probe=null' || fail "fsidx API honored a '/' hostname: $out"
 grep -q 'sentinel' "$work/outside/.fileset-index" 2>/dev/null \
 	|| fail "'/' hostname escaped the RRD tree (outside index removed or rewritten)"
 
@@ -103,11 +103,5 @@ out=$(run reject-badfn 2>/dev/null)
 echo "$out" | grep -q 'f\.a\.rrd 1000' || fail "valid entry missing from the flush: $out"
 echo "$out" | grep -q 'bad' && fail "record-corrupting rrdfn was indexed: $out"
 echo "$out" | grep -q 'lead' && fail "leading-# rrdfn was indexed: $out"
-
-# A baseline set with ts<=0 must be refused up front: every loader
-# discards ts<=0 records, so flushing one would silently lose it.
-out=$(run baseline-zerots)
-echo "$out" | grep -q 'f\.a\.rrd 1000' || fail "valid entry missing from the flush: $out"
-echo "$out" | grep -q 'flat' && fail "ts<=0 baseline was published: $out"
 
 echo "OK $(basename "$0")"

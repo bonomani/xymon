@@ -149,11 +149,6 @@ NETFAILTEXT="not OK"				# Text indicating a network test failed
 
 # Top level directory for the RRD files
 XYMONRRDS="$XYMONVAR/rrd"
-# LAZYDEFAULT="off"		# Self-describing METRICS blocks are lazy by default: no RRD file
-				# until the values first change; flat instances live in the fileset
-				# index and render as flat lines. A block opts out with "nolazy";
-				# set LAZYDEFAULT=off to restore eager file creation for all blocks.
-				# Legacy DEVMON banners are always eager.
 
 # Size of the generated graph images
 RRDHEIGHT="120"

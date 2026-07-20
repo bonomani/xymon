@@ -3668,56 +3668,8 @@ int aggds_evict_idle(time_t maxage)
  * would aggregate over half-updated values. Values older than the rule's
  * maxage are excluded, so retired instances do not haunt the aggregates.
  */
-struct aggds_flatctx_t {
-	c_rule_t *rule;
-	time_t now;
-	int *n;
-	double *sum, *minval, *maxval;
-};
-
-static void aggds_flat_cb(const char *rrdfn, time_t ts, const char *values, const char *dsnames, void *userdata)
-{
-	struct aggds_flatctx_t *ctx = (struct aggds_flatctx_t *)userdata;
-	c_rule_t *rule = ctx->rule;
-	const char *p, *v;
-	char valbuf[64];
-	char *endp;
-	double val;
-	size_t dlen, vlen;
-	int dsidx = -1, i;
-
-	if (!dsnames) return;
-	if (!rule->rule.aggds.rrdkey || !namematch((char *)rrdfn, rule->rule.aggds.rrdkey->pattern, rule->rule.aggds.rrdkey->exp)) return;
-	if ((ctx->now - ts) > rule->rule.aggds.maxage) return;
-
-	/* find the rule's dataset position in the d= name list */
-	dlen = strlen(rule->rule.aggds.rrdds);
-	for (p = dsnames, i = 0; (p && *p); i++) {
-		size_t clen = strcspn(p, ",");
-		if ((clen == dlen) && (strncmp(p, rule->rule.aggds.rrdds, dlen) == 0)) { dsidx = i; break; }
-		p += clen; if (*p == ',') p++;
-	}
-	if (dsidx < 0) return;
-
-	/* the dsidx-th colon component of the flat value string */
-	for (v = values, i = 0; (i < dsidx) && v; i++) {
-		v = strchr(v, ':'); if (v) v++;
-	}
-	if (!v || !(*v)) return;
-	vlen = strcspn(v, ":");
-	if (vlen >= sizeof(valbuf)) return;
-	memcpy(valbuf, v, vlen); valbuf[vlen] = '\0';
-	val = strtod(valbuf, &endp);
-	if ((endp == valbuf) || (*endp != '\0')) return;	/* U and friends */
-
-	if ((*ctx->n == 0) || (val > *ctx->maxval)) *ctx->maxval = val;
-	if ((*ctx->n == 0) || (val < *ctx->minval)) *ctx->minval = val;
-	*ctx->sum += val;
-	(*ctx->n)++;
-}
-
 /* Census of one rule's fileset in the writer-kept index: fresh entries
- * (real files and flat records alike) whose filename matches the rule's
+ * whose filename matches the rule's
  * pattern AND whose d= names declare the rule's dataset. This is the
  * restart-durable "how many instances exist" answer the memory store
  * cannot give until it has re-seen every instance's update. Entries with
@@ -3732,7 +3684,7 @@ struct aggds_censusctx_t {
 	int count;
 };
 
-static void aggds_census_cb(const char *rrdfn, time_t ts, const char *values, const char *dsnames, void *userdata)
+static void aggds_census_cb(const char *rrdfn, time_t ts, const char *dsnames, void *userdata)
 {
 	struct aggds_censusctx_t *ctx = (struct aggds_censusctx_t *)userdata;
 	c_rule_t *rule = ctx->rule;
@@ -3791,10 +3743,9 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		handle = xtreeFind(aggds_store, hostname);
 		if (handle != xtreeEnd(aggds_store)) hosttree = xtreeData(aggds_store, handle);
 	}
-	/* A host with no store slice normally means "no data - no result".
-	 * But a host the fileset index knows CAN be all-flat (every instance
-	 * a lazy baseline, no update ever stored): its rules must evaluate
-	 * from the flat records alone. */
+	/* A host with no store slice and unknown to the fileset index means
+	 * "no data - no result". A host the index knows still evaluates: its
+	 * count() rules must be able to see an empty store. */
 	if (!hosttree && (fsidx_entry_foreach(hostname, NULL, NULL) < 0)) return NULL;
 
 	if (!resbuf) resbuf = newstrbuffer(0);
@@ -3807,7 +3758,6 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 		int n = 0, rulematch = 0;
 		double sum = 0.0, minval = 0.0, maxval = 0.0, val = 0.0;
 		xtreePos_t vhandle;
-		struct aggds_flatctx_t flatctx;
 
 		if (hosttree) for (vhandle = xtreeFirst(hosttree); (vhandle != xtreeEnd(hosttree)); vhandle = xtreeNext(hosttree, vhandle)) {
 			aggds_val_t *entry = (aggds_val_t *)xtreeData(hosttree, vhandle);
@@ -3821,15 +3771,6 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			sum += entry->val;
 			n++;
 		}
-
-		/* Flat instances (lazy baselines) are first-class values too:
-		 * they never update, so they never reach the store - read them
-		 * from the writer's fileset-index state. Their d= names map
-		 * the positional value string to the rule's dataset. */
-		flatctx.rule = rule;
-		flatctx.now = now;
-		flatctx.n = &n; flatctx.sum = &sum; flatctx.minval = &minval; flatctx.maxval = &maxval;
-		fsidx_flat_foreach(hostname, aggds_flat_cb, &flatctx);
 
 		/* Warm-up guard: the store is memory-only, so right after a
 		 * restart (or a reload that added this rule) it is empty while

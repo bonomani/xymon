@@ -15,7 +15,6 @@
  *   adopt-retract a newer disk bundle without a field clears ours
  *   reject-slash  a '/' in the hostname must not escape the RRD tree
  *   reject-badfn  an rrdfn the record format cannot carry is refused
- *   baseline-zerots  a ts<=0 baseline is refused, not written-then-lost
  */
 
 #include <stdio.h>
@@ -67,6 +66,7 @@ int main(int argc, char *argv[])
 		writeindex("h1", "f.a.rrd 1000 u=v:ms h=v:600 g=100\n");
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* seeds the tree */
 		writeindex("h1", "f.a.rrd 1500 u=v:msec h=v:300 g=200\n");
+		fsidx_note_schema(rrddir, "h1", "f.b.rrd", 1000);	/* dirt: makes the flush publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}
@@ -76,6 +76,7 @@ int main(int argc, char *argv[])
 		writeindex("h1", "f.a.rrd 1000 u=v:msec g=200\n");
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);
 		writeindex("h1", "f.a.rrd 1500 u=v:old g=50\n");
+		fsidx_note_schema(rrddir, "h1", "f.b.rrd", 1000);	/* dirt: makes the flush publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}
@@ -85,6 +86,7 @@ int main(int argc, char *argv[])
 		writeindex("h1", "f.a.rrd 1000\n");
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);
 		writeindex("h1", "f.a.rrd 1500 u=v:legacy\n");
+		fsidx_note_schema(rrddir, "h1", "f.b.rrd", 1000);	/* dirt: makes the flush publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}
@@ -122,6 +124,7 @@ int main(int argc, char *argv[])
 		writeindex("h1", "f.a.rrd 1000 u=v:ms t=v:>5:warn g=100\n");
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);
 		writeindex("h1", "f.a.rrd 1500 u=v:ms g=200\n");
+		fsidx_note_schema(rrddir, "h1", "f.b.rrd", 1000);	/* dirt: makes the flush publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");
 	}
@@ -131,29 +134,19 @@ int main(int argc, char *argv[])
 		 * tree). Every entry point must reject it - the shell asserts
 		 * the decoy index planted outside the tree survives intact. */
 		fsidx_note_schema(rrddir, "../outside", "f.a.rrd", 1000);
-		fsidx_baseline_set(rrddir, "../outside", "flat.a.rrd", "1:2", 1000);
 		fsidx_flush(rrddir, "../outside");
 		fsidx_flush_now(rrddir, "../outside");
 		fsidx_drop(rrddir, "../outside");
-		printf("get=%s\n", fsidx_baseline_get(rrddir, "../outside", "flat.a.rrd", NULL) ? "leaked" : "null");
+		printf("probe=%s\n", (fsidx_entry_foreach("../outside", NULL, NULL) < 0) ? "null" : "leaked");
 	}
 	else if (strcmp(scenario, "reject-badfn") == 0) {
 		/* A blank, line break or leading '#' in an rrdfn would split
 		 * the space-separated record on the way back in (or read back
 		 * as a comment) - every recording entry point refuses them. */
+		writeindex("h1", "");	/* plain entries maintain an existing index, never materialize one */
 		fsidx_note_schema(rrddir, "h1", "bad\tname.rrd", 1000);
 		fsidx_note_commit(rrddir, "h1", "bad\nname.rrd", 1000);
-		fsidx_baseline_set(rrddir, "h1", "#lead.rrd", "1:2", 1000);
-		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* a valid entry to publish */
-		fsidx_flush(rrddir, "h1");
-		dumpindex("h1");
-	}
-	else if (strcmp(scenario, "baseline-zerots") == 0) {
-		/* Every loader discards ts<=0 records, so a baseline set with
-		 * such a stamp would flush as "<fn> 0 b=..." and silently never
-		 * load back - it must be refused up front like the note_* calls. */
-		fsidx_baseline_set(rrddir, "h1", "flat.a.rrd", "1:2", 0);
-		fsidx_baseline_set(rrddir, "h1", "flat.b.rrd", "3:4", (time_t)-1);
+		fsidx_note_schema(rrddir, "h1", "#lead.rrd", 1000);
 		fsidx_note_schema(rrddir, "h1", "f.a.rrd", 1000);	/* a valid entry to publish */
 		fsidx_flush(rrddir, "h1");
 		dumpindex("h1");

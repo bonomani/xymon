@@ -119,35 +119,9 @@ xymonmarker_t *xymon_markers_parse(char *msg)
 				block_metrics = 1;
 				blockds = 0;
 				if (block) {
-					char *p = bol + strlen(XYMON_METRICS_MARKER);
-					static int lazydef = -1;
-
-					if (lazydef < 0) {
-						char *ld = getenv("LAZYDEFAULT");
-						lazydef = !(ld && ((strcasecmp(ld, "off") == 0) || (strcasecmp(ld, "0") == 0) || (strcasecmp(ld, "false") == 0)));
-					}
 					block->store = 1;
-					block->lazy = lazydef;	/* lazy by default; nolazy or LAZYDEFAULT=off opt out */
-					/* banner attributes, up to end-of-line or the
-					 * closing marker - text after a self-closing
-					 * "-->" is status content, not attributes (the
-					 * block writer stops there too). Writer parity:
-					 * it tokenizes on " \t" and matches the word
-					 * exactly, with a CR vanishing only at EOL. The
-					 * scan starts AFTER the name token, like the
-					 * writer's strtok does - or a block named
-					 * "nolazy" behind doubled whitespace would parse
-					 * as its own attribute. */
-					p += strspn(p, " \t");
-					p += strlen(name);
-					while (*p && (*p != '\n') && strncmp(p, "-->", 3)) {
-						if ((*p == ' ') || (*p == '\t')) {
-							char *a = p + 1;
-							if ((strncmp(a, "lazy", 4) == 0) && marker_attr_end(a+4)) block->lazy = 1;
-							if ((strncmp(a, "nolazy", 6) == 0) && marker_attr_end(a+6)) block->lazy = 0;
-						}
-						p++;
-					}
+					/* Unknown banner attributes are ignored - the
+					 * dialect's generic forward compatibility. */
 				}
 				if (selfclosed) block = NULL;
 			}
@@ -294,11 +268,6 @@ void xymon_markers_free(xymonmarker_t *head)
 int xymon_marker_instancecount(xymonmarker_t *marker)
 {
 	if (marker->instancespec >= 0) return marker->instancespec;
-	/* A lazy block's file set is the EVER-active instances, which the
-	 * current message cannot know (an instance that goes idle keeps its
-	 * file) - a derived count would hide trailing files. Render
-	 * unsliced unless an explicit instances= says otherwise. */
-	if (marker->lazy) return 0;
 	if (marker->store && (marker->blockinstances > 0)) return marker->blockinstances;
 	return 0;
 }

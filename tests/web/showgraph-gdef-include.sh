@@ -129,8 +129,8 @@ cat >"$work/spprobe.c" <<'CEOF'
 int main(void) {
 	/* incm.keepvar.rrd should store (matches keepvar), incm.keepbase.rrd
 	 * should NOT (the base pattern must have been overridden). */
-	int okvar  = xymon_gdef_store_allowed("incvar_sp.keepvar.rrd", NULL);
-	int okbase = xymon_gdef_store_allowed("incvar_sp.keepbase.rrd", NULL);
+	int okvar  = xymon_gdef_store_allowed("incvar_sp.keepvar.rrd");
+	int okbase = xymon_gdef_store_allowed("incvar_sp.keepbase.rrd");
 	printf("keepvar=%d keepbase=%d ", okvar, okbase);
 	return (okvar == 1 && okbase == 0) ? 0 : 1;
 }

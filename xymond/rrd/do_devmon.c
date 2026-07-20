@@ -11,22 +11,6 @@
 
 static char devmon_rcsid[] = "$Id $";
 
-/* METRICS blocks are lazy BY DEFAULT: a flat instance is a (value,
- * since) record in the fileset index, no RRD file until the value first
- * changes. Per-block "nolazy" or LAZYDEFAULT=off (xymonserver.cfg env)
- * restore eager file creation. Legacy DEVMON banners are never affected
- * - their installed base expects eager files. */
-static int lazydefault(void)
-{
-	static int val = -1;
-
-	if (val < 0) {
-		char *p = getenv("LAZYDEFAULT");
-		val = !(p && ((strcasecmp(p, "off") == 0) || (strcasecmp(p, "0") == 0) || (strcasecmp(p, "false") == 0)));
-	}
-	return val;
-}
-
 int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
 {
 #define MAXCOLS 20
@@ -90,7 +74,6 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			while ((slash = strchr(rrdbasename, '/')) != NULL) *slash = ',';
 			dbgprintf("DEVMON: changing testname from %s to %s\n",testname,rrdbasename);
 			numds = 0;
-			setup_lazy(0);
 			fsidx_set_units(NULL);
 			fsidx_set_dsnames(NULL);
 			fsidx_set_heartbeats(NULL);
@@ -118,16 +101,15 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				rrdbasename = name;
 				dbgprintf("METRICS: changing testname from %s to %s\n",testname,rrdbasename);
 				numds = 0;
-				setup_lazy(lazydefault());
 				fsidx_set_units(NULL);
 				fsidx_set_dsnames(NULL);
 				fsidx_set_heartbeats(NULL);
 				fsidx_set_thresholds(NULL);
 				clearstrbuffer(thrspec);
+				/* Unknown block attributes are ignored - the dialect's
+				 * generic forward compatibility. */
 				while ((attr = strtok(NULL, " \t")) != NULL) {
 					if (strcmp(attr, "-->") == 0) break;
-					if (strcmp(attr, "lazy") == 0) setup_lazy(1);
-					if (strcmp(attr, "nolazy") == 0) setup_lazy(0);
 				}
 			}
 			else {
@@ -191,7 +173,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 					}
 				}
 				{
-					/* positional DS names, for flat-record consumers */
+					/* positional DS names, for the AGGDS census */
 					char *dsname = spec + 3;
 					char *dsend = strchr(dsname, ':');
 					if (dsend) {
@@ -429,7 +411,6 @@ nextline:
 		if (ifname) { xfree(ifname); ifname = NULL; }
 		curline = (eoln ? (eoln+1) : NULL);
 	}
-	setup_lazy(0);	/* the banner flag must not leak into other handlers */
 	fsidx_set_units(NULL);
 	fsidx_set_dsnames(NULL);
 	fsidx_set_heartbeats(NULL);

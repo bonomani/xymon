@@ -579,7 +579,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					localgraph.xymonrrdname = graphsptr;
 					if (!owngdef) localgraph.maxgraphs = xymon_gdef_maxinstancesperimage(graphsptr);
 					if (localgraph.maxgraphs == 0) localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : (graph ? graph->maxgraphs : 0));
-					/* A LAZY/store-filtered graph's file set is not
+					/* A store-filtered graph's file set is not
 					 * derivable from the message - the writer-kept
 					 * fileset index knows it exactly (FNPATTERN-
 					 * matched); without an index, render unsliced. */
@@ -643,16 +643,14 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					memset(&localgraph, 0, sizeof(localgraph));
 					localgraph.xymonrrdname = mwalk->name;
 					localgraph.maxgraphs = (owngdef ? owngdef->maxgraphs : xymon_gdef_maxinstancesperimage(mwalk->name));
-					/* gdef LAZY overrides a derived count (explicit
-					 * instances= still wins) - same reasoning as the
-					 * banner attribute. When the fileset is not
-					 * derivable from the message (lazy, store
-					 * filters), the writer-kept fileset index knows
-					 * it exactly - only without an index does the
-					 * graph fall back to an unsliced render. */
+					/* When the fileset is not derivable from the
+					 * message (store filters), the writer-kept
+					 * fileset index knows it exactly - only without
+					 * an index does the graph fall back to an
+					 * unsliced render. Explicit instances= wins. */
 					{
 						int gcount = xymon_marker_instancecount(mwalk);
-						if ((mwalk->instancespec < 0) && (mwalk->lazy || xymon_gdef_fileset_unknown(mwalk->name))) {
+						if ((mwalk->instancespec < 0) && xymon_gdef_fileset_unknown(mwalk->name)) {
 							/* The graph's own freshness window (STALEAFTER,
 							 * default 86400) - the same one showgraph's
 							 * stale-file filter applies, so the count

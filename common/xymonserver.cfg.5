@@ -602,22 +602,6 @@ removes a filesystem from the status, the alerts and the graphs.
 This is usually the preferred replacement for the deprecated
 NORRDDISKS/RRDDISKS settings below.
 
-.IP LAZYDEFAULT
-Whether self-describing METRICS blocks default to lazy RRD file
-creation, see
-.I xymond_rrd(8).
-By default (unset, or any value other than "off", "0" or "false",
-case-insensitively) blocks are lazy: no RRD file is created for an
-instance until its values first change, and flat instances live as
-records in the writer-kept fileset index instead. Set
-LAZYDEFAULT="off" to restore eager file creation for every block
-that does not itself declare "lazy"; a block declaring "nolazy"
-always opts out individually. This setting does not affect the LAZY
-keyword in
-.I graphs.cfg(5),
-and legacy DEVMON banners are always eager.
-Default: on.
-
 .IP NORRDDISKS
 Deprecated legacy setting. It is retained for compatibility with old
 configurations, but should be considered unsupported for new use.

@@ -193,20 +193,6 @@ int main(void)
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	expect("fresh entries survive the sweep", (res ? STRBUF(res) : NULL), "Total reads high: 150.00", 1);
 
-	/* A flat instance (durable lazy baseline) is a first-class
-	 * aggregate value: with its d= positional names it joins sum and
-	 * count like any stored sample - a pinned metric still counts as
-	 * reporting. Store state here: one entry (reads=150). */
-	{
-		char flatdir[1024];
-		snprintf(flatdir, sizeof(flatdir), "%s/rrdflat", getenv("XYMONHOME"));
-		fsidx_set_dsnames("reads,writes");
-		fsidx_baseline_set(flatdir, "testhost", "diskio_ops.flat.rrd", "3:4", getcurrenttime(NULL));
-		fsidx_set_dsnames(NULL);
-	}
-	res = check_aggds_thresholds("testhost", "linux", "/");
-	out = (res ? STRBUF(res) : NULL);
-	expect("flat instance joins the aggregates", out, "Total reads high: 153.00", 1);
 
 	/* Warm-up guard: the store is memory-only, the fileset index is
 	 * durable. When the index knows more fresh matching instances than
@@ -227,13 +213,13 @@ int main(void)
 
 	/* Once the store has re-seen a value for every countable instance
 	 * the census no longer exceeds it: the guard lifts inside the
-	 * warm-up window and count() evaluates the real fileset (the flat
-	 * instance plus the one re-seen file = 2). */
+	 * warm-up window and count() evaluates the real fileset (the one
+	 * re-seen file = 1). */
 	snprintf(vals, sizeof(vals), "%d:6:1", (int)now);
 	update_aggds_store("testhost", "diskio_ops.warm.rrd", opstree, vals);
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	out = (res ? STRBUF(res) : NULL);
-	expect("warm-up guard lifts once the census is covered", out, "Disks missing: only 2.00 reporting", 1);
+	expect("warm-up guard lifts once the census is covered", out, "Disks missing: only 1.00 reporting", 1);
 
 	/* An index entry with no d= names (legacy handlers record none)
 	 * cannot be tied to any dataset: it must not inflate the census, or
@@ -246,7 +232,7 @@ int main(void)
 	}
 	res = check_aggds_thresholds("testhost", "linux", "/");
 	out = (res ? STRBUF(res) : NULL);
-	expect("no-d= index entry does not inflate the census", out, "Disks missing: only 2.00 reporting", 1);
+	expect("no-d= index entry does not inflate the census", out, "Disks missing: only 1.00 reporting", 1);
 
 	printf(failures ? "FAILED\n" : "ALL OK\n");
 	return failures ? 1 : 0;

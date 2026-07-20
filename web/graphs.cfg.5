@@ -47,24 +47,6 @@ graph. This keeps the split size with the graph it describes; it
 overrides the legacy "name::N" suffix in the GRAPHS environment
 variable (see xymonserver.cfg(5)), which remains supported.
 
-A "LAZY" keyword makes file creation lazy for every writer path
-targeting this graph's files: the first sample seen for an instance
-becomes its baseline - whatever the value is - and the RRD file is
-created only when a later sample differs. Flat instances produce no files,
-whether they idle at zero (spare disks, unused
-interfaces) or sit pinned at a constant (an always-full database
-filesystem); they still graph, drawn as flat lines from their fileset-index
-records while fresh. Existing files always update. Such a graph's file set is the
-ever-changed instances, which no single status can know - the paging
-count is taken from the writer-kept fileset index instead, so the
-graph still pages with an exact count; only when no index is
-reachable does it render unsliced. Baselines are durable records in
-that same index, so they survive a daemon restart: a change that
-happens while the writer is down is detected on the next sample
-instead of silently becoming the new baseline. The same gate is available per
-message via the METRICS banner's "lazy" attribute - see
-xymond_rrd(8).
-
 "EXSTOREPATTERN <regex>" and "STOREPATTERN <regex>" filter which
 instances are stored at all, for every writer path targeting this
 graph's files: instances matching EXSTOREPATTERN are never written,
@@ -72,18 +54,15 @@ and when STOREPATTERN is set only matching instances are. Patterns
 are matched (unanchored, so a substring hit counts - anchor with "^"
 and "$" for a whole-name match) against the RRD filename minus its
 ".rrd" suffix, case-insensitively. Note this differs from FNPATTERN/
-EXFNPATTERN, which match the full name including ".rrd". A
-STOREPATTERN match also forces the instance past a LAZY gate, so a
-deliberately named flat instance can be graphed anyway. Graphs with
-storage filters page like LAZY graphs do - their file set diverges
-from what a status message shows, so a message-derived paging count
-cannot be trusted and the count comes from the fileset index instead,
-with an unsliced render only when no index is
-reachable. (These keywords replace the drafted RRDEXCLUDE/RRDINCLUDE
+EXFNPATTERN, which match the full name including ".rrd". A graph with
+storage filters has a file set that diverges from what a status
+message shows, so a message-derived paging count cannot be trusted:
+the count comes from the fileset index instead, with an unsliced
+render only when no index is reachable. (These keywords replace the drafted RRDEXCLUDE/RRDINCLUDE
 environment variables; analysis.cfg's "DISK ... IGNORE" remains the
 tool when the status line should disappear too.)
 .sp
-Writer-side keywords (LAZY, EXSTOREPATTERN, STOREPATTERN) are read
+Writer-side keywords (EXSTOREPATTERN, STOREPATTERN) are read
 once at xymond_rrd startup, so a change to them takes effect only
 after xymond_rrd is restarted; the presentation keywords are re-read
 by the CGIs on every page request.

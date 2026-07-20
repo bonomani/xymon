@@ -8,9 +8,13 @@
 /* host's RRD directory (the rebuild path after deletion/corruption).        */
 /* Flushes are atomic (tmp + rename) and merge with the on-disk file under   */
 /* flock, because the status- and data-channel xymond_rrd instances both     */
-/* write the same hosts; last-write timestamps merge by max. Timestamp-only  */
-/* changes are flushed at most every FSIDX_FLUSHIVL seconds; a new or        */
-/* scanned entry flushes immediately.                                        */
+/* write the same hosts; last-write timestamps merge by max.                 */
+/*                                                                            */
+/* Write economics: a real RRD file's freshness is already durable - it is   */
+/* the file's own mtime - so advancing it never dirties the index. Only      */
+/* index-only state does: schema declarations flush immediately, and a       */
+/* plain new-file entry only joins an index that already exists. A host      */
+/* with no self-describing state never materializes an index file at all.    */
 /*                                                                            */
 /* Copyright (C) 2026 Bruno Manzoni                                          */
 /*                                                                            */
@@ -38,21 +42,17 @@ static char filesetindex_rcsid[] = "$Id$";
 
 #define FSIDX_NAME ".fileset-index"
 #define FSIDX_HEADER "# xymon fileset index v1"
-#define FSIDX_FLUSHIVL 300
-
 /* FSIDX_SPECMAX / FSIDX_LINEMAX live in filesetindex.h (readers outside
- * this file need the line bound too). The baseline field is bounded by
- * the channel line length; keep the header's literal in sync with it. */
+ * this file need the line bound too). */
 #if defined(MAX_LINE_LEN) && (MAX_LINE_LEN > 16384)
 #error "FSIDX_LINEMAX (filesetindex.h) assumes MAX_LINE_LEN <= 16384"
 #endif
 
 typedef struct fsidx_host_t {
 	void *files;		/* rrdfn (char*) -> (time_t) last data write, cast in a slot */
-	int dirty_new;		/* an entry was added since the last flush */
-	int dirty_ts;		/* only timestamps moved since the last flush */
+	int dirty_new;		/* index-only state changed (schema): flush now */
+	int dirty_add;		/* a plain entry was added: flush only an EXISTING index */
 	int needseed;		/* dropped host: reseed from disk on next touch */
-	time_t lastflush;
 } fsidx_host_t;
 
 typedef struct fsidx_entry_t {
@@ -61,10 +61,7 @@ typedef struct fsidx_entry_t {
 	char *units;		/* "ds:unit[,ds:unit...]" or NULL */
 	char *heartbeats;	/* "ds:heartbeat[,...]" as currently declared, or NULL */
 	char *thresholds;	/* "base:relop-operand:sev[,...]" or NULL */
-	char *dsnames;		/* "ds1,ds2,...": positional DS names (for flat values) */
-	char *baseline;		/* flat instance: its value string; no RRD file exists */
-	time_t since;		/* ... unchanged since this data timestamp */
-	int bl_cleared;		/* materialized this run: weak merges must not re-add b= */
+	char *dsnames;		/* "ds1,ds2,...": positional DS names */
 	time_t gen;		/* when the schema fields (u/h/d/t) were last declared live */
 } fsidx_entry_t;
 
@@ -164,11 +161,13 @@ static void fsidx_set(fsidx_host_t *h, const char *fn, time_t ts, const char *un
 		e->fn = xstrdup(fn);
 		e->ts = ts;
 		xtreeAdd(h->files, e->fn, e);
-		h->dirty_new = 1;
+		h->dirty_add = 1;
 	}
 	else {
 		e = (fsidx_entry_t *)xtreeData(h->files, handle);
-		if (ts > e->ts) { e->ts = ts; h->dirty_ts = 1; }
+		/* A real file's freshness is its own mtime - durable for free,
+		 * so advancing the in-memory ts never dirties the index. */
+		if (ts > e->ts) e->ts = ts;
 	}
 
 	if (units && (strongunits || !e->units)) {
@@ -239,7 +238,7 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 
 	if (!fd) return;
 	while (fgets(line, sizeof(line), fd)) {
-		char *name, *tsstr, *tok, *units, *thr, *bl, *dsn, *hb, *sp = NULL;
+		char *name, *tsstr, *tok, *units, *thr, *dsn, *hb, *sp = NULL;
 		time_t ts, gen;
 
 		if (fsidx_line_truncated(line, fd)) {
@@ -252,26 +251,37 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 		if (!name || !tsstr) continue;
 		ts = fsidx_parse_ts(tsstr);
 		if (ts <= 0) continue;
-		units = NULL; thr = NULL; bl = NULL; dsn = NULL; hb = NULL; gen = 0;
+		units = NULL; thr = NULL; dsn = NULL; hb = NULL; gen = 0;
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "u=", 2) == 0) units = tok+2;
 			else if (strncmp(tok, "h=", 2) == 0) hb = tok+2;
 			else if (strncmp(tok, "t=", 2) == 0) thr = tok+2;
-			else if (strncmp(tok, "b=", 2) == 0) bl = tok+2;
 			else if (strncmp(tok, "d=", 2) == 0) dsn = tok+2;
 			else if (strncmp(tok, "g=", 2) == 0) gen = fsidx_parse_ts(tok+2);
-			/* unknown fields: future record extensions, ignored */
+			/* unknown fields (including the retired b= baselines):
+			 * record extensions, ignored */
 		}
-		/* The writers cap every spec at FSIDX_SPECMAX and the baseline
-		 * at the channel line length - that is what makes FSIDX_LINEMAX
-		 * an invariant. A hand-edited/corrupt file must not smuggle an
-		 * oversized field back in, or the NEXT flush writes a record
-		 * that splits on every later read. */
+		/* The writers cap every spec at FSIDX_SPECMAX - that is what
+		 * makes FSIDX_LINEMAX an invariant. A hand-edited/corrupt file
+		 * must not smuggle an oversized field back in, or the NEXT
+		 * flush writes a record that splits on every later read. */
 		if (units && (strlen(units) > FSIDX_SPECMAX)) units = NULL;
 		if (hb && (strlen(hb) > FSIDX_SPECMAX)) hb = NULL;
 		if (thr && (strlen(thr) > FSIDX_SPECMAX)) thr = NULL;
 		if (dsn && (strlen(dsn) > FSIDX_SPECMAX)) dsn = NULL;
-		if (bl && (strlen(bl) > MAX_LINE_LEN)) bl = NULL;	/* the writer's bound, see FSIDX_LINEMAX */
+		/* A real file's persisted ts is only as fresh as the last
+		 * index-worthy flush - the file's own mtime is the durable
+		 * freshness. The index lives in the host's RRD directory, so
+		 * the record's file is a sibling of fn. */
+		{
+			char fpath[PATH_MAX];
+			char *lastslash = strrchr(fn, '/');
+			struct stat fst;
+
+			if (lastslash &&
+			    ((size_t)snprintf(fpath, sizeof(fpath), "%.*s/%s", (int)(lastslash - (char *)fn), fn, name) < sizeof(fpath)) &&
+			    (stat(fpath, &fst) == 0) && (fst.st_mtime > ts)) ts = fst.st_mtime;
+		}
 		fsidx_set(h, name, ts, NULL, 0);
 		{
 			xtreePos_t eh = xtreeFind(h->files, name);
@@ -303,22 +313,6 @@ static void fsidx_load_file(fsidx_host_t *h, const char *fn)
 			}
 			/* gen < e->gen (or a nonzero tie): ours is the current
 			 * declaration, ignore disk */
-		}
-		if (bl) {
-			/* "b=<since>,<values>": a flat instance's baseline. Weak
-			 * merge - live writer state wins over the file's copy. */
-			char *comma = strchr(bl, ',');
-			if (comma) {
-				xtreePos_t bh = xtreeFind(h->files, name);
-				if (bh != xtreeEnd(h->files)) {
-					fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, bh);
-					if (!e->baseline && !e->bl_cleared) {
-						*comma = '\0';
-						e->since = fsidx_parse_ts(bl);
-						e->baseline = xstrdup(comma+1);
-					}
-				}
-			}
 		}
 	}
 	fclose(fd);
@@ -378,14 +372,22 @@ static fsidx_host_t *fsidx_gethost(char *rrddir, char *hostname)
 	{
 		char fn[PATH_MAX];
 		struct stat st;
+		int hadfile = ((fsidx_path(fn, sizeof(fn), rrddir, hostname, "") == 0) &&
+			       (stat(fn, &st) == 0));
 
-		if ((fsidx_path(fn, sizeof(fn), rrddir, hostname, "") == 0) &&
-		    (stat(fn, &st) == 0)) fsidx_load_file(h, fn);
+		int loaded;
+
+		if (hadfile) fsidx_load_file(h, fn);
+		loaded = (xtreeFirst(h->files) != xtreeEnd(h->files));
 		/* An absent file - or one that yielded no entries (crash
 		 * leftovers, corruption) - triggers the one-off rebuild scan */
-		if (xtreeFirst(h->files) == xtreeEnd(h->files)) fsidx_scan_dir(h, rrddir, hostname);
-		/* Seeding counts as new content so the file materializes */
-		h->dirty_new = 1;
+		if (!loaded) fsidx_scan_dir(h, rrddir, hostname);
+		/* Seeding mirrors what disk already holds - it is not new
+		 * content and must not write anything by itself. Exception: an
+		 * existing file that yielded nothing (crash leftovers,
+		 * corruption) is repaired from the scan. */
+		h->dirty_new = h->dirty_add = 0;
+		if (hadfile && !loaded) h->dirty_add = 1;
 	}
 
 	return h;
@@ -430,7 +432,7 @@ void fsidx_note_schema(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 		e->fn = xstrdup(rrdfn);
 		e->ts = ts;
 		xtreeAdd(h->files, e->fn, e);
-		h->dirty_new = 1;
+		h->dirty_add = 1;
 	}
 	else e = (fsidx_entry_t *)xtreeData(h->files, handle);
 	fsidx_apply_pendings(h, e);
@@ -448,18 +450,10 @@ void fsidx_note_commit(char *rrddir, char *hostname, char *rrdfn, time_t ts)
 	if (!fsidx_valid_hostname(hostname)) return;
 	h = fsidx_gethost(rrddir, hostname);
 	fsidx_set(h, rrdfn, ts, NULL, 0);
-	/* An accepted update proves the RRD file exists, so this instance is
-	 * not flat. Normally the create path already cleared the baseline;
-	 * this catches a b= record resurrected by the on-disk weak-merge
-	 * after a crash between file-create and flush - without it the
-	 * stale record would be refreshed here forever and the renderer
-	 * would draw the instance twice. */
-	fsidx_baseline_clear(rrddir, hostname, rrdfn);
 }
 
 /* Sticky positional DS names for following writes, same lifecycle as
- * fsidx_set_units(). Needed on flat records: their value string is
- * positional, and consumers (AGGDS) map values to datasets by name. */
+ * fsidx_set_units(). Consumers (AGGDS) map values to datasets by name. */
 void fsidx_set_dsnames(char *dsnspec)
 {
 	if (fsidx_pending_dsnames) { xfree(fsidx_pending_dsnames); fsidx_pending_dsnames = NULL; }
@@ -484,7 +478,7 @@ void fsidx_set_heartbeats(char *hbspec)
 /* Sticky per-block writer state: the block writer declares the units of
  * the DS specs it is about to create files from; every note_write until
  * the next call carries them. NULL clears (a block without units, another
- * handler's writes). Same pattern as the writer's lazy gate. */
+ * handler's writes). */
 void fsidx_set_units(char *unitspec)
 {
 	if (fsidx_pending_units) { xfree(fsidx_pending_units); fsidx_pending_units = NULL; }
@@ -507,109 +501,10 @@ void fsidx_set_thresholds(char *thrspec)
 	if (thrspec && *thrspec) fsidx_pending_thresholds = xstrdup(thrspec);
 }
 
-/* The lazy gate's durable baseline: a flat instance is an index entry
- * with a (value, since) record and NO RRD file. The writer consults and
- * maintains it here (in the loaded host tree - no file IO per update);
- * flushes persist it as "b=<since>,<values>". */
-char *fsidx_baseline_get(char *rrddir, char *hostname, char *rrdfn, time_t *since)
-{
-	fsidx_host_t *h;
-	xtreePos_t handle;
-	fsidx_entry_t *e;
-
-	if (!rrddir || !rrdfn) return NULL;
-	if (!fsidx_valid_hostname(hostname)) return NULL;
-	h = fsidx_gethost(rrddir, hostname);
-	handle = xtreeFind(h->files, rrdfn);
-	if (handle == xtreeEnd(h->files)) return NULL;
-	e = (fsidx_entry_t *)xtreeData(h->files, handle);
-	if (!e->baseline) return NULL;
-	if (since) *since = e->since;
-	return e->baseline;
-}
-
-void fsidx_baseline_set(char *rrddir, char *hostname, char *rrdfn, char *values, time_t ts)
-{
-	fsidx_host_t *h;
-	xtreePos_t handle;
-	fsidx_entry_t *e;
-
-	if (!rrddir || !fsidx_valid_rrdfn(rrdfn) || !values || (ts <= 0)) return;
-	if (!fsidx_valid_hostname(hostname)) return;
-	/* The flushed record is "b=<since>,<values>" as ONE blank-separated
-	 * token on one line: embedded whitespace would make the tail parse
-	 * as unknown trailing fields, and a value beyond the writer's bound
-	 * breaks the FSIDX_LINEMAX invariant (the record would split at
-	 * fgets on every later read). Same belt as the sibling spec setters. */
-	if ((strlen(values) > MAX_LINE_LEN) || (values[strcspn(values, " \t\r\n")] != '\0')) {
-		errprintf("fileset index: invalid baseline value for %s, ignored\n", rrdfn);
-		return;
-	}
-	h = fsidx_gethost(rrddir, hostname);
-	/* Ensure the entry and refresh last-seen: no rrdtool involved for a
-	 * baseline, so event time IS commit time here. */
-	fsidx_set(h, rrdfn, ts, NULL, 0);
-	handle = xtreeFind(h->files, rrdfn);
-	if (handle == xtreeEnd(h->files)) return;
-	e = (fsidx_entry_t *)xtreeData(h->files, handle);
-	fsidx_apply_pendings(h, e);
-	if (!e->baseline) {
-		e->baseline = xstrdup(values);
-		e->since = ts;
-		h->dirty_new = 1;
-	}
-	else if (e->ts < ts) {
-		/* still flat: keep since, refresh the entry's last-seen */
-		e->ts = ts;
-		h->dirty_ts = 1;
-	}
-}
-
-void fsidx_baseline_clear(char *rrddir, char *hostname, char *rrdfn)
-{
-	fsidx_host_t *h;
-	xtreePos_t handle;
-	fsidx_entry_t *e;
-
-	if (!rrddir || !rrdfn) return;
-	if (!fsidx_valid_hostname(hostname)) return;
-	h = fsidx_gethost(rrddir, hostname);
-	handle = xtreeFind(h->files, rrdfn);
-	if (handle == xtreeEnd(h->files)) return;
-	e = (fsidx_entry_t *)xtreeData(h->files, handle);
-	if (e->baseline) {
-		xfree(e->baseline); e->baseline = NULL;
-		e->since = 0;
-		h->dirty_new = 1;	/* the record changed kind: flush now */
-	}
-	/* Tombstone either way: the file exists now, so the on-disk b= (ours
-	 * or the other channel's) must not weak-merge back in. */
-	e->bl_cleared = 1;
-}
-
-/* Iterate the loaded host's flat records (in-memory tree only - the
- * writer's own state; no file IO). cb receives (rrdfn, last-seen ts,
- * values, dsnames-or-NULL, userdata). */
-void fsidx_flat_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata)
-{
-	xtreePos_t handle, fh;
-	fsidx_host_t *h;
-
-	if (!fsidx_hosts || !hostname || !cb) return;
-	handle = xtreeFind(fsidx_hosts, hostname);
-	if (handle == xtreeEnd(fsidx_hosts)) return;
-	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
-	for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
-		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
-		if (e->baseline) cb(e->fn, e->ts, e->baseline, e->dsnames, userdata);
-	}
-}
-
-/* Iterate every loaded entry - real files and flat records alike (the
- * baseline argument is NULL for a real file). cb may be NULL to only
- * probe/count. Returns -1 when the host is not loaded at all ("no
- * knowledge", distinct from "zero entries"), else the entry count. */
-int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, const char *, void *), void *userdata)
+/* Iterate every loaded entry. cb may be NULL to only probe/count.
+ * Returns -1 when the host is not loaded at all ("no knowledge",
+ * distinct from "zero entries"), else the entry count. */
+int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const char *, void *), void *userdata)
 {
 	xtreePos_t handle, fh;
 	fsidx_host_t *h;
@@ -621,7 +516,7 @@ int fsidx_entry_foreach(char *hostname, void (*cb)(const char *, time_t, const c
 	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
 	for (fh = xtreeFirst(h->files); (fh != xtreeEnd(h->files)); fh = xtreeNext(h->files, fh)) {
 		fsidx_entry_t *e = (fsidx_entry_t *)xtreeData(h->files, fh);
-		if (cb) cb(e->fn, e->ts, e->baseline, e->dsnames, userdata);
+		if (cb) cb(e->fn, e->ts, e->dsnames, userdata);
 		n++;
 	}
 	return n;
@@ -643,10 +538,17 @@ void fsidx_flush(char *rrddir, char *hostname)
 	/* One spelling for all FS operations, see fsidx_gethost() */
 	hostname = (char *)xtreeKey(fsidx_hosts, handle);
 
-	if (!h->dirty_new && !h->dirty_ts) return;
-	if (!h->dirty_new && ((now - h->lastflush) < FSIDX_FLUSHIVL)) return;
-
+	if (!h->dirty_new && !h->dirty_add) return;
 	if (fsidx_path(fn, sizeof(fn), rrddir, hostname, "") != 0) return;
+	if (!h->dirty_new) {
+		struct stat st;
+
+		/* Plain new-file entries only maintain an index that already
+		 * exists - they never materialize one. A host acquires an
+		 * index the first time it has index-only state to remember
+		 * (schema declarations: dirty_new). */
+		if (stat(fn, &st) != 0) return;
+	}
 	/* Per-process tmp name: even unserialized writers must never share one */
 	{
 		char pidsuf[32];
@@ -689,21 +591,19 @@ void fsidx_flush(char *rrddir, char *hostname)
 			if (e->dsnames) fprintf(fd, " d=%s", e->dsnames);
 			if (e->thresholds) fprintf(fd, " t=%s", e->thresholds);
 			if (e->gen) fprintf(fd, " g=%ld", (long)e->gen);
-			if (e->baseline) fprintf(fd, " b=%ld,%s", (long)e->since, e->baseline);
 			fprintf(fd, "\n");
 		}
 		/* fclose alone is not enough: a write error at an intermediate
 		 * stdio flush (ENOSPC) only sets the stream error flag, and a
 		 * truncated file must never replace the good one. fsync before
 		 * the rename, or a crash right after it can publish an empty
-		 * file - and this file is the durable baseline store. */
+		 * file - and this file is the durable declaration store. */
 		ok = ((fflush(fd) == 0) && !ferror(fd) && (fsync(fileno(fd)) == 0));
 		ok = (fclose(fd) == 0) && ok;
 		if (ok && (rename(tmpfn, fn) == 0)) {
 			/* Only a published file clears the dirty state - a failed
 			 * flush must retry, or a one-shot change is lost */
-			h->dirty_new = h->dirty_ts = 0;
-			h->lastflush = now;
+			h->dirty_new = h->dirty_add = 0;
 			/* The file's data is synced, but the rename lives in the
 			 * DIRECTORY - a crash before its metadata hits disk can
 			 * still lose the publish. Some filesystems refuse fsync
@@ -738,27 +638,16 @@ void fsidx_flush_all(char *rrddir)
 
 	if (!fsidx_hosts) return;
 	for (handle = xtreeFirst(fsidx_hosts); (handle != xtreeEnd(fsidx_hosts)); handle = xtreeNext(fsidx_hosts, handle)) {
-		fsidx_host_t *h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
-		/* Force: shutdown must not lose timestamp-only changes */
-		if (h->dirty_ts) h->dirty_new = 1;
 		fsidx_flush(rrddir, (char *)xtreeKey(fsidx_hosts, handle));
 	}
 }
 
-/* Must-write flush for one host: promotes timestamp-only dirt past the
- * FLUSHIVL throttle. For the moments when the file must be current NOW -
- * a rename is about to move it, and the in-memory tree that holds the
- * newer timestamps is about to be dropped. */
+/* Flush one host at the moments when the file must be current NOW - a
+ * rename is about to move it, and the in-memory tree that holds the
+ * pending state is about to be dropped. */
 void fsidx_flush_now(char *rrddir, char *hostname)
 {
-	fsidx_host_t *h;
-	xtreePos_t handle;
-
 	if (!fsidx_hosts || !hostname) return;
-	handle = xtreeFind(fsidx_hosts, hostname);
-	if (handle == xtreeEnd(fsidx_hosts)) return;
-	h = (fsidx_host_t *)xtreeData(fsidx_hosts, handle);
-	if (h->dirty_ts) h->dirty_new = 1;
 	fsidx_flush(rrddir, hostname);
 }
 
@@ -813,14 +702,12 @@ void fsidx_drop(char *rrddir, char *hostname)
 		if (e->heartbeats) xfree(e->heartbeats);
 		if (e->dsnames) xfree(e->dsnames);
 		if (e->thresholds) xfree(e->thresholds);
-		if (e->baseline) xfree(e->baseline);
 		xfree(e);
 	}
 	xtreeDestroy(h->files);
 	h->files = xtreeNew(strcmp);
-	h->dirty_new = h->dirty_ts = 0;
+	h->dirty_new = h->dirty_add = 0;
 	h->needseed = 1;
-	h->lastflush = 0;
 }
 
 /* Fetch one named field ("u=", "t=") from a file's index entry. */
@@ -857,6 +744,20 @@ static char *fsidx_field(char *hostname, char *rrdfn, const char *fieldtag)
 char *fsidx_thresholds(char *hostname, char *rrdfn)
 {
 	return fsidx_field(hostname, rrdfn, "t=");
+}
+
+/* Reader-side freshness of one index record. A file's persisted ts is
+ * only as fresh as the writer's last index-worthy flush - the durable
+ * freshness is the RRD file's own mtime. A record whose file is gone
+ * keeps the (stale) ts and ages out naturally. */
+static time_t fsidx_reader_freshness(char *hostname, const char *name, time_t ts)
+{
+	char fpath[PATH_MAX];
+	struct stat st;
+
+	if ((size_t)snprintf(fpath, sizeof(fpath), "%s/%s/%s", xgetenv("XYMONRRDS"), hostname, name) >= sizeof(fpath)) return ts;
+	if ((stat(fpath, &st) == 0) && (st.st_mtime > ts)) return st.st_mtime;
+	return ts;
 }
 
 /* The per-DS units recorded for one file: a malloc'd "ds:unit[,...]"
@@ -913,7 +814,7 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 		tsstr = (name ? strtok_r(NULL, " \t\r\n", &sp) : NULL);
 		if (!name || !tsstr) continue;
 		if (!matchregex(name, (pcre2_code *)pattern)) continue;
-		ts = fsidx_parse_ts(tsstr);
+		ts = fsidx_reader_freshness(hostname, name, fsidx_parse_ts(tsstr));
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;
 	}
@@ -955,7 +856,7 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		if ((nlen <= plen + 5) || (strncmp(name, prefix, plen) != 0) ||
 		    ((name[plen] != '.') && (name[plen] != ','))) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
-		ts = fsidx_parse_ts(tsstr);
+		ts = fsidx_reader_freshness(hostname, name, fsidx_parse_ts(tsstr));
 		if (maxage && ((now - ts) > maxage)) continue;
 		count++;
 	}
