@@ -228,11 +228,11 @@ int do_disk_rrd(char *hostname, char *testname, char *classname, char *pagepaths
 			 * the target here from the raw encoded name would migrate
 			 * onto a file the writer then never updates. */
 			setupfn2("%s.%s.rrd", testname, encname);
-			snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", testname, diskname);
+			int fits = ((size_t)snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", testname, diskname) < sizeof(oldfn));
 			legacyfn_finish(oldfn);
-			snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
-			snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn);
-			if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
+			fits = fits && ((size_t)snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn) < sizeof(oldpath));
+			fits = fits && ((size_t)snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn) < sizeof(newpath));
+			if (fits && (stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
 				if (rename(oldpath, newpath) != 0)
 					errprintf("disk RRD migrate: rename %s -> %s failed: %s\n",
 						  oldpath, newpath, strerror(errno));

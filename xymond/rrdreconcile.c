@@ -224,8 +224,11 @@ static void process_host(char *rrddir, char *hostname)
 	FILE *fd;
 	char line[FSIDX_LINEMAX];
 
-	snprintf(hostdir, sizeof(hostdir), "%s/%s", rrddir, hostname);
-	snprintf(idxfn, sizeof(idxfn), "%s/.fileset-index", hostdir);
+	if (((size_t)snprintf(hostdir, sizeof(hostdir), "%s/%s", rrddir, hostname) >= sizeof(hostdir)) ||
+	    ((size_t)snprintf(idxfn, sizeof(idxfn), "%s/.fileset-index", hostdir) >= sizeof(idxfn))) {
+		errprintf("host directory path for %s exceeds PATH_MAX - skipped\n", hostname);
+		return;
+	}
 	fd = fopen(idxfn, "r");
 	if (!fd) {
 		/* No index (host predates it, or non-host directory): fall back
@@ -263,8 +266,8 @@ static void process_host(char *rrddir, char *hostname)
 		while ((tok = strtok_r(NULL, " \t\r\n", &sp)) != NULL) {
 			if (strncmp(tok, "h=", 2) == 0) hb = tok+2;
 		}
-		/* Flat records have no file - nothing to reconcile */
-		snprintf(fpath, sizeof(fpath), "%s/%s", hostdir, name);
+		/* A record whose file is gone has nothing to reconcile */
+		if ((size_t)snprintf(fpath, sizeof(fpath), "%s/%s", hostdir, name) >= sizeof(fpath)) continue;
 		if ((stat(fpath, &st) != 0) || !S_ISREG(st.st_mode)) continue;
 		process_file(hostname, hostdir, name, hb);
 	}

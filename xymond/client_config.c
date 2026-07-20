@@ -3815,9 +3815,14 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			 (rule->rule.aggds.rrdkey ? rule->rule.aggds.rrdkey->pattern : ""), rule->rule.aggds.rrdds);
 
 		/* First match wins per (column, aggregate, severity) - same
-		 * top-to-bottom shadowing semantics as the DS rules. */
-		snprintf(msgline, sizeof(msgline), "\001%s\002%s\002%s\001",
-			 rule->rule.aggds.column, aggname, colorname(rule->rule.aggds.color));
+		 * top-to-bottom shadowing semantics as the DS rules. A
+		 * truncated marker would alias two different aggregates, so an
+		 * over-long name skips the rule loudly instead. */
+		if ((size_t)snprintf(msgline, sizeof(msgline), "\001%s\002%s\002%s\001",
+			 rule->rule.aggds.column, aggname, colorname(rule->rule.aggds.color)) >= sizeof(msgline)) {
+			errprintf("AGGDS rule name too long for %s - skipped\n", rule->rule.aggds.column);
+			goto nextrule;
+		}
 		if (strstr(STRBUF(seen), msgline)) goto nextrule;
 		addtobuffer(seen, msgline);
 
@@ -3867,10 +3872,13 @@ strbuffer_t *check_aggds_thresholds(char *hostname, char *classname, char *pagep
 			 * and a red rule on the same aggregate both fire, and with
 			 * a shared source the later one would overwrite the earlier
 			 * one's verdict (red silently downgraded to yellow). */
-			snprintf(msgline, sizeof(msgline), "modify %s.%s %s aggds:%s:%s ",
+			if ((size_t)snprintf(msgline, sizeof(msgline), "modify %s.%s %s aggds:%s:%s ",
 				hostname, rule->rule.aggds.column,
 				colorname(rule->rule.aggds.color), aggname,
-				colorname(rule->rule.aggds.color));
+				colorname(rule->rule.aggds.color)) >= sizeof(msgline)) {
+				errprintf("AGGDS modify source too long for %s - skipped\n", rule->rule.aggds.column);
+				goto nextrule;
+			}
 			addtobuffer(resbuf, msgline);
 
 			bot = rule->statustext;

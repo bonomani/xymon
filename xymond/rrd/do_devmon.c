@@ -372,18 +372,20 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 				struct stat st;
 				int shape;
 
-				snprintf(legacy, sizeof(legacy), "%s", ifname);
+				int fits = ((size_t)snprintf(legacy, sizeof(legacy), "%s", ifname) < sizeof(legacy));
 				for (lp = legacy; ((lp = strchr(lp, '/')) != NULL); ) *lp = ',';
-				snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn);
-				for (shape = 0; (shape < 2); shape++) {
+				fits = fits && ((size_t)snprintf(newpath, sizeof(newpath), "%s/%s/%s", rrddir, hostname, rrdfn) < sizeof(newpath));
+				for (shape = 0; (fits && (shape < 2)); shape++) {
+					int ofits;
 					if (shape == 0)
-						snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", rrdbasename,
-							 ((strcmp(legacy, ",") == 0) ? ",root" : legacy));
+						ofits = ((size_t)snprintf(oldfn, sizeof(oldfn), "%s%s.rrd", rrdbasename,
+							 ((strcmp(legacy, ",") == 0) ? ",root" : legacy)) < sizeof(oldfn));
 					else
-						snprintf(oldfn, sizeof(oldfn), "%s.%s.rrd", rrdbasename, legacy);
+						ofits = ((size_t)snprintf(oldfn, sizeof(oldfn), "%s.%s.rrd", rrdbasename, legacy) < sizeof(oldfn));
 					legacyfn_finish(oldfn);
+					if (!ofits) continue;
 					if (strcmp(oldfn, rrdfn) == 0) continue;	/* same name - nothing to migrate */
-					snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn);
+					if ((size_t)snprintf(oldpath, sizeof(oldpath), "%s/%s/%s", rrddir, hostname, oldfn) >= sizeof(oldpath)) continue;
 					if ((stat(newpath, &st) != 0) && (stat(oldpath, &st) == 0)) {
 						if (rename(oldpath, newpath) != 0)
 							errprintf("block RRD migrate: rename %s -> %s failed: %s\n",

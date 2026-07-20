@@ -336,7 +336,7 @@ static void fsidx_scan_dir(fsidx_host_t *h, const char *rrddir, const char *host
 		struct stat st;
 
 		if ((len < 5) || (strcmp(d->d_name + len - 4, ".rrd") != 0)) continue;
-		snprintf(fpath, sizeof(fpath), "%s/%s", dirname, d->d_name);
+		if ((size_t)snprintf(fpath, sizeof(fpath), "%s/%s", dirname, d->d_name) >= sizeof(fpath)) continue;
 		if ((stat(fpath, &st) != 0) || !S_ISREG(st.st_mode)) continue;
 		fsidx_set(h, d->d_name, st.st_mtime, NULL, 0);
 	}

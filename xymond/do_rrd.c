@@ -376,9 +376,14 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			return -1;
 		}
 	}
-	/* Watch out here - "rrdfn" may be very large. */
-	snprintf(filedir, sizeof(filedir)-1, "%s/%s/%s", rrddir, hostname, rrdfn);
-	filedir[sizeof(filedir)-1] = '\0'; /* Make sure it is null terminated */
+	/* Watch out here - "rrdfn" may be very large. A truncated path
+	 * could hit the wrong file; refuse instead. */
+	if ((size_t)snprintf(filedir, sizeof(filedir), "%s/%s/%s", rrddir, hostname, rrdfn) >= sizeof(filedir)) {
+		errprintf("RRD path for %s/%s exceeds PATH_MAX - update dropped\n", hostname, rrdfn);
+		MEMUNDEFINE(filedir);
+		MEMUNDEFINE(rrdvalues);
+		return -1;
+	}
 
 	/* The graph definition's storage filters: EXSTOREPATTERN drops the
 	 * instance entirely, STOREPATTERN keeps only matching instances. */
@@ -903,8 +908,7 @@ static int rrddatasets(char *hostname, char ***dsnames)
 	unsigned long steptime, dscount;
 	rrd_value_t *rrddata;
 
-	snprintf(filedir, sizeof(filedir)-1, "%s/%s/%s", rrddir, hostname, rrdfn);
-	filedir[sizeof(filedir)-1] = '\0';
+	if ((size_t)snprintf(filedir, sizeof(filedir), "%s/%s/%s", rrddir, hostname, rrdfn) >= sizeof(filedir)) return 0;
 	if (stat(filedir, &st) == -1) return 0;
 
 	optind = opterr = 0; rrd_clear_error();
