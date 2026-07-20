@@ -1,0 +1,120 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="../mandoc.css" type="text/css" media="all"/>
+  <title>RRDRECONCILE(8)</title>
+</head>
+<body>
+<h1 class="head-name">RRDRECONCILE</h1>
+Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#INDEX">Index</a>
+<a href="../index.html">Return to Main Contents</a><hr/>
+
+<div class="manual-text">
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<p class="Pp">rrdreconcile - bring existing RRD files in line with the declared
+    schema</p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<p class="Pp"><b>rrdreconcile [options]</b></p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<p class="Pp">An RRD file keeps the schema it was created with. Two declarations
+    that shape a file can change afterwards, and then only new files follow
+    them:</p>
+<p class="Pp"></p>
+<ul class="Bl-bullet">
+  <li>the consolidation functions (AVERAGE, MIN, MAX, LAST) that the matching
+      <i><a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5)</i> definitions read in their DEF lines, which
+      <i><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)</i> uses to choose a new file's archives;</li>
+  <li>the dataset heartbeats a status message declares in its XYMON METRICS
+      block, which <i><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)</i> records in each host's fileset
+    index.</li>
+</ul>
+<p class="Pp">rrdreconcile walks the RRD directory and compares the files of
+    each host against these declarations: the files its fileset index lists, or,
+    for a host without an index, every .rrd file in its directory (archives only
+    then, since the heartbeats come from the index). It repairs the divergence
+    with &quot;rrdtool tune&quot;: a changed heartbeat is set on the dataset,
+    and a missing consolidation function gets one archive for each existing
+    AVERAGE archive, with the same geometry.</p>
+<p class="Pp">By default it only prints the plan. With --apply it runs it. It
+    never changes a file on its own initiative, and xymond_rrd never runs it:
+    run it by hand, or from cron, after changing graphs.cfg DEF lines or the
+    heartbeats a producer declares.</p>
+<p class="Pp">The repairs work forward only. An added archive starts empty and
+    fills from now on; the history already consolidated into other archives is
+    not copied into it. A changed heartbeat applies to future updates; gaps
+    already recorded as unknown stay unknown.</p>
+<p class="Pp">For a file with more than 64 archives, adding archives is skipped
+    and reported; its heartbeats are still reconciled. An index entry whose name
+    would leave the host's directory is skipped.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="OPTIONS"><a class="permalink" href="#OPTIONS">OPTIONS</a></h1>
+<dl class="Bl-tag">
+  <dt id="apply"><a class="permalink" href="#apply">--apply</a></dt>
+  <dd>Run the repairs instead of only printing them.</dd>
+  <dt id="dry-run"><a class="permalink" href="#dry-run">--dry-run</a></dt>
+  <dd>Only print the repairs. This is the default.</dd>
+  <dt id="rrddir"><a class="permalink" href="#rrddir">--rrddir=DIRECTORY</a></dt>
+  <dd>The RRD directory to walk. Defaults to $XYMONRRDS.</dd>
+  <dt id="host"><a class="permalink" href="#host">--host=HOSTNAME</a></dt>
+  <dd>Only reconcile this host's files.</dd>
+  <dt id="config"><a class="permalink" href="#config">--config=FILENAME</a></dt>
+  <dd>The graphs.cfg file to read the definitions from. Defaults to
+      $XYMONHOME/etc/graphs.cfg.</dd>
+  <dt id="rrdtool"><a class="permalink" href="#rrdtool">--rrdtool=PATH</a></dt>
+  <dd>The rrdtool command to run. Defaults to &quot;rrdtool&quot;, found in the
+      PATH. Adding archives needs rrdtool 1.5 or later.</dd>
+  <dt id="env"><a class="permalink" href="#env">--env=FILENAME</a></dt>
+  <dd>Load the environment from FILENAME, for example xymonserver.cfg, to find
+      $XYMONRRDS and $XYMONHOME.</dd>
+  <dt id="area"><a class="permalink" href="#area">--area=NAME</a></dt>
+  <dd>The environment area to use with --env.</dd>
+  <dt id="debug"><a class="permalink" href="#debug">--debug</a></dt>
+  <dd>Print debugging output.
+    <p class="Pp"></p>
+  </dd>
+</dl>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="EXIT_STATUS"><a class="permalink" href="#EXIT_STATUS">EXIT
+  STATUS</a></h1>
+<p class="Pp">0 when every file conforms or every repair succeeded, 1 when a
+    repair failed or the RRD directory cannot be read.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<p class="Pp"><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8), <a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5), <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5), rrdtool(1)</p>
+</section>
+<p>&#160;</p>
+<h1 class="Sh" id="INDEX"><a class="permalink" href="#INDEX">Index</a></h1>
+<dl class="Bl-tag">
+<dt><a href="#NAME">NAME</a></dt>
+<dt><a href="#SYNOPSIS">SYNOPSIS</a></dt>
+<dt><a href="#DESCRIPTION">DESCRIPTION</a></dt>
+<dt><a href="#OPTIONS">OPTIONS</a></dt>
+<dt><a href="#EXIT_STATUS">EXIT STATUS</a></dt>
+<dt><a href="#SEE_ALSO">SEE ALSO</a></dt>
+</dl>
+</div>
+<hr/>
+This document was created by mandoc, using the manual pages.
+
+</body>
+</html>
