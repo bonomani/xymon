@@ -49,7 +49,9 @@ static const char *testcfg_rrdname(tc_test_t *t)
 	if (t->handler) return t->handler;
 	if (!t->metrics || t->metrics->next) return NULL;
 	if (t->metrics->ncv) return "ncv";
-	return t->metrics->name;
+	/* Belt: an empty name must never become an rrd binding (the loader
+	 * rejects nameless METRICs, but this is the last line of defense) */
+	return (*t->metrics->name ? t->metrics->name : NULL);
 }
 
 /*

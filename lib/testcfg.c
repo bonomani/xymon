@@ -34,11 +34,10 @@ static tc_backend_t *ensure_backend(tc_metric_t *m, const char *name)
 	return b;
 }
 
-/* Apply one RRD-storage verb node (LAZY / EXCLUDE / STOREPATTERN) to backend. */
+/* Apply one RRD-storage verb node (EXCLUDE / STOREPATTERN) to backend. */
 static void apply_rrd_verb(tc_backend_t *b, bracenode_t *v)
 {
-	if (strcasecmp(v->words[0], "LAZY") == 0) b->lazy = 1;
-	else if ((strcasecmp(v->words[0], "EXCLUDE") == 0) && (v->nwords >= 2)) {
+	if ((strcasecmp(v->words[0], "EXCLUDE") == 0) && (v->nwords >= 2)) {
 		if (b->excludepat) xfree(b->excludepat);
 		b->excludepat = xstrdup(v->words[1]);
 	}
@@ -50,7 +49,7 @@ static void apply_rrd_verb(tc_backend_t *b, bracenode_t *v)
 
 static int is_rrd_verb(const char *w)
 {
-	return (strcasecmp(w, "LAZY") == 0) || (strcasecmp(w, "EXCLUDE") == 0) ||
+	return (strcasecmp(w, "EXCLUDE") == 0) ||
 	       (strcasecmp(w, "STOREPATTERN") == 0);
 }
 
@@ -81,10 +80,19 @@ static void load_backend_block(tc_backend_t *b, bracenode_t *blk)
 
 static tc_metric_t *load_metric(bracenode_t *mnode)
 {
-	tc_metric_t *m = (tc_metric_t *)xcalloc(1, sizeof(tc_metric_t));
+	tc_metric_t *m;
 	int i;
 
-	m->name = xstrdup((mnode->nwords >= 2) ? mnode->words[1] : "");
+	/* A nameless METRIC would bind its column to an empty rrd name -
+	 * a nonexistent handler, killing collection with no trace. Config
+	 * errors fail loudly, never silently rebind. */
+	if (mnode->nwords < 2) {
+		errprintf("test.cfg: METRIC with no name at line %d - ignored\n", mnode->line);
+		return NULL;
+	}
+
+	m = (tc_metric_t *)xcalloc(1, sizeof(tc_metric_t));
+	m->name = xstrdup(mnode->words[1]);
 
 	for (i = 0; i < mnode->nchildren; i++) {
 		bracenode_t *c = mnode->children[i];
@@ -182,8 +190,10 @@ static tc_test_t *load_test(bracenode_t *tnode)
 			/* Append: the metric list keeps file order, so "the first
 			 * metric that carries X" means the first one WRITTEN */
 			tc_metric_t *m = load_metric(c);
-			if (mtail) mtail->next = m; else t->metrics = m;
-			mtail = m;
+			if (m) {
+				if (mtail) mtail->next = m; else t->metrics = m;
+				mtail = m;
+			}
 		}
 	}
 	return t;

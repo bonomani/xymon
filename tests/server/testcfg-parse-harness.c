@@ -27,10 +27,10 @@ static const char *CFG =
 	"        SOURCE   script\n"
 	"        CMD      \"/path with spaces/diskio.py\"   # quoted, has spaces\n"
 	"        INTERVAL 5m\n"
-	"        METRIC diskio_ops     { LAZY; EXCLUDE loop }\n"
-	"        METRIC diskio_busy    { LAZY; STOREPATTERN ,root }\n"
+	"        METRIC diskio_ops     { EXCLUDE loop }\n"
+	"        METRIC diskio_busy    { STOREPATTERN ,root }\n"
 	"        METRIC diskio_total {\n"
-	"                RRD      { LAZY }\n"
+	"                RRD      { EXCLUDE tmp }\n"
 	"                GRAPHITE { PREFIX servers.disk }\n"
 	"        }\n"
 	"}\n"
@@ -38,9 +38,14 @@ static const char *CFG =
 	"        SOURCE  script\n"
 	"        HANDLER markers\n"
 	"        GRAPHS  storage_io\n"
-	"        METRIC  storage_io { LAZY }\n"
+	"        METRIC  storage_io { EXCLUDE none }\n"
 	"}\n"
-	"TEST trends { SOURCE server }\n";
+	"TEST trends { SOURCE server }\n"
+	"TEST oops {\n"
+	"        SOURCE client\n"
+	"        METRIC\n"
+	"        METRIC good\n"
+	"}\n";
 
 int main(void)
 {
@@ -77,23 +82,27 @@ int main(void)
 
 	m = testcfg_metric(t, "diskio_ops");
 	b = testcfg_backend(m, NULL);   /* default rrd */
-	ck("ops lazy", b && b->lazy);
+	ck("ops backend present", b != NULL);
 	ck("ops exclude loop", b && b->excludepat && strcmp(b->excludepat, "loop") == 0);
 
 	m = testcfg_metric(t, "diskio_busy");
 	b = testcfg_backend(m, NULL);
-	ck("busy lazy", b && b->lazy);
 	ck("busy storepattern ,root", b && b->storepat && strcmp(b->storepat, ",root") == 0);
 	ck("busy has no exclude", b && b->excludepat == NULL);
 
 	/* diskio_total: two explicit backend blocks */
 	m = testcfg_metric(t, "diskio_total");
 	ck("total has rrd backend", testcfg_backend(m, "rrd") != NULL);
-	ck("total rrd lazy", testcfg_backend(m, "rrd") && testcfg_backend(m, "rrd")->lazy);
 	b = testcfg_backend(m, "graphite");
 	ck("total has graphite backend", b != NULL);
 	ck("total graphite raw kv kept", b && b->nkv >= 2 &&
 	   strcasecmp(b->kv[0], "PREFIX") == 0 && strcmp(b->kv[1], "servers.disk") == 0);
+
+	/* oops: a nameless METRIC is rejected loudly, the rest of the test loads */
+	t = testcfg_find(tests, "oops");
+	ck("oops found", t != NULL);
+	ck("oops keeps its named metric", testcfg_metric(t, "good") != NULL);
+	ck("oops has exactly one metric", t && t->metrics && (t->metrics->next == NULL));
 
 	/* storage: overrides captured */
 	t = testcfg_find(tests, "storage");
