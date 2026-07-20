@@ -476,7 +476,10 @@ static void rrd_setup(void)
 	/* Reserve extra table slots for test.cfg column bindings not already
 	 * present in TEST2RRD - they are overlaid after the env fill below. */
 	tclist = testcfg_load();
-	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
+	/* Count entries without ever reading past lenv: on an EMPTY list
+	 * (test.cfg-era configs may clear TEST2RRD/GRAPHS) the old
+	 * strchr(lenv+1, ...) idiom read beyond a one-byte allocation. */
+	count = (*lenv != '\0'); for (p = strchr(lenv, ','); (p); p = strchr(p+1, ',')) count++;
 	for (tc = tclist; (tc); tc = tc->next) count += (testcfg_rrdname(tc) != NULL);
 	xymonrrds = (xymonrrd_t *)calloc((count+1), sizeof(xymonrrd_t));
 
@@ -540,7 +543,10 @@ static void rrd_setup(void)
 	load_gdef_meta();
 	lenv = strdup(xgetenv("GRAPHS"));
 	if (*lenv) { p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0'; }	/* Drop a trailing comma */
-	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
+	/* Count entries without ever reading past lenv: on an EMPTY list
+	 * (test.cfg-era configs may clear TEST2RRD/GRAPHS) the old
+	 * strchr(lenv+1, ...) idiom read beyond a one-byte allocation. */
+	count = (*lenv != '\0'); for (p = strchr(lenv, ','); (p); p = strchr(p+1, ',')) count++;
 	{
 		gdefmeta_t *meta;
 		for (meta = gdefmetahead; (meta); meta = meta->next) count += (meta->trends != 0);
