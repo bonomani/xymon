@@ -1737,6 +1737,10 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 				while (fgets(idxline, sizeof(idxline), idxfd)) {
 					char *nm, *tok, *sp = NULL;
 
+					/* A corrupt overlong line splits into chunks whose
+					 * tail could carry a bogus g= token - same defense
+					 * as every lib-side index reader. */
+					if (fsidx_line_truncated(idxline, idxfd)) continue;
 					if (idxline[0] == '#') continue;
 					nm = strtok_r(idxline, " \t\r\n", &sp);
 					if (!nm) continue;

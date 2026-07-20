@@ -21,6 +21,7 @@
 #ifndef __FILESETINDEX_H__
 #define __FILESETINDEX_H__
 
+#include <stdio.h>
 #include <time.h>
 #include <limits.h>
 
@@ -66,6 +67,11 @@ extern int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage);
  * `pattern` is a pcre2_code* passed as void* to keep this header free of
  * the PCRE include-order dance. */
 extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage);
+
+/* Overlong-line guard for ANY index reader: an oversized physical line
+ * splits at fgets and its tail can parse as a plausible record. Returns
+ * 1 (and discards the rest of the line) when the chunk was incomplete. */
+extern int fsidx_line_truncated(char *line, FILE *fd);
 
 /* The per-DS units recorded for one file: malloc'd "ds:unit[,...]" spec,
  * or NULL (no index, or no units declared). Caller frees. */

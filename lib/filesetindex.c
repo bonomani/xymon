@@ -102,8 +102,9 @@ static time_t fsidx_parse_ts(const char *s)
  * a tail chunk can parse as a plausible "name ts" record - which the
  * loader would then republish durably on the next flush, laundering
  * corruption into permanence. Returns 1 (and discards the tail) when the
- * just-read chunk was not a complete line. */
-static int fsidx_line_truncated(char *line, FILE *fd)
+ * just-read chunk was not a complete line. Public: every index reader
+ * (in-tree or CGI-side) must apply the same defense. */
+int fsidx_line_truncated(char *line, FILE *fd)
 {
 	int ch;
 
