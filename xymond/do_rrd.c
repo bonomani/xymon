@@ -802,6 +802,21 @@ void rrdcache_drop_host(char *hostname, int flushfirst)
 	if (nkeys) dbgprintf("updcache: %s %d entries for host %s\n",
 			     (flushfirst ? "flushed and dropped" : "discarded"), nkeys, hostname);
 	if (keys) xfree(keys);
+
+	if (nkeys) {
+		/* Same tombstone economics as rrdcache_evict_idle: on the
+		 * array-backed xtree a deleted slot (and its private key copy)
+		 * is reclaimed only if the same key is re-added, and a dropped
+		 * host that never returns would leak its slots forever. */
+		void *rebuilt = xtreeNew(strcasecmp);
+
+		for (handle = xtreeFirst(updcache); (handle != xtreeEnd(updcache)); handle = xtreeNext(updcache, handle)) {
+			updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+			xtreeAdd(rebuilt, cacheitem->key, cacheitem);
+		}
+		xtreeDestroy(updcache);
+		updcache = rebuilt;
+	}
 }
 
 void rrdcacheflushall(void)
