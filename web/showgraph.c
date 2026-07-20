@@ -2058,7 +2058,21 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	}
 
 	for (useroptidx=0; (useroptidx < useroptcount); useroptidx++) {
-		rrdargs[argi++] = useropts[useroptidx];
+		char *o = useropts[useroptidx];
+
+		/* When the CGI supplies the Y range (selzoom), a static
+		 * -u/-l from GRAPHOPTIONS/RRDGRAPHOPTS would come later in
+		 * argv and win rrd_graph's last-option parsing - the zoom box
+		 * would never change the range. Same filter as the def-line
+		 * scan applies at config load; here the option and its value
+		 * are separate (or glued/=-joined) tokens. */
+		if (haveupperlimit && ((strcmp(o, "-u") == 0) || (strcmp(o, "--upper-limit") == 0))) { useroptidx++; continue; }
+		if (havelowerlimit && ((strcmp(o, "-l") == 0) || (strcmp(o, "--lower-limit") == 0))) { useroptidx++; continue; }
+		if (haveupperlimit && ((strncmp(o, "-u", 2) == 0) && o[2] && (strchr("0123456789.-+", o[2]) != NULL))) continue;
+		if (havelowerlimit && ((strncmp(o, "-l", 2) == 0) && o[2] && (strchr("0123456789.-+", o[2]) != NULL))) continue;
+		if (haveupperlimit && (strncmp(o, "--upper-limit=", 14) == 0)) continue;
+		if (havelowerlimit && (strncmp(o, "--lower-limit=", 14) == 0)) continue;
+		rrdargs[argi++] = o;
 	}
 
 	/* Two paths, intentionally separate:

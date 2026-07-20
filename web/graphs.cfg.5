@@ -79,6 +79,14 @@ legitimately periodic instances - a weekly backup job or a
 monthly-mounted volume whose graph must stay visible between
 appearances (e.g. "STALEAFTER 700000" for a weekly cadence).
 .sp
+A "GRAPHOPTIONS <options>" keyword passes extra rrdtool graph options
+for this graph. When set it REPLACES the global RRDGRAPHOPTS
+environment (see xymonserver.cfg(5)) for this graph - the two are not
+combined. Static Y-range options placed here (-u/-l,
+--upper-limit/--lower-limit) are dropped whenever the viewer supplies
+a range - the zoom feature - so a zoom box always wins; prefer
+declaring fixed ranges only where zooming that graph is pointless.
+.sp
 A "THRESHOLDS OFF" keyword suppresses the automatic co-plot of
 threshold relations a self-describing METRICS block declared (see
 xymond_rrd(8)): the threshold curves and HRULEs disappear from the
