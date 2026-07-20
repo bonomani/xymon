@@ -76,6 +76,11 @@ typedef struct updcacheitem_t {
 	time_t updtime[CACHESZ];
 	int dschecked;		/* the file was given every dataset tpl names */
 	time_t lasttouch;	/* for idle eviction under instance churn */
+	char *thin_lastvals;	/* write-thinning: last values accepted for writing */
+	time_t thin_lastts;	/* ... and their data timestamp (keepalive base) */
+	char *thin_pendvals;	/* write-thinning: the newest value queued in vals[], */
+	time_t thin_pendts;	/* not yet accepted - it becomes thin_lastvals on commit */
+	int thin_filehb;	/* smallest heartbeat in the file: 0 = not read yet, -1 = unreadable */
 } updcacheitem_t;
 
 /* Free a cache entry's owned template: the per-entry rrdtpldata_t that
@@ -394,6 +399,17 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 	if (result == 0) utimes(filedir, NULL);
 #endif
 
+	/* The queued thinning baseline is the file's only once the batch is in */
+	if (cacheitem->thin_pendvals) {
+		if (result == 0) {
+			if (cacheitem->thin_lastvals) xfree(cacheitem->thin_lastvals);
+			cacheitem->thin_lastvals = cacheitem->thin_pendvals;
+			cacheitem->thin_lastts = cacheitem->thin_pendts;
+			cacheitem->thin_pendvals = NULL;
+		}
+		else xfree(cacheitem->thin_pendvals);
+	}
+
 	/* Clear the cached data */
 	for (i=0; (i < cacheitem->valcount); i++) {
 		cacheitem->updseq[i] = 0;
@@ -433,6 +449,81 @@ static int build_rrd_filedir(char *buf, size_t bufsz, char *hostname, char *rrdf
 	return 0;
 }
 
+/* Do the colon-separated value lists differ? Numeric components compare
+ * numerically ("5" == "5.0"); a component count change differs; and a
+ * 'U' ANYWHERE differs by fiat - thinning unknowns would invent
+ * continuity over genuinely unknown periods. */
+static int thin_values_differ(char *v, char *b)
+{
+	while (v || b) {
+		size_t vlen, blen;
+		char *vend, *bend;
+		double vd, bd;
+		int vnum, bnum;
+
+		if (!v || !b) return 1;	/* different number of components */
+		vlen = strcspn(v, ":"); blen = strcspn(b, ":");
+		if (((vlen == 1) && (*v == 'U')) || ((blen == 1) && (*b == 'U'))) return 1;
+		vd = strtod(v, &vend); vnum = ((vlen > 0) && (vend == v + vlen));
+		bd = strtod(b, &bend); bnum = ((blen > 0) && (bend == b + blen));
+		if (vnum && bnum) {
+			if (vd != bd) return 1;
+		}
+		else if ((vlen != blen) || (strncmp(v, b, vlen) != 0)) return 1;
+
+		v = strchr(v, ':'); if (v) v++;
+		b = strchr(b, ':'); if (b) b++;
+	}
+
+	return 0;
+}
+
+/* The write-thinning keepalive interval for the current block's file:
+ * half the smallest DECLARED heartbeat - the client's declaration is
+ * the consent to sparse updates; a block declaring nothing (or the
+ * stock 2*step) thins nothing. ABSOLUTE DSes exclude the file: their
+ * value resets on read, so equal readings are new information and a
+ * thinned gap would inflate the rate by its length. */
+static int rrd_file_min_heartbeat(char *fn)
+{
+	rrd_info_t *info, *p;
+	int hb = -1;
+	size_t klen;
+
+	rrd_clear_error();
+	info = rrd_info_r(fn);
+	if (!info) { rrd_clear_error(); return -1; }
+	for (p = info; (p); p = p->next) {
+		klen = strlen(p->key);
+		if ((strncmp(p->key, "ds[", 3) == 0) && (klen > 19) &&
+		    (strcmp(p->key + klen - 19, "].minimal_heartbeat") == 0) &&
+		    ((hb < 0) || ((int)p->value.u_cnt < hb))) hb = (int)p->value.u_cnt;
+	}
+	rrd_info_free(info);
+	return hb;
+}
+
+/* The declared heartbeat, unless the file's own is smaller: a file
+ * created before the declaration grew records UNKNOWN across any gap
+ * longer than its own, until rrdreconcile raises it. Read once per
+ * cache entry: a heartbeat rrdreconcile raises later is seen only once
+ * the entry is rebuilt, which thins less meanwhile, never more - one it
+ * lowers is lowered to the declared value, which the min() holds. */
+static int thin_interval(updcacheitem_t *cacheitem, char *creparams[])
+{
+	int hb = fsidx_pending_min_heartbeat();
+	int i;
+
+	if (hb <= 0) return 0;
+	for (i = 0; (creparams[i]); i++) {
+		if (strstr(creparams[i], ":ABSOLUTE:")) return 0;
+	}
+	if (cacheitem->thin_filehb == 0) cacheitem->thin_filehb = rrd_file_min_heartbeat(filedir);
+	if (cacheitem->thin_filehb < 0) return 0;
+	if (cacheitem->thin_filehb < hb) hb = cacheitem->thin_filehb;
+	return hb / 2;
+}
+
 static int create_and_update_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *creparams[], void *template)
 {
 	static int callcounter = 0;
@@ -444,6 +535,7 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	int pollinterval;
 	strbuffer_t *modifymsg;
 	time_t updtime = 0;
+	int thin_pending = 0;
 
 	/* Reset the RRD poll interval */
 	pollinterval = rrdinterval;
@@ -533,6 +625,9 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			if (!template) template = setup_template(creparams);
 			cacheitem->tpl = template;
 			cacheitem->dschecked = 0;
+			/* The thinning baseline is in the old datasets' layout */
+			if (cacheitem->thin_lastvals) xfree(cacheitem->thin_lastvals);
+			if (cacheitem->thin_pendvals) xfree(cacheitem->thin_pendvals);
 		}
 		if (!template) template = cacheitem->tpl;
 	}
@@ -645,11 +740,13 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			MEMUNDEFINE(rrdvalues);
 			return 1;
 		}
+		cacheitem->thin_filehb = 0;	/* a new file: its heartbeat is read afresh */
 	}
 	else if (!cacheitem->dschecked) {
 		/* Once per file and template: a file created before its
 		 * declaration grew lacks the new datasets. */
 		rrd_add_missing_ds(filedir, creparams);
+		cacheitem->thin_filehb = 0;	/* an added dataset may lower it */
 	}
 	cacheitem->dschecked = 1;
 
@@ -735,6 +832,61 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	 * cannot keep an instance looking fresh forever. */
 	fsidx_note_schema(rrddir, hostname, rrdfn, (time_t)updtime);
 
+	/* Write-thinning: a sample carrying no NEW information need not be
+	 * written - RRD interpolates a constant across the declared
+	 * heartbeat. Skip when the values equal the last written ones and
+	 * the keepalive (half the heartbeat, thin_interval) is not yet due; on a
+	 * change after a gap, pre-write the old values one step earlier
+	 * first, or rrdtool would back-fill the whole gap with the NEW
+	 * value (and smear a counter delta across it). Everything above -
+	 * DS modifiers, the AGGDS store, the external processor, the index
+	 * bookkeeping - already saw the sample; only the file write thins. */
+	{
+		int thin_r = thin_interval(cacheitem, creparams);
+		char *vals = strchr(rrdvalues, ':');
+		/* Compare with the newest values on their way to the file: a
+		 * queued sample when there is one, else the last committed.
+		 * Against the committed ones, a return to them past a queued
+		 * change would be thinned away, and a pre-write could land on
+		 * the queued sample's own timestamp - rrdtool then drops the
+		 * rest of the batch. */
+		char *basevals = (cacheitem->thin_pendvals ? cacheitem->thin_pendvals : cacheitem->thin_lastvals);
+		time_t basets = (cacheitem->thin_pendvals ? cacheitem->thin_pendts : cacheitem->thin_lastts);
+
+		if (vals) vals++;
+		if ((thin_r > pollinterval) && vals) {
+			if (basevals &&
+			    !thin_values_differ(vals, basevals) &&
+			    (((time_t)updtime - basets) < thin_r)) {
+				dbgprintf("Thinning: %s unchanged, keepalive in %ds\n",
+					  rrdfn, (int)(thin_r - ((time_t)updtime - basets)));
+				MEMUNDEFINE(filedir);
+				MEMUNDEFINE(rrdvalues);
+				return 0;
+			}
+			if (basevals &&
+			    thin_values_differ(vals, basevals) &&
+			    (((time_t)updtime - basets) > pollinterval) &&
+			    (cacheitem->valcount < CACHESZ)) {
+				char prebuf[MAX_LINE_LEN];
+
+				if ((size_t)snprintf(prebuf, sizeof(prebuf), "%d:%s",
+						     (int)((time_t)updtime - pollinterval), basevals) < sizeof(prebuf)) {
+					cacheitem->updseq[cacheitem->valcount] = seq;
+					cacheitem->updtime[cacheitem->valcount] = (time_t)updtime - pollinterval;
+					cacheitem->vals[cacheitem->valcount] = strdup(prebuf);
+					cacheitem->valcount += 1;
+				}
+			}
+			/* The comparison baseline advances only when the sample is
+			 * ACCEPTED (cached below, or flushed cleanly) - a rejected
+			 * write must not become the value we thin against, or a
+			 * skip would suppress samples equal to a value that was
+			 * never stored. thin_pending marks the intent. */
+			thin_pending = 1;
+		}
+	}
+
 	/* 
 	 * We cannot just cache data every time because then after CACHESZ updates
 	 * of each RRD, we will flush all of the data at once (all of the caches 
@@ -751,6 +903,16 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			cacheitem->updtime[cacheitem->valcount] = updtime;
 			cacheitem->vals[cacheitem->valcount] = strdup(rrdvalues);
 			cacheitem->valcount += 1;
+			if (thin_pending) {
+				/* Queued, not stored: it becomes the baseline only
+				 * when rrdtool accepts the batch (flush_cached_updates),
+				 * so a rejected batch never leaves equal samples thinned
+				 * against a value the file does not hold. */
+				char *vals = strchr(rrdvalues, ':');
+				if (cacheitem->thin_pendvals) xfree(cacheitem->thin_pendvals);
+				cacheitem->thin_pendvals = strdup(vals+1);
+				cacheitem->thin_pendts = (time_t)updtime;
+			}
 			MEMUNDEFINE(filedir);
 			MEMUNDEFINE(rrdvalues);
 			return 0;
@@ -760,6 +922,12 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 
 	/* At this point, we will commit the update to disk */
 	result = flush_cached_updates(cacheitem, rrdvalues);
+	if ((result == 0) && thin_pending) {
+		char *vals = strchr(rrdvalues, ':');
+		if (cacheitem->thin_lastvals) xfree(cacheitem->thin_lastvals);
+		cacheitem->thin_lastvals = strdup(vals+1);
+		cacheitem->thin_lastts = (time_t)updtime;
+	}
 	if (result != 0) {
 		char *msg = rrd_get_error();
 
@@ -844,6 +1012,8 @@ void rrdcache_evict_idle(time_t maxage)
 			xtreeDelete(updcache, cacheitem->key);
 			for (v = 0; (v < cacheitem->valcount); v++)
 				if (cacheitem->vals[v]) xfree(cacheitem->vals[v]);
+			if (cacheitem->thin_lastvals) xfree(cacheitem->thin_lastvals);
+			if (cacheitem->thin_pendvals) xfree(cacheitem->thin_pendvals);
 			free_owned_tpl(cacheitem);
 			xfree(cacheitem->key);
 			xfree(cacheitem);
@@ -913,6 +1083,15 @@ static void updcache_host_op(char *hostname, int flushfirst, char *flushas)
 		updcacheitem_t *cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
 
 		if (strncasecmp(cacheitem->key, prefix, plen) != 0) continue;
+		/* A dropped host's files are going: forget its thinning
+		 * baseline too - whether or not values are pending - or a
+		 * re-added host's first samples are thinned against the old
+		 * ones and its new files stay empty. A rename keeps it: the
+		 * files, and what they hold, move. */
+		if (!flushfirst) {
+			if (cacheitem->thin_lastvals) xfree(cacheitem->thin_lastvals);
+			if (cacheitem->thin_pendvals) xfree(cacheitem->thin_pendvals);
+		}
 		if (cacheitem->valcount == 0) continue;
 		nhit++;
 
