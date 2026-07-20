@@ -7,7 +7,7 @@
  * #include'd by web/showgraph.c and by tests/web/dsidx-harness.c, so the
  * test drives this code rather than a copy of it.
  *
- * The including TU must provide gdef_t with the fields defs, dsfams,
+ * The including TU must provide gdef_t with the fields defs, rawdefs, dsfams,
  * dscount and dsidx_runtime, and the xfree() macro.
  */
 
@@ -205,11 +205,13 @@ static void expand_dsidx_in_block(gdef_t *gd)
 
 	gd->dsfams = dsidx_families(gd->defs);
 	if (gd->dscount > 0) {
+		/* Keep the templates in rawdefs instead of freeing them: an
+		 * INCLUDE variant with a DSCOUNT of its own copies these and
+		 * re-expands them; the expanded lines carry no @DSIDX@ left. */
 		char **expanded = expand_dsidx_array(gd->defs, gd->dscount);
-		int i;
-		for (i = 0; gd->defs[i]; i++) xfree(gd->defs[i]);
-		xfree(gd->defs);
+		gd->rawdefs = gd->defs;
 		gd->defs = expanded;
+		gd->dsidx_runtime = 0;	/* fixed shape: not a draw-time base's, even inherited */
 		return;
 	}
 

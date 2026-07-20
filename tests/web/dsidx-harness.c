@@ -15,7 +15,7 @@
 #include <stdarg.h>
 
 /* The fields of showgraph.c's gdef_t that dsidx.inc.c reads. */
-typedef struct { int dscount; int dsidx_runtime; char **defs; char *dsfams; } gdef_t;
+typedef struct { int dscount; int dsidx_runtime; char **defs; char **rawdefs; char *dsfams; } gdef_t;
 
 /* libxymon's xfree(), without the NULL-free abort's errprintf. */
 #define xfree(P) { if ((P) == NULL) abort(); free((P)); (P) = NULL; }
@@ -56,6 +56,10 @@ static void free_gd(gdef_t *g)
 	int i;
 	for (i = 0; g->defs[i]; i++) free(g->defs[i]);
 	free(g->defs);
+	if (g->rawdefs) {
+		for (i = 0; g->rawdefs[i]; i++) free(g->rawdefs[i]);
+		free(g->rawdefs);
+	}
 	free(g->dsfams);
 	free(g);
 }
@@ -100,6 +104,9 @@ int main(void)
 			fprintf(stderr, "FAIL dscount-explicit-stop: expected NULL at idx 3\n");
 			failures++;
 		} else printf("ok   dscount-explicit-stop\n");
+		/* The templates survive the expansion, for an INCLUDE variant
+		 * with a DSCOUNT of its own to re-expand. */
+		check_line("dscount-keeps-template", (g->rawdefs ? g->rawdefs[0] : (char *)"(null)"), "DEF:p@DSIDX@=x");
 		free_gd(g);
 	}
 
