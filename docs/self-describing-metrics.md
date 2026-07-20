@@ -75,15 +75,22 @@ counts:
 This reinstates the sound half of PR #246 (count what will actually render)
 while keeping its env-var config surface retired.
 
-IMPLEMENTED (lib/filesetindex.c): the writer bookkeeps every accepted RRD
-update into <host>/.fileset-index ("<rrdfn> <ts> [k=v ...]" lines, readers
-ignore trailing fields - units/thresholds/baselines extend the record
-later). Flushes are atomic (tmp+rename) and merge under flock because the
-status- and data-channel writers share the file; timestamp-only changes
-flush at most every 5 minutes; a missing index reseeds from a one-off
-directory scan; drophost/renamehost hooks parallel the AGGDS/lazy ones.
+IMPLEMENTED (lib/filesetindex.c): the writer bookkeeps RRD updates in an
+in-memory tree and publishes <host>/.fileset-index ("<rrdfn> <ts> [k=v ...]"
+lines, readers ignore trailing fields - units/thresholds extend the
+record). Write economics: a file's freshness is its own mtime (touched
+only for ACCEPTED updates), so plain data updates never write the index
+- only index-only state does. Schema declarations flush immediately, a
+plain new-file entry only joins an index that already exists, and a
+host with no self-describing state never materializes an index file at
+all. Readers (fsidx_count_*, the seed load) take file freshness from
+mtime. Flushes are
+atomic (tmp+rename) and merge under flock because the status- and
+data-channel writers share the file; a missing index reseeds from a
+one-off directory scan; drophost/renamehost hooks parallel the
+AGGDS ones.
 Consumers: ALL of htmllog's graph paths - marker graphs, GRAPHS_<service>
-entries and the legacy default-graph link - count lazy/store-filtered
+entries and the legacy default-graph link - count store-filtered
 filesets from the index (staleness cutoff 86400, matching showgraph).
 Counting is FNPATTERN-aware: gdef metadata captures the pattern (INCLUDE
 inherits it) and xymon_gdef_fileset_count() matches index entries by it,
@@ -91,100 +98,99 @@ falling back to the "<name>.<instance>.rrd" prefix rule when the gdef has
 no pattern. Unsliced rendering now happens ONLY without an index - the
 doctrine's level 3, as designed.
 
-## Lazy endgame: always-on flat-instance economy (writer half IMPLEMENTED)
+## Lazy: RETIRED (2026-07) - design preserved for a future scale case
 
-Implementation status: lazy baselines are DURABLE - flat instances live
-as (value, since) fileset-index records ("b=<since>,<values>"), so a
-restart no longer forgets them: a change that happened while the writer
-was down is detected on the next sample instead of silently becoming the
-new baseline. The old in-memory baseline tree is gone (drop/rename
-invalidation rides fsidx_drop). The decided cheap splice is in: at first
-change the file is created with an early start and seeded with the
-baseline value one step before the change - a true step edge, no RRA
-backfill. A materialized record tombstones so the two-channel weak merge
-cannot resurrect its b= field. Paging counters include fresh flat
-records - the renderer's flat-segment below gives them something to
-render.
-ALSO IMPLEMENTED - flat instances feed the aggregates: the writer
-records positional DS names on entries (d=ds1,ds2 - sticky per block
-like units), and check_aggds_thresholds reads the loaded host's flat
-records alongside the store, mapping the positional baseline values to
-the rule's dataset by name - so a pinned metric still counts as
-reporting and still contributes to sum/min/max, and count() sees every
-live instance, flat or not. The eval reads the writer's own in-memory
-index state (same process), no file IO.
+Decision: the lazy/flat-instance mechanism was removed from this branch.
+The measured ledger did not justify it: its best case (an SNMP-scale
+park, 10k idle instances) saves ~400MB of storage, ~50x inodes and a
+few disk writes per second - cheap resources on modern hardware, with
+file-churn (backups) the only tangible operational gain - while its
+complexity concentrated the branch's audit findings (baseline
+resurrection across the two writers, freshness persistence economics,
+splice seeding, warm-up gates). A conditional gain does not buy an
+unconditional cost. The feature never shipped, so no compatibility
+surface remains: the banner attributes and the graphs.cfg keyword are
+gone (unknown banner attributes and unknown index fields are ignored by
+the dialect's generic forward compatibility, which is a property of the
+format, not a lazy remnant).
 
-ALSO IMPLEMENTED - the renderer's flat-segment: showgraph enumerates
-instances from the index as well as the directory. A fresh flat record
-matching the graph's patterns joins the set as a VIRTUAL instance
-(rrdfn NULL): it occupies its paging slot (counters include it),
-every per-file emitter skips it, and it renders as one HRULE per value
-component with a "flat since <date>" legend. An ENTIRELY-flat fileset
-renders too (HRULEs only, empty def list). Freshness = the graph's
-STALEAFTER window; a stale flat record is a gone instance.
-DEFAULT FLIPPED (2026-07, decided): METRICS blocks are lazy BY DEFAULT.
-Per-block "nolazy" or LAZYDEFAULT=off (xymonserver.cfg env) restore
-eager creation; writer and parser agree; legacy DEVMON banners stay
-eager forever - their installed base expects files. The flip rationale:
-the METRICS dialect ships for the first time in this feature, so no
-consumer depends on eager files from a marker block - a default chosen
-at introduction is free, while flipping it after producers exist is the
-expensive move. Internally the flat state is first-class everywhere
-(HRULE rendering, fileset counts, AGGDS, thresholds). The residual cost
-is external: out-of-tree scripts scanning <host>/*.rrd do not see flat
-instances (that state lives in the index), and "where is my RRD file"
-becomes a FAQ answered by nolazy. Parser side, the same default means a
-plain block's message-derived paging count is untrusted (the ever-active
-set can exceed the current message), so counting falls to the fileset
-index - which was already the lazy authority.
+The as-built mechanism, preserved: a flat instance = one index record
+"b=<since>,<values>" (no RRD file), rendered as one HRULE per value
+component with a "flat since <date>" legend; file materializes at the
+first deviating sample, created with an early start and seeded with the
+baseline value one step before the change (a true step edge, no RRA
+backfill); the record tombstones on materialization; positional d=
+names map flat values into AGGDS; showgraph enumerates virtual
+instances from the index so an entirely-flat fileset still renders;
+freshness rides the graph's STALEAFTER window.
 
-Lazy began as an opt-in policy because it TRADES flat history for file
-economy - correct only where flat means uninteresting (spare disks, idle
-interfaces). The better model reframes it: a flat instance's entire history
-is losslessly "(value, since-timestamp)" - it needs no round-robin archives
-at four resolutions. Let the RRD file materialize only when there is an
-actual CURVE to store, and flat instances live as index records. Then lazy
-stops being a policy flag and becomes the storage engine's normal
-economics, always on.
+Lessons paid (bind any revival):
+1. Never persist what the filesystem already records - a real file's
+   freshness is its mtime; duplicating it in the index cost a
+   rewrite+2 fsyncs per host per cycle for every install.
+2. Cross-writer retraction must be durable or evidence-based: the
+   in-memory bl_cleared tombstone let the peer channel resurrect a
+   retired baseline from disk forever (fix direction: the file's
+   existence IS the retraction proof, as showgraph's access() check
+   and note_commit already treated it).
+3. A state machine (flat vs materialized) taxes every future feature;
+   prefer stateless filters.
 
-Two prerequisites, both now SATISFIED (which is what unlocked the
-default flip above):
+Reopen criterion: a real park where the FILE COUNT itself is the
+operational problem (~10^5 idle instances), measured, with the
+write-thinning successor below already deployed and insufficient.
 
-1. Durability: the baseline (value, since) lives in xymond_rrd memory and a
-   restart forgets it. It must ride the writer-kept fileset index - the
-   entry extends to (instance -> last-write, per-DS units, baseline value,
-   since). One more convergence on the index: units, thresholds, exact
-   counts and lazy-always-on all persist through the same record.
-2. Consumer visibility: a baseline must be first-class for every consumer -
-   the synthetic gdef draws the flat segment from (V, since), AGGDS/count()
-   read V like any stored value, and "no file" stops being ambiguous
-   because the index entry proves the instance is alive and flat.
+## Write-thinning: the designed successor (validated, NOT implemented)
 
-UNIFIED (decided): flat is a STATE, not a kind. A never-changed value -
-a metric that happens to be flat, or a fixed threshold emitted as a
-constant DS - is one (value, since) index record, rendered as an HRULE
-with "since <date>" in the legend, costing zero RRD storage; at the
-first change the file materializes and it becomes a curve. This
-dissolves the threshold literal-vs-DS trade-off: a constant threshold
-DS now costs nothing until the level moves (and then shows the step),
-so the producer rule is uniform - ALWAYS emit thresholds as DSes; the
-literal operand survives only as block-wide sugar, rendering the same.
+The observation that dissolves most of lazy's case: RRD's own heartbeat
+mechanism already supports sparse updates. Verified with rrdtool 1.7.2:
+- A GAUGE with heartbeat 48h updated once a day with a constant value
+  yields a continuous line (574/575 known points) - RRD interpolates.
+- Gaps beyond the heartbeat go UNKNOWN (verified) - the declared
+  heartbeat bounds how much continuity may be invented.
+- A rejected update does not advance mtime; an accepted one does
+  (verified) - mtime stays the commit-gated freshness carrier.
+- CRITICAL: a value change after a gap back-fills the whole gap with
+  the NEW value (verified) - and for COUNTER the delta smears over the
+  gap as a low rate instead of a spike (verified). Both are fixed by
+  ONE mechanism: on change, pre-write (t-step, old_values) then write
+  (t, new_values) - verified to pin the step edge and the counter
+  spike in the right bucket.
 
-The splice (decided, cheap form): at first change the writer holds
-(V, since) and seeds the new file with ONE extra update - the baseline
-V one step before the change - so the curve starts with a correct step
-edge. No RRA backfill; no index-side prefix rendering. The flat past
-was HRULE-visible while it was the present.
+The design: a stateless write filter in the RRD writer, uniform over
+the whole stream - "write only new information".
+- Skip the update when ALL of the file's values equal the last written
+  ones AND the last write is younger than R (keepalive interval).
+- Keepalive: one ordinary update with the unchanged values every R -
+  it keeps the line continuous within the heartbeat and advances the
+  mtime as a side effect. R derives from the declaration: R = h/2 (no
+  new config knob).
+- On change: pre-write (t-step, old) + write (t, new).
+- Exclusions: ABSOLUTE DSes (equal readings are new information - a
+  factor-N rate error if thinned) and 'U' values (thinning unknowns
+  would invent continuity over genuinely unknown periods). Files
+  mixing hot and cold DSes never thin (all-DS condition) - the gain
+  concentrates on fully-idle files, which is the SNMP profile.
+- Gating: only DSes whose METRICS block declares a heartbeat >= 2R
+  (the h= plumbing exists); rrdreconcile tunes existing files'
+  heartbeats. Legacy paths without declarations: untouched.
+- Invariant: R << STALEAFTER (same family as the update-cache lag,
+  which already bounds practical STALEAFTER to >= ~2h).
+- Composition: sits before the update cache (which holds the last
+  values already - the comparator is nearly free); orthogonal to
+  rrdcached; NO cross-writer shared state (each writer thins its own
+  files) - the whole merge/resurrection bug class cannot exist.
+- Economics vs lazy: ~1 write/hour/idle instance instead of 0 (and no
+  storage/inode saving), degrades continuously (a metric changing
+  once a day saves ~90%, where lazy saved nothing after
+  materialization), at ~5% of lazy's complexity.
+- What it does NOT give: storage, inodes, creation burst - the cheap
+  axes.
+- Restart: comparator empty -> one eager cycle, then thinning resumes.
+  No persistence (lesson 1).
 
-The load-bearing renderer change this exposes: rendering is file-driven
-(FNPATTERN over readdir), so an entirely-flat fileset has NO files and
-today's pipeline would find nothing - showgraph must enumerate
-instances from the INDEX (files and flat records alike), which the
-pattern-aware counting machinery already half-does.
-
-Until implemented, lazy remains per-block/per-graph opt-in with the
-documented trade-off; the always-on default flip stays a separate,
-later decision with evidence in hand.
+Status: parked as opt-in-by-declaration; implement when a real
+deployment asks for the I/O reduction.
 
 ## Archive consolidations derived from graph DEFs (creation half IMPLEMENTED)
 
@@ -431,7 +437,7 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
   the declaration never forces a pixel. Control points, coarse to fine:
   the synthetic gdef co-plots by default (most people want to see what
   would alert); a per-graph display keyword in graphs.cfg - THRESHOLDS
-  ON|OFF, default ON, next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/STALE -
+  ON|OFF, default ON, next to MAXINSTANCESPERIMAGE/TRENDS/STALEAFTER -
   suppresses the threshold curves without writing a full gdef; a
   hand-written gdef has the last word (pick, style, or split them onto
   their own image). Possible later: a &nothresholds URL toggle in
@@ -447,7 +453,7 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
 
 - STALEAFTER <seconds> (named per the glossary rule - every new name
   states its unit; the earlier "STALE" draft violated it), per graphs.cfg
-  block next to LAZY/MAXINSTANCESPERIMAGE/TRENDS/THRESHOLDS, INCLUDE
+  block next to MAXINSTANCESPERIMAGE/TRENDS/THRESHOLDS, INCLUDE
   inherits, default 86400: the graph's freshness window. Governs BOTH the
   showgraph stale-file filter and the fileset-index paging counts - one
   window, so the count always equals what renders. For legitimately
@@ -525,21 +531,20 @@ accepted. No dual-value concept exists for heartbeat.
   lookup - documented, nondeterministic across hosts by design.
 - PARTLY RESOLVED - update-cache churn: entries idle beyond 6h are
   evicted hourly (pending values flushed first - the cache is pure
-  batching now that lazy baselines live in the index, so eviction loses
-  nothing). Remaining growth is only the index entries themselves (one
+  batching, so eviction loses nothing). Remaining growth is only the index entries themselves (one
   small line per instance ever seen), plus xtree tombstones per
   eviction. The original note, for the record:
 - (historical) Unbounded state under instance churn (accepted for now; revisit before
-  SNMP-scale collectors land): the RRD update cache and the lazy-baseline
+  SNMP-scale collectors land): the RRD update cache and the fileset-index
   tree keep one entry per instance name EVER seen - upstream updcache
   behaviour, now reachable by any sender via content routing. Steady
   fleets are bounded; ephemeral names (container overlay mounts, rotating
   ids) grow both trees monotonically for the process lifetime. The AGGDS
   store is gated by rule-relevance (only dataset names some rule
   aggregates are stored); a comparable eviction policy for
-  updcache/lazybaselines needs a design decision (TTL? LRU cap? drop on
+  updcache/index entries needs a design decision (TTL? LRU cap? drop on
   fileset-index expiry?), not a quick patch - do not bolt one on without
-  deciding what a "forgotten" instance means for lazy re-learning.
+  deciding what a "forgotten" instance means.
 - Declared heartbeats only act at file creation: the DS heartbeat lives in
   the RRD file once created, so a producer changing its DS:<hb> declaration
   affects new files only - existing files need an rrdtool tune pass. Either
