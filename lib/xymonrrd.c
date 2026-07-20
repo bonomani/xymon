@@ -68,12 +68,13 @@ typedef struct gdefmeta_t {
 	char *storepat;		/* STOREPATTERN: only these stored */
 	char *fnpat;		/* FNPATTERN: the fileset's filename regex */
 	int thresholds;		/* THRESHOLDS ON|OFF: 0 unset, 1 on, -1 off */
-	int staleafter;		/* STALEAFTER seconds: freshness window; 0 = default */
+	char *exstalepat;	/* EXSTALEPATTERN: instances never stale */
 	int cfset;		/* XYMON_CF_* bits: consolidations this gdef's DEFs read */
 	pcre2_code *exstore;	/* compiled on demand (NULL after a failed compile too) */
 	pcre2_code *store;
+	pcre2_code *exstale;
 	pcre2_code *fnpat_re;
-	int exstore_tried, store_tried, fnpat_tried;
+	int exstore_tried, store_tried, exstale_tried, fnpat_tried;
 	struct gdefmeta_t *next;
 } gdefmeta_t;
 static gdefmeta_t *gdefmetahead = NULL;
@@ -172,9 +173,10 @@ static void load_gdef_meta(void)
 				else if (strcmp(cf, "LAST") == 0) cur->cfset |= XYMON_CF_LAST;
 			}
 		}
-		else if (cur && (strncasecmp(p, "STALEAFTER", 10) == 0) && isspace((int)p[10])) {
-			cur->staleafter = atoi(p+10);
-			if (cur->staleafter < 0) cur->staleafter = 0;
+		else if (cur && (strncasecmp(p, "EXSTALEPATTERN", 14) == 0) && isspace((int)p[14])) {
+			char *pat = p + 14 + strspn(p+14, " \t");
+			pat[strcspn(pat, " \t\r\n")] = '\0';
+			if (*pat) { if (cur->exstalepat) xfree(cur->exstalepat); cur->exstalepat = strdup(pat); }
 		}
 		else if (cur && (strncasecmp(p, "THRESHOLDS", 10) == 0) && isspace((int)p[10])) {
 			char *arg = p + 10 + strspn(p+10, " \t");
@@ -197,7 +199,7 @@ static void load_gdef_meta(void)
 				if (base->trends) cur->trends = 1;
 				if (base->fnpat && !cur->fnpat) cur->fnpat = strdup(base->fnpat);
 				if (base->thresholds && !cur->thresholds) cur->thresholds = base->thresholds;
-				if (base->staleafter && !cur->staleafter) cur->staleafter = base->staleafter;
+				if (base->exstalepat && !cur->exstalepat) cur->exstalepat = strdup(base->exstalepat);
 				cur->cfset |= base->cfset;
 				if (base->exstorepat && !cur->exstorepat) cur->exstorepat = strdup(base->exstorepat);
 				if (base->storepat && !cur->storepat) cur->storepat = strdup(base->storepat);
@@ -211,7 +213,7 @@ static void load_gdef_meta(void)
 /* Match a gdefmeta entry against a GRAPHS/test.cfg token. The token may
  * carry a "::N" split-size suffix ("disk::8") - renderer paging syntax,
  * not part of the graph's name; ignoring it here would silently bypass
- * STALEAFTER/MAXINSTANCESPERIMAGE for such entries. Returns 0 on
+ * EXSTALEPATTERN/MAXINSTANCESPERIMAGE for such entries. Returns 0 on
  * match, following the strcmp find-loop idiom. */
 static int gdefmeta_namecmp(const char *gdefname, const char *entry)
 {
@@ -346,16 +348,27 @@ int xymon_gdef_cfs_forfile(char *fn)
 	return cfs;
 }
 
-/* The graph's freshness window (STALEAFTER seconds), defaulting to the
- * historic 86400. Governs BOTH the renderer's stale-file filter and the
- * fileset-index counts, so paging and rendered files never diverge. */
-int xymon_gdef_staleafter(char *name)
+/* Is this file exempt from the staleness window (EXSTALEPATTERN)? The
+ * one fixed window (XYMON_STALE_WINDOW, main's historic 86400) governs
+ * BOTH the renderer's stale-file filter and the fileset-index counts;
+ * exemption is per instance, matched like the storage patterns (name
+ * minus its ".rrd" suffix, case-insensitively). */
+int xymon_gdef_stale_exempt(char *name, char *fn)
 {
 	gdefmeta_t *walk;
+	size_t fnlen;
 
 	load_gdef_meta();
 	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
-	return ((walk && (walk->staleafter > 0)) ? walk->staleafter : 86400);
+	if (!walk || !walk->exstalepat) return 0;
+	if (!walk->exstale && !walk->exstale_tried) {
+		walk->exstale = storepat_compile(walk->exstalepat);
+		walk->exstale_tried = 1;	/* compile once; a broken pattern exempts nothing */
+	}
+	if (!walk->exstale) return 0;
+	fnlen = strlen(fn);
+	if ((fnlen > 4) && (strcmp(fn+fnlen-4, ".rrd") == 0)) fnlen -= 4;
+	return storepat_match(walk->exstale, fn, fnlen);
 }
 
 /* THRESHOLDS OFF in the graph definition: the admin's say on whether
@@ -374,12 +387,21 @@ int xymon_gdef_thresholds_off(char *name)
  * else by the "<name>.<instance>.rrd" prefix rule (the synthetic-gdef
  * default). -1 = no index (or a broken pattern) - callers keep their
  * previous fallback behaviour. */
-int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
+int xymon_gdef_fileset_count(char *hostname, char *name)
 {
 	gdefmeta_t *walk;
+	void *exempt = NULL;
 
 	load_gdef_meta();
 	for (walk = gdefmetahead; (walk && gdefmeta_namecmp(walk->name, name)); walk = walk->next) ;
+
+	/* Same window and same exemption as the renderer's stale filter, so
+	 * the count always equals what renders. The exempt pattern compiles
+	 * through the accessor's own once-only path. */
+	if (walk && walk->exstalepat) {
+		xymon_gdef_stale_exempt(name, "");	/* force the compile */
+		exempt = walk->exstale;
+	}
 
 	if (walk && walk->fnpat) {
 		if (!walk->fnpat_tried) {
@@ -388,7 +410,7 @@ int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
 			if (!walk->fnpat_re) errprintf("Invalid FNPATTERN '%s' in graph definition [%s]\n", walk->fnpat, walk->name);
 		}
 		if (!walk->fnpat_re) return -1;
-		return fsidx_count_pattern(hostname, walk->fnpat_re, maxage);
+		return fsidx_count_pattern(hostname, walk->fnpat_re, XYMON_STALE_WINDOW, exempt);
 	}
 
 	{
@@ -403,7 +425,7 @@ int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage)
 			memcpy(base, name, n); base[n] = '\0';
 			name = base;
 		}
-		return fsidx_count_prefix(hostname, name, maxage);
+		return fsidx_count_prefix(hostname, name, XYMON_STALE_WINDOW, exempt);
 	}
 }
 

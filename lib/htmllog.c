@@ -584,7 +584,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					 * fileset index knows it exactly (FNPATTERN-
 					 * matched); without an index, render unsliced. */
 					if (xymon_gdef_fileset_unknown(graphsptr)) {
-						int n = xymon_gdef_fileset_count(hostname, graphsptr, xymon_gdef_staleafter(graphsptr));
+						int n = xymon_gdef_fileset_count(hostname, graphsptr);
 						gcount = (n > 0 ? n : 0);
 					}
 					fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, graphsptr, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
@@ -607,7 +607,7 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 				 * graphs then render twice, which beats vanishing. */
 				int gcount = linecount;
 				if (xymon_gdef_fileset_unknown(graph->xymonrrdname)) {
-					int n = xymon_gdef_fileset_count(hostname, graph->xymonrrdname, xymon_gdef_staleafter(graph->xymonrrdname));
+					int n = xymon_gdef_fileset_count(hostname, graph->xymonrrdname);
 					gcount = (n > 0 ? n : 0);
 				}
 				fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, service, color, graph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));
@@ -651,13 +651,13 @@ void generate_html_log(char *hostname, char *displayname, char *service, char *i
 					{
 						int gcount = xymon_marker_instancecount(mwalk);
 						if ((mwalk->instancespec < 0) && xymon_gdef_fileset_unknown(mwalk->name)) {
-							/* The graph's own freshness window (STALEAFTER,
-							 * default 86400) - the same one showgraph's
+							/* The one staleness window (with the graph's
+							 * EXSTALEPATTERN exemptions) - the same the
 							 * stale-file filter applies, so the count
 							 * equals what actually renders. FNPATTERN-
 							 * aware: a hand-written gdef's fileset counts
 							 * by its own pattern. */
-							int n = xymon_gdef_fileset_count(hostname, mwalk->name, xymon_gdef_staleafter(mwalk->name));
+							int n = xymon_gdef_fileset_count(hostname, mwalk->name);
 							gcount = (n > 0 ? n : 0);
 						}
 						fprintf(output, "%s\n", xymon_graph_data(hostname, displayname, mwalk->name, color, &localgraph, gcount, HG_WITHOUT_STALE_RRDS, HG_PLAIN_LINK, locatorbased, now-graphtime, now));

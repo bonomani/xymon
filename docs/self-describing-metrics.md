@@ -12,7 +12,7 @@ Four nouns, used with one meaning everywhere: **metric** (a DS - the curves
 of an image), **instance** (a measured object - one RRD file; the unit of
 filters, counts and paging), **graph** (a graphs.cfg definition), **image**
 (one rendered slice). Rules: every new name states its unit (instances=,
-MAXINSTANCESPERIMAGE as instances-per-image, STALEAFTER seconds); legacy names
+MAXINSTANCESPERIMAGE as instances-per-image); legacy names
 (maxgraphs, linecount, GRAPHS ::N, FNPATTERN) are frozen aliases documented
 against the glossary, never removed and never duplicated with a second new
 spelling; new code speaks the glossary (instancespec, instancecount - not
@@ -122,7 +122,7 @@ baseline value one step before the change (a true step edge, no RRA
 backfill); the record tombstones on materialization; positional d=
 names map flat values into AGGDS; showgraph enumerates virtual
 instances from the index so an entirely-flat fileset still renders;
-freshness rides the graph's STALEAFTER window.
+freshness rode the graph's staleness window.
 
 Lessons paid (bind any revival):
 1. Never persist what the filesystem already records - a real file's
@@ -140,7 +140,7 @@ Reopen criterion: a real park where the FILE COUNT itself is the
 operational problem (~10^5 idle instances), measured, with the
 write-thinning successor below already deployed and insufficient.
 
-## Write-thinning: the designed successor (validated, NOT implemented)
+## Write-thinning: the successor (IMPLEMENTED)
 
 The observation that dissolves most of lazy's case: RRD's own heartbeat
 mechanism already supports sparse updates. Verified with rrdtool 1.7.2:
@@ -174,8 +174,8 @@ the whole stream - "write only new information".
 - Gating: only DSes whose METRICS block declares a heartbeat >= 2R
   (the h= plumbing exists); rrdreconcile tunes existing files'
   heartbeats. Legacy paths without declarations: untouched.
-- Invariant: R << STALEAFTER (same family as the update-cache lag,
-  which already bounds practical STALEAFTER to >= ~2h).
+- Invariant: R << XYMON_STALE_WINDOW (the update-cache lag already
+  floors any meaningful window at ~2h; the fixed 86400 absorbs both).
 - Composition: sits before the update cache (which holds the last
   values already - the comparator is nearly free); orthogonal to
   rrdcached; NO cross-writer shared state (each writer thins its own
@@ -437,7 +437,7 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
   the declaration never forces a pixel. Control points, coarse to fine:
   the synthetic gdef co-plots by default (most people want to see what
   would alert); a per-graph display keyword in graphs.cfg - THRESHOLDS
-  ON|OFF, default ON, next to MAXINSTANCESPERIMAGE/TRENDS/STALEAFTER -
+  ON|OFF, default ON, next to MAXINSTANCESPERIMAGE/TRENDS/EXSTALEPATTERN -
   suppresses the threshold curves without writing a full gdef; a
   hand-written gdef has the last word (pick, style, or split them onto
   their own image). Possible later: a &nothresholds URL toggle in
@@ -451,17 +451,28 @@ NOT yet implemented: the alert derivation (a generic DS-vs-DS rule in the
 
 ## Display-window keywords (IMPLEMENTED)
 
-- STALEAFTER <seconds> (named per the glossary rule - every new name
-  states its unit; the earlier "STALE" draft violated it), per graphs.cfg
-  block next to MAXINSTANCESPERIMAGE/TRENDS/THRESHOLDS, INCLUDE
-  inherits, default 86400: the graph's freshness window. Governs BOTH the
-  showgraph stale-file filter and the fileset-index paging counts - one
-  window, so the count always equals what renders. For legitimately
-  periodic instances (weekly job, backup mount) whose graphs must stay
-  visible between appearances; per-graph granularity is enough -
-  freshness is a display property of the graph, not of each DS.
-
-
+- The staleness window is ONE fixed number: XYMON_STALE_WINDOW = 86400,
+  main's historic hardcoded value, governing BOTH the showgraph
+  stale-file filter and the fileset-index paging counts - one window,
+  so the count always equals what renders. It is deliberately not
+  configurable: twenty years of main validate the value, and the
+  update-cache write lag (~1h) floors any meaningful window anyway.
+  (An earlier per-graph STALEAFTER keyword was replaced before ever
+  shipping: a per-graph window extended the lifetime of a graph's DEAD
+  instances along with its periodic ones.)
+- EXSTALEPATTERN <regex>, per graphs.cfg block, INCLUDE inherits
+  own-wins: instances the pattern matches are exempt from staleness -
+  never filtered, always counted. Per-instance precision for
+  legitimately periodic instances (weekly backup mounts), named in the
+  storage-pattern family grammar (EX = excluded from the action).
+  An exempted instance that is truly gone stays until its file is
+  deleted (the file is findable: its mtime stops moving).
+- Meta-only graphs.cfg sections (THRESHOLDS, EXSTALEPATTERN and
+  friends with no definition lines) keep the synthesized graph: the
+  renderer adopts the synthetic scaffold for whatever the section did
+  not write. This was documented before it worked - the original
+  meta-only test greppped the Content-type header, which an errored
+  render also prints; the assertion is now strengthened.
 ## File schema evolution (IMPLEMENTED: the rrdreconcile tool)
 
 Implementation status: xymond/rrdreconcile walks $XYMONRRDS and compares

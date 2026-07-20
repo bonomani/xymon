@@ -512,8 +512,8 @@ void load_gdefs(char *fn)
 			/* Threshold co-plot gate; consumed by lib/xymonrrd.c */
 			continue;
 		}
-		else if ((strncasecmp(p, "STALEAFTER", 10) == 0) && isspace((int)p[10])) {
-			/* Freshness window; consumed by lib/xymonrrd.c */
+		else if ((strncasecmp(p, "EXSTALEPATTERN", 14) == 0) && isspace((int)p[14])) {
+			/* Staleness exemption; consumed by lib/xymonrrd.c */
 			continue;
 		}
 		else if ((strncasecmp(p, "INCLUDE", 7) == 0) && isspace((int)p[7])) {
@@ -1625,6 +1625,25 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	 * as a literal filename. Keep the classic failure instead. */
 	if ((gdef == NULL) && (hostlist == NULL)) gdef = synthetic_gdef(service);
 	if (gdef == NULL) errormsg("Unknown graph requested");
+	/* A config section carrying only display keywords (THRESHOLDS,
+	 * EXSTALEPATTERN, ...) is metadata, not a definition: the graph
+	 * itself stays synthesized, as graphs.cfg(5) documents. Adopt the
+	 * synthetic scaffold for whatever the section did not write. A
+	 * legacy single-file gdef always has definition lines, so the
+	 * empty-defs test cannot misfire on one. */
+	if ((hostlist == NULL) && !gdef->fnpat && (!gdef->defs || !gdef->defs[0])) {
+		gdef_t *syn = synthetic_gdef(gdef->name);
+
+		if (syn) {
+			gdef->fnpat = syn->fnpat;
+			if (!gdef->title) gdef->title = syn->title; else free(syn->title);
+			if (!gdef->yaxis) gdef->yaxis = syn->yaxis; else free(syn->yaxis);
+			if (gdef->defs) free(gdef->defs);
+			gdef->defs = NULL;	/* render-time synthesis from the fileset */
+			free(syn->name);
+			free(syn);
+		}
+	}
 	if (hostlist && (gdef->fnpat == NULL)) {
 		SBUF_DEFINE(multiname);
 
@@ -1824,7 +1843,8 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			 * Has it been updated recently (within the past 24 hours) ? 
 			 * We don't want old graphs to mess up multi-displays.
 			 */
-			if (ignorestalerrds && (stat(d->d_name, &st) == 0) && ((now - st.st_mtime) > xymon_gdef_staleafter(gdef->name))) {
+			if (ignorestalerrds && (stat(d->d_name, &st) == 0) && ((now - st.st_mtime) > XYMON_STALE_WINDOW) &&
+			    !xymon_gdef_stale_exempt(gdef->name, d->d_name)) {
 				continue;
 			}
 

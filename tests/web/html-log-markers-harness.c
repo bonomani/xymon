@@ -328,9 +328,10 @@ int main(void)
 	expect_not_contains("store-filtered graphs render unsliced", html, "service=diskio_filt&amp;graph_width=576&amp;graph_height=120&amp;first=");
 	free(html);
 
-	/* STALEAFTER widens the graph's freshness window: the same index
-	 * entries that count 3 at the default 86400 count 4 for a graph
-	 * declaring STALEAFTER 300000 (the stale entry included). */
+	/* EXSTALEPATTERN exempts matching instances from the staleness
+	 * window: the same index entries that count 3 for [diskio_idx]
+	 * count 4 for [diskio_slow], whose pattern matches the stale
+	 * "diskio_idx.old.rrd" entry - exempt instances always count. */
 	html = render_log_msg("diskio", 0, "",
 		"<!--XYMON METRICS: diskio_slow\n"
 		"DS:v:GAUGE:600:0:U\n"
@@ -338,7 +339,7 @@ int main(void)
 		"-->\n"
 		"<!--XYMON GRAPH: diskio_slow -->\n"
 		"status text\n");
-	expect_contains("STALEAFTER widens the count window", html,
+	expect_contains("EXSTALEPATTERN-exempt instances always count", html,
 		"service=diskio_slow&amp;graph_width=576&amp;graph_height=120&amp;first=1&amp;count=4");
 	free(html);
 

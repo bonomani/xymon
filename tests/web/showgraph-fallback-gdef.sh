@@ -268,6 +268,8 @@ cp "$work/graphs.cfg" "$work/graphs.cfg.bak"
 printf '\n[thr]\n\tTHRESHOLDS OFF\n' >>"$work/graphs.cfg"
 render_thr
 grep -aq "Content-type: image/png" "$work/out" || fail "THRESHOLDS OFF graph does not render"
+grep -aq "Invalid request" "$work/out" && fail "meta-only section broke the synthesis: $(grep -a 'body' "$work/out" | head -1)"
+grep -aq "DEF:" "$work/out" || fail "meta-only section rendered no definitions"
 grep -aq "FFCC00" "$work/out" && fail "THRESHOLDS OFF must suppress the threshold curves"
 grep -aq "HRULE:500" "$work/out" && fail "THRESHOLDS OFF must suppress literal HRULEs too"
 grep -aq "@RRDPARAM@ val_warn\|:val_warn$" "$work/out" && fail "operand still must not plot as a peer"
@@ -316,5 +318,24 @@ grep -aq '\./var' "$work/out" && fail "encoded disk legend shows './var' - separ
 grep -aq ':/var' "$work/out" || fail "encoded disk legend '/var' missing: $(grep -a 'disk' "$work/out" | head -3)"
 grep -aq ':/ ' "$work/out" || fail "root disk legend '/' missing: $(grep -a 'disk' "$work/out" | head -3)"
 grep -aq ':/olddisk' "$work/out" || fail "legacy comma-encoded disk legend '/olddisk' missing"
+
+# EXSTALEPATTERN: with nostale, files older than the fixed window are
+# filtered - except the instances the graph's pattern exempts.
+ts=$(date +%s)
+{
+	printf '@@status|%s|127.0.0.1|origin|testhost|diskio|%s|green||green|%s|0||0||%s|0|linux|/\n' \
+		"$ts" $((ts+1800)) "$ts" "$ts"
+	printf '<!--XYMON METRICS: stx\nDS:v:GAUGE:600:0:U\nkeep 1\ngone 2\n-->\ns\n@@\n'
+} | env XYMONHOME="$work" XYMONTMP="$work/tmp" \
+	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>/dev/null
+printf '[stx]\n\tEXSTALEPATTERN keep\n' >>"$work/graphs.cfg"
+touch -d '3 days ago' "$rrds/stx.keep.rrd" "$rrds/stx.gone.rrd"
+REQUEST_METHOD=GET \
+QUERY_STRING="host=testhost&service=stx&graph=hourly&action=view&nostale=on" \
+XYMONHOME="$work" XYMONRRDS="$work/rrd" \
+	"$work/showgraph" --debug --config="$work/graphs.cfg" \
+	--rrddir="$rrds" >"$work/out" 2>&1 || true
+grep -aq "stx.keep.rrd" "$work/out" || fail "EXSTALEPATTERN-exempt stale instance was filtered"
+grep -aq "stx.gone.rrd" "$work/out" && fail "non-exempt stale instance was not filtered"
 
 pass "showgraph synthesizes a working gdef for marker-created RRD files"

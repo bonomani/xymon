@@ -47,7 +47,7 @@ cat >"$work/etc/graphs.cfg" <<'GDEFS'
 [diskio_slow]
 	STOREPATTERN .
 	FNPATTERN ^diskio_idx\..+\.rrd
-	STALEAFTER 300000
+	EXSTALEPATTERN old
 GDEFS
 
 # The harness links libxymoncomm; a never-built tree skips (the post-build

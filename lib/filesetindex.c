@@ -462,6 +462,27 @@ void fsidx_set_dsnames(char *dsnspec)
 	if (dsnspec && *dsnspec) fsidx_pending_dsnames = xstrdup(dsnspec);
 }
 
+/* Smallest declared heartbeat among the pending block's DS specs
+ * ("ds:hb[,...]"), 0 when the current block declared none. The write-
+ * thinning gate derives its keepalive interval from this - the client's
+ * declaration IS the consent to sparse updates. */
+int fsidx_pending_min_heartbeat(void)
+{
+	char *p = fsidx_pending_heartbeats;
+	int min = 0;
+
+	while (p && *p) {
+		char *colon = strchr(p, ':');
+		if (colon) {
+			int hb = atoi(colon+1);
+			if ((hb > 0) && ((min == 0) || (hb < min))) min = hb;
+		}
+		p = strchr(p, ',');
+		if (p) p++;
+	}
+	return min;
+}
+
 /* Sticky declared heartbeats for following writes, same lifecycle as
  * fsidx_set_units(). Spec: "ds:heartbeat[,...]", covering EVERY declared
  * DS (defaults included) so a changed declaration replaces the record
@@ -747,6 +768,23 @@ char *fsidx_thresholds(char *hostname, char *rrdfn)
 	return fsidx_field(hostname, rrdfn, "t=");
 }
 
+/* Match an index filename against a caller-compiled exemption pattern
+ * (a pcre2_code*), the storage-pattern way: name minus its ".rrd"
+ * suffix. Used by the counters for EXSTALEPATTERN. */
+static int fsidx_name_matches(const char *name, void *pattern)
+{
+	pcre2_match_data *md;
+	size_t nlen = strlen(name);
+	int result;
+
+	if ((nlen > 4) && (strcmp(name + nlen - 4, ".rrd") == 0)) nlen -= 4;
+	md = pcre2_match_data_create_from_pattern((pcre2_code *)pattern, NULL);
+	if (!md) return 0;
+	result = pcre2_match((pcre2_code *)pattern, (PCRE2_SPTR)name, nlen, 0, 0, md, NULL);
+	pcre2_match_data_free(md);
+	return (result >= 0);
+}
+
 /* Reader-side freshness of one index record. A file's persisted ts is
  * only as fresh as the writer's last index-worthy flush - the durable
  * freshness is the RRD file's own mtime. A record whose file is gone
@@ -792,7 +830,7 @@ char *fsidx_units(char *hostname, char *rrdfn)
 	return result;
 }
 
-int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
+int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage, void *exemptpat)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
@@ -816,7 +854,8 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 		if (!name || !tsstr) continue;
 		if (!matchregex(name, (pcre2_code *)pattern)) continue;
 		ts = fsidx_reader_freshness(hostname, name, fsidx_parse_ts(tsstr));
-		if (maxage && ((now - ts) > maxage)) continue;
+		if (maxage && ((now - ts) > maxage) &&
+		    !(exemptpat && fsidx_name_matches(name, exemptpat))) continue;
 		count++;
 	}
 	fclose(fd);
@@ -824,7 +863,7 @@ int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage)
 	return count;
 }
 
-int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
+int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage, void *exemptpat)
 {
 	char fn[PATH_MAX];
 	FILE *fd;
@@ -858,7 +897,8 @@ int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage)
 		    ((name[plen] != '.') && (name[plen] != ','))) continue;
 		if (strcmp(name + nlen - 4, ".rrd") != 0) continue;
 		ts = fsidx_reader_freshness(hostname, name, fsidx_parse_ts(tsstr));
-		if (maxage && ((now - ts) > maxage)) continue;
+		if (maxage && ((now - ts) > maxage) &&
+		    !(exemptpat && fsidx_name_matches(name, exemptpat))) continue;
 		count++;
 	}
 	fclose(fd);

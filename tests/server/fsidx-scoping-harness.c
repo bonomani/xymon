@@ -125,8 +125,8 @@ int main(int argc, char *argv[])
 		/* Reader freshness: shell crafted the index and the files.
 		 * Files count by mtime (persisted ts is stale); a record
 		 * whose file is gone ages out. */
-		printf("disk=%d\n", fsidx_count_prefix("h1", "disk", 600));
-		printf("gone=%d\n", fsidx_count_prefix("h1", "gone", 600));
+		printf("disk=%d\n", fsidx_count_prefix("h1", "disk", 600, NULL));
+		printf("gone=%d\n", fsidx_count_prefix("h1", "gone", 600, NULL));
 	}
 	else if (strcmp(scenario, "census") == 0) {
 		/* Writer seed: loading an index whose real-file ts is stale

@@ -49,6 +49,7 @@ extern void fsidx_set_units(char *unitspec);	/* sticky "ds:unit[,...]" for follo
 extern void fsidx_set_thresholds(char *thrspec);	/* sticky "base:relop-operand:sev[,...]"; NULL clears */
 extern void fsidx_set_dsnames(char *dsnspec);	/* sticky "ds1,ds2" positional names; NULL clears */
 extern void fsidx_set_heartbeats(char *hbspec);	/* sticky "ds:heartbeat[,...]"; NULL clears */
+extern int fsidx_pending_min_heartbeat(void);	/* smallest pending declared heartbeat; 0 = none */
 /* Every loaded entry; cb may be NULL to only probe. Returns -1 when the
  * host is not loaded (no knowledge - distinct from zero entries), else
  * the entry count. */
@@ -61,12 +62,15 @@ extern void fsidx_drop(char *rrddir, char *hostname);
 /* Reader side (CGIs, htmllog): number of fresh index entries whose filename
  * is "<prefix>.<instance>.rrd", or -1 when the host has no readable index
  * (callers keep their previous behaviour). maxage 0 = no freshness cut. */
-extern int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage);
+extern int fsidx_count_prefix(char *hostname, char *prefix, time_t maxage, void *exemptpat);
 
 /* Same, but entries matched by a compiled regex (a gdef's FNPATTERN).
  * `pattern` is a pcre2_code* passed as void* to keep this header free of
  * the PCRE include-order dance. */
-extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage);
+extern int fsidx_count_pattern(char *hostname, void *pattern, time_t maxage, void *exemptpat);
+/* exemptpat (optional, pcre2_code*): entries it matches count even
+ * beyond maxage - the EXSTALEPATTERN exemption, kept identical between
+ * the counters and the renderer's filter. */
 
 /* Overlong-line guard for ANY index reader: an oversized physical line
  * splits at fgets and its tail can parse as a plausible record. Returns

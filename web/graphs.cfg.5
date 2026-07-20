@@ -67,17 +67,24 @@ once at xymond_rrd startup, so a change to them takes effect only
 after xymond_rrd is restarted; the presentation keywords are re-read
 by the CGIs on every page request.
 .sp
-A "STALEAFTER <seconds>" keyword sets the graph's freshness window,
-replacing the built-in default of 86400 seconds (one day): RRD files
-older than the window are hidden from graphs requested with
-showgraph.cgi's "nostale" option - the graph links Xymon's own pages
-generate always pass it; a hand-written URL without it shows every
-file - and the
-writer-kept fileset index applies the same window to its paging
-counts, so the count always equals what renders. Use it for
-legitimately periodic instances - a weekly backup job or a
-monthly-mounted volume whose graph must stay visible between
-appearances (e.g. "STALEAFTER 700000" for a weekly cadence).
+An "EXSTALEPATTERN <regex>" keyword exempts matching instances from
+staleness. The freshness window itself is one fixed number - 86400
+seconds (one day), main's historic value: RRD files older than that
+are hidden from graphs requested with showgraph.cgi's "nostale"
+option - the graph links Xymon's own pages generate always pass it; a
+hand-written URL without it shows every file - and the writer-kept
+fileset index applies the same window to its paging counts, so the
+count always equals what renders. Instances the pattern matches are
+NEVER considered stale: they always render and always count. Use it
+for legitimately periodic instances - a weekly backup mount, a
+monthly job - whose graph must stay visible between appearances
+(e.g. "EXSTALEPATTERN backup"). The pattern is matched like the
+storage patterns (against the filename minus its ".rrd" suffix,
+case-insensitively, unanchored). An exempted instance that is truly
+gone stays visible until its RRD file is deleted - the file is easy
+to spot, its mtime stops moving. Note the window has a practical
+floor: freshness advances only as fast as the update cache writes
+(up to ~1h behind), which the fixed one-day window absorbs.
 .sp
 A "GRAPHOPTIONS <options>" keyword passes extra rrdtool graph options
 for this graph. When set it REPLACES the global RRDGRAPHOPTS

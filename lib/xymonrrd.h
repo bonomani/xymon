@@ -52,9 +52,12 @@ extern xymongraph_t *find_xymon_graph(char *rrdname);
 extern int xymon_gdef_maxinstancesperimage(char *name);
 extern int xymon_gdef_store_allowed(char *fn);
 extern int xymon_gdef_fileset_unknown(char *name);
-extern int xymon_gdef_fileset_count(char *hostname, char *name, time_t maxage);
+extern int xymon_gdef_fileset_count(char *hostname, char *name);
 extern int xymon_gdef_thresholds_off(char *name);
-extern int xymon_gdef_staleafter(char *name);
+/* The staleness window is one fixed number - main's historic value.
+ * Instances a graph's EXSTALEPATTERN matches are exempt: never stale. */
+#define XYMON_STALE_WINDOW 86400
+extern int xymon_gdef_stale_exempt(char *name, char *fn);
 
 /* Consolidation-function bits for xymon_gdef_cfs_forfile() */
 #define XYMON_CF_AVERAGE 1
