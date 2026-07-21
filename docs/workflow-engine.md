@@ -99,6 +99,62 @@ default), it does not silently escalate.
   they need anything else. Falling past the last step completes the
   instance.
 
+### What earns a place in the grammar
+
+The scope-creep pressure is real and comes from the user's side: a site
+running only this engine will ask everything of it - nobody installs an
+orchestration platform for one workflow. The answer is a criterion, not a
+maintainer's mood: **a capability enters the grammar only if it needs the
+engine's durability.** Surviving a restart between steps, waiting three
+days, a human gate: grammar. A loop, parsing, an API call, a computation:
+script territory - RUN executes scripts, and scripts already know how to
+do everything; the engine only needs started/succeeded/failed. (If binary
+routing ever gets tight, the constant-cost extension is an exit-code map
+- ON_EXIT 2 goto <step> - still not an interpreter.)
+
+For workflows that genuinely outgrow linear+routing (DAGs, joins,
+fan-out), the answer is the **graft**, not grammar growth - and it needs
+zero new mechanism:
+
+    runbook complex-case {
+        MATCH color host=db% test=repl color=red FOR 5m
+        STEP handoff { RUN post-to-n8n.sh }
+        STEP result  { WAIT event type=n8n-done id=$INSTANCE TIMEOUT 2h }
+        STEP report  { RUN close-out.sh }
+    }
+
+The external engine does the complicated graph and calls back with a
+usermsg; the native runbook stays the trunk holding durable state, timers
+and the audit trail. One workflow grafts; the platform does not switch.
+"Knowing how to do everything" is achieved by composition (scripts +
+grafts), never by accretion. StackStorm's own history is the evidence
+that this tier is a stable resting point: ActionChain (sequences +
+routing, our exact level) still ships today next to Orquesta, because it
+covers a whole class of needs at minimal cost - three DSL generations
+were spent on everything above it.
+
+### Substitution contract
+
+workflow.cfg supports variable substitution - $INSTANCE, $HOST, $TEST,
+$COLOR, $EVENT_* - and nothing more: no expressions, no filters, no
+conditionals in config, ever. That line is where Orquesta-class engines
+pay for an interpreter (and where template injection becomes an attack
+path on our weakly-authenticated triggers). Substitution is lookup, not
+evaluation. But the lookup borrows Jinja's discipline - the 5% worth
+stealing:
+
+- **Strict undefined**: an unknown $VAR fails the instance with a clear
+  error, never expands to empty. The shell's silent-empty default is how
+  a typo turns `rm -rf /staging/$INSTANC` into `rm -rf /staging/` - a
+  remediation engine does not get to have that failure mode.
+- **Load-time validation**: the config loader verifies every $VAR against
+  the closed namespace and every goto target against the step list when
+  the file is read - errors surface at reload, not mid-incident.
+- **Closed, documented namespace**: the variable set is finite, listed in
+  xymond_workflow(8), versioned. No arbitrary environment leakage.
+- **Escaping defined day one**: $$ is a literal $ - impossible to retrofit
+  cleanly later.
+
 ## Trigger taxonomy
 
 Three sources, two in P0:
