@@ -66,19 +66,32 @@ not yet on main). One section per runbook:
 
     runbook disk-full {
         MATCH color host=web% test=disk color=red FOR 10m
-        STEP restart  { RUN cleanup.sh          TIMEOUT 2m RETRY 2 }
-        STEP verify   { WAIT color!=red         TIMEOUT 10m }
-        STEP approve  { GATE ack                TIMEOUT 1h }
-        STEP escalate { RUN open-ticket.sh }
+        STEP restart { RUN cleanup.sh  TIMEOUT 2m RETRY 2 }
+        STEP verify  { WAIT color!=red TIMEOUT 10m ON_OK done ON_TIMEOUT continue }
+        STEP approve { GATE ack        TIMEOUT 1h  ON_TIMEOUT continue }
+        STEP ticket  { RUN open-ticket.sh }
     }
+
+Reading: cleanup, then wait for green - fixed means the instance completes
+(ON_OK done); still red after 10 minutes means fall through to human
+approval, then a ticket. A cleanup failure fails the instance (the
+default), it does not silently escalate.
 
 - MATCH selects the trigger. Its first word names the source (see "Trigger
   taxonomy"); the rest are source-specific predicates. Host/test patterns
   use the same matching family as alerts.cfg rules.
 - Steps execute strictly in order. Verbs: RUN (fork/exec a script), WAIT
   (block until a board predicate holds), GATE (block until human ack),
-  each with TIMEOUT; RUN carries RETRY. A step timeout advances to the
-  next step by default; ABORT as an explicit alternative.
+  each with TIMEOUT; RUN carries RETRY.
+- **A step timeout FAILS the instance by default.** The earlier draft had
+  timeouts fall through to the next step; review round 1 killed that - a
+  timed-out cleanup silently falling into an escalate step is a surprise
+  no operator should meet. Advancing past a timeout or a failure is
+  explicit routing: ON_FAIL / ON_TIMEOUT / ON_OK clauses whose target is
+  `continue`, `done` (complete the instance), `fail`, or a step name.
+  Minimal branching, in P0 - real runbooks need failure routing before
+  they need anything else. Falling past the last step completes the
+  instance.
 
 ## Trigger taxonomy
 
@@ -138,6 +151,41 @@ State-observation tests (files present in a drop directory) are binary
 facts, not error probes: they need no damping, first cycle wins, and the
 depositing process can push the status immediately for near-zero latency.
 File-arrival detection is monitoring - no inotify daemon, no ingest API.
+
+### Trigger trust
+
+The engine turns messages into command execution, and the Xymon wire is
+weakly authenticated by default (sender-IP checks). Stated plainly: a
+forged status that drives a test red, or an injected usermsg, is a remote
+runbook trigger. Deploying the engine RAISES the attack value of the Xymon
+server; the design must say so and layer the defenses:
+
+- xymond's sender restrictions (the --status-senders/--admin-senders
+  family) are the first gate: constrain which addresses may post status
+  and usermsg at all. A site that runs the engine without sender
+  restrictions is accepting message-forgery as a trigger path.
+- FOR forces an attacker to *sustain* a forged condition across re-checks,
+  not fire once.
+- The gateway's forced-command and the egress firewall bound what a
+  triggered runbook can reach regardless of why it triggered; TARGETS
+  (P1) narrows it per runbook.
+- Event runbooks that perform sensitive actions should require a GATE step
+  - the human approval is then part of the trigger path, not a courtesy.
+
+### Storm control (P0)
+
+Mass failure is the canonical auto-remediation disaster: a network outage
+flips 500 hosts red, 500 instances spawn, 500 concurrent scripts hammer
+the infrastructure that is already down. Two mechanisms, both P0 because
+an engine without them is dangerous on its worst day, which is the day it
+runs:
+
+- A global concurrency cap on running instances (with per-runbook
+  overrides in P1); excess triggers queue in arrival order.
+- A circuit breaker: more than N trigger matches per minute freezes new
+  instance creation and turns the engine's own status column red. A storm
+  is a signal for humans, not a work queue - the engine deliberately sits
+  down and says so.
 
 ## Execution model
 
@@ -306,6 +354,25 @@ Single server first: xymond + xymond_workflow in tasks.cfg + the gateway
 role (wrapper, staging, keys, egress) on one box; `ssh gw` resolves to
 localhost via ssh_config. The whole design works day one.
 
+### Role footprints: only the engine is server-bound
+
+| Role            | Needs                                            | Xymon footprint      |
+|-----------------|--------------------------------------------------|----------------------|
+| engine          | xymond channels (local IPC)                      | server - the only one|
+| gateway         | transfer + transfer-shell, openssh, rsync, curl  | client suffices      |
+| targets (A, B)  | sshd or an endpoint                              | none (client to monitor them) |
+| event emitters  | the xymon CLI                                    | client suffices      |
+
+The gateway wants the client anyway: it monitors /staging, sshd, and runs
+the drop-directory test whose color change triggers runbooks - a plain
+client-side custom test. And the client package ships the xymon CLI, so
+any client machine can push an immediate status or emit a usermsg trigger:
+event emission is a *client* capability by construction (a deploy job, a
+CI pipeline, the depositing process itself). The server thinks - engine
+and store; the clients observe and act. Corollary, tying back to "Trigger
+trust": the more clients may emit triggers, the more the server-side
+sender restrictions matter.
+
 Splitting is configuration, because every interface is already
 transportable:
 
@@ -336,13 +403,17 @@ messages/minute on the real instance) before tuning anything.
 ## Phasing
 
 - P0: parser (braceparse dependency), instance store, MATCH sources color
-  (with FOR) and event (with DEDUP), RUN/WAIT/GATE/TIMEOUT/RETRY,
-  at-least-once replay, board reconcile on start, progress column. FOR is
-  P0 because a remediation engine without an action threshold is dangerous;
-  event is P0 because it is what makes the engine a workflow engine rather
-  than a remediation hook, at marginal cost.
-- P1: cron triggers, ABORT semantics, TARGETS allowlists, per-runbook
-  concurrency overrides, instance history retention and a listing CGI.
+  (with FOR) and event (with DEDUP), RUN/WAIT/GATE/TIMEOUT/RETRY with
+  ON_FAIL/ON_TIMEOUT routing, the global concurrency cap and circuit
+  breaker, at-least-once replay, board reconcile on start, progress
+  column, and a `--list` CLI (dumping instances and their step/timer
+  state) so P0 is not operated blind while the listing CGI waits in P1.
+  FOR is P0 because a remediation engine without an action threshold is
+  dangerous; event is P0 because it is what makes the engine a workflow
+  engine rather than a remediation hook, at marginal cost; storm control
+  is P0 because mass failure is the engine's worst - and defining - day.
+- P1: cron triggers, TARGETS allowlists, per-runbook concurrency
+  overrides, instance history retention and a listing CGI.
 - Explicit non-P0: cross-host runbooks, parallel steps, script-to-engine
   callbacks richer than exit codes.
 
@@ -350,9 +421,13 @@ messages/minute on the real instance) before tuning anything.
 
 - WAIT predicate grammar: color comparisons only, or the full analysis.cfg
   expression family? Start color-only; widening later is additive.
-- GATE and multi-ack policies (any ack vs specific user) - needs a look at
-  what ack metadata the board actually exposes before promising user-level
-  gating.
+- GATE semantics - MUST be settled before P0, not during. An ack means "I
+  know", not "I approve"; overloading it makes approval indistinguishable
+  from acknowledgment in the audit trail, and two runbooks active on the
+  same (host,test) share one ack. Candidate resolutions: accept the
+  ambiguity and document it; or gate on an ack whose message carries a
+  runbook-addressed token; or publish per-instance gate columns and ack
+  those. Needs a look at what ack metadata the board actually exposes.
 - Whether the progress column is per-host singular (workflow) or per-runbook
   (workflow.<name>) - decide when the listing CGI is designed, they trade
   page noise against drill-down.
