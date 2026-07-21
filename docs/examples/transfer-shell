@@ -1,0 +1,24 @@
+#!/bin/sh
+# transfer-shell - forced-command shell for the gateway's workflow account.
+# Reference implementation for docs/workflow-engine.md ("Access
+# centralization"). Installed on the gateway in authorized_keys:
+#
+#   restrict,command="/usr/local/bin/transfer-shell" ssh-ed25519 AAAA... xymonflow@xymonserver
+#
+# Only the transfer wrapper is reachable through this key; a compromised
+# workflow host can transfer per the wrapper's matrix and nothing else.
+#
+# Shell metacharacters in SSH_ORIGINAL_COMMAND are inert: the command is
+# word-split (globbing disabled) and exec'd directly - ';' or '&&' become
+# literal arguments to transfer, which rejects them as bad URIs.
+
+set -uf
+
+case "${SSH_ORIGINAL_COMMAND:-}" in
+	"transfer copy "*|"transfer verify "*|"transfer purge "*)
+		set -- ${SSH_ORIGINAL_COMMAND#transfer }
+		exec /usr/local/bin/transfer "$@" ;;
+	*)
+		echo "transfer-shell: only 'transfer copy|verify|purge' is allowed" >&2
+		exit 2 ;;
+esac

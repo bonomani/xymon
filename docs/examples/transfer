@@ -1,0 +1,100 @@
+#!/bin/sh
+# transfer - single entry point for file movement on the workflow gateway.
+# Reference implementation for the design in docs/workflow-engine.md
+# ("The transfer wrapper: URI dispatch, native tools, YAGNI per scheme").
+#
+#   transfer copy   <src-uri> <dst-uri>   copy a file; exactly one side local
+#   transfer verify <uri> <sha256>        compare a remote/local sha256
+#   transfer purge  <instance-id>         remove the instance's staging dir
+#
+# URI schemes: /local/path | rsync://host/module/path | sftp://host/path
+#              | https://host/path
+# Remote-to-remote is refused by design: two legs are two runbook STEPs.
+#
+# Exit codes (the wrapper's contract with the engine's RETRY):
+#   0  done
+#   1  transient failure - replaying may succeed
+#   2  permanent - bad usage, unsupported scheme; never replay
+#
+# No credentials live here: identities, ProxyJump topology and per-target
+# options belong to the invoking user's ~/.ssh/config. Adding a scheme is
+# one case in copy() and one in verify(); runbooks never change.
+
+set -u
+STAGING="${TRANSFER_STAGING:-/staging}"
+
+usage() { echo "usage: transfer copy|verify|purge ..." >&2; exit 2; }
+
+scheme() {
+	case "$1" in
+		rsync://*) echo rsync ;;
+		sftp://*)  echo sftp ;;
+		https://*) echo https ;;
+		/*)        echo local ;;
+		*)         echo unknown ;;
+	esac
+}
+hostof() { r="${1#*://}"; echo "${r%%/*}"; }
+pathof() { r="${1#*://}"; echo "/${r#*/}"; }
+
+copy() {
+	src="$1"; dst="$2"
+	case "$(scheme "$src"):$(scheme "$dst")" in
+		local:rsync|rsync:local)
+			# rsync understands rsync:// URIs natively; resumes partials.
+			rsync -a --partial --timeout=300 "$src" "$dst" || exit 1 ;;
+		local:sftp)
+			# scp cannot resume an interrupted transfer; prefer rsync for
+			# large volumes where the target allows it.
+			scp -q "$src" "$(hostof "$dst"):$(pathof "$dst")" || exit 1 ;;
+		sftp:local)
+			scp -q "$(hostof "$src"):$(pathof "$src")" "$dst" || exit 1 ;;
+		local:https)
+			curl -fsS --upload-file "$src" "$dst" || exit 1 ;;
+		https:local)
+			curl -fsS -o "$dst" "$src" || exit 1 ;;
+		*unknown*)
+			echo "transfer: unsupported scheme" >&2; exit 2 ;;
+		local:local)
+			echo "transfer: use plain cp for local copies" >&2; exit 2 ;;
+		*)
+			echo "transfer: one side must be local (two legs = two STEPs)" >&2
+			exit 2 ;;
+	esac
+}
+
+verify() {
+	uri="$1"; want="$2"
+	case "$(scheme "$uri")" in
+		local)
+			got=$(sha256sum "$uri" | cut -d' ' -f1) || exit 1 ;;
+		sftp)
+			got=$(ssh "$(hostof "$uri")" sha256sum "$(pathof "$uri")" \
+			      | cut -d' ' -f1) || exit 1 ;;
+		https)
+			# Re-fetches to hash: costly on large files if the far side
+			# exposes no checksum endpoint. Documented wrapper limitation.
+			got=$(curl -fsS "$uri" | sha256sum | cut -d' ' -f1) || exit 1 ;;
+		rsync)
+			echo "transfer: verify unsupported for rsync:// (daemon, no shell)" >&2
+			exit 2 ;;
+		*)	echo "transfer: unsupported scheme" >&2; exit 2 ;;
+	esac
+	[ "$got" = "$want" ] || { echo "transfer: sha256 mismatch" >&2; exit 1; }
+}
+
+purge() {
+	id="$1"
+	# Instance ids are engine-generated; refuse anything path-like.
+	case "$id" in
+		*[!A-Za-z0-9_-]*|"") echo "transfer: bad instance id" >&2; exit 2 ;;
+	esac
+	rm -rf "${STAGING:?}/$id"
+}
+
+case "${1:-}" in
+	copy)   [ $# -eq 3 ] || usage; copy "$2" "$3" ;;
+	verify) [ $# -eq 3 ] || usage; verify "$2" "$3" ;;
+	purge)  [ $# -eq 2 ] || usage; purge "$2" ;;
+	*)      usage ;;
+esac

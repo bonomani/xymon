@@ -251,7 +251,9 @@ and the staging disk is itself Xymon-monitored, closing the loop.
 ### The transfer wrapper: URI dispatch, native tools, YAGNI per scheme
 
 One wrapper on the gateway, `transfer copy <src-uri> <dst-uri>` /
-`transfer verify <uri> <sha256>`, dispatching on the URI scheme. Decisions:
+`transfer verify <uri> <sha256>` / `transfer purge <instance-id>`,
+dispatching on the URI scheme. A reference implementation (the wrapper and
+its forced-command shell) lives in docs/examples/. Decisions:
 
 - **Exactly one side is local.** The wrapper never does remote-to-remote;
   two-leg journeys are two STEPs (that is what store-and-forward means).
