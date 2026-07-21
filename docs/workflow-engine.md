@@ -15,8 +15,14 @@ in this document is on a release path yet.
   sequences: restart-verify-escalate-ticket runbooks, gateway file
   transfers, deploy-on-request. It is not a general-purpose orchestrator;
   if a runbook needs DAGs, fan-out or cross-host sagas, use a dedicated
-  engine (Temporal, StackStorm) behind a bridge worker instead - that
-  alternative stays valid and is deliberately not foreclosed by this design.
+  engine behind a bridge worker instead - that alternative stays valid and
+  is deliberately not foreclosed by this design. Since the bridge speaks
+  webhook JSON, the target is swappable and chosen by team profile, not by
+  the bridge: infra remediation as reviewable code -> StackStorm;
+  orchestrations touching many third-party APIs with occasional
+  maintainers -> n8n; durable application sagas -> Temporal. The bridge
+  does not change a line across targets - that is what putting JSON at
+  the boundary buys.
 - alerts.cfg is untouched. xymond_alert answers "who do I tell, how often";
   the workflow engine answers "what do I *do*, in what order, with what
   state". Paging is not duplicated: a runbook that wants to page does it by
