@@ -320,6 +320,8 @@ httptest.c:364-385), et pas de double résolution par curl.
 - vérification des certificats serveur (opt-in futur) ;
 - migration des tests LDAP (ldaptest.c a le même genre de dette — chantier
   distinct) ;
+- migration smtp/imap/pop3 vers libcurl (analysée au §10 pour une phase
+  ultérieure) ;
 - toute modification de contest.c.
 
 ## 6. Différences de comportement assumées (récapitulatif)
@@ -407,7 +409,60 @@ matrice §8.2 ; PR-3 ~1 j + validation terrain. Risque principal : écarts de
 parité subtils sur des serveurs réels → c'est précisément ce que
 `--compare-http` (§8.1) rend mesurable avant toute bascule.
 
-## 10. Décisions ouvertes (à trancher avant PR-2)
+## 10. Phase ultérieure (hors périmètre) : smtp/imap/pop3 via libcurl
+
+Consigné ici pour ne pas refaire l'analyse ; **rien de tout ceci n'entre dans
+les PR 1-4.**
+
+### 10.1 Le constat
+
+libcurl est multi-protocoles : SMTP(S), IMAP(S), POP3(S), FTP(S), LDAP(S)
+nativement. Deux faits rendent une migration ultérieure intéressante :
+
+1. **contest.c ne sait pas faire STARTTLS.** Il ne teste que le TLS implicite
+   (smtps/465, imaps/993, pop3s/995 — flag `TCP_SSL` posé à la création du
+   test, contest.c:214, jamais après un dialogue en clair). Or les serveurs
+   mail modernes exposent majoritairement du STARTTLS sur 25/143/110 : la
+   surveillance de leurs certificats (`sslcert`) est aujourd'hui impossible
+   avec xymonnet. libcurl fait STARTTLS nativement (`CURLOPT_USE_SSL` =
+   `CURLUSESSL_ALL`/`_TRY`).
+2. La collecte de certificats passerait par la même mécanique
+   `CURLINFO_CERTINFO` que le moteur HTTP (§5.5) — code partagé, déjà écrit
+   à ce stade.
+
+### 10.2 Périmètre d'une telle phase
+
+- **Migre** : smtp(s), imap(s), pop3(s) — et leur variante STARTTLS comme
+  *nouvelle capacité* (nouveau schemeopt ou tag, à définir par RFC) ;
+  éventuellement ftp(s).
+- **Ne migre jamais** : les tests TCP **génériques** de `protocols.cfg`
+  (port arbitraire + chaîne envoyée + chaîne attendue + banner grab) — ce
+  n'est pas un protocole mais du TCP brut scripté, hors du modèle curl ; la
+  négociation d'options telnet (contest.c:1369-1389). contest.c reste donc
+  définitivement le moteur de ces tests : son périmètre final naturel.
+
+### 10.3 Préconditions
+
+1. PR-4 livrée (HTTP retiré de contest, moteur curl éprouvé en production).
+2. Dossier de non-régression équivalent au §8 pour chaque protocole migré :
+   contrairement à HTTP (où le legacy est *cassé* sur proxy https),
+   smtp/imap/pop3 **fonctionnent aujourd'hui** — la barre de preuve est donc
+   plus haute : parité stricte des bannières affichées, des couleurs, du
+   contenu sslcert, mode comparatif différentiel comme §8.1.
+3. RFC pour la surface de config STARTTLS (haute exigence du projet sur
+   toute nouvelle surface de config).
+
+### 10.4 Bénéfices attendus / risques
+
+- Bénéfices : STARTTLS (le manque fonctionnel réel), mutualisation du code
+  cert, réduction du périmètre SSL artisanal de contest au seul TLS implicite
+  des services génériques.
+- Risques : différences de dialogue protocolaire visibles (bannières
+  multilignes smtp, greeting imap) — les rapports affichent ces textes bruts ;
+  toute normalisation curl est une régression cosmétique à détecter au
+  différentiel.
+
+## 11. Décisions ouvertes (à trancher avant PR-2)
 
 1. sslcert/ciphers : l'option « cipher négocié seul » du §5.5 suffit-elle, ou
    faut-il préserver le scan pour les colonnes http ?
