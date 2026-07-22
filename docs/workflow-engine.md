@@ -155,6 +155,24 @@ stealing:
 - **Escaping defined day one**: $$ is a literal $ - impossible to retrofit
   cleanly later.
 
+### Step context writes
+
+Scripts return references into the instance context through one defined
+channel: stdout lines of the form `XYMON_SET key=value`, parsed by the
+engine at child exit. Keys are validated against the same closed charset
+as the variable namespace; count and total size are capped so the context
+stays single-digit KB - an oversized write FAILS the step. The
+by-reference rule is thereby enforced, not suggested: there is physically
+no way to stuff a payload into the durable state. All other stdout is
+captured as the step's log.
+
+DAG-forward decision, made now because retrofitting it is a data
+migration: context entries are stored **with their writing step as
+provenance** - (step, key) -> value, reads resolving to the latest write
+in execution order. Today that is indistinguishable from a flat map; the
+day tokens run in parallel, merge-on-join becomes a provenance question
+with an answer instead of last-write-wins roulette.
+
 ## Trigger taxonomy
 
 Three sources, two in P0:
@@ -249,6 +267,44 @@ runs:
   is a signal for humans, not a work queue - the engine deliberately sits
   down and says so.
 
+### Trigger discipline: suppression, serialization, pacing, windows
+
+- **Maintenance suppression (P0).** MATCH never fires for a status that is
+  disabled (blue) or inside a maintenance window - remediating a host
+  someone deliberately disabled is a bug, not a feature. The enadis state
+  is already on the board; the engine just respects it. No override flag
+  until someone brings a real case.
+- **MUTEX (P0).** One-active-instance dedups per (host,test,runbook), but
+  two *different* runbooks can collide on the same machine (a restart
+  racing a deploy). `MUTEX <name>` - substitution allowed, typically
+  `MUTEX $HOST` - names an engine-level lock; an instance acquires all
+  its mutexes at spawn or queues in arrival order. Locks live in the
+  store (a fourth DB) and are **instance-scoped by decision**: future
+  parallel tokens inherit the instance's locks rather than acquiring
+  their own - per-token locking is a deadlock committee we refuse in
+  advance.
+- **COOLDOWN (P1).** `COOLDOWN 1h`: after an instance completes, the same
+  (runbook, dedup key) does not re-trigger for the given period - a
+  persistent-but-flapping condition must not relaunch the moment an
+  instance finishes. Distinct from the circuit breaker (which is global
+  and about storms).
+- **TIME windows (P1).** `TIME=...` on MATCH, same syntax family as
+  alerts.cfg: "only auto-remediate at night" is policy and belongs in
+  reviewable config, not hidden in scripts. An out-of-window trigger is
+  deferred to window start and re-checked against the board (the FOR
+  machinery) - it fires then only if the condition still holds.
+
+### Manual runs and dry-run (P0)
+
+`xymond_workflow --run <runbook> host=... [k=v ...]` starts a runbook by
+hand - implemented over the event path, so a manual run is audited and
+deduped exactly like any trigger. `--dry-run` loads the config, resolves
+a hypothetical trigger's variables, prints the steps **with their labeled
+edges** and the commands that would run, and executes nothing: without
+it there is no safe way to develop a runbook against production config.
+The dry-run output is graph-shaped (nodes + edges) on purpose - it does
+not change form on the DAG horizon.
+
 ## Execution model
 
 Single-threaded event loop over three wakeup sources: a channel message on
@@ -269,6 +325,23 @@ timers from stored deadlines, and reconciles against the current board
 transitions missed while the worker was down are absorbed by observing
 state instead of replaying a stream. This bounds the non-reconstructibility
 to exactly the execution state itself.
+
+### Instance lifecycle rules
+
+- **Definition pinning.** An instance records the hash of its runbook
+  definition at spawn and completes under that definition; a reloaded
+  workflow.cfg applies to new instances only. A mid-flight rename can
+  therefore never strand a goto, and "what was this instance actually
+  executing?" has a durable answer. Same mechanism, unchanged, will pin
+  graph-shaped definitions.
+- **ON_RECOVER.** When a color-triggered instance's condition clears
+  mid-run (the host went green at step 2 of 5), the engine delivers a
+  recover signal to the instance. Default: **abort** - continuing to
+  remediate a solved problem is usually wrong, and the abort is recorded
+  in instance history. `ON_RECOVER continue` opts out per runbook.
+  Framed as an instance-level signal on purpose: on the DAG horizon the
+  same signal cancels the instance's tokens; nothing about its semantics
+  is per-step.
 
 ## The store: LMDB
 
@@ -454,6 +527,44 @@ machine), the workflow second (engine and store restart/upgrade without
 touching monitoring). The LMDB store follows the engine wherever it goes.
 Runbooks never change.
 
+## Forward compatibility: the DAG horizon
+
+Restated as a structural fact: this engine is already a graph machine -
+steps with ON_OK/ON_FAIL/ON_TIMEOUT targets are labeled edges - restricted
+to **one live token per instance**. "DAG support" would not replace the
+model; it would lift the token restriction and add joins. Every new
+semantic in this document is therefore specified token-aware, so that
+lifting the restriction is an extension, not a rewrite:
+
+- Records carry a version byte; the deadline DB's time->id key extends to
+  time->(id,token); context writes carry step provenance (the join-merge
+  answer); MUTEX is instance-scoped (tokens inherit, no per-token
+  deadlocks); ON_RECOVER is an instance-level signal (it will cancel
+  tokens, not steps); dry-run output is already nodes+edges.
+- **Reserved now:** NEEDS and JOIN are reserved words - a config using
+  them as step names fails at load. Routing stays per-step and
+  declarative: no computed jumps, no cross-runbook gotos, ever - the two
+  things that would make a later edge-declaration syntax (STEP x { NEEDS
+  a, b }) ambiguous.
+- **Still committee work if the horizon arrives** (deliberately not
+  pre-designed): cancellation of running scripts, join trigger-rules (the
+  all_success/one_failed family Airflow got right), per-token GATE
+  addressing. These are priced, not paid.
+
+The horizon is evidence-gated, and grafts are the instrument: every graft
+is a join-with-an-external-engine whose usage shows which parallel
+semantics sites actually need. Graft targets by shape: **StackStorm** for
+event-driven ops DAGs (joins + native human Inquiries - the closest match
+to what this engine would grow into); **Airflow** for scheduled data
+pipelines (pure DAG scheduling, batch/backfill - a domain this engine
+does not claim even at the horizon); **n8n** for API-glue graphs with
+human forms (visually a graph, but branches are not durable parallel
+legs - do not graft durable-parallel needs onto it). If graft usage ever
+shows that half the runbooks delegate their middle to StackStorm, that is
+the data that reopens this section - with the reserved words, versioned
+records and provenance already in place, the migration starts from
+semantics, not from storage.
+
 ## Steady-state cost
 
 writes = (color transitions + events)/s x 1 LMDB txn. stachg rate on a
@@ -466,16 +577,23 @@ messages/minute on the real instance) before tuning anything.
 
 - P0: parser (braceparse dependency), instance store, MATCH sources color
   (with FOR) and event (with DEDUP), RUN/WAIT/GATE/TIMEOUT/RETRY with
-  ON_FAIL/ON_TIMEOUT routing, the global concurrency cap and circuit
-  breaker, at-least-once replay, board reconcile on start, progress
-  column, and a `--list` CLI (dumping instances and their step/timer
-  state) so P0 is not operated blind while the listing CGI waits in P1.
-  FOR is P0 because a remediation engine without an action threshold is
-  dangerous; event is P0 because it is what makes the engine a workflow
-  engine rather than a remediation hook, at marginal cost; storm control
-  is P0 because mass failure is the engine's worst - and defining - day.
-- P1: cron triggers, TARGETS allowlists, per-runbook concurrency
-  overrides, instance history retention and a listing CGI.
+  ON_FAIL/ON_TIMEOUT/ON_RECOVER routing, the step-context write contract
+  (XYMON_SET with provenance), definition pinning, maintenance
+  suppression, MUTEX, the global concurrency cap and circuit breaker,
+  at-least-once replay, board reconcile on start, progress column, and
+  the `--list`/`--run`/`--dry-run` CLI so P0 is neither operated nor
+  developed blind while the listing CGI waits in P1. FOR is P0 because a
+  remediation engine without an action threshold is dangerous; event is
+  P0 because it is what makes the engine a workflow engine rather than a
+  remediation hook; maintenance suppression and MUTEX are P0 because
+  both guard against the engine doing harm, and safety features do not
+  wait for P1; storm control is P0 because mass failure is the engine's
+  worst - and defining - day.
+- P1: cron triggers, COOLDOWN, TIME windows, TARGETS allowlists,
+  per-runbook concurrency overrides, instance history retention, a
+  listing CGI, and engine self-metrics published as data messages
+  (instances started/completed/failed per runbook, landing in RRDs and
+  trending like everything else the product monitors).
 - Explicit non-P0: cross-host runbooks, parallel steps, script-to-engine
   callbacks richer than exit codes.
 
@@ -490,6 +608,10 @@ messages/minute on the real instance) before tuning anything.
   ambiguity and document it; or gate on an ack whose message carries a
   runbook-addressed token; or publish per-instance gate columns and ack
   those. Needs a look at what ack metadata the board actually exposes.
+  DAG-forward constraint on the choice: the resolution must extend to
+  addressing a gate *within* an instance - which favors per-instance gate
+  columns, since they generalize to per-token columns, where "which ack
+  opens which gate" answers itself.
 - Whether the progress column is per-host singular (workflow) or per-runbook
   (workflow.<name>) - decide when the listing CGI is designed, they trade
   page noise against drill-down.
