@@ -305,6 +305,34 @@ it there is no safe way to develop a runbook against production config.
 The dry-run output is graph-shaped (nodes + edges) on purpose - it does
 not change form on the DAG horizon.
 
+### Topological composition
+
+Workflows over several monitored elements decompose into four cases, and
+only the last leaves the engine:
+
+- **Combined conditions -> combostatus, upstream.** Xymon already has the
+  topological expression engine: combo.cfg computes combined statuses
+  ("cluster.dbstate red if 2 of 3 nodes have db red" - votes, AND/OR)
+  and the result is an ordinary status that transits stachg. A runbook
+  MATCHes the combined column; the topology expression stays declarative
+  in combo.cfg, with its own web page and history for free. MATCH grows
+  no multi-host grammar, ever - deriving from the existing combiner is
+  the doctrine squared.
+- **Combined actions -> already free.** Actions are scripts; a runbook
+  triggered by node A may act on B, C and the gateway. MUTEX is plural
+  by design (all mutexes acquired at spawn), so an action touching two
+  resources serializes correctly: `MUTEX $HOST, db-cluster`.
+- **Combined observation -> addressable WAIT (P1).** The trigger element
+  is the default subject, but a WAIT may name another:
+  `WAIT color host=db2 test=repl color=green`. Passes the grammar
+  criterion (the engine owns board queries and durable waits); costs one
+  qualifier pair.
+- **Combined choreography -> not ours.** Several elements each carrying
+  coordinated progress state (drain B while repairing A, with crossed
+  rollback) is multi-token state wearing a topology costume: graft
+  territory, or the N-instances pattern converging through a combo
+  status that an aggregator runbook MATCHes.
+
 ## Execution model
 
 Single-threaded event loop over three wakeup sources: a channel message on
@@ -600,7 +628,9 @@ messages/minute on the real instance) before tuning anything.
 ## Open questions
 
 - WAIT predicate grammar: color comparisons only, or the full analysis.cfg
-  expression family? Start color-only; widening later is additive.
+  expression family? Start color-only; widening later is additive. The
+  host=/test= addressing qualifiers (Topological composition) are settled
+  as P1; the open part is only the expression family.
 - GATE semantics - MUST be settled before P0, not during. An ack means "I
   know", not "I approve"; overloading it makes approval indistinguishable
   from acknowledgment in the audit trail, and two runbooks active on the
