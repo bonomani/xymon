@@ -39,11 +39,26 @@ No web server, no history, no RRD, no alerting, no network tests.
    xymon-dash
    ```
 
-## Notes
+## Optional: drill-down pages with lighttpd
 
-- **Drill-down**: the overview links each status to `svcstatus.cgi`, which
-  needs a web server — not part of solo mode. For status details use the CLI:
-  `xymoncmd xymon 127.0.0.1 "xymondlog localhost.cpu"`.
+The overview links each status to `svcstatus.cgi`, which needs CGI execution.
+Without a web server those links are dead (use the CLI instead:
+`xymoncmd xymon 127.0.0.1 "xymondlog localhost.cpu"`).
+
+To enable them, install lighttpd (`brew install lighttpd`) and drop in the
+provided config:
+
+```sh
+sed "s|@XYMONHOME@|$XH|g" lighttpd-solo.conf > $XH/etc/lighttpd-solo.conf
+```
+
+`xymon-dash` detects the file, starts lighttpd on first use (loopback only,
+port 8080) and opens `http://127.0.0.1:8080/xymon/` instead of the static
+file. Same `/xymon` + `/xymon-cgi` URL layout as the shipped Apache config,
+so `xymonserver.cfg` needs no changes. The secured CGIs (enable/disable,
+user admin) are not exposed.
+
+## Notes
 - **Graphs/history**: need `xymond_rrd`/`xymond_history` running continuously;
   add their standard `tasks.cfg` entries back if you want them and accept the
   extra disk writes.

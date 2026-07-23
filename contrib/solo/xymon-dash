@@ -11,7 +11,17 @@ XYMONHOME="${XYMONHOME:-@XYMONHOME@}"
 
 "$XYMONHOME/bin/xymoncmd" xymongen $XYMONGENOPTS || exit 1
 
-PAGE="$XYMONHOME/www/xymon.html"
+# With the lighttpd config installed, serve via http so the drill-down
+# CGI links work; start lighttpd on first use. Otherwise open the static
+# file directly (overview only).
+LIGHTTPD_CONF="$XYMONHOME/etc/lighttpd-solo.conf"
+if [ -f "$LIGHTTPD_CONF" ] && command -v lighttpd >/dev/null 2>&1; then
+	pgrep -f "lighttpd.*lighttpd-solo.conf" >/dev/null || lighttpd -f "$LIGHTTPD_CONF"
+	PAGE="http://127.0.0.1:8080/xymon/xymon.html"
+else
+	PAGE="$XYMONHOME/www/xymon.html"
+fi
+
 case "$(uname -s)" in
 	Darwin) open "$PAGE" ;;
 	*)      xdg-open "$PAGE" 2>/dev/null || echo "Dashboard: $PAGE" ;;
