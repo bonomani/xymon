@@ -72,3 +72,6 @@ CGI_USERADM_OPTS="--env=$XYMONENV"
 # appfeed options
 CGI_APPFEED_OPTS="--env=$XYMONENV"
 
+
+# On-demand overview page (dashboard.sh)
+CGI_DASHBOARD_OPTS="--env=$XYMONENV --ttl=60"

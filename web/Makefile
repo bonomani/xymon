@@ -5,8 +5,8 @@ XYMONCOMMLIBS = $(XYMONCOMMLIB) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)
 XYMONTIMELIB = ../lib/libxymontime.a
 XYMONTIMELIBS = $(XYMONTIMELIB) $(LIBRTDEF)
 
-PROGRAMS = history.cgi eventlog.cgi report.cgi reportlog.cgi snapshot.cgi findhost.cgi csvinfo.cgi acknowledge.cgi xymonpage datepage.cgi svcstatus.cgi enadis.cgi confreport.cgi criticalview.cgi criticaleditor.cgi ackinfo.cgi statusreport.cgi boilerplate.cgi hostgraphs.cgi ghostlist.cgi notifications.cgi acknowledgements.cgi hostlist.cgi useradm.cgi chpasswd.cgi appfeed.cgi cgiwrap
-CGISCRIPTS = history.sh eventlog.sh report.sh reportlog.sh snapshot.sh findhost.sh csvinfo.sh columndoc.sh datepage.sh svcstatus.sh historylog.sh confreport.sh confreport-critical.sh criticalview.sh certreport.sh nongreen.sh hostgraphs.sh ghostlist.sh notifications.sh acknowledgements.sh hostlist.sh topchanges.sh appfeed.sh appfeed-critical.sh
+PROGRAMS = history.cgi eventlog.cgi report.cgi reportlog.cgi snapshot.cgi findhost.cgi csvinfo.cgi acknowledge.cgi xymonpage datepage.cgi svcstatus.cgi enadis.cgi confreport.cgi criticalview.cgi criticaleditor.cgi ackinfo.cgi statusreport.cgi boilerplate.cgi hostgraphs.cgi ghostlist.cgi notifications.cgi acknowledgements.cgi hostlist.cgi useradm.cgi chpasswd.cgi appfeed.cgi dashboard.cgi cgiwrap
+CGISCRIPTS = history.sh eventlog.sh report.sh reportlog.sh snapshot.sh findhost.sh csvinfo.sh columndoc.sh datepage.sh svcstatus.sh historylog.sh confreport.sh confreport-critical.sh criticalview.sh certreport.sh nongreen.sh hostgraphs.sh ghostlist.sh notifications.sh acknowledgements.sh hostlist.sh topchanges.sh appfeed.sh appfeed-critical.sh dashboard.sh
 SECCGISCRIPTS = acknowledge.sh enadis.sh criticaleditor.sh ackinfo.sh useradm.sh chpasswd.sh
 
 ifeq ($(DORRD),yes)
@@ -43,6 +43,7 @@ HOSTLISTOBJS    = hostlist.o
 PERFDATAOBJS	= perfdata.o
 USERADMOBJS	= useradm.o
 CHPASSWDOBJS	= chpasswd.o
+DASHBOARDOBJS	= dashboard.o
 
 HOSTGRAPHSOBJS  = hostgraphs.o
 BOILERPLATEOBJS = boilerplate.o
@@ -137,6 +138,9 @@ acknowledgements.cgi: $(ACKNOWLEDGEOBJS) $(XYMONCOMMLIB)
 
 hostlist.cgi: $(HOSTLISTOBJS) $(XYMONCOMMLIB)
 	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(HOSTLISTOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
+
+dashboard.cgi: $(DASHBOARDOBJS) $(XYMONCOMMLIB)
+	$(CC) $(CFLAGS) -o $@ $(RPATHOPT) $(DASHBOARDOBJS) $(XYMONCOMMLIBS) $(PCRELIBS)
 
 perfdata.o: perfdata.c
 	$(CC) $(CFLAGS) $(PCREINCDIR) $(RRDDEF) $(RRDINCDIR) -c -o $@ $<

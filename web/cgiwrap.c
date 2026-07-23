@@ -88,6 +88,7 @@ int main(int argc, char **argv)
 	else if (strcmp(cgipgm, "criticaleditor.cgi") == 0)      {                              addoptl("CGI_CRITEDIT_OPTS");    }
 	else if (strcmp(cgipgm, "criticalview.cgi") == 0)        {                              addoptl("CGI_CRITVIEW_OPTS");    }
 	else if (strcmp(cgipgm, "csvinfo.cgi") == 0)             {                              addoptl("CGI_CSVINFO_OPTS");     }
+	else if (strcmp(cgipgm, "dashboard.cgi") == 0)           {                              addoptl("CGI_DASHBOARD_OPTS");   }
 	else if (strcmp(cgipgm, "datepage.cgi") == 0)            {                              addoptl("CGI_DATEPAGE_OPTS");    }
 	else if (strcmp(cgipgm, "enadis.cgi") == 0)              {                              addoptl("CGI_ENADIS_OPTS");      }
 	else if (strcmp(cgipgm, "eventlog.cgi") == 0)            {                              addoptl("CGI_EVENTLOG_OPTS");    }
