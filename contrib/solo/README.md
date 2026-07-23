@@ -1,0 +1,51 @@
+# Xymon solo mode — local health dashboard, on-demand UI
+
+An overlay that runs Xymon as a **single-machine health monitor**: only the C
+state engine runs continuously; the web dashboard is generated **on demand**.
+No web server, no history, no RRD, no alerting, no network tests.
+
+## What runs
+
+| When | What | Cost |
+|---|---|---|
+| always | `xymonlaunch`, `xymond` (loopback only), `xymond_client` | idle C daemons |
+| every 5 min | client collectors (`xymonclient.sh`) | ~1 s of shell |
+| every 10 min | xymond checkpoint | one small file write |
+| on demand | `xymon-dash` → `xymongen` → browser | ~100 ms |
+
+## Install
+
+1. Build and install Xymon server + client as usual.
+2. Replace the placeholders and drop the files in:
+
+   ```sh
+   XH=/opt/xymon/server        # your server install dir
+   XC=/opt/xymon/client        # your client install dir
+   sed -e "s|@XYMONHOME@|$XH|g" -e "s|@XYMONCLIENTHOME@|$XC|g" tasks.cfg > $XH/etc/tasks.cfg
+   cp hosts.cfg $XH/etc/hosts.cfg
+   sed "s|@XYMONHOME@|$XH|g" xymon-dash > /usr/local/bin/xymon-dash && chmod +x /usr/local/bin/xymon-dash
+   ```
+
+3. Start `xymonlaunch`. On macOS, use the launchd job:
+
+   ```sh
+   sed "s|@XYMONHOME@|$XH|g" net.xymon.solo.plist > ~/Library/LaunchAgents/net.xymon.solo.plist
+   launchctl load ~/Library/LaunchAgents/net.xymon.solo.plist
+   ```
+
+4. Open the dashboard whenever you want it:
+
+   ```sh
+   xymon-dash
+   ```
+
+## Notes
+
+- **Drill-down**: the overview links each status to `svcstatus.cgi`, which
+  needs a web server — not part of solo mode. For status details use the CLI:
+  `xymoncmd xymon 127.0.0.1 "xymondlog localhost.cpu"`.
+- **Graphs/history**: need `xymond_rrd`/`xymond_history` running continuously;
+  add their standard `tasks.cfg` entries back if you want them and accept the
+  extra disk writes.
+- **Security**: `xymond` listens on 127.0.0.1 only; nothing is exposed on the
+  network.

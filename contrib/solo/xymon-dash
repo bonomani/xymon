@@ -1,0 +1,18 @@
+#!/bin/sh
+# xymon-dash - generate the Xymon web pages on demand and open the dashboard.
+#
+# In solo mode xymongen is not scheduled by xymonlaunch; this script runs it
+# once (reads xymond's in-memory board, writes static HTML) and opens the
+# result in the default browser. Takes ~100 ms for a single host.
+#
+# Set XYMONHOME to your server install directory, or edit the default below.
+
+XYMONHOME="${XYMONHOME:-@XYMONHOME@}"
+
+"$XYMONHOME/bin/xymoncmd" xymongen $XYMONGENOPTS || exit 1
+
+PAGE="$XYMONHOME/www/xymon.html"
+case "$(uname -s)" in
+	Darwin) open "$PAGE" ;;
+	*)      xdg-open "$PAGE" 2>/dev/null || echo "Dashboard: $PAGE" ;;
+esac

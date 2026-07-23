@@ -1,0 +1,24 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<!-- launchd job for Xymon solo mode (macOS).
+     Install:  cp net.xymon.solo.plist ~/Library/LaunchAgents/
+               launchctl load ~/Library/LaunchAgents/net.xymon.solo.plist
+     Replace @XYMONHOME@ with your server install directory first. -->
+<plist version="1.0">
+<dict>
+	<key>Label</key>
+	<string>net.xymon.solo</string>
+	<key>ProgramArguments</key>
+	<array>
+		<string>@XYMONHOME@/bin/xymonlaunch</string>
+		<string>--no-daemon</string>
+		<string>--config=@XYMONHOME@/etc/tasks.cfg</string>
+		<string>--env=@XYMONHOME@/etc/xymonserver.cfg</string>
+		<string>--log=@XYMONHOME@/log/xymonlaunch.log</string>
+	</array>
+	<key>RunAtLoad</key>
+	<true/>
+	<key>KeepAlive</key>
+	<true/>
+</dict>
+</plist>
