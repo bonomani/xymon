@@ -3,24 +3,26 @@
 Target branch: **feature/self-describing-metrics** (this file was written from the
 solo-dashboard worktree; move/commit it onto that branch). Scope: evolve the
 branch so a test is a small **homogeneous** unit, add a **table** display element,
-and add a **GROUP** column that aggregates member tests — reusing existing
+and add a **testgroup** (a display-only aggregator of tests) — reusing existing
 machinery, with minimal new surface.
 
 Legend: **[V]** verified in code (file:line). **[P]** proposal. **[O]** open / untraced.
 
 ---
 
-## 0. Vocabulary (Bruno's 3-tier — pinned, because it clashes with stock "column")
+## 0. Vocabulary (pinned — decided 2026-07-24)
 
 - **test** = the atomic status object (`host.testname`, one `xymond_log_t`):
   **one color → one alert → one ack.** The homogeneous atom (`smarttemp`, `smartsata`).
-  **This is what stock Xymon calls a "column".**
-- **column** (Bruno's term) = a **display-only GROUP** of tests → one matrix light +
-  one merged detail page. COMPACT-style, emits no status. Stock has no status-level equivalent.
-- **graph** = rendered image(s).
-- CAVEAT: stock code/docs use "column" == "test" == the status unit. Where this PLAN
-  quotes stock code (`per-column ack`, pagegen "column"), "column" means the stock
-  status unit = a **test** here.
+  Stock Xymon (core code + user-facing docs/man pages) calls this a **"column"** — kept
+  as the legacy synonym there; new branch code/comments say **test**.
+- **testgroup** = a **display-only aggregator** of multiple tests → one matrix light +
+  one merged detail page. COMPACT-style, emits no status/alert/ack of its own.
+  (Earlier drafts called this "column"/"GROUP".) Stock has no status-level equivalent.
+- **metric** / **ds** = one DS (a curve). **instance** = one RRD file.
+  **graph** = a graphs.cfg definition (gdef). **image** = one rendered slice.
+- CAVEAT: where this PLAN quotes stock code/man (`per-column ack`, `AGGDS column`,
+  pagegen "column"), "column" = the stock status unit = a **test** here.
 
 ## 1. Core model
 
@@ -46,22 +48,22 @@ rollup=AGGREGATE, aggregator=JOIN). Fixed on purpose — no fifth operator, no p
 ## 2. Wire surface (producer)
 
 One fact-marker only: **`METRICS`** (schema + units + values + `THRESHOLD` lines),
-**name-optional** (defaults to the column). `GRAPH` optional. Everything else is
+**name-optional** (defaults to the test). `GRAPH` optional. Everything else is
 server-side derivation or test.cfg view config. No new markers. No presentation on the wire.
 
 ---
 
 ## 3. Goal 1 — Homogeneous tests  (cheap; policy + tiny parser change)
 
-- **[V]** Heterogeneity is emergent from allowing >1 `METRICS` block per column
+- **[V]** Heterogeneity is emergent from allowing >1 `METRICS` block per test
   (marker parser returns a list; `do_devmon` writes per-block files; htmllog renders
   one graph per marker in order). It is NOT a subsystem to delete.
 - **[P]** Doctrine: **one homogeneous `METRICS` block per test** (the atomic status
-  unit — one color/alert/ack); a **column** then groups multiple tests (display-only, §5).
+  unit — one color/alert/ack); a **testgroup** then aggregates multiple tests (display-only, §5).
 - **[P]** Make block/GRAPH **name optional, default = the test name** (small change in
   `lib/xymonmarkers.c` name parse).
 - **[P]** Leave the multi-marker render loop **dormant** (lower risk than trimming).
-- **[O]** Confirm no consumer assumes marker-name ≠ column before defaulting.
+- **[O]** Confirm no consumer assumes marker-name ≠ test before defaulting.
 
 ---
 
@@ -90,11 +92,11 @@ It serves **both**:
 
 ---
 
-## 5. Goal 3 — GROUP column aggregator  (web-layer only; DISPLAY-ONLY is mandatory)
+## 5. Goal 3 — testgroup aggregator  (web-layer only; DISPLAY-ONLY is mandatory)
 
-**[V] Decisive constraint:** the GROUP must be **display-only (COMPACT-style),
+**[V] Decisive constraint:** the testgroup must be **display-only (COMPACT-style),
 never a real status column (combostatus-style):**
-- A real `status host.GROUP` would generate its OWN alert on top of members'
+- A real `status host.testgroup` would generate its OWN alert on top of members'
   (`xymond.c:1832` posts to pagechn for any alert-color status) → **double-alert**,
   and would need its own ack.
 - `COMPACT` lives **entirely in xymongen**, emits no status to xymond
@@ -112,24 +114,24 @@ never a real status column (combostatus-style):**
   `pagegen.c:229`). Members do **not** get their own matrix column. No inline
   matrix expand/disclosure (dropped — fiddly, not needed).
 - **[P] The one change:** retarget the light's link (`pagegen.c:604`) from the synthetic
-  column to the **group detail page** — a SINGLE HTML page that MERGES the member tests
+  column to the **testgroup detail page** — a SINGLE HTML page that MERGES the member tests
   (the instance-JOIN table + their graphs). Keep the member list (COMPACT discards it
   after `generate_compactitems`) so that page can render them.
 - Detail page: one page = the **JOIN of member tables on the instance key** (Goal-2 table
   per member) + their graphs + a rollup band. Join-key stability relies on the branch's
   **reversible instance encoding** (KEEP item) so `sda` == `sda` across members.
 - Rollup color: reuse AGGDS / COMPACT worst-of.
-- Home: a **`GROUP`** block in test.cfg. **[V]** `braceparse` supports arbitrary
+- Home: a **`testgroup`** block in test.cfg. **[V]** `braceparse` supports arbitrary
   nesting (`BP_MAXDEPTH 64`); testcfg walks a fixed TEST→METRIC→backend tree and would
-  gain a GROUP level.
+  gain a testgroup level.
 - **[O]** The merged detail page is net-new rendering — no existing multi-test merged page to reuse.
 - **[O]** Dynamic (CGI) host-matrix path, if any, not traced; static `xymongen` authoritative for layout.
 - **[DECIDED 2026-07-24]** Model (a): the **test** is the alert/ack atom — one test →
-  one status → one alert → one ack. A **column** (Bruno's term = display-only GROUP)
-  aggregates tests. A test that belongs to a column is **hidden from the matrix**
-  (COMPACT `e->compacted=1`); only the column light shows. A standalone test (in no column)
+  one status → one alert → one ack. A **testgroup** (display-only aggregator)
+  aggregates tests. A test that belongs to a testgroup is **hidden from the matrix**
+  (COMPACT `e->compacted=1`); only the testgroup light shows. A standalone test (in no testgroup)
   still shows its own light. Tests stay real status units, individually alertable/ackable;
-  the column adds **no** status/alert/ack of its own (hence display-only).
+  the testgroup adds **no** status/alert/ack of its own (hence display-only).
 
 ---
 
@@ -148,16 +150,16 @@ Everything else = composition + test.cfg view definitions + reuse
 1. **Homogeneous** — doctrine + name-default. Trivial.
 2. **Table** — the THRESHOLD evaluator + a table render element. Self-contained,
    high payoff (realizes #218 Phase 1), reads only `restofmsg` + `fsidx_thresholds`.
-3. **Aggregator** — web-layer only (verified): COMPACT expand + JOIN + test.cfg GROUP.
+3. **Aggregator** — web-layer only (verified): COMPACT expand + JOIN + test.cfg testgroup.
    Bounded to xymongen/pagegen/loaddata + test.cfg; no xymond changes.
 
 ---
 
 ## 8. Do NOT
 
-- Do not make GROUP a real status column (double-alert + ack ambiguity — **[V]**).
+- Do not make a testgroup a real status object (double-alert + ack ambiguity — **[V]**).
 - Do not add a marker for the table or for presentation (decompose by fact, not consumer).
-- Do not delete the heterogeneity code (dormant, not a subsystem) or test.cfg (config tool + GROUP home).
+- Do not delete the heterogeneity code (dormant, not a subsystem) or test.cfg (config tool + testgroup home).
 - Do not put layout/aggregation scope on the wire — server-side (test.cfg / gdef FNPATTERN / AGGDS).
 
 ---
