@@ -20,10 +20,51 @@ static char rcsid[] = "$Id$";
 #include <unistd.h>
 #include <limits.h>
 #include <errno.h>
+#include <libgen.h>
 
 #include "libxymon.h"
 
 #define MAX_REQ_SIZE (1024*1024)
+
+/*
+ * basename() restricted to a single, harmless path component.
+ *
+ * POSIX basename() strips directory components, so "../../etc/passwd"
+ * becomes "passwd" -- but it returns ".." for "..", "." for "." or an empty
+ * input, and "/" for "/" or "//". A lone ".." pasted into a filesystem path
+ * is still a single-level traversal, and a lone "/" collapses the path back
+ * to the directory the component was supposed to sit under. basename() alone
+ * therefore does not keep an attacker-controlled CGI parameter inside its
+ * intended directory.
+ *
+ * Anything that is not a plain single component -- "." , ".." , empty, or
+ * containing a '/' -- yields an empty string; every other result is returned
+ * untouched.
+ *
+ * IMPORTANT: an empty result is not self-neutralizing. Appending it to a
+ * path yields "dir/" + "" + "/name", which resolves to "dir/name" -- the
+ * request is still served, just against the parent directory. Callers MUST
+ * reject an empty result explicitly rather than pass it on; see the checks
+ * in web/svcstatus.c, web/history.c and web/reportlog.c.
+ *
+ * Like basename(3), this may modify the string pointed to by path, so
+ * callers must not rely on path afterwards. The empty result points into
+ * the caller's own buffer rather than at a string literal, so writing to
+ * it is safe; a non-empty result comes straight from basename(3), which
+ * POSIX allows to return static storage, so treat it as read-only and
+ * copy it (every caller here strdup()s immediately).
+ */
+char *safe_basename(char *path)
+{
+	char *b;
+
+	if (!path) return "";
+	b = basename(path);
+	if (!b || !*b || strchr(b, '/') ||
+	    (strcmp(b, ".") == 0) || (strcmp(b, "..") == 0)) return path + strlen(path);
+
+	return b;
+}
 
 enum cgi_method_t cgi_method = CGI_OTHER;
 
