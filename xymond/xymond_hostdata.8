@@ -21,6 +21,22 @@ Note: This module requires that
 is launched with the "\-\-store\-clientlogs" option enabled.
 
 .SH OPTIONS
+.IP "\-\-recent\-period=N"
+Sets the length of the save-throttling window, in
+.BR minutes .
+Client data for a host is saved at most \-\-recent\-count times
+within this window; further messages are dropped.
+A value of 0 disables the throttle, so all client data is saved.
+Invalid values are rejected and the default is used.
+Default: 60
+
+.IP "\-\-recent\-count=N"
+Sets how many times a host's client data may be saved within the
+\-\-recent\-period window. A value of 0 disables saving entirely.
+Invalid values are rejected and the default is used; values above
+10000 are capped.
+Default: 5
+
 .IP "\-\-minimum\-free=N"
 Sets the minimum percentage of free filesystem space on the $CLIENTLOGS
 directory. If there is less than N% free space, xymond_hostdata will

@@ -34,9 +34,14 @@ static char rcsid[] = "$Id$";
 
 #define MAX_META 20	/* The maximum number of meta-data items in a message */
 
+#define DEFAULT_RECENTPERIOD 3600	/* --recent-period fallback, in seconds */
+#define DEFAULT_RECENTCOUNT  5		/* --recent-count fallback */
+#define MAX_RECENTCOUNT      10000	/* --recent-count cap: bounds the per-host history allocation */
+
 typedef struct savetimes_t {
 	char *hostname;
-	time_t tstamp[12];
+	time_t *tstamp;		/* Ring of the 'maxrecentcount' most recent save times */
+	int oldest;		/* Oldest slot in tstamp[] - the next one overwritten */
 } savetimes_t;
 void * savetimes;
 
@@ -57,6 +62,28 @@ void sig_handler(int signum)
 		  nextfscheck = 0;
 		  break;
 	}
+}
+
+/*
+ * Parse the value of a numeric "--option=N" argument. strtol (not atoi)
+ * so garbage is told apart from a real number and overflow is not
+ * undefined behaviour. Garbage and values below 'minval' are rejected
+ * in favour of 'dflt'; values above 'maxval' are capped.
+ */
+static int parse_int_opt(char *arg, int minval, int maxval, int dflt)
+{
+	char *p = strchr(arg, '=')+1, *ep;
+	long v = strtol(p, &ep, 10);
+
+	if ((ep == p) || (*ep) || (v < minval)) {
+		errprintf("%s is invalid (must be %d or more), using default %d\n", arg, minval, dflt);
+		return dflt;
+	}
+	if (v > maxval) {
+		errprintf("%s is too large, capping at %d\n", arg, maxval);
+		return maxval;
+	}
+	return (int)v;
 }
 
 void update_locator_hostdata(char *id)
@@ -84,8 +111,8 @@ int main(int argc, char *argv[])
 	char *msg;
 	int running;
 	int argi, seq;
-	int recentperiod = 3600;
-	int maxrecentcount = 5;
+	int recentperiod = DEFAULT_RECENTPERIOD;
+	int maxrecentcount = DEFAULT_RECENTCOUNT;
 	int logdirfull = 0;
 	int minlogspace = 5;
 	struct sigaction sa;
@@ -96,12 +123,15 @@ int main(int argc, char *argv[])
 			clientlogdir = strchr(argv[argi], '=')+1;
 		}
 		else if (argnmatch(argv[argi], "--recent-period=")) {
-			char *p = strchr(argv[argi], '=');
-			recentperiod = 60*atoi(p+1);
+			/* Minutes. 0 disables the throttle: the cutoff lands at
+			 * "now", so no earlier save is ever inside the window. */
+			recentperiod = 60*parse_int_opt(argv[argi], 0, INT_MAX/60, DEFAULT_RECENTPERIOD/60);
 		}
 		else if (argnmatch(argv[argi], "--recent-count=")) {
-			char *p = strchr(argv[argi], '=');
-			maxrecentcount = atoi(p+1);
+			/* 0 keeps its historical meaning: never save anything. The
+			 * cap keeps the per-host save-time history (8 bytes per
+			 * slot) at a sane size. */
+			maxrecentcount = parse_int_opt(argv[argi], 0, MAX_RECENTCOUNT, DEFAULT_RECENTCOUNT);
 		}
 		else if (argnmatch(argv[argi], "--minimum-free=")) {
 			minlogspace = atoi(strchr(argv[argi], '=')+1);
@@ -179,15 +209,18 @@ int main(int argc, char *argv[])
 		}
 		metadata[metacount] = NULL;
 
-		if (strncmp(metadata[0], "@@clichg", 8) == 0) {
+		/* @@clichg|timestamp|sender|hostname|testname|... */
+		if ((metacount > 4) && (strncmp(metadata[0], "@@clichg", 8) == 0)) {
 			xtreePos_t handle;
 			savetimes_t *itm;
-			int i, recentcount;
 			time_t now = gettimer();
 			time_t cutoff;
 			char hostdir[PATH_MAX];
 			char fn[PATH_MAX];
 			FILE *fd;
+
+			/* --recent-count=0: never save anything */
+			if (maxrecentcount == 0) continue;
 
 			/* metadata[3] is the hostname */
 			handle = xtreeFind(savetimes, metadata[3]);
@@ -196,29 +229,47 @@ int main(int argc, char *argv[])
 			}
 			else {
 				itm = (savetimes_t *)calloc(1, sizeof(savetimes_t));
-				itm->hostname = strdup(metadata[3]);
+				if (itm) {
+					itm->hostname = strdup(metadata[3]);
+					/* Sized from --recent-count: deciding "N or more saves in the
+					 * window" only ever needs the N most recent save times. */
+					itm->tstamp = (time_t *)calloc(maxrecentcount, sizeof(time_t));
+				}
+				if (!itm || !itm->hostname || !itm->tstamp) {
+					errprintf("Out of memory tracking saves for host %s, dropping message\n", metadata[3]);
+					if (itm) { free(itm->hostname); free(itm->tstamp); free(itm); }
+					continue;
+				}
 				xtreeAdd(savetimes, itm->hostname, itm);
 			}
 
 			/*
-			 * See how many times we've saved the hostdata recently (within the past 'recentperiod' seconds).
-			 * Floor the cutoff at 0: gettimer() is monotonic (seconds since boot), so
-			 * a never-saved host's calloc'ed zero tstamps would otherwise count as
-			 * recent saves whenever uptime is below 'recentperiod', and all client
-			 * data would be dropped unlogged until the machine has been up that long.
+			 * Save unless the host already had its --recent-count saves
+			 * in the past 'recentperiod' seconds. tstamp[] is a ring of
+			 * the most recent save times, with 'oldest' indexing the
+			 * oldest slot, so the limit is reached exactly when that
+			 * slot is still inside the window.
+			 *
+			 * Floor the cutoff at 0: gettimer() is monotonic (seconds
+			 * since boot), so a never-used slot's calloc'ed zero is not
+			 * "long ago" - without the floor it would land inside the
+			 * window whenever uptime is below 'recentperiod', and all
+			 * client data would be dropped unlogged until the machine
+			 * has been up that long.
 			 */
 			cutoff = (now > recentperiod) ? (now - recentperiod) : 0;
-			for (i=0, recentcount=0; ((i < 12) && (itm->tstamp[i] > cutoff)); i++) recentcount++;
-			/* If it's been saved less than 'maxrecentcount' times, then save it. Otherwise just drop it */
-			if (!logdirfull && (recentcount < maxrecentcount)) {
+			if (!logdirfull && (itm->tstamp[itm->oldest] <= cutoff)) {
 				int written, closestatus, ok = 1;
 
-				for (i = 10; (i > 0); i--) itm->tstamp[i+1] = itm->tstamp[i];
-				itm->tstamp[0] = now;
+				itm->tstamp[itm->oldest] = now;
+				itm->oldest = (itm->oldest + 1) % maxrecentcount;
 
-				sprintf(hostdir, "%s/%s", clientlogdir, metadata[3]);
+				snprintf(hostdir, sizeof(hostdir), "%s/%s", clientlogdir, metadata[3]);
 				mkdir(hostdir, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-				sprintf(fn, "%s/%s", hostdir, metadata[4]);
+				if (snprintf(fn, sizeof(fn), "%s/%s", hostdir, metadata[4]) >= (int)sizeof(fn)) {
+					errprintf("Hostdata filename too long for host %s, dropping message\n", metadata[3]);
+					continue;
+				}
 				fd = fopen(fn, "w");
 				if (fd == NULL) {
 					errprintf("Cannot create file %s: %s\n", fn, strerror(errno));
