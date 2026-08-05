@@ -72,7 +72,17 @@ void update_file(char *fn, char *mode, char *msg, time_t expire, char *sender, t
 				((timesincechange % 86400) / 3600), ((timesincechange % 3600) / 60));
 		fprintf(logfd, "Status unchanged in %s\n", timestr);
 	}
-	fclose(logfd);
+	/*
+	 * Buffered data is flushed at close, so a full filesystem surfaces
+	 * here and nowhere else - an unchecked fclose() loses the write in
+	 * silence.
+	 */
+	if (fclose(logfd) != 0) {
+		errprintf("Write to '%s' (for %s) failed at close: %s\n", tmpfn, fn, strerror(errno));
+		remove(tmpfn);
+		MEMUNDEFINE(tmpfn);
+		return;
+	}
 
 	if (expire) {
 		struct utimbuf logtime;
@@ -80,7 +90,11 @@ void update_file(char *fn, char *mode, char *msg, time_t expire, char *sender, t
 		utime(tmpfn, &logtime);
 	}
 
-	rename(tmpfn, fn);
+	/* Without this the temp file is orphaned and the real one never updated. */
+	if (rename(tmpfn, fn) != 0) {
+		errprintf("Could not rename '%s' to '%s': %s\n", tmpfn, fn, strerror(errno));
+		remove(tmpfn);
+	}
 
 	MEMUNDEFINE(tmpfn);
 }
@@ -320,6 +334,7 @@ int main(int argc, char *argv[])
 				char *ackmsg = NULL;
 				char *dismsg = NULL;
 				char htmllogfn[PATH_MAX];
+				char hostcopy[PATH_MAX];
 
 				MEMDEFINE(htmllogfn);
 
@@ -333,7 +348,20 @@ int main(int argc, char *argv[])
 
 				flapping = (metadata[16] ? (*metadata[16] == '1') : 0);
 
-				sprintf(htmllogfn, "%s/%s.%s.%s", htmldir, hostname, testname, htmlextension);
+				/*
+				 * The hostname goes in raw here, so a '/' in it puts
+				 * the file outside htmldir - "../evil" writes
+				 * "$htmldir/../evil.<test>.html". Confine it, on a
+				 * copy: basename(3) may modify its argument, and the
+				 * unmodified name is still wanted below as the display
+				 * name. basename() is enough at this call site - the
+				 * component is followed by ".<test>.html", so a "." or
+				 * ".." residue stays inside the directory.
+				 */
+				strncpy(hostcopy, hostname, sizeof(hostcopy)-1);
+				hostcopy[sizeof(hostcopy)-1] = '\0';
+				snprintf(htmllogfn, sizeof(htmllogfn), "%s/%s.%s.%s",
+					 htmldir, basename(hostcopy), testname, htmlextension);
 				update_htmlfile(htmllogfn, statusdata, hostname, testname, parse_color(metadata[7]), flapping,
 						     metadata[2], metadata[8], logtime, timesincechange, 
 						     acktime, ackmsg,
