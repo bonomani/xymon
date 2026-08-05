@@ -21,7 +21,6 @@ static char rcsid[] = "$Id$";
 #include <sys/types.h>
 #include <sys/stat.h>
 #include <fcntl.h>
-#include <libgen.h>
 
 #include "libxymon.h"
 #include "version.h"
@@ -67,35 +66,52 @@ static int parse_query(void)
 	cwalk = cgidata;
 	while (cwalk) {
 		if (strcasecmp(cwalk->name, "HOST") == 0) {
-			hostname = strdup(basename(cwalk->value));
+			hostname = strdup(safe_basename(cwalk->value));
 		}
 		else if (strcasecmp(cwalk->name, "SERVICE") == 0) {
-			service = strdup(basename(cwalk->value));
+			service = strdup(safe_basename(cwalk->value));
 		}
 		else if (strcasecmp(cwalk->name, "HOSTSVC") == 0) {
 			/* For backwards compatibility */
 			char *p = strrchr(cwalk->value, '.');
 			if (p) {
+				char *raw;
+
 				*p = '\0';
-				hostname = strdup(basename(cwalk->value));
-				service = strdup(basename(p+1));
-				for (p=strchr(hostname, ','); (p); p = strchr(p, ',')) *p = '.';
+				service = strdup(safe_basename(p+1));
+
+				/* Sanitize last - see the CLIENT branch below. */
+				raw = strdup(cwalk->value);
+				for (p=strchr(raw, ','); (p); p = strchr(p, ',')) *p = '.';
+				hostname = strdup(safe_basename(raw));
+				xfree(raw);
 			}
 		}
 		else if (strcasecmp(cwalk->name, "TIMEBUF") == 0) {
 			/* Only for the historical logs */
-			tstamp = strdup(basename(cwalk->value));
+			tstamp = strdup(safe_basename(cwalk->value));
 		}
 		else if (strcasecmp(cwalk->name, "CLIENT") == 0) {
-			char *p;
+			char *p, *raw;
 
-			hostname = strdup(basename(cwalk->value));
-			p = hostname; while ((p = strchr(p, ',')) != NULL) *p = '.';
+			/*
+			 * Sanitize LAST, after the ',' -> '.' rewrite. Order
+			 * matters: "," and ",," are perfectly ordinary single
+			 * components as far as safe_basename() is concerned,
+			 * but the rewrite turns them into "." and "..". Doing
+			 * it the other way round hands a traversal step to the
+			 * path built from this value.
+			 */
+			raw = strdup(cwalk->value);
+			p = raw; while ((p = strchr(p, ',')) != NULL) *p = '.';
+			hostname = strdup(safe_basename(raw));
+			xfree(raw);
+
 			service = strdup("");
 			outform = FRM_CLIENT;
 		}
 		else if (strcasecmp(cwalk->name, "SECTION") == 0) {
-			service = strdup(basename(cwalk->value));
+			service = strdup(safe_basename(cwalk->value));
 		}
 		else if (strcasecmp(cwalk->name, "NKPRIO") == 0) {
 			nkprio = strdup(cwalk->value);
@@ -133,14 +149,23 @@ static int parse_query(void)
 		else backsecs = 48*60*60;
 	}
 
-	if (!hostname || !service || ((source == SRC_HISTLOGS) && !tstamp) ) {
+	/*
+	 * safe_basename() maps anything that is not a plain single component
+	 * ("." , ".." , "/" , empty) to an empty string.
+	 * Reject that here instead of letting an empty element collapse in
+	 * the constructed path: "$CLIENTLOGS/" + "" + "/" + tstamp resolves
+	 * to the client-log root itself, so a request naming no real host
+	 * would still be served. "service" is deliberately not checked for
+	 * emptiness - a CLIENT request sets it to "" on purpose (see above).
+	 */
+	if (!hostname || !*hostname || !service || ((source == SRC_HISTLOGS) && (!tstamp || !*tstamp)) ) {
 		errormsg(403, "Invalid request");
 		return 1;
 	}
 
 	if (strcmp(service, xgetenv("CLIENTCOLUMN")) == 0) {
 		/* Make this a client request */
-		char *p = strdup(basename(hostname));
+		char *p = strdup(safe_basename(hostname));
 		xfree(hostname); hostname = p;	/* no need to convert to dots, since we'll already have them */
 		xfree(service);			/* service does double-duty as the 'section' param */
 		outform = FRM_CLIENT;
