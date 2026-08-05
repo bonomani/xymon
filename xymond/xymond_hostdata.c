@@ -186,16 +186,32 @@ int main(int argc, char *argv[])
 			time_t now = gettimer();
 			char hostdir[PATH_MAX];
 			char fn[PATH_MAX];
+			char *hostname;
 			FILE *fd;
 
-			/* metadata[3] is the hostname */
-			handle = xtreeFind(savetimes, metadata[3]);
+			/*
+			 * metadata[3] is the hostname, and it becomes a path
+			 * component below. With "--ghosts=allow" it is whatever
+			 * the reporting client called itself: knownhost() returns
+			 * an unknown name verbatim, and log_ghost() - which holds
+			 * the character whitelist - is only consulted when
+			 * knownhost() returns NULL. Confine it to one component,
+			 * and drop the message outright if nothing is left.
+			 */
+			hostname = safe_basename(metadata[3]);
+			if (!*hostname) {
+				errprintf("Dropping hostdata with invalid hostname '%s' from %s\n",
+					  metadata[3], metadata[2]);
+				continue;
+			}
+
+			handle = xtreeFind(savetimes, hostname);
 			if (handle != xtreeEnd(savetimes)) {
 				itm = (savetimes_t *)xtreeData(savetimes, handle);
 			}
 			else {
 				itm = (savetimes_t *)calloc(1, sizeof(savetimes_t));
-				itm->hostname = strdup(metadata[3]);
+				itm->hostname = strdup(hostname);
 				xtreeAdd(savetimes, itm->hostname, itm);
 			}
 
@@ -208,9 +224,21 @@ int main(int argc, char *argv[])
 				for (i = 10; (i > 0); i--) itm->tstamp[i+1] = itm->tstamp[i];
 				itm->tstamp[0] = now;
 
-				sprintf(hostdir, "%s/%s", clientlogdir, metadata[3]);
+				/*
+				 * Bounded, and truncation treated as an error: a
+				 * truncated path names a different file, so writing
+				 * to it would be worse than dropping the message.
+				 * gcc flags the unbounded form here (-Wformat-overflow).
+				 */
+				if (snprintf(hostdir, sizeof(hostdir), "%s/%s", clientlogdir, hostname) >= (int)sizeof(hostdir)) {
+					errprintf("Hostdata path too long for host '%s' - dropping\n", hostname);
+					continue;
+				}
 				mkdir(hostdir, S_IRWXU|S_IRGRP|S_IXGRP|S_IROTH|S_IXOTH);
-				sprintf(fn, "%s/%s", hostdir, metadata[4]);
+				if (snprintf(fn, sizeof(fn), "%s/%s", hostdir, metadata[4]) >= (int)sizeof(fn)) {
+					errprintf("Hostdata path too long for host '%s' - dropping\n", hostname);
+					continue;
+				}
 				fd = fopen(fn, "w");
 				if (fd == NULL) {
 					errprintf("Cannot create file %s: %s\n", fn, strerror(errno));
@@ -265,15 +293,32 @@ int main(int argc, char *argv[])
 		else if ((metacount > 3) && (strncmp(metadata[0], "@@drophost", 10) == 0)) {
 			/* @@drophost|timestamp|sender|hostname */
 			char hostdir[PATH_MAX];
-			snprintf(hostdir, sizeof(hostdir), "%s/%s", clientlogdir, basename(metadata[3]));
+			char *dropname = safe_basename(metadata[3]);
+
+			/* basename() alone leaves ".." intact, and this deletes
+			 * recursively - a ".." here wipes the parent of the
+			 * client-log directory. */
+			if (!*dropname) {
+				errprintf("Ignoring drophost for invalid hostname '%s'\n", metadata[3]);
+				continue;
+			}
+			snprintf(hostdir, sizeof(hostdir), "%s/%s", clientlogdir, dropname);
 			dropdirectory(hostdir, 1);
 		}
 
 		else if ((metacount > 4) && (strncmp(metadata[0], "@@renamehost", 12) == 0)) {
 			/* @@renamehost|timestamp|sender|hostname|newhostname */
 			char oldhostdir[PATH_MAX], newhostdir[PATH_MAX];
-			snprintf(oldhostdir, sizeof(oldhostdir), "%s/%s", clientlogdir, basename(metadata[3]));
-			snprintf(newhostdir, sizeof(newhostdir), "%s/%s", clientlogdir, basename(metadata[4]));
+			char *oldname = safe_basename(metadata[3]);
+			char *newname = safe_basename(metadata[4]);
+
+			if (!*oldname || !*newname) {
+				errprintf("Ignoring renamehost '%s' -> '%s': invalid hostname\n",
+					  metadata[3], metadata[4]);
+				continue;
+			}
+			snprintf(oldhostdir, sizeof(oldhostdir), "%s/%s", clientlogdir, oldname);
+			snprintf(newhostdir, sizeof(newhostdir), "%s/%s", clientlogdir, newname);
 			rename(oldhostdir, newhostdir);
 
 			if (net_worker_locatorbased()) locator_rename_host(metadata[3], metadata[4], ST_HOSTDATA);
