@@ -84,18 +84,30 @@ static void rrd_setup(void)
 	int count;
 	xymonrrd_t *lrec;
 	xymongraph_t *grec;
+	static time_t lastcheck = 0;
+	static char *builtfrom = NULL;	/* the TCP service list the tables were built from */
 
 
 	/*
-	 * The tables are derived entirely from environment variables (TEST2RRD,
-	 * GRAPHS) and the compiled-in TCP service list, all fixed at startup -
-	 * so they never change while we run. Build them once.
+	 * TEST2RRD and GRAPHS are fixed at process start, but init_tcp_services()
+	 * reloads protocols.cfg whenever it is modified - so the tables are NOT
+	 * fixed for the life of the process and cannot simply be built once, or a
+	 * TCP service added at runtime would never enter them. Throttle the check
+	 * to once every 5 minutes (as the original timer did), then rebuild only
+	 * when the service list actually changed, releasing the old tables first.
 	 */
-	if (xymonrrdtree != NULL) return;
-
+	if (xymonrrdtree != NULL && (lastcheck + 300 >= getcurrenttime(NULL))) return;
+	lastcheck = getcurrenttime(NULL);
 
 	/* Get the tcp services, and count how many there are */
 	services = strdup(init_tcp_services());
+	if (xymonrrdtree != NULL && builtfrom && (strcmp(builtfrom, services) == 0)) {
+		xfree(services);
+		return;
+	}
+	rrd_destroy();
+	if (builtfrom) xfree(builtfrom);
+	builtfrom = strdup(services);
 	SBUF_MALLOC(tcptests, strlen(services)+1);
 	strncpy(tcptests, services, tcptests_buflen);
 	count = 0; p = strtok(tcptests, " "); while (p) { count++; p = strtok(NULL, " "); }
@@ -104,7 +116,7 @@ static void rrd_setup(void)
 	/* Setup the xymonrrds table, mapping test-names to RRD files */
 	SBUF_MALLOC(lenv, strlen(xgetenv("TEST2RRD")) + strlen(tcptests) + count*strlen(",=tcp") + 1);
 	strncpy(lenv, xgetenv("TEST2RRD"), lenv_buflen); 
-	p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0';	/* Drop a trailing comma */
+	if (*lenv) { p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0'; }	/* Drop a trailing comma */
 	p = strtok(tcptests, " "); 
 	while (p) {
 		unsigned int curlen = strlen(lenv);
@@ -138,7 +150,7 @@ static void rrd_setup(void)
 
 	/* Setup the xymongraphs table, describing how to make graphs from an RRD */
 	lenv = strdup(xgetenv("GRAPHS"));
-	p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0';	/* Drop a trailing comma */
+	if (*lenv) { p = lenv+strlen(lenv)-1; if (*p == ',') *p = '\0'; }	/* Drop a trailing comma */
 	count = 0; p = lenv; do { count++; p = strchr(p+1, ','); } while (p);
 	xymongraphs = (xymongraph_t *)calloc((count+1), sizeof(xymongraph_t));
 
