@@ -138,6 +138,39 @@ effect immediately, without any delay.
 .IP delayyellow=STATUSCOLUMN:DELAY[,STATUSCOLUMN:DELAY...]
 Same as \fBdelayred\fR, but defers the change to a yellow status.
 
+.IP holidays=SET
+Selects which set of holidays applies to this host. Holiday sets are the
+named sections of the holidays.cfg file, so \fBholidays=us\fR selects the
+"[us]" set. Holidays listed before any named section are common to all
+sets and always apply as well.
+
+The holiday set matters wherever a time-specification is matched against
+the current time, such as alert rules, analysis.cfg thresholds and
+\fBDOWNTIME\fR windows, because on a holiday the day is treated as a
+different weekday. Which one is set by HOLIDAYLIKEWEEKDAY in
+holidays.cfg. Xymon's default holidays.cfg sets HOLIDAYLIKEWEEKDAY=0,
+so holidays are treated as Sundays. If the setting is omitted or set
+to -1, the actual weekday is used and holidays have no effect on time
+specifications.
+
+If this tag is not present, the set named by the HOLIDAYS setting in
+.I xymonserver.cfg(5)
+is used. If that is unset too, only the common holidays apply.
+
+.IP NOTBEFORE:YYYYMMDDHHMM
+.IP NOTAFTER:YYYYMMDDHHMM
+Limit the period in which this host definition is active, so that a host
+can be scheduled in or out of monitoring without editing hosts.cfg.
+Outside the period the host is treated as if it were not listed in
+hosts.cfg: it is left off the generated web pages, and xymond treats
+status messages about it as coming from an unknown host.
+
+The timestamp is exactly 12 digits - year, month, day, hour and minute -
+in local time. A value of any other length is reported in the log file
+and otherwise ignored. Either tag can be used on its own: \fBNOTBEFORE\fR
+without \fBNOTAFTER\fR has no end, and \fBNOTAFTER\fR without
+\fBNOTBEFORE\fR has no beginning.
+
 
 .SH XYMONGEN DISPLAY OPTIONS
 These tags are processed by the 
@@ -298,6 +331,25 @@ can turn the description into a link on the info page. The info page renders
 this text unescaped, so raw HTML placed directly in "Description" (e.g.
 an \fB<a href=...>\fR link) is also rendered as a link, independently of
 HOSTDESCURL, and can be used to link different hosts to different targets.
+
+.IP "DOC:URL"
+Define a URL with documentation for the host, shown as a "Documentation:"
+row on the host's "Info" column page. The URL may contain a \fB%s\fR
+conversion, which is replaced with the hostname, e.g.
+DOC:"https://cmdb.example.com/host/%s". A literal "%" in the URL must be
+escaped as "%%".
+DOC: can be set on the ".default." host (see the
+.B DEFAULT HOST
+section below) to provide a fleet-wide default documentation link, with a
+per-host DOC: tag taking precedence. It is also exported to alert scripts
+as XMH_DOCURL (see
+.I xymon\-xmh(5)
+).
+HOSTDOCURL in
+.I xymonserver.cfg(5)
+is a global hostname-keyed template for a "Notes:" row. E.g.
+with HOSTDOCURL="/docs/%s.php" set in xymonserver.cfg, a host "myhost"
+gets a "Notes:" link to "/docs/myhost.php".
 
 .IP "CLASS:Classname"
 Force the host to belong to a specific class. Class-names are used
@@ -545,15 +597,33 @@ that cross into/out of a REPORTTIME interval.
 If no REPORTTIME is given, the standard 24x7 calculation is used.
 
 .IP WARNPCT:percentage
-Xymon's reporting facility uses a computed availability threshold
-to color services green (100% available), yellow (above threshold,
-but less than 100%), or red (below threshold) in the reports.
+Xymon's reporting facility colors each service in the availability
+report by comparing the computed availability percentage against two
+thresholds: green when the availability is above the green level
+(default 99.995%, set globally with the XYMONREPGREEN environment
+setting), yellow when it is at or above the warning threshold but
+not above the green level, and red when it is below the warning
+threshold.
 
-This option allows you to set the threshold value on a host-by-host
-basis, instead of using a global setting for all hosts. The
-threshold is defined as the percentage of the time that the host
+This option sets the warning threshold on a host-by-host basis,
+instead of the global setting (default 97%, XYMONREPWARN environment
+setting). The threshold is the percentage of the time that the host
 must be available, e.g. "WARNPCT:98.5" if you want the threshold to
 be at 98.5%
+
+.IP WARNSTOPS:count
+In availability reports, turn the report status red when the service
+had more than "count" outages (status changes to red) during the
+reporting period, regardless of the computed availability
+percentage. This catches unstable services that fail often but
+briefly, which a percentage threshold alone does not see. When
+REPORTTIME is set, only outages within those service hours are
+counted. When WARNSTOPS is active, the report shows the outage count
+in parentheses next to the availability percentage.
+
+There is no global default: outage-count checking is disabled unless
+the host carries this tag (possibly inherited from the ".default."
+host). E.g. "WARNSTOPS:3" turns the report red on the fourth outage.
 
 .IP "noflap[=test1,test2,...]"
 Disable flap detection for this host, or for specific tests on this
@@ -1142,6 +1212,25 @@ Note that this may depend on your particular implementation
 of the regex functions found in your C library. Thanks to 
 Charles Goyard for this tip.
 
+For example, the complete content-check tag is:
+.br
+   cont;https://example.com/;All[[:space:]]is[[:space:]]OK
+.br
+The regular expression follows the second semicolon directly and is
+written without surrounding slash delimiters.
+To report the result in a custom column and match "OK", optionally
+followed by a line ending:
+.br
+   cont=health;https://example.com/health;^OK[[:cntrl:]]*$
+.br
+This reports in the "health" column and rejects additional printable text.
+For a byte-exact response check, use the message-digest form described above.
+For a more advanced match, grouping and alternation can accept multiple values:
+.br
+   cont=api;https://example.com/api;status=(ok|ready)
+.br
+This matches either "status=ok" or "status=ready" in the response.
+
 Note: If you are migrating from the "cont2.sh" script,
 you must change the '_' used as wildcards by cont2.sh 
 into '.' which is the regular-expression wildcard character.
@@ -1411,10 +1500,10 @@ per-host definitions will override the default ones. To apply to all hosts
 this should be listed FIRST in your file.
 
 \fBNOTE:\fR The ".default." host entry will only accept the following
-tags - others are silently ignored: delayyellow, delayred, NOCOLUMNS, 
-COMMENT, DESCR, CLASS, dialup, testip, nonongreen, nodisp, noinfo, 
+tags - others are silently ignored: delayred, delayyellow, NOCOLUMNS, 
+COMMENT, DESCR, DOC, CLASS, dialup, nonongreen, nodisp, noinfo, 
 notrends, noclient, TRENDS, NOPROPRED, NOPROPYELLOW, NOPROPPURPLE, NOPROPACK, 
-REPORTTIME, WARNPCT, NET, noclear, nosslcert, ssldays, DOWNTIME, depends, 
+REPORTTIME, WARNPCT, WARNSTOPS, testip, NET, noclear, nosslcert, ssldays, DOWNTIME, depends, 
 noping, noconn, trace, notrace, HIDEHTTP, browser, pulldata. Specifically, 
 note that network tests, "badTEST" settings, and alternate pageset 
 relations cannot be listed on the ".default." host.
