@@ -170,4 +170,4 @@ ssllibs=$(sed -n 's/^SSLLIBS *= *//p' "$ROOT/Makefile")
 	|| fail "NOTBEFORE/NOTAFTER assertions failed:
 $(cat "$work/stderr.log")"
 
-pass "NOTBEFORE:/NOTAFTER: convert exactly and leave the host record intact"
+pass "NOTBEFORE:/NOTAFTER: convert exactly and leave the host record intact (#298)"

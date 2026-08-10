@@ -108,4 +108,4 @@ assert_not_contains "nocap.y.rrd"     "$out" "no-capture fall-back"
 out=$(render "tcp:")
 assert_contains "Missing graph service name" "$out" "empty service rejected"
 
-pass "showgraph selects single-service RRDs by FNPATTERN component"
+pass "showgraph selects single-service RRDs by FNPATTERN component (#20)"

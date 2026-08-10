@@ -116,4 +116,4 @@ ssllibs=$(sed -n 's/^SSLLIBS *= *//p' "$ROOT/Makefile")
 	|| fail "noflap prefix assertions failed:
 $(cat "$work/stderr.log")"
 
-pass "noflap= matches whole test names, not prefixes"
+pass "noflap= matches whole test names, not prefixes (#293)"

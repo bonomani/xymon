@@ -412,4 +412,4 @@ the stored configuration for every later reader (see #276, #298, #300). Copy it 
 xymond/xymond_client.c's want_msgtype() shows the pattern:
 $(cat "$work/offenders")"
 
-pass "no caller mutates a pointer returned by the loadhosts API"
+pass "no caller mutates a pointer returned by the loadhosts API (#276, #300)"

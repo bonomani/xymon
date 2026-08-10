@@ -92,4 +92,4 @@ $(cat "$WORK/err")"
 echo "Checking lib/rrd_api_compat.h against both RRDtool argv APIs:"
 check legacy 0
 check const  1
-pass "rrd_api_compat.h compiles cleanly for both argv API forms"
+pass "rrd_api_compat.h compiles cleanly for both argv API forms (#80)"

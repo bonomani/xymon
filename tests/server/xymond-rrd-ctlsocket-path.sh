@@ -35,4 +35,4 @@ out=$(echo -n | XYMONTMP="$work/tmp" XYMONHOME="$work" \
 	"$XYMOND_RRD" --rrddir="$work/rrd" --no-cache 2>&1) || rc=$?
 [ "$rc" -eq 0 ] || fail "expected clean exit 0 with short XYMONTMP, got $rc: $out"
 
-pass "xymond_rrd refuses an overlong XYMONTMP instead of aborting"
+pass "xymond_rrd refuses an overlong XYMONTMP instead of aborting (#236)"

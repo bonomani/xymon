@@ -114,4 +114,4 @@ assert_contains "Inode report collection failed" "$out" \
 assert_not_contains "Filesystem" "$out" \
 	"failure marker carries no df header (server reads a header-less section as yellow)"
 
-pass "xymonclient-openbsd.sh FS filter: types, local-only, zero-inode-total drop, df-failure marker"
+pass "xymonclient-openbsd.sh FS filter: types, local-only, zero-inode-total drop, df-failure marker (#170)"

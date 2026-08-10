@@ -59,4 +59,4 @@ TRENDSCOLUMN="trends" \
 ACKUNTILMSG="until %H:%M" \
 	"$work/harness" 2>"$work/stderr.log" || fail "harness assertions failed: $(cat "$work/stderr.log")"
 
-pass "custom GRAPHS_<service> graphs render without a default graph definition"
+pass "custom GRAPHS_<service> graphs render without a default graph definition (#31)"
