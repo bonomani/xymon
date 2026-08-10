@@ -31,15 +31,15 @@ failures as test failures.
 
 ### `XYMON_VARIANT` — what the build promised
 
-**A test runs wherever its inputs exist.** Nothing filters the suite by build
-variant: a test that reads a source file runs in every tree, built or not,
-because the file is always there. An unbuilt tree is "light" only as a
-consequence — it compiled no variant, so the tests needing a compiled program
-are the ones that cannot run.
+**Where no variant is declared, a test runs wherever its inputs exist.** A test
+that reads a source file runs in every tree, built or not, because the file is
+always there. An unbuilt tree is "light" only as a consequence — it compiled no
+variant, so the tests needing a compiled program are the ones that cannot run.
+That is the developer run, and it is the default.
 
-`XYMON_VARIANT` is not a filter. It names **which variant produced this tree**,
-so `require_bin` can tell apart two situations that are otherwise the same
-silent `skip 77`:
+`XYMON_VARIANT` names **which variant produced this tree**, and two things read
+it — the area filter below, and `require_bin`. `require_bin` uses it to tell
+apart two situations that are otherwise the same silent `skip 77`:
 
 | Situation | Without a variant | With `XYMON_VARIANT` set |
 | --------- | ----------------- | ------------------------ |
@@ -92,11 +92,7 @@ legs of `build.yml` set both.
 `XYMON_VARIANT` alone also **filters**: a test in an area this build does not
 contain is skipped as not applicable — that is what stops a client leg
 compiling server web-CGI code, and writing `lib/libxymon*.a` into its tree as a
-side effect, which is what made the suite non-idempotent. The filter is not the
-only way in: a test that calls `require_bin` runs regardless of its area,
-because the manifest knows which variants ship which binary and the directory
-does not (`tests/server/` holds tests that drive `client/xymongrep` and
-`client/xymond_client`).
+side effect, which is what made the suite non-idempotent.
 
 With `XYMON_TESTS_STRICT` as well, the runner asserts a floor: **every test in
 an area this build produces must run.** A skip there is a coverage regression — a test that
@@ -111,14 +107,13 @@ stopped exercising something this very build contains.
 One table, both jobs: outside a variant's areas a test is skipped as not
 applicable, inside them it must run.
 
-**The directory is never the only say.** It is reliable for one weak claim —
-an area either exists in this build or it does not — and unreliable for the
-question that actually decides a run, which is *what does this test need*.
-`tests/server/` still holds tests whose subject is server code but whose
-driver is a client-shipped binary; filtering them out by folder would delete precisely the
-coverage a client leg exists for. So a test calling `require_bin` is exempt from
-the filter and left to the manifest, which knows which variants ship which
-binary.
+**The directory is the whole say — so file a test by what it needs.** A test
+whose subject is server code but whose driver is a client-shipped binary belongs
+in the area of the builds that ship that binary, not in `tests/server/`: that is
+why `xymongrep-filter.sh` is under `tests/common/` and `analysis-file-ifexist.sh`
+under `tests/localclient/`. Filing it by source path instead would delete
+precisely the coverage a client leg exists for, and no exemption in the runner
+can put it back — the filter has exactly one input, and it is the path.
 
 A new top-level area should be added to the table above. Until it is, the table
 cannot say whether a build contains it, so the runner does not guess: those

@@ -87,12 +87,19 @@ fi
 #     there is a coverage regression: a test stopped exercising something this
 #     build has.
 #
-# The filter is deliberately not the only way in. A test that calls require_bin
-# runs regardless of its area, because the manifest in lib/assert.sh knows which
-# variants ship which binary and the directory does not: tests/server/ holds
-# tests that drive client/xymongrep and client/xymond_client, and those must
-# keep running in a client leg. Area and driver are different questions -- the
-# directory answers the first, require_bin the second.
+# The directory is the whole answer, and that is new. It could not be while
+# tests driving a product a client build does ship lived under tests/server/, so
+# the filter carried a second way in: any test mentioning require_bin ran
+# regardless of its area. Those tests then reported their own skip reason
+# instead of the one below, which is how a single localclient log came to state
+# one fact -- this build has no server code -- in four different sentences.
+#
+# The moves earlier in this branch removed the need: xymongrep-filter and
+# loadhosts-canonical-charset to tests/common/, analysis-file-ifexist to
+# tests/localclient/ -- each now in an area the builds that ship its product
+# provide. With that done the exemption let no test through in any leg, so it
+# is gone. If a test ever again drives a product from outside its own area, move
+# the test; do not give applicability a second answer.
 provided_areas() {
 	case $1 in
 		server)      echo 'buildsystem packaging common client localclient server web xymonnet xymond rrd' ;;
@@ -134,20 +141,14 @@ strict_mode() {
 	esac
 }
 
-# not_applicable TESTPATH -- true when this variant contains neither the test's
-# area nor a build product it asks for.
+# not_applicable TESTPATH -- true when this build does not contain the area the
+# test's subject lives in.
 not_applicable() {
 	[ -n "${XYMON_VARIANT:-}" ] || return 1
 	na_area=${1#tests/}; na_area=${na_area%%/*}
 	case " $(provided_areas "$XYMON_VARIANT") " in
 		*" $na_area "*) return 1 ;;
 	esac
-	# A call, not a mention. Matching the bare word anywhere in the file let
-	# tests/web/html-log-custom-graphs.sh through on a comment that merely
-	# names require_bin -- so a test the area filter was right about ran
-	# anyway and then skipped on its own precondition, reporting a different
-	# reason for the same fact. Anchor on the call.
-	grep -qE '^[[:space:]]*require_bin[[:space:]]' "$1" 2>/dev/null && return 1
 	# An area no row mentions at all. The table cannot say this build lacks the
 	# subject, so the runner must not claim it does: run the test and let its
 	# own preconditions answer. Filtering here instead would be a silent skip
@@ -190,7 +191,7 @@ while IFS= read -r t; do
 	[ -n "$t" ] || continue
 	group "$t"
 	if not_applicable "$t"; then
-		printf 'SKIP: the %s build contains neither the %s area nor a build product this test asks for\n' \
+		printf 'SKIP: the %s build does not contain the %s area, so there is nothing here for this test to exercise\n' \
 			"$XYMON_VARIANT" "$na_area" >&2
 		printf '  skip (rc=77)\n'
 		skip=$((skip + 1))
