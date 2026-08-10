@@ -49,9 +49,9 @@ assert_not_contains "snprintf(item->auth, login_len," "$src" \
 # the rest from the archive -- no make, no writable tree. If either is missing,
 # the source guard above already stands, so pass with a note.
 command -v "$CC" >/dev/null 2>&1 \
-	|| pass "url.c keeps the #226 snprintf size (source check; no C compiler for the behavioural run)"
+	|| pass_partial "url.c keeps the #226 snprintf size" "no C compiler for the behavioural run"
 [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| pass "url.c keeps the #226 snprintf size (source check; library not built for the behavioural run)"
+	|| pass_partial "url.c keeps the #226 snprintf size" "library not built for the behavioural run"
 
 work=$(mktempdir)
 

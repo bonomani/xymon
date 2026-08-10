@@ -43,7 +43,7 @@ grep -Eq '(^|[^n])sprintf\(errtext,' "$SRC" \
 
 # (2) Behavioural demo of the property, if we can compile.
 command -v "$CC" >/dev/null 2>&1 \
-	|| pass "combostatus.c keeps the #187 fix (static check; no C compiler for the run)"
+	|| pass_partial "combostatus.c keeps the #187 fix" "no C compiler for the behavioural run"
 
 work=$(mktempdir)
 cat >"$work/t.c" <<'EOF'

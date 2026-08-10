@@ -14,7 +14,8 @@ From a fresh checkout, no build required:
     ./tests/testsuite
 
 It discovers every executable `tests/**/*.sh`, runs each, and prints a
-pass/skip/fail summary (exit `0` = pass, `77` = skip, anything else = fail).
+pass/partial/skip/fail summary (exit `0` = pass, `77` = skip, anything else
+= fail; see `pass_partial` below for why partial is still `0`).
 Output adapts on its own: plain text on a terminal, GitHub Actions annotations
 under CI — the workflow and a developer run the exact same runner.
 
@@ -194,6 +195,14 @@ maintenance.
   without recording what. A compiled harness reports through its exit
   status, not by printing its own success line; keep its failure output,
   which is what makes a red run readable.
+- **Say so when only part of the test ran.** A test whose behavioural half
+  cannot run -- no compiler, nothing built to drive -- and which falls back
+  to a source check reports with `pass_partial "<what held>" "<what did not
+  run>"`, not `pass`. It still exits `0`, because what ran did hold and the
+  `0`/`77`/other contract must not move; the runner counts it separately, so
+  `passed:` stops reporting a source grep and a full behavioural run as the
+  same result. Only for genuine fallbacks: a static guard that never intended
+  to execute anything is complete, not partial.
 - **Name the issue when there is one.** A test written to guard a
   specific reported regression ends its message with the number —
   `pass "digest.c keeps the #8 fix (32 hex chars, canary intact)"` — so

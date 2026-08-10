@@ -37,6 +37,30 @@ pass() {
 	exit 0
 }
 
+# pass_partial CLAIM [REASON] -- the test verified CLAIM, but part of what it
+# normally covers did not run: no compiler for the behavioural half, nothing
+# built to drive, and so on. What did run, held.
+#
+# Still exits 0, deliberately. To anything reading exit codes -- the runner,
+# autopkgtest, CTest -- this is a pass, and the 0/77/other contract in
+# tests/README.md is unchanged. The distinction is carried in the report
+# instead: the line says PARTIAL rather than PASS, and the test records itself
+# in $XYMON_TESTS_PARTIAL_LOG when the runner exports one, so the summary can
+# count a source-only fallback apart from a full behavioural run rather than
+# printing both as "passed".
+#
+# Use it only where the reduced path is a genuine fallback. A test that always
+# does exactly one thing, and does it fully, passes -- a static guard that
+# never intended to execute anything is complete, not partial.
+pass_partial() {
+	local claim=$1 reason=${2:-}
+	if [ -n "${XYMON_TESTS_PARTIAL_LOG:-}" ]; then
+		printf '%s\n' "$0" >>"$XYMON_TESTS_PARTIAL_LOG" 2>/dev/null || true
+	fi
+	printf 'PARTIAL: %s%s\n' "$claim" "${reason:+ -- $reason}"
+	exit 0
+}
+
 # ---- assertions --------------------------------------------------------------
 
 # assert_equal WANT GOT [MSG]

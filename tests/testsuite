@@ -21,6 +21,20 @@ cd "$root" || exit 2
 
 if [ "${GITHUB_ACTIONS:-}" = "true" ]; then gh=1; else gh=0; fi
 
+# A test that could only verify part of what it covers -- no compiler for the
+# behavioural half, nothing built to drive -- reports through pass_partial
+# (lib/assert.sh). That still exits 0, because what ran did hold, so the
+# runner cannot tell those apart by exit status; each one records itself here
+# instead. Counting them separately is the point: otherwise a source-only
+# fallback and a full behavioural run both land in "passed" and the number
+# claims more than the suite checked.
+partial_log=$(mktemp "${TMPDIR:-/tmp}/xymon-testsuite.$$.XXXXXX") || exit 2
+trap 'rm -f "$partial_log"' EXIT
+trap 'rm -f "$partial_log"; exit 130' INT
+trap 'rm -f "$partial_log"; exit 143' TERM
+XYMON_TESTS_PARTIAL_LOG=$partial_log
+export XYMON_TESTS_PARTIAL_LOG
+
 # Every test is bash by contract (tests/README.md); this runner stays POSIX sh
 # so it can deliver the skip below even where bash is absent. Without this
 # check, each test's exec would fail with rc=127 and count as FAIL -- but a
@@ -200,10 +214,23 @@ done <<EOF
 $tests
 EOF
 
+# Count without wc/awk so the runner keeps depending only on the shell.
+partial=0
+while IFS= read -r _; do partial=$((partial + 1)); done <"$partial_log"
+# pass counted every exit 0, partials included; report them as disjoint so the
+# four numbers add up to the tests discovered.
+pass=$((pass - partial))
+
 printf '\n----- summary -----\n'
 printf 'passed:  %d\n' "$pass"
+printf 'partial: %d\n' "$partial"
 printf 'skipped: %d\n' "$skip"
 printf 'failed:  %d\n' "$fail"
+
+if [ "$partial" -gt 0 ]; then
+	printf '\npartial tests (verified less than they cover):\n'
+	while IFS= read -r p; do printf '  - %s\n' "$p"; done <"$partial_log"
+fi
 
 if [ "$fail" -gt 0 ]; then
 	printf '\nfailing tests:\n%s' "$failed"
@@ -252,8 +279,9 @@ fi
 # Propagate the all-skip upward as a skip (exit 77, the same convention the
 # individual tests use; see skip() in tests/lib/assert.sh) so the layer above
 # sees "skipped", not "passed". The empty-discovery case already exited above,
-# so reaching here with pass=0 and fail=0 means skip>0.
-if [ "$pass" -eq 0 ]; then
+# so reaching here with pass=0, partial=0 and fail=0 means skip>0. A partial
+# did verify something, so it keeps the suite out of the all-skip case.
+if [ $((pass + partial)) -eq 0 ]; then
 	printf 'SKIP: every test skipped -- suite verified nothing (tests/ shipped without the code under test?)\n' >&2
 	exit 77
 fi

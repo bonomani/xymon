@@ -76,7 +76,7 @@ check_declares "$ROOT/client/xymonclient.cfg.DIST"              "xymonclient.cfg
 CC=${CC:-cc}
 if ! command -v "$CC" >/dev/null 2>&1 \
 	|| [ ! -f "$ROOT/include/config.h" ] || [ ! -f "$ROOT/lib/libxymoncomm.a" ]; then
-	pass "shipped configs declare their drop-in directories (#222); stackio mechanism check skipped (tree not built)"
+	pass_partial "shipped configs declare their drop-in directories (#222)" "stackio merge check needs a built tree"
 fi
 
 work=$(mktempdir)
