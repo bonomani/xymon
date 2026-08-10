@@ -16,13 +16,16 @@ if [ -r "$here/../lib/assert.sh" ]; then
 	# shellcheck source=tests/lib/assert.sh
 	. "$here/../lib/assert.sh"
 else
-	# Mirrors lib/assert.sh, including the stream: a verdict goes to stdout
-	# next to the runner's line for this test.
-	fail() { printf 'FAIL: %s\n' "$*"; exit 1; }
-	skip() { printf 'SKIP: %s\n' "$*"; exit 77; }
-	have_tool() { command -v "$1" >/dev/null 2>&1; }
+	# This branch stands in for lib/assert.sh, so it owes a definition for
+	# every helper the body below calls -- a missing one is not a skip, it is
+	# `command not found` and rc=127 reported as a test failure. Keep it in
+	# step with the calls, not with what assert.sh happens to export.
+	fail()         { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
+	skip()         { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
+	pass()         { printf 'PASS: %s\n' "${*:-ok}"; exit 0; }
+	have_tool()    { command -v "$1" >/dev/null 2>&1; }
 	require_tool() { for t; do have_tool "$t" || skip "$t not available on this host"; done; }
-	require_cc() { CC=${CC:-cc}; require_tool "$CC"; }
+	require_cc()   { CC=${CC:-cc}; require_tool "$CC"; }
 fi
 
 require_cc
