@@ -99,4 +99,4 @@ assert_contains 'inodestr = getdata("inode");' "$server_source" \
 assert_contains 'unix_inode_report(hostname' "$server_source" \
 	"NetBSD handler generates the inode status"
 
-pass "NetBSD filesystem filtering, inode collection, and failure reporting"
+pass "xymonclient-netbsd.sh FS filter: types, local-only, inode collection, df-failure marker"

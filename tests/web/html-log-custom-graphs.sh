@@ -32,7 +32,7 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 # the archive incrementally so the harness tests this tree's code, not a
 # stale archive.
 [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 build_xymon_libs "$ROOT" "$work/libbuild.log" libxymoncomm.a
 
 "$CC" -I"$ROOT/include" -I"$ROOT/lib" -o "$work/harness" \

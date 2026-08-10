@@ -22,7 +22,7 @@ command -v make >/dev/null 2>&1 || skip "make not available"
 # Needs a configured/built tree (bare-tree CI skips; the post-build suite
 # runs it for real) and one built WITH RRD support.
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 [ -f "$ROOT/web/showgraph.cgi" ] || skip "tree built without RRD support (no showgraph.cgi)"
 
 # RRD and SSL build flags as configure detected them (SSLLIBS is empty

@@ -24,7 +24,8 @@ ROOT=$(find_root)
 
 CC=${CC:-cc}
 command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
-[ -f "$ROOT/lib/libxymoncomm.a" ] || skip "tree not built (lib/libxymoncomm.a absent)"
+[ -f "$ROOT/lib/libxymoncomm.a" ] \
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 
 work=$(mktempdir)
 

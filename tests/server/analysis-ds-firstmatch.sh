@@ -51,7 +51,7 @@ command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
 command -v make  >/dev/null 2>&1 || skip "make not available"
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 
 work=$(mktempdir)
 

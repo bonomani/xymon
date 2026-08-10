@@ -32,7 +32,7 @@ CC=${CC:-cc}
 command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-noflap-prefix.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM

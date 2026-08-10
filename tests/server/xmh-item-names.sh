@@ -48,7 +48,7 @@ $mismatched"
 
 require_c_buildenv "$ROOT"
 [ -f "$ROOT/lib/libxymoncomm.a" ] \
-	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 
 ssllibs=$(sed -n 's/^SSLLIBS *= *//p' "$ROOT/Makefile")
 

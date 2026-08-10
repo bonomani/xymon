@@ -23,4 +23,4 @@ for handler in "${handlers[@]}"; do
 		"$name handler forwards its message section to msgs_report"
 done
 
-pass "Server client message-section mappings"
+pass "every xymond client handler calling msgs_report() maps its section consistently"
