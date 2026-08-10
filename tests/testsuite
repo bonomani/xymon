@@ -77,8 +77,8 @@ fi
 # runs regardless of its area, because the manifest in lib/assert.sh knows which
 # variants ship which binary and the directory does not: tests/server/ holds
 # tests that drive client/xymongrep and client/xymond_client, and those must
-# keep running in a client leg. Domain and driver are different questions -- the
-# area answers the first, require_bin the second.
+# keep running in a client leg. Area and driver are different questions -- the
+# directory answers the first, require_bin the second.
 provided_areas() {
 	case $1 in
 		server)             echo 'buildsystem packaging common client server web network xymond rrd' ;;
@@ -87,16 +87,43 @@ provided_areas() {
 }
 
 # not_applicable TESTPATH -- true when this variant contains neither the test's
-# domain nor a build product it asks for.
+# area nor a build product it asks for.
 not_applicable() {
 	[ -n "${XYMON_VARIANT:-}" ] || return 1
 	na_area=${1#tests/}; na_area=${na_area%%/*}
 	case " $(provided_areas "$XYMON_VARIANT") " in
 		*" $na_area "*) return 1 ;;
 	esac
-	grep -q 'require_bin' "$1" 2>/dev/null && return 1
+	# A call, not a mention. Matching the bare word anywhere in the file let
+	# tests/web/html-log-custom-graphs.sh through on a comment that merely
+	# names require_bin -- so a test the area filter was right about ran
+	# anyway and then skipped on its own precondition, reporting a different
+	# reason for the same fact. Anchor on the call.
+	grep -qE '^[[:space:]]*require_bin[[:space:]]' "$1" 2>/dev/null && return 1
 	return 0
 }
+
+# Every area any variant declares. An area on disk that appears in no row is a
+# directory nobody added to the table: it would fall through the case above and
+# skip in every leg, green, with the coverage floor unable to see it -- a
+# filtered test never reaches $skipped_in. check_variant (lib/assert.sh) already
+# refuses to skip silently on a typo'd XYMON_VARIANT; this is the same refusal
+# for an area that is typo'd, or simply new.
+known_areas=" $(provided_areas server) $(provided_areas client) $(provided_areas localclient) "
+unknown_areas=''
+while IFS= read -r t; do
+	[ -n "$t" ] || continue
+	a=${t#tests/}; a=${a%%/*}
+	case "$known_areas" in *" $a "*) continue ;; esac
+	case " $unknown_areas " in *" $a "*) continue ;; esac
+	unknown_areas="${unknown_areas}${a} "
+done <<EOF
+$tests
+EOF
+if [ -n "$unknown_areas" ]; then
+	errline "test area(s) named in no provided_areas row: ${unknown_areas% } -- add them to the table; refusing to skip them silently"
+	exit 1
+fi
 
 pass=0; skip=0; fail=0; failed=''; skipped_in=''
 # Iterate line-by-line rather than `for t in $tests`: unquoted word-splitting
@@ -107,7 +134,7 @@ while IFS= read -r t; do
 	[ -n "$t" ] || continue
 	group "$t"
 	if not_applicable "$t"; then
-		printf 'SKIP: the %s build contains neither the %s domain nor a build product this test asks for\n' \
+		printf 'SKIP: the %s build contains neither the %s area nor a build product this test asks for\n' \
 			"$XYMON_VARIANT" "$na_area" >&2
 		printf '  skip (rc=77)\n'
 		skip=$((skip + 1))

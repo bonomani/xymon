@@ -90,17 +90,21 @@ jobs:
           make -j$(nproc)
 
       # Run the regression suite against the binaries this variant just built.
-      # Every test runs wherever its inputs exist -- the suite is not filtered by
-      # variant. XYMON_VARIANT instead names which variant produced this tree, so
-      # the manifest in tests/lib/assert.sh can tell two cases apart that are
-      # otherwise the same silent skip: a binary this variant is defined to
-      # produce but didn't (a build regression -> fail), and one it never builds
-      # (-> a declared skip). E.g. tests/common/xymongrep-filter.sh drives
-      # common/xymongrep in the server leg and client/xymongrep in a client leg,
-      # and fails in either if that leg stopped producing it. This is the only
-      # place in CI the binary tests run at all; the separate no-build lane
-      # (tests.yml) covers the source-reading tests independently of the build,
-      # so they stay visible when the build is red.
+      # XYMON_VARIANT names which variant produced this tree, and two guards read
+      # it. The area table in tests/testsuite filters: a test whose subject this
+      # build does not contain has nothing here to exercise, so it never runs --
+      # that is what stops a client leg compiling server web-CGI code. The
+      # manifest in tests/lib/assert.sh resolves: within the tests that do run, it
+      # tells two cases apart that are otherwise the same silent skip -- a binary
+      # this variant is defined to produce but didn't (a build regression -> fail),
+      # and one it never builds (-> a declared skip). E.g.
+      # tests/server/xymongrep-filter.sh drives common/xymongrep in the server
+      # leg and client/xymongrep in a client leg -- it reaches the client legs
+      # past the area filter because it calls require_bin -- and fails in either
+      # if that leg stopped producing it. This is the only place in CI the binary
+      # tests run at all; the separate no-build lane (tests.yml) covers the
+      # source-reading tests independently of the build, so they stay visible
+      # when the build is red.
       - name: Run regression tests against the build
         env:
           # CONFTYPE=client builds LOCALCLIENT=yes (configure.client), which adds
