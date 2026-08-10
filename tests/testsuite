@@ -86,6 +86,22 @@ provided_areas() {
 	esac
 }
 
+# Every variant the table knows. Named once, here, next to the rows it indexes:
+# any second copy is a list that can fall behind this one.
+known_variants='server localclient client'
+
+# A variant matching no row above leaves every area unprovided, so every test
+# whose area the table would have answered for is filtered instead, each with a
+# fabricated reason naming an area this build was never asked about -- and with
+# XYMON_TESTS_STRICT the floor's required set is empty too, so it passes a run
+# in which almost nothing executed. lib/assert.sh's check_variant refuses
+# exactly this, but only for tests that reach require_bin. The filter decides
+# first and for everything, so the refusal belongs here too.
+if [ -n "${XYMON_VARIANT:-}" ] && [ -z "$(provided_areas "$XYMON_VARIANT")" ]; then
+	errline "XYMON_VARIANT='${XYMON_VARIANT}' is not a known variant (${known_variants}) -- likely a CI-matrix typo; refusing to skip every test silently"
+	exit 1
+fi
+
 # not_applicable TESTPATH -- true when this variant contains neither the test's
 # area nor a build product it asks for.
 not_applicable() {
