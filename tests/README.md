@@ -151,10 +151,13 @@ shipped-file invariants) get their own area.
 
 | Area              | What lives here                                        |
 | ----------------- | ------------------------------------------------------ |
+| `tests/common/`   | tools every variant ships (`COMMONTOOLS`: xymon, xymoncmd, xymongrep, xymoncfg, xymondigest) |
 | `tests/client/`   | xymon client tools and behaviours                      |
-| `tests/server/`   | xymond-side tools (xymongrep, xymoncgimsg, alert routing) |
+| `tests/server/`   | xymond-side tools (xymoncgimsg, alert routing, config parsing) |
 | `tests/network/`  | xymonnet probes (xymonping, network checks)            |
 | `tests/web/`      | CGIs, HTML rendering paths                             |
+| `tests/xymond/`   | xymond daemon and its helpers (hostdata, channels)     |
+| `tests/rrd/`      | the RRD write path and its parsers                     |
 | `tests/packaging/`| cross-cutting: shipped files, paths, generated configs |
 | `tests/buildsystem/` | parallel make, configure probes, CMake feature detection |
 | `tests/integration/` | end-to-end scenarios spanning multiple components   |
