@@ -187,6 +187,19 @@ maintenance.
   progress on the happy path; CI logs are noisy enough. On failure
   the `fail` helper prints to stderr and exits, which is usually
   enough context.
+- **One success line, through `pass`.** End with `pass "<what held>"` —
+  a claim, not a label: `pass "namematch() compares the plain name list
+  case-insensitively"`, not `pass "namematch test"`. The runner already
+  prints the test's path, so a bare `ok` records that something passed
+  without recording what. A compiled harness reports through its exit
+  status, not by printing its own success line; keep its failure output,
+  which is what makes a red run readable.
+- **Name the issue when there is one.** A test written to guard a
+  specific reported regression ends its message with the number —
+  `pass "digest.c keeps the #8 fix (32 hex chars, canary intact)"` — so
+  the CI line leads straight to the context. A test that pins a general
+  invariant nobody filed a bug about carries no number; don't invent one
+  to make the log look uniform.
 - **Exit codes:**
   - `0` — pass
   - `77` — skip (matches the autotools / autopkgtest convention; CI
