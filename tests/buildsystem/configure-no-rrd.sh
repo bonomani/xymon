@@ -100,6 +100,17 @@ if ! grep -q "RRDtool probe failed" "$LOG"; then
 	# tarball/autopkgtest portability goal: declare the host dependency and skip
 	# when it's not met.
 	if ! grep -q "forcing RRDOK=NO" "$LOG"; then
+		# Two very different things produce a missing marker, and only one of
+		# them is a host limitation. If configure.server no longer sources the
+		# RRD probe at all, the stub could not have run no matter how complete
+		# the host is -- and a build that never probes for RRDtool is exactly
+		# the #84 silent continue this test exists to catch. Skipping there
+		# would disarm the guard and report success. So check the source first:
+		# no `. build/rrd.sh` means regression, not environment.
+		if ! grep -qE '^[[:space:]]*\.[[:space:]]+build/rrd\.sh[[:space:]]*$' configure.server; then
+			dump_log
+			fail "configure.server no longer sources build/rrd.sh, so --server never probes for RRDtool (regression of #84)"
+		fi
 		skip "configure aborted before the RRD probe (unmet server prerequisite: GNU make / PCRE / c-ares / ...)"
 	fi
 	# The stub ran (RRD path reached) but configure did not abort via it: that
