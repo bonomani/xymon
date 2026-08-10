@@ -15,18 +15,26 @@
 __XYMON_TESTS_ASSERT_SOURCED=1
 
 # ---- result reporting --------------------------------------------------------
+#
+# All four result lines go to stdout, next to the runner's own verdict line for
+# the test. A result and its reason are one event: printed on separate streams
+# they reach a log that merges the two in whatever order it sees them, and the
+# reason ends up filed under a neighbouring test -- which is what a CI log
+# showed, a skip reason under a test that had passed and a skipped test with no
+# reason at all. Diagnostics a test emits on the way to a verdict still belong
+# on stderr; the verdict does not.
 
-# fail MSG -- print on stderr and exit non-zero (CI treats as failure).
+# fail MSG -- print and exit non-zero (CI treats as failure).
 fail() {
-	printf 'FAIL: %s\n' "$*" >&2
+	printf 'FAIL: %s\n' "$*"
 	exit 1
 }
 
-# skip REASON -- print on stderr and exit 77 (CI treats as skipped, not failed;
-# matches the autotools / autopkgtest convention). Use when a precondition for
-# the test is genuinely absent, not to paper over a real failure.
+# skip REASON -- print and exit 77 (CI treats as skipped, not failed; matches
+# the autotools / autopkgtest convention). Use when a precondition for the test
+# is genuinely absent, not to paper over a real failure.
 skip() {
-	printf 'SKIP: %s\n' "$*" >&2
+	printf 'SKIP: %s\n' "$*"
 	exit 77
 }
 

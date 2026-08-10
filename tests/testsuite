@@ -191,8 +191,10 @@ while IFS= read -r t; do
 	[ -n "$t" ] || continue
 	group "$t"
 	if not_applicable "$t"; then
+		# stdout, like the verdict line under it -- see the note above the
+		# result helpers in lib/assert.sh.
 		printf 'SKIP: the %s build does not contain the %s area, so there is nothing here for this test to exercise\n' \
-			"$XYMON_VARIANT" "$na_area" >&2
+			"$XYMON_VARIANT" "$na_area"
 		printf '  skip (rc=77)\n'
 		skip=$((skip + 1))
 		endgroup

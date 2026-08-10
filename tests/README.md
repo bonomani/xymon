@@ -186,8 +186,13 @@ maintenance.
   POSIX-sh compatibility is a non-goal.
 - **Quiet on success, verbose on failure.** Don't print per-step
   progress on the happy path; CI logs are noisy enough. On failure
-  the `fail` helper prints to stderr and exits, which is usually
-  enough context.
+  the `fail` helper prints and exits, which is usually enough context.
+- **Verdicts on stdout.** `pass`, `pass_partial`, `skip` and `fail` all
+  print there, alongside the runner's own line for the test. A result and
+  its reason are one event; on separate streams they reach a log that
+  merges the two in whatever order it sees them, and the reason gets filed
+  under a neighbouring test. Diagnostics on the way to a verdict — a
+  compiler log, a dumped fixture — still belong on stderr.
 - **One success line, through `pass`.** End with `pass "<what held>"` —
   a claim, not a label: `pass "namematch() compares the plain name list
   case-insensitively"`, not `pass "namematch test"`. The runner already
