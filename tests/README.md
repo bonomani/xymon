@@ -110,13 +110,20 @@ One table, both jobs: outside a variant's areas a test is skipped as not
 applicable, inside them it must run.
 
 **The directory is never the only say.** It is reliable for one weak claim —
-a domain either exists in this build or it does not — and unreliable for the
+an area either exists in this build or it does not — and unreliable for the
 question that actually decides a run, which is *what does this test need*.
 `tests/server/` holds tests that drive `client/xymongrep` and
 `client/xymond_client`; filtering them out by folder would delete precisely the
 coverage a client leg exists for. So a test calling `require_bin` is exempt from
 the filter and left to the manifest, which knows which variants ship which
 binary.
+
+A new top-level area should be added to the table above. Until it is, the table
+cannot say whether a build contains it, so the runner does not guess: those
+tests run unfiltered and answer through their own preconditions, and the run
+prints a `NOTE:` naming the area. Under `XYMON_TESTS_STRICT` that note becomes a
+failure — a complete environment must have a complete table — raised after every
+test has reported, not instead of them.
 
 A developer run declares nothing and is never held to the floor.
 

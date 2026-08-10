@@ -116,16 +116,27 @@ not_applicable() {
 	# anyway and then skipped on its own precondition, reporting a different
 	# reason for the same fact. Anchor on the call.
 	grep -qE '^[[:space:]]*require_bin[[:space:]]' "$1" 2>/dev/null && return 1
+	# An area no row mentions at all. The table cannot say this build lacks the
+	# subject, so the runner must not claim it does: run the test and let its
+	# own preconditions answer. Filtering here instead would be a silent skip
+	# the coverage floor cannot see, because a filtered test never reaches
+	# $skipped_in -- the one outcome this whole table exists to prevent.
+	case "$known_areas" in *" $na_area "*) ;; *) return 1 ;; esac
 	return 0
 }
 
-# Every area any variant declares. An area on disk that appears in no row is a
-# directory nobody added to the table: it would fall through the case above and
-# skip in every leg, green, with the coverage floor unable to see it -- a
-# filtered test never reaches $skipped_in. check_variant (lib/assert.sh) already
-# refuses to skip silently on a typo'd XYMON_VARIANT; this is the same refusal
-# for an area that is typo'd, or simply new.
-known_areas=" $(provided_areas server) $(provided_areas client) $(provided_areas localclient) "
+# Every area any variant declares, composed from known_variants so a variant
+# added to the table above is not silently missing here.
+known_areas=''
+for v in $known_variants; do known_areas="$known_areas $(provided_areas "$v")"; done
+known_areas=" $known_areas "
+
+# Which areas on disk the table has never heard of. Running them (above) is the
+# safe direction, but it is still a table omission, so it is reported: a note on
+# a developer run, and a hard failure under XYMON_TESTS_STRICT, where CI has
+# declared this environment -- and therefore this table -- complete. The failure
+# is raised at the end, next to the coverage floor, so a run that trips it still
+# reports every real test result first instead of aborting on a directory name.
 unknown_areas=''
 while IFS= read -r t; do
 	[ -n "$t" ] || continue
@@ -136,10 +147,7 @@ while IFS= read -r t; do
 done <<EOF
 $tests
 EOF
-if [ -n "$unknown_areas" ]; then
-	errline "test area(s) named in no provided_areas row: ${unknown_areas% } -- add them to the table; refusing to skip them silently"
-	exit 1
-fi
+[ -z "$unknown_areas" ] || printf 'NOTE: test area(s) in no provided_areas row: %s -- running them unfiltered; add them to the table in tests/testsuite\n' "${unknown_areas% }"
 
 pass=0; skip=0; fail=0; failed=''; skipped_in=''
 # Iterate line-by-line rather than `for t in $tests`: unquoted word-splitting
@@ -182,6 +190,15 @@ printf 'failed:  %d\n' "$fail"
 
 if [ "$fail" -gt 0 ]; then
 	printf '\nfailing tests:\n%s' "$failed"
+	exit 1
+fi
+
+# A complete environment must also have a complete table -- see the note where
+# unknown_areas is collected. Raised here, after every test has run and been
+# reported, because an undeclared directory is a bookkeeping omission and not a
+# reason to withhold the results.
+if [ -n "$unknown_areas" ] && [ "${XYMON_TESTS_STRICT:-}" = 1 ]; then
+	errline "test area(s) named in no provided_areas row: ${unknown_areas% } -- add them to the table in tests/testsuite so this build can say whether it contains them"
 	exit 1
 fi
 
