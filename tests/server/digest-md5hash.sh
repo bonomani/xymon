@@ -38,7 +38,7 @@ assert_not_contains "sizeof(md_string) - (md_string - p)" "$src" \
 	"digest.c md5hash() regressed to the negative-offset size argument (#8)"
 
 # (2) behavioural demo of the property, if we can compile.
-if ! command -v "$CC" >/dev/null 2>&1; then
+if ! have_tool "$CC"; then
 	pass_partial "digest.c keeps the #8 fix" "no C compiler for the behavioural run"
 fi
 

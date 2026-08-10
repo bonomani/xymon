@@ -17,8 +17,7 @@ set -euo pipefail
 
 ROOT=$(find_root)
 
-CC=${CC:-cc}
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+require_cc
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-xtree.XXXXXX")
 trap 'rm -rf "$work"' EXIT HUP INT TERM

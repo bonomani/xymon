@@ -46,9 +46,8 @@ here=$(dirname "$0")
 CLIENT_CONFIG_C="$ROOT/xymond/client_config.c"
 [ -f "$CLIENT_CONFIG_C" ] || skip "xymond/client_config.c not present in this checkout"
 
-CC=${CC:-cc}
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
-command -v make  >/dev/null 2>&1 || skip "make not available"
+require_cc
+require_tool make
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"

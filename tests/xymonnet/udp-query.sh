@@ -20,8 +20,7 @@ else
 	skip() { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
 fi
 
-CC=${CC:-cc}
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+require_cc
 
 work=$(mktemp -d)
 trap 'rm -rf "$work"' EXIT

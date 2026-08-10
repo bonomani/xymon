@@ -6,7 +6,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/assert.sh"
 
 require_bin XYMOND_RRD xymond/xymond_rrd
-command -v rrdtool >/dev/null 2>&1 || skip "rrdtool not found"
+require_tool rrdtool
 
 work=$(mktempdir)
 mkdir -p "$work/home/etc" "$work/tmp" "$work/rrd"

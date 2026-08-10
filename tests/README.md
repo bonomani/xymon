@@ -193,6 +193,12 @@ maintenance.
   merges the two in whatever order it sees them, and the reason gets filed
   under a neighbouring test. Diagnostics on the way to a verdict — a
   compiler log, a dumped fixture — still belong on stderr.
+- **Ask for host tools through `require_tool`.** `require_tool awk make`
+  skips with one sentence per missing tool; `require_cc` and
+  `require_c_buildenv` build on it. Use the `have_tool` predicate instead
+  where a missing tool costs the test only its behavioural half, so it can
+  answer with `pass_partial` rather than skip. Don't hand-roll
+  `command -v … || skip`: the wordings drift apart, and they did.
 - **One success line, through `pass`.** End with `pass "<what held>"` —
   a claim, not a label: `pass "namematch() compares the plain name list
   case-insensitively"`, not `pass "namematch test"`. The runner already

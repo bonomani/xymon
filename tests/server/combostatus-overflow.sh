@@ -42,7 +42,7 @@ grep -Eq '(^|[^n])sprintf\(errtext,' "$SRC" \
 	&& fail "combostatus.c evaluate() regressed to an unbounded sprintf into errtext[1024] (#187 / 6252bd9ca)"
 
 # (2) Behavioural demo of the property, if we can compile.
-command -v "$CC" >/dev/null 2>&1 \
+have_tool "$CC" \
 	|| pass_partial "combostatus.c keeps the #187 fix" "no C compiler for the behavioural run"
 
 work=$(mktempdir)

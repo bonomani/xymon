@@ -36,7 +36,7 @@ if [ ! -f "$SCRIPT" ]; then
 	[ -z "${XYMONCLIENT_LINUX:-}" ] || fail "XYMONCLIENT_LINUX explicitly set to '$SCRIPT' but no such file -- broken package layout, not a skip"
 	skip "$SCRIPT absent"
 fi
-command -v awk >/dev/null 2>&1 || skip "no awk"
+require_tool awk
 
 # The client script ships in the same tree as this test, so a missing dpkg
 # reformat pipeline means the #48 behaviour was removed -- a regression, not a

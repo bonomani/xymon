@@ -38,7 +38,7 @@ set -euo pipefail
 
 ROOT=$(find_root)
 [ -f "$ROOT/lib/loadhosts.c" ] || skip "lib/loadhosts.c not present in this checkout"
-command -v awk >/dev/null 2>&1 || skip "awk not available"
+require_tool awk
 
 work=$(mktempdir)
 

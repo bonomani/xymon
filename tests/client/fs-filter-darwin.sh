@@ -28,7 +28,7 @@ set -euo pipefail
 # Resolve SCRIPT, apply the dangling-override / skip-if-absent contract, assert
 # the filter is present, set up TMP/STUB/DF_LOG/INODE_LOG/STDERR_LOG/PATH.
 fsf_setup darwin XYMONCLIENT_DARWIN
-command -v column >/dev/null 2>&1 || skip "column(1) not available"
+require_tool column
 
 # mount stub: macOS-style lines. Local filesystems carry the "local" attribute
 # (MNT_LOCAL); remote ones (afs, nfs) do not. Covers each default-dropped

@@ -165,13 +165,37 @@ mktempdir() {
 	printf '%s' "$d"
 }
 
+# ---- host preconditions ------------------------------------------------------
+
+# have_tool NAME -- true when NAME is on PATH. For the tests that fall back
+# rather than skip: a missing compiler costs them their behavioural half, not
+# the whole test, so they answer with pass_partial and need the question
+# without the verdict attached.
+have_tool() {
+	command -v "$1" >/dev/null 2>&1
+}
+
+# require_tool NAME... -- skip unless every NAME is on PATH.
+#
+# The condition every test shares and each one used to spell for itself: thirty
+# hand-rolled `command -v x >/dev/null 2>&1 || skip "..."` lines, no two of them
+# agreeing on the wording ("no awk", "awk not available", "rrdtool not found").
+# One helper, one sentence, and a test that needs three tools says so in one
+# line instead of three.
+require_tool() {
+	local t
+	for t; do
+		have_tool "$t" || skip "$t not available on this host"
+	done
+}
+
 # ---- C harness scaffolding ---------------------------------------------------
 
 # require_cc -- skip unless a C compiler is present. Sets/keeps CC (default
 # cc). For tests that compile a standalone harness with no in-tree libraries.
 require_cc() {
 	CC=${CC:-cc}
-	command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+	require_tool "$CC"
 }
 
 # require_c_buildenv ROOT -- skip unless a C compiler, make, and a configured
@@ -181,7 +205,7 @@ require_cc() {
 # conditions of its own (e.g. "tree already built") next to its call.
 require_c_buildenv() {
 	require_cc
-	command -v make >/dev/null 2>&1 || skip "make not available"
+	require_tool make
 	[ -f "$1/include/config.h" ] || skip "tree not configured (no include/config.h)"
 }
 

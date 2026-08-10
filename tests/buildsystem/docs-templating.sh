@@ -21,7 +21,7 @@ ROOT=$(find_root)
 DOCS="$ROOT/docs"
 MAKE="${MAKE:-make}"
 
-command -v "$MAKE" >/dev/null 2>&1 || skip "no make"
+require_tool "$MAKE"
 for f in Makefile install.html.DIST xymon-apacheconf.txt.DIST; do
 	[ -f "$DOCS/$f" ] || skip "docs/$f absent -- predates #90"
 done

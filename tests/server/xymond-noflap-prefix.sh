@@ -28,8 +28,7 @@ ROOT=$(find_root)
 XYMOND_C="$ROOT/xymond/xymond.c"
 [ -f "$XYMOND_C" ] || skip "xymond/xymond.c not present in this checkout"
 
-CC=${CC:-cc}
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+require_cc
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"

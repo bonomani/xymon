@@ -22,9 +22,8 @@ set -euo pipefail
 
 ROOT=$(find_root)
 HEADER="$ROOT/lib/rrd_api_compat.h"
-CC="${CC:-cc}"
 
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler (CC=$CC)"
+require_cc
 [ -f "$HEADER" ] || skip "lib/rrd_api_compat.h absent (predates PR #80)"
 
 WORK=$(mktempdir)

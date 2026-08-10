@@ -16,9 +16,13 @@ if [ -r "$here/../lib/assert.sh" ]; then
 	# shellcheck source=tests/lib/assert.sh
 	. "$here/../lib/assert.sh"
 else
-	fail() { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
-	skip() { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
-	require_cc() { CC=${CC:-cc}; command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"; }
+	# Mirrors lib/assert.sh, including the stream: a verdict goes to stdout
+	# next to the runner's line for this test.
+	fail() { printf 'FAIL: %s\n' "$*"; exit 1; }
+	skip() { printf 'SKIP: %s\n' "$*"; exit 77; }
+	have_tool() { command -v "$1" >/dev/null 2>&1; }
+	require_tool() { for t; do have_tool "$t" || skip "$t not available on this host"; done; }
+	require_cc() { CC=${CC:-cc}; require_tool "$CC"; }
 fi
 
 require_cc

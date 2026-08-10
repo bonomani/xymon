@@ -44,8 +44,7 @@ XYMOND_C="$ROOT/xymond/xymond.c"
 
 body=$(awk '/^static int isset_noflap/,/^}/' "$XYMOND_C")
 [ -n "$body" ] || fail "could not locate isset_noflap() in xymond/xymond.c"
-CC=${CC:-cc}
-command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+require_cc
 
 [ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"

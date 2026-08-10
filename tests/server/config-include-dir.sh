@@ -74,7 +74,7 @@ check_declares "$ROOT/client/xymonclient.cfg.DIST"              "xymonclient.cfg
 # ---- (B) the directive actually works, via the real stackio reader ---------
 
 CC=${CC:-cc}
-if ! command -v "$CC" >/dev/null 2>&1 \
+if ! have_tool "$CC" \
 	|| [ ! -f "$ROOT/include/config.h" ] || [ ! -f "$ROOT/lib/libxymoncomm.a" ]; then
 	pass_partial "shipped configs declare their drop-in directories (#222)" "stackio merge check needs a built tree"
 fi
