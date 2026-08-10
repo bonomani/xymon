@@ -16,25 +16,31 @@ __XYMON_TESTS_ASSERT_SOURCED=1
 
 # ---- result reporting --------------------------------------------------------
 #
-# All four result lines go to stdout, next to the runner's own verdict line for
-# the test. A result and its reason are one event: printed on separate streams
-# they reach a log that merges the two in whatever order it sees them, and the
-# reason ends up filed under a neighbouring test -- which is what a CI log
-# showed, a skip reason under a test that had passed and a skipped test with no
-# reason at all. Diagnostics a test emits on the way to a verdict still belong
-# on stderr; the verdict does not.
+# fail and skip write to stderr; pass and pass_partial to stdout. That split
+# looks arbitrary and is not: a verdict must survive being produced inside a
+# command substitution. mktempdir's whole contract is to be called as
+# `work=$(mktempdir)`, and it reports failure through fail -- on stdout that
+# text is captured into the substitution and vanishes, leaving the runner to
+# report a failure with no reason at all. pass and pass_partial can never run
+# there; they end the test.
+#
+# Keeping a reason next to its verdict in a merged CI log is the runner's job,
+# not the stream's: tests/testsuite runs each test with 2>&1, so everything one
+# test emits -- verdict, reason, compiler noise -- arrives in one ordered stream
+# inside that test's own group. That covers the diagnostics too, which no choice
+# of stream here could do.
 
-# fail MSG -- print and exit non-zero (CI treats as failure).
+# fail MSG -- print on stderr and exit non-zero (CI treats as failure).
 fail() {
-	printf 'FAIL: %s\n' "$*"
+	printf 'FAIL: %s\n' "$*" >&2
 	exit 1
 }
 
-# skip REASON -- print and exit 77 (CI treats as skipped, not failed; matches
-# the autotools / autopkgtest convention). Use when a precondition for the test
-# is genuinely absent, not to paper over a real failure.
+# skip REASON -- print on stderr and exit 77 (CI treats as skipped, not failed;
+# matches the autotools / autopkgtest convention). Use when a precondition for
+# the test is genuinely absent, not to paper over a real failure.
 skip() {
-	printf 'SKIP: %s\n' "$*"
+	printf 'SKIP: %s\n' "$*" >&2
 	exit 77
 }
 

@@ -187,12 +187,13 @@ maintenance.
 - **Quiet on success, verbose on failure.** Don't print per-step
   progress on the happy path; CI logs are noisy enough. On failure
   the `fail` helper prints and exits, which is usually enough context.
-- **Verdicts on stdout.** `pass`, `pass_partial`, `skip` and `fail` all
-  print there, alongside the runner's own line for the test. A result and
-  its reason are one event; on separate streams they reach a log that
-  merges the two in whatever order it sees them, and the reason gets filed
-  under a neighbouring test. Diagnostics on the way to a verdict — a
-  compiler log, a dumped fixture — still belong on stderr.
+- **A verdict and its reason arrive together.** The runner runs each test
+  with `2>&1`, so everything one test emits — verdict, reason, compiler
+  noise — lands in one ordered stream inside that test's own group. Print
+  wherever is natural: `fail` and `skip` use stderr, `pass` and
+  `pass_partial` stdout. Don't "fix" `fail`/`skip` onto stdout — `mktempdir`
+  reports through `fail` from inside `work=$(mktempdir)`, where stdout is
+  captured by the substitution and the reason would vanish.
 - **Ask for host tools through `require_tool`.** `require_tool awk make`
   skips with one sentence per missing tool; `require_cc` and
   `require_c_buildenv` build on it. Use the `have_tool` predicate instead

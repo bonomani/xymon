@@ -191,8 +191,8 @@ while IFS= read -r t; do
 	[ -n "$t" ] || continue
 	group "$t"
 	if not_applicable "$t"; then
-		# stdout, like the verdict line under it -- see the note above the
-		# result helpers in lib/assert.sh.
+		# The runner's own line, so no substitution can eat it; stdout keeps it
+		# next to the verdict under it.
 		printf 'SKIP: the %s build does not contain the %s area, so there is nothing here for this test to exercise\n' \
 			"$XYMON_VARIANT" "$na_area"
 		printf '  skip (rc=77)\n'
@@ -200,7 +200,14 @@ while IFS= read -r t; do
 		endgroup
 		continue
 	fi
-	"./$t"
+	# Merge the test's stderr into ours. A test's verdict, its reason and its
+	# diagnostics are one event in one group; on two streams a log that merges
+	# them by arrival files them wherever they land -- an Actions log showed a
+	# skip reason under a test that had passed, and a skipped test with no
+	# reason at all. Doing it here rather than by moving the helpers to stdout
+	# keeps a verdict produced inside a command substitution (mktempdir) from
+	# being swallowed, and covers compiler noise too.
+	"./$t" 2>&1
 	rc=$?
 	case $rc in
 		0)  printf '  ok\n';           pass=$((pass + 1)) ;;
@@ -269,7 +276,9 @@ $skipped_in
 EOF2
 	if [ -n "$breached" ]; then
 		errline "coverage floor: the ${XYMON_VARIANT} build produces these areas, so every test in them must run -- these skipped"
-		printf '%s' "$breached" >&2
+		# Same stream as the errline above it, for the same reason the tests are
+		# run with 2>&1: a verdict and the list explaining it are one event.
+		printf '%s' "$breached"
 		exit 1
 	fi
 fi
