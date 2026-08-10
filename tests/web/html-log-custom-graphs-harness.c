@@ -143,6 +143,6 @@ int main(void)
 		}
 	}
 
-	printf(failures ? "FAILED\n" : "ALL OK\n");
+	if (failures) printf("FAILED\n");
 	return failures ? 1 : 0;
 }

@@ -97,7 +97,7 @@ int main(int argc, char *argv[])
 	expect("a bare noflap must still suppress any test",
 	       isset_noflap(barehost, "imap", "barehost"), 1);
 
-	printf(failures ? "FAILED\n" : "ALL OK\n");
+	if (failures) printf("FAILED\n");
 	return failures ? 1 : 0;
 }
 EOF

@@ -95,6 +95,6 @@ int main(int argc, char *argv[])
 	       "into the host record's own allelems buffer, so the stored tag gets modified");
 	free(before);
 
-	printf(failures ? "FAILED\n" : "ALL OK\n");
+	if (failures) printf("FAILED\n");
 	return failures ? 1 : 0;
 }

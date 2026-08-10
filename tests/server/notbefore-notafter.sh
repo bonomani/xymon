@@ -152,7 +152,7 @@ int main(int argc, char *argv[])
 	       raw && strstr(raw, "NOTBEFORE:199001010000") && strstr(raw, "NOTAFTER:209001010000"),
 	       raw ? raw : "(no record)");
 
-	printf(failures ? "FAILED\n" : "ALL OK\n");
+	if (failures) printf("FAILED\n");
 	return failures ? 1 : 0;
 }
 EOF
