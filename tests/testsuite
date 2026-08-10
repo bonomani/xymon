@@ -95,8 +95,9 @@ fi
 # directory answers the first, require_bin the second.
 provided_areas() {
 	case $1 in
-		server)             echo 'buildsystem packaging common client server web network xymond rrd' ;;
-		localclient|client) echo 'buildsystem packaging common client' ;;
+		server)      echo 'buildsystem packaging common client localclient server web xymonnet xymond rrd' ;;
+		localclient) echo 'buildsystem packaging common client localclient' ;;
+		client)      echo 'buildsystem packaging common client' ;;
 	esac
 }
 

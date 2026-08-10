@@ -105,7 +105,8 @@ stopped exercising something this very build contains.
 | area | contained in |
 | ---- | ------------ |
 | `buildsystem`, `packaging`, `common`, `client` | every variant |
-| `server`, `web`, `network`, `xymond`, `rrd` | server |
+| `localclient` | server, localclient |
+| `server`, `web`, `xymonnet`, `xymond`, `rrd` | server |
 
 One table, both jobs: outside a variant's areas a test is skipped as not
 applicable, inside them it must run.
@@ -113,8 +114,8 @@ applicable, inside them it must run.
 **The directory is never the only say.** It is reliable for one weak claim —
 an area either exists in this build or it does not — and unreliable for the
 question that actually decides a run, which is *what does this test need*.
-`tests/server/` holds tests that drive `client/xymongrep` and
-`client/xymond_client`; filtering them out by folder would delete precisely the
+`tests/server/` still holds tests whose subject is server code but whose
+driver is a client-shipped binary; filtering them out by folder would delete precisely the
 coverage a client leg exists for. So a test calling `require_bin` is exempt from
 the filter and left to the manifest, which knows which variants ship which
 binary.
@@ -154,7 +155,8 @@ shipped-file invariants) get their own area.
 | `tests/common/`   | tools every variant ships (`COMMONTOOLS`: xymon, xymoncmd, xymongrep, xymoncfg, xymondigest) |
 | `tests/client/`   | xymon client tools and behaviours                      |
 | `tests/server/`   | xymond-side tools (xymoncgimsg, alert routing, config parsing) |
-| `tests/network/`  | xymonnet probes (xymonping, network checks)            |
+| `tests/localclient/` | the local client-data analyser (`client/xymond_client`) |
+| `tests/xymonnet/` | the xymonnet prober (contest, TLS/ALPN, ntp, udp)      |
 | `tests/web/`      | CGIs, HTML rendering paths                             |
 | `tests/xymond/`   | xymond daemon and its helpers (hostdata, channels)     |
 | `tests/rrd/`      | the RRD write path and its parsers                     |
