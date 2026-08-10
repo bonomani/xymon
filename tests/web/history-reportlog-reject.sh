@@ -90,4 +90,4 @@ assert_reject reportlog "HOST=realhost&SERVICE=cpu/.." "path-shaped SERVICE"
 # "cpu bar" to "cpu" and served that report (#147 review round 3).
 assert_reject reportlog "HOST=realhost&SERVICE=cpu%20bar" "space-bearing SERVICE (refuse whole, not the 'cpu' report)"
 
-echo "OK $(basename "$0")"
+pass "history.cgi and reportlog.cgi refuse a bad component with the error page, never a crash (#147)"

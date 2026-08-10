@@ -73,3 +73,5 @@ done
 assert_contains "common-client: lib-client common-build" \
                 "$rules" \
                 "common-client must depend on common-build in the non-CLIENTONLY arm (#91/#92)"
+
+pass "the legacy Makefile keeps its parallel-build prerequisites (#76 refs #3, #92 refs #91)"

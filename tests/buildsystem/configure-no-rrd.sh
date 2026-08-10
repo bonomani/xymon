@@ -118,3 +118,5 @@ if ! grep -q "RRDtool probe failed" "$LOG"; then
 	dump_log
 	fail "configure --server reached the RRD probe but did not abort via it (regression of #84)"
 fi
+
+pass "configure --server aborts via the RRD probe instead of silently continuing (#84)"

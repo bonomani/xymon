@@ -50,4 +50,4 @@ if [ "$rc" != 0 ]; then
 	fail "udp_query transport is broken (see output above)"
 fi
 
-exit 0
+pass "udp_query keeps its round-trip, send/receive timestamps and timeout path over loopback"

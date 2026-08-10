@@ -326,3 +326,5 @@ assert_not_contains "dynfs" "$inode_section" \
 	"inode report drops a no-inode-limit filesystem (IUse% '-')"
 assert_contains "dynfs" "$inode_out" \
 	"the same filesystem still appears in [df] (it has a real disk %)"
+
+pass "xymonclient-linux.sh FS filter: include/exclude types, local-only, no-inode-limit drop"

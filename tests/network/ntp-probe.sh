@@ -40,4 +40,4 @@ if ! ASAN_OPTIONS="detect_leaks=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}" \
 	fail "internal SNTP probe is broken (see output above)"
 fi
 
-exit 0
+pass "internal SNTP probe: offset formula and stray/spoofed/unsynchronised/KoD rejections hold"

@@ -31,4 +31,4 @@ build_xymon_libs "$ROOT" "$work/libbuild.log" libxymon.a
 "$work/harness" >"$work/run.log" 2>&1 \
 	|| { cat "$work/run.log" >&2; fail "cgi_split_hostsvc() parse/reject behavior is broken"; }
 
-echo "OK $(basename "$0")"
+pass "cgi_pathcomponent()/cgi_split_hostsvc() refuse traversal-shaped values whole (#147)"
