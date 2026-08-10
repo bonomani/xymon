@@ -42,18 +42,27 @@ jobs:
           sudo apt-get update
           sudo apt-get install -y --no-install-recommends \
             build-essential \
+            bsdextrautils \
             libc-ares-dev \
             libldap-dev \
             libpcre2-dev \
             librrd-dev \
             libssl-dev \
             libtirpc-dev \
-            rrdtool
+            ${{ matrix.variant == 'server' && 'rrdtool' || '' }}
           # librrd-dev builds xymond_rrd; the rrdtool CLI is a separate
           # package and is what tests/rrd/inode-netbsd.sh reads the produced
           # RRD back with. Without it that test skipped in the one leg that
           # builds xymond_rrd, so the RRD write path was never verified
-          # end to end anywhere in CI.
+          # end to end anywhere in CI. Only the server leg builds xymond_rrd,
+          # so only the server leg needs the CLI.
+          #
+          # bsdextrautils supplies column(1), which tests/client/fs-filter-
+          # darwin.sh needs. It arrives with the runner image today rather than
+          # from this list, and `client` is a provided area in every leg, so the
+          # coverage floor turns an image that drops it into three simultaneous
+          # red legs complaining about coverage. Name every tool the floor holds
+          # this environment to, so "complete environment" means this list.
 
       - name: Configure (${{ matrix.name }})
         env:
