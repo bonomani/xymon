@@ -869,17 +869,20 @@ write_staged_metadata
 
 if [ "${VERIFY_DEPTH}" = "test" ]; then
   echo "=== Run regression testsuite (verify depth: test) ==="
-  # Native lanes only: emulated/foreign-arch lanes are slow and the suite's
-  # network/round-trip tests are unreliable under QEMU/VM, so downgrade to a
-  # plain install there instead of failing. RUNTIME_EXECUTION and ARCHITECTURE
-  # are exported into the lane env (resolve-lane-context.py); both are empty
-  # when the script is run directly by a developer, which counts as native.
-  runtime_exec="${RUNTIME_EXECUTION:-}"
+  # Emulated lanes are the exception, and only those: a foreign ARCHITECTURE
+  # runs under QEMU user-mode emulation, where the suite's network and
+  # round-trip tests are slow and unreliable, so downgrade to a plain install
+  # rather than report a red lane. ARCHITECTURE is exported into the lane env
+  # (resolve-lane-context.py) and is empty when a developer runs this script
+  # directly, which counts as native.
+  #
+  # BSD lanes are NOT emulated: cross-platform-actions boots a same-arch
+  # x86-64 image, and those lanes complete in 1-5 minutes -- the fastest in
+  # the matrix, against a 30-minute step budget. They were originally lumped
+  # in with emulation and skipped on a slowness assumption the timings do not
+  # support, which left the BSDs -- the platforms whose libc and tool
+  # differences the suite most needs to see -- the only ones never running it.
   arch="${ARCHITECTURE:-}"
-  if [ "${runtime_exec}" = "vm" ]; then
-    echo "=== Skip testsuite: emulated/VM lane (RUNTIME_EXECUTION=vm); downgrading to install ==="
-    exit 0
-  fi
   case "${arch}" in
     ""|amd64|x86_64|x86-64)
       ;;

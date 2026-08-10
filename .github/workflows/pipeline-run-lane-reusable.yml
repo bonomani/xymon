@@ -12,7 +12,7 @@ on:
         required: true
         type: string
       verify_depth:
-        description: Verification depth (configure|build|install)
+        description: Verification depth (configure|build|install|test)
         required: true
         type: string
       goal:

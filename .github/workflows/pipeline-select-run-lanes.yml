@@ -105,7 +105,7 @@ on:
           - source
           - package
       verify_depth:
-        description: Verification depth (configure|build|install|test, ref_mode!=off forces install; test runs tests/testsuite after install, skipped on emulated/VM lanes)
+        description: Verification depth (configure|build|install|test, ref_mode!=off forces install; test runs tests/testsuite after install on every native lane, container and BSD VM alike, and downgrades to install only on emulated foreign-arch lanes)
         required: true
         type: choice
         default: install
