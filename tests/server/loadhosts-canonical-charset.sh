@@ -24,12 +24,11 @@ set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
 . "$(dirname "$0")/../lib/assert.sh"
 
-default="common/xymongrep"
-if [ -z "${XYMONGREP:-}" ] && [ ! -x "$(find_root)/$default" ] \
-		&& [ -x "$(find_root)/client/xymongrep" ]; then
-	default="client/xymongrep"
-fi
-require_bin XYMONGREP "$default"
+# The manifest holds both paths for XYMONGREP and probes them in turn when no
+# variant is declared, which is exactly what this hand-rolled two-path fallback
+# used to do -- and the reason the manifest was added. One place to change when
+# a path moves, and one that check_role_manifest cross-checks.
+require_bin XYMONGREP common/xymongrep
 
 work=$(mktempdir)
 # Every host is tagged "cpu" so one grep lists all that load. raksmorgas keeps
