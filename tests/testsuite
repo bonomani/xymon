@@ -102,6 +102,23 @@ if [ -n "${XYMON_VARIANT:-}" ] && [ -z "$(provided_areas "$XYMON_VARIANT")" ]; t
 	exit 1
 fi
 
+# strict_mode -- true when the caller declared this environment complete.
+#
+# Not an equality test against "1": XYMON_TESTS_STRICT is set in YAML, where
+# true/yes/on are the natural spellings for a boolean, and any of them against
+# `= 1` reads as "not set" -- the enforcement the variable exists to switch on
+# is silently off and the leg still reports success. Accept the spellings, and
+# treat an unrecognised one as an error rather than as off, because guessing
+# "off" is the direction that goes quietly green.
+strict_mode() {
+	case "${XYMON_TESTS_STRICT:-}" in
+		''|0|false|no|off) return 1 ;;
+		1|true|yes|on)     return 0 ;;
+		*) errline "XYMON_TESTS_STRICT='${XYMON_TESTS_STRICT}' is neither on (1/true/yes/on) nor off (0/false/no/off) -- refusing to guess which enforcement you meant"
+		   exit 1 ;;
+	esac
+}
+
 # not_applicable TESTPATH -- true when this variant contains neither the test's
 # area nor a build product it asks for.
 not_applicable() {
@@ -197,7 +214,7 @@ fi
 # unknown_areas is collected. Raised here, after every test has run and been
 # reported, because an undeclared directory is a bookkeeping omission and not a
 # reason to withhold the results.
-if [ -n "$unknown_areas" ] && [ "${XYMON_TESTS_STRICT:-}" = 1 ]; then
+if [ -n "$unknown_areas" ] && strict_mode; then
 	errline "test area(s) named in no provided_areas row: ${unknown_areas% } -- add them to the table in tests/testsuite so this build can say whether it contains them"
 	exit 1
 fi
@@ -206,7 +223,7 @@ fi
 # exports XYMON_TESTS_STRICT after installing the dependency list and building
 # the variant, so anything still missing there is the image or the build, not
 # the host. A developer box declares nothing and is never held to this.
-if [ "${XYMON_TESTS_STRICT:-}" = 1 ] && [ -n "${XYMON_VARIANT:-}" ]; then
+if strict_mode && [ -n "${XYMON_VARIANT:-}" ]; then
 	required=" $(provided_areas "$XYMON_VARIANT") "
 	breached=''
 	while IFS= read -r line; do
