@@ -26,8 +26,7 @@ build_xymond_worker() {
 	root=$(find_root)
 	cc=${CC:-cc}
 
-	command -v "$cc" >/dev/null 2>&1 || skip "no C compiler available (CC=$cc)"
-	command -v make >/dev/null 2>&1 || skip "make not available"
+	require_tool "$cc" make
 	[ -f "$root/include/config.h" ] || skip "tree not configured (no include/config.h)"
 	[ -f "$root/Makefile" ] || skip "tree not configured (no Makefile)"
 

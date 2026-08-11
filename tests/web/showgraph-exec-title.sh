@@ -22,7 +22,10 @@ require_tool make
 # Needs a configured/built tree (bare-tree CI skips; the post-build suite
 # runs it for real) and one built WITH RRD support. Check "built at all"
 # first: without it an unbuilt tree is reported as an RRD-less build.
-[ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
+# Two conditions, two answers: require_c_buildenv reports an unconfigured tree
+# as such, so the archive message is left to say only what it means.
+require_c_buildenv "$ROOT"
+[ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 [ -f "$ROOT/web/showgraph.cgi" ] || skip "tree built without RRD support (no showgraph.cgi)"
 

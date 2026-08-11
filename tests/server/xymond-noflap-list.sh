@@ -46,7 +46,10 @@ body=$(awk '/^static int isset_noflap/,/^}/' "$XYMOND_C")
 [ -n "$body" ] || fail "could not locate isset_noflap() in xymond/xymond.c"
 require_cc
 
-[ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
+# Two conditions, two answers: require_c_buildenv reports an unconfigured tree
+# as such, so the archive message is left to say only what it means.
+require_c_buildenv "$ROOT"
+[ -f "$ROOT/lib/libxymoncomm.a" ] \
 	|| skip "tree not built (run make first; lib/libxymoncomm.a absent)"
 
 work=$(mktemp -d "${TMPDIR:-/tmp}/xymon-noflap-list.XXXXXX")
