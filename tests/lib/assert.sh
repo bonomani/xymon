@@ -44,8 +44,11 @@ skip() {
 	exit 77
 }
 
-# pass [MSG] -- cosmetic; tests that reach the end without failing already
-# pass. Useful only when a test wants to emit a one-line success summary.
+# pass MSG -- the success line, and the only one. A test that reaches the end
+# without failing has passed, but a run that says so without saying what held
+# records nothing: the runner already prints the path, so the claim is the
+# whole content. tests/README.md states the rule; this is where it is
+# implemented. Not optional -- end every test with it.
 pass() {
 	printf 'PASS: %s\n' "${*:-ok}"
 	exit 0
@@ -59,7 +62,7 @@ pass() {
 # autopkgtest, CTest -- this is a pass, and the 0/77/other contract in
 # tests/README.md is unchanged. The distinction is carried in the report
 # instead: the line says PARTIAL rather than PASS, and the test records itself
-# in $XYMON_TESTS_PARTIAL_LOG when the runner exports one, so the summary can
+# through $XYMON_TESTS_NOTE_FILE when the runner exports one, so the summary can
 # count a source-only fallback apart from a full behavioural run rather than
 # printing both as "passed".
 #
@@ -68,11 +71,37 @@ pass() {
 # never intended to execute anything is complete, not partial.
 pass_partial() {
 	local claim=$1 reason=${2:-}
-	if [ -n "${XYMON_TESTS_PARTIAL_LOG:-}" ]; then
-		printf '%s\n' "$0" >>"$XYMON_TESTS_PARTIAL_LOG" 2>/dev/null || true
-	fi
+	__xymon_tests_note partial
 	printf 'PARTIAL: %s%s\n' "$claim" "${reason:+ -- $reason}"
 	exit 0
+}
+
+# skip_env REASON -- skip because of something about this host, not about the
+# build: a tool that is not installed, a sandbox with no loopback UDP, a
+# command that timed out. Exits 77 exactly like skip.
+#
+# The distinction is for the coverage floor. Under XYMON_TESTS_STRICT the
+# runner fails a build leg when a test inside an area that build provides
+# skips, on the grounds that the subject is present so the test must run.
+# A missing host tool breaks that reasoning -- the build does contain the
+# subject, this machine simply cannot drive it -- and answering it with a
+# coverage failure sends the reader after a regression that is not there.
+# skip_env says which kind of skip this is, and the floor ignores it.
+skip_env() {
+	__xymon_tests_note envskip
+	printf 'SKIP: %s\n' "$*" >&2
+	exit 77
+}
+
+# __xymon_tests_note KIND -- tell the runner something its exit code cannot
+# carry. No note file (a developer running one test by hand, or a host with no
+# usable mktemp) is fine and silent; a note file that cannot be written is not,
+# because the runner will then draw the wrong conclusion from its absence.
+__xymon_tests_note() {
+	[ -n "${XYMON_TESTS_NOTE_FILE:-}" ] || return 0
+	printf '%s %s\n' "$1" "$0" >"$XYMON_TESTS_NOTE_FILE" 2>/dev/null && return 0
+	printf 'WARNING: could not record "%s" for %s (%s unwritable) -- the summary will misreport this test\n' \
+		"$1" "$0" "$XYMON_TESTS_NOTE_FILE" >&2
 }
 
 # ---- assertions --------------------------------------------------------------
@@ -191,7 +220,7 @@ have_tool() {
 require_tool() {
 	local t
 	for t; do
-		have_tool "$t" || skip "$t not available on this host"
+		have_tool "$t" || skip_env "$t not available on this host"
 	done
 }
 

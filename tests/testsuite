@@ -21,20 +21,6 @@ cd "$root" || exit 2
 
 if [ "${GITHUB_ACTIONS:-}" = "true" ]; then gh=1; else gh=0; fi
 
-# A test that could only verify part of what it covers -- no compiler for the
-# behavioural half, nothing built to drive -- reports through pass_partial
-# (lib/assert.sh). That still exits 0, because what ran did hold, so the
-# runner cannot tell those apart by exit status; each one records itself here
-# instead. Counting them separately is the point: otherwise a source-only
-# fallback and a full behavioural run both land in "passed" and the number
-# claims more than the suite checked.
-partial_log=$(mktemp "${TMPDIR:-/tmp}/xymon-testsuite.$$.XXXXXX") || exit 2
-trap 'rm -f "$partial_log"' EXIT
-trap 'rm -f "$partial_log"; exit 130' INT
-trap 'rm -f "$partial_log"; exit 143' TERM
-XYMON_TESTS_PARTIAL_LOG=$partial_log
-export XYMON_TESTS_PARTIAL_LOG
-
 # Every test is bash by contract (tests/README.md); this runner stays POSIX sh
 # so it can deliver the skip below even where bash is absent. Without this
 # check, each test's exec would fail with rc=127 and count as FAIL -- but a
@@ -43,6 +29,33 @@ export XYMON_TESTS_PARTIAL_LOG
 if ! command -v bash >/dev/null 2>&1; then
 	printf 'SKIP: bash not found -- every test requires bash (see tests/README.md)\n' >&2
 	exit 77
+fi
+
+# Two things a test knows and an exit code cannot carry: that it verified only
+# part of what it covers (pass_partial), and that it skipped for a host
+# condition rather than a missing build product (skip_env). Both still exit 0
+# and 77 respectively, because the 0/77/other contract must not move, so each
+# writes one tagged line here instead and the runner reads it back.
+#
+# The file is truncated before every test and inspected straight after, so what
+# it holds belongs to the test whose exit code was just read. It used to be
+# appended to for the whole run and counted once at the end, which attributed
+# an entry to whichever test happened to exit 0 -- an entry from a test that
+# then failed took a pass away from an unrelated one.
+#
+# A host with no mktemp, or no writable TMPDIR, loses the two distinctions and
+# keeps the suite: this is bookkeeping, not a reason to refuse to run. It used
+# to `exit 2` here, before even the bash check below, which turned a missing
+# helper into a suite that reported nothing at all.
+note_file=$(mktemp "${TMPDIR:-/tmp}/xymon-testsuite.$$.XXXXXX" 2>/dev/null) || note_file=''
+if [ -n "$note_file" ]; then
+	trap 'rm -f "$note_file"' EXIT
+	trap 'rm -f "$note_file"; exit 130' INT
+	trap 'rm -f "$note_file"; exit 143' TERM
+	XYMON_TESTS_NOTE_FILE=$note_file
+	export XYMON_TESTS_NOTE_FILE
+else
+	printf 'NOTE: no writable temp file (mktemp failed), so PARTIAL results count as passes and host skips count against the coverage floor\n'
 fi
 
 group() {
@@ -97,9 +110,11 @@ fi
 # The moves earlier in this branch removed the need: xymongrep-filter and
 # loadhosts-canonical-charset to tests/common/, analysis-file-ifexist to
 # tests/localclient/ -- each now in an area the builds that ship its product
-# provide. With that done the exemption let no test through in any leg, so it
-# is gone. If a test ever again drives a product from outside its own area, move
-# the test; do not give applicability a second answer.
+# provide. With that done every test the exemption still let past the filter
+# went on to skip anyway, in all three legs -- it bought no coverage, only the
+# extra sentences -- so it is gone. If a test ever again drives a product from
+# outside its own area, move the test; do not give applicability a second
+# answer.
 provided_areas() {
 	case $1 in
 		server)      echo 'buildsystem packaging common client localclient server web xymonnet xymond rrd' ;;
@@ -182,7 +197,7 @@ $tests
 EOF
 [ -z "$unknown_areas" ] || printf 'NOTE: test area(s) in no provided_areas row: %s -- running them unfiltered; add them to the table in tests/testsuite\n' "${unknown_areas% }"
 
-pass=0; skip=0; fail=0; failed=''; skipped_in=''
+pass=0; partial=0; skip=0; fail=0; failed=''; skipped_in=''; partial_list=''
 # Iterate line-by-line rather than `for t in $tests`: unquoted word-splitting
 # breaks on any path containing a space (find emits newline-separated paths, but
 # the default IFS splits on spaces and tabs too). The here-doc keeps the loop in
@@ -207,14 +222,32 @@ while IFS= read -r t; do
 	# reason at all. Doing it here rather than by moving the helpers to stdout
 	# keeps a verdict produced inside a command substitution (mktempdir) from
 	# being swallowed, and covers compiler noise too.
+	[ -z "$note_file" ] || : > "$note_file"
 	"./$t" 2>&1
 	rc=$?
+	# What this test said about itself, if anything. Read with the shell so the
+	# runner keeps depending only on the shell.
+	note=''
+	if [ -n "$note_file" ] && [ -s "$note_file" ]; then
+		IFS= read -r note < "$note_file" || note=''
+	fi
 	case $rc in
-		0)  printf '  ok\n';           pass=$((pass + 1)) ;;
-		77) printf '  skip (rc=77)\n'; skip=$((skip + 1))
-		    a=${t#tests/}; a=${a%%/*}
-		    skipped_in="${skipped_in}${a} ${t}
+		0)  case $note in
+			partial*) printf '  partial\n'; partial=$((partial + 1))
+			          partial_list="${partial_list}  - ${t}
 " ;;
+			*)        printf '  ok\n';      pass=$((pass + 1)) ;;
+		    esac ;;
+		77) printf '  skip (rc=77)\n'; skip=$((skip + 1))
+		    # A host condition is not a coverage regression, so it is not offered
+		    # to the floor: the build still contains the subject, this machine just
+		    # cannot exercise it. Only skips that say nothing count against it.
+		    case $note in
+			envskip*) ;;
+			*) a=${t#tests/}; a=${a%%/*}
+			   skipped_in="${skipped_in}${a} ${t}
+" ;;
+		    esac ;;
 		*)  errline "$t FAILED (rc=$rc)"
 		    fail=$((fail + 1))
 		    failed="${failed}  - ${t} (rc=${rc})
@@ -225,13 +258,6 @@ done <<EOF
 $tests
 EOF
 
-# Count without wc/awk so the runner keeps depending only on the shell.
-partial=0
-while IFS= read -r _; do partial=$((partial + 1)); done <"$partial_log"
-# pass counted every exit 0, partials included; report them as disjoint so the
-# four numbers add up to the tests discovered.
-pass=$((pass - partial))
-
 printf '\n----- summary -----\n'
 printf 'passed:  %d\n' "$pass"
 printf 'partial: %d\n' "$partial"
@@ -240,7 +266,7 @@ printf 'failed:  %d\n' "$fail"
 
 if [ "$partial" -gt 0 ]; then
 	printf '\npartial tests (verified less than they cover):\n'
-	while IFS= read -r p; do printf '  - %s\n' "$p"; done <"$partial_log"
+	printf '%s' "$partial_list"
 fi
 
 if [ "$fail" -gt 0 ]; then
