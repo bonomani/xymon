@@ -46,7 +46,7 @@ rc=$?
 set -e
 
 # 124 = timeout fired (environment problem, not the bug under test).
-[ "$rc" -ne 124 ] || skip "svcstatus.cgi did not return within the time limit (environment)"
+[ "$rc" -ne 124 ] || skip_env "svcstatus.cgi did not return within the time limit"
 
 # The bug manifests as termination by a signal: exit code >= 128. SIGSEGV
 # gives 139. A graceful failure (unknown host with no server) is < 128.

@@ -22,9 +22,10 @@ else
 	# step with the calls, not with what assert.sh happens to export.
 	fail()         { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 	skip()         { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
+	skip_env()     { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
 	pass()         { printf 'PASS: %s\n' "${*:-ok}"; exit 0; }
 	have_tool()    { command -v "$1" >/dev/null 2>&1; }
-	require_tool() { for t; do have_tool "$t" || skip "$t not available on this host"; done; }
+	require_tool() { for t; do have_tool "$t" || skip_env "$t not available on this host"; done; }
 	require_cc()   { CC=${CC:-cc}; require_tool "$CC"; }
 fi
 
@@ -50,7 +51,7 @@ ASAN_OPTIONS="detect_leaks=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}" \
 	"$harness" >"$work/run.log" 2>&1 || rc=$?
 if [ "$rc" = 77 ]; then
 	cat "$work/run.log" >&2
-	skip "loopback UDP not available in this sandbox"
+	skip_env "loopback UDP not available in this sandbox"
 fi
 if [ "$rc" != 0 ]; then
 	cat "$work/run.log" >&2

@@ -23,9 +23,10 @@ else
 	# step with the calls, not with what assert.sh happens to export.
 	fail()         { printf 'FAIL: %s\n' "$*" >&2; exit 1; }
 	skip()         { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
+	skip_env()     { printf 'SKIP: %s\n' "$*" >&2; exit 77; }
 	pass()         { printf 'PASS: %s\n' "${*:-ok}"; exit 0; }
 	have_tool()    { command -v "$1" >/dev/null 2>&1; }
-	require_tool() { for t; do have_tool "$t" || skip "$t not available on this host"; done; }
+	require_tool() { for t; do have_tool "$t" || skip_env "$t not available on this host"; done; }
 	require_cc()   { CC=${CC:-cc}; require_tool "$CC"; }
 fi
 

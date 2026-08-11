@@ -194,6 +194,14 @@ maintenance.
   `pass_partial` stdout. Don't "fix" `fail`/`skip` onto stdout — `mktempdir`
   reports through `fail` from inside `work=$(mktempdir)`, where stdout is
   captured by the substitution and the reason would vanish.
+- **Say when a skip is about the host.** `skip_env "<what this machine
+  lacks>"` for a missing tool, a sandbox with no loopback UDP, a command that
+  timed out. It exits `77` exactly like `skip`; the difference is that the
+  coverage floor ignores it. The floor's reasoning — this build contains the
+  subject, so the test must run — does not hold when the obstacle is the
+  machine, and answering that with a coverage failure sends the reader after a
+  regression that is not there. `require_tool` already uses it. Plain `skip`
+  stays for everything else, and inside a provided area it still counts.
 - **Ask for host tools through `require_tool`.** `require_tool awk make`
   skips with one sentence per missing tool; `require_cc` and
   `require_c_buildenv` build on it. Use the `have_tool` predicate instead
