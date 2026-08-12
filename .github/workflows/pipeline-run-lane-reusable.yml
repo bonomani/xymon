@@ -74,6 +74,27 @@ jobs:
         with:
           platforms: arm,ppc64le,riscv64,s390x
 
+      # xymond attaches one SysV shared-memory segment per channel and sets up
+      # nine (C_STATUS..C_USER); macOS ships kern.sysv.shmseg=8, so xymond
+      # cannot start and tests/server/hostdata-save-next.sh -- the only test
+      # that runs a real xymond -- fails on every macOS lane (#345).
+      #
+      # Raising it at runtime does stick on the GitHub-hosted runners: probed
+      # on macOS 26, "before: 8 / after: 16". That is worth stating because the
+      # kern.sysv.* group is usually described as boot-time only, so a future
+      # reader may reasonably expect this step to be useless. 16 rather than 9
+      # leaves room for another channel without touching CI again.
+      #
+      # Deliberately not continue-on-error: if a macOS release stops honouring
+      # this, the lane should say so rather than quietly go back to failing
+      # inside the suite.
+      - name: Raise the SysV shared-memory segment limit (macOS, #345)
+        if: ${{ steps.lane_ctx.outputs.runtime == 'macos_host' }}
+        run: |
+          sudo sysctl -w kern.sysv.shmseg=16
+          have=$(sysctl -n kern.sysv.shmseg)
+          [ "$have" -ge 9 ] || { echo "::error::kern.sysv.shmseg is $have, xymond needs 9"; exit 1; }
+
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
         if: ${{ steps.lane_ctx.outputs.runtime_execution != 'vm' }}
