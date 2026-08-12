@@ -21,13 +21,13 @@
 __XYMON_TESTS_BUILD_WORKER_SOURCED=1
 
 build_xymond_worker() {
-	local outdir=$1 prog=$2 root cc treelibs pcre_libs src srcs mkfiles inc
+	local outdir=$1 prog=$2 root cc treelibs pcre_libs harness_cflags src srcs mkfiles inc
 	shift 2
 	root=$(find_root)
 	cc=${CC:-cc}
 
 	command -v "$cc" >/dev/null 2>&1 || skip "no C compiler available (CC=$cc)"
-	command -v make >/dev/null 2>&1 || skip "make not available"
+	require_gnu_make
 	[ -f "$root/include/config.h" ] || skip "tree not configured (no include/config.h)"
 	[ -f "$root/Makefile" ] || skip "tree not configured (no Makefile)"
 
@@ -37,7 +37,7 @@ build_xymond_worker() {
 	# If make cannot run the stdin-makefile probe, harvest the same four
 	# variables from the Makefile plus the files it includes.
 	treelibs=$(printf '__testlibs:\n\t@echo $(ZLIBLIBS) $(SSLLIBS) $(NETLIBS) $(LIBRTDEF)\n' \
-			| make -s -C "$root" -f Makefile -f - __testlibs 2>/dev/null) || {
+			| "$XYMON_MAKE" -s -C "$root" -f Makefile -f - __testlibs 2>/dev/null) || {
 		mkfiles="$root/Makefile"
 		while read -r inc; do
 			[ -n "$inc" ] && mkfiles="$mkfiles $root/$inc"
@@ -55,15 +55,16 @@ build_xymond_worker() {
 		pcre_libs=$(pkg-config --libs libpcre2-8 2>/dev/null || true)
 	fi
 	[ -n "$pcre_libs" ] || pcre_libs="-lpcre2-8"
+	harness_cflags=$(xymon_cflags "$root")
 
-	make -C "$root/lib" libxymon.a libxymoncomm.a libxymontime.a >"$outdir/libbuild.log" 2>&1 \
+	"$XYMON_MAKE" -C "$root/lib" libxymon.a libxymoncomm.a libxymontime.a >"$outdir/libbuild.log" 2>&1 \
 		|| { cat "$outdir/libbuild.log" >&2; fail "the xymon libraries do not build in this configured tree"; }
 
 	srcs=()
 	for src in "$@"; do srcs+=("$root/$src"); done
 
 	# Archives listed twice rather than --start-group, which is GNU ld only.
-	"$cc" -I"$root/include" -I"$root/lib" -I"$root/xymond" -o "$outdir/$prog" \
+	"$cc" $harness_cflags -iquote "$root/xymond" -o "$outdir/$prog" \
 		"${srcs[@]}" \
 		"$root/lib/libxymon.a" "$root/lib/libxymoncomm.a" "$root/lib/libxymontime.a" \
 		"$root/lib/libxymon.a" \

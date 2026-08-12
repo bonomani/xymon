@@ -16,7 +16,7 @@ mkdir -p "$work/home/etc" "$work/tmp" "$work/rrd"
 : > "$work/home/etc/analysis.cfg"
 : > "$work/hosts.cfg"
 
-buildflags_output=$(make -s -C "$ROOT" -f Makefile -f - inode-test-flags <<'EOF'
+buildflags_output=$("$XYMON_MAKE" -s -C "$ROOT" -f Makefile -f - inode-test-flags <<'EOF'
 .PHONY: inode-test-flags
 inode-test-flags:
 	@printf '%s\n' 'ldflags=$(LDFLAGS)' 'rpathopt=$(RPATHOPT)' \
@@ -34,7 +34,7 @@ rrdlibs=${buildflags[4]#rrdlibs=}
 
 # Configured flags are deliberate word-split lists.
 # shellcheck disable=SC2086
-"$CC" $ldflags -I"$ROOT/include" $rrddef $rrdincdir \
+"$CC" $ldflags -iquote "$ROOT/include" $rrddef $rrdincdir \
 	-o "$work/rrd-lastupdate" $rpathopt \
 	"$ROOT/tests/rrd/inode-unix-columns-harness.c" $rrdlibs \
 	2>"$work/cc.log" || {
