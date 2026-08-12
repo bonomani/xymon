@@ -74,6 +74,27 @@ jobs:
         with:
           platforms: arm,ppc64le,riscv64,s390x
 
+      # Probe only, for #345: xymond attaches one SysV shared-memory segment
+      # per channel and sets up nine, while macOS ships kern.sysv.shmseg=8, so
+      # tests/server/hostdata-save-next.sh skips there. The kern.sysv.* group
+      # is conventionally boot-time only, and a runtime write may be accepted
+      # and then ignored -- so read the value back rather than trusting the
+      # exit status. Never fails the lane; delete once the answer is known.
+      - name: Probe whether kern.sysv.shmseg can be raised (macOS, #345)
+        if: ${{ steps.lane_ctx.outputs.runtime == 'macos_host' }}
+        continue-on-error: true
+        run: |
+          before=$(sysctl -n kern.sysv.shmseg 2>/dev/null || echo unknown)
+          echo "before: $before"
+          sudo sysctl -w kern.sysv.shmseg=16 && echo "write accepted" || echo "write refused"
+          after=$(sysctl -n kern.sysv.shmseg 2>/dev/null || echo unknown)
+          echo "after: $after"
+          if [ "$after" = 16 ]; then
+            echo "RESULT: raising it works -- the lane can set this before the suite"
+          else
+            echo "RESULT: still $after -- the write does not stick; the macOS skip stands"
+          fi
+
       - name: Run lane orchestration (host/container)
         id: lane_run_host_container
         if: ${{ steps.lane_ctx.outputs.runtime_execution != 'vm' }}
