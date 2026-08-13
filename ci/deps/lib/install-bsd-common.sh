@@ -494,6 +494,24 @@ bsd_openbsd_post_install_gcc_link() {
   fi
 }
 
+# The privileged package calls run under sudo, which resets the environment.
+# bsd_prepare_netbsd_pkg_environment sets PKG_INSTALL_CONF and CHECK_OSABI in
+# the unprivileged shell, so unless they are carried across explicitly they
+# never reach pkg_install: the config file is written and never read, and the
+# OS-ABI check then refuses every package built for the base release. The
+# published sets for a patch release carry exactly that -- NetBSD 10.1 ships
+# net-snmp depending on osabi-NetBSD-10.0 -- so the install fails there while
+# succeeding on 10.0. PKG_PATH is already carried this way, for the same reason.
+bsd_netbsd_pkg_env_args() {
+  NETBSD_PKG_ENV_ARGS=()
+  if [[ -n "${PKG_INSTALL_CONF:-}" ]]; then
+    NETBSD_PKG_ENV_ARGS+=("PKG_INSTALL_CONF=${PKG_INSTALL_CONF}")
+  fi
+  if [[ -n "${CHECK_OSABI:-}" ]]; then
+    NETBSD_PKG_ENV_ARGS+=("CHECK_OSABI=${CHECK_OSABI}")
+  fi
+}
+
 bsd_install_pkg_add() {
   local install_ok=0
 
@@ -501,7 +519,10 @@ bsd_install_pkg_add() {
     bsd_prepare_netbsd_pkg_environment
     for pkg_path_try in "${NETBSD_PKG_PATHS[@]}"; do
       echo "NetBSD pkg_add install using PKG_PATH=${pkg_path_try}"
-      if ci_deps_as_root env PKG_PATH="${pkg_path_try}" /usr/sbin/pkg_add -I "${PKGS[@]}"; then
+      bsd_netbsd_pkg_env_args
+      if ci_deps_as_root env PKG_PATH="${pkg_path_try}" \
+           ${NETBSD_PKG_ENV_ARGS[@]+"${NETBSD_PKG_ENV_ARGS[@]}"} \
+           /usr/sbin/pkg_add -I "${PKGS[@]}"; then
         export PKG_PATH="${pkg_path_try}"
         install_ok=1
         break
