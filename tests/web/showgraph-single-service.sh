@@ -30,7 +30,6 @@ require_gnu_make
 rrddef=$(sed -n 's/^RRDDEF *= *//p' "$ROOT/Makefile")
 rrdlibs=$(sed -n 's/^RRDLIBS *= *//p' "$ROOT/Makefile")
 [ -n "$rrdlibs" ] || rrdlibs="-lrrd"
-ssllibs=$(sed -n 's/^SSLLIBS *= *//p' "$ROOT/Makefile")
 
 pcre_libs=${PCRELIBS:-}
 if [ -z "$pcre_libs" ] && command -v pkg-config >/dev/null 2>&1; then
@@ -45,9 +44,10 @@ trap 'rm -rf "$work"' EXIT HUP INT TERM
 	|| { cat "$work/libbuild.log" >&2; fail "cannot refresh libxymoncomm.a"; }
 
 harness_cflags=$(xymon_cflags "$ROOT")
+harness_ldflags=$(xymon_ldflags "$ROOT")
 "$CC" $harness_cflags $rrddef -o "$work/showgraph" \
 	"$ROOT/web/showgraph.c" "$ROOT/lib/libxymoncomm.a" \
-	$pcre_libs $rrdlibs $ssllibs 2>"$work/cc.log" \
+	$pcre_libs $rrdlibs $harness_ldflags 2>"$work/cc.log" \
 	|| { cat "$work/cc.log" >&2; fail "showgraph does not compile"; }
 
 # Fake RRD directory; selection is by filename, empty stubs suffice
@@ -108,5 +108,16 @@ assert_not_contains "nocap.y.rrd"     "$out" "no-capture fall-back"
 # An empty service component is rejected up front
 out=$(render "tcp:")
 assert_contains "Missing graph service name" "$out" "empty service rejected"
+
+# With "nostale" a file older than a day is dropped after it has matched, and
+# the diagnostic must say so instead of blaming the FNPATTERN. Last in the
+# file: it backdates a fixture the cases above use.
+touch -t 200001010000 "$rrds/tcp.conn.rrd"
+err=$(REQUEST_METHOD=GET \
+	QUERY_STRING="host=testhost&service=tcp:conn&graph=hourly&action=view&nostale" \
+	XYMONHOME="$work" TEST2RRD="dns=tcp" \
+		"$work/showgraph" --config="$work/graphs.cfg" --rrddir="$rrds" 2>&1 >/dev/null || true)
+assert_contains     "skipped as stale" "$err" "a stale RRD must be reported as stale"
+assert_not_contains "FNPATTERN"        "$err" "a stale RRD must not be reported as a pattern problem"
 
 pass "showgraph selects single-service RRDs by FNPATTERN component"

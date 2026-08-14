@@ -3,28 +3,18 @@
 #
 # tests/server/xymond-rrd-mtime-freshness.sh
 #
-# showgraph drops an RRD from a graph when "nostale" is set and the file's
-# timestamp is more than a day old (web/showgraph.c), and every graph link
-# Xymon generates carries that flag. The timestamp is therefore part of the
-# writer's contract: it must move whenever xymond_rrd writes a reading, or the
-# graph goes empty a day later with nothing logged anywhere.
+# showgraph drops an RRD from a graph when "nostale" is set and the file is
+# more than a day old, and every generated graph link carries that flag. So the
+# timestamp is part of the writer's contract: it must move whenever xymond_rrd
+# writes, or the graph goes empty a day later with nothing logged.
 #
-# do_rrd.c stamps the file explicitly because RRDtool writes through mmap,
-# where the kernel does not move the timestamp by itself. That stamp used to
-# be compiled for Linux only, although nothing about mmap is Linux-specific.
+# Both directions are pinned, and what each catches was measured:
 #
-# This pins the contract rather than the workaround, in both directions: a
-# written RRD must come out newer than a marker taken before the write, and an
-# RRD whose reading RRDtool rejected must not. What each case actually catches
-# was measured rather than assumed:
-#
-#   - the accepted-reading case does NOT discriminate on Linux with librrd
-#     1.7.2, where the timestamp moves on its own; it is there for macOS, where
-#     after two hours of updates "rrdtool last" reported 02:00 while the file's
-#     mtime was still 00:02, and for RRDtool versions that behave that way.
-#   - the rejected-reading case discriminates everywhere, including Linux:
-#     nothing but the explicit stamp can move the timestamp when RRDtool has
-#     declined to write.
+#   - accepted reading must refresh the mtime. Does NOT discriminate on Linux
+#     with librrd 1.7.2, where it moves on its own; it is there for macOS,
+#     where mtime stayed at file creation through two hours of updates.
+#   - rejected reading must NOT refresh it. Discriminates everywhere: nothing
+#     but the explicit stamp can move a timestamp RRDtool declined to touch.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
