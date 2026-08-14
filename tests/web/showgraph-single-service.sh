@@ -109,4 +109,15 @@ assert_not_contains "nocap.y.rrd"     "$out" "no-capture fall-back"
 out=$(render "tcp:")
 assert_contains "Missing graph service name" "$out" "empty service rejected"
 
+# With "nostale" a file older than a day is dropped after it has matched, and
+# the diagnostic must say so instead of blaming the FNPATTERN. Last in the
+# file: it backdates a fixture the cases above use.
+touch -t 200001010000 "$rrds/tcp.conn.rrd"
+err=$(REQUEST_METHOD=GET \
+	QUERY_STRING="host=testhost&service=tcp:conn&graph=hourly&action=view&nostale" \
+	XYMONHOME="$work" TEST2RRD="dns=tcp" \
+		"$work/showgraph" --config="$work/graphs.cfg" --rrddir="$rrds" 2>&1 >/dev/null || true)
+assert_contains     "skipped as stale" "$err" "a stale RRD must be reported as stale"
+assert_not_contains "FNPATTERN"        "$err" "a stale RRD must not be reported as a pattern problem"
+
 pass "showgraph selects single-service RRDs by FNPATTERN component"

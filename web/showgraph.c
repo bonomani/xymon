@@ -800,6 +800,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	int wantsingle = 0;
 	int rrdparamisservice = 0;
 	int svcrejects = 0;
+	int stalerejects = 0;
 	DIR *dir;
 	time_t now = getcurrenttime(NULL);
 
@@ -1040,6 +1041,7 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 			 * We don't want old graphs to mess up multi-displays.
 			 */
 			if (ignorestalerrds && (stat(d->d_name, &st) == 0) && ((now - st.st_mtime) > 86400)) {
+				stalerejects++;
 				continue;
 			}
 
@@ -1090,10 +1092,15 @@ void generate_graph(char *gdeffn, char *rrddir, char *graphfn)
 	}
 	rrddbs[rrddbcount].key = rrddbs[rrddbcount].rrdfn = rrddbs[rrddbcount].rrdparam = NULL;
 
-	if ((rrddbcount == 0) && svcrejects) {
-		if (rrdparamisservice)
+	if (rrddbcount == 0) {
+		/* Staleness first: it drops files that already matched, so the
+		 * pattern is not what is wrong. */
+		if (stalerejects)
+			errprintf("showgraph: %d RRD file(s) for service '%s' skipped as stale - nothing written to them for over 24 hours\n",
+				  stalerejects, service);
+		else if (svcrejects && rrdparamisservice)
 			errprintf("showgraph: no RRD file matched service '%s' - check that FNPATTERN group 1 captures the service component\n", service);
-		else
+		else if (svcrejects)
 			errprintf("showgraph: no RRD file matched service '%s'\n", service);
 	}
 

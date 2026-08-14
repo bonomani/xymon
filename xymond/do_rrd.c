@@ -261,14 +261,19 @@ static int flush_cached_updates(updcacheitem_t *cacheitem, char *newdata)
 	optind = opterr = 0; rrd_clear_error();
 	result = xymon_rrd_update(pcount, updparams);
 
-#if defined(LINUX)
 	/*
-	 * RRDtool 1.2+ uses mmap'ed I/O, but the Linux kernel does not update timestamps when
-	 * doing file I/O on mmap'ed files. This breaks our check for stale/nostale RRD's.
-	 * So do an explicit timestamp update on the file here.
+	 * showgraph decides from the file's timestamp whether an RRD is still
+	 * live ("nostale" drops anything older than a day), and RRDtool writes
+	 * through mmap, where the kernel does not move it. Only on success:
+	 * RRDtool rejects a duplicate or out-of-order reading without touching
+	 * the file, and stamping anyway would keep an RRD that has stopped being
+	 * written looking fresh to that very check.
+	 *
+	 * Compiled for Linux only until now, although nothing about mmap is.
+	 * Measured on macOS: every RRD's mtime was its creation time, unmoved
+	 * after two hours of updates "rrdtool last" confirmed had landed.
 	 */
-	utimes(filedir, NULL);
-#endif
+	if (result == 0) utimes(filedir, NULL);
 
 	/* Clear the cached data */
 	for (i=0; (i < cacheitem->valcount); i++) {
