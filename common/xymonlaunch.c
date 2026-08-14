@@ -87,6 +87,51 @@ volatile int forcereload=0;
 # define xfreeassign(k,p) { if (k) { xfree(k); } k=p; }
 # define xfreedup(k,p) { if (k) { xfree(k); } k=strdup(p); }
 
+/* Release what a re-read parsed into a task, leaving its key and its place in
+   the list alone. */
+static void free_task_config(tasklist_t *t)
+{
+	xfreenull(t->cmd);
+	xfreenull(t->logfile);
+	xfreenull(t->envfile);
+	xfreenull(t->envarea);
+	xfreenull(t->onhostptn);
+	xfreenull(t->cronstr);
+	if (t->crondate) { crondatefree(t->crondate); t->crondate = NULL; }
+}
+
+/*
+ * Put a task back the way it was before the re-read cleared it, and throw away
+ * what the re-read parsed. Nothing of the old configuration was lost along the
+ * way: the clearing loop sets the fields to NULL *before* parsing, so xfreedup()
+ * only ever replaced a NULL and never freed the values held in the copy.
+ *
+ * Field by field rather than a memcpy of the copy, whose next/copy pointers were
+ * blanked when it was taken and would cut the task out of the list.
+ */
+static void restore_task(tasklist_t *twalk)
+{
+	tasklist_t *saved = twalk->copy;
+
+	free_task_config(twalk);
+
+	twalk->disabled   = saved->disabled;
+	twalk->cmd        = saved->cmd;
+	twalk->interval   = saved->interval;
+	twalk->maxruntime = saved->maxruntime;
+	twalk->group      = saved->group;
+	twalk->logfile    = saved->logfile;
+	twalk->envfile    = saved->envfile;
+	twalk->envarea    = saved->envarea;
+	twalk->onhostptn  = saved->onhostptn;
+	twalk->cronstr    = saved->cronstr;
+	twalk->crondate   = saved->crondate;
+	twalk->depends    = saved->depends;
+
+	twalk->cfload = 0;
+	xfreenull(twalk->copy);
+}
+
 void load_config(char *conffn)
 {
 	static void *configfiles = NULL;
@@ -95,6 +140,10 @@ void load_config(char *conffn)
 	strbuffer_t *inbuf;
 	char *p;
 	char myhostname[256];
+	/* Nothing is running yet on the first load, so there is nothing to protect
+	   and an incomplete read is handled differently - see below. */
+	int firstload = (taskhead == NULL);
+	int incomplete = 0;
 
 	/* First check if there were no modifications at all */
 	if (configfiles) {
@@ -112,6 +161,18 @@ void load_config(char *conffn)
 	if (gethostname(myhostname, sizeof(myhostname)) != 0) {
 		errprintf("Cannot get the local hostname, using 'localhost' (error: %s)\n", strerror(errno));
 		strcpy(myhostname, "localhost");
+	}
+
+	/*
+	 * Open the file before touching the task list. The clearing below throws
+	 * away every task's settings so that the re-read can detect what changed;
+	 * doing that first and then bailing out here left every task with a NULL
+	 * cmd and no way back, so each task crashed as soon as it was restarted.
+	 */
+	fd = stackfopen(conffn, "r", &configfiles);
+	if (fd == NULL) {
+		errprintf("Cannot open configuration file %s: %s\n", conffn, strerror(errno));
+		return;
 	}
 
 	/* The cfload flag: -1=delete task, 0=old task unchanged, 1=new/changed task */
@@ -137,12 +198,6 @@ void load_config(char *conffn)
 		twalk->cronstr = NULL;
 		twalk->crondate = NULL;
 		twalk->depends = NULL;
-	}
-
-	fd = stackfopen(conffn, "r", &configfiles);
-	if (fd == NULL) {
-		errprintf("Cannot open configuration file %s: %s\n", conffn, strerror(errno));
-		return;
 	}
 
 	inbuf = newstrbuffer(0);
@@ -335,8 +390,75 @@ void load_config(char *conffn)
 	stackfclose(fd);
 	freestrbuffer(inbuf);
 
+	/*
+	 * A configured task that came back without a command is the mark of a read
+	 * that did not see the whole file. No valid configuration has a section
+	 * without a CMD - a task is switched off with DISABLED, not by taking its
+	 * command away - but a config file caught halfway through being rewritten
+	 * has exactly that shape, and the re-read is driven by the file's
+	 * timestamp rather than by whoever is writing it.
+	 *
+	 * Such a task cannot be run at all: setup_commandargs() would hand the NULL
+	 * to expand_env() in the forked child, which dies before it can exec.
+	 */
+	for (twalk = taskhead; (twalk); twalk = twalk->next) {
+		if ((twalk->cfload != -1) && (twalk->cmd == NULL)) {
+			errprintf("Configuration error, no command for task %s\n", twalk->key);
+			incomplete = 1;
+		}
+	}
+
+	/*
+	 * Do not apply a read that came up short. Trusting it costs more than the
+	 * missing command: every section the read did not reach looks deleted, so
+	 * the tasks below the cut - xymond among them - would be killed off as if
+	 * that had been asked for, and nothing in the log would say why.
+	 *
+	 * Put everything back the way it was and wait. The file's timestamp has
+	 * already changed, so the next pass reads it again 30 seconds later, by
+	 * which time whoever was writing it is done. Dropping the file list makes
+	 * that re-read unconditional rather than trusting the timestamp of a file
+	 * that was still being written when we stat'ed it.
+	 *
+	 * On the first load there is no previous state to protect and nothing is
+	 * running yet, so refusing outright would mean starting nothing at all
+	 * because one section out of nineteen is malformed. Drop just the tasks
+	 * that have no command and start the rest.
+	 */
+	if (incomplete && !firstload) {
+		errprintf("Incomplete tasklist configuration - keeping the previous one\n");
+
+		for (twalk = taskhead; (twalk); twalk = twalk->next) {
+			if (twalk->copy) restore_task(twalk);
+		}
+
+		/* Entries this read created were never started, so there is no pid to
+		   see to; they are simply unlinked and released. */
+		while (taskhead && (taskhead->copy == NULL)) {
+			tasklist_t *tmp = taskhead;
+			taskhead = taskhead->next;
+			free_task_config(tmp); xfreenull(tmp->key); xfree(tmp);
+		}
+		twalk = taskhead;
+		while (twalk && twalk->next) {
+			if (twalk->next->copy == NULL) {
+				tasklist_t *tmp = twalk->next;
+				twalk->next = tmp->next;
+				free_task_config(tmp); xfreenull(tmp->key); xfree(tmp);
+			}
+			else twalk = twalk->next;
+		}
+		for (tasktail = taskhead; (tasktail && tasktail->next); tasktail = tasktail->next);
+
+		stackfclist(&configfiles);
+		configfiles = NULL;
+		return;
+	}
+
 	/* Running tasks that have been deleted or changed are killed off now. */
 	for (twalk = taskhead; (twalk); twalk = twalk->next) {
+		if ((twalk->cfload != -1) && (twalk->cmd == NULL)) twalk->cfload = -1;
+
 		/* compare the current settings with the copy - if we have one */
 		if (twalk->cfload == 0) {
 			if (twalk->copy) {
