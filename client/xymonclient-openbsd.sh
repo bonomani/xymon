@@ -99,7 +99,13 @@ fs_mounts() {
 # stat), so keep XYMONTMP on a real local path.
 probe_dir_is_local()
 {
-	fs_mounts | awk -F'\t' -v dir="$1" -v types="$XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES" '
+	# The helper's status, not the pipeline's: a pipeline reports its last
+	# command, and awk succeeds on no input at all -- which is what an
+	# unreadable mount list looks like from there. Answering "local" then
+	# sends the probe at a directory that may sit on the wedged mount this
+	# exists to keep away from.
+	_pdlm=$(fs_mounts) || return 1
+	printf '%s\n' "$_pdlm" | awk -F'\t' -v dir="$1" -v types="$XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES" '
 		BEGIN { n = split(types, a, /[ \t]+/); for (i = 1; i <= n; i++) t[a[i]] = 1 }
 		{
 			mp = $2
@@ -109,6 +115,15 @@ probe_dir_is_local()
 		}
 		END { exit (besttype in t) ? 1 : 0 }
 	'
+}
+
+# fs_procname PID : the command name of a running process. ps is POSIX and
+# reads process state only, so it cannot touch a wedged mount. Named so that
+# df_sentinel() stays identical across the five clients, and so a test
+# replaces the primitive rather than the code that uses it.
+fs_procname()
+{
+	ps -o comm= -p "$1" 2>/dev/null | tr -d '[:space:]'
 }
 
 df_sentinel()
@@ -162,17 +177,29 @@ df_sentinel()
 				;;
 			?*)
 				# A df we recorded. Still wedged? The command name is checked
-				# so a recycled PID does not look like one. Read it with ps,
-				# not /proc/PID/comm: ps is POSIX, gives the same answer, is
-				# already a dependency of this client (the [ps] section), and
-				# reads process state only -- it cannot touch the wedged mount.
-				# Take the basename: comm is the short name on Linux and the
-				# BSDs, but the full path on macOS.
-				_c=$(ps -o comm= -p "$_old" 2>/dev/null | tr -d '[:space:]')
+				# so a recycled PID does not look like one. fs_procname() is
+				# where each OS reads it -- /proc on Linux, ps elsewhere --
+				# and neither touches the filesystem, so a wedged mount cannot
+				# block the check. Take the basename: the name is short on
+				# Linux and the BSDs, the full path on macOS.
+				_c=$(fs_procname "$_old")
 				_c=${_c##*/}
-				if kill -0 "$_old" 2>/dev/null && [ "$_c" = df ]; then
-					rm -f "$_tmpf"
-					return 124
+				if kill -0 "$_old" 2>/dev/null; then
+					case "$_c" in
+					  df) rm -f "$_tmpf"; return 124 ;;
+					  "")
+						# The two mistakes are not equally cheap. Restarting
+						# a probe that is in fact still running leaves another
+						# df on a dead server, and those cannot be killed;
+						# keeping a mount unavailable for a cycle is visible
+						# and bounded. So when the name cannot be read at all
+						# -- no ps in a minimal container, no /proc, a pid
+						# that just went away -- assume the probe is ours.
+						echo "xymonclient: cannot read the command name of pid $_old; assuming the remote df is still running" >&2
+						rm -f "$_tmpf"
+						return 124
+						;;
+					esac
 				fi
 				;;
 		esac
