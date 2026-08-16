@@ -101,9 +101,7 @@ chmod +x "$STUB/df"
 # (@SoundGoof). exec keeps the pid the client recorded, and leaves the wedge a
 # single process to clean up.
 DF_HANGBIN="$STUB/hang/df"; export DF_HANGBIN
-mkdir -p "$STUB/hang"
-_sleepbin=$(command -v sleep) || fail "no sleep binary to build the wedge fixture from"
-cp "$_sleepbin" "$DF_HANGBIN" && chmod +x "$DF_HANGBIN" || fail "cannot create the wedge fixture"
+fsf_wedge_binary "$DF_HANGBIN"
 
 # Nothing here may outlive the test, including on a failed assertion: fail()
 # exits, and every wedge started by then would keep its delay running.
@@ -119,12 +117,22 @@ PS_STUB=
 # Extract the [df] block with /proc repointed at the fixtures. The PID-reuse
 # guard is exercised for real -- it reads process state through ps, which every
 # host this suite runs on has, so nothing here is rewritten for it.
-PROC_REWRITE="s#/proc/mounts#$MOUNTS#g; s#/proc/filesystems#$TMP/filesystems#g"
-fsf_extract "$TMP/df-section.sh" "$PROC_REWRITE" '\[inode\]'
+fsf_extract "$TMP/df-section.sh" "" '\[inode\]'
 # The [inode] block runs the sentinel a second time, under its own tag: a wedged
 # server therefore leaves TWO probes outstanding per cycle, not one, and the
 # unavailable rows have to survive the no-inode-limit drop as well.
-fsf_extract "$TMP/df-inode-section.sh" "$PROC_REWRITE"
+fsf_extract "$TMP/df-inode-section.sh"
+
+# The OS primitives are replaced by name, not by path: the client keeps each
+# one behind a helper, so this is the same move for /proc as putting a stub df
+# on PATH is for a command. FS_PROCNAME lets a case below answer for the guard.
+stub_helpers() {
+	fsf_stub_helper "$1" fs_mounts "\tcat \"$MOUNTS\""
+	fsf_stub_helper "$1" fs_filesystems "\tcat \"$TMP/filesystems\""
+	fsf_stub_helper "$1" fs_procname "\techo \"\${FS_PROCNAME-df}\""
+}
+stub_helpers "$TMP/df-section.sh"
+stub_helpers "$TMP/df-inode-section.sh"
 
 # end_stub PID : end a wedged df stub. The stub exec'd the wedge into its own
 # process, so there is no child to orphan -- the pid is the whole of it.
@@ -148,7 +156,7 @@ run_block() {
 		XYMONCLIENT_FS_REMOTE_DF_BUDGET=2 \
 		PATH="${PS_STUB:+$PS_STUB:}$STUB:$PATH" \
 		"$@" \
-		/bin/sh "$_snip" 2>/dev/null
+		/bin/sh "$_snip" 2>"$TMP/cycle.err" || true
 }
 
 # run_cycle [ENV=VAL ...] -- one client cycle; prints the [df] block.
@@ -158,13 +166,17 @@ run_cycle() { run_block "$TMP/df-section.sh" "$@"; }
 run_full() { run_block "$TMP/df-inode-section.sh" "$@"; }
 
 mkdir -p "$TMP/probe"
-local_mounts() { printf '/dev/sda1 / ext4 rw 0 0\nsrv:/exp /remote/nfs nfs4 rw 0 0\nusr@h:/d /remote/sshfs sshfs rw 0 0\n' > "$MOUNTS"; }
+# The mount fixture is written in fs_mounts()' contract -- "TYPE<tab>MOUNTPOINT"
+# -- not in /proc/mounts' column order. That is the point of the helper: the
+# test states what the client needs to know, and each OS's client is what knows
+# where to read it.
+local_mounts() { printf 'ext4\t/\nnfs4\t/remote/nfs\nsshfs\t/remote/sshfs\n' > "$MOUNTS"; }
 local_mounts
 
 # --- healthy -----------------------------------------------------------------
 out=$(run_cycle)
 assert_contains "/remote/sshfs" "$out" \
-	"a remote filesystem whose type is not hard-blocking must still be reported"
+	"a remote filesystem whose type is not hard-blocking must still be reported (block stderr: $(tr '\n' ' ' < "$TMP/cycle.err" 2>/dev/null | cut -c1-300))"
 assert_contains '/dev/sda1 1000 400 600 40% /' "$out" "the local set must be reported"
 assert_contains 'srv:/exp 100 50 50 50% /remote/nfs' "$out" "the remote set must be reported"
 # The remote df prints its own header; a second one inside the same [df] block
@@ -237,6 +249,45 @@ wait
 assert_equal '1' "$(($(wc -l < "$DF_REMOTE")))" \
 	"concurrent cycles each started a remote df; exactly one may own the probe"
 while read -r _p; do end_stub "$_p"; done < "$DF_REMOTE"
+
+# --- the same window, forced open ---------------------------------------------
+# The 20-cycle race above only lands in the window by luck. This one holds it
+# open: a mv stub sleeps before renaming the pid into place, and a second cycle
+# runs while the first is stuck there. Publishing the pid used to truncate the
+# file first, so the second cycle read an empty value, took it for a stale
+# entry, removed the files and started a probe of its own -- leaving the first
+# cycle's df running with nothing recording it (@SoundGoof). With the rename,
+# the second cycle reads the whole claim and stands down.
+rm -f "$TMP"/probe/*; : > "$DF_REMOTE"
+cat > "$STUB/mv" <<'EOF'
+#!/bin/sh
+# Only the sentinel's publication is delayed; everything else moves at once.
+case "$*" in *df-probe-*.pid) sleep 2 ;; esac
+exec /bin/mv "$@"
+EOF
+chmod +x "$STUB/mv"
+run_cycle DF_HANG=1 DF_HANGTIME=6 >/dev/null 2>&1 &
+_first=$!
+# Wait for the window rather than a duration: the stub's sleep is running once
+# the remote df has been started and the pid file still holds the claim.
+_n=0
+while [ "$_n" -lt 100 ]; do
+	[ -s "$DF_REMOTE" ] && case "$(cat "$TMP/probe/df-probe-disk.pid" 2>/dev/null)" in
+		claim:*) break ;;
+	esac
+	_n=$((_n + 1)); sleep 0.1
+done
+out=$(run_cycle DF_HANG=1 DF_HANGTIME=6)
+wait "$_first" 2>/dev/null || true
+rm -f "$STUB/mv"
+assert_equal '1' "$(($(wc -l < "$DF_REMOTE")))" \
+	"a cycle reading the pid file mid-publication must not start a second probe"
+assert_contains 'unavailable:/remote/nfs' "$out" \
+	"and it must report the mount unavailable, not drop it"
+_recorded=$(cat "$TMP/probe/df-probe-disk.pid" 2>/dev/null)
+assert_equal "$(head -1 "$DF_REMOTE")" "$_recorded" \
+	"the pid file must end up naming the df that is actually running"
+while read -r _p; do end_stub "$_p"; done < "$DF_REMOTE"
 rm -f "$TMP"/probe/*; : > "$DF_REMOTE"
 
 # --- a claim held by another live cycle is respected -------------------------
@@ -266,17 +317,29 @@ assert_contains 'unavailable:/remote/nfs' "$out" \
 # Nothing may touch it: `test -w` on a wedged mount blocks in D-state, inside
 # the fail-safe meant to prevent exactly that.
 mkdir -p "$TMP/remoteprobe"
-printf '/dev/sda1 / ext4 rw 0 0\nsrv:/exp /remote/nfs nfs4 rw 0 0\nsrv:/p %s nfs4 rw 0 0\n' \
-	"$TMP/remoteprobe" > "$MOUNTS"
+printf 'ext4\t/\nnfs4\t/remote/nfs\nnfs4\t%s\n' "$TMP/remoteprobe" > "$MOUNTS"
 out=$(run_cycle XYMONTMP="$TMP/remoteprobe" DF_HANG=1)
 assert_equal '0' "$(find "$TMP/remoteprobe" -type f | awk 'END { print NR }')" \
 	"a probe dir on a hard-blocking filesystem must never be touched"
 assert_contains 'unavailable:/remote/nfs' "$out" "the remote set must report unavailable instead"
+
+# Same guard, asked directly. Driving it through the block cannot reach it: with
+# no mount list there is no remote set either, so df_sentinel is never called.
+# What is reachable is a mount list that works once -- long enough to name the
+# remote set -- and fails on the second read inside the same cycle. Then this
+# function decides, and a pipeline would hand it awk's status: awk succeeds on
+# no input, so the answer would be "local" for a directory nobody could place.
+( sed -n '/^probe_dir_is_local()/,/^}/p' "$SCRIPT"
+  printf 'fs_mounts() { return 1; }\n'
+  printf 'probe_dir_is_local /remote/probe\n' ) > "$TMP/pdl.sh"
+if XYMONCLIENT_FS_REMOTE_HARDBLOCK_TYPES="nfs nfs4 cifs" /bin/sh "$TMP/pdl.sh"; then
+	fail "an unreadable mount list must not read as a local probe directory"
+fi
 local_mounts
 
 # --- the default is unchanged ------------------------------------------------
 rm -f "$TMP"/probe/*
-out=$(env XYMONTMP="$TMP/probe" DF_CALLS="$DF_CALLS" PATH="$STUB:$PATH" /bin/sh "$TMP/df-section.sh" 2>/dev/null)
+out=$(env XYMONTMP="$TMP/probe" DF_CALLS="$DF_CALLS" PATH="$STUB:$PATH" /bin/sh "$TMP/df-section.sh" 2>/dev/null || true)
 assert_contains '/dev/sda1 1000 400 600 40% /' "$out" "the default (local-only) report is unchanged"
 assert_not_contains '/remote/nfs' "$out" "df -l must still keep remote mounts out by default"
 assert_equal '0' "$(find "$TMP/probe" -type f | awk 'END { print NR }')" \
@@ -343,7 +406,7 @@ rm -f "$TMP"/probe/*; : > "$DF_REMOTE"
 # comes back empty-and-nonzero and reports the mount 100% full.
 out=$(env DF_CALLS="$DF_CALLS" DF_REMOTE="$DF_REMOTE" XYMONTMP="$TMP/probe" \
 	XYMONCLIENT_FS_DF_LOCAL_ONLY=no XYMONCLIENT_FS_REMOTE_DF_BUDGET=2 \
-	DF_HANG=1 PATH="$STUB:$PATH" /bin/sh "$TMP/df-section.sh" 2>/dev/null)
+	DF_HANG=1 PATH="$STUB:$PATH" /bin/sh "$TMP/df-section.sh" 2>/dev/null || true)
 assert_not_contains '/remote/nfs' "$out" \
 	"a nodev remote type is excluded before the sentinel sees it, so it is not reported"
 assert_equal '0' "$(($(wc -l < "$DF_REMOTE")))" \
@@ -353,45 +416,32 @@ assert_equal '0' "$(find "$TMP/probe" -type f | awk 'END { print NR }')" \
 assert_contains '/remote/sshfs' "$out" \
 	"while a remote type that is not nodev is still reported, as DF_LOCAL_ONLY=no asks"
 
-# --- the same wedge, under the BSDs' rule for a process name -----------------
-#
-# Everything above ran against the host's own ps, so on Linux it says nothing
-# about the platforms where this first broke. The two differ in one rule: BSD
-# reports the basename of the process's executable, Linux the name it was
-# handed, which for a script is the script. Reading /proc/PID/exe applies the
-# BSD rule on a Linux host, so the case that failed on four BSDs is exercised
-# here rather than only in the VM lanes. Not needed where the host's ps already
-# answers that way, and /proc is absent there anyway.
-if [ -r /proc/self/exe ]; then
-	mkdir -p "$STUB/bsdps"
-	cat > "$STUB/bsdps/ps" <<'EOF'
-#!/bin/sh
-# ps -o comm= -p PID, with the BSDs' answer: the executable's basename.
-_pid=; _prev=
-for _a in "$@"; do
-	case "$_prev" in -p) _pid=$_a ;; esac
-	_prev=$_a
-done
-[ -n "$_pid" ] || exit 1
-_exe=$(readlink "/proc/$_pid/exe" 2>/dev/null) || exit 1
-[ -n "$_exe" ] || exit 1
-echo "${_exe##*/}"
-EOF
-	chmod +x "$STUB/bsdps/ps"
+# --- the guard cannot read the name ------------------------------------------
+# fs_procname() answers from /proc here and from ps elsewhere, and either can
+# come back empty: no ps in a minimal container (measured on the Debian
+# container lanes, where every sentinel test failed for this), no /proc, or a
+# pid that has just gone. The two mistakes then available are not equally
+# cheap. Restarting a probe that is in fact still running leaves another df on
+# a dead server, and those cannot be killed; keeping the mount unavailable for
+# a cycle is visible and bounded. So an unreadable name must NOT restart.
+rm -f "$TMP"/probe/*; : > "$DF_REMOTE"; : > "$DF_CALLS"
+out=$(DF_HANG=1 run_cycle DF_HANG=1)
+assert_contains 'unavailable:/remote/nfs' "$out" "the wedge is recorded to begin with"
+before=$(wc -l < "$DF_CALLS")
+out=$(DF_HANG=1 run_cycle DF_HANG=1 FS_PROCNAME=)
+after=$(wc -l < "$DF_CALLS")
+assert_equal "$((before + 1))" "$((after))" \
+	"with the name unreadable the wedged df must be assumed ours -- not restarted"
+assert_contains 'unavailable:/remote/nfs' "$out" "and the mount stays unavailable while it is"
 
-	while read -r _p; do end_stub "$_p"; done < "$DF_REMOTE"
-	rm -f "$TMP"/probe/*; : > "$DF_REMOTE"; : > "$DF_CALLS"
+# A name that is neither ours nor empty is a recycled pid, and must restart.
+: > "$DF_CALLS"
+before=$(wc -l < "$DF_CALLS")
+out=$(DF_HANG=1 run_cycle DF_HANG=1 FS_PROCNAME=someoneelse)
+after=$(wc -l < "$DF_CALLS")
+assert_equal "$((before + 2))" "$((after))" \
+	"a pid whose name is another process must be treated as recycled, and the probe restarted"
+while read -r _p; do end_stub "$_p"; done < "$DF_REMOTE"
 
-	PS_STUB="$STUB/bsdps"
-	out=$(DF_HANG=1 run_cycle DF_HANG=1)
-	assert_contains 'unavailable:/remote/nfs' "$out" \
-		"the wedge must be surfaced under BSD ps semantics too"
-	before=$(wc -l < "$DF_CALLS")
-	out=$(DF_HANG=1 run_cycle DF_HANG=1)
-	after=$(wc -l < "$DF_CALLS")
-	PS_STUB=
-	assert_equal "$((before + 1))" "$((after))" \
-		"under BSD ps semantics the wedged df went unrecognised and a second remote one started"
-fi
 
 pass "the remote-df sentinel bounds a wedged mount, in both reports, without blocking the client"
