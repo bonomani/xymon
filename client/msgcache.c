@@ -126,25 +126,35 @@ void grabdata(conn_t *conn)
 	 * that we'll return the next time a client sends us the "client" message.
 	 */
 
-	if (strncmp(STRBUF(conn->msgbuf), "ping", 4) == 0) {
+	if ((strncmp(STRBUF(conn->msgbuf), "ping", 4) == 0) &&
+	    ((STRBUFLEN(conn->msgbuf) == 4) || isspace((unsigned char)STRBUF(conn->msgbuf)[4]))) {
 		/*
 		 * Answered here and now, before the queueing below: a ping is not
 		 * client data, so it must not go on the outbound queue, and it must
 		 * not travel through client_response - that global holds the config
 		 * the server pushed, and overwriting it would hand the next client a
-		 * version string where its configuration belongs.
+		 * version string where its configuration belongs. The delimiter
+		 * check keeps it to "ping" alone: everything else that merely
+		 * starts with those four bytes is client data and must still be
+		 * queued and forwarded, not eaten here.
 		 *
 		 * What we can honestly report is ourselves and the age of the last
 		 * pull. We never connect to the Xymon server; it connects to us. So
 		 * "the server is up" is not ours to say, and naming xymond here would
 		 * let a caller read "safe to upgrade" off a msgcache whose server has
 		 * been gone for a week - while maxage quietly discards its messages.
-		 * lastpull is -1 until a server has collected at least once.
+		 * lastpull is -1 until a server has collected at least once. A
+		 * negative age (clock stepped back since the pull) is clamped to 0
+		 * so it cannot counterfeit that -1.
 		 */
 		char id[128];
+		long age = -1;
 
-		snprintf(id, sizeof(id), "msgcache %s\nlastpull %ld\n", VERSION,
-			 (long)(lastpull ? (getcurrenttime(NULL) - lastpull) : -1));
+		if (lastpull) {
+			age = (long)(getcurrenttime(NULL) - lastpull);
+			if (age < 0) age = 0;
+		}
+		snprintf(id, sizeof(id), "msgcache %s\nlastpull %ld\n", VERSION, age);
 		clearstrbuffer(conn->msgbuf);
 		addtobuffer(conn->msgbuf, id);
 		conn->ctype = C_CLIENT_OTHER;
@@ -180,7 +190,6 @@ void grabdata(conn_t *conn)
 
 		conn->ctype = C_SERVER;
 		conn->action = C_WRITING;
-		lastpull = getcurrenttime(NULL);
 
 		/* Save any client config sent to us */
 		clientcfg = strchr(STRBUF(conn->msgbuf), '\n');
@@ -240,13 +249,24 @@ void grabdata(conn_t *conn)
 		}
 	}
 	else {
-		/* A server has asked us for our list of messages */
+		/*
+		 * A server has asked us for our list of messages.
+		 *
+		 * lastpull is stamped when the pull completes, not here at the
+		 * request: for a non-empty queue that is when senddata() has
+		 * written the last byte. Stamping on arrival would let a ping
+		 * caller read "collected N seconds ago" off a pull whose write
+		 * failed and whose messages are already marked sent - and lost.
+		 * An empty pull completes right away: the server came, there
+		 * was nothing to hand over, nothing could be lost.
+		 */
 		time_t now = getcurrenttime(NULL);
 		msgqueue_t *mwalk;
 
 		if (!qhead) {
 			/* No queued messages */
 			conn->action = C_DONE;
+			lastpull = now;
 		}
 		else {
 			/* Build a message of all the queued data */
@@ -273,8 +293,9 @@ void grabdata(conn_t *conn)
 			}
 
 			if (STRBUFLEN(conn->msgbuf) == 0) {
-				/* No data for this server */
+				/* No data for this server - an empty pull, complete now */
 				conn->action = C_DONE;
+				lastpull = now;
 			}
 		}
 	}
@@ -297,7 +318,11 @@ void senddata(conn_t *conn)
 	}
 	else {
 		conn->sentbytes += n;
-		if (conn->sentbytes == STRBUFLEN(conn->msgbuf)) conn->action = C_DONE;
+		if (conn->sentbytes == STRBUFLEN(conn->msgbuf)) {
+			conn->action = C_DONE;
+			/* A server's pull is complete only now - the whole batch was delivered */
+			if (conn->ctype == C_SERVER) lastpull = getcurrenttime(NULL);
+		}
 	}
 }
 
