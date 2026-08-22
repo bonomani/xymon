@@ -48,8 +48,31 @@ EXCLMP=$(mount | FSEXCL="$FSEXCL" awk '
 	{ if ($3 ~ /^\//) { vfs = $4; dev = $1 ":" $2; mp = $3 } else { vfs = $3; dev = $1; mp = $2 } }
 	vfs in T { print dev " " mp }
 ')
+# XYMONCLIENT_FS_DF_LOCAL_ONLY: defaults to "yes", like the other clients. AIX
+# df has no -l, but "-T local" is the same selection and the same cure: a df
+# that never touches a remote mount cannot wedge on one. A hard-mounted NFS
+# server that stops answering otherwise hangs df here for as long as it takes
+# the host to reboot, and the whole client run with it. Set to "no" to report
+# remote filesystems too, accepting that risk - AIX has no remote-df sentinel
+# to bound it, unlike the Linux, BSD and macOS clients.
+DFLOCALONLY="${XYMONCLIENT_FS_DF_LOCAL_ONLY:-yes}"
+case "$DFLOCALONLY" in
+	yes|no) ;;
+	*)
+		echo "xymonclient-aix: invalid XYMONCLIENT_FS_DF_LOCAL_ONLY '$DFLOCALONLY', using yes" >&2
+		DFLOCALONLY=yes
+		;;
+esac
+
+# The flags are spelled out per branch rather than expanded from a variable:
+# an unquoted expansion splits on IFS, and a caller with IFS set to anything
+# but the default would hand df "-T local" as one argument instead of two.
 # The sed stuff is to make sure lines are not split into two.
-df -Ik | sed -e '/^[^ 	][^ 	]*$/{
+if [ "$DFLOCALONLY" = yes ]; then
+	df -Ik -T local
+else
+	df -Ik
+fi | sed -e '/^[^ 	][^ 	]*$/{
 N
 s/[ 	]*\n[ 	]*/ /
 }' | EXCLMP="$EXCLMP" awk '
@@ -65,7 +88,16 @@ s/[ 	]*\n[ 	]*/ /
 '
 
 echo "[inode]"
-/usr/sysv/bin/df -i | sed -e 's!Mount Dir!Mount_Dir!' | awk '
+# The inode df gets the same protection as the disk one. This is the System V
+# df, and it takes "-l" for local filesystems only, where the AIX df spells the
+# same thing "-T local". Without it the disk report returns and the client
+# hangs here instead, on the same dead mount: the guard would only have moved
+# the failure twenty lines down.
+if [ "$DFLOCALONLY" = yes ]; then
+	/usr/sysv/bin/df -i -l
+else
+	/usr/sysv/bin/df -i
+fi | sed -e 's!Mount Dir!Mount_Dir!' | awk '
 NR<2 { printf "%-20s %10s %10s %10s %10s %s\n", $2, $5, $3, $4, $6, "Mounted on" }
 NR>=2 && $5>0 { printf "%-20s %10d %10d %10d %10s %s\n", $2, $5, $3, $4, $6, $1}
 '
