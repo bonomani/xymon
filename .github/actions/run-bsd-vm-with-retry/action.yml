@@ -1,5 +1,8 @@
 name: Run BSD VM Command With Retry
-description: Runs cross-platform-actions/action with retries for transient VM startup/download failures.
+description: >
+  Runs cross-platform-actions/action, retrying only when the VM itself never
+  ran the script. A script that ran and exited non-zero is a real failure and
+  is reported as such, not retried.
 
 inputs:
   operating_system:
@@ -36,9 +39,23 @@ inputs:
     description: Multi-line script to run in the VM.
     required: true
 
+# The retry exists for the transient half of a BSD lane: the image download
+# and the VM boot. The action's outcome cannot tell that apart from "the VM
+# came up and the script failed" -- both are outcome == 'failure' -- so a
+# deterministic test failure used to be run three times and reported as
+# whatever the last attempt died of, usually the workspace sync-back.
+#
+# The script itself says which happened. Its first line drops a marker in the
+# workspace, which syncs back with everything else; the marker is present iff
+# the VM got far enough to execute the script. Cleared before every attempt,
+# so it always describes the attempt just made and never a previous one.
 runs:
   using: composite
   steps:
+    - name: Clear the attempt marker [attempt 1]
+      shell: bash
+      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
+
     - name: Run VM script [attempt 1]
       id: vm_try1
       continue-on-error: true
@@ -54,10 +71,30 @@ runs:
         cpu_count: ${{ inputs.cpu_count }}
         sync_files: ${{ inputs.sync_files }}
         shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: ${{ inputs.run_script }}
+        run: |
+          : > .bsd-vm-script-started
+          ${{ inputs.run_script }}
+
+    - name: Did the VM reach the script? [attempt 1]
+      id: ran1
+      if: ${{ steps.vm_try1.outcome == 'failure' }}
+      shell: bash
+      run: |
+        if [ -e "$GITHUB_WORKSPACE/.bsd-vm-script-started" ]; then
+          echo "The VM ran the script; its failure is real, not transient. Not retrying." >&2
+          echo "ran=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "The VM never reached the script; retrying." >&2
+          echo "ran=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Clear the attempt marker [attempt 2]
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.ran1.outputs.ran == 'false' }}
+      shell: bash
+      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
 
     - name: Run VM script [attempt 2]
-      if: ${{ steps.vm_try1.outcome == 'failure' }}
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.ran1.outputs.ran == 'false' }}
       id: vm_try2
       continue-on-error: true
       uses: cross-platform-actions/action@v0.32.0
@@ -72,10 +109,30 @@ runs:
         cpu_count: ${{ inputs.cpu_count }}
         sync_files: ${{ inputs.sync_files }}
         shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: ${{ inputs.run_script }}
+        run: |
+          : > .bsd-vm-script-started
+          ${{ inputs.run_script }}
+
+    - name: Did the VM reach the script? [attempt 2]
+      id: ran2
+      if: ${{ steps.vm_try2.outcome == 'failure' }}
+      shell: bash
+      run: |
+        if [ -e "$GITHUB_WORKSPACE/.bsd-vm-script-started" ]; then
+          echo "The VM ran the script; its failure is real, not transient. Not retrying." >&2
+          echo "ran=true" >> "$GITHUB_OUTPUT"
+        else
+          echo "The VM never reached the script; retrying." >&2
+          echo "ran=false" >> "$GITHUB_OUTPUT"
+        fi
+
+    - name: Clear the attempt marker [attempt 3]
+      if: ${{ steps.vm_try2.outcome == 'failure' && steps.ran2.outputs.ran == 'false' }}
+      shell: bash
+      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
 
     - name: Run VM script [attempt 3]
-      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' }}
+      if: ${{ steps.vm_try2.outcome == 'failure' && steps.ran2.outputs.ran == 'false' }}
       id: vm_try3
       continue-on-error: true
       uses: cross-platform-actions/action@v0.32.0
@@ -90,11 +147,31 @@ runs:
         cpu_count: ${{ inputs.cpu_count }}
         sync_files: ${{ inputs.sync_files }}
         shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: ${{ inputs.run_script }}
+        run: |
+          : > .bsd-vm-script-started
+          ${{ inputs.run_script }}
 
-    - name: Fail when VM retries are exhausted
-      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' && steps.vm_try3.outcome == 'failure' }}
+    # Name the cause the run actually had. "Failed after 3 attempts" was the
+    # old summary for a test that failed once, deterministically, on attempt 1.
+    - name: Report the failure
+      if: ${{ steps.vm_try1.outcome == 'failure'
+              && (steps.ran1.outputs.ran == 'true'
+                  || (steps.vm_try2.outcome == 'failure'
+                      && (steps.ran2.outputs.ran == 'true'
+                          || steps.vm_try3.outcome == 'failure'))) }}
       shell: bash
       run: |
-        echo "BSD VM execution failed after 3 attempts." >&2
+        rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
+        if [ "${{ steps.ran1.outputs.ran }}" = "true" ] || [ "${{ steps.ran2.outputs.ran }}" = "true" ]; then
+          echo "The BSD VM ran the script and it exited non-zero." >&2
+          echo "This is the script's own failure, not a VM problem: look for the failing" >&2
+          echo "step in the VM output above, not at the sync-back at the end of the job." >&2
+        else
+          echo "The BSD VM never reached the script in 3 attempts (image download or boot)." >&2
+        fi
         exit 1
+
+    - name: Clear the attempt marker [success]
+      if: ${{ always() }}
+      shell: bash
+      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
