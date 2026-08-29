@@ -308,7 +308,7 @@ char *deptest_failed(testedhost_t *host, char *testname)
 		t = find_test(dephostname, deptestname);
 		if (t && !t->open) {
 			if (strlen(result) == 0) {
-				strncpy(result, "\nThis test depends on the following test(s) that failed:\n\n", sizeof(result));
+				snprintf(result, sizeof(result), "%s", "\nThis test depends on the following test(s) that failed:\n\n");
 			}
 
 			if ((strlen(result) + strlen(dephostname) + strlen(deptestname) + 2) < sizeof(result)) {
@@ -914,7 +914,7 @@ void load_tests(void)
 				errprintf("Host %s appears twice in hosts.cfg! This may cause strange results\n", h->hostname);
 			}
 	
-			strncpy(h->ip, xmh_item(hwalk, XMH_IP), sizeof(h->ip));
+			snprintf(h->ip, sizeof(h->ip), "%s", xmh_item(hwalk, XMH_IP));
 			if (!h->testip && (dnsmethod != IP_ONLY)) add_host_to_dns_queue(h->hostname);
 		}
 		else {
@@ -945,7 +945,7 @@ char *ip_to_test(testedhost_t *h)
 		dnsresult = dnsresolve(h->hostname);
 
 		if (dnsresult) {
-			strncpy(h->ip, dnsresult, sizeof(h->ip));
+			snprintf(h->ip, sizeof(h->ip), "%s", dnsresult);
 		}
 		else if ((dnsmethod == DNS_THEN_IP) && !nullip) {
 			/* Already have the IP setup */
@@ -1139,30 +1139,46 @@ void run_nslookup_service(service_t *service)
 	}
 }
 
+#include "ntpprobe.c"	/* in-process SNTP probe (the default) */
+
+/* The "ntp" test uses the built-in SNTP probe by default; a non-empty NTPDATE
+ * (an external NTP client such as ntpdate or ntpdig) selects an external tool. */
 void run_ntp_service(service_t *service)
 {
 	testitem_t	*t;
-	char		cmd[PATH_MAX+1024];
-	char		*p;
-	char		cmdpath[PATH_MAX];
-	int		use_sntp = 0;
+	char		*ntpcmd  = xgetenv("NTPDATE");
+	int		use_external = (ntpcmd && *ntpcmd);
 
-	p = getenv("SNTP");	/* Plain "getenv" as we want to know if it's unset */
-	use_sntp = (p != NULL);
-
-	strncpy(cmdpath, (use_sntp ? xgetenv("SNTP") : xgetenv("NTPDATE")), sizeof(cmdpath));
-
-	for (t=service->items; (t); t = t->next) {
-		/* Do not run NTP test if host does not resolve in DNS or is down */
-		if (!t->host->dnserror && !t->host->pingerror) {
-			if (use_sntp) {
-				snprintf(cmd, sizeof(cmd), "%s %s -d %d %s 2>&1", cmdpath, xgetenv("SNTPOPTS"), extcmdtimeout-1, ip_to_test(t->host));
+	if (!use_external) {
+		/* Built-in probe: bounds itself with NTP_PROBE_TRIES short attempts, so it
+		 * is deliberately NOT tied to extcmdtimeout (which only kills hung fork/exec'd
+		 * commands). */
+		for (t=service->items; (t); t = t->next) {
+			/* Skip hosts that do not resolve or are down */
+			if (!t->host->dnserror && !t->host->pingerror) {
+				t->open = (ntp_internal_probe(ip_to_test(t->host), t->srcip,
+							      0, t->banner, NULL) == 0);	/* 0 = probe's own retry budget */
 			}
-			else {
+		}
+		return;
+	}
+
+	/* External tool; the command buffers are scoped here so the internal path
+	 * never carries them. */
+	{
+		char	cmd[PATH_MAX+1024];
+		char	cmdpath[PATH_MAX];
+
+		strncpy(cmdpath, ntpcmd, sizeof(cmdpath));
+		cmdpath[sizeof(cmdpath)-1] = '\0';
+
+		for (t=service->items; (t); t = t->next) {
+			/* Do not run NTP test if host does not resolve in DNS or is down */
+			if (!t->host->dnserror && !t->host->pingerror) {
 				snprintf(cmd, sizeof(cmd), "%s %s %s 2>&1", cmdpath, xgetenv("NTPDATEOPTS"), ip_to_test(t->host));
-			}
 
-			t->open = (run_command(cmd, "no server suitable for synchronization", t->banner, 1, extcmdtimeout) == 0);
+				t->open = (run_command(cmd, "no server suitable for synchronization", t->banner, 1, extcmdtimeout) == 0);
+			}
 		}
 	}
 }
@@ -1176,7 +1192,7 @@ void run_rpcinfo_service(service_t *service)
 	char		cmdpath[PATH_MAX];
 
 	p = xgetenv("RPCINFO");
-	strncpy(cmdpath, (p ? p : "rpcinfo"), sizeof(cmdpath));
+	snprintf(cmdpath, sizeof(cmdpath), "%s", (p ? p : "rpcinfo"));
 	for (t=service->items; (t); t = t->next) {
 		/* Do not run RPCINFO test if host does not resolve in DNS or is down */
 		if (!t->host->dnserror && (t->host->downcount == 0) && !t->host->pingerror) {
@@ -1209,7 +1225,7 @@ int start_ping_service(service_t *service)
 
 		if (t->host->dnserror || t->host->noping) continue;
 
-		strncpy(ip, ip_to_test(t->host), sizeof(ip));
+		snprintf(ip, sizeof(ip), "%s", ip_to_test(t->host));
 
 		if (t->host->smoke_samples > 0) {
 			smoke_worker_t *w = smoke_worker_for(t->host->smoke_samples);
@@ -1637,7 +1653,7 @@ int finish_ping_service(service_t *service)
 		if (!t->open && t->host->routerdeps) {
 			testitem_t *router;
 
-			strncpy(l, t->host->routerdeps, sizeof(l));
+			snprintf(l, sizeof(l), "%s", t->host->routerdeps);
 			p = strtok(l, ",");
 			while (p && (t->host->deprouterdown == NULL)) {
 				for (router=service->items; 
@@ -2508,7 +2524,7 @@ int main(int argc, char *argv[])
 			printf("Usage: %s [options] [host1 host2 host3 ...]\n", argv[0]);
 			printf("General options:\n");
 			printf("    --timeout=N                 : Timeout (in seconds) for service tests\n");
-			printf("    --cmdtimeout=N              : Timeout for external commands for testing NTP, RPC and traceroute\n");
+			printf("    --cmdtimeout=N              : Timeout for the external RPC, traceroute and ntpdate commands (the built-in NTP probe self-bounds)\n");
 			printf("    --concurrency=N             : Number of tests run in parallel\n");
 			printf("    --dns-timeout=N             : DNS lookups timeout and fail after N seconds [30]\n");
 			printf("    --dns=[only|ip|standard]    : How IP's are decided\n");
@@ -2634,7 +2650,7 @@ int main(int argc, char *argv[])
 
 			for (t = s->items; (t); t = t->next) {
 				if (!t->host->dnserror) {
-					strncpy(tname, s->testname, sizeof(tname));
+					snprintf(tname, sizeof(tname), "%s", s->testname);
 					if (s->namelen) tname[s->namelen] = '\0';
 					t->privdata = (void *)add_tcp_test(ip_to_test(t->host), s->portnum, tname, NULL,
 									   t->srcip,

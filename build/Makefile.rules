@@ -75,7 +75,7 @@ all: include/config.h $(BUILDTARGETS)
 	@echo ""
 
 client: include/config.h $(CLIENTTARGETS)
-	CC="$(CC)" CFLAGS="$(CFLAGS)" XYMONHOME="$(XYMONCLIENTHOME)" XYMONHOSTIP="$(XYMONHOSTIP)" LOCALCLIENT="$(LOCALCLIENT)" SSLLIBS="$(SSLLIBS)" NETLIBS="$(NETLIBS)" LIBRTDEF="$(LIBRTDEF)" $(MAKE) -C client all
+	CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" XYMONHOME="$(XYMONCLIENTHOME)" XYMONHOSTIP="$(XYMONHOSTIP)" LOCALCLIENT="$(LOCALCLIENT)" SSLLIBS="$(SSLLIBS)" NETLIBS="$(NETLIBS)" LIBRTDEF="$(LIBRTDEF)" $(MAKE) -C client all
 
 include/config.h:
 	MAKE="$(MAKE)" CC="$(CC)" CFLAGS="$(CFLAGS)" LDFLAGS="$(LDFLAGS)" $(BUILDTOPDIR)/build/genconfig.sh
@@ -140,6 +140,14 @@ win32: include/config.h
 	CC="$(CC)" CFLAGS="$(CFLAGS) -DXYMONWINCLIENT -DCLIENTONLY" LDFLAGS="$(LDFLAGS)" RPATHOPT="$(RPATHOPT)" SSLFLAGS="$(SSLFLAGS)" SSLINCDIR="$(SSLINCDIR)" SSLLIBS="$(SSLLIBS)" NETLIBS="$(NETLIBS)" LIBRTDEF="$(LIBRTDEF)" XYMONHOME="$(XYMONHOME)" XYMONTOPDIR="$(XYMONTOPDIR)" XYMONLOGDIR="$(XYMONLOGDIR)" XYMONHOSTNAME="$(XYMONHOSTNAME)" XYMONHOSTIP="$(XYMONHOSTIP)" XYMONHOSTOS="$(XYMONHOSTOS)" $(MAKE) -C common xymon.exe
 
 #####################
+# Regression testsuite
+#####################
+# Runs every executable test under tests/ via the shared runner. The runner
+# resolves the repo root itself, so it works from any cwd. See tests/README.md.
+.PHONY: test
+test:
+	$(BUILDTOPDIR)/tests/testsuite
+
 # Cleanup targets
 #####################
 distclean: allclean
