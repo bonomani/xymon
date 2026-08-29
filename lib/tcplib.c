@@ -572,9 +572,17 @@ int conn_listen(int backlog, int maxlifetime,
 	int bound = 0;
 
 	if (!max_accepts) {
-		max_accepts = atoi(xgetenv("MAXACCEPTSPERLOOP"));
+		/* xgetenv() returns NULL for a variable that is in neither the
+		 * environment, xymonserver.cfg, nor the built-in defaults --
+		 * MAXACCEPTSPERLOOP is in none of them, so this must not reach
+		 * atoi(). Without the guard the fallback below is unreachable:
+		 * atoi(NULL) segfaults every xymond that does not happen to have
+		 * the variable set. */
+		char *maxaccepts_cfg = xgetenv("MAXACCEPTSPERLOOP");
+
+		max_accepts = (maxaccepts_cfg ? atoi(maxaccepts_cfg) : 0);
 		if (!max_accepts) {
-			errprintf("ERROR: Invalid MAXACCEPTSPERLOOP value: '%s'\n", xgetenv("MAXACCEPTSPERLOOP"));
+			if (maxaccepts_cfg) errprintf("ERROR: Invalid MAXACCEPTSPERLOOP value: '%s'\n", maxaccepts_cfg);
 			max_accepts = 20;
 		}
 	}
