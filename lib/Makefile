@@ -29,8 +29,12 @@ CFLAGS += -I../include
 
 # Client-side xymons:// TLS (sendmsg.c + xymon_tls.c) is enabled only when the
 # build has OpenSSL (SSLFLAGS non-empty). Otherwise the .c bodies compile to nil.
+# configure.client puts the define in SSLFLAGS itself (the client has no
+# HAVE_OPENSSL to carry); don't add it twice.
+ifeq (,$(findstring HAVE_XYMON_TLS,$(SSLFLAGS)))
 ifneq ($(strip $(SSLFLAGS)),)
 TLSDEF = -DHAVE_XYMON_TLS
+endif
 endif
 
 all: test-endianness $(XYMONLIB) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONCLIENTCOMMLIB) $(XYMONCLIENTLIB) loadhosts stackio availability md5 sha1 rmd160 locator tree

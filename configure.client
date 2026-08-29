@@ -17,6 +17,11 @@ do
   To configure Xymon, the following options are available:
      --pcreinclude DIRECTORY  : Specify location of PCRE include files
      --pcrelib DIRECTORY      : Specify location of PCRE libraries
+     --sslinclude DIRECTORY   : Specify location of OpenSSL include files
+     --ssllib DIRECTORY       : Specify location of OpenSSL libraries
+     --enable-xymon-tls       : Force-enable native TLS support (requires OpenSSL)
+     --disable-xymon-tls      : Disable native TLS support in the client
+     --without-tls            : Alias for --disable-xymon-tls
      --make /path/to/gnumake  : Specify location of the GNU make program
 
   The script will search a number of standard directories for
@@ -29,6 +34,18 @@ EOF
 		;;
 	  "--pcrelib")
 	  	USERPCRELIB="$1"; shift
+		;;
+	  "--sslinclude")
+	  	USEROSSLINC="$1"; shift
+		;;
+	  "--ssllib")
+	  	USEROSSLLIB="$1"; shift
+		;;
+	  "--without-tls"|"--disable-xymon-tls")
+	  	DISABLE_XYMON_TLS="y"
+		;;
+	  "--enable-xymon-tls")
+	  	ENABLE_XYMON_TLS="y"
 		;;
 	  "--make")
 	  	MAKE="$1"; shift
@@ -80,6 +97,42 @@ then
 	echo "Checking for the PCRE libraries"
 	. build/pcre.sh
 	echo ""
+fi
+echo ""
+
+# Native TLS for the Xymon wire protocol (client -> xymond, the xymons://
+# scheme). Auto-detected: a client built without OpenSSL still talks
+# plaintext to xymond:1984, so this needs no interactive question.
+if test "$DISABLE_XYMON_TLS" = "y"
+then
+	echo "Native TLS disabled by --disable-xymon-tls"
+	SSLOK="NO"
+else
+	echo "Checking for OpenSSL (for native TLS support)"
+	. build/ssl.sh
+	if test "$SSLOK" != "YES" -a "$ENABLE_XYMON_TLS" = "y"
+	then
+		echo "WARNING: --enable-xymon-tls requested but OpenSSL was not found; native TLS disabled."
+	fi
+fi
+if test "$SSLOK" = "YES"
+then
+	# The client gets HAVE_XYMON_TLS only. HAVE_OPENSSL gates xymonnet's
+	# HTTPS-probe code, which is server-side. lib/Makefile derives the
+	# same define from a non-empty SSLFLAGS, so the two agree.
+	SSLFLAGS="-DHAVE_XYMON_TLS"
+	if test "$OSSLINC" != ""; then SSLINCDIR="-I$OSSLINC"; fi
+	if test "$OSSLLIB" != ""; then
+		SSLLIBS="-L$OSSLLIB -lssl -lcrypto"
+	else
+		SSLLIBS="-lssl -lcrypto"
+	fi
+	echo "Native TLS support: enabled"
+else
+	SSLFLAGS=""
+	SSLINCDIR=""
+	SSLLIBS=""
+	echo "Native TLS support: disabled (OpenSSL not found)"
 fi
 echo ""
 
@@ -243,6 +296,13 @@ then
 		echo "PCRELIBS = -lpcre2-8"         >>Makefile
     	fi
 fi
+echo "SSLFLAGS = $SSLFLAGS"               >>Makefile
+echo "SSLINCDIR = $SSLINCDIR"             >>Makefile
+echo "SSLLIBS = $SSLLIBS"                 >>Makefile
+if test "$OSSLLIB" != ""; then
+	echo "RPATHVAL += ${OSSLLIB}"     >>Makefile
+fi
+echo "" >>Makefile
 echo "#"                                 >>Makefile
 echo "# Add local CFLAGS etc. settings here" >>Makefile
 echo "" >>Makefile

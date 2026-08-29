@@ -71,7 +71,9 @@ URL="xymons://$TLS_HOST:$TLS_PORT"
 
 # --- 1. Pinning: mutual auth, no CA ---------------------------------------
 echo "[1/3] Pinning (VERIFY=peer): round-trip should succeed"
-start_xymond "$RUN_DIR/pin.log" --tls-ca="$CERT_DIR/ss-client.crt"
+# --tls-ca alone means "verify a client cert if one is offered"; refusing a
+# certless client is --tls-require-clientcert. Both are needed for pinning.
+start_xymond "$RUN_DIR/pin.log" --tls-ca="$CERT_DIR/ss-client.crt" --tls-require-clientcert
 OUT=$(XYMON_TLS_VERIFY=peer XYMON_TLS_CA="$CERT_DIR/ss-server.crt" \
 	XYMON_TLS_CERT="$CERT_DIR/ss-client.crt" XYMON_TLS_KEY="$CERT_DIR/ss-client.key" \
 	"$XYMON_BIN" "$URL" "ping" 2>&1 || true)
