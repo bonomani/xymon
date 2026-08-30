@@ -830,6 +830,19 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
       match the default format. Default: &quot;-Ae&quot;
     <p class="Pp"></p>
   </dd>
+  <dt id="SMOKEPINGSAMPLES"><a class="permalink" href="#SMOKEPINGSAMPLES">SMOKEPINGSAMPLES</a></dt>
+  <dd>Number of ICMP samples per cycle used by SmokePing-style probing. When a
+      host carries the &quot;smoke&quot; or &quot;smoke_conn&quot; tag in
+      <i><a href="../man5/hosts.cfg.5.html">hosts.cfg</a>(5)</i> (without an explicit &quot;:N&quot; suffix), xymonnet
+      routes that host through xymonping with
+      &quot;--samples=$SMOKEPINGSAMPLES&quot;. <i>xymond_rrd(1)</i> allocates
+      the same number of &quot;pingX&quot; data sources in the smoke RRD, and
+      the [conn-smoke] block in <i><a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5)</i> expands its @DSIDX@
+      template to this many bands. Tuning this single variable therefore
+      propagates consistently to the probe, the RRD schema, and the graph.
+      Default: &quot;20&quot;
+    <p class="Pp"></p>
+  </dd>
   <dt id="TRACEROUTE"><a class="permalink" href="#TRACEROUTE"><b>TRACEROUTE</b></a></dt>
   <dd></dd>
   <dt id="TRACEROUTEOPTS"><a class="permalink" href="#TRACEROUTEOPTS"><b>TRACEROUTEOPTS</b></a></dt>

@@ -954,6 +954,26 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
         respond to ping.</p>
     <p class="Pp"></p>
   </dd>
+  <dt id="smoke[:N"><a class="permalink" href="#smoke[:N">smoke[:N],
+    smoke_conn[:N]</a></dt>
+  <dd>Enables SmokePing-style probing for the host. The &quot;smoke&quot; form
+      turns on smoke mode for every test that has a smoke variant; the
+      &quot;smoke_conn&quot; form turns it on only for the conn (ping) test.
+      With this set, <a href="../man1/xymonnet.1.html">xymonnet</a>(1) routes the host through xymonping with the
+      &quot;--samples=N&quot; option, so xymonping sends exactly N pings per
+      cycle and records every individual round-trip time, not just an average.
+    <p class="Pp">The optional &quot;:N&quot; sets the sample count for that
+        host; if omitted, the value of the SMOKEPINGSAMPLES variable from
+        <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5) is used (default 20). xymond_rrd then writes a
+        SmokePing-style RRD at tcp.&lt;conn&gt;-smoke.rrd with DSes
+        &quot;median&quot;, &quot;loss&quot; (fraction 0..1) and
+        &quot;ping1&quot;..&quot;pingN&quot; (sorted ascending). See the
+        [conn-smoke] block in <a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5) for the matching graph.</p>
+    <p class="Pp">This feature requires the upgraded xymonping; non-xymonping
+        $FPING binaries (e.g. fping) do not understand &quot;--samples=N&quot;
+        and will exit on hosts that route through the smoke worker.</p>
+    <p class="Pp"></p>
+  </dd>
   <dt id="badconn[-weekdays-starttime-endtime]:x:y:z"><a class="permalink" href="#badconn[-weekdays-starttime-endtime]:x:y:z"><b>badconn[-weekdays-starttime-endtime]:x:y:z</b></a></dt>
   <dd>NOTE: This has been deprecated, use the <b>delayred</b> and
       <b>delayyellow</b> settings instead.

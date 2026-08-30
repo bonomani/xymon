@@ -20,7 +20,9 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
 <section class="Sh">
 <p>&#160;</p>
 <h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
-<p class="Pp"><b>xymonping [--retries=N] [--timeout=N] [IP-addresses]</b></p>
+<p class="Pp"><b>xymonping [--retries=N] [--timeout=N] [--responses=N]
+    [--samples=N] [--per-host-interval=MS] [--max-pps=N] [--source=IP]
+    [--debug[=FILE]] [IP-addresses]</b></p>
 <p class="Pp"></p>
 </section>
 <section class="Sh">
@@ -46,18 +48,28 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
 </section>
 <section class="Sh">
 <p>&#160;</p>
-<h1 class="Sh" id="SUID-ROOT_INSTALLATION_REQUIRED"><a class="permalink" href="#SUID-ROOT_INSTALLATION_REQUIRED">SUID-ROOT
-  INSTALLATION REQUIRED</a></h1>
-<p class="Pp">xymonping needs to be installed with suid-root privileges, since
-    it requires a &quot;raw socket&quot; to send and receive ICMP Echo (ping)
-    packets.</p>
-<p class="Pp">xymonping is implemented such that it immediately drops the root
-    privileges, and only regains them to perform two operations: Obtaining the
-    raw socket, and optionally binding it to a specific source address. These
-    operations are performed as root, the rest of the time xymonping runs with
-    normal user privileges. Specifically, no user-supplied data or network data
-    is used while running with root privileges. Therefore it should be safe to
-    provide xymonping with the necessary suid-root privileges.</p>
+<h1 class="Sh" id="PRIVILEGES"><a class="permalink" href="#PRIVILEGES">PRIVILEGES</a></h1>
+<p class="Pp">xymonping needs to send and receive ICMP Echo (ping) packets. On
+    Linux it first tries an unprivileged <b>SOCK_DGRAM</b> ICMP socket; this
+    works if the running user's primary GID is in the range configured by
+    <b>net.ipv4.ping_group_range</b> (see <i>sysctl(8)).</i> For example, on
+    Debian/Ubuntu the default range typically already covers unprivileged users;
+    on other distros you may need:</p>
+<p class="Pp">
+  <br/>
+   sysctl -w net.ipv4.ping_group_range=&quot;0 2147483647&quot;</p>
+<p class="Pp">If the unprivileged socket cannot be opened, xymonping falls back
+    to <b>SOCK_RAW</b> which requires either <b>CAP_NET_RAW</b> (set via
+    <i>setcap(8))</i> or suid-root. The recommended modern setup is:</p>
+<p class="Pp">
+  <br/>
+   setcap cap_net_raw+ep /path/to/xymonping</p>
+<p class="Pp">If suid-root is used instead, xymonping immediately drops root and
+    only regains it to obtain the raw socket and optionally bind a source
+    address; no user-supplied or network data is touched while privileged.</p>
+<p class="Pp">IPv6 probing requires either the unprivileged-ICMP path (since
+    Linux 3.11 extended <b>ping_group_range</b> to ICMPv6) or
+    <b>CAP_NET_RAW.</b></p>
 <p class="Pp"></p>
 </section>
 <section class="Sh">
@@ -85,6 +97,24 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
       round-trip-time reports. You can then use this option to require N
       responses, and xymonping will calculate the round-trip time as the average
       of all of responsetimes.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="samples"><a class="permalink" href="#samples">--samples=N</a></dt>
+  <dd>Enables SmokePing-style probing: sends exactly N pings per host (no retry
+      semantics) and records every individual round-trip time, not just the
+      running average. The output line for each host gains two fields, appended
+      after the legacy &quot;is alive (X ms)&quot; / &quot;is unreachable&quot;
+      text so existing parsers keep working:
+    <p class="Pp">
+      <br/>
+       1.2.3.4 is alive (0.31 ms) samples=0.000310,0.000320,0.000305 loss=0/3
+      <br/>
+       1.2.3.5 is unreachable loss=3/3</p>
+    <p class="Pp">Samples are in seconds; loss is reported as lost/total. When
+        this option is absent (or N=0), output is byte-identical to the previous
+        behaviour. See also <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5) for SMOKEPINGSAMPLES and
+        <a href="../man5/hosts.cfg.5.html">hosts.cfg</a>(5) for the &quot;smoke&quot; host tag that dispatches
+        <a href="../man1/xymonnet.1.html">xymonnet</a>(1) through xymonping with this flag.</p>
     <p class="Pp"></p>
   </dd>
   <dt id="max-pps"><a class="permalink" href="#max-pps"><b>--max-pps</b>=<i>N</i></a></dt>
@@ -122,7 +152,7 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
 <dt><a href="#NAME">NAME</a></dt>
 <dt><a href="#SYNOPSIS">SYNOPSIS</a></dt>
 <dt><a href="#DESCRIPTION">DESCRIPTION</a></dt>
-<dt><a href="#SUID-ROOT_INSTALLATION_REQUIRED">SUID-ROOT INSTALLATION REQUIRED</a></dt>
+<dt><a href="#PRIVILEGES">PRIVILEGES</a></dt>
 <dt><a href="#OPTIONS">OPTIONS</a></dt>
 <dt><a href="#SEE_ALSO">SEE ALSO</a></dt>
 </dl>
