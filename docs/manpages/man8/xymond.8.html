@@ -97,10 +97,32 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
       entries together into one and return all of it to the client.
     <p class="Pp"></p>
   </dd>
-  <dt id="listen"><a class="permalink" href="#listen"><b>--listen</b>=<i>IP</i>[:<i>PORT</i>]</a></dt>
-  <dd>Specifies the IP-address and port where xymond will listen for incoming
-      connections. By default, xymond listens on IP 0.0.0.0 (i.e. all IP-
-      addresses available on the host) and port 1984.
+  <dt id="listen"><a class="permalink" href="#listen">--listen=IP[:PORT]</a></dt>
+  <dd>Specifies the address(es) and port where xymond listens for incoming
+      plaintext connections, using a dedicated socket per address family (not
+      IPv4-mapped IPv6, so behaviour is independent of
+      <b>net.ipv6.bindv6only</b>). When <b>--listen</b> is <b>omitted</b>,
+      xymond defaults to dual-stack on port 1984 &#x2014; both
+      <b>0.0.0.0:1984</b> and <b>[::]:1984</b>. An explicit value binds exactly
+      what is given: <b>0.0.0.0</b> is the IPv4 wildcard only, <b>::</b>
+      (written <b>[::]</b>) is the IPv6 wildcard only, a concrete address such
+      as <b>127.0.0.1:1984</b> or <b>[2001:db8::10]:1984</b> binds that single
+      address, and a comma-separated list such as <b>0.0.0.0:1984,[::]:1984</b>
+      requests explicit dual-stack. A spec with the host omitted (e.g.
+      <b>:1984</b>) is treated as dual-stack, the same as omitting
+      <b>--listen</b> entirely.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="tls-listen"><a class="permalink" href="#tls-listen">--tls-listen=IP[:PORT]</a></dt>
+  <dd>Open an additional listener that requires TLS (the <i>xymons://</i>
+      scheme). This is a separate port from the plaintext <b>--listen</b>; both
+      can be active at once. The port defaults to 1985 if not given, and the
+      IPv4/IPv6 binding rules are the same as for <b>--listen</b>. A TLS port is
+      opened only if <b>--tls-cert</b> is also supplied (with <b>--tls-key</b>,
+      or the key inside the cert file); otherwise xymond warns and continues
+      serving plaintext only (a TLS misconfiguration degrades to plaintext
+      rather than taking the daemon down &#x2014; use <b>--check-tls</b> for a
+      non-zero exit on a broken TLS config).
     <p class="Pp"></p>
   </dd>
   <dt id="lqueue"><a class="permalink" href="#lqueue"><b>--lqueue</b>=<i>NUMBER</i></a></dt>
@@ -192,69 +214,85 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
       be sent.
     <p class="Pp"></p>
   </dd>
-  <dt id="status-senders"><a class="permalink" href="#status-senders"><b>--status-senders</b>=<i>IP</i>[/<i>MASK</i>][,<i>IP</i>/<i>MASK</i>]</a></dt>
-  <dd>Controls which hosts may send &quot;status&quot;, &quot;combo&quot;,
-      &quot;config&quot; and &quot;query&quot; commands to xymond.
-    <p class="Pp">By default, any host can send status-updates. If this option
-        is used, then status-updates are accepted only if they are sent by one
-        of the IP-addresses listed here, or if they are sent from the IP-address
-        of the host that the updates pertains to (this is to allow Xymon clients
-        to send in their own status updates, without having to list all clients
-        here). So typically you will need to list your servers running network
-        tests here.</p>
-    <p class="Pp">The format of this option is a list of IP-addresses,
-        optionally with a network mask in the form of the number of bits. E.g.
-        if you want to accept status-updates from the host 172.16.10.2, you
-        would use
-      <br/>
-       --status-senders=172.16.10.2
-      <br/>
-      whereas if you want to accept status updates from both 172.16.10.2 and
-        from all of the hosts on the 10.0.2.* network (a 24-bit IP network), you
-        would use
-      <br/>
-       --status-senders=172.16.10.2,10.0.2.0/24</p>
+  <dt id="acl"><a class="permalink" href="#acl">--acl=FILE</a></dt>
+  <dd>Sender access control. FILE is an ordered, capability-based,
+      transport-aware, IPv4/IPv6 rule table &#x2014; xymond's sole sender access
+      control. It supersedes the removed <b>--*-senders</b> options (see
+      COMPATIBILITY). Each non-blank, non-comment line is:
+    <br/>
+     SOURCE TRANSPORT CAPS [force]</dd>
+</dl>
+<div class="Bd-indent">
+<dl class="Bl-tag">
+  <dt id="SOURCE"><a class="permalink" href="#SOURCE"><b>SOURCE</b></a></dt>
+  <dd>An IPv4/IPv6 CIDR (a bare address is a single host), <b>local</b>
+      (loopback 127.0.0.0/8 and ::1), <b>cert:*</b> (any verified client cert),
+      or <b>cert:&lt;id&gt;</b> (a client cert whose CN equals &lt;id&gt;).</dd>
+  <dt id="TRANSPORT"><a class="permalink" href="#TRANSPORT"><b>TRANSPORT</b></a></dt>
+  <dd><b>any</b>, <b>plain</b> (cleartext only), or <b>tls</b> (encrypted
+    only).</dd>
+  <dt id="CAPS"><a class="permalink" href="#CAPS"><b>CAPS</b></a></dt>
+  <dd>A comma-separated subset of
+      <b>status</b>,<b>www</b>,<b>maint</b>,<b>admin</b> (or <b>all</b>)
+      &#x2014; the privilege classes of the former status/www/maint/admin sender
+      lists.</dd>
+  <dt id="force"><a class="permalink" href="#force"><b>force</b></a></dt>
+  <dd>Optional; acknowledges an intentionally broad admin grant (see
+    below).</dd>
+</dl>
+</div>
+<br/>
+<p class="Pp">First match wins; if no rule matches, the request is
+    <b>denied</b>, so order rules specific-before-general. A trailing <b>#</b>
+    begins a comment. The local backfeed IPC channel is always trusted. If
+    <b>no</b> <b>--acl</b> is given at all, xymond allows everything (the
+    historical &quot;no sender list&quot; default): access control is opt-in,
+    but once opted in it is default-deny. A file that is present but contains no
+    rules is a configuration error and aborts startup (it would otherwise deny
+    every sender).</p>
+<p class="Pp"><b>Admin-breadth safety net:</b> xymond refuses to start if a rule
+    grants <b>admin</b> (via <b>admin</b> or <b>all</b>) to a <i>broad</i>
+    source &#x2014; <b>cert:*</b>, or a CIDR wider than /24 (IPv4) / /120
+    (IPv6). <b>local</b> and a named <b>cert:&lt;id&gt;</b> are never broad.
+    Append <b>force</b> to such a rule to acknowledge an intentionally broad
+    admin grant. A verified client certificate that chains to <b>--tls-ca</b> is
+    matched by <b>cert:*</b> / <b>cert:&lt;id&gt;</b>, so you can authorize IPv6
+    senders by certificate rather than by IP. See <i>docs/ipv6-tls.md</i> for
+    the full model and examples.</p>
+<p class="Pp"></p>
+<dl class="Bl-tag">
+  <dt id="tls-cert"><a class="permalink" href="#tls-cert">--tls-cert=FILE</a></dt>
+  <dd>PEM file with xymond's server certificate, enabling TLS on the
+      <b>--tls-listen</b> port. Without it, no TLS port is opened and xymond
+      serves plaintext only.
     <p class="Pp"></p>
   </dd>
-  <dt id="maint-senders"><a class="permalink" href="#maint-senders"><b>--maint-senders</b>=<i>IP</i>[/<i>MASK</i>][,<i>IP</i>/<i>MASK</i>]</a></dt>
-  <dd>Controls which hosts may send maintenance commands to xymond. Maintenance
-      commands are the &quot;enable&quot;, &quot;disable&quot;, &quot;ack&quot;
-      and &quot;notes&quot; commands. Format of this option is as for the
-      --status-senders option. It is strongly recommended that you use this to
-      restrict access to these commands, so that monitoring of a host cannot be
-      disabled by a rogue user - e.g. to hide a system compromise from the
-      monitoring system.
-    <p class="Pp"><b>Note:</b> If messages are sent through a proxy, the
-        IP-address restrictions are of little use, since the messages will
-        appear to originate from the proxy server address. It is therefore
-        strongly recommended that you do NOT include the address of a server
-        running xymonproxy in the list of allowed addresses.</p>
+  <dt id="tls-key"><a class="permalink" href="#tls-key">--tls-key=FILE</a></dt>
+  <dd>PEM file with the private key matching <b>--tls-cert</b>. Optional: if
+      omitted, the private key is read from the <b>--tls-cert</b> file itself.
     <p class="Pp"></p>
   </dd>
-  <dt id="www-senders"><a class="permalink" href="#www-senders"><b>--www-senders</b>=<i>IP</i>[/<i>MASK</i>][,<i>IP</i>/<i>MASK</i>]</a></dt>
-  <dd>Controls which hosts may send commands to retrieve the state of xymond.
-      These are the &quot;xymondlog&quot;, &quot;xymondboard&quot; and
-      &quot;xymondxboard&quot; commands, which are used by <i><a href="../man1/xymongen.1.html">xymongen</a>(1)</i>
-      and <i><a href="../man1/combostatus.1.html">combostatus</a>(1)</i> to retrieve the state of the Xymon system so
-      they can generate the Xymon webpages.
-    <p class="Pp"><b>Note:</b> If messages are sent through a proxy, the
-        IP-address restrictions are of little use, since the messages will
-        appear to originate from the proxy server address. It is therefore
-        strongly recommended that you do NOT include the address of a server
-        running xymonproxy in the list of allowed addresses.</p>
+  <dt id="tls-ca"><a class="permalink" href="#tls-ca">--tls-ca=FILE</a></dt>
+  <dd>PEM file with the CA certificate(s) used to verify client certificates. A
+      client cert that chains to this CA is &quot;verified&quot; and can be
+      matched by <b>cert:*</b> / <b>cert:&lt;id&gt;</b> rules in <b>--acl</b>;
+      the CA is the trust anchor, so you need not enumerate sender IPs.
     <p class="Pp"></p>
   </dd>
-  <dt id="admin-senders"><a class="permalink" href="#admin-senders"><b>--admin-senders</b>=<i>IP</i>[/<i>MASK</i>][,<i>IP</i>/<i>MASK</i>]</a></dt>
-  <dd>Controls which hosts may send administrative commands to xymond. These
-      commands are the &quot;drop&quot; and &quot;rename&quot; commands. Access
-      to these should be restricted, since they provide an un-authenticated
-      means of completely disabling monitoring of a host, and can be used to
-      remove all traces of e.g. a system compromise from the Xymon monitor.
-    <p class="Pp"><b>Note:</b> If messages are sent through a proxy, the
-        IP-address restrictions are of little use, since the messages will
-        appear to originate from the proxy server address. It is therefore
-        strongly recommended that you do NOT include the address of a server
-        running xymonproxy in the list of allowed addresses.</p>
+  <dt id="tls-require-clientcert"><a class="permalink" href="#tls-require-clientcert">--tls-require-clientcert</a></dt>
+  <dd>Require every TLS client to present a certificate that verifies against
+      <b>--tls-ca</b>; unauthenticated TLS connections are refused. Requires
+      <b>--tls-ca</b>.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="check-tls"><a class="permalink" href="#check-tls">--check-tls</a></dt>
+  <dd>Validate the TLS material
+      (<b>--tls-cert</b>/<b>--tls-key</b>/<b>--tls-ca</b> and
+      <b>--tls-require-clientcert</b>) and exit, without binding any listener or
+      going daemon. Exit status <b>0</b> means TLS would actually be served;
+      <b>1</b> means TLS would be disabled &#x2014; including when no
+      <b>--tls-cert</b> is given. Intended as a certificate-rotation pre-flight
+      run before (re)starting xymond.
     <p class="Pp"></p>
   </dd>
   <dt id="no-download"><a class="permalink" href="#no-download"><b>--no-download</b></a></dt>
@@ -297,6 +335,22 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
     <p class="Pp"></p>
   </dd>
 </dl>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="COMPATIBILITY"><a class="permalink" href="#COMPATIBILITY">COMPATIBILITY</a></h1>
+<p class="Pp">The four IPv4-only sender lists <b>--status-senders</b>,
+    <b>--www-senders</b>, <b>--maint-senders</b> and <b>--admin-senders</b> have
+    been <b>removed</b> and replaced by the unified, capability-based, IPv4/IPv6
+    <b>--acl</b> rule table. Passing any of the old options is now a fatal
+    error: xymond prints a message pointing at <b>--acl</b> and exits, rather
+    than silently dropping the access restriction the operator intended. To
+    migrate, express each old list as <b>--acl</b> rules &#x2014; e.g. an old
+    <b>--status-senders=10.0.0.0/8</b> becomes the rule <b>10.0.0.0/8 any
+    status</b>, and admin commands previously restricted by
+    <b>--admin-senders</b> become rules granting the <b>admin</b>
+  capability.</p>
+<p class="Pp"></p>
 </section>
 <section class="Sh">
 <p>&#160;</p>
@@ -345,7 +399,7 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
 <p class="Pp">The following channels are provided by xymond:</p>
 <p class="Pp"></p>
 <dl class="Bl-tag">
-  <dt id="status"><a class="permalink" href="#status-senders"><b>status</b></a></dt>
+  <dt id="status"><a class="permalink" href="#status"><b>status</b></a></dt>
   <dd>This channel is fed the contents of all incoming &quot;status&quot; and
       &quot;summary&quot; messages.</dd>
   <dt id="stachg"><a class="permalink" href="#stachg"><b>stachg</b></a></dt>
@@ -408,7 +462,6 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
 <h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
   ALSO</a></h1>
 <p class="Pp"><a href="../man7/xymon.7.html">xymon</a>(7), <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5).</p>
-<p class="Pp"></p>
 </section>
 <p>&#160;</p>
 <h1 class="Sh" id="INDEX"><a class="permalink" href="#INDEX">Index</a></h1>
@@ -417,6 +470,7 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
 <dt><a href="#SYNOPSIS">SYNOPSIS</a></dt>
 <dt><a href="#DESCRIPTION">DESCRIPTION</a></dt>
 <dt><a href="#OPTIONS">OPTIONS</a></dt>
+<dt><a href="#COMPATIBILITY">COMPATIBILITY</a></dt>
 <dt><a href="#HOW_ALERTS_TRIGGER">HOW ALERTS TRIGGER</a></dt>
 <dt><a href="#CHANNELS">CHANNELS</a></dt>
 <dt><a href="#SIGNALS">SIGNALS</a></dt>
