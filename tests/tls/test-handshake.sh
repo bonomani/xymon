@@ -78,14 +78,14 @@ echo "  TLS port:  $TLS_PORT"
 echo
 
 if [ ! -x "$XYMOND_BIN" ]; then
-	echo "FAIL: xymond binary not found or not executable: $XYMOND_BIN" >&2
+	echo "SKIP: xymond not built: $XYMOND_BIN" >&2
 	echo "      Build the server first (./configure --server && make), or set" >&2
 	echo "      XYMOND_BIN to the binary path." >&2
-	exit 1
+	exit 77
 fi
 if ! command -v openssl >/dev/null 2>&1; then
-	echo "FAIL: openssl(1) is required" >&2
-	exit 1
+	echo "SKIP: openssl(1) is required" >&2
+	exit 77
 fi
 
 # --- 1. certs --------------------------------------------------------------

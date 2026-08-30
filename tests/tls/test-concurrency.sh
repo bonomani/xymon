@@ -42,9 +42,9 @@ cleanup() {
 trap cleanup EXIT INT TERM
 
 echo "== Xymon TLS concurrency test (N=$N) =="
-[ -x "$XYMOND_BIN" ] || { echo "FAIL: missing $XYMOND_BIN" >&2; exit 1; }
-[ -x "$XYMON_BIN" ]  || { echo "FAIL: missing $XYMON_BIN"  >&2; exit 1; }
-command -v openssl >/dev/null 2>&1 || { echo "FAIL: openssl required" >&2; exit 1; }
+[ -x "$XYMOND_BIN" ] || { echo "SKIP: xymond not built: $XYMOND_BIN" >&2; exit 77; }
+[ -x "$XYMON_BIN" ]  || { echo "SKIP: xymon client not built: $XYMON_BIN" >&2; exit 77; }
+command -v openssl >/dev/null 2>&1 || { echo "SKIP: openssl required" >&2; exit 77; }
 
 "$SCRIPT_DIR/gen-certs.sh" >/dev/null
 printf '%s %s\n' "$TLS_HOST" "$HOST" > "$HOSTS_FILE"

@@ -61,9 +61,9 @@ start_xymond() {
 }
 
 echo "== Xymon TLS trust-mode tests =="
-[ -x "$XYMOND_BIN" ] || { echo "FAIL: missing $XYMOND_BIN" >&2; exit 1; }
-[ -x "$XYMON_BIN" ]  || { echo "FAIL: missing $XYMON_BIN"  >&2; exit 1; }
-command -v openssl >/dev/null 2>&1 || { echo "FAIL: openssl required" >&2; exit 1; }
+[ -x "$XYMOND_BIN" ] || { echo "SKIP: xymond not built: $XYMOND_BIN" >&2; exit 77; }
+[ -x "$XYMON_BIN" ]  || { echo "SKIP: xymon client not built: $XYMON_BIN" >&2; exit 77; }
+command -v openssl >/dev/null 2>&1 || { echo "SKIP: openssl required" >&2; exit 77; }
 
 "$SCRIPT_DIR/gen-selfsigned.sh" >/dev/null
 printf '%s testpage.test\n' "$TLS_HOST" > "$HOSTS_FILE"

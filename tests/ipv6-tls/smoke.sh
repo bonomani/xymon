@@ -25,6 +25,7 @@ set -u
 here=$(cd "$(dirname "$0")" && pwd)
 repo=$(cd "$here/../.." && pwd)
 XYMONDBIN=${XYMONDBIN:-$repo/xymond/xymond}
+[ -x "$XYMONDBIN" ] || { echo "SKIP: xymond not built: $XYMONDBIN"; exit 77; }
 XYMONBIN=${XYMONBIN:-$repo/common/xymon}
 PORT=${PORT:-19840}
 TLSPORT=${TLSPORT:-19841}
