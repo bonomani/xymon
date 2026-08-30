@@ -42,6 +42,12 @@ static char *xgetenv(const char *n) { (void)n; return ""; }
 static char *xstrdup(const char *s) { return strdup(s); }
 #define xfree free
 
+/* do_net.c routes smoke-tagged conn results through the smokeping helpers, so
+ * the harness needs their implementation (libc-only) and the one libxymon
+ * symbol they use. Everything else stays stubbed, as above. */
+static void errprintf(const char *fmt, ...) { (void)fmt; }
+
+#include "../../lib/smokeping.c"
 #include "../../xymond/rrd/do_ntpstat.c"
 #include "../../xymond/rrd/do_net.c"
 

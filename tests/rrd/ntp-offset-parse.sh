@@ -32,9 +32,12 @@ trap 'rm -rf "$work"' EXIT
 # not available -- including where -fsanitize links but will not run (see
 # asan_usable), which no compile check can see.
 harness="$work/ntp-offset-parse"
-if ! asan_usable || ! "$CC" -g -O1 -fsanitize=address,undefined -o "$harness" \
+# -I: do_net.c includes smokeping.h, which lives in include/ and reaches the
+# real build through the Makefile's -I../include. The harness compiles do_net.c
+# straight from tests/rrd/, so it needs the same directory on the search path.
+if ! asan_usable || ! "$CC" -g -O1 -fsanitize=address,undefined -I"$here/../../include" -o "$harness" \
 		"$here/ntp-offset-parse-harness.c" 2>"$work/cc-asan.log"; then
-	"$CC" -g -O1 -o "$harness" "$here/ntp-offset-parse-harness.c" 2>"$work/cc.log" \
+	"$CC" -g -O1 -I"$here/../../include" -o "$harness" "$here/ntp-offset-parse-harness.c" 2>"$work/cc.log" \
 		|| { cat "$work/cc.log" >&2; fail "harness does not compile"; }
 fi
 
