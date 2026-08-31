@@ -302,7 +302,7 @@ char *init_tcp_services(void)
 				}
 			}
 		}
-		else if (strcmp(l, "starttls") == 0) {
+		else if (strncmp(l, "start ", 6) == 0) {
 			/*
 			 * Upgrade the connection at this point: everything before the
 			 * line is plaintext, everything after it encrypted, on the same
@@ -315,9 +315,29 @@ char *init_tcp_services(void)
 			 * point: after the server has agreed to it, never before.
 			 */
 			if (first) {
-				add_svcstep(first->rec, STEP_STARTTLS, (unsigned char *)"", 0);
-				for (walk = first->next; (walk); walk = walk->next)
-					add_svcstep(walk->rec, STEP_STARTTLS, (unsigned char *)"", 0);
+				char *feat = skipwhitespace(l+5);
+
+				/*
+				 * The word after "start" names code here rather than a
+				 * protocol verb, and is reserved. "tls" is the only one;
+				 * anything else is refused when the file is read, so a typo
+				 * cannot leave a probe quietly doing less than it says.
+				 *
+				 * Two words because the action is not protocol-specific: FTP
+				 * spells the request AUTH TLS, POP3 STLS, IMAP and SMTP
+				 * STARTTLS -- but what the CLIENT does is the same in each,
+				 * and the asking is left to a send, which is the only thing
+				 * that knows the protocol.
+				 */
+				if (strcmp(feat, "tls") != 0) {
+					errprintf("Service %s: 'start %s' - the only feature a client can start is 'tls'\n",
+						  first->rec->svcname, feat);
+				}
+				else {
+					add_svcstep(first->rec, STEP_STARTTLS, (unsigned char *)"", 0);
+					for (walk = first->next; (walk); walk = walk->next)
+						add_svcstep(walk->rec, STEP_STARTTLS, (unsigned char *)"", 0);
+				}
 			}
 		}
 		else if (strncmp(l, "expect ", 7) == 0) {
