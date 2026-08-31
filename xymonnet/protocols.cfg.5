@@ -21,16 +21,29 @@ the SMTP service would be this:
 .sp
 .nf
 \&   [smtp]
-\&      send "mail\er\enquit\er\en"
-\&      expect "220"
+\&      expect "220" until "220 "
+\&      send "ehlo xymonnet\er\en"
+\&      expect "250" until "250 "
 \&      options banner
 .fi
 .sp
-This defines a service called "smtp". When the connection is
-first established, xymonnet will send the string "mail\er\enquit\er\en"
-to the service. It will then expect a response beginning with "220".
-Any data returned by the service (a so-called "banner") will be recorded
-and included in the status message.
+This defines a service called "smtp". The lines are performed in the order
+they are written, which is the order of the conversation: xymonnet waits for
+a greeting beginning with "220", sends EHLO, and checks that the answer
+begins with "250". Any data returned by the service (a so-called "banner")
+will be recorded and included in the status message.
+.sp
+The order matters, and it is the only thing here that does. A service whose
+server speaks first is written with \fBexpect\fR first; one that says
+nothing until it is asked \-\- clamd and spamd, for instance \-\- is
+written with \fBsend\fR first. Writing before the server has greeted is a
+protocol violation in SMTP, and Postfix 3.9 and later reject the session for
+it.
+.sp
+A definition may hold as many steps as the conversation needs. Only the
+classic shapes \-\- a lone \fBsend\fR, a lone \fBexpect\fR, or a
+\fBsend\fR followed by an \fBexpect\fR \-\- use the single-exchange
+probe they have always used.
 .sp
 For services that require ALPN protocol negotiation (such as IMAPS multiplexed
 by Nginx on the same port as HTTPS), you can define:
@@ -59,11 +72,62 @@ may be omitted, in which case
 .I xymonnet(1)
 will simply not send any data, or match a response against anything.
 
+An \fBexpect\fR may say where the reply ENDS:
+.br
+.sp
+.nf
+\&      expect "250" until "250 "
+.fi
+.sp
+Without \fBuntil\fR one read is taken for the whole reply, which is wrong
+for every protocol that answers on several lines: SMTP and FTP continue with
+"250\-" and finish with "250 ", NNTP ends a block with ".", IMAP ends with
+the command tag. Naming the terminator reads to the end of the reply however
+it is split across packets. A greeting that arrives in two packets would
+otherwise have its tail matched as the answer to the next command, and a
+healthy server would be reported down.
+
 The send- and expect-strings use standard escaping for non-printable
 characters. "\er" represents a carriage-return (ASCII 13), "\en"
 represents a line-feed (ASCII 10), "\et" represents a TAB (ASCII 8).
 Binary data is input as "\exNN" with NN being the hexadecimal value
 of the byte.
+
+.IP "\fBstart\fR \fIFEATURE\fR"
+Switch on something the CLIENT does. The word after \fBstart\fR names code
+in xymonnet rather than anything sent to the server, and is reserved:
+\fBtls\fR is the only feature, and naming another is refused when the file
+is read.
+.sp
+\fBstart tls\fR upgrades the connection where the line sits \-\- after the
+server has agreed to it, never before:
+.br
+.sp
+.nf
+\&   [smtptls]
+\&      expect "220" until "220 "
+\&      send "ehlo xymonnet\er\en"
+\&      expect "250" until "250 "
+\&      send "starttls\er\en"
+\&      expect "220"
+\&      start tls
+.fi
+.sp
+Everything before the line is plaintext and everything after it is
+encrypted, on the same socket. This is what SMTP on 25, submission on 587
+and IMAP on 143 do, and it is the only way any of them reaches a
+certificate: the \fBssl\fR option means TLS from the first byte, which is a
+different port and a different service. The certificate is read from the
+upgraded session, so a service that begins in plaintext reaches the
+\fBsslcert\fR column with its expiry checked.
+.sp
+Two words, because the action is not protocol-specific. FTP spells the
+request "AUTH TLS", POP3 "STLS", SMTP and IMAP "STARTTLS" \-\- but what the
+client does is the same in each, and the asking is left to a \fBsend\fR,
+which is the only line that knows the protocol.
+.sp
+The \fBssl\fR option is spelled that way for historical reasons; what both
+it and \fBstart tls\fR negotiate is TLS.
 
 .IP "\fBport\fR \fINUMBER\fR"
 Define the default TCP port-number for this service. If no portnumber

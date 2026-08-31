@@ -45,15 +45,26 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
     SMTP service would be this:</p>
 <p class="Pp"></p>
 <pre>   [smtp]
-      send &quot;mail\r\nquit\r\n&quot;
-      expect &quot;220&quot;
+      expect &quot;220&quot; until &quot;220 &quot;
+      send &quot;ehlo xymonnet\r\n&quot;
+      expect &quot;250&quot; until &quot;250 &quot;
       options banner</pre>
-<p class="Pp">This defines a service called &quot;smtp&quot;. When the
-    connection is first established, xymonnet will send the string
-    &quot;mail\r\nquit\r\n&quot; to the service. It will then expect a response
-    beginning with &quot;220&quot;. Any data returned by the service (a
-    so-called &quot;banner&quot;) will be recorded and included in the status
-    message.</p>
+<p class="Pp">This defines a service called &quot;smtp&quot;. The lines are
+    performed in the order they are written, which is the order of the
+    conversation: xymonnet waits for a greeting beginning with &quot;220&quot;,
+    sends EHLO, and checks that the answer begins with &quot;250&quot;. Any data
+    returned by the service (a so-called &quot;banner&quot;) will be recorded
+    and included in the status message.</p>
+<p class="Pp">The order matters, and it is the only thing here that does. A
+    service whose server speaks first is written with <b>expect</b> first; one
+    that says nothing until it is asked -- clamd and spamd, for instance -- is
+    written with <b>send</b> first. Writing before the server has greeted is a
+    protocol violation in SMTP, and Postfix 3.9 and later reject the session for
+    it.</p>
+<p class="Pp">A definition may hold as many steps as the conversation needs.
+    Only the classic shapes -- a lone <b>send</b>, a lone <b>expect</b>, or a
+    <b>send</b> followed by an <b>expect</b> -- use the single-exchange probe
+    they have always used.</p>
 <p class="Pp">For services that require ALPN protocol negotiation (such as IMAPS
     multiplexed by Nginx on the same port as HTTPS), you can define:</p>
 <p class="Pp"></p>
@@ -81,11 +92,54 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
       established, and the response that is expected. Either of these may be
       omitted, in which case <i><a href="../man1/xymonnet.1.html">xymonnet</a>(1)</i> will simply not send any data,
       or match a response against anything.
+    <p class="Pp">An <b>expect</b> may say where the reply ENDS:</p>
+    <p class="Pp"></p>
+    <pre>      expect &quot;250&quot; until &quot;250 &quot;</pre>
+    <p class="Pp">Without <b>until</b> one read is taken for the whole reply,
+        which is wrong for every protocol that answers on several lines: SMTP
+        and FTP continue with &quot;250-&quot; and finish with &quot;250 &quot;,
+        NNTP ends a block with &quot;.&quot;, IMAP ends with the command tag.
+        Naming the terminator reads to the end of the reply however it is split
+        across packets. A greeting that arrives in two packets would otherwise
+        have its tail matched as the answer to the next command, and a healthy
+        server would be reported down.</p>
     <p class="Pp">The send- and expect-strings use standard escaping for
         non-printable characters. &quot;\r&quot; represents a carriage-return
         (ASCII 13), &quot;\n&quot; represents a line-feed (ASCII 10),
         &quot;\t&quot; represents a TAB (ASCII 8). Binary data is input as
         &quot;\xNN&quot; with NN being the hexadecimal value of the byte.</p>
+    <p class="Pp"></p>
+  </dd>
+  <dt id="start"><a class="permalink" href="#start"><b>start</b>
+    <i>FEATURE</i></a></dt>
+  <dd>Switch on something the CLIENT does. The word after <b>start</b> names
+      code in xymonnet rather than anything sent to the server, and is reserved:
+      <b>tls</b> is the only feature, and naming another is refused when the
+      file is read.
+    <p class="Pp"><b>start tls</b> upgrades the connection where the line sits
+        -- after the server has agreed to it, never before:</p>
+    <p class="Pp"></p>
+    <pre>   [smtptls]
+      expect &quot;220&quot; until &quot;220 &quot;
+      send &quot;ehlo xymonnet\r\n&quot;
+      expect &quot;250&quot; until &quot;250 &quot;
+      send &quot;starttls\r\n&quot;
+      expect &quot;220&quot;
+      start tls</pre>
+    <p class="Pp">Everything before the line is plaintext and everything after
+        it is encrypted, on the same socket. This is what SMTP on 25, submission
+        on 587 and IMAP on 143 do, and it is the only way any of them reaches a
+        certificate: the <b>ssl</b> option means TLS from the first byte, which
+        is a different port and a different service. The certificate is read
+        from the upgraded session, so a service that begins in plaintext reaches
+        the <b>sslcert</b> column with its expiry checked.</p>
+    <p class="Pp">Two words, because the action is not protocol-specific. FTP
+        spells the request &quot;AUTH TLS&quot;, POP3 &quot;STLS&quot;, SMTP and
+        IMAP &quot;STARTTLS&quot; -- but what the client does is the same in
+        each, and the asking is left to a <b>send</b>, which is the only line
+        that knows the protocol.</p>
+    <p class="Pp">The <b>ssl</b> option is spelled that way for historical
+        reasons; what both it and <b>start tls</b> negotiate is TLS.</p>
     <p class="Pp"></p>
   </dd>
   <dt id="port"><a class="permalink" href="#port"><b>port</b>
