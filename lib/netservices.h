@@ -30,6 +30,7 @@
    reads and every alias of a service shares the same shape. */
 #define STEP_SEND   1
 #define STEP_EXPECT 2
+#define STEP_STARTTLS 3	/* upgrade this connection to TLS, here */
 
 typedef struct svcstep_t {
 	int type;

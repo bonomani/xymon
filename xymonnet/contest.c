@@ -909,7 +909,7 @@ static int socket_read(tcptest_t *item, char *inbuf, int inbufsize)
 	int res = 0;
 	char errtxt[1024];
 
-	if (item->svcinfo->flags & TCP_SSL) {
+	if ((item->svcinfo->flags & TCP_SSL) || item->sslrunning) {
 		if (item->sslrunning) {
 			item->sslagain = 0;
 			res = SSL_read(item->ssldata, inbuf, inbufsize);
@@ -1398,6 +1398,36 @@ restartselect:
 								st = st->next;
 								item->curstep = (void *)st;
 							}
+							if (st && (st->type == STEP_STARTTLS)) {
+								/*
+								 * Upgrade in place, through the same setup_ssl()
+								 * that "options ssl" uses at connect -- so the
+								 * certificate reaches the sslcert column exactly
+								 * as it does for a service that is TLS from the
+								 * first byte. For SMTP on 25 or submission on
+								 * 587 this is the only way it is reachable at
+								 * all.
+								 *
+								 * The handshake takes several passes. The step
+								 * stays current until it settles, and the socket
+								 * waits for readability meanwhile -- which is
+								 * what the handshake is waiting on.
+								 */
+								if (item->sslrunning == 0) {
+									item->sslrunning = SSLSETUP_PENDING;
+									setup_ssl(item);
+								}
+								if (item->sslrunning == 1) {
+									st = st->next;
+									item->curstep = (void *)st;
+								}
+								else if (item->sslrunning != SSLSETUP_PENDING) {
+									/* setup_ssl() has set errcode */
+									item->curstep = NULL;
+									st = NULL;
+								}
+							}
+
 							if (st && (st->type == STEP_SEND)) {
 								res = socket_write(item, (char *)st->text, st->len);
 								tcp_stats_written += res;
@@ -1412,7 +1442,9 @@ restartselect:
 									item->curstep = (void *)st;
 								}
 							}
-							item->readpending = (st && (st->type == STEP_EXPECT));
+							item->readpending = (st && ((st->type == STEP_EXPECT) ||
+										    ((st->type == STEP_STARTTLS) &&
+										     (item->sslrunning == SSLSETUP_PENDING))));
 						}
 						else if (do_talk) {
 							if (item->telnetnegotiate && item->telnetbuflen) {
@@ -1519,6 +1551,17 @@ restartselect:
 							 */
 							continue;
 						}
+						if (item->curstep &&
+						    (((svcstep_t *)item->curstep)->type == STEP_STARTTLS)) {
+							/*
+							 * A "starttls" step whose handshake has settled.
+							 * The write arm owns the step list, so hand the
+							 * socket back to it rather than advancing here.
+							 */
+							item->readpending = 0;
+							continue;
+						}
+
 						if (!item->readpending) {
 							/*
 							 * The handshake just finished, here, in the read

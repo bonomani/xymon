@@ -302,6 +302,24 @@ char *init_tcp_services(void)
 				}
 			}
 		}
+		else if (strcmp(l, "starttls") == 0) {
+			/*
+			 * Upgrade the connection at this point: everything before the
+			 * line is plaintext, everything after it encrypted, on the same
+			 * socket. That is what SMTP on 25, submission on 587 and IMAP on
+			 * 143 do, and it is the only way any of them reaches a
+			 * certificate -- "options ssl" means TLS from the first byte,
+			 * which is a different port and a different service.
+			 *
+			 * A step and not an option, because WHERE it happens is the
+			 * point: after the server has agreed to it, never before.
+			 */
+			if (first) {
+				add_svcstep(first->rec, STEP_STARTTLS, (unsigned char *)"", 0);
+				for (walk = first->next; (walk); walk = walk->next)
+					add_svcstep(walk->rec, STEP_STARTTLS, (unsigned char *)"", 0);
+			}
+		}
 		else if (strncmp(l, "expect ", 7) == 0) {
 			if (first) {
 				unsigned char *txt = NULL, *untiltxt = NULL;
@@ -414,12 +432,14 @@ char *init_tcp_services(void)
 		 * or either alone) keeps the exact code path it has always used.
 		 */
 		{
-			svcstep_t *st; int nsend = 0, nexp = 0, first_is_expect = 0;
+			svcstep_t *st; int nsend = 0, nexp = 0, nstarttls = 0, first_is_expect = 0;
 			for (st = walk->rec->steps; (st); st = st->next) {
 				if (st == walk->rec->steps) first_is_expect = (st->type == STEP_EXPECT);
-				if (st->type == STEP_SEND) nsend++; else nexp++;
+				if (st->type == STEP_SEND) nsend++;
+				else if (st->type == STEP_STARTTLS) nstarttls++;
+				else nexp++;
 			}
-			if (first_is_expect || nsend > 1 || nexp > 1)
+			if (first_is_expect || nsend > 1 || nexp > 1 || nstarttls)
 				svcinfo[i].flags |= TCP_DIALOGUE;
 		}
 	}
