@@ -300,6 +300,8 @@ char *init_tcp_services(void)
 					}
 					add_svcstep(walk->rec, STEP_SEND, txt, txtlen);
 				}
+				/* Every step keeps its own copy; sendtxt may have adopted this one. */
+				if (first->rec->sendtxt != txt) xfree(txt);
 			}
 		}
 		else if (strncmp(l, "start ", 6) == 0) {
@@ -382,6 +384,8 @@ char *init_tcp_services(void)
 						st->untillen = untillen;
 					}
 				}
+				/* Every step keeps its own copy; exptext may have adopted this one. */
+				if (first->rec->exptext != txt) xfree(txt);
 				if (untiltxt) xfree(untiltxt);
 			}
 		}
