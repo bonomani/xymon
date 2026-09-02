@@ -58,7 +58,10 @@ port=$(cat "$work/port")
 # a single call while the peer is not reading.
 {
 	printf '[bigsend]\n   send "'
-	awk -v n="$payload" 'BEGIN { s = sprintf("%*s", n, ""); gsub(/ /, "A", s); printf "%s", s }'
+	# Doubling rather than sprintf("%*s")+gsub: the gsub walks eight million
+	# characters one at a time, which BSD awk does not finish in any useful
+	# time. Both are POSIX; only one of them returns.
+	awk -v n="$payload" 'BEGIN { s = "A"; while (length(s) < n) s = s s; printf "%s", substr(s, 1, n) }'
 	printf '"\n   expect "OK"\n   options ssl,banner\n   port %s\n' "$port"
 } > "$work/home/etc/protocols.cfg"
 printf '127.0.0.1\tpeer\t# bigsend\n' > "$work/home/etc/hosts.cfg"
