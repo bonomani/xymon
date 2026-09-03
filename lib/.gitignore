@@ -1,0 +1,10 @@
+# The library's self-test programs, built by lib/Makefile test.
+/availability
+/loadhosts
+/locator
+/md5
+/rmd160
+/sha1
+/stackio
+/test-endianness
+/tree

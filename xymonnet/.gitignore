@@ -1,0 +1,8 @@
+/xymonnet
+/xymonping
+/beastat
+/contest
+/xymon-snmpcollect
+/xymonnet-again.sh
+# The bundled c-ares, unpacked and built in place.
+/c-ares-*/

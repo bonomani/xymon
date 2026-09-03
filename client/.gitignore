@@ -1,0 +1,19 @@
+# A client build lands the shared tools here as well as its own.
+/xymon
+/xymoncfg
+/xymoncmd
+/xymondigest
+/xymongrep
+/xymonlaunch
+/xymond_client
+/logfetch
+/clientupdate
+/orcaxymon
+/msgcache
+/freebsd-meminfo
+/hpux-meminfo
+/netbsd-meminfo
+/openbsd-meminfo
+# Generated from the .DIST beside each.
+/clientlaunch.cfg
+/xymonclient.cfg
