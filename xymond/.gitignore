@@ -1,0 +1,34 @@
+/xymond
+/xymond_alert
+/xymond_capture
+/xymond_channel
+/xymond_client
+/xymond_distribute
+/xymond_filestore
+/xymond_history
+/xymond_hostdata
+/xymond_locator
+/xymond_rrd
+/xymond_sample
+/xymonfetch
+/xymon-mailack
+/trimhistory
+/combostatus
+/convertnk
+/rrdcachectl
+# Generated from the .DIST beside each; the .cfg files with no .DIST are
+# tracked as they are.
+/xymon.sh
+/xymonreports.sh
+/moverrd.sh
+/etcfiles/alerts.cfg
+/etcfiles/analysis.cfg
+/etcfiles/cgioptions.cfg
+/etcfiles/client-local.cfg
+/etcfiles/combo.cfg
+/etcfiles/graphs.cfg
+/etcfiles/hosts.cfg
+/etcfiles/rrddefinitions.cfg
+/etcfiles/tasks.cfg
+/etcfiles/xymonserver.cfg
+/etcfiles/xymon-*.conf

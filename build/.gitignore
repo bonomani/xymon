@@ -1,0 +1,10 @@
+# Helpers compiled by build/Makefile, and the probe binaries configure
+# builds from test-*.c to find out what the platform has.
+/merge-lines
+/merge-sects
+/renametasks
+/renamevars
+/setup-newfiles
+/test-*
+!/test-*.c
+/testfile

@@ -15,3 +15,8 @@
 .*.swp
 .DS_store
 # Simulated Subversion default ignores end here
+
+# What configure and a build leave at the top level.
+/Makefile
+/include/config.h
+*.dSYM/
