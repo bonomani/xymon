@@ -344,6 +344,28 @@ def main():
                 bad('structural', '#%s L%d: heading states %d, the section holds %d - %s'
                                   % (src, i + 1, want, c, l[:56]))
 
+    # ---- the record's history, in prose -----------------------------------
+    # A finding stays; how the entry got here does not. This is a detector, not a
+    # slot definition - the phrases are the ones these two trackers actually grew,
+    # each naming a superseded state of the list rather than a fact about the code.
+    HIST = ('an earlier form', 'earlier run', 'the old run', 'counts superseded',
+            're-measurement above', 'as measured then', 'membership re-derived',
+            'restructured', 'moved from bucket', 're-triaged', 'corrects an earlier',
+            'was previously', 'is retracted', 'no line was added', 'previously claimed',
+            'used to define', 'superseded by the')
+    for src, t in (('29', A), ('106', B)):
+        L = t.split('\n')
+        try: end = next(i for i, l in enumerate(L) if l.startswith("**#29's Audit checklist**"))
+        except StopIteration: end = -1          # the clause quotes these phrases itself
+        for i, l in enumerate(L[end+1:], end + 2):
+            low = l.lower()
+            for h in HIST:
+                if h in low:
+                    bad('structural', '#%s L%d: "%s" describes the record, not the '
+                                      'artifact - keep the finding, drop how the entry '
+                                      'got here' % (src, i, h))
+                    break
+
     for kind in ('structural', 'relational', 'measured'):
         n = [m for k, m in fails if k == kind]
         print("  %-11s %s" % (kind, 'PASS' if not n else 'FAIL (%d)' % len(n)))
