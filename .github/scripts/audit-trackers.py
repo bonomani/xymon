@@ -317,6 +317,33 @@ def main():
             if c != int(m.group(1)):
                 bad('structural', '#%s L%d: heading says %s members, found %d' % (src, i+1, m.group(1), c))
 
+    # ---- every stated count must match what it heads ----------------------
+    # Three shapes state one: "*group of N patches*", a bold "**subject (N)**",
+    # and a section heading that opens with a number. All are read by people as
+    # promises about the list below them, and all go stale silently.
+    for src, t in (('29', A), ('106', B)):
+        L = t.split('\n')
+        for i, l in enumerate(L):
+            section = l.startswith('####')
+            if section:
+                m = re.match(r'#+ (\d+) ', l)
+            elif l.startswith('**'):
+                m = re.search(r'\((\d+)\)\*\*|\((\d+)\):\*\*', l)
+            else:
+                continue
+            if not m: continue
+            want = int(next(g for g in m.groups() if g))
+            c, started = 0, False
+            for x in L[i+1:]:
+                # a section runs to the next `#` heading and spans the blank lines
+                # between its groups; a group is closed by its first blank line
+                if x.startswith('#'): break
+                if x.startswith('- '): c, started = c + 1, True
+                elif not section and (started or x.startswith('**')): break
+            if c != want:
+                bad('structural', '#%s L%d: heading states %d, the section holds %d - %s'
+                                  % (src, i + 1, want, c, l[:56]))
+
     for kind in ('structural', 'relational', 'measured'):
         n = [m for k, m in fails if k == kind]
         print("  %-11s %s" % (kind, 'PASS' if not n else 'FAIL (%d)' % len(n)))
