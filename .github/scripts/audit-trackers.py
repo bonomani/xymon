@@ -72,8 +72,13 @@ def main():
     I29, I106 = items(A), items(B)
     print("#29: %d items   #106: %d items" % (len(I29), len(I106)))
 
+    # The Rule block ends WITH its last clause, whose opening words are K. Slicing
+    # to A.index(K) stopped just short of it, so that clause was never compared.
     K = "**#29's Audit checklist**"
-    if A[A.index('### Rule'):A.index(K)] != B[B.index('### Rule'):B.index(K)]:
+    def rule_block(t):
+        a = t.index('### Rule')
+        return t[a:t.index('\n', t.index(K, a))]
+    if rule_block(A) != rule_block(B):
         bad('structural', 'the Rule block differs between the two issues')
 
     # ---- structural -------------------------------------------------------
