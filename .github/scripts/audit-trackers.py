@@ -259,6 +259,26 @@ def main():
                     head, seen = None, 0
 
 
+    # ---- citation form, and one `needs` mark per line ---------------------
+    # An artifact is cited by its permanent id; a place in code by file and symbol,
+    # where the line number may accompany but never replace it. A bare file:line
+    # cannot be told from a stale one by a later reader. And every prerequisite
+    # belongs inside a single `needs` mark, so "what blocks this" is one lookup.
+    LOC = re.compile(r'`([A-Za-z0-9_./-]*\.(?:c|h|cfg|spec|sh|DIST|rules|in))((?::\d+[-\d]*)+)')
+    SYM = re.compile(r'`([A-Za-z_][A-Za-z0-9_]*)\(\)`|`([A-Za-z_][A-Za-z0-9_]{3,})`')
+    for src, t in (('29', A), ('106', B)):
+        for i, l in enumerate(t.split('\n'), 1):
+            for m in LOC.finditer(l):
+                ctx = l[max(0, m.start() - 150):m.end() + 90]
+                syms = [a or b for a, b in SYM.findall(ctx)]
+                if not [x for x in syms if not x.endswith(('.c', '.h')) and x not in ('main', 'devel')]:
+                    bad('structural', '#%s L%d: bare `%s%s` - name the symbol it sits in; '
+                                      'a line number may accompany that, never replace it'
+                                      % (src, i, m.group(1), m.group(2)))
+            if l.startswith('- ') and len(re.findall(r'\*\*needs [^*]+\*\*', l)) > 1:
+                bad('structural', '#%s L%d: more than one `needs` mark - name every '
+                                  'prerequisite inside one of them' % (src, i))
+
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
         L = t.split('\n')
