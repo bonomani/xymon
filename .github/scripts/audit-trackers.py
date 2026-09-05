@@ -186,6 +186,74 @@ def main():
                                   'anything readable from a PR or patch is derived state'
                                   % (src, i, len(l.rstrip()), median, limit))
 
+    # ---- verdict 3 must name where, on the line itself --------------------
+    # a PR belongs to the line, not the heading: coverage is per-line state and is
+    # read with the verdict. A member that inherits its PR from the heading cannot
+    # be ported from its own line, and a group-level claim is usually a joint one -
+    # true of the group, exact for no member - which hides that members differ.
+    for src, t in (('29', A), ('106', B)):
+        for i, l in enumerate(t.split('\n'), 1):
+            if not l.startswith('- [') or 'a different version exists elsewhere' not in l:
+                continue
+            # verdict 3 enumerates three wheres - the other tracker, `main`, an open
+            # PR - so accept the id of any of them: a PR number, a commit hash, or an
+            # explicit `main` (which Cross-reference lets you cite by section).
+            if (re.search(r'#\d{2,3}\b', l) or re.search(r'`[0-9a-f]{8,9}`', l)
+                    or '`main`' in l):
+                continue
+            bad('structural', '#%s L%d: verdict 3 names nowhere - the PR or commit '
+                              'holding the better version must be on this line, not '
+                              'only on its heading' % (src, i))
+
+    # ---- exactly two levels: bucket, then phase ---------------------------
+    # a third level is where joint claims hide - it reads as belonging to the
+    # parent's members too, and gives a member somewhere to keep its verdict other
+    # than its own line. Two ways to break it: a heading inside another's member
+    # run, and a heading with no members of its own (a roster said twice).
+    # A phase heading has one of a closed set of shapes. Defining it by what it
+    # looks like - not by "is followed by a member" - is what lets the check see a
+    # heading that has no members, which is the violation we are looking for. It
+    # also keeps narrative prose ("**151** apply cleanly forward, ...") out: a
+    # paragraph that merely opens in bold matches none of these.
+    HEAD = re.compile(r'\*\*(?:Phase |\u2192 )'          # **Phase 2b - ... / **-> `devel-bfq`
+                      r'|\*group of \d+ '                 # *group of N patches/commits*
+                      r'|\(\d+\):?\*\*'                    # **xymond core (24)** / **... (0):**
+                      r'|^\*\*[^*]+\*\*\s*$'              # a line that is entirely bold
+                      r'|:\*\*\s*$')                      # **... chain (2):**
+    def is_head(L, i):
+        return bool(HEAD.search(L[i-1]))
+
+    def empty_ok(l):
+        return '(0)' in l          # an explicitly empty phase is a park, not a duplicate
+
+    for src, t in (('29', A), ('106', B)):
+        L = t.split('\n')
+        head, seen = None, 0
+        for i, l in enumerate(L, 1):
+            if l.startswith('#'):
+                if head and not seen and not empty_ok(L[head-1]):
+                    bad('structural', '#%s L%d: phase has no members of its own - a heading '
+                                      'that only introduces another heading is a roster said '
+                                      'twice; merge them' % (src, head))
+                head, seen = None, 0
+            elif l.startswith('- '):
+                # a delegated member carries no checkbox: `- `hash` - **delegated -> #29**`
+                if head: seen += 1
+            elif l.startswith('**') and is_head(L, i):
+                if head and seen:
+                    bad('structural', '#%s L%d: heading nested inside the members of L%d - '
+                                      'nothing may sit under a phase; promote it to its own '
+                                      'phase instead' % (src, i, head))
+                elif head and not seen and not empty_ok(L[head-1]):
+                    bad('structural', '#%s L%d: phase has no members of its own - a heading '
+                                      'that only introduces another heading is a roster said '
+                                      'twice; merge them' % (src, head))
+                head, seen = i, 0
+            elif not l.strip():
+                if head and seen:
+                    head, seen = None, 0
+
+
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
         L = t.split('\n')
