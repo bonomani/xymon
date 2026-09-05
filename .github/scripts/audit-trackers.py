@@ -89,8 +89,22 @@ def main():
             L, v, box, icon = it['l'], it['v'], it['box'], it['icon']
             if len(VERDICT.findall(L)) != 1 and '**split:**' not in L:
                 bad('structural', '#%s L%d: %d verdicts' % (src, it['i'], len(VERDICT.findall(L))))
+            # A PR settles a line by carrying its change or by removing the need
+            # for it, so `drop - superseded` takes [x] and names its superseder.
+            # Every other drop is our own judgement, with no PR to point at.
             if box != '-' and v.startswith('drop'):
-                bad('structural', '#%s L%d: drop carries a checkbox' % (src, it['i']))
+                if 'superseded' not in v:
+                    bad('structural', '#%s L%d: drop carries a checkbox - only '
+                                      '`drop - superseded` does, naming the PR that '
+                                      'superseded it' % (src, it['i']))
+                elif not re.search(r'#\d{2,3}\b', L):
+                    bad('structural', '#%s L%d: `drop - superseded` with [x] names no '
+                                      'PR - say what superseded it' % (src, it['i']))
+                elif icon == '🟢':
+                    bad('structural', '#%s L%d: superseded drop marked 🟢 - the icon '
+                                      'reports where this line\'s change is, and a '
+                                      'superseded change never reaches `main`'
+                        % (src, it['i']))
             if box == ' ' and icon == '🟢':
                 bad('structural', '#%s L%d: [ ] with 🟢 - green says nothing is owed' % (src, it['i']))
             if box == ' ' and re.search(r'carried by \*\*(PR )?#\d+', L):
