@@ -23,7 +23,9 @@ VERDICT = re.compile(r'\*\*(drop\b[^*]*|take as is|take, not as written[^*]*|und
 PTR = ('- `86` `102`', '- `6` `19` —', '- `123` — **owned', '- `145` — **owned')
 CLAIM = [r'=\s*(?:the\s+)?(?:devel\s+)?`%s`', r'`%s`[^.]{0,40}\btraced 20', r'on `devel` as `%s`',
          r'contained in devel `%s`', r'slice of (?:devel )?`%s`',
-         r'\bdevel `%s`', r'\btwin `%s`']      # the bare forms - 72 lines use them
+         r'\bdevel `%s`', r'\btwin `%s`',      # the bare forms - 72 lines use them
+         r'devel `[0-9a-f]{7,10}` \+ `%s`',     # a patch that spans two commits
+         r'\(\+ [^`]{0,24}`%s`\)']
 NEG = ('too low to call', 'ambiguous', 'not traced', 'no devel twin', 'excludes', 'not measurable',
        'rides ', 'not covered by', 'moot', 'inferior', 'do not port that', "don't port",
        'no overlap', 'disproven', 'no shared files')   # explicit disproofs are not claims
@@ -278,6 +280,28 @@ def main():
             if l.startswith('- ') and len(re.findall(r'\*\*needs [^*]+\*\*', l)) > 1:
                 bad('structural', '#%s L%d: more than one `needs` mark - name every '
                                   'prerequisite inside one of them' % (src, i))
+
+    # ---- an item delegated from more than one commit --------------------
+    # Legitimate when a patch really is split across commits - #29 `3` is
+    # `266644346` plus the client default `3730d2c12`, and its line says so. The
+    # test is whether the #29 line names every commit that delegates to it: if it
+    # does not, one of those delegations is a duplicate reference to the item.
+    tbt = {t: it for it in I29 for t in [tbt_id(it['l'])] if t}
+    src_of = {}
+    for it in I106:
+        m = re.search(r'\*\*delegated → #29 ([^*]+)\*\*', it['l'])
+        if not m: continue
+        for h in re.findall(r'`([0-9a-f]{7,10})`', it['l'].split('**delegated')[0]):
+            for t in re.findall(r'`(\d+)`', m.group(1)):
+                src_of.setdefault(t, []).append((h, it['i']))
+    for t, srcs in sorted(src_of.items()):
+        if len(srcs) < 2 or t not in tbt: continue
+        c = claims(tbt[t]['l'])
+        for h, i in srcs:
+            if h not in c:
+                bad('relational', '#106 L%d delegates `%s`, but #29 L%d never names `%s` - '
+                                  'an item delegated from several commits must name each'
+                                  % (i, t, tbt[t]['i'], h))
 
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
