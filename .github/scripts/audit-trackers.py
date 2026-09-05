@@ -185,6 +185,34 @@ def main():
                         bad('measured', '#%s L%d: names #%s, closed unmerged - it carries nothing'
                             % (src, it['i'], p))
 
+    # ---- a supersede is not settled until its superseder lands ------------
+    # While the PR is open the drop is conditional: abandon the PR and the change
+    # is wanted again. So the line waits in a priority bucket with `needs <PR>`,
+    # and moves to Settled only once the PR merges. Both directions go stale on
+    # their own - a merge elsewhere is exactly what nobody comes back to update.
+    for src, t in (('29', A), ('106', B)):
+        lines = t.split('\n')
+        def bucket_of(i):
+            for k in range(i, -1, -1):
+                if re.match(r'^#{2,3} ', lines[k]) and not lines[k].startswith('####'):
+                    return lines[k].strip('# ')
+            return ''
+        for it in items(t):
+            if 'superseded' not in it['v'] or it['box'] != 'x': continue
+            sup = [int(x) for x in re.findall(r'#(\d{2,3})\b', it['l']) if int(x) in prs]
+            if not sup: continue
+            merged = any(prs[p].get('state') == 'MERGED' for p in sup)
+            settled = bucket_of(it['i'] - 1).startswith('Bucket 4')
+            if merged and not settled:
+                bad('measured', '#%s L%d: superseded by a merged PR %s but not in Settled'
+                    % (src, it['i'], [p for p in sup if prs[p].get('state') == 'MERGED']))
+            if not merged and settled:
+                bad('measured', '#%s L%d: in Settled, but its superseder %s has not '
+                                'merged - the drop is still conditional' % (src, it['i'], sup))
+            if not merged and not re.search(r'\*\*needs [^*]*#\d', it['l']):
+                bad('measured', '#%s L%d: superseder still open - say `needs #<pr>` so the '
+                                'line is revisited if it is abandoned' % (src, it['i']))
+
     # ---- headings that have grown into prose ------------------------------
     # a heading carries what is true of every member; findings hoisted into it over
     # time turn it into an essay. Flag outliers rather than a fixed length, so the
