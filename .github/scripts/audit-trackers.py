@@ -175,6 +175,11 @@ def main():
         # The tracker's job is to stop work being redone. A patch whose lines are
         # already in an open PR, on a line that names no PR, is exactly that risk -
         # and it is invisible to every text check, because the line is self-consistent.
+        #
+        # This measures TEXT, so it finds replays and misses rewrites. #414 covers
+        # TBT `1`'s feature completely at 11% line overlap - different design, same
+        # outcome - and nothing here would fire on it. A silent run means no patch
+        # was found duplicated line-for-line; it does not mean no PR does the work.
         if a.tera and prs:
             import tempfile
             cache = os.path.join(tempfile.gettempdir(), 'xymon-prdiff')
