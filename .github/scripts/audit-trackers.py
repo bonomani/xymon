@@ -28,7 +28,7 @@ CLAIM = [r'=\s*(?:the\s+)?(?:devel\s+)?`%s`', r'`%s`[^.]{0,40}\btraced 20', r'on
          r'\(\+ [^`]{0,24}`%s`\)']
 NEG = ('too low to call', 'ambiguous', 'not traced', 'no devel twin', 'excludes', 'not measurable',
        'rides ', 'not covered by', 'moot', 'inferior', 'do not port that', "don't port",
-       'no overlap', 'disproven', 'no shared files')   # explicit disproofs are not claims
+       'no overlap', 'disproven', 'no shared files', '0 hunks each', 'ships with')   # explicit disproofs are not claims
 NOISE = {'Changes', 'debian/changelog', 'configure', 'configure.server', 'configure.client', 'tests/testsuite'}
 fails = []
 def bad(kind, msg): fails.append((kind, msg))
