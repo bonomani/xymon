@@ -473,6 +473,36 @@ def main():
                                   '`needs` mark - prose explains an edge, it never '
                                   'carries one' % (src, it['i'], m.group(0)[:44]))
 
+    # ---- date what you establish ------------------------------------------
+    # A measurement records when it was made and against what, or it can only be
+    # re-done. The base is usually already on the line - it names the commit it
+    # measured against - so what goes missing is the date. "re-read" is excluded:
+    # on these trackers it names a feature (hosts.cfg re-read), not a reading.
+    # no trailing \b after the alternation: `%` and the space that follows it are
+    # both non-word, so a boundary never exists there and `81%` would never match
+    MEAS = re.compile(r'\b(?:measured|traced|verified|scanned|contained in)\b|\d+%', re.I)
+    DATED = re.compile(r'20\d\d-\d\d-\d\d|date unknown')
+    for src, t in (('29', A), ('106', B)):
+        for it in items(t[t.index('### '):]):
+            if MEAS.search(it['l']) and not DATED.search(it['l']):
+                bad('structural', '#%s L%d: "%s" is a measurement with no date - an '
+                                  'undated claim can only be re-done, not refreshed'
+                    % (src, it['i'], MEAS.search(it['l']).group(0)))
+
+    # ---- blocked is read, never written -----------------------------------
+    # Derived state names the three marks the Rule block rejected by name. A
+    # heading may still carry a shared blocker - what stands in the way is a fact
+    # about the group - but the blocked *state* is read from `needs` plus the
+    # state of its target, so writing it down is what goes stale.
+    for src, t in (('29', A), ('106', B)):
+        head = t.index("**#29's Audit checklist**")
+        for i, l in enumerate(t[t.index('\n', head):].split('\n'), t[:t.index('\n', head)].count('\n') + 2):
+            m = re.search(r'\bBLOCKED\b|⏳|🔴', l)
+            if m:
+                bad('structural', '#%s L%d: writes "%s" - a blocked mark was rejected; '
+                                  'state what stands in the way, and let blocked be read '
+                                  'from `needs`' % (src, i, m.group(0)))
+
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
         L = t.split('\n')
