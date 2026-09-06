@@ -7,7 +7,8 @@ against the Rule block both issues carry.
 Exit 0 when every invariant holds, 1 otherwise.  Checks are grouped as:
   structural  - one line in isolation
   relational  - claims one line makes about another   <- where the real defects live
-  measured    - the tracker against the code (needs --repo, and --tera for #29)
+  measured    - the tracker against the code and the open PRs (needs --repo,
+                and --tera for #29's patch-side check)
 
 Filter notes, learned the hard way; changing them causes false positives:
   * pointer lines (PTR) are prose, not items
@@ -169,8 +170,60 @@ def main():
         try:
             prs = {p['number']: p for p in json.loads(subprocess.run(
                 ['gh', 'pr', 'list', '--repo', a.slug, '--state', 'all', '--limit', '600',
-                 '--json', 'number,state,isDraft'], capture_output=True, text=True).stdout or '[]')}
+                 '--json', 'number,state,isDraft,title'], capture_output=True, text=True).stdout or '[]')}
         except Exception: pass
+        # ---- a PR title names its source; that source's line must carry it ---
+        # Every other check here reads outward from a line, so a pull request
+        # carrying something whose line is still `[ ]` is invisible: carriage is
+        # only ever checked as `[x]` -> names a PR. The title reference defined in
+        # *Citations* is the one path back, which is what makes this checkable.
+        #
+        # Delegation shapes the lookup and is where a naive version goes wrong. A
+        # `devel` commit with a Terabithia twin is delegated to #29, and that shows
+        # up two ways: as no #106 line at all, or as a #106 line whose verdict is
+        # `delegated` and which therefore carries a plain point rather than a box.
+        # Neither can carry anything - #29 holds the verdict - so both are skipped.
+        # Missing the second shape alone reports four false defects here.
+        #
+        # Ambiguity is skipped, not guessed: where two item lines mention one hash,
+        # neither is provably the owner, and a wrong owner reads as a real defect.
+        def title_src(t):
+            m = re.search(r'\(([^)]*)\)\s*$', t or '')
+            if not m: return [], []
+            mt = re.search(r'TBT\s+([0-9/]+)', m.group(1))
+            md = re.search(r'devel\s+([0-9a-f/]+)', m.group(1))
+            return ([x for x in mt.group(1).split('/') if x] if mt else [],
+                    [x for x in md.group(1).split('/') if len(x) >= 7] if md else [])
+
+        def settles(it, n):
+            return it['box'] == 'x' and n in it['prs']
+
+        for n, v in sorted(prs.items()):
+            if v.get('state') != 'OPEN': continue
+            t_ids, d_ids = title_src(v.get('title'))
+            for t in t_ids:
+                owner = [it for it in I29 if tbt_id(it['l']) == t]
+                if len(owner) != 1: continue
+                if not settles(owner[0], n):
+                    bad('measured', '#29 L%d: PR #%d names TBT `%s` as its source and the '
+                                    'line does not carry it - tick and name the carrier, or '
+                                    'the title cites a source the PR does not port'
+                        % (owner[0]['i'], n, t))
+            for h in d_ids:
+                owner = [it for it in I106 if h in it['l']
+                         and not it['v'].startswith('delegated')]
+                if not owner:
+                    if not any(h in it['l'] for it in I29):
+                        bad('measured', 'PR #%d names devel `%s` as its source and no line '
+                                        'on either tracker cites that commit' % (n, h))
+                    continue                      # delegated to #29, which owns the verdict
+                if len(owner) != 1: continue
+                if not settles(owner[0], n):
+                    bad('measured', '#106 L%d: PR #%d names devel `%s` as its source and the '
+                                    'line does not carry it - tick and name the carrier, or '
+                                    'the title cites a source the PR does not port'
+                        % (owner[0]['i'], n, h))
+
         # ---- an open PR already carries this, and the line does not say so -----
         # The tracker's job is to stop work being redone. A patch whose lines are
         # already in an open PR, on a line that names no PR, is exactly that risk -
