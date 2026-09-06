@@ -425,6 +425,22 @@ def main():
                 bad('structural', '#%s L%d: heading names PR %s - a heading carries the '
                                   'subject; put the PR on the lines it is true of, or in '
                                   'the section prose' % (src, i + 1, ' '.join('#'+p for p in sorted(set(prs)))))
+            # the same for commit ids: a heading listing the very commits its members
+            # are is the roster said twice - and it is the heading that goes stale when
+            # a member moves, since nothing recounts it.
+            mem, k, started = [], i + 1, False
+            while k < len(L):
+                if L[k].startswith('- '): mem.append(L[k]); started = True
+                elif started or L[k].startswith(('#', '**')): break
+                k += 1
+            if mem:
+                mh = set()
+                for m in mem: mh |= set(re.findall(r'`([0-9a-f]{7,10})`', m))
+                dup = set(re.findall(r'`([0-9a-f]{7,10})`', l)) & mh
+                if dup:
+                    bad('structural', '#%s L%d: heading repeats %s, which its own members '
+                                      'carry - the heading names the subject, the lines name '
+                                      'the commits' % (src, i + 1, ' '.join('`%s`' % x for x in sorted(dup))))
 
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
