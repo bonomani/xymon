@@ -171,6 +171,51 @@ def main():
                 ['gh', 'pr', 'list', '--repo', a.slug, '--state', 'all', '--limit', '600',
                  '--json', 'number,state,isDraft'], capture_output=True, text=True).stdout or '[]')}
         except Exception: pass
+        # ---- an open PR already carries this, and the line does not say so -----
+        # The tracker's job is to stop work being redone. A patch whose lines are
+        # already in an open PR, on a line that names no PR, is exactly that risk -
+        # and it is invisible to every text check, because the line is self-consistent.
+        if a.tera and prs:
+            import tempfile
+            cache = os.path.join(tempfile.gettempdir(), 'xymon-prdiff')
+            os.makedirs(cache, exist_ok=True)
+            norm = lambda x: re.sub(r'\s+', '', x)
+            sig = lambda x: len(re.sub(r'[^A-Za-z0-9_]', '', x)) >= 8
+            openpr = [n for n, v in prs.items() if v.get('state') == 'OPEN']
+            pra = {}
+            for n in openpr:
+                f = os.path.join(cache, '%d.diff' % n)
+                if not os.path.exists(f):
+                    d = subprocess.run(['gh', 'pr', 'diff', str(n), '--repo', a.slug],
+                                       capture_output=True, text=True).stdout
+                    open(f, 'w').write(d)
+                adds, files = set(), set()
+                for l in open(f, errors='replace'):
+                    if l.startswith('diff --git'): files.add(os.path.basename(l.split(' b/')[-1].strip()))
+                    elif l.startswith('+') and not l.startswith('+++') and sig(l[1:]): adds.add(norm(l[1:]))
+                if adds: pra[n] = (adds, files)
+            for it in I29:
+                if it['v'].startswith('drop') or it['box'] == 'x': continue
+                m = re.search(r'`(xymon[\w_.+-]*\.patch[\w.]*)`', it['l'])
+                if not m: continue
+                pf = os.path.join(a.tera, m.group(1))
+                if not os.path.exists(pf): continue
+                adds, files = set(), set()
+                for x in open(pf, errors='replace'):
+                    if x.startswith('+++'): files.add(os.path.basename(x.split()[1].split('\t')[0]))
+                    elif x.startswith('+') and sig(x[1:]): adds.add(norm(x[1:].rstrip('\n')))
+                if len(adds) < 4: continue          # too small for a ratio to mean anything
+                # a trunk variant that names its stable pair has already deferred
+                # the decision; the PR carrying the pair is not a missed carrier here
+                if re.search(r'variant of `\d+`', it['l']): continue
+                named = {int(x) for x in re.findall(r'#(\d{2,3})\b', it['l'])}
+                for n, (pa, pf2) in pra.items():
+                    if n in named or not (files & pf2): continue
+                    cov = 100 * len(adds & pa) // len(adds)
+                    if cov >= 60:
+                        bad('measured', '#29 L%d: open PR #%d already carries %d%% of this '
+                                        'patch and the line does not name it' % (it['i'], n, cov))
+
         for src, II in (('29', I29), ('106', I106)):
             for it in II:
                 scope = it['l'] + ' ' + it['head']
