@@ -213,6 +213,20 @@ def main():
                 bad('measured', '#%s L%d: superseder still open - say `needs #<pr>` so the '
                                 'line is revisited if it is abandoned' % (src, it['i']))
 
+    # ---- the Audit checklist holds plain progress entries only -------------
+    # "a plain progress list, where [x] just means done" - so nothing there may
+    # carry a TBT id or a verdict. Without this, a line misfiled into the list is
+    # structurally legal and every other check stays silent: that is exactly how
+    # nine Bucket 5 items once came to sit at the end of it.
+    K2 = '## Audit checklist'
+    if K2 in A:
+        for i, l in enumerate(A[A.index(K2):].split('\n'), A[:A.index(K2)].count('\n') + 1):
+            if not l.startswith('- '): continue
+            why = ('a TBT id' if tbt_id(l) else 'a verdict' if VERDICT.search(l) else None)
+            if why:
+                bad('structural', '#29 L%d: the Audit checklist carries %s - it is a plain '
+                                  'progress list; the item belongs in a bucket' % (i, why))
+
     # ---- headings that have grown into prose ------------------------------
     # a heading carries what is true of every member; findings hoisted into it over
     # time turn it into an essay. Flag outliers rather than a fixed length, so the
