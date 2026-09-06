@@ -456,6 +456,54 @@ def main():
                 bad("structural", "#%s L%d: names #%s %d times - say it once per role, "
                                   "then use a pronoun" % (src, it["i"], p, n))
 
+    # ---- section prose repeats what its members carry ---------------------
+    # A heading may carry what is true of every member, and prose may explain the
+    # section - but neither may restate what a member's own line already says.
+    # The shape this takes is a summary that re-lists its members' commits or
+    # carriers: it reads as authoritative, and nothing re-derives a paragraph
+    # when a line under it moves, so it is the half that goes stale. Worse, the
+    # duplicate is often the *analysis* for one member, which by *No repetition*
+    # lives on exactly one line - sometimes on the other tracker.
+    #
+    # Item ids are deliberately not counted: prose that enumerates the members it
+    # is about is what a summary is for. Hashes and PR numbers are not that.
+    def srefs(s):
+        return set(re.findall(r'`([0-9a-f]{7,10})`', s)) | \
+               {p for p in re.findall(r'#(\d{2,3})\b', s) if p not in ('29', '106')}
+    for src, t in (('29', A), ('106', B)):
+        L = t.split('\n')
+        try: end = next(i for i, l in enumerate(L) if l.startswith("**#29's Audit checklist**"))
+        except StopIteration: end = -1
+        # Sections nest, so a parent's prose is checked against every member under
+        # it, not only those before its first sub-heading - which is where the
+        # stalest summaries sit: far enough from the lines that nobody re-reads
+        # them together. Prose belongs to the innermost open section; a member
+        # counts for that section and every one containing it.
+        stack = []
+        def shut(depth=0, src=src, stack=stack):
+            while len(stack) > depth:
+                lvl, name, ln, prose, mem = stack.pop()
+                dup = srefs(' '.join(prose)) & mem
+                if dup:
+                    bad('structural', '#%s L%d: the prose under "%s" repeats %s, which its '
+                                      'own members carry - say it on the line, which is what '
+                                      'gets revised when the fact moves'
+                        % (src, ln, name[:38], ' '.join(sorted(dup))))
+        for i, l in enumerate(L):
+            if i <= end: continue
+            m = re.match(r'^(#{2,4}) ', l)
+            if m:
+                lvl = len(m.group(1))
+                while stack and stack[-1][0] >= lvl: shut(len(stack) - 1)
+                stack.append((lvl, l.strip('# ').strip(), i + 1, [], set()))
+            elif not stack: continue
+            elif l.startswith('- '):
+                r = srefs(l)
+                for fr in stack: fr[4].update(r)
+            elif l.strip() and not is_head(L, i + 1):
+                stack[-1][3].append(l)
+        shut()
+
     # ---- a named prerequisite carries the mark -----------------------------
     # Sequencing says prose "may stay as explanation", but never as the substitute:
     # a dependency is read from `needs <id>` alone, so one written only in prose is
