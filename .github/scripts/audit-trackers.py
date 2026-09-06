@@ -224,10 +224,12 @@ def main():
         for src, II in (('29', I29), ('106', I106)):
             for it in II:
                 scope = it['l'] + ' ' + it['head']
-                if it['icon'] == '🟢' or 'drop — already in `main`' in it['v']:
+                # a partial claim is still a claim that some of it is in `main`
+                if it['icon'] in ('🟢', '🟡') or 'drop — already in `main`' in it['v']:
                     ok = any(prs.get(int(p), {}).get('state') == 'MERGED' for p in re.findall(r'#(\d+)', scope)) \
                          or any(anc(h, 'origin/main') for h in re.findall(r'`([0-9a-f]{7,10})`', scope)) \
-                         or re.search(r'\.(c|h|sh|cfg|rules|8|5)`?:\d+', scope)
+                         or re.search(r'`[A-Za-z0-9_./*-]+\.(?:c|h|sh|cfg|rules|in|DIST|[1-8])'
+                                      r'(?::[\d,\s-]+)?`', scope)
                     if not ok:
                         bad('measured', '#%s L%d: in-main claim with no main-side evidence' % (src, it['i']))
                 for p in re.findall(r'#(\d+)', it['l']):
@@ -502,6 +504,34 @@ def main():
                 bad('structural', '#%s L%d: writes "%s" - a blocked mark was rejected; '
                                   'state what stands in the way, and let blocked be read '
                                   'from `needs`' % (src, i, m.group(0)))
+
+    # ---- the mark's own words, repeated in the prose ----------------------
+    # *No repetition*, test 1: if the verdict is `drop - superseded`, the prose
+    # says by what, never "superseded" again. The commonest form is prose that
+    # re-derives a mark from the rules ("the box stays empty: [ ] is the default
+    # for an undecided line") - a reading, not a fact about the change.
+    ECHO = ('superseded', 'not as written', 'take as is', 'undecided', 'delegated',
+            'already in `main`')
+    for src, t in (('29', A), ('106', B)):
+        for it in items(t[t.index('### '):]):
+            m = VERDICT.search(it['l'])
+            if not m: continue
+            rest = it['l'][m.end():]
+            for w in ECHO:
+                if w in m.group(0) and re.search(r'\b' + re.escape(w), rest):
+                    bad('structural', '#%s L%d: prose repeats "%s", which the verdict '
+                                      'already says - prose adds which part, which symbol '
+                                      'or why, or says nothing' % (src, it['i'], w))
+                    break
+
+    # ---- [x] names the PR that carries it ---------------------------------
+    # The box asserts carriage, and a carrier a reader cannot follow is not one.
+    for src, II in (('29', I29), ('106', I106)):
+        for it in II:
+            if it['box'] != 'x': continue
+            if not [p for p in re.findall(r'#(\d{2,3})\b', it['l']) if p not in ('29', '106')]:
+                bad('structural', '#%s L%d: [x] names no PR - the tick says one carries '
+                                  'it, so say which' % (src, it['i']))
 
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
