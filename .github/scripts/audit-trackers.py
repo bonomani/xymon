@@ -454,6 +454,25 @@ def main():
                 bad("structural", "#%s L%d: names #%s %d times - say it once per role, "
                                   "then use a pronoun" % (src, it["i"], p, n))
 
+    # ---- a named prerequisite carries the mark -----------------------------
+    # Sequencing says prose "may stay as explanation", but never as the substitute:
+    # a dependency is read from `needs <id>` alone, so one written only in prose is
+    # invisible to "what can start now". The guard is what makes the prose safe -
+    # an indefinite object ("needs a receiver") is a property, not a prerequisite,
+    # and the verdict's own "needs improvement" is a verdict, not an edge.
+    DEP = re.compile(r'\b(needs?|requires?|depends? on|port(?:ed)? after|sequence after)\s+'
+                     r'(?!an?\s)(?:the\s+)?[^.\u00b7;]{0,60}?(`\d{1,4}`|#\d{2,3}\b|`[0-9a-f]{7,10}`)',
+                     re.I)
+    for src, t in (('29', A), ('106', B)):
+        for it in items(t[t.index('### '):]):
+            l = it['l']
+            if re.search(r'\*\*needs ', l): continue
+            m = DEP.search(re.sub(r'_\(cond:[^)]*\)_', '', VERDICT.sub('', l)))
+            if m:
+                bad('structural', '#%s L%d: "%s" names a prerequisite in prose with no '
+                                  '`needs` mark - prose explains an edge, it never '
+                                  'carries one' % (src, it['i'], m.group(0)[:44]))
+
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
         L = t.split('\n')
