@@ -409,6 +409,23 @@ def main():
                                   'an item delegated from several commits must name each'
                                   % (i, t, tbt[t]['i'], h))
 
+    # ---- a heading names no PR --------------------------------------------
+    # PR numbers move, merge, close and get superseded, and a heading is the one
+    # place nobody re-reads when they do. The fact belongs on the lines it is true
+    # of, or in the section's prose - both of which are read and revised as text.
+    for src, t in (('29', A), ('106', B)):
+        L = t.split('\n')
+        try: end = next(i for i, l in enumerate(L) if l.startswith("**#29's Audit checklist**"))
+        except StopIteration: end = -1
+        for i, l in enumerate(L):
+            if i <= end or l.startswith('- '): continue
+            if not (re.match(r'^#{2,4} ', l) or (l.startswith('**') and is_head(L, i + 1))): continue
+            prs = [p for p in re.findall(r'#(\d{2,3})\b', l) if p not in ('29', '106')]
+            if prs:
+                bad('structural', '#%s L%d: heading names PR %s - a heading carries the '
+                                  'subject; put the PR on the lines it is true of, or in '
+                                  'the section prose' % (src, i + 1, ' '.join('#'+p for p in sorted(set(prs)))))
+
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
         L = t.split('\n')
