@@ -17,7 +17,7 @@ Filter notes, learned the hard way; changing them causes false positives:
   * "twin tracked on #106" is a cross-reference, not a deferral of the verdict
 """
 import argparse, json, re, subprocess, sys, os
-from collections import defaultdict
+from collections import defaultdict, Counter
 
 VERDICT = re.compile(r'\*\*(drop\b[^*]*|take as is|take, not as written[^*]*|undecided|delegated → [^*]*)\*\*')
 PTR = ('- `86` `102`', '- `6` `19` —', '- `123` — **owned', '- `145` — **owned')
@@ -441,6 +441,18 @@ def main():
                     bad('structural', '#%s L%d: heading repeats %s, which its own members '
                                       'carry - the heading names the subject, the lines name '
                                       'the commits' % (src, i + 1, ' '.join('`%s`' % x for x in sorted(dup))))
+
+    # ---- one line, one mention of an id ------------------------------------
+    # Distinct roles can each name a PR once - carrier, `needs`, a conflict - but
+    # past two the line is restating rather than saying something new, and long
+    # lines are where it hides. The shared-risk list is one mention of a list.
+    for src, t in (("29", A), ("106", B)):
+        for it in items(t):
+            body = re.sub(r"\(#\d{2,3}(?: #\d{2,3})+\)", "", it["l"])
+            for p, n in Counter(re.findall(r"#(\d{2,3})\b", body)).items():
+                if p in ("29", "106") or n < 3: continue
+                bad("structural", "#%s L%d: names #%s %d times - say it once per role, "
+                                  "then use a pronoun" % (src, it["i"], p, n))
 
     # ---- group counts (a blank line closes the group) ---------------------
     for src, t in (('29', A), ('106', B)):
