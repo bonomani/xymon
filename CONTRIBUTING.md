@@ -63,6 +63,43 @@ agreement, and a bypass is for an emergency, said so in the pull request.
 - Keep the description accurate as it evolves. A reviewer reading it after
   three force-pushes should not be reading the original plan.
 
+### Titles
+
+The title is the one line a reader gets in the pull request list and, after a
+squash merge, in `git log --oneline`. Write it so that line is enough.
+
+- Start with the component that changes, then a colon: a name the tree already
+  uses for it — a program, a directory, a module, a function or a config file
+  (`xymond:`, `xymonnet:`, `xymond_rrd:`, `loadhosts:`, `xtree:`,
+  `dropdirectory:`, `xymonserver.cfg:`) — or one of a few fixed areas
+  (`build:`, `ci:`, `docs:`, `tests:`, `client:`, `tools:`). A module or a
+  function counts when the tree names it, with or without a file of its own:
+  `xtree:` is the `xtree*` API in `lib/`. A change that introduces the
+  component names it too — the tree uses the name once the change lands. What
+  is excluded follows from that: a topic, a branch name, and a status such as
+  `DRAFT:` or `follow-up:` — GitHub has a draft flag for that. One plain name,
+  unscoped: `tests:`, not `test(portability):`.
+- After the colon, a complete sentence with a verb, in lower case. `send the
+  tested hostname as the TLS server name` says what happens;
+  `TLS servername support` does not.
+- Say what the change makes true, not only what it removes. When one
+  behaviour replaces another, name both: `bind the address --listen names, not
+  every interface`. The verb names the behaviour, not the kind of change —
+  which is why `fix` and `add` so rarely fit: the diff already shows the kind.
+- Keep the reason in the title when it fits in a clause: `size the grown
+  testflags buffer for its terminating NUL` explains itself.
+- Anything that belongs in the description stays out of the title: "backport
+  of", "informational", the plan, the review history. A single parenthesis at
+  the end may carry a reference, and it carries only what a later reader
+  cannot reconstruct: where the change came from, and what it supersedes.
+  `Fixes #N` and `Closes #N` go in the description, which is where GitHub acts
+  on them. One pair of brackets, not two.
+- Keep the sentence — everything before the trailing reference — to 80
+  characters or fewer, so it reads whole in the pull request list and in
+  `git log --oneline`. A reference may take the line past that: its length is
+  set by what is cited, not by the author, so capping the whole title would
+  shorten the wrong half.
+
 ## Style
 
 Match the file you are editing. The tree spans two decades and several hands;
