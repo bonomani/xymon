@@ -53,7 +53,7 @@ TRIM_LOGSTAMP='Mon_Jan__1_00:00:00_2001'
 setup_trimhistory() {
 	local work=$1
 	build_xymond_worker "$work" trimhistory xymond/trimhistory.c
-	mkdir -p "$work/etc" "$work/var/hist" "$work/var/histlogs"
+	mkdir -p "$work/etc" "$work/var/hist" "$work/var/histlogs" "$work/var/logs"
 	: >"$work/etc/hosts.cfg"
 }
 
@@ -97,11 +97,22 @@ seed_histlogs() {
 		>"$work/var/histlogs/$logname/$svc/$TRIM_LOGSTAMP"
 }
 
-# run_trimhistory WORK ARGS... -- run against the fixture, appending stderr to
+# run_trimhistory WORK ARGS... -- run against the fixture, capturing stderr in
 # <work>/trim.log and printing it, so a caller can grep the run's messages.
+#
+# The file is replaced on every run, not added to: a test that runs twice
+# against the same fixture would otherwise grep the first run's messages and
+# see them as the second's.
 #
 # A caller that is testing the configuration load itself sets TRIM_HOSTSCFG to
 # the spelling it wants (a bare path takes the xymond-first route).
+#
+# XYMONSERVERLOGS is redirected for the same reason as the rest, and it is the
+# one that reaches outside the fixture if it is not: after trimming
+# "allevents", trimhistory reads $XYMONSERVERLOGS/xymond_history.pid and sends
+# that process a SIGHUP (xymond/trimhistory.c). Left unset it falls back to the
+# compiled-in XYMONLOGDIR, so a test that seeds an allevents file would signal
+# the xymond_history of a real Xymon running on the machine -- and pass.
 run_trimhistory() {
 	local work=$1 rc
 	shift
@@ -110,8 +121,9 @@ run_trimhistory() {
 	HOSTSCFG="${TRIM_HOSTSCFG:-!$work/etc/hosts.cfg}" \
 	XYMONHISTDIR="$work/var/hist" \
 	XYMONHISTLOGS="$work/var/histlogs" \
+	XYMONSERVERLOGS="$work/var/logs" \
 	XYMONTMP="$work" \
-		"$work/trimhistory" --cutoff="$TRIM_CUTOFF" "$@" >>"$work/trim.log" 2>&1
+		"$work/trimhistory" --cutoff="$TRIM_CUTOFF" "$@" >"$work/trim.log" 2>&1
 	rc=$?
 	set -e
 	cat "$work/trim.log"

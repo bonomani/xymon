@@ -18,6 +18,12 @@
 #
 # The case, alias and summary rows in particular exist because a fix that
 # replaced knownhost() with a plain hostname lookup would silently lose them.
+#
+# control: passes with and without the #281 fix, and that is the point. Every
+# row above is behaviour the fix must leave alone, so this file stays green with
+# the fix reverted -- which for any other test would mean it proves nothing.
+# Said here because a test that cannot fail is otherwise indistinguishable from
+# a test that has stopped guarding its fix.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh

@@ -20,7 +20,10 @@
 #     load returns -1 and says "Cannot load host data";
 #   - HOSTSCFG names a directory: fopen() succeeds on Linux, the read yields
 #     nothing, and the load reports *success* with an empty host list -- no
-#     message at all.
+#     message at all. An empty regular file arrives at the same empty list on
+#     every platform, and is checked as well: where fopen() refuses a
+#     directory the run takes the failed-load branch instead, and the
+#     empty-list refusal would go untested.
 #
 # So "the load failed" is not a sufficient guard on its own: an empty host list
 # must not authorise deletion either. A site that really has no hosts loses
@@ -73,7 +76,11 @@ seed_files
 	printf 'active.example.com conn %d %d 3600 green red 0\n' "$TRIM_RECENT" "$TRIM_RECENT"
 } >"$work/var/hist/allevents"
 export TRIM_HOSTSCFG="!$work/etc/nosuchfile.cfg"
-run_trimhistory "$work" >"$work/nodrop.log" 2>&1 || true
+rc=0
+run_trimhistory "$work" >"$work/nodrop.log" 2>&1 || rc=$?
+
+[ "$rc" -eq 0 ] \
+	|| fail "a run without --drop failed after a failed load, though trimming allevents needs no host list"
 
 assert_file_exists "$work/var/hist/active.example.com" \
 	"a run without --drop deleted a history file after a failed load"
@@ -95,5 +102,26 @@ assert_file_exists "$work/var/hist/active,example,com.conn" \
 	"--drop deleted a service history on a host list that loaded with no hosts in it"
 [ "$rc" -ne 0 ] \
 	|| fail "trimhistory reported success after loading a host list with no hosts in it"
+
+# ---- HOSTSCFG names an empty file: the same empty list, on every platform ----
+# The directory above rests on fopen() accepting a directory. Where it does not,
+# that run is a *failed* load and takes the branch above, leaving the empty-list
+# refusal unexercised. An empty regular file loads successfully with no hosts
+# anywhere, so the message check below is what says which branch stopped the run.
+rm -f "${work:?}/var/hist/"*
+seed_files
+: >"$work/etc/empty.cfg"
+export TRIM_HOSTSCFG="!$work/etc/empty.cfg"
+rc=0
+run_trimhistory "$work" --drop >"$work/emptyfile.log" 2>&1 || rc=$?
+
+assert_not_contains "Cannot load host data" "$(cat "$work/emptyfile.log")" \
+	"an empty hosts.cfg was reported as a failed load -- the empty-list refusal is not what stopped the run"
+assert_file_exists "$work/var/hist/active.example.com" \
+	"--drop emptied the history directory on an empty hosts.cfg"
+assert_file_exists "$work/var/hist/active,example,com.conn" \
+	"--drop deleted a service history on an empty hosts.cfg"
+[ "$rc" -ne 0 ] \
+	|| fail "trimhistory reported success after loading an empty hosts.cfg"
 
 echo "OK $(basename "$0")"

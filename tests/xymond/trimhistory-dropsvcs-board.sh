@@ -66,7 +66,7 @@ log=$(cat "$work/out.log")
 # The feature itself: a test the board no longer carries goes.
 [ ! -e "$work/var/hist/active,example,com.http" ] \
 	|| { echo "$log" >&2; fail "--dropsvcs kept a service-history file for a test the board does not list"; }
-assert_contains "no service" "$log" \
+assert_contains "active,example,com.http - no service" "$log" \
 	"--dropsvcs deleted a retired service file without reporting it"
 
 # What it must not touch: a test that is on the board.
