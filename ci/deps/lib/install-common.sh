@@ -843,12 +843,86 @@ ci_deps_retry_command() {
   done
 }
 
-ci_deps_apt_get() {
+ci_deps_apt_get_once() {
   local acquire_retries="${CI_DEPS_APT_ACQUIRE_RETRIES:-5}"
 
   ci_deps_retry_command \
     ci_deps_as_root env DEBIAN_FRONTEND=noninteractive TZ=Etc/UTC \
     apt-get -o "Acquire::Retries=${acquire_retries}" "$@"
+}
+
+# Freexian's Extended LTS carries Debian releases after Debian's own security
+# support: on 2026-10-03 bullseye-security still served its index, but the
+# files it listed were gone from every Debian mirror (404), and Freexian held
+# the same versions byte for byte. The keyring hash is the one Freexian
+# publishes at https://www.freexian.com/lts/extended/docs/how-to-use-extended-lts/
+CI_DEPS_ELTS_URL="http://deb.freexian.com/extended-lts"
+CI_DEPS_ELTS_KEYRING="freexian-archive-keyring_2022.06.08_all.deb"
+CI_DEPS_ELTS_KEYRING_SHA256="a8160d1aa1a40aa9988bf0b389b650550c7460ec3b4ec1d847778fe44b9c4dbc"
+
+# Switch a Debian system's security source to Freexian ELTS, when Freexian
+# carries this release. Tried for every Debian release alike: where Freexian
+# has nothing for it, this says so and returns non-zero, and the install's
+# own failure stands. Plain HTTP on purpose -- ca-certificates may be the very
+# package that failed -- which is safe because the keyring is checked against
+# the published hash and apt checks the repository's signatures.
+ci_deps_apt_debian_fallback() {
+  local codename="" id="" helper=/usr/lib/apt/apt-helper tmp f
+
+  [[ "${CI_DEPS_ELTS_FALLBACK_DONE:-0}" == 1 ]] && return 1
+  CI_DEPS_ELTS_FALLBACK_DONE=1
+  [[ -r /etc/os-release ]] || return 1
+  id="$(. /etc/os-release && printf '%s' "${ID:-}")"
+  codename="$(. /etc/os-release && printf '%s' "${VERSION_CODENAME:-}")"
+  [[ "${id}" == debian && -n "${codename}" && -x "${helper}" ]] || return 1
+
+  tmp="$(mktemp -d)"
+  if ! "${helper}" download-file "${CI_DEPS_ELTS_URL}/dists/${codename}/Release" "${tmp}/Release" >/dev/null 2>&1; then
+    echo "apt fallback: Freexian ELTS carries no ${codename}; the failure above stands" >&2
+    rm -rf "${tmp}"
+    return 1
+  fi
+  echo "apt fallback: installing from Debian failed; switching ${codename}-security to Freexian ELTS" >&2
+  if ! "${helper}" download-file "${CI_DEPS_ELTS_URL}/pool/main/f/freexian-archive-keyring/${CI_DEPS_ELTS_KEYRING}" \
+      "${tmp}/${CI_DEPS_ELTS_KEYRING}" "SHA256:${CI_DEPS_ELTS_KEYRING_SHA256}" >/dev/null 2>&1; then
+    echo "apt fallback: could not fetch the Freexian keyring, or its SHA256 did not match" >&2
+    rm -rf "${tmp}"
+    return 1
+  fi
+  ci_deps_as_root dpkg -i "${tmp}/${CI_DEPS_ELTS_KEYRING}" >/dev/null
+  rm -rf "${tmp}"
+
+  # Drop Debian's security source rather than add Freexian beside it: the two
+  # list the same versions, and apt could keep picking the broken one.
+  if [[ -f /etc/apt/sources.list ]]; then
+    ci_deps_as_root sed -i "/[[:space:]]${codename}-security[[:space:]]/d" /etc/apt/sources.list
+  fi
+  for f in /etc/apt/sources.list.d/*.sources; do
+    [[ -f "${f}" ]] || continue
+    ci_deps_as_root awk -v s="${codename}-security" '
+      BEGIN { RS = ""; ORS = "\n\n" }
+      { if ($0 ~ ("(^|[[:space:]])" s "([[:space:]]|$)")) print $0 "\nEnabled: no"; else print }
+    ' "${f}" | ci_deps_as_root tee "${f}.new" >/dev/null && ci_deps_as_root mv "${f}.new" "${f}"
+  done
+  echo "deb ${CI_DEPS_ELTS_URL} ${codename} main contrib non-free" |
+    ci_deps_as_root tee /etc/apt/sources.list.d/freexian-elts.list >/dev/null
+}
+
+ci_deps_apt_get() {
+  local rc=0
+
+  ci_deps_apt_get_once "$@" && return 0
+  rc=$?
+  case "${1:-}" in
+    install|upgrade|dist-upgrade|full-upgrade) ;;
+    *) return "${rc}" ;;
+  esac
+  ci_deps_apt_debian_fallback || return "${rc}"
+  ci_deps_apt_get_once update || return $?
+  if ! ci_deps_apt_get_once "$@"; then
+    echo "apt fallback: the install failed from Freexian ELTS too" >&2
+    return 1
+  fi
 }
 
 ci_deps_parse_os_release() {
