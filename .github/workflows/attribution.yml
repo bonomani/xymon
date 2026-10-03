@@ -1,4 +1,5 @@
 name: attribution
+run-name: attribution (${{ github.event.action || github.event_name }})
 
 # AGENTS.md forbids crediting an AI tool in anything that lands here. Stating a
 # rule is not enforcing one: several tools append these trailers by default, so
