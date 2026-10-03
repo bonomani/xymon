@@ -1,9 +1,10 @@
 # tests/ — regression scenarios
 
 A place to put runnable, reproducible regression scenarios for behaviour
-the project has consciously changed. The bar is intentionally low: when
-a PR changes user-visible behaviour, drop a test here so the next person
-can re-run the check without re-reading the PR.
+the project has consciously changed or documents as an invariant, so the
+next person can re-run the check without re-reading the PR. Which tests a
+change owes is in `CONTRIBUTING.md`, under "Pull requests"; this file says
+how to write and run them.
 
 Designed as the implementation of RFC [#97](https://github.com/xymon-monitoring/xymon/issues/97).
 
@@ -174,6 +175,26 @@ maintenance.
   autopkgtest) runs the suite to catch, and skipping would green-light
   it. `require_bin` and `require_cfg` implement both halves;
   installed-script tests guard `$XYMONCLIENT_LINUX` the same way.
+- **A test fails when its fix is absent -- or says why it doesn't.** That
+  is what makes it a regression test rather than a green tick, and it is
+  worth asserting deliberately: prefer an assertion about what only the
+  fix produces over one about the damage its absence causes. The two look
+  equivalent and are not, because a guard added elsewhere can stop the
+  damage, and from then on the damage is no longer evidence about the
+  cause. "The files are still there" survives any refusal to delete;
+  "the file was trimmed" happens only if the code under test really ran.
+  A test at the layer the fix lives at is the other half of the answer --
+  nothing outside that file can blind it -- and the two together are why
+  a fix sometimes deserves a test on each side of the chain.
+
+  Some tests are meant to pass either way: they pin the behaviour a fix
+  must **not** change. That is a legitimate test and it declares itself,
+  in its own header, so a reader and `build/pin-check.sh` both know:
+  ```bash
+  # control: passes with and without the fix
+  ```
+  Same bargain as `# native-primitive: NAME` above -- state the intent,
+  or a checker is entitled to assume the worst of a test that cannot fail.
 - **License.** GPL-2.0+, matching the rest of the repo. A short
   SPDX-style header at the top of each test is sufficient:
   ```bash
@@ -190,8 +211,9 @@ maintenance.
 4. Drive the scenario: set up fixtures in a temp dir, invoke the
    binary or script under test, assert on its output / exit code /
    side effects.
-5. Run it standalone. If it passes locally and is deterministic, open
-   the PR. CI will run it on every push.
+5. Run it standalone, and check it the way the `tests/` bullet in
+   `CONTRIBUTING.md` ("Pull requests") asks. Then open the PR. CI will
+   run it on every push.
 
 ## Why no framework
 
