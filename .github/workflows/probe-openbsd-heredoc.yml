@@ -1,0 +1,31 @@
+name: probe openbsd heredoc
+on:
+  push:
+    branches: [test/openbsd-heredoc]
+jobs:
+  probe:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: cross-platform-actions/action@v1.6.0
+        with:
+          operating_system: openbsd
+          version: "7.9"
+          sync_files: "false"
+      - shell: bash
+        run: |
+          cat > "$RUNNER_TEMP/probe.sh" <<'EOF'
+          uname -sr
+          d=$(mktemp -d /tmp/probe.XXXXXX)
+          export TMPDIR=$d
+          echo "== /bin/sh: while-read loop fed by a here-doc, listing TMPDIR inside the loop"
+          /bin/sh -c 'while IFS= read -r t; do echo "iteration $t sees:"; ls -A "$TMPDIR"; done <<EOT
+          one
+          EOT
+          echo "after the loop:"; ls -A "$TMPDIR"'
+          echo "== bash, same loop"
+          bash -c 'while IFS= read -r t; do echo "iteration $t sees:"; ls -A "$TMPDIR"; done <<EOT
+          one
+          EOT' 2>&1 || echo "(no bash)"
+          rm -rf "$d"
+          EOF
+          cpa.sh "$RUNNER_TEMP/probe.sh" --sync-files none
