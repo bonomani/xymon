@@ -1,5 +1,6 @@
 generated:
   platforms:
+    - platform_id: openbsd-7_9
     - platform_id: openbsd-7_8
     - platform_id: openbsd-7_7
     - platform_id: openbsd-7_6

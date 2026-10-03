@@ -57,11 +57,13 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: freebsd
-  primary_platform_id: freebsd-15_0
+  primary_platform_id: freebsd-15_1
   ordered_platform_ids:
+  - freebsd-15_1
   - freebsd-15_0
+  - freebsd-14_5
+  - freebsd-14_4
   - freebsd-14_3
-  - freebsd-13_5
   primary_arch: amd64
   excluded_from_primary: []
 - family: macos
@@ -75,18 +77,17 @@ preferred_platforms:
   excluded_from_primary:
   - macos-latest
 - family: netbsd
-  primary_platform_id: netbsd-10_1
+  primary_platform_id: netbsd-11_0
   ordered_platform_ids:
+  - netbsd-11_0
   - netbsd-10_1
   - netbsd-10_0
-  - netbsd-9_4
-  - netbsd-9_3
-  - netbsd-9_2
   primary_arch: amd64
   excluded_from_primary: []
 - family: openbsd
-  primary_platform_id: openbsd-7_8
+  primary_platform_id: openbsd-7_9
   ordered_platform_ids:
+  - openbsd-7_9
   - openbsd-7_8
   - openbsd-7_7
   - openbsd-7_6
