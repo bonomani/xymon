@@ -38,7 +38,7 @@ permissions:
 
 jobs:
   trailers:
-    name: no AI attribution
+    name: no AI attribution (${{ github.event.action || github.event_name }})
     runs-on: ubuntu-latest
     timeout-minutes: 5
 
