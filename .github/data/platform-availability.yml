@@ -1886,22 +1886,6 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
-  freebsd-13_5:
-    runtime: vm
-    platform_os: freebsd
-    provider: cross-platform-actions
-    os: freebsd
-    version: '13.5'
-    source_arch: x86-64
-    discovered_arches:
-    - amd64
-    repo: cross-platform-actions/freebsd-builder
-    release_tag: v0.13.1
-    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
-    asset_name: freebsd-13.5-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-13.5-x86-64.qcow2
-    asset_size: 524326400
-    asset_updated_at: '2025-12-12T19:23:24Z'
   freebsd-14_3:
     runtime: vm
     platform_os: freebsd
@@ -1912,12 +1896,44 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/freebsd-builder
-    release_tag: v0.13.1
-    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
     asset_name: freebsd-14.3-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-14.3-x86-64.qcow2
-    asset_size: 467093504
-    asset_updated_at: '2025-12-12T18:21:44Z'
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.3-x86-64.qcow2
+    asset_size: 459492864
+    asset_updated_at: '2026-09-12T09:23:36Z'
+  freebsd-14_4:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.4'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-14.4-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.4-x86-64.qcow2
+    asset_size: 376934400
+    asset_updated_at: '2026-09-12T09:02:42Z'
+  freebsd-14_5:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.5'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-14.5-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.5-x86-64.qcow2
+    asset_size: 379910144
+    asset_updated_at: '2026-09-12T08:57:55Z'
   freebsd-15_0:
     runtime: vm
     platform_os: freebsd
@@ -1928,12 +1944,28 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/freebsd-builder
-    release_tag: v0.13.1
-    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.13.1
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
     asset_name: freebsd-15.0-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.13.1/freebsd-15.0-x86-64.qcow2
-    asset_size: 397475840
-    asset_updated_at: '2025-12-12T18:26:22Z'
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-15.0-x86-64.qcow2
+    asset_size: 390987776
+    asset_updated_at: '2026-09-12T09:18:17Z'
+  freebsd-15_1:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '15.1'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-15.1-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-15.1-x86-64.qcow2
+    asset_size: 390077440
+    asset_updated_at: '2026-09-12T09:07:18Z'
   macos-14:
     runtime: host
     provider: github-actions
@@ -2149,12 +2181,12 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.0-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.0-x86-64.qcow2
-    asset_size: 492634112
-    asset_updated_at: '2025-12-03T17:23:36Z'
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-10.0-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-10.0-x86-64.tar.zst
+    asset_size: 264914031
+    asset_updated_at: '2026-09-08T17:21:09Z'
   netbsd-10_1:
     runtime: vm
     platform_os: netbsd
@@ -2165,60 +2197,28 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-10.1-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-10.1-x86-64.qcow2
-    asset_size: 493617152
-    asset_updated_at: '2025-12-03T17:23:52Z'
-  netbsd-9_2:
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-10.1-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-10.1-x86-64.tar.zst
+    asset_size: 268209916
+    asset_updated_at: '2026-09-08T17:37:35Z'
+  netbsd-11_0:
     runtime: vm
     platform_os: netbsd
     provider: cross-platform-actions
     os: netbsd
-    version: '9.2'
+    version: '11.0'
     source_arch: x86-64
     discovered_arches:
     - amd64
     repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.2-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.2-x86-64.qcow2
-    asset_size: 398655488
-    asset_updated_at: '2025-12-03T17:24:04Z'
-  netbsd-9_3:
-    runtime: vm
-    platform_os: netbsd
-    provider: cross-platform-actions
-    os: netbsd
-    version: '9.3'
-    source_arch: x86-64
-    discovered_arches:
-    - amd64
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.3-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.3-x86-64.qcow2
-    asset_size: 399114240
-    asset_updated_at: '2025-12-03T17:23:14Z'
-  netbsd-9_4:
-    runtime: vm
-    platform_os: netbsd
-    provider: cross-platform-actions
-    os: netbsd
-    version: '9.4'
-    source_arch: x86-64
-    discovered_arches:
-    - amd64
-    repo: cross-platform-actions/netbsd-builder
-    release_tag: v0.5.1
-    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v0.5.1
-    asset_name: netbsd-9.4-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v0.5.1/netbsd-9.4-x86-64.qcow2
-    asset_size: 407240704
-    asset_updated_at: '2025-12-03T17:23:15Z'
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-11.0-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-11.0-x86-64.tar.zst
+    asset_size: 279787105
+    asset_updated_at: '2026-09-08T17:41:11Z'
   openbsd-7_6:
     runtime: vm
     platform_os: openbsd
@@ -2229,12 +2229,12 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
     asset_name: openbsd-7.6-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.6-x86-64.qcow2
-    asset_size: 705101824
-    asset_updated_at: '2025-12-12T19:20:55Z'
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.6-x86-64.qcow2
+    asset_size: 692649984
+    asset_updated_at: '2026-08-10T07:57:17Z'
   openbsd-7_7:
     runtime: vm
     platform_os: openbsd
@@ -2245,12 +2245,12 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
     asset_name: openbsd-7.7-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.7-x86-64.qcow2
-    asset_size: 772931584
-    asset_updated_at: '2025-12-12T18:11:49Z'
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.7-x86-64.qcow2
+    asset_size: 758710272
+    asset_updated_at: '2026-08-10T07:44:05Z'
   openbsd-7_8:
     runtime: vm
     platform_os: openbsd
@@ -2261,12 +2261,28 @@ platforms:
     discovered_arches:
     - amd64
     repo: cross-platform-actions/openbsd-builder
-    release_tag: v0.11.1
-    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.11.1
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
     asset_name: openbsd-7.8-x86-64.qcow2
-    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.11.1/openbsd-7.8-x86-64.qcow2
-    asset_size: 687276032
-    asset_updated_at: '2025-12-12T18:49:09Z'
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.8-x86-64.qcow2
+    asset_size: 791150592
+    asset_updated_at: '2026-08-10T07:48:24Z'
+  openbsd-7_9:
+    runtime: vm
+    platform_os: openbsd
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.9'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
+    asset_name: openbsd-7.9-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.9-x86-64.qcow2
+    asset_size: 669057024
+    asset_updated_at: '2026-08-10T07:39:29Z'
   opensuse-leap-15_5:
     runtime: docker
     platform_os: opensuse_leap

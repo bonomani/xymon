@@ -6,6 +6,7 @@ from __future__ import annotations
 import json
 import os
 import re
+import sys
 import argparse
 from pathlib import Path
 from typing import Any
@@ -28,7 +29,10 @@ PLATFORM_AVAILABILITY_OUTPUT = ROOT / ".github" / "data" / "platform-availabilit
 REGISTRY_BASE = "https://registry-1.docker.io"
 TOKEN_URL = "https://auth.docker.io/token"
 DOCKER_HUB_TAG_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags/{tag}"
-DOCKER_HUB_TAGS_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags?page_size=100&page={page}"
+# Newest first: Docker Hub serves a tag listing only so many pages deep
+# (debian's page 11 answered 403 on 2026-10-03), so the release tags the
+# lanes use have to come before the cut.
+DOCKER_HUB_TAGS_API = "https://hub.docker.com/v2/namespaces/{namespace}/repositories/{repository}/tags?page_size=100&page={page}&ordering=last_updated"
 MANIFEST_ACCEPT = ", ".join(
     [
         "application/vnd.oci.image.index.v1+json",
@@ -192,8 +196,20 @@ def fetch_repository_tags(repository: str) -> list[dict[str, Any]]:
             namespace=namespace, repository=image, page=page
         )
         request = Request(tags_url, headers={"User-Agent": USER_AGENT})
-        with urlopen(request) as response:
-            payload = json.load(response)
+        try:
+            with urlopen(request) as response:
+                payload = json.load(response)
+        except HTTPError as exc:
+            # A refusal past the first page is the listing's depth limit, not
+            # a missing repository: keep what the earlier pages returned.
+            if exc.code == 403 and page > 1:
+                print(
+                    f"warning: Docker Hub refused page {page} of {repository}'s tags; "
+                    f"keeping the {len(results)} newest",
+                    file=sys.stderr,
+                )
+                break
+            raise
         page_results = payload.get("results")
         if not isinstance(page_results, list) or not page_results:
             break
@@ -1320,17 +1336,24 @@ def export_catalog(*, refresh_container_manifests: bool = False):
         }
         if entry.get("repo"):
             repo = entry["repo"]
-            asset_name = f"{entry['os']}-{entry['version']}-{entry['source_arch']}.qcow2"
+            # A builder ships either a qcow2 image or, netbsd-builder since its
+            # v1.0.0, a tar.zst bundle; the first that exists is recorded.
+            asset_stem = f"{entry['os']}-{entry['version']}-{entry['source_arch']}"
+            asset_names = [f"{asset_stem}.qcow2", f"{asset_stem}.tar.zst"]
+            asset_name = asset_names[0]
             cached_vm_entry = cached_vm_platforms.get(platform_id, {})
             try:
                 release = fetch_latest_release(repo)
                 assets = release.get("assets", [])
                 asset = next(
-                    (a for a in assets if a.get("name") == asset_name), None
+                    (a for name in asset_names for a in assets if a.get("name") == name),
+                    None,
                 )
+                if asset:
+                    asset_name = asset.get("name")
                 if not asset:
                     raise SystemExit(
-                        f"No asset named '{asset_name}' in release {release.get('tag_name')} for {repo}"
+                        f"No asset named '{asset_names[0]}' or '{asset_names[1]}' in release {release.get('tag_name')} for {repo}"
                     )
                 record.update(
                     {

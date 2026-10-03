@@ -262,13 +262,6 @@ platforms:
     platform_os: fedora
     platform_version: '42'
     image: fedora:42
-  freebsd-13_5:
-    runtime: vm
-    platform_os: freebsd
-    platform_version: '13.5'
-    provider: cross-platform-actions
-    repo: cross-platform-actions/freebsd-builder
-    source_arch: x86-64
   freebsd-14_3:
     runtime: vm
     platform_os: freebsd
@@ -276,10 +269,31 @@ platforms:
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     source_arch: x86-64
+  freebsd-14_4:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.4'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-14_5:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.5'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
   freebsd-15_0:
     runtime: vm
     platform_os: freebsd
     platform_version: '15.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-15_1:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '15.1'
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     source_arch: x86-64
@@ -330,24 +344,10 @@ platforms:
     provider: cross-platform-actions
     repo: cross-platform-actions/netbsd-builder
     source_arch: x86-64
-  netbsd-9_2:
+  netbsd-11_0:
     runtime: vm
     platform_os: netbsd
-    platform_version: '9.2'
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    source_arch: x86-64
-  netbsd-9_3:
-    runtime: vm
-    platform_os: netbsd
-    platform_version: '9.3'
-    provider: cross-platform-actions
-    repo: cross-platform-actions/netbsd-builder
-    source_arch: x86-64
-  netbsd-9_4:
-    runtime: vm
-    platform_os: netbsd
-    platform_version: '9.4'
+    platform_version: '11.0'
     provider: cross-platform-actions
     repo: cross-platform-actions/netbsd-builder
     source_arch: x86-64
@@ -369,6 +369,13 @@ platforms:
     runtime: vm
     platform_os: openbsd
     platform_version: '7.8'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_9:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.9'
     provider: cross-platform-actions
     repo: cross-platform-actions/openbsd-builder
     source_arch: x86-64

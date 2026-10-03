@@ -1,4 +1,9 @@
 sources:
+  netbsd-11_0:
+    os: netbsd
+    version: "11.0"
+    repo: cross-platform-actions/netbsd-builder
+    arch: x86-64
   netbsd-10_1:
     os: netbsd
     version: "10.1"
@@ -24,6 +29,11 @@ sources:
     version: "9.2"
     repo: cross-platform-actions/netbsd-builder
     arch: x86-64
+  openbsd-7_9:
+    os: openbsd
+    version: "7.9"
+    repo: cross-platform-actions/openbsd-builder
+    arch: x86-64
   openbsd-7_8:
     os: openbsd
     version: "7.8"
@@ -39,9 +49,24 @@ sources:
     version: "7.6"
     repo: cross-platform-actions/openbsd-builder
     arch: x86-64
+  freebsd-15_1:
+    os: freebsd
+    version: "15.1"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
   freebsd-15_0:
     os: freebsd
     version: "15.0"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
+  freebsd-14_5:
+    os: freebsd
+    version: "14.5"
+    repo: cross-platform-actions/freebsd-builder
+    arch: x86-64
+  freebsd-14_4:
+    os: freebsd
+    version: "14.4"
     repo: cross-platform-actions/freebsd-builder
     arch: x86-64
   freebsd-14_3:

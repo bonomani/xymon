@@ -65,11 +65,14 @@ vms:
   selection:
     rules:
       freebsd:
-        keep_latest_n_stable: 3
-      netbsd:
         keep_latest_n_stable: 5
+      netbsd:
+        # The two newest major releases: NetBSD supports those and no older,
+        # and a retired major's binary packages leave the mirrors the lanes
+        # install from -- 9.x did when it reached end of life in 2026-08.
+        keep_latest_n_major: 2
       openbsd:
-        keep_latest_n_stable: 3
+        keep_latest_n_stable: 4
 
 hosts:
   selection:

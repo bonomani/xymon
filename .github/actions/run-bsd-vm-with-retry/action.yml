@@ -59,7 +59,7 @@ runs:
     - name: Run VM script [attempt 1]
       id: vm_try1
       continue-on-error: true
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@v1.6.0
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
@@ -97,7 +97,7 @@ runs:
       if: ${{ steps.vm_try1.outcome == 'failure' && steps.ran1.outputs.ran == 'false' }}
       id: vm_try2
       continue-on-error: true
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@v1.6.0
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
@@ -135,7 +135,7 @@ runs:
       if: ${{ steps.vm_try2.outcome == 'failure' && steps.ran2.outputs.ran == 'false' }}
       id: vm_try3
       continue-on-error: true
-      uses: cross-platform-actions/action@v0.32.0
+      uses: cross-platform-actions/action@v1.6.0
       env:
         FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
