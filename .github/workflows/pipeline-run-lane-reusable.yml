@@ -123,7 +123,6 @@ jobs:
           memory: ${{ steps.lane_ctx.outputs.vm_memory }}
           cpu_count: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
           sync_files: true
-          shutdown_vm: true
           run_script: |
             set -euo pipefail
             export LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}"

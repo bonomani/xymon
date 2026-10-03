@@ -105,7 +105,6 @@ jobs:
           memory: ${{ matrix.vm_memory }}
           cpu_count: ${{ matrix.vm_cpu_count }}
           sync_files: true
-          shutdown_vm: true
           run_script: |
             set -euo pipefail
             bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"

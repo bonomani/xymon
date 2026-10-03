@@ -1,8 +1,8 @@
 name: Run BSD VM Command With Retry
 description: >
-  Runs cross-platform-actions/action, retrying only when the VM itself never
-  ran the script. A script that ran and exited non-zero is a real failure and
-  is reported as such, not retried.
+  Starts a BSD VM with cross-platform-actions/action, retrying the start when
+  the VM never comes up, then runs the script in it once. A script that ran
+  and exited non-zero is a real failure and is reported as such, not retried.
 
 inputs:
   operating_system:
@@ -28,11 +28,9 @@ inputs:
     required: false
     default: "2"
   sync_files:
-    description: Sync workspace files to and from the VM.
-    required: false
-    default: "true"
-  shutdown_vm:
-    description: Shut down VM at the end of the action.
+    description: >
+      Sync workspace files around the script: true (both ways), false (none),
+      runner-to-vm or vm-to-runner.
     required: false
     default: "true"
   run_script:
@@ -40,28 +38,22 @@ inputs:
     required: true
 
 # The retry exists for the transient half of a BSD lane: the image download
-# and the VM boot. The action's outcome cannot tell that apart from "the VM
-# came up and the script failed" -- both are outcome == 'failure' -- so a
-# deterministic test failure used to be run three times and reported as
-# whatever the last attempt died of, usually the workspace sync-back.
+# and the VM boot. Starting the VM and running the script are separate steps,
+# so the start step failing means the VM never came up -- retried -- and the
+# script step failing means the script did -- reported once, not retried.
+# (Before the action's v1.x the script ran inside the start step, and a marker
+# file had to tell the two apart.)
 #
-# The script itself says which happened. Its first line drops a marker in the
-# workspace, which syncs back with everything else; the marker is present iff
-# the VM got far enough to execute the script. Cleared before every attempt,
-# so it always describes the attempt just made and never a previous one.
+# The script runs through cpa.sh, the helper the action puts on PATH once the
+# VM is up, called from bash so the sync direction can follow the input. No
+# shutdown is needed: the VM stops with the job.
 runs:
   using: composite
   steps:
-    - name: Clear the attempt marker [attempt 1]
-      shell: bash
-      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
-
-    - name: Run VM script [attempt 1]
+    - name: Start the VM [attempt 1]
       id: vm_try1
       continue-on-error: true
       uses: cross-platform-actions/action@v1.6.0
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
@@ -69,37 +61,13 @@ runs:
         shell: ${{ inputs.shell }}
         memory: ${{ inputs.memory }}
         cpu_count: ${{ inputs.cpu_count }}
-        sync_files: ${{ inputs.sync_files }}
-        shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: |
-          : > .bsd-vm-script-started
-          ${{ inputs.run_script }}
+        sync_files: "false"
 
-    - name: Did the VM reach the script? [attempt 1]
-      id: ran1
+    - name: Start the VM [attempt 2]
       if: ${{ steps.vm_try1.outcome == 'failure' }}
-      shell: bash
-      run: |
-        if [ -e "$GITHUB_WORKSPACE/.bsd-vm-script-started" ]; then
-          echo "The VM ran the script; its failure is real, not transient. Not retrying." >&2
-          echo "ran=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "The VM never reached the script; retrying." >&2
-          echo "ran=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Clear the attempt marker [attempt 2]
-      if: ${{ steps.vm_try1.outcome == 'failure' && steps.ran1.outputs.ran == 'false' }}
-      shell: bash
-      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
-
-    - name: Run VM script [attempt 2]
-      if: ${{ steps.vm_try1.outcome == 'failure' && steps.ran1.outputs.ran == 'false' }}
       id: vm_try2
       continue-on-error: true
       uses: cross-platform-actions/action@v1.6.0
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
@@ -107,37 +75,13 @@ runs:
         shell: ${{ inputs.shell }}
         memory: ${{ inputs.memory }}
         cpu_count: ${{ inputs.cpu_count }}
-        sync_files: ${{ inputs.sync_files }}
-        shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: |
-          : > .bsd-vm-script-started
-          ${{ inputs.run_script }}
+        sync_files: "false"
 
-    - name: Did the VM reach the script? [attempt 2]
-      id: ran2
+    - name: Start the VM [attempt 3]
       if: ${{ steps.vm_try2.outcome == 'failure' }}
-      shell: bash
-      run: |
-        if [ -e "$GITHUB_WORKSPACE/.bsd-vm-script-started" ]; then
-          echo "The VM ran the script; its failure is real, not transient. Not retrying." >&2
-          echo "ran=true" >> "$GITHUB_OUTPUT"
-        else
-          echo "The VM never reached the script; retrying." >&2
-          echo "ran=false" >> "$GITHUB_OUTPUT"
-        fi
-
-    - name: Clear the attempt marker [attempt 3]
-      if: ${{ steps.vm_try2.outcome == 'failure' && steps.ran2.outputs.ran == 'false' }}
-      shell: bash
-      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
-
-    - name: Run VM script [attempt 3]
-      if: ${{ steps.vm_try2.outcome == 'failure' && steps.ran2.outputs.ran == 'false' }}
       id: vm_try3
       continue-on-error: true
       uses: cross-platform-actions/action@v1.6.0
-      env:
-        FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
       with:
         operating_system: ${{ inputs.operating_system }}
         architecture: ${{ inputs.architecture }}
@@ -145,33 +89,35 @@ runs:
         shell: ${{ inputs.shell }}
         memory: ${{ inputs.memory }}
         cpu_count: ${{ inputs.cpu_count }}
-        sync_files: ${{ inputs.sync_files }}
-        shutdown_vm: ${{ inputs.shutdown_vm }}
-        run: |
-          : > .bsd-vm-script-started
-          ${{ inputs.run_script }}
+        sync_files: "false"
 
-    # Name the cause the run actually had. "Failed after 3 attempts" was the
-    # old summary for a test that failed once, deterministically, on attempt 1.
-    - name: Report the failure
-      if: ${{ steps.vm_try1.outcome == 'failure'
-              && (steps.ran1.outputs.ran == 'true'
-                  || (steps.vm_try2.outcome == 'failure'
-                      && (steps.ran2.outputs.ran == 'true'
-                          || steps.vm_try3.outcome == 'failure'))) }}
+    - name: Report a VM that never came up
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' && steps.vm_try3.outcome == 'failure' }}
       shell: bash
       run: |
-        rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
-        if [ "${{ steps.ran1.outputs.ran }}" = "true" ] || [ "${{ steps.ran2.outputs.ran }}" = "true" ]; then
-          echo "The BSD VM ran the script and it exited non-zero." >&2
-          echo "This is the script's own failure, not a VM problem: look for the failing" >&2
-          echo "step in the VM output above, not at the sync-back at the end of the job." >&2
-        else
-          echo "The BSD VM never reached the script in 3 attempts (image download or boot)." >&2
-        fi
+        echo "The BSD VM never came up in 3 attempts (image download or boot); the script did not run." >&2
         exit 1
 
-    - name: Clear the attempt marker [success]
-      if: ${{ always() }}
+    # The sync back is a step of its own, run whatever the script did: a lane
+    # that fails still needs its logs and artifacts on the runner, and that
+    # must not depend on how cpa.sh treats a failing file.
+    - name: Run the script in the VM
+      id: script
       shell: bash
-      run: rm -f "$GITHUB_WORKSPACE/.bsd-vm-script-started"
+      env:
+        RUN_SCRIPT: ${{ inputs.run_script }}
+        SYNC_FILES: ${{ inputs.sync_files }}
+      run: |
+        case "${SYNC_FILES}" in
+          true|runner-to-vm) before=runner-to-vm ;;
+          false|vm-to-runner) before=none ;;
+          *) echo "sync_files must be true, false, runner-to-vm or vm-to-runner, not '${SYNC_FILES}'" >&2; exit 2 ;;
+        esac
+        script="$(mktemp "${RUNNER_TEMP:-/tmp}/bsd-vm-script.XXXXXX")"
+        printf '%s\n' "${RUN_SCRIPT}" > "${script}"
+        cpa.sh "${script}" --sync-files "${before}"
+
+    - name: Sync files back from the VM
+      if: ${{ always() && steps.script.outcome != 'skipped' && (inputs.sync_files == 'true' || inputs.sync_files == 'vm-to-runner') }}
+      shell: bash
+      run: cpa.sh --sync-files vm-to-runner
