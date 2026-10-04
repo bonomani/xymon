@@ -297,14 +297,6 @@ platforms:
     provider: cross-platform-actions
     repo: cross-platform-actions/freebsd-builder
     source_arch: x86-64
-  macos-14:
-    runtime: host
-    platform_os: macos
-    platform_version: '14'
-    provider: github-actions
-    runner: macos-14
-    deps:
-      key: '14'
   macos-15:
     runtime: host
     platform_os: macos

@@ -1,46 +1,4 @@
 runners:
-  macos-14:
-    container:
-      binfmt_misc_mounted: false
-      docker_socket: false
-    probed_at: '2026-05-20T21:46:27.144149+00:00'
-    runner_label: macos-14
-    system:
-      machine: arm64
-      platform: Darwin
-      release: 23.6.0
-    tools:
-      docker:
-        path: ''
-        present: false
-      podman:
-        path: ''
-        present: false
-      qemu-aarch64-static:
-        path: ''
-        present: false
-      qemu-system-x86_64:
-        path: ''
-        present: false
-    virtualization:
-      dev_kvm_exists: false
-      dev_kvm_readable: false
-      dev_kvm_writable: false
-      nested: unknown
-    capabilities:
-      container_runtime_available: false
-      binfmt_misc_available: false
-      container_tooling:
-        docker: false
-        podman: false
-      emulation_tooling:
-        qemu_system_x86_64: false
-        qemu_aarch64_static: false
-      virtualization:
-        kvm_device_present: false
-        kvm_accessible: false
-        nested_state: unknown
-        nested_enabled: false
   macos-15-intel:
     container:
       binfmt_misc_mounted: false

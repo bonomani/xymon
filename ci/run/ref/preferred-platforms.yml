@@ -71,7 +71,6 @@ preferred_platforms:
   ordered_platform_ids:
   - macos-26
   - macos-15
-  - macos-14
   - macos-latest
   primary_arch: arm64
   excluded_from_primary:

@@ -94,24 +94,6 @@ runners:
         cpu: "4"
         memory: "16 GB"
         storage: "14 GB"
-  - label: "macos-14"
-    machine_family: "macos"
-    platform_os: "macos"
-    platform_version: "14"
-    arch: "arm64"
-    source: "https://github.com/actions/runner-images/blob/main/images/macos/macos-14-arm64-Readme.md"
-    availability:
-      - "private"
-      - "public"
-    resources:
-      private:
-        cpu: "3 (M1)"
-        memory: "7 GB"
-        storage: "14 GB"
-      public:
-        cpu: "3 (M1)"
-        memory: "7 GB"
-        storage: "14 GB"
   - label: "macos-15"
     machine_family: "macos"
     platform_os: "macos"
