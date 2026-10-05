@@ -52,6 +52,10 @@ targets:
       profile: linux_default
       packagers:
         dnf: {}
+    rockylinux_10:
+      profile: linux_default
+      packagers:
+        dnf: {}
     oraclelinux_9:
       profile: linux_default
       packagers:
@@ -88,12 +92,24 @@ targets:
       profile: linux_default
       packagers:
         dnf: {}
+    fedora_43:
+      profile: linux_default
+      packagers:
+        dnf: {}
+    fedora_44:
+      profile: linux_default
+      packagers:
+        dnf: {}
     fedora_40:
       profile: linux_default
       packagers:
         dnf: {}
   suse:
     opensuse_tumbleweed_latest:
+      profile: linux_default
+      packagers:
+        zypper: {}
+    opensuse_leap_16_1:
       profile: linux_default
       packagers:
         zypper: {}
