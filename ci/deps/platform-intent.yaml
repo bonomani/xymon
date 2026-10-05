@@ -23,7 +23,7 @@ containers:
       opensuse_tumbleweed:
         - '^latest$'
       opensuse_leap:
-        - '^\d+\.\d+$'
+        - '^1[5-9]\.\d+$'       # current numbering; 42.x (2015-2017) sorts above 16.x
       alpine:
         - '^\d+\.\d+$'
         - '^edge$'

@@ -1452,6 +1452,9 @@ def run_self_test() -> int:
         check(tag("ubuntu", lts), f"ubuntu {lts} is an LTS tag")
     for interim in ("23.04", "25.04"):
         check(not tag("ubuntu", interim), f"ubuntu {interim} is an interim release, not an LTS tag")
+    for current in ("15.6", "16.1"):
+        check(tag("opensuse_leap", current), f"opensuse leap {current} is listed")
+    check(not tag("opensuse_leap", "42.3"), "opensuse leap 42.3, the old numbering, is not listed")
 
     print(f"{'FAIL' if failures else 'PASS'}: self-test, {failures} failure(s)")
     return 1 if failures else 0
