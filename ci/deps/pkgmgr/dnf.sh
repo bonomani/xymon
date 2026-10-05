@@ -24,7 +24,8 @@ configure_enterprise_builder_repos() {
   if [[ "${os_name}" == "rockylinux" || "${os_name}" == "almalinux" ]]; then
     if [[ "${version}" == "8" ]]; then
       ci_deps_as_root dnf config-manager --set-enabled powertools || true
-    elif [[ "${version}" == "9" ]]; then
+    elif [[ "${version}" =~ ^[0-9]+$ ]] && (( version >= 9 )); then
+      # CRB from 9 on (powertools before): it carries libtirpc-devel.
       ci_deps_as_root dnf config-manager --set-enabled crb || true
     fi
     return 0
