@@ -43,6 +43,7 @@ containers:
         keep_latest_n_stable: 3
       fedora:
         keep_latest_n_stable: 3
+        released_from: fedora      # endoflife.date product; Docker Hub carries unreleased 45, 46
       opensuse_tumbleweed:
         include_moving_targets: true
       opensuse_leap:

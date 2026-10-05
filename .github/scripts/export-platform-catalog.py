@@ -8,6 +8,7 @@ import os
 import re
 import sys
 import argparse
+import datetime
 from pathlib import Path
 from typing import Any
 from urllib.error import HTTPError
@@ -404,7 +405,13 @@ def load_selection_policy() -> dict[str, dict[str, set[str]]]:
                 keep_latest_n_stable = rule.get("keep_latest_n_stable")
                 keep_latest_n_major = rule.get("keep_latest_n_major")
                 include_moving_targets = bool(rule.get("include_moving_targets", False))
+                released_from = rule.get("released_from")
                 rules[os_key] = {
+                    "released_from": (
+                        as_str(released_from, f"{CONTAINER_INTENT}.{section}.selection.rules.{os_key}.released_from")
+                        if released_from not in (None, "")
+                        else None
+                    ),
                     "keep_versions": {
                         as_str(
                             value,
@@ -639,6 +646,34 @@ def discover_host_releases(
     return discovered
 
 
+ENDOFLIFE_URL = "https://endoflife.date/api/{product}.json"
+RELEASED_CYCLES: dict[str, set[str]] = {}
+
+
+def released_cycles(product: str) -> set[str]:
+    """The cycles endoflife.date lists as released by today (UTC), for a
+    registry whose tags include versions not out yet (fedora:45, fedora:46).
+
+    A failed fetch stops the export: going on without it would let
+    unreleased versions take the newest-N slots, which is the fault this
+    guards against.
+    """
+    if product not in RELEASED_CYCLES:
+        url = ENDOFLIFE_URL.format(product=product)
+        try:
+            with urlopen(Request(url, headers={"User-Agent": "xymon-platform-catalog"})) as response:
+                cycles = json.load(response)
+        except Exception as exc:  # noqa: BLE001 - any failure means no release data
+            raise SystemExit(f"cannot read the releases of {product!r} from {url}: {exc}")
+        today = datetime.datetime.now(datetime.timezone.utc).date().isoformat()
+        RELEASED_CYCLES[product] = {
+            str(cycle.get("cycle"))
+            for cycle in cycles
+            if isinstance(cycle, dict) and cycle.get("releaseDate") and str(cycle["releaseDate"]) <= today
+        }
+    return RELEASED_CYCLES[product]
+
+
 def select_platform_releases(
     platform_releases: dict[str, dict[str, Any]],
     selection_policy: dict[str, dict[str, set[str]]],
@@ -653,6 +688,23 @@ def select_platform_releases(
         rules = section_policy.get("rules", {})
         if not isinstance(rules, dict):
             continue
+        # Unreleased versions go first, so the newest-N rules below count
+        # released ones only.
+        for platform_os, rule in rules.items():
+            if not isinstance(rule, dict) or not rule.get("released_from"):
+                continue
+            released = released_cycles(rule["released_from"])
+            for platform_id, entry in list(selected.items()):
+                if selection_section_for_runtime(entry.get("runtime", "")) != section:
+                    continue
+                if str(entry.get("platform_os") or infer_platform_os(platform_id)).strip() != platform_os:
+                    continue
+                token = selection_version_token(platform_id, entry)
+                if is_moving_target_token(token):
+                    continue
+                version = selection_base_version(token)
+                if version not in released and selection_major_version(version) not in released:
+                    del selected[platform_id]
         for platform_os, rule in rules.items():
             if not isinstance(rule, dict):
                 continue
@@ -1495,6 +1547,15 @@ def run_self_test() -> int:
     }
     kept = select("hosts", "macos", {"keep_latest_n_stable": 2}, macos)
     check(kept == set(macos), f"newest 2 macOS versions keep 26, 26-intel and 15 (kept {sorted(kept)})")
+
+    RELEASED_CYCLES["fedora-fixture"] = {"42", "43", "44"}
+    fedora = {
+        f"fedora-{v}": {"runtime": "docker", "platform_os": "fedora", "platform_version": v}
+        for v in ("43", "44", "45", "46")
+    }
+    kept = select("containers", "fedora", {"keep_latest_n_stable": 2, "released_from": "fedora-fixture"}, fedora)
+    check(kept == {"fedora-43", "fedora-44"},
+          f"newest 2 released Fedora versions are 44 and 43, not the unreleased 45/46 (kept {sorted(kept)})")
 
     print(f"{'FAIL' if failures else 'PASS'}: self-test, {failures} failure(s)")
     return 1 if failures else 0
