@@ -36,20 +36,20 @@ containers:
       ubuntu:
         keep_latest_n_stable: 3
       rockylinux:
-        keep_latest_n_stable: 2
+        keep_latest_n_stable: 3
       oraclelinux:
         keep_latest_n_major: 3
       almalinux:
         keep_latest_n_stable: 3
       fedora:
-        keep_latest_n_stable: 3
+        keep_latest_n_stable: 2
         released_from: fedora      # endoflife.date product; Docker Hub carries unreleased 45, 46
       opensuse_tumbleweed:
         include_moving_targets: true
       opensuse_leap:
         keep_latest_n_stable: 3
       alpine:
-        keep_latest_n_stable: 5
+        keep_latest_n_stable: 4
         include_moving_targets: true
       archlinux:
         include_moving_targets: true

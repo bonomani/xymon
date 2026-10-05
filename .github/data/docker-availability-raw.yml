@@ -4,7 +4,7 @@ source:
   platform_intent: ci/deps/platform-intent.yaml
   registry_base: https://registry-1.docker.io
   token_service: https://auth.docker.io/token
-  container_cache_mode: reuse
+  container_cache_mode: refresh
 platforms:
   almalinux-10:
     image: almalinux:10
@@ -17,7 +17,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/10
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:3ea6bed76e47c1a816ed7e1ed7be8661efcf6984bec90bcad5ec73b66b6754ce
+    digest: sha256:838c2fafefb1a8a0d7f8cdbc3b0551c2a2b1eb0cd87aad6d62aecadb18311f1b
     discovered_arches:
     - amd64
     - arm64
@@ -34,7 +34,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:9cf50481aca02c0112131e589e9eac358fb43977bcf2350b542a6de1d2484178
+    digest: sha256:8b469a3a78515e8a18ea8fc727e6a3679e1d0c5ba6f58d5b30be3d0d9b86cffe
     discovered_arches:
     - amd64
     - arm64
@@ -51,48 +51,11 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/almalinux/manifests/9
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4e5f333756e39943fe66e3b55ee4c303805eebd7c6da372f07f2418f79b23d87
+    digest: sha256:9819dc675b67b595c2b59e42be7763fca1a8bb217fa5944e04daa22e9a64db16
     discovered_arches:
     - amd64
     - arm64
     - ppc64le
-    - s390x
-  alpine-3_19:
-    image: alpine:3.19
-    repository: library/alpine
-    repository_url: https://hub.docker.com/_/alpine
-    tag: '3.19'
-    platform_os: alpine
-    platform_version: '3.19'
-    deps:
-      package_family: alpine
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.19
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:6baf43584bcb78f2e5847d1de515f23499913ac9f12bdf834811a3145eb11ca1
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  alpine-3_20:
-    image: alpine:3.20
-    repository: library/alpine
-    repository_url: https://hub.docker.com/_/alpine
-    tag: '3.20'
-    platform_os: alpine
-    platform_version: '3.20'
-    deps:
-      package_family: alpine
-    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.20
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:a4f4213abb84c497377b8544c81b3564f313746700372ec4fe84653e4fb03805
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
     - s390x
   alpine-3_21:
     image: alpine:3.21
@@ -105,7 +68,7 @@ platforms:
       package_family: alpine
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.21
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:c3f8e73fdb79deaebaa2037150150191b9dcbfba68b4a46d70103204c53f4709
+    digest: sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
     discovered_arches:
     - amd64
     - arm32v7
@@ -124,7 +87,7 @@ platforms:
       package_family: alpine
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.22
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:55ae5d250caebc548793f321534bc6a8ef1d116f334f18f4ada1b2daad3251b2
+    digest: sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
     discovered_arches:
     - amd64
     - arm32v7
@@ -143,7 +106,26 @@ platforms:
       package_family: alpine
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.23
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:25109184c71bdad752c8312a8623239686a9a2071e8825f20acb8f2198c3f659
+    digest: sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+  alpine-3_24:
+    image: alpine:3.24
+    repository: library/alpine
+    repository_url: https://hub.docker.com/_/alpine
+    tag: '3.24'
+    platform_os: alpine
+    platform_version: '3.24'
+    deps:
+      package_family: alpine
+    manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/3.24
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
     discovered_arches:
     - amd64
     - arm32v7
@@ -162,7 +144,7 @@ platforms:
       package_family: alpine
     manifest_url: https://registry-1.docker.io/v2/library/alpine/manifests/edge
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:9a341ff2287c54b86425cbee0141114d811ae69d88a36019087be6d896cef241
+    digest: sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
     discovered_arches:
     - amd64
     - arm32v7
@@ -181,7 +163,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/amazonlinux/manifests/2
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:a9e1e216e0461552dd0dc6521d2712ba180dcabd4c9b43c47c3b21b857f755a1
+    digest: sha256:901ee465e730086c419a5f12396b2cf07c08649d469f7d7a719f695e2bbd8a3b
     discovered_arches:
     - amd64
     - arm64
@@ -196,7 +178,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/amazonlinux/manifests/2023
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:162fc5b69e11e81023f83a1ab618b184927ff3002d0852432af3b6ae4a1b5304
+    digest: sha256:5b29412077a463b4a3a8fbc99a8cdf4b929f38a3ecc8dac10328d8f36b0099b8
     discovered_arches:
     - amd64
     - arm64
@@ -211,7 +193,7 @@ platforms:
       package_family: arch
     manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/base
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
+    digest: sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
     discovered_arches:
     - amd64
   archlinux-latest:
@@ -225,7 +207,7 @@ platforms:
       package_family: arch
     manifest_url: https://registry-1.docker.io/v2/library/archlinux/manifests/latest
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:b55ff128e357ad0ce5e0438e2d7bf9b51fb2ce5bdf424109da14ee01c996d571
+    digest: sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
     discovered_arches:
     - amd64
   centos-7:
@@ -256,7 +238,7 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:550c53afe18c60e0dc975327dcb75a4ef8265e247e1190822bf8881a70825fce
+    digest: sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9
     discovered_arches:
     - amd64
     - arm32v7
@@ -272,225 +254,11 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
+    digest: sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
-  debian-11_0-slim:
-    image: debian:11.0-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.0-slim
-    platform_os: debian
-    platform_version: 11.0-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.0-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:753ead7d42d8f28fb2b6a0e20fac73505fb59c91974193c352f103bc6e50f654
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_1-slim:
-    image: debian:11.1-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.1-slim
-    platform_os: debian
-    platform_version: 11.1-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.1-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:656b29915fc8a8c6d870a1247aad7796ce296729b0ae95e168d1cfe30dd2fb3c
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_10-slim:
-    image: debian:11.10-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.10-slim
-    platform_os: debian
-    platform_version: 11.10-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.10-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:9058862a1be84689bd13292549ba981364f85ff99e50a612f94b188ac69db137
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_11-slim:
-    image: debian:11.11-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.11-slim
-    platform_os: debian
-    platform_version: 11.11-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.11-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4333240150a6924f878e05ec2c998aec95238010e0e4d2fec6161c90128c4652
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-  debian-11_2-slim:
-    image: debian:11.2-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.2-slim
-    platform_os: debian
-    platform_version: 11.2-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.2-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:40f90ead34f61f38c69fd604878c73c75ec944055328b9883f3b643c1b8886f0
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_3-slim:
-    image: debian:11.3-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.3-slim
-    platform_os: debian
-    platform_version: 11.3-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.3-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:f6957458017ec31c4e325a76f39d6323c4c21b0e31572efa006baa927a160891
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_4-slim:
-    image: debian:11.4-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.4-slim
-    platform_os: debian
-    platform_version: 11.4-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.4-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:68c1f6bae105595d2ebec1589d9d476ba2939fdb11eaba1daec4ea826635ce75
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_5-slim:
-    image: debian:11.5-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.5-slim
-    platform_os: debian
-    platform_version: 11.5-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.5-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:98de137b613dfc97f6b1eaa2f2d0a167eec4c5b72e2a34fd215aa51c3dcc3a86
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_6-slim:
-    image: debian:11.6-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.6-slim
-    platform_os: debian
-    platform_version: 11.6-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.6-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:9404b05bd09b57c76eccc0c5505b3c88b5feccac808d9b193a4fbac87bb44745
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_7-slim:
-    image: debian:11.7-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.7-slim
-    platform_os: debian
-    platform_version: 11.7-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.7-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:c618be84fc82aa8ba203abbb07218410b0f5b3c7cb6b4e7248fda7785d4f9946
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_8-slim:
-    image: debian:11.8-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.8-slim
-    platform_os: debian
-    platform_version: 11.8-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.8-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:8481471cacd29779e7b6fe64a891f4b6771d8c3c7e57bb410542a3db10d1897a
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-11_9-slim:
-    image: debian:11.9-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 11.9-slim
-    platform_os: debian
-    platform_version: 11.9-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/11.9-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:acc5810124f0929ab44fc7913c0ad936b074cbd3eadf094ac120190862ba36c4
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
   debian-12:
     image: debian:12
     repository: library/debian
@@ -502,13 +270,12 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:0a5bf4ecacfc050bad0131c8e1401063fd1e8343a418723f6dbd3cd13a7b9e33
+    digest: sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
     - ppc64le
-    - s390x
   debian-12-slim:
     image: debian:12-slim
     repository: library/debian
@@ -520,247 +287,12 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
+    digest: sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
     discovered_arches:
     - amd64
     - arm32v7
     - arm64
     - ppc64le
-    - s390x
-  debian-12_0-slim:
-    image: debian:12.0-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.0-slim
-    platform_os: debian
-    platform_version: 12.0-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.0-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:9bd077d2f77c754f4f7f5ee9e6ded9ff1dff92c6dce877754da21b917c122c77
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_1-slim:
-    image: debian:12.1-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.1-slim
-    platform_os: debian
-    platform_version: 12.1-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.1-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:24c92a69df28b21676d721fe18c0bf64138bfc69b486746ad935b49cc31b0b91
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_10-slim:
-    image: debian:12.10-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.10-slim
-    platform_os: debian
-    platform_version: 12.10-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.10-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4b50eb66f977b4062683ff434ef18ac191da862dbe966961bc11990cf5791a8d
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_11-slim:
-    image: debian:12.11-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.11-slim
-    platform_os: debian
-    platform_version: 12.11-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.11-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:b1a741487078b369e78119849663d7f1a5341ef2768798f7b7406c4240f86aef
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_12-slim:
-    image: debian:12.12-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.12-slim
-    platform_os: debian
-    platform_version: 12.12-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.12-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:d5d3f9c23164ea16f31852f95bd5959aad1c5e854332fe00f7b3a20fcc9f635c
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_13-slim:
-    image: debian:12.13-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.13-slim
-    platform_os: debian
-    platform_version: 12.13-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.13-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:74d56e3931e0d5a1dd51f8c8a2466d21de84a271cd3b5a733b803aa91abf4421
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_2-slim:
-    image: debian:12.2-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.2-slim
-    platform_os: debian
-    platform_version: 12.2-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.2-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:2bc5c236e9b262645a323e9088dfa3bb1ecb16cc75811daf40a23a824d665be9
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_4-slim:
-    image: debian:12.4-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.4-slim
-    platform_os: debian
-    platform_version: 12.4-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.4-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:7802002798b0e351323ed2357ae6dc5a8c4d0a05a57e7f4d8f97136151d3d603
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_5-slim:
-    image: debian:12.5-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.5-slim
-    platform_os: debian
-    platform_version: 12.5-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.5-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:67f3931ad8cb1967beec602d8c0506af1e37e8d73c2a0b38b181ec5d8560d395
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_6-slim:
-    image: debian:12.6-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.6-slim
-    platform_os: debian
-    platform_version: 12.6-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.6-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:2ccc7e39b0a6f504d252f807da1fc4b5bcd838e83e4dec3e2f57b2a4a64e7214
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_7-slim:
-    image: debian:12.7-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.7-slim
-    platform_os: debian
-    platform_version: 12.7-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.7-slim
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:36e591f228bb9b99348f584e83f16e012c33ba5cad44ef5981a1d7c0a93eca22
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_8-slim:
-    image: debian:12.8-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.8-slim
-    platform_os: debian
-    platform_version: 12.8-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.8-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:d365f4920711a9074c4bcd178e8f457ee59250426441ab2a5f8106ed8fe948eb
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
-  debian-12_9-slim:
-    image: debian:12.9-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 12.9-slim
-    platform_os: debian
-    platform_version: 12.9-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/12.9-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:12c396bd585df7ec21d5679bb6a83d4878bc4415ce926c9e5ea6426d23c60bdc
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - s390x
   debian-13:
     image: debian:13
     repository: library/debian
@@ -772,7 +304,7 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:3615a749858a1cba49b408fb49c37093db813321355a9ab7c1f9f4836341e9db
+    digest: sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
     discovered_arches:
     - amd64
     - arm32v7
@@ -791,7 +323,7 @@ platforms:
       package_family: debian
     manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
+    digest: sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
     discovered_arches:
     - amd64
     - arm32v7
@@ -799,150 +331,39 @@ platforms:
     - ppc64le
     - riscv64
     - s390x
-  debian-13_0-slim:
-    image: debian:13.0-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 13.0-slim
-    platform_os: debian
-    platform_version: 13.0-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.0-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:c85a2732e97694ea77237c61304b3bb410e0e961dd6ee945997a06c788c545bb
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-  debian-13_1-slim:
-    image: debian:13.1-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 13.1-slim
-    platform_os: debian
-    platform_version: 13.1-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.1-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:a347fd7510ee31a84387619a492ad6c8eb0af2f2682b916ff3e643eb076f925a
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-  debian-13_2-slim:
-    image: debian:13.2-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 13.2-slim
-    platform_os: debian
-    platform_version: 13.2-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.2-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:4bcb9db66237237d03b55b969271728dd3d955eaaa254b9db8a3db94550b1885
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-  debian-13_3-slim:
-    image: debian:13.3-slim
-    repository: library/debian
-    repository_url: https://hub.docker.com/_/debian
-    tag: 13.3-slim
-    platform_os: debian
-    platform_version: 13.3-slim
-    deps:
-      package_family: debian
-    manifest_url: https://registry-1.docker.io/v2/library/debian/manifests/13.3-slim
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:1d3c811171a08a5adaa4a163fbafd96b61b87aa871bbc7aa15431ac275d3d430
-    discovered_arches:
-    - amd64
-    - arm32v7
-    - arm64
-    - ppc64le
-    - riscv64
-    - s390x
-  fedora-40:
-    image: fedora:40
+  fedora-43:
+    image: fedora:43
     repository: library/fedora
     repository_url: https://hub.docker.com/_/fedora
-    tag: '40'
+    tag: '43'
     platform_os: fedora
-    platform_version: '40'
+    platform_version: '43'
     deps:
       package_family: rpm
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/40
+    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/43
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:3c86d25fef9d2001712bc3d9b091fc40cf04be4767e48f1aa3b785bf58d300ed
+    digest: sha256:a651ddf48ea28a06ed4e1e6519f51c9f47e7a5a138722ade87369b8fbb7e5b42
     discovered_arches:
     - amd64
     - arm64
     - ppc64le
     - s390x
-  fedora-41:
-    image: fedora:41
+  fedora-44:
+    image: fedora:44
     repository: library/fedora
     repository_url: https://hub.docker.com/_/fedora
-    tag: '41'
+    tag: '44'
     platform_os: fedora
-    platform_version: '41'
+    platform_version: '44'
     deps:
       package_family: rpm
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/41
+    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/44
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:f1a3fab47bcb3c3ddf3135d5ee7ba8b7b25f2e809a47440936212a3a50957f3d
+    digest: sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
     discovered_arches:
     - amd64
     - arm64
     - ppc64le
-    - s390x
-  fedora-42:
-    image: fedora:42
-    repository: library/fedora
-    repository_url: https://hub.docker.com/_/fedora
-    tag: '42'
-    platform_os: fedora
-    platform_version: '42'
-    deps:
-      package_family: rpm
-    manifest_url: https://registry-1.docker.io/v2/library/fedora/manifests/42
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:eb167a7adffa1489a205c83a7b9324e4cb0fae5c54645f263e70ac13f661f0e8
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    - s390x
-  opensuse-leap-15_5:
-    image: opensuse/leap:15.5
-    repository: opensuse/leap
-    repository_url: https://hub.docker.com/r/opensuse/leap
-    tag: '15.5'
-    platform_os: opensuse_leap
-    platform_version: '15.5'
-    deps:
-      package_family: suse
-    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.5
-    content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:9bd49bd34edb6cc81a47133201f5e7720db3e95ad86eccc4b05afcd83e49dd89
-    discovered_arches:
-    - amd64
-    - arm64
-    - ppc64le
-    - arm32v7
     - s390x
   opensuse-leap-15_6:
     image: opensuse/leap:15.6
@@ -955,7 +376,7 @@ platforms:
       package_family: suse
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/15.6
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:b084d6e29d975ce9123fd52bd201ac020628797f2772e9171ef76f33cc92d591
+    digest: sha256:79be7751205ea84559990fb76b1bec71e38d6fad41c70a4f6c921b803b58f421
     discovered_arches:
     - amd64
     - arm64
@@ -972,11 +393,29 @@ platforms:
       package_family: suse
     manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/16.0
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:859560554b625c225fa767b76d61253d529b95d082c2d68579ad69168d5e3da7
+    digest: sha256:7f3aeccb6a613c0fc1690d3d3e5eb493fd477ee4587de20640017fc36d72f9b0
     discovered_arches:
     - amd64
     - arm64
     - ppc64le
+    - s390x
+  opensuse-leap-16_1:
+    image: opensuse/leap:16.1
+    repository: opensuse/leap
+    repository_url: https://hub.docker.com/r/opensuse/leap
+    tag: '16.1'
+    platform_os: opensuse_leap
+    platform_version: '16.1'
+    deps:
+      package_family: suse
+    manifest_url: https://registry-1.docker.io/v2/opensuse/leap/manifests/16.1
+    content_type: application/vnd.docker.distribution.manifest.list.v2+json
+    digest: sha256:b4baa5259d4dde9704c45f29c7cd318e64ab309c9b9d675361f018f2b5009c3e
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
   opensuse-tumbleweed:
     image: opensuse/tumbleweed:latest
     repository: opensuse/tumbleweed
@@ -988,7 +427,7 @@ platforms:
       package_family: suse
     manifest_url: https://registry-1.docker.io/v2/opensuse/tumbleweed/manifests/latest
     content_type: application/vnd.docker.distribution.manifest.list.v2+json
-    digest: sha256:9a72a269bb951bff5437c532bf635b2b16213753033ba8dcc79649ee59a55b9b
+    digest: sha256:db7d09c264b72eb95655deb7a696a64d65a0159d1dfb0a4d703347669c709e44
     discovered_arches:
     - s390x
     - amd64
@@ -1007,7 +446,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/10
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:52f0a59393f919916824ad4a2991263502e5c35de772a81c284e9bb0e2edc62e
+    digest: sha256:5532d0ebb1d340b4ea6120d0fe05bf0a7b25c1a5e244995d85b4252e2c719a08
     discovered_arches:
     - amd64
     - arm64
@@ -1022,7 +461,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/10-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:5919fae396097046e16ce28cb4bf231cddcc40b3e5e45a7e8a97497e79985743
+    digest: sha256:0660af1f1bb56559b299d99d3b71d0ff51f9d593cecbd3154a46914704ec34d6
     discovered_arches:
     - amd64
     - arm64
@@ -1037,7 +476,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:64430839b73647a5fd3e91eb2b15196d3f2caa62d73ba2bac88aebb855e2c337
+    digest: sha256:21916d0f9527aa5d0b84034dcb3f6d2f01b59e633e31221b49855032ce41069a
     discovered_arches:
     - amd64
     - arm64
@@ -1052,7 +491,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/8-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:efbca1c7d21334f69fb8a7a276307c52ed0ccfdc43f1d799dd3366eb2cb20401
+    digest: sha256:cd3890d5f46aea09e0a9dfce7f7e1ba3308f77ccd8f7179a7393c67b5876cc6b
     discovered_arches:
     - amd64
     - arm64
@@ -1067,7 +506,7 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/9
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:16d4ad141e163e32693801932e07abd0981dcd815953be135bbd6e3d78fd10d6
+    digest: sha256:9c17aad70aaff782a1c31d20d5121ba205c19589d1f2ae2ee04b30b1498375c5
     discovered_arches:
     - amd64
     - arm64
@@ -1082,60 +521,59 @@ platforms:
       package_family: rpm
     manifest_url: https://registry-1.docker.io/v2/library/oraclelinux/manifests/9-slim
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:61eb90d8a1b490bbbb8f394579739c6bec1688e3e78699297108218486621c81
+    digest: sha256:fdf4581abc841d49f63cf456ea92f8152a80b5bdc62d5409a4e77827b824265c
     discovered_arches:
     - amd64
     - arm64
-  rockylinux-8:
-    image: rockylinux:8
-    repository: library/rockylinux
-    repository_url: https://hub.docker.com/_/rockylinux
-    tag: '8'
+  rockylinux-10:
+    image: rockylinux/rockylinux:10
+    repository: rockylinux/rockylinux
+    repository_url: https://hub.docker.com/r/rockylinux/rockylinux
+    tag: '10'
     platform_os: rockylinux
-    platform_version: '8'
+    platform_version: '10'
     deps:
       package_family: rpm
-    manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/8
+    manifest_url: https://registry-1.docker.io/v2/rockylinux/rockylinux/manifests/10
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:9794037624aaa6212aeada1d28861ef5e0a935adaf93e4ef79837119f2a2d04c
-    discovered_arches:
-    - amd64
-    - arm64
-  rockylinux-9:
-    image: rockylinux:9
-    repository: library/rockylinux
-    repository_url: https://hub.docker.com/_/rockylinux
-    tag: '9'
-    platform_os: rockylinux
-    platform_version: '9'
-    deps:
-      package_family: rpm
-    manifest_url: https://registry-1.docker.io/v2/library/rockylinux/manifests/9
-    content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:d7be1c094cc5845ee815d4632fe377514ee6ebcf8efaed6892889657e5ddaaa6
+    digest: sha256:827d37bc128288ccf160ee318bb3cb92d591164cb217e92f8bc61e3982ae1834
     discovered_arches:
     - amd64
     - arm64
     - ppc64le
     - s390x
-  ubuntu-20_04:
-    image: ubuntu:20.04
-    repository: library/ubuntu
-    repository_url: https://hub.docker.com/_/ubuntu
-    tag: '20.04'
-    platform_os: ubuntu
-    platform_version: '20.04'
+    - riscv64
+  rockylinux-8:
+    image: rockylinux/rockylinux:8
+    repository: rockylinux/rockylinux
+    repository_url: https://hub.docker.com/r/rockylinux/rockylinux
+    tag: '8'
+    platform_os: rockylinux
+    platform_version: '8'
     deps:
-      package_family: ubuntu
-    manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/20.04
+      package_family: rpm
+    manifest_url: https://registry-1.docker.io/v2/rockylinux/rockylinux/manifests/8
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:8feb4d8ca5354def3d8fce243717141ce31e2c428701f6682bd2fafe15388214
+    digest: sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
+    discovered_arches:
+    - arm64
+    - amd64
+  rockylinux-9:
+    image: rockylinux/rockylinux:9
+    repository: rockylinux/rockylinux
+    repository_url: https://hub.docker.com/r/rockylinux/rockylinux
+    tag: '9'
+    platform_os: rockylinux
+    platform_version: '9'
+    deps:
+      package_family: rpm
+    manifest_url: https://registry-1.docker.io/v2/rockylinux/rockylinux/manifests/9
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
     discovered_arches:
     - amd64
-    - arm32v7
     - arm64
     - ppc64le
-    - riscv64
     - s390x
   ubuntu-22_04:
     image: ubuntu:22.04
@@ -1148,7 +586,7 @@ platforms:
       package_family: ubuntu
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/22.04
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:3ba65aa20f86a0fad9df2b2c259c613df006b2e6d0bfcc8a146afb8c525a9751
+    digest: sha256:5ec03bb3441e8b0bf3b4f9cd4629a1ae763010dc3035bb8da3ae6cf026486401
     discovered_arches:
     - amd64
     - arm32v7
@@ -1167,7 +605,26 @@ platforms:
       package_family: ubuntu
     manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/24.04
     content_type: application/vnd.oci.image.index.v1+json
-    digest: sha256:d1e2e92c075e5ca139d51a140fff46f84315c0fdce203eab2807c7e495eff4f9
+    digest: sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+  ubuntu-26_04:
+    image: ubuntu:26.04
+    repository: library/ubuntu
+    repository_url: https://hub.docker.com/_/ubuntu
+    tag: '26.04'
+    platform_os: ubuntu
+    platform_version: '26.04'
+    deps:
+      package_family: ubuntu
+    manifest_url: https://registry-1.docker.io/v2/library/ubuntu/manifests/26.04
+    content_type: application/vnd.oci.image.index.v1+json
+    digest: sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
     discovered_arches:
     - amd64
     - arm32v7

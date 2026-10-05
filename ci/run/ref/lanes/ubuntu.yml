@@ -10,7 +10,7 @@ generated:
   platforms:
     - platform_id: ubuntu-24_04
       name_prefix: Ubuntu 24.04
+    - platform_id: ubuntu-26_04
+      name_prefix: Ubuntu 26.04
     - platform_id: ubuntu-22_04
       name_prefix: Ubuntu 22.04
-    - platform_id: ubuntu-20_04
-      name_prefix: Ubuntu 20.04

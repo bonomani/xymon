@@ -8,13 +8,12 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: alpine
-  primary_platform_id: alpine-3_23
+  primary_platform_id: alpine-3_24
   ordered_platform_ids:
+  - alpine-3_24
   - alpine-3_23
   - alpine-3_22
   - alpine-3_21
-  - alpine-3_20
-  - alpine-3_19
   - alpine-edge
   primary_arch: amd64
   excluded_from_primary:
@@ -49,11 +48,10 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: fedora
-  primary_platform_id: fedora-42
+  primary_platform_id: fedora-44
   ordered_platform_ids:
-  - fedora-42
-  - fedora-41
-  - fedora-40
+  - fedora-44
+  - fedora-43
   primary_arch: amd64
   excluded_from_primary: []
 - family: freebsd
@@ -93,11 +91,11 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: opensuse
-  primary_platform_id: opensuse-leap-16_0
+  primary_platform_id: opensuse-leap-16_1
   ordered_platform_ids:
+  - opensuse-leap-16_1
   - opensuse-leap-16_0
   - opensuse-leap-15_6
-  - opensuse-leap-15_5
   - opensuse-tumbleweed
   primary_arch: amd64
   excluded_from_primary:
@@ -112,8 +110,9 @@ preferred_platforms:
   primary_arch: amd64
   excluded_from_primary: []
 - family: rockylinux
-  primary_platform_id: rockylinux-9
+  primary_platform_id: rockylinux-10
   ordered_platform_ids:
+  - rockylinux-10
   - rockylinux-9
   - rockylinux-8
   primary_arch: amd64
@@ -123,6 +122,6 @@ preferred_platforms:
   ordered_platform_ids:
   - ubuntu-24_04
   - ubuntu-22_04
-  - ubuntu-20_04
+  - ubuntu-26_04
   primary_arch: amd64
   excluded_from_primary: []

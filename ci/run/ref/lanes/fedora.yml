@@ -8,6 +8,5 @@ generated:
       - defaults: riscv64
       - defaults: s390x
   platforms:
-    - platform_id: fedora-42
-    - platform_id: fedora-41
-    - platform_id: fedora-40
+    - platform_id: fedora-44
+    - platform_id: fedora-43
