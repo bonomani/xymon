@@ -5,7 +5,7 @@ containers:
         - '^\d+$'
         - '^\d+(\.\d+)?-slim$'
       ubuntu:
-        - '^\d+\.04$'           # LTS releases always use .04 minor version
+        - '^\d*[02468]\.04$'    # LTS: .04 of even years only; 25.04 is an interim release
       amazonlinux:
         - '^2$'
         - '^2023$'

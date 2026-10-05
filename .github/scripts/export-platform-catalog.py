@@ -1429,6 +1429,34 @@ def export_catalog(*, refresh_container_manifests: bool = False):
     )
 
 
+def run_self_test() -> int:
+    """Check the selection rules on fixed inputs, without the network.
+
+    Tag patterns are read from the real platform-intent.yaml, so a pattern
+    edited back to a wrong form fails here.
+    """
+    failures = 0
+
+    def check(ok: bool, what: str) -> None:
+        nonlocal failures
+        print(("PASS: " if ok else "FAIL: ") + what)
+        if not ok:
+            failures += 1
+
+    policy = load_selection_policy()
+
+    def tag(platform_os: str, value: str) -> bool:
+        return tag_allowed(policy, "containers", platform_os, value)
+
+    for lts in ("22.04", "24.04", "26.04"):
+        check(tag("ubuntu", lts), f"ubuntu {lts} is an LTS tag")
+    for interim in ("23.04", "25.04"):
+        check(not tag("ubuntu", interim), f"ubuntu {interim} is an interim release, not an LTS tag")
+
+    print(f"{'FAIL' if failures else 'PASS'}: self-test, {failures} failure(s)")
+    return 1 if failures else 0
+
+
 def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument(
@@ -1436,11 +1464,18 @@ def parse_args() -> argparse.Namespace:
         action="store_true",
         help="Refresh cached container manifest metadata from Docker Hub instead of reusing cached entries.",
     )
+    parser.add_argument(
+        "--self-test",
+        action="store_true",
+        help="Check the selection rules on fixed inputs and exit; writes nothing.",
+    )
     return parser.parse_args()
 
 
 if __name__ == "__main__":
     args = parse_args()
+    if args.self_test:
+        sys.exit(run_self_test())
     export_catalog(
         refresh_container_manifests=args.refresh_container_manifests
     )
