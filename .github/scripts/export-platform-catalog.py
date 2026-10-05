@@ -498,6 +498,13 @@ def selection_major_version(version_token: str) -> str:
     return match.group(0).split(".", 1)[0]
 
 
+def selection_base_version(version_token: str) -> str:
+    """The version a token names, without a variant suffix: "26-intel" and
+    "10-slim" are versions 26 and 10, "3.24" stays 3.24."""
+    match = re.match(r"\d+(?:\.\d+)*", version_token.strip())
+    return match.group(0) if match else version_token.strip()
+
+
 def is_moving_target_token(version_token: str) -> bool:
     token = version_token.strip().lower()
     return token in {"latest", "rolling", "tumbleweed", "edge", "current"}
@@ -671,7 +678,20 @@ def select_platform_releases(
                 ),
                 reverse=True,
             )
-            keep_ids = {platform_id for platform_id, _ in stable_sorted[: int(keep_latest_n_stable)]}
+            # Count versions, not entries: a variant of a kept version (macos-26-intel
+            # beside macos-26, a -slim twin) is the same version and must not take
+            # a slot from an older one.
+            kept_versions: list[str] = []
+            for platform_id, entry in stable_sorted:
+                version = selection_base_version(selection_version_token(platform_id, entry))
+                if version not in kept_versions:
+                    kept_versions.append(version)
+            kept_versions = kept_versions[: int(keep_latest_n_stable)]
+            keep_ids = {
+                platform_id
+                for platform_id, entry in stable_sorted
+                if selection_base_version(selection_version_token(platform_id, entry)) in kept_versions
+            }
             for platform_id, entry in matching:
                 if (
                     platform_id not in keep_ids
@@ -1458,6 +1478,23 @@ def run_self_test() -> int:
     for major in ("12", "12-slim"):
         check(tag("debian", major), f"debian {major} is listed")
     check(not tag("debian", "12.7-slim"), "debian 12.7-slim, a point release, is not listed")
+
+    def select(section: str, platform_os: str, rule: dict[str, Any], entries: dict[str, dict[str, Any]]) -> set[str]:
+        fixture_rule = {
+            "keep_versions": set(), "keep_major_versions": set(), "keep_latest_n_stable": None,
+            "keep_latest_n_major": None, "include_moving_targets": False,
+        }
+        fixture_rule.update(rule)
+        fixture_policy = {section: {"include": set(), "exclude": set(), "tag_patterns": {},
+                                    "rules": {platform_os: fixture_rule}}}
+        return set(select_platform_releases(entries, fixture_policy))
+
+    macos = {
+        label: {"runtime": "host", "platform_os": "macos", "platform_version": label.split("-")[1]}
+        for label in ("macos-26", "macos-26-intel", "macos-15")
+    }
+    kept = select("hosts", "macos", {"keep_latest_n_stable": 2}, macos)
+    check(kept == set(macos), f"newest 2 macOS versions keep 26, 26-intel and 15 (kept {sorted(kept)})")
 
     print(f"{'FAIL' if failures else 'PASS'}: self-test, {failures} failure(s)")
     return 1 if failures else 0
