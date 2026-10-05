@@ -1455,6 +1455,9 @@ def run_self_test() -> int:
     for current in ("15.6", "16.1"):
         check(tag("opensuse_leap", current), f"opensuse leap {current} is listed")
     check(not tag("opensuse_leap", "42.3"), "opensuse leap 42.3, the old numbering, is not listed")
+    for major in ("12", "12-slim"):
+        check(tag("debian", major), f"debian {major} is listed")
+    check(not tag("debian", "12.7-slim"), "debian 12.7-slim, a point release, is not listed")
 
     print(f"{'FAIL' if failures else 'PASS'}: self-test, {failures} failure(s)")
     return 1 if failures else 0
