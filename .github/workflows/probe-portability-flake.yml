@@ -24,6 +24,11 @@ jobs:
           sudo pkg_add -I bash >/dev/null 2>&1 || pkg_add -I bash >/dev/null 2>&1 || true
           command -v bash || { echo "no bash"; exit 1; }
           cd "$GITHUB_WORKSPACE" 2>/dev/null || cd ~/work/*/* 2>/dev/null || pwd
+          echo "== real check (fixed), 100 runs"
+          fails=0
+          for i in $(seq 1 100); do bash tests/buildsystem/test-suite-portability.sh > /tmp/pc.out 2>&1 || { fails=$((fails+1)); [ -f /tmp/pc.first ] || cp /tmp/pc.out /tmp/pc.first; }; done
+          echo "real check (fixed): $fails false reports of 100"
+          [ -f /tmp/pc.first ] && { echo "-- first false report:"; tail -6 /tmp/pc.first; }
           echo "== exact pipe, with stage statuses"
           for f in tests/server/xymond-noflap-list.sh tests/server/xymond-holdtime-bridge.sh; do bash .github/flake-pipe.sh "$f" 20000; done
           EOF
