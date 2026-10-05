@@ -16,7 +16,7 @@ platforms:
       package_family: rpm
   rockylinux:
     runtime: docker
-    repository: library/rockylinux
+    repository: rockylinux/rockylinux   # the project's own; library/rockylinux stops at 9
     deps:
       package_family: rpm
   oraclelinux:
