@@ -180,7 +180,7 @@ platforms:
     platform_version: latest
     provider: github-actions
     runner: macos-latest
-    alias_of: macos-15
+    alias_of: macos-26
     deps:
       key: latest
   netbsd-10_0:

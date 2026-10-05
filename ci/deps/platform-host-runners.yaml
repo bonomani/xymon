@@ -99,8 +99,6 @@ runners:
     platform_os: "macos"
     platform_version: "15"
     arch: "arm64"
-    aliases:
-      - "macos-latest"
     source: "https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md"
     availability:
       - "private"
@@ -154,6 +152,8 @@ runners:
     platform_os: "macos"
     platform_version: "26"
     arch: "arm64"
+    aliases:
+      - "macos-latest"
     source: "https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md"
     availability:
       - "private"

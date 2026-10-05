@@ -779,10 +779,10 @@ platforms:
     platform_version: '15'
     discovered_arches:
     - arm64
-    availability: &id001
+    availability:
     - private
     - public
-    resources: &id002
+    resources:
       private:
         cpu: 3 (M1)
         memory: 7 GB
@@ -907,10 +907,10 @@ platforms:
     platform_version: '26'
     discovered_arches:
     - arm64
-    availability:
+    availability: &id001
     - private
     - public
-    resources:
+    resources: &id002
       private:
         cpu: 3 (M1)
         memory: 7 GB
@@ -1030,15 +1030,15 @@ platforms:
     runtime: host
     provider: github-actions
     runner_label: macos-latest
-    resolved_runner_label: macos-15
+    resolved_runner_label: macos-26
     platform_os: macos
-    platform_version: '15'
+    platform_version: '26'
     discovered_arches:
     - arm64
     availability: *id001
     resources: *id002
-    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
-    alias_of: macos-15
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    alias_of: macos-26
   netbsd-10_0:
     runtime: vm
     platform_os: netbsd
