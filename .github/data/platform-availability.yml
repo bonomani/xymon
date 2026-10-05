@@ -1637,3 +1637,21 @@ platforms:
         container_runner_labels:
         - ubuntu-22.04
         - ubuntu-24.04
+  xcode-27:
+    runtime: host
+    provider: github-actions
+    runner_label: xcode-27
+    resolved_runner_label: xcode-27
+    platform_os: macos
+    platform_version: '27'
+    discovered_arches:
+    - arm64
+    availability:
+    - public
+    resources:
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md
+    preview: true

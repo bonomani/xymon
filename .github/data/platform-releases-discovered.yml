@@ -312,3 +312,12 @@ platforms:
     platform_os: ubuntu
     platform_version: '26.04'
     image: ubuntu:26.04
+  xcode-27:
+    runtime: host
+    platform_os: macos
+    platform_version: '27'
+    provider: github-actions
+    runner: xcode-27
+    deps:
+      key: '27'
+    preview: true

@@ -66,7 +66,7 @@ class PlatformCandidate:
         return bool(alias_of)
 
     def excluded_from_primary(self) -> bool:
-        return self.is_latest_variant() or self.is_alias()
+        return self.is_latest_variant() or self.is_alias() or bool(self.entry.get("preview"))
 
     def version_tuple(self) -> tuple[int, ...]:
         candidates = []
@@ -149,6 +149,9 @@ def missing_required_capabilities(candidate: PlatformCandidate, family_cfg: dict
 
 
 def excluded_from_primary(candidate: PlatformCandidate, family_cfg: dict) -> bool:
+    if candidate.entry.get("preview"):
+        # A preview runner (xcode-27) is never the family's reference platform.
+        return True
     if candidate.is_alias() and not family_cfg.get("allow_alias_as_primary", False):
         return True
     if candidate.is_latest_variant():

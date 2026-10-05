@@ -1270,6 +1270,8 @@ def build_platform_availability(
             for key in ("availability", "resources", "source"):
                 if runner.get(key) is not None:
                     record[key] = runner.get(key)
+            if runner.get("preview"):
+                record["preview"] = True
             discovered_runner = host_runner_discovery.get(runner_label, {})
             if discovered_runner:
                 raw_discovery = dict(discovered_runner)

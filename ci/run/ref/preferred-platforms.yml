@@ -69,9 +69,11 @@ preferred_platforms:
   ordered_platform_ids:
   - macos-26
   - macos-15
+  - xcode-27
   - macos-latest
   primary_arch: arm64
   excluded_from_primary:
+  - xcode-27
   - macos-latest
 - family: netbsd
   primary_platform_id: netbsd-11_0

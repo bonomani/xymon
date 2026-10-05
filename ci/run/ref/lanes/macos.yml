@@ -3,3 +3,11 @@ generated:
     - platform_id: macos-26
     - platform_id: macos-15
     - platform_id: macos-latest
+    - platform_id: xcode-27
+      variants:
+        - variant: server
+          allow_failure: true
+        - variant: localclient
+          allow_failure: true
+        - variant: client
+          allow_failure: true
