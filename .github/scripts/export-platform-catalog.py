@@ -488,6 +488,10 @@ def selection_allows(
 
 
 def selection_version_token(platform_id: str, entry: dict[str, Any]) -> str:
+    if entry.get("preview"):
+        # A preview runner (xcode-27) is kept like "latest" and never counted,
+        # so it cannot push a released version out of a newest-N rule.
+        return "preview"
     platform_os = str(entry.get("platform_os") or infer_platform_os(platform_id)).strip()
     if platform_os == "opensuse_tumbleweed":
         return "latest"
@@ -514,7 +518,7 @@ def selection_base_version(version_token: str) -> str:
 
 def is_moving_target_token(version_token: str) -> bool:
     token = version_token.strip().lower()
-    return token in {"latest", "rolling", "tumbleweed", "edge", "current"}
+    return token in {"latest", "rolling", "tumbleweed", "edge", "current", "preview"}
 
 
 def selection_section_for_runtime(runtime: str) -> str | None:
@@ -628,6 +632,8 @@ def discover_host_releases(
             "runner": runner_label,
             "deps": {"key": version},
         }
+        if runner.get("preview"):
+            discovered[runner_label]["preview"] = True
         raw_aliases = runner.get("aliases", [])
         if raw_aliases is None:
             continue
@@ -1547,6 +1553,11 @@ def run_self_test() -> int:
     }
     kept = select("hosts", "macos", {"keep_latest_n_stable": 2}, macos)
     check(kept == set(macos), f"newest 2 macOS versions keep 26, 26-intel and 15 (kept {sorted(kept)})")
+    with_preview = dict(macos)
+    with_preview["xcode-27"] = {"runtime": "host", "platform_os": "macos", "platform_version": "27", "preview": True}
+    kept = select("hosts", "macos", {"keep_latest_n_stable": 2, "include_moving_targets": True}, with_preview)
+    check(kept == set(with_preview),
+          f"a preview runner is kept without taking a slot: 15 stays beside 26 and xcode-27 (kept {sorted(kept)})")
 
     RELEASED_CYCLES["fedora-fixture"] = {"42", "43", "44"}
     fedora = {
