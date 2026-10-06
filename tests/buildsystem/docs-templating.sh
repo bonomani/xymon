@@ -18,10 +18,6 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/assert.sh"
 
 ROOT=$(find_root)
-
-# Server-only: install.html / xymon-apacheconf.txt are server docs.
-need_variant server
-
 DOCS="$ROOT/docs"
 
 require_gnu_make

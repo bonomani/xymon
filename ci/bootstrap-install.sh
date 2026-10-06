@@ -900,9 +900,9 @@ if [ "${VERIFY_DEPTH}" = "test" ]; then
   # skipped -- but a lane has the full source checked out, so an all-skip means
   # broken discovery, not a legitimate skip. Treat it as a hard failure (mirrors
   # .github/workflows/tests.yml).
-  # Tell the suite which build variant this lane exercised so variant-specific
-  # tests (need_variant in tests/lib/assert.sh) can skip what does not apply --
-  # e.g. server-only checks on a client/localclient lane.
+  # Tell the suite which build variant this lane exercised: the runner picks the
+  # test areas that variant ships (area_in_variant in tests/testsuite) and checks
+  # the name against the configured tree.
   export XYMON_VARIANT="${VARIANT}"
   rc=0
   ./tests/testsuite || rc=$?
