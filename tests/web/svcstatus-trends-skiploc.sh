@@ -11,7 +11,7 @@
 # locator: one hop, never two.
 #
 # Runs the real CGI against a real xymond_locator, with an rrd server
-# registered through lib/locator, as svcstatus-locator-client-link.sh does.
+# registered through lib/xymonlocator, as svcstatus-locator-client-link.sh does.
 # The redirect is built from the locator's extras, so this needs xymond_locator
 # to return them whole (#589).
 
@@ -23,7 +23,7 @@ ROOT=$(find_root)
 
 require_c_buildenv "$ROOT"
 require_bin XYMOND_LOCATOR xymond/xymond_locator
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 # shellcheck source=tests/lib/svcstatus-cgi.sh
 . "$(dirname "$0")/../lib/svcstatus-cgi.sh"
 

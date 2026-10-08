@@ -13,7 +13,7 @@
 # keeprunning set and the locator goes back to waiting; TERM clears it, and
 # the loop ends and saves the state files as before.
 #
-# Runs the real daemon on a loopback UDP port and asks it with lib/locator,
+# Runs the real daemon on a loopback UDP port and asks it with lib/xymonlocator,
 # the interactive client built beside it, whose start-up ping prints
 # "Locator is available".
 
@@ -22,7 +22,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/assert.sh"
 
 require_bin XYMOND_LOCATOR xymond/xymond_locator
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 
 work=$(mktempdir)
 export XYMONTMP="$work"

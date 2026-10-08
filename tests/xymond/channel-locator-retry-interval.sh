@@ -22,7 +22,7 @@ require_bin XYMOND_CHANNEL xymond/xymond_channel
 require_bin XYMOND_LOCATOR xymond/xymond_locator
 require_bin XYMONCMD common/xymoncmd
 require_bin XYMON common/xymon
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 
 require_shm_segments "$(grep -c 'setup_channel(C_[A-Z_]*, CHAN_MASTER)' "$(find_root)/xymond/xymond.c")"
 

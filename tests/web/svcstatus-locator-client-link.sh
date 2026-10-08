@@ -15,7 +15,7 @@
 # selects by the name historylog.sh, reads that.
 #
 # Runs the real CGI against a real xymond_locator, with a hostdata server
-# registered through lib/locator, the interactive client built beside it.
+# registered through lib/xymonlocator, the interactive client built beside it.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -25,7 +25,7 @@ ROOT=$(find_root)
 
 require_c_buildenv "$ROOT"
 require_bin XYMOND_LOCATOR xymond/xymond_locator
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 # shellcheck source=tests/lib/svcstatus-cgi.sh
 . "$(dirname "$0")/../lib/svcstatus-cgi.sh"
 

@@ -36,7 +36,7 @@ require_bin XYMON common/xymon
 # connection; a minimal container may not have it.
 command -v ps >/dev/null 2>&1 \
 	|| skip "ps not available (needed to stop the worker's connection children)"
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 
 require_shm_segments "$(grep -c 'setup_channel(C_[A-Z_]*, CHAN_MASTER)' "$(find_root)/xymond/xymond.c")"
 

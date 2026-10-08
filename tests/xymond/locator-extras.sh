@@ -15,7 +15,7 @@
 # character, so every URL built from them pointed somewhere that does not
 # exist. handle_request() now gets the real buffer size.
 #
-# Runs the real daemon and asks it with lib/locator, the interactive client
+# Runs the real daemon and asks it with lib/xymonlocator, the interactive client
 # built beside it.
 
 set -euo pipefail
@@ -23,7 +23,7 @@ set -euo pipefail
 . "$(dirname "$0")/../lib/assert.sh"
 
 require_bin XYMOND_LOCATOR xymond/xymond_locator
-require_bin LOCATOR lib/locator
+require_bin LOCATOR lib/xymonlocator
 
 work=$(mktempdir)
 export XYMONTMP="$work"
