@@ -1,0 +1,83 @@
+name: Resolve Reference Lane Context
+description: Normalize lane JSON and mode inputs for reusable ref lane workflows.
+
+inputs:
+  lane_json:
+    description: JSON-encoded lane object.
+    required: true
+  verify_depth:
+    description: Verification depth (configure|build|install|test).
+    required: true
+  goal:
+    description: Execution goal (verify|ref|compare).
+    required: true
+  ref_mode:
+    description: Reference handling mode (off|generate).
+    required: true
+  publish:
+    description: Publish channel (none|artifact).
+    required: true
+  allow_failure_mode:
+    description: Handling mode for lanes marked allow_failure (off|allow|expect_fail).
+    required: true
+
+outputs:
+  lane_env_json:
+    description: Canonical lane environment payload as JSON mapping.
+    value: ${{ steps.resolve.outputs.lane_env_json }}
+  lane_post_json:
+    description: Canonical post-processing payload as JSON mapping.
+    value: ${{ steps.resolve.outputs.lane_post_json }}
+  runtime_execution:
+    description: Runtime execution type (host|container|vm).
+    value: ${{ steps.resolve.outputs.runtime_execution }}
+  continue_on_error:
+    description: Whether lane execution steps should continue-on-error.
+    value: ${{ steps.resolve.outputs.continue_on_error }}
+  ref_os:
+    description: Reference OS key resolved for lane runtime.
+    value: ${{ steps.resolve.outputs.ref_os }}
+  architecture:
+    description: Architecture hint used by VM-backed lanes.
+    value: ${{ steps.resolve.outputs.architecture }}
+  os_version:
+    description: OS version used by VM-backed lanes.
+    value: ${{ steps.resolve.outputs.os_version }}
+  vm_memory:
+    description: VM memory for BSD lanes.
+    value: ${{ steps.resolve.outputs.vm_memory }}
+  vm_cpu_count:
+    description: VM CPU count for BSD lanes.
+    value: ${{ steps.resolve.outputs.vm_cpu_count }}
+  runtime:
+    description: Runtime key of the selected lane.
+    value: ${{ steps.resolve.outputs.runtime }}
+  runtime_outcome_channel:
+    description: Outcome channel for selecting lane result source.
+    value: ${{ steps.resolve.outputs.runtime_outcome_channel }}
+
+runs:
+  using: composite
+  steps:
+    - name: Normalize lane context
+      id: resolve
+      shell: bash
+      env:
+        INPUT_LANE_JSON: ${{ inputs.lane_json }}
+        INPUT_VERIFY_DEPTH: ${{ inputs.verify_depth }}
+        INPUT_GOAL: ${{ inputs.goal }}
+        INPUT_REF_MODE: ${{ inputs.ref_mode }}
+        INPUT_PUBLISH: ${{ inputs.publish }}
+        INPUT_ALLOW_FAILURE_MODE: ${{ inputs.allow_failure_mode }}
+      run: |
+        set -euo pipefail
+
+        python3 ci/run/ref/resolve-lane-context.py \
+          --lane-json "${INPUT_LANE_JSON}" \
+          --verify-depth "${INPUT_VERIFY_DEPTH}" \
+          --goal "${INPUT_GOAL}" \
+          --ref-mode "${INPUT_REF_MODE}" \
+          --publish "${INPUT_PUBLISH}" \
+          --allow-failure-mode "${INPUT_ALLOW_FAILURE_MODE}" \
+          --runtime-model "ci/run/ref/runtime-model.json" \
+          --github-output "${GITHUB_OUTPUT}"

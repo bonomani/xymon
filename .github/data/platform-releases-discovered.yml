@@ -1,0 +1,323 @@
+source:
+  platform_catalog: ci/deps/platform-catalog.yaml
+  platform_intent: ci/deps/platform-intent.yaml
+platforms:
+  almalinux-10:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '10'
+    image: almalinux:10
+  almalinux-8:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '8'
+    image: almalinux:8
+  almalinux-9:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '9'
+    image: almalinux:9
+  alpine-3_21:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.21'
+    image: alpine:3.21
+  alpine-3_22:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.22'
+    image: alpine:3.22
+  alpine-3_23:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.23'
+    image: alpine:3.23
+  alpine-3_24:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.24'
+    image: alpine:3.24
+  alpine-edge:
+    runtime: docker
+    platform_os: alpine
+    platform_version: edge
+    image: alpine:edge
+  amazonlinux-2:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2'
+    image: amazonlinux:2
+  amazonlinux-2023:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2023'
+    image: amazonlinux:2023
+  archlinux-base:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: base
+    image: archlinux:base
+  archlinux-latest:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: latest
+    image: archlinux:latest
+  centos-7:
+    runtime: docker
+    platform_os: centos
+    platform_version: '7'
+    image: centos:7
+  debian-11:
+    runtime: docker
+    platform_os: debian
+    platform_version: '11'
+    image: debian:11
+  debian-11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11-slim
+    image: debian:11-slim
+  debian-12:
+    runtime: docker
+    platform_os: debian
+    platform_version: '12'
+    image: debian:12
+  debian-12-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12-slim
+    image: debian:12-slim
+  debian-13:
+    runtime: docker
+    platform_os: debian
+    platform_version: '13'
+    image: debian:13
+  debian-13-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13-slim
+    image: debian:13-slim
+  fedora-43:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '43'
+    image: fedora:43
+  fedora-44:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '44'
+    image: fedora:44
+  freebsd-14_3:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.3'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-14_4:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.4'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-14_5:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '14.5'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-15_0:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '15.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  freebsd-15_1:
+    runtime: vm
+    platform_os: freebsd
+    platform_version: '15.1'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/freebsd-builder
+    source_arch: x86-64
+  macos-15:
+    runtime: host
+    platform_os: macos
+    platform_version: '15'
+    provider: github-actions
+    runner: macos-15
+    deps:
+      key: '15'
+  macos-15-intel:
+    runtime: host
+    platform_os: macos
+    platform_version: '15'
+    provider: github-actions
+    runner: macos-15-intel
+    deps:
+      key: '15'
+  macos-26:
+    runtime: host
+    platform_os: macos
+    platform_version: '26'
+    provider: github-actions
+    runner: macos-26
+    deps:
+      key: '26'
+  macos-26-intel:
+    runtime: host
+    platform_os: macos
+    platform_version: '26'
+    provider: github-actions
+    runner: macos-26-intel
+    deps:
+      key: '26'
+  macos-latest:
+    runtime: host
+    platform_os: macos
+    platform_version: latest
+    provider: github-actions
+    runner: macos-latest
+    alias_of: macos-26
+    deps:
+      key: latest
+  netbsd-10_0:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '10.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-10_1:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '10.1'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  netbsd-11_0:
+    runtime: vm
+    platform_os: netbsd
+    platform_version: '11.0'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/netbsd-builder
+    source_arch: x86-64
+  openbsd-7_6:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.6'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_7:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.7'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_8:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.8'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  openbsd-7_9:
+    runtime: vm
+    platform_os: openbsd
+    platform_version: '7.9'
+    provider: cross-platform-actions
+    repo: cross-platform-actions/openbsd-builder
+    source_arch: x86-64
+  opensuse-leap-15_6:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '15.6'
+    image: opensuse/leap:15.6
+  opensuse-leap-16_0:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '16.0'
+    image: opensuse/leap:16.0
+  opensuse-leap-16_1:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '16.1'
+    image: opensuse/leap:16.1
+  opensuse-tumbleweed:
+    runtime: docker
+    platform_os: opensuse_tumbleweed
+    platform_version: latest
+    image: opensuse/tumbleweed:latest
+  oraclelinux-10:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '10'
+    image: oraclelinux:10
+  oraclelinux-10-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 10-slim
+    image: oraclelinux:10-slim
+  oraclelinux-8:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '8'
+    image: oraclelinux:8
+  oraclelinux-8-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 8-slim
+    image: oraclelinux:8-slim
+  oraclelinux-9:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '9'
+    image: oraclelinux:9
+  oraclelinux-9-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 9-slim
+    image: oraclelinux:9-slim
+  rockylinux-10:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '10'
+    image: rockylinux/rockylinux:10
+  rockylinux-8:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '8'
+    image: rockylinux/rockylinux:8
+  rockylinux-9:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '9'
+    image: rockylinux/rockylinux:9
+  ubuntu-22_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '22.04'
+    image: ubuntu:22.04
+  ubuntu-24_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '24.04'
+    image: ubuntu:24.04
+  ubuntu-26_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '26.04'
+    image: ubuntu:26.04
+  xcode-27:
+    runtime: host
+    platform_os: macos
+    platform_version: '27'
+    provider: github-actions
+    runner: xcode-27
+    deps:
+      key: '27'
+    preview: true

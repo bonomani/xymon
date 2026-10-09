@@ -1,0 +1,252 @@
+name: Pipeline - Select and Run Lanes
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Select which reference-generation family to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - alpine
+          - archlinux
+          - centos7
+          - debian
+          - amazonlinux
+          - freebsd
+          - macos
+          - netbsd
+          - openbsd
+          - opensuse
+          - rockylinux
+          - almalinux
+          - fedora
+          - oraclelinux
+          - ubuntu
+      variant:
+        description: Select which lane variant to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - server
+          - localclient
+          - client
+      arch:
+        description: Select which artifact architecture to run
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - amd64
+          - arm64
+          - arm32v7
+          - ppc64le
+          - riscv64
+          - s390x
+      coverage_policy:
+        description: Secondary-arch coverage (none, latest_only, stable_only, or all)
+        required: true
+        type: choice
+        default: latest_only
+        options:
+          - none
+          - latest_only
+          - stable_only
+          - all
+      rolling_policy:
+        description: Rolling-release platform selection policy
+        required: true
+        type: choice
+        default: primary_only
+        options:
+          - exclude
+          - primary_only
+          - include
+      build_tool:
+        description: Build tool selection
+        required: true
+        type: choice
+        default: make
+        options:
+          - make
+          - cmake
+      compiler:
+        description: Compiler selection (auto|gcc|clang)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - gcc
+          - clang
+      profile:
+        description: Layout/profile selection (auto|default|debian|gnuinstall|packaging; debian requires make, gnuinstall/packaging require cmake)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - default
+          - debian
+          - packaging
+          - gnuinstall
+      install_mode:
+        description: Install semantics (auto follows current profile defaults; make debian currently requires package)
+        required: true
+        type: choice
+        default: auto
+        options:
+          - auto
+          - source
+          - package
+      verify_depth:
+        description: Verification depth (configure|build|install|test, ref_mode!=off forces install; test runs tests/testsuite after install on every native lane, container and BSD VM alike, and downgrades to install only on emulated foreign-arch lanes)
+        required: true
+        type: choice
+        default: install
+        options:
+          - configure
+          - build
+          - install
+          - test
+      ref_mode:
+        description: "Reference mode: off → goal=verify (build only), generate → goal=ref (build + publish artifacts)"
+        required: true
+        type: choice
+        default: 'off'
+        options:
+          - 'off'
+          - generate
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure
+        required: true
+        type: choice
+        default: allow
+        options:
+          - 'off'
+          - allow
+          - expect_fail
+      source_ref:
+        description: Optional branch or tag to run this selector on
+        required: false
+        type: string
+permissions:
+  contents: read
+
+jobs:
+  redispatch-selected-ref:
+    if: ${{ github.event_name == 'workflow_dispatch' && inputs.source_ref != '' && inputs.source_ref != github.ref_name && inputs.source_ref != github.ref }}
+    runs-on: ubuntu-22.04
+    permissions:
+      actions: write
+      contents: read
+    steps:
+      - name: Dispatch this workflow on selected ref
+        uses: actions/github-script@v8
+        with:
+          retries: 5
+          # Keep caller/config errors non-retriable while retrying transient 5xx/network faults.
+          retry-exempt-status-codes: 400,401,403,404,422
+          script: |
+            await github.rest.actions.createWorkflowDispatch({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              workflow_id: 'pipeline-select-run-lanes.yml',
+              ref: '${{ inputs.source_ref }}',
+              inputs: {
+                family: '${{ inputs.family }}',
+                variant: '${{ inputs.variant }}',
+                arch: '${{ inputs.arch }}',
+                coverage_policy: '${{ inputs.coverage_policy }}',
+                rolling_policy: '${{ inputs.rolling_policy }}',
+                build_tool: '${{ inputs.build_tool }}',
+                compiler: '${{ inputs.compiler }}',
+                profile: '${{ inputs.profile }}',
+                install_mode: '${{ inputs.install_mode }}',
+                verify_depth: '${{ inputs.verify_depth }}',
+                ref_mode: '${{ inputs.ref_mode }}',
+                allow_failure_mode: '${{ inputs.allow_failure_mode }}',
+                source_ref: '${{ inputs.source_ref }}'
+              }
+            });
+            core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, coverage_policy=${{ inputs.coverage_policy }}, rolling_policy=${{ inputs.rolling_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
+
+  build-matrix:
+    if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix_all: ${{ steps.prepare_matrix.outputs.matrix_all }}
+      verify_depth: ${{ steps.prepare_matrix.outputs.verify_depth }}
+      goal: ${{ steps.prepare_matrix.outputs.goal }}
+      ref_mode: ${{ steps.prepare_matrix.outputs.ref_mode }}
+      publish: ${{ steps.prepare_matrix.outputs.publish }}
+      allow_failure_mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}
+      lane_count_total: ${{ steps.prepare_matrix.outputs.lane_count_total }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve execution model
+        id: prepare_matrix
+        uses: ./.github/actions/prepare-ref-matrix
+        with:
+          family: ${{ inputs.family }}
+          variant: ${{ inputs.variant }}
+          arch: ${{ inputs.arch }}
+          coverage_policy: ${{ inputs.coverage_policy }}
+          rolling_policy: ${{ inputs.rolling_policy }}
+          requested_build_tool: ${{ inputs.build_tool }}
+          requested_compiler: ${{ inputs.compiler }}
+          requested_profile: ${{ inputs.profile }}
+          requested_install_mode: ${{ inputs.install_mode }}
+          requested_verify_depth: ${{ inputs.verify_depth }}
+          ref_mode: ${{ inputs.ref_mode }}
+          publish: ${{ inputs.ref_mode == 'generate' && 'artifact' || 'none' }}
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+          selector_workflow: .github/workflows/pipeline-select-run-lanes.yml
+          selector_purpose: generation
+
+      - name: Matrix summary
+        shell: bash
+        run: |
+          echo "Selected families: ${{ steps.prepare_matrix.outputs.selected_families }}"
+          echo "Variant filter: ${{ inputs.variant }}"
+          echo "Arch filter: ${{ inputs.arch }}"
+          echo "Coverage policy: ${{ inputs.coverage_policy }}"
+          echo "Rolling policy: ${{ inputs.rolling_policy }}"
+          echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
+          echo "Compiler: ${{ steps.prepare_matrix.outputs.compiler }}"
+          echo "Profile: ${{ steps.prepare_matrix.outputs.profile }}"
+          echo "Install mode: ${{ steps.prepare_matrix.outputs.install_mode }}"
+          echo "Verify depth: ${{ steps.prepare_matrix.outputs.verify_depth }}"
+          echo "Reference mode: ${{ steps.prepare_matrix.outputs.ref_mode }}"
+          echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}"
+          echo "Lane count (total): ${{ steps.prepare_matrix.outputs.lane_count_total }}"
+          echo "Lane counts (by runtime): ${{ steps.prepare_matrix.outputs.lane_counts_json }}"
+
+  ref-lanes:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_total != '0' }}
+    name: ${{ matrix.lane.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_all) }}
+    uses: ./.github/workflows/pipeline-run-lane-reusable.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      verify_depth: ${{ needs.build-matrix.outputs.verify_depth }}
+      goal: ${{ needs.build-matrix.outputs.goal }}
+      ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}

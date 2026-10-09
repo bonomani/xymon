@@ -1,0 +1,114 @@
+name: Pipeline - Compare Reference Artifacts
+
+on:
+  workflow_dispatch:
+    inputs:
+      family:
+        description: Select which reference-generation family to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - alpine
+          - archlinux
+          - centos7
+          - debian
+          - amazonlinux
+          - freebsd
+          - macos
+          - netbsd
+          - openbsd
+          - opensuse
+          - rockylinux
+          - almalinux
+          - fedora
+          - oraclelinux
+          - ubuntu
+      variant:
+        description: Select which lane variant to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - server
+          - localclient
+          - client
+      arch:
+        description: Select which artifact architecture to compare
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - amd64
+          - arm64
+
+permissions:
+  contents: read
+
+jobs:
+  build-matrix:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix_all: ${{ steps.prepare_matrix.outputs.matrix_all }}
+      publish: ${{ steps.prepare_matrix.outputs.publish }}
+      allow_failure_mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}
+      lane_count_total: ${{ steps.prepare_matrix.outputs.lane_count_total }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve compare execution model
+        id: prepare_matrix
+        uses: ./.github/actions/prepare-ref-matrix
+        with:
+          family: ${{ inputs.family }}
+          variant: ${{ inputs.variant }}
+          arch: ${{ inputs.arch }}
+          coverage_policy: latest_only
+          rolling_policy: primary_only
+          requested_build_tool: cmake
+          requested_compiler: auto
+          requested_profile: auto
+          requested_install_mode: auto
+          requested_verify_depth: install
+          goal: compare
+          ref_mode: off
+          publish: artifact
+          allow_failure_mode: allow
+          selector_workflow: .github/workflows/pipeline-compare-ref-artifacts.yml
+          selector_purpose: validation
+
+      - name: Matrix summary
+        shell: bash
+        run: |
+          echo "Selected families: ${{ steps.prepare_matrix.outputs.selected_families }}"
+          echo "Variant filter: ${{ inputs.variant }}"
+          echo "Arch filter: ${{ inputs.arch }}"
+          echo "Coverage policy: balanced"
+          echo "Rolling policy: primary_only"
+          echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
+          echo "Publish: ${{ steps.prepare_matrix.outputs.publish }}"
+          echo "Allow-failure mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}"
+          echo "Lane count (total): ${{ steps.prepare_matrix.outputs.lane_count_total }}"
+          echo "Lane counts (by runtime): ${{ steps.prepare_matrix.outputs.lane_counts_json }}"
+
+  compare-lanes:
+    needs: build-matrix
+    if: ${{ needs.build-matrix.outputs.lane_count_total != '0' }}
+    name: ${{ matrix.lane.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.build-matrix.outputs.matrix_all) }}
+    uses: ./.github/workflows/pipeline-compare-ref-lane-reusable.yml
+    secrets: inherit
+    with:
+      lane_name: ${{ matrix.lane.name }}
+      lane_json: ${{ toJSON(matrix.lane) }}
+      publish: ${{ needs.build-matrix.outputs.publish }}
+      allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}

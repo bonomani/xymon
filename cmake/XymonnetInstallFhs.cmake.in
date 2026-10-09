@@ -1,0 +1,9 @@
+include("@CMAKE_BINARY_DIR@/XymonInstallHelpers.cmake")
+
+xymon_resolve_runtime_path(INSTALLETCDIR "@INSTALLETCDIR_DEST@")
+
+file(INSTALL
+    DESTINATION "${INSTALLETCDIR}"
+    TYPE FILE
+    FILES "@CMAKE_CURRENT_SOURCE_DIR@/protocols.cfg"
+)

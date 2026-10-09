@@ -1,0 +1,123 @@
+name: Run BSD VM Command With Retry
+description: >
+  Starts a BSD VM with cross-platform-actions/action, retrying the start when
+  the VM never comes up, then runs the script in it once. A script that ran
+  and exited non-zero is a real failure and is reported as such, not retried.
+
+inputs:
+  operating_system:
+    description: Target operating system (freebsd/openbsd/netbsd).
+    required: true
+  architecture:
+    description: Target architecture.
+    required: false
+    default: x86-64
+  version:
+    description: Target OS version.
+    required: true
+  shell:
+    description: Shell used inside the VM.
+    required: false
+    default: bash
+  memory:
+    description: VM memory size.
+    required: false
+    default: 1024M
+  cpu_count:
+    description: VM CPU count.
+    required: false
+    default: "2"
+  sync_files:
+    description: >
+      Sync workspace files around the script: true (both ways), false (none),
+      runner-to-vm or vm-to-runner.
+    required: false
+    default: "true"
+  run_script:
+    description: Multi-line script to run in the VM.
+    required: true
+
+# The retry exists for the transient half of a BSD lane: the image download
+# and the VM boot. Starting the VM and running the script are separate steps,
+# so the start step failing means the VM never came up -- retried -- and the
+# script step failing means the script did -- reported once, not retried.
+# (Before the action's v1.x the script ran inside the start step, and a marker
+# file had to tell the two apart.)
+#
+# The script runs through cpa.sh, the helper the action puts on PATH once the
+# VM is up, called from bash so the sync direction can follow the input. No
+# shutdown is needed: the VM stops with the job.
+runs:
+  using: composite
+  steps:
+    - name: Start the VM [attempt 1]
+      id: vm_try1
+      continue-on-error: true
+      uses: cross-platform-actions/action@v1.6.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: "false"
+
+    - name: Start the VM [attempt 2]
+      if: ${{ steps.vm_try1.outcome == 'failure' }}
+      id: vm_try2
+      continue-on-error: true
+      uses: cross-platform-actions/action@v1.6.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: "false"
+
+    - name: Start the VM [attempt 3]
+      if: ${{ steps.vm_try2.outcome == 'failure' }}
+      id: vm_try3
+      continue-on-error: true
+      uses: cross-platform-actions/action@v1.6.0
+      with:
+        operating_system: ${{ inputs.operating_system }}
+        architecture: ${{ inputs.architecture }}
+        version: ${{ inputs.version }}
+        shell: ${{ inputs.shell }}
+        memory: ${{ inputs.memory }}
+        cpu_count: ${{ inputs.cpu_count }}
+        sync_files: "false"
+
+    - name: Report a VM that never came up
+      if: ${{ steps.vm_try1.outcome == 'failure' && steps.vm_try2.outcome == 'failure' && steps.vm_try3.outcome == 'failure' }}
+      shell: bash
+      run: |
+        echo "The BSD VM never came up in 3 attempts (image download or boot); the script did not run." >&2
+        exit 1
+
+    # The sync back is a step of its own, run whatever the script did: a lane
+    # that fails still needs its logs and artifacts on the runner, and that
+    # must not depend on how cpa.sh treats a failing file.
+    - name: Run the script in the VM
+      id: script
+      shell: bash
+      env:
+        RUN_SCRIPT: ${{ inputs.run_script }}
+        SYNC_FILES: ${{ inputs.sync_files }}
+      run: |
+        case "${SYNC_FILES}" in
+          true|runner-to-vm) before=runner-to-vm ;;
+          false|vm-to-runner) before=none ;;
+          *) echo "sync_files must be true, false, runner-to-vm or vm-to-runner, not '${SYNC_FILES}'" >&2; exit 2 ;;
+        esac
+        script="$(mktemp "${RUNNER_TEMP:-/tmp}/bsd-vm-script.XXXXXX")"
+        printf '%s\n' "${RUN_SCRIPT}" > "${script}"
+        cpa.sh "${script}" --sync-files "${before}"
+
+    - name: Sync files back from the VM
+      if: ${{ always() && steps.script.outcome != 'skipped' && (inputs.sync_files == 'true' || inputs.sync_files == 'vm-to-runner') }}
+      shell: bash
+      run: cpa.sh --sync-files vm-to-runner

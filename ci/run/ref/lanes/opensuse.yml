@@ -1,0 +1,21 @@
+generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+      - defaults: arm32v7
+      - defaults: ppc64le
+      - defaults: riscv64
+      - defaults: s390x
+
+  platforms:
+    - platform_id: opensuse-leap-16_1
+    - platform_id: opensuse-leap-16_0
+    - platform_id: opensuse-leap-15_6
+    - platform_id: opensuse-tumbleweed
+      variants:
+        - variant: server
+          allow_failure: true
+        - variant: localclient
+          allow_failure: true
+        - client

@@ -1,0 +1,152 @@
+name: Pipeline - Run Lane (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      lane_name:
+        description: Display name for the lane
+        required: true
+        type: string
+      lane_json:
+        description: JSON-encoded lane object
+        required: true
+        type: string
+      verify_depth:
+        description: Verification depth (configure|build|install|test)
+        required: true
+        type: string
+      goal:
+        description: Execution goal (verify|ref)
+        required: true
+        type: string
+      ref_mode:
+        description: Reference handling mode (off|generate)
+        required: true
+        type: string
+      publish:
+        description: Publish channel (none|artifact)
+        required: true
+        type: string
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure (off|allow|expect_fail)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  lane:
+    name: ${{ inputs.lane_name }}
+    runs-on: ${{ fromJSON(inputs.lane_json).runs_on }}
+    # Backstop: slowest healthy lane (macOS server) takes ~100 minutes.
+    timeout-minutes: 180
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve lane context
+        id: lane_ctx
+        uses: ./.github/actions/ref-lane-context
+        with:
+          lane_json: ${{ inputs.lane_json }}
+          verify_depth: ${{ inputs.verify_depth }}
+          goal: ${{ inputs.goal }}
+          ref_mode: ${{ inputs.ref_mode }}
+          publish: ${{ inputs.publish }}
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+
+      - name: Render lane environment
+        id: lane_env
+        uses: ./.github/actions/render-lane-env
+        with:
+          lane_env_json: ${{ steps.lane_ctx.outputs.lane_env_json }}
+          output: tmp/xymon-refs/lane.env.sh
+
+      - name: Set up QEMU for emulated container lanes
+        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'container' && (contains(inputs.lane_json, 'linux/arm/v7') || contains(inputs.lane_json, 'linux/ppc64le') || contains(inputs.lane_json, 'linux/riscv64') || contains(inputs.lane_json, 'linux/s390x')) }}
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm,ppc64le,riscv64,s390x
+
+      # xymond attaches one SysV shared-memory segment per channel and sets up
+      # nine (C_STATUS..C_USER); macOS ships kern.sysv.shmseg=8, so xymond
+      # cannot start and tests/server/hostdata-save-next.sh -- the only test
+      # that runs a real xymond -- fails on every macOS lane (#345).
+      #
+      # Raising it at runtime does stick on the GitHub-hosted runners: probed
+      # on macOS 26, "before: 8 / after: 16". That is worth stating because the
+      # kern.sysv.* group is usually described as boot-time only, so a future
+      # reader may reasonably expect this step to be useless. 16 rather than 9
+      # leaves room for another channel without touching CI again.
+      #
+      # Deliberately not continue-on-error: if a macOS release stops honouring
+      # this, the lane should say so rather than quietly go back to failing
+      # inside the suite.
+      - name: Raise the SysV shared-memory segment limit (macOS, #345)
+        if: ${{ steps.lane_ctx.outputs.runtime == 'macos_host' }}
+        run: |
+          sudo sysctl -w kern.sysv.shmseg=16
+          have=$(sysctl -n kern.sysv.shmseg)
+          [ "$have" -ge 9 ] || { echo "::error::kern.sysv.shmseg is $have, xymond needs 9"; exit 1; }
+
+      - name: Run lane orchestration (host/container)
+        id: lane_run_host_container
+        if: ${{ steps.lane_ctx.outputs.runtime_execution != 'vm' }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
+        shell: bash
+        env:
+          LANE_ENV_FILE: ${{ steps.lane_env.outputs.path }}
+        run: |
+          set -euo pipefail
+          bash ci/run/ref/run-runtime-lane.sh
+
+      - name: Run lane orchestration on BSD VM
+        id: lane_run_bsd_vm
+        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'vm' }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
+        # cross-platform-actions retries the VM SSH handshake forever when the
+        # VM never boots; healthy BSD lanes finish in <5 minutes, so bound the
+        # whole step (all 3 retry attempts) instead of hanging for hours.
+        timeout-minutes: 30
+        uses: ./.github/actions/run-bsd-vm-with-retry
+        with:
+          operating_system: ${{ steps.lane_ctx.outputs.ref_os }}
+          architecture: ${{ steps.lane_ctx.outputs.architecture }}
+          version: ${{ steps.lane_ctx.outputs.os_version }}
+          shell: bash
+          memory: ${{ steps.lane_ctx.outputs.vm_memory }}
+          cpu_count: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
+          sync_files: true
+          run_script: |
+            set -euo pipefail
+            export LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}"
+            bash ci/run/ref/run-runtime-lane.sh
+
+      - name: Resolve lane run outcome
+        id: lane_outcome
+        if: ${{ always() }}
+        shell: bash
+        env:
+          RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
+          OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
+          OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
+        run: |
+          set -euo pipefail
+          python3 ci/run/ref/runtime_resolution.py outcome \
+            --runtime "${RUNTIME}" \
+            --outcome-host-container "${OUTCOME_HOST_CONTAINER}" \
+            --outcome-bsd-vm "${OUTCOME_BSD_VM}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Post lane (policy + artifacts)
+        if: ${{ always() }}
+        uses: ./.github/actions/ref-lane-post
+        with:
+          lane_post_json: ${{ steps.lane_ctx.outputs.lane_post_json }}
+          lane_outcome: ${{ steps.lane_outcome.outputs.value }}

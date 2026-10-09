@@ -1,0 +1,50 @@
+version_notes_file: deps-version-notes.yaml
+profiles:
+  linux_default:
+    libs:
+      mandatory:
+      - BUILD_TOOLS
+      - OpenSSL
+      - TIRPC
+    tools:
+      optional:
+      - clang
+  macos_default:
+    # macOS provides Sun RPC/XDR in the base SDK, and MacPorts has no libtirpc
+    # port, so TIRPC is intentionally omitted here (see deps-targets.yaml).
+    libs:
+      mandatory:
+      - BUILD_TOOLS
+      - OpenSSL
+    tools:
+      optional:
+      - clang
+  bsd_freebsd:
+    libs:
+      mandatory:
+      - BUILD_TOOLS
+      base_system:
+      - OpenSSL
+      - TIRPC
+      - PYTHON
+    tools:
+      optional:
+      - clang
+  bsd_net_open:
+    libs:
+      mandatory:
+      - BUILD_TOOLS
+      base_system:
+      - OpenSSL
+      - TIRPC
+    tools:
+      optional:
+      - clang
+runtime:
+  libs:
+    optional:
+  tools:
+    mandatory:
+    optional:
+    - perl
+    - python

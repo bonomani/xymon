@@ -1,0 +1,144 @@
+# Shared reference family catalog:
+# - common defines per-family topology (runtime/lane_file/shared knobs)
+# - generation/validation are purpose overlays (delta-only)
+runtime_defaults_shared:
+  linux_host:
+    runs_on: ubuntu-22.04
+  linux_container:
+    runs_on: ubuntu-22.04
+    prepare_profile: default
+    checkout_mode: action
+  bsd_vm:
+    runs_on: ubuntu-22.04
+    vm_memory: 1024M
+    vm_cpu_count: 2
+  macos_host:
+    runs_on: macos-latest
+
+runtime_defaults:
+  generation:
+    bsd_vm:
+      architecture: x86-64
+
+lane_defaults_shared:
+  linux_container:
+    _all:
+      runs_on: ubuntu-22.04
+      container_options: --platform linux/amd64
+    arm64:
+      runs_on: ubuntu-24.04-arm
+      architecture: arm64
+      container_options: --platform linux/arm64/v8
+    arm32v7:
+      runs_on: ubuntu-22.04
+      architecture: arm32v7
+      container_options: --platform linux/arm/v7
+    ppc64le:
+      runs_on: ubuntu-22.04
+      architecture: ppc64le
+      container_options: --platform linux/ppc64le
+    riscv64:
+      runs_on: ubuntu-22.04
+      architecture: riscv64
+      container_options: --platform linux/riscv64
+    s390x:
+      runs_on: ubuntu-22.04
+      architecture: s390x
+      container_options: --platform linux/s390x
+
+families:
+- family: alpine
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/alpine.yml
+    container_arm64_overrides:
+      checkout_mode: git
+
+- family: archlinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/archlinux.yml
+
+- family: centos7
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/centos7.yml
+    lane_overrides:
+      prepare_profile: centos7
+      checkout_mode: git
+
+- family: debian
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/debian.yml
+
+- family: amazonlinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/amazonlinux.yml
+    lane_overrides:
+      prepare_profile: redhat
+
+- family: freebsd
+  common:
+    runtime: bsd_vm
+    lane_file: ci/run/ref/lanes/freebsd.yml
+    os_version_key: freebsd_version
+    default_architecture: x86-64
+
+- family: macos
+  common:
+    runtime: macos_host
+    lane_file: ci/run/ref/lanes/macos.yml
+    os_version_key: macos_version
+  validation:
+    lane_overrides:
+      baseline_root: make__macos
+
+- family: netbsd
+  common:
+    runtime: bsd_vm
+    lane_file: ci/run/ref/lanes/netbsd.yml
+    os_version_key: netbsd_version
+    default_architecture: x86-64
+
+- family: openbsd
+  common:
+    runtime: bsd_vm
+    lane_file: ci/run/ref/lanes/openbsd.yml
+    os_version_key: openbsd_version
+    default_architecture: x86-64
+
+- family: opensuse
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/opensuse.yml
+
+- family: rockylinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/rockylinux.yml
+    lane_overrides:
+      prepare_profile: redhat
+
+- family: almalinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/almalinux.yml
+    lane_overrides:
+      prepare_profile: redhat
+
+- family: fedora
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/fedora.yml
+
+- family: oraclelinux
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/oraclelinux.yml
+
+- family: ubuntu
+  common:
+    runtime: linux_container
+    lane_file: ci/run/ref/lanes/ubuntu.yml

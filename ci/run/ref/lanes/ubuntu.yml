@@ -1,0 +1,16 @@
+generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+      - defaults: arm32v7
+      - defaults: ppc64le
+      - defaults: riscv64
+      - defaults: s390x
+  platforms:
+    - platform_id: ubuntu-24_04
+      name_prefix: Ubuntu 24.04
+    - platform_id: ubuntu-26_04
+      name_prefix: Ubuntu 26.04
+    - platform_id: ubuntu-22_04
+      name_prefix: Ubuntu 22.04

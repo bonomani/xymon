@@ -1,0 +1,4 @@
+targets_file: deps-targets.yaml
+base_file: deps-base.yaml
+overlay_file: deps-overlays.yaml
+overlay_variant: server

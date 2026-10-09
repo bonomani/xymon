@@ -1,0 +1,184 @@
+#!/usr/bin/env bash
+set -euo pipefail
+
+build_tool="${build_tool:-}"
+ci_compiler="${ci_compiler:-}"
+profile="${profile:-}"
+install_mode="${install_mode:-}"
+goal="${goal:-}"
+verify_depth="${verify_depth:-}"
+ref_mode="${ref_mode:-}"
+publish="${publish:-}"
+variant="${variant:-}"
+baseline_root="${baseline_root:-}"
+ref_os="${ref_os:-}"
+platform_os="${platform_os:-}"
+artifact_family="${artifact_family:-}"
+platform_id="${platform_id:-}"
+os_version="${os_version:-}"
+refs_root="${refs_root:-}"
+artifact_root="${artifact_root:-}"
+legacy_hostname_config="${legacy_hostname_config:-}"
+baseline_prefix="${baseline_prefix:-}"
+candidate_dir="${candidate_dir:-}"
+
+require_var() {
+  local name="$1"
+  if [[ -z "${!name:-}" ]]; then
+    echo "Missing prepared variable: ${name}" >&2
+    exit 2
+  fi
+}
+
+require_var build_tool
+require_var goal
+require_var verify_depth
+require_var ci_compiler
+require_var profile
+require_var install_mode
+require_var variant
+require_var ref_os
+require_var platform_os
+require_var platform_id
+
+if [[ "${goal}" == "ref" ]]; then
+  for var_name in \
+    baseline_root artifact_family refs_root artifact_root \
+    baseline_prefix candidate_dir; do
+    if [[ -z "${!var_name:-}" ]]; then
+      echo "Missing prepared variable for goal=ref: ${var_name}" >&2
+      exit 2
+    fi
+  done
+fi
+
+if [[ -z "${CI_DEPS_REPORT_JSON:-}" ]]; then
+  echo "Missing CI_DEPS_REPORT_JSON" >&2
+  exit 2
+fi
+mkdir -p "$(dirname "${CI_DEPS_REPORT_JSON}")"
+
+case "${ci_compiler}" in
+  gcc|clang)
+    ;;
+  *)
+    echo "Unsupported prepared compiler value: ${ci_compiler}" >&2
+    exit 2
+    ;;
+esac
+
+case "${build_tool}" in
+  make)
+    case "${profile}" in
+      default|debian)
+        ;;
+      *)
+        echo "Unsupported prepared profile value for make: ${profile}" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  cmake)
+    case "${profile}" in
+      default|gnuinstall|packaging)
+        ;;
+      *)
+        echo "Unsupported prepared profile value for cmake: ${profile}" >&2
+        exit 2
+        ;;
+    esac
+    ;;
+  *)
+    echo "Unsupported prepared build_tool value: ${build_tool}" >&2
+    exit 2
+    ;;
+esac
+
+case "${install_mode}" in
+  source|package)
+    ;;
+  *)
+    echo "Unsupported prepared install_mode value: ${install_mode}" >&2
+    exit 2
+    ;;
+esac
+
+case "${verify_depth}" in
+  configure|build|install|test)
+    ;;
+  *)
+    echo "Unsupported prepared verify_depth value: ${verify_depth}" >&2
+    exit 2
+    ;;
+esac
+if [[ "${goal}" == "ref" ]]; then
+  verify_depth="install"
+fi
+
+run_core_build_install() {
+  local args=(
+    bash
+    ci/bootstrap-install.sh
+    --os "${ref_os}"
+    --platform-os "${platform_os}"
+    --variant "${variant}"
+    --build "${build_tool}"
+    --compiler "${ci_compiler}"
+    --profile "${profile}"
+    --install-mode "${install_mode}"
+    --verify-depth "${verify_depth}"
+  )
+  if [[ -n "${os_version}" ]]; then
+    args+=(--version "${os_version}")
+  fi
+  "${args[@]}"
+}
+
+run_ref_snapshot() {
+  local args=(
+    bash
+    ci/run/ref/bootstrap-build-refs.sh
+    --build "${build_tool}"
+    --compiler "${ci_compiler}"
+    --profile "${profile}"
+    --install-mode "${install_mode}"
+    --verify-depth "${verify_depth}"
+    --os "${ref_os}"
+    --platform-os "${platform_os}"
+    --variant "${variant}"
+    --ref-prefix "${baseline_prefix}"
+    --refs-root "${refs_root}"
+    --artifact-root "${artifact_root}"
+  )
+  if [[ -n "${os_version}" ]]; then
+    args+=(--version "${os_version}")
+  fi
+  "${args[@]}"
+}
+
+echo "=== Lane execution ==="
+echo "ref_mode=${ref_mode} (goal=${goal}) verify_depth=${verify_depth} publish=${publish}"
+echo "build=${build_tool} compiler=${ci_compiler} profile=${profile} install_mode=${install_mode} ref_os=${ref_os} platform_os=${platform_os} variant=${variant}"
+
+if [[ "${goal}" == "ref" ]]; then
+  export XYMONHOSTNAME="localhost"
+  export XYMONHOSTIP="127.0.0.1"
+  echo "Using fixed ref identity: XYMONHOSTNAME=${XYMONHOSTNAME} XYMONHOSTIP=${XYMONHOSTIP}"
+fi
+
+case "${goal}" in
+  verify)
+    run_core_build_install
+    ;;
+  ref)
+    if [[ "${ref_mode}" != "generate" ]]; then
+      echo "Unsupported ref_mode for goal=ref in lane runtime: ${ref_mode}" >&2
+      exit 2
+    fi
+    run_ref_snapshot
+    ;;
+  *)
+    echo "Unsupported goal value: ${goal}" >&2
+    exit 2
+    ;;
+esac

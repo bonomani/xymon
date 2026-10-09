@@ -1,0 +1,1657 @@
+source:
+  platform_catalog: ci/deps/platform-catalog.yaml
+  platform_releases_discovered: .github/data/platform-releases-discovered.yml
+  platform_intent: ci/deps/platform-intent.yaml
+  docker_availability_raw: .github/data/docker-availability-raw.yml
+  host_runner_catalog: ci/deps/platform-host-runners.yaml
+  host_runner_discovery: .github/data/host-runners-discovered.yml
+platforms:
+  almalinux-10:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '10'
+    image: almalinux:10
+    digest: sha256:838c2fafefb1a8a0d7f8cdbc3b0551c2a2b1eb0cd87aad6d62aecadb18311f1b
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  almalinux-8:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '8'
+    image: almalinux:8
+    digest: sha256:8b469a3a78515e8a18ea8fc727e6a3679e1d0c5ba6f58d5b30be3d0d9b86cffe
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  almalinux-9:
+    runtime: docker
+    platform_os: almalinux
+    platform_version: '9'
+    image: almalinux:9
+    digest: sha256:9819dc675b67b595c2b59e42be7763fca1a8bb217fa5944e04daa22e9a64db16
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  alpine-3_21:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.21'
+    image: alpine:3.21
+    digest: sha256:ce64758a109eb420d874a118f87920e625e12d3634e03b4a5573fd9f6e5d3507
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  alpine-3_22:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.22'
+    image: alpine:3.22
+    digest: sha256:5291449c3df73caf6ed85e649dec1b9e818b39a5d8c871e97afc13e9cd5e8fa8
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  alpine-3_23:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.23'
+    image: alpine:3.23
+    digest: sha256:85fe1e81d6758c208f3e1eed4338a1997e19d4be002d4dd32d3100c9a8c010a0
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  alpine-3_24:
+    runtime: docker
+    platform_os: alpine
+    platform_version: '3.24'
+    image: alpine:3.24
+    digest: sha256:294b683cb724975bec92580e1e685676bd4b50bda910ddb8c51d4cabeaec77e6
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  alpine-edge:
+    runtime: docker
+    platform_os: alpine
+    platform_version: edge
+    image: alpine:edge
+    digest: sha256:020dfcbaaf4cc1078bf2d9c7ba31a8466e334061dcd2f248001d68f79e52c000
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  amazonlinux-2:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2'
+    image: amazonlinux:2
+    digest: sha256:901ee465e730086c419a5f12396b2cf07c08649d469f7d7a719f695e2bbd8a3b
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  amazonlinux-2023:
+    runtime: docker
+    platform_os: amazonlinux
+    platform_version: '2023'
+    image: amazonlinux:2023
+    digest: sha256:5b29412077a463b4a3a8fbc99a8cdf4b929f38a3ecc8dac10328d8f36b0099b8
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  archlinux-base:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: base
+    image: archlinux:base
+    digest: sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
+    discovered_arches:
+    - amd64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  archlinux-latest:
+    runtime: docker
+    platform_os: archlinux
+    platform_version: latest
+    image: archlinux:latest
+    digest: sha256:b21322c663be387c0ed9cbc7bbbfe18e41633ad4e7b7c77cfad45f128be20040
+    discovered_arches:
+    - amd64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  centos-7:
+    runtime: docker
+    platform_os: centos
+    platform_version: '7'
+    image: centos:7
+    digest: sha256:be65f488b7764ad3638f236b7b515b3678369a5124c47b8d32916d6487418ea4
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-11:
+    runtime: docker
+    platform_os: debian
+    platform_version: '11'
+    image: debian:11
+    digest: sha256:6f519a81440354a85eb592c5f32109ab80605f6b892455983a6f618bf87fabe9
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  debian-11-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 11-slim
+    image: debian:11-slim
+    digest: sha256:e5b6442dd2e9684cf5e87d8338b5968f3b348636fc0be6d7850a381e3731a2bd
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  debian-12:
+    runtime: docker
+    platform_os: debian
+    platform_version: '12'
+    image: debian:12
+    digest: sha256:f37a335e82bca302e955fa39f9dfe28f1be618f016f8a2b56318e5a5111afc26
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-12-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 12-slim
+    image: debian:12-slim
+    digest: sha256:3783cc01769c7b2b1b83a5c5ad96c815348e28ed7da68e2e3687004faa906251
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-13:
+    runtime: docker
+    platform_os: debian
+    platform_version: '13'
+    image: debian:13
+    digest: sha256:9cc080028c43b27d2074d63a5f9caf7166d731494965616c1a6d2827a004585c
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  debian-13-slim:
+    runtime: docker
+    platform_os: debian
+    platform_version: 13-slim
+    image: debian:13-slim
+    digest: sha256:a99cfc517144bc59b1978475ec53b46ecabec7e43635402ee5b77cc54cd1b20a
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  fedora-43:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '43'
+    image: fedora:43
+    digest: sha256:a651ddf48ea28a06ed4e1e6519f51c9f47e7a5a138722ade87369b8fbb7e5b42
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  fedora-44:
+    runtime: docker
+    platform_os: fedora
+    platform_version: '44'
+    image: fedora:44
+    digest: sha256:43b29f65a41eb9c35e1cd5323e3bdf3b655c2357a9f4f1ff2f9c2798e5045d80
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  freebsd-14_3:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.3'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-14.3-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.3-x86-64.qcow2
+    asset_size: 459492864
+    asset_updated_at: '2026-09-12T09:23:36Z'
+  freebsd-14_4:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.4'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-14.4-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.4-x86-64.qcow2
+    asset_size: 376934400
+    asset_updated_at: '2026-09-12T09:02:42Z'
+  freebsd-14_5:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '14.5'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-14.5-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-14.5-x86-64.qcow2
+    asset_size: 379910144
+    asset_updated_at: '2026-09-12T08:57:55Z'
+  freebsd-15_0:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '15.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-15.0-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-15.0-x86-64.qcow2
+    asset_size: 390987776
+    asset_updated_at: '2026-09-12T09:18:17Z'
+  freebsd-15_1:
+    runtime: vm
+    platform_os: freebsd
+    provider: cross-platform-actions
+    os: freebsd
+    version: '15.1'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/freebsd-builder
+    release_tag: v0.17.0
+    release_url: https://github.com/cross-platform-actions/freebsd-builder/releases/tag/v0.17.0
+    asset_name: freebsd-15.1-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/freebsd-builder/releases/download/v0.17.0/freebsd-15.1-x86-64.qcow2
+    asset_size: 390077440
+    asset_updated_at: '2026-09-12T09:07:18Z'
+  macos-15:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-15
+    resolved_runner_label: macos-15
+    platform_os: macos
+    platform_version: '15'
+    discovered_arches:
+    - arm64
+    availability:
+    - private
+    - public
+    resources:
+      private:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-arm64-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-05-20T21:46:27.031366+00:00'
+      runner_label: macos-15
+      system:
+        machine: arm64
+        platform: Darwin
+        release: 24.6.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
+  macos-15-intel:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-15-intel
+    resolved_runner_label: macos-15-intel
+    platform_os: macos
+    platform_version: '15'
+    discovered_arches:
+    - amd64
+    availability:
+    - private
+    - public
+    resources:
+      private:
+        cpu: '4'
+        memory: 14 GB
+        storage: 14 GB
+      public:
+        cpu: '4'
+        memory: 14 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-15-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-05-20T21:46:49.455438+00:00'
+      runner_label: macos-15-intel
+      system:
+        machine: x86_64
+        platform: Darwin
+        release: 24.6.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
+  macos-26:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-26
+    resolved_runner_label: macos-26
+    platform_os: macos
+    platform_version: '26'
+    discovered_arches:
+    - arm64
+    availability: &id001
+    - private
+    - public
+    resources: &id002
+      private:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-05-20T21:46:28.870407+00:00'
+      runner_label: macos-26
+      system:
+        machine: arm64
+        platform: Darwin
+        release: 25.3.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
+  macos-26-intel:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-26-intel
+    resolved_runner_label: macos-26-intel
+    platform_os: macos
+    platform_version: '26'
+    discovered_arches:
+    - amd64
+    availability:
+    - private
+    - public
+    resources:
+      private:
+        cpu: '4'
+        memory: 14 GB
+        storage: 14 GB
+      public:
+        cpu: '4'
+        memory: 14 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-Readme.md
+    capabilities:
+      container_runtime_available: false
+      binfmt_misc_available: false
+      container_tooling:
+        docker: false
+        podman: false
+      emulation_tooling:
+        qemu_system_x86_64: false
+        qemu_aarch64_static: false
+      virtualization:
+        kvm_device_present: false
+        kvm_accessible: false
+        nested_state: unknown
+        nested_enabled: false
+    discovery:
+      container:
+        binfmt_misc_mounted: false
+        docker_socket: false
+      probed_at: '2026-05-20T21:46:30.923054+00:00'
+      runner_label: macos-26-intel
+      system:
+        machine: x86_64
+        platform: Darwin
+        release: 25.3.0
+      tools:
+        docker:
+          path: ''
+          present: false
+        podman:
+          path: ''
+          present: false
+        qemu-aarch64-static:
+          path: ''
+          present: false
+        qemu-system-x86_64:
+          path: ''
+          present: false
+      virtualization:
+        dev_kvm_exists: false
+        dev_kvm_readable: false
+        dev_kvm_writable: false
+        nested: unknown
+  macos-latest:
+    runtime: host
+    provider: github-actions
+    runner_label: macos-latest
+    resolved_runner_label: macos-26
+    platform_os: macos
+    platform_version: '26'
+    discovered_arches:
+    - arm64
+    availability: *id001
+    resources: *id002
+    source: https://github.com/actions/runner-images/blob/main/images/macos/macos-26-arm64-Readme.md
+    alias_of: macos-26
+  netbsd-10_0:
+    runtime: vm
+    platform_os: netbsd
+    provider: cross-platform-actions
+    os: netbsd
+    version: '10.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-10.0-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-10.0-x86-64.tar.zst
+    asset_size: 264914031
+    asset_updated_at: '2026-09-08T17:21:09Z'
+  netbsd-10_1:
+    runtime: vm
+    platform_os: netbsd
+    provider: cross-platform-actions
+    os: netbsd
+    version: '10.1'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-10.1-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-10.1-x86-64.tar.zst
+    asset_size: 268209916
+    asset_updated_at: '2026-09-08T17:37:35Z'
+  netbsd-11_0:
+    runtime: vm
+    platform_os: netbsd
+    provider: cross-platform-actions
+    os: netbsd
+    version: '11.0'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/netbsd-builder
+    release_tag: v1.1.0
+    release_url: https://github.com/cross-platform-actions/netbsd-builder/releases/tag/v1.1.0
+    asset_name: netbsd-11.0-x86-64.tar.zst
+    asset_url: https://github.com/cross-platform-actions/netbsd-builder/releases/download/v1.1.0/netbsd-11.0-x86-64.tar.zst
+    asset_size: 279787105
+    asset_updated_at: '2026-09-08T17:41:11Z'
+  openbsd-7_6:
+    runtime: vm
+    platform_os: openbsd
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.6'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
+    asset_name: openbsd-7.6-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.6-x86-64.qcow2
+    asset_size: 692649984
+    asset_updated_at: '2026-08-10T07:57:17Z'
+  openbsd-7_7:
+    runtime: vm
+    platform_os: openbsd
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.7'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
+    asset_name: openbsd-7.7-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.7-x86-64.qcow2
+    asset_size: 758710272
+    asset_updated_at: '2026-08-10T07:44:05Z'
+  openbsd-7_8:
+    runtime: vm
+    platform_os: openbsd
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.8'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
+    asset_name: openbsd-7.8-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.8-x86-64.qcow2
+    asset_size: 791150592
+    asset_updated_at: '2026-08-10T07:48:24Z'
+  openbsd-7_9:
+    runtime: vm
+    platform_os: openbsd
+    provider: cross-platform-actions
+    os: openbsd
+    version: '7.9'
+    source_arch: x86-64
+    discovered_arches:
+    - amd64
+    repo: cross-platform-actions/openbsd-builder
+    release_tag: v0.14.0
+    release_url: https://github.com/cross-platform-actions/openbsd-builder/releases/tag/v0.14.0
+    asset_name: openbsd-7.9-x86-64.qcow2
+    asset_url: https://github.com/cross-platform-actions/openbsd-builder/releases/download/v0.14.0/openbsd-7.9-x86-64.qcow2
+    asset_size: 669057024
+    asset_updated_at: '2026-08-10T07:39:29Z'
+  opensuse-leap-15_6:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '15.6'
+    image: opensuse/leap:15.6
+    digest: sha256:79be7751205ea84559990fb76b1bec71e38d6fad41c70a4f6c921b803b58f421
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  opensuse-leap-16_0:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '16.0'
+    image: opensuse/leap:16.0
+    digest: sha256:7f3aeccb6a613c0fc1690d3d3e5eb493fd477ee4587de20640017fc36d72f9b0
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  opensuse-leap-16_1:
+    runtime: docker
+    platform_os: opensuse_leap
+    platform_version: '16.1'
+    image: opensuse/leap:16.1
+    digest: sha256:b4baa5259d4dde9704c45f29c7cd318e64ab309c9b9d675361f018f2b5009c3e
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  opensuse-tumbleweed:
+    runtime: docker
+    platform_os: opensuse_tumbleweed
+    platform_version: latest
+    image: opensuse/tumbleweed:latest
+    digest: sha256:db7d09c264b72eb95655deb7a696a64d65a0159d1dfb0a4d703347669c709e44
+    discovered_arches:
+    - s390x
+    - amd64
+    - ppc64le
+    - arm64
+    - arm32v7
+    - riscv64
+    host_support:
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  oraclelinux-10:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '10'
+    image: oraclelinux:10
+    digest: sha256:5532d0ebb1d340b4ea6120d0fe05bf0a7b25c1a5e244995d85b4252e2c719a08
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  oraclelinux-10-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 10-slim
+    image: oraclelinux:10-slim
+    digest: sha256:0660af1f1bb56559b299d99d3b71d0ff51f9d593cecbd3154a46914704ec34d6
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  oraclelinux-8:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '8'
+    image: oraclelinux:8
+    digest: sha256:21916d0f9527aa5d0b84034dcb3f6d2f01b59e633e31221b49855032ce41069a
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  oraclelinux-8-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 8-slim
+    image: oraclelinux:8-slim
+    digest: sha256:cd3890d5f46aea09e0a9dfce7f7e1ba3308f77ccd8f7179a7393c67b5876cc6b
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  oraclelinux-9:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: '9'
+    image: oraclelinux:9
+    digest: sha256:9c17aad70aaff782a1c31d20d5121ba205c19589d1f2ae2ee04b30b1498375c5
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  oraclelinux-9-slim:
+    runtime: docker
+    platform_os: oraclelinux
+    platform_version: 9-slim
+    image: oraclelinux:9-slim
+    digest: sha256:fdf4581abc841d49f63cf456ea92f8152a80b5bdc62d5409a4e77827b824265c
+    discovered_arches:
+    - amd64
+    - arm64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+  rockylinux-10:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '10'
+    image: rockylinux/rockylinux:10
+    digest: sha256:827d37bc128288ccf160ee318bb3cb92d591164cb217e92f8bc61e3982ae1834
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    - riscv64
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  rockylinux-8:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '8'
+    image: rockylinux/rockylinux:8
+    digest: sha256:e8a49c5403b687db05d4d67333fa45808fbe74f36e683cec7abb1f7d0f2338c6
+    discovered_arches:
+    - arm64
+    - amd64
+    host_support:
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  rockylinux-9:
+    runtime: docker
+    platform_os: rockylinux
+    platform_version: '9'
+    image: rockylinux/rockylinux:9
+    digest: sha256:8101994123cf3d0a8fee517bee7f39e555c7d92bd2d9eb3303cc988a0eeed00f
+    discovered_arches:
+    - amd64
+    - arm64
+    - ppc64le
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  ubuntu-22_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '22.04'
+    image: ubuntu:22.04
+    digest: sha256:5ec03bb3441e8b0bf3b4f9cd4629a1ae763010dc3035bb8da3ae6cf026486401
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-22.04
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels:
+        - ubuntu-22.04-arm
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  ubuntu-24_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '24.04'
+    image: ubuntu:24.04
+    digest: sha256:534baea6a22c03a63003dbc8dbe78fe34bc0d7e595d9a9dc9834884ff530eb55
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels:
+        - ubuntu-24.04
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels:
+        - ubuntu-24.04-arm
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  ubuntu-26_04:
+    runtime: docker
+    platform_os: ubuntu
+    platform_version: '26.04'
+    image: ubuntu:26.04
+    digest: sha256:f144425ff09be612d6d9ad965196e9cdc23dae1f42110a8a11a3e9a8198759f7
+    discovered_arches:
+    - amd64
+    - arm32v7
+    - arm64
+    - ppc64le
+    - riscv64
+    - s390x
+    host_support:
+      amd64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm32v7:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      arm64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04-arm
+        - ubuntu-24.04-arm
+      ppc64le:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      riscv64:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+      s390x:
+        direct_runner_labels: []
+        container_runner_labels:
+        - ubuntu-22.04
+        - ubuntu-24.04
+  xcode-27:
+    runtime: host
+    provider: github-actions
+    runner_label: xcode-27
+    resolved_runner_label: xcode-27
+    platform_os: macos
+    platform_version: '27'
+    discovered_arches:
+    - arm64
+    availability:
+    - public
+    resources:
+      public:
+        cpu: 3 (M1)
+        memory: 7 GB
+        storage: 14 GB
+    source: https://github.com/actions/runner-images/blob/main/images/macos/xcode-27-arm64-Readme.md
+    preview: true

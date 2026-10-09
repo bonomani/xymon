@@ -1,0 +1,145 @@
+# Generic dependency map for translating logical dependency IDs to package names.
+package_templates:
+  build_tools:
+    apt: [build-essential, cmake, ninja-build, git, findutils]
+    dnf: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+    yum: [gcc, gcc-c++, make, cmake, ninja-build, git, findutils, diffutils]
+    zypper: [gcc, gcc-c++, make, cmake, ninja, git, findutils, diffutils]
+    apk: [bash, build-base, cmake, ninja, git, findutils, diffutils]
+    pacman: [base-devel, cmake, ninja, git, findutils, diffutils]
+    brew: [make, cmake, ninja]
+    port: [gmake, cmake, ninja]
+    pkg: [gmake, cmake, ninja]
+    pkg_add: [gmake, cmake, ninja]
+  build_tools_make:
+    apt: [build-essential, git, findutils]
+    dnf: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
+    yum: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
+    zypper: [gcc, gcc-c++, make, git, findutils, diffutils, tar]
+    apk: [bash, build-base, git, findutils, diffutils]
+    pacman: [base-devel, git, findutils, diffutils]
+    brew: [make]
+    port: [gmake]
+    pkg: [gmake]
+    pkg_add: [gmake]
+
+map:
+  BUILD_TOOLS:
+    defaults:
+      template: build_tools
+    overrides:
+      by_os:
+        amazonlinux_2:
+          yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
+        centos_7:
+          yum: [gcc, gcc-c++, make, cmake3, ninja-build, git, findutils, diffutils]
+        netbsd:
+          pkg_add: [gmake, cmake, ninja-build, clang]
+
+  BUILD_TOOLS_MAKE:
+    defaults:
+      template: build_tools_make
+    overrides:
+      by_os:
+        netbsd:
+          pkg_add: [gmake, clang]
+
+  PCRE:
+    defaults:
+      apt: [libpcre2-dev]
+      dnf: [pcre2-devel]
+      yum: [pcre2-devel]
+      zypper: [pcre2-devel]
+      apk: [pcre2-dev]
+      pacman: [pcre2]
+      brew: [pcre2]
+      port: [pcre2]
+      pkg: [pcre2]
+      pkg_add: [pcre2]
+
+  RRD:
+    defaults:
+      apt: [librrd-dev]
+      dnf: [rrdtool-devel]
+      yum: [rrdtool-devel]
+      zypper: [rrdtool-devel]
+      apk: [rrdtool-dev]
+      pacman: [rrdtool]
+      brew: [rrdtool]
+      port: [rrdtool]
+      pkg: [rrdtool]
+      pkg_add: [rrdtool]
+
+  OpenSSL:
+    defaults:
+      apt: [libssl-dev]
+      dnf: [openssl-devel]
+      yum: [openssl-devel]
+      zypper: [libopenssl-devel]
+      apk: [openssl-dev]
+      pacman: [openssl]
+      brew: [openssl@3]
+      port: [openssl]
+      pkg: [openssl]
+      pkg_add: [openssl]
+
+  LDAP:
+    defaults:
+      apt: [libldap-dev]
+      dnf: [openldap-devel]
+      yum: [openldap-devel]
+      zypper: [openldap2-devel]
+      apk: [openldap-dev]
+      pacman: [openldap]
+      brew: [openldap]
+      port: [openldap]
+      pkg: [openldap-client]
+      pkg_add: [openldap-client]
+
+  NETSNMP:
+    defaults:
+      apt: [libsnmp-dev]
+      dnf: [net-snmp-devel]
+      yum: [net-snmp-devel]
+      zypper: [net-snmp-devel]
+      apk: [net-snmp-dev]
+      pacman: [net-snmp]
+      brew: [net-snmp]
+      port: [net-snmp]
+      pkg: [net-snmp]
+      pkg_add: [net-snmp]
+
+  CARES:
+    defaults:
+      apt: [libc-ares-dev]
+      dnf: [c-ares-devel]
+      yum: [c-ares-devel]
+      zypper: [c-ares-devel]
+      apk: [c-ares-dev]
+      pacman: [c-ares]
+      brew: [c-ares]
+      port: [c-ares]
+      pkg: [c-ares]
+      pkg_add: [libcares]
+
+  TIRPC:
+    defaults:
+      apt: [libtirpc-dev]
+      dnf: [libtirpc-devel]
+      yum: [libtirpc-devel]
+      zypper: [libtirpc-devel]
+      apk: [libtirpc-dev]
+      pacman: [libtirpc]
+      brew: [libtirpc]
+      port: [libtirpc]
+      pkg: [libtirpc]
+      pkg_add: [libtirpc]
+
+  PYTHON:
+    defaults:
+      port: [python311]
+      pkg: [python3]
+      pkg_add: [python3]
+
+aliases:
+  BUILD_TOOLS_CMAKE: BUILD_TOOLS

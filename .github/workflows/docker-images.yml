@@ -1,0 +1,178 @@
+name: Build Docker Images
+
+on:
+  workflow_dispatch:
+    inputs:
+      target:
+        description: OS family to build, or all.
+        required: false
+        type: choice
+        default: "all"
+        options:
+          - "all"
+          - "almalinux"
+          - "alpine"
+          - "amazonlinux"
+          - "archlinux"
+          - "centos"
+          - "debian"
+          - "fedora"
+          - "opensuse_leap"
+          - "opensuse_tumbleweed"
+          - "oraclelinux"
+          - "rockylinux"
+          - "ubuntu"
+      build_tool:
+        description: Build tool to use.
+        required: false
+        type: choice
+        default: "cmake"
+        options:
+          - "cmake"
+          - "make"
+      version_scope:
+        description: "primary: no micro-versions, no rolling/dev tags. stable: micro-versions included, no rolling. all: everything including edge/tumbleweed/latest."
+        required: false
+        type: choice
+        default: "primary"
+        options:
+          - "primary"
+          - "stable"
+          - "all"
+      arch:
+        description: Architecture to build. all = every arch the image supports.
+        required: false
+        type: choice
+        default: "all"
+        options:
+          - "all"
+          - "amd64"
+          - "arm64"
+          - "arm32v7"
+          - "ppc64le"
+          - "riscv64"
+          - "s390x"
+      image_tag:
+        description: Image tag to publish/use. Empty = sha-<short>.
+        required: false
+        type: string
+        default: ""
+      push:
+        description: Push images to GHCR.
+        required: true
+        type: choice
+        default: "no"
+        options:
+          - "no"
+          - "yes"
+
+permissions:
+  contents: read
+  packages: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      matrix_count: ${{ steps.prepare.outputs.matrix_count }}
+      image_tag: ${{ steps.prepare.outputs.image_tag }}
+      push_enabled: ${{ steps.prepare.outputs.push_enabled }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve docker execution model
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          push_enabled=0
+          case "${{ inputs.push }}" in
+            yes)
+              push_enabled=1
+              ;;
+            no)
+              ;;
+            *)
+              echo "Unsupported push mode: ${{ inputs.push }}" >&2
+              exit 2
+              ;;
+          esac
+
+          image_tag="${{ inputs.image_tag }}"
+          if [[ -z "${image_tag}" ]]; then
+            if [[ -n "${GITHUB_SHA:-}" ]]; then
+              image_tag="sha-${GITHUB_SHA:0:12}"
+            else
+              image_tag="manual"
+            fi
+          fi
+
+          python3 ci/run/docker/resolve-matrix.py \
+            --target "${{ inputs.target }}" \
+            --build-tool "${{ inputs.build_tool }}" \
+            --version-scope "${{ inputs.version_scope }}" \
+            --arch "${{ inputs.arch }}" \
+            --github-output "${GITHUB_OUTPUT}"
+          {
+            echo "image_tag=${image_tag}"
+            echo "push_enabled=${push_enabled}"
+          } >> "${GITHUB_OUTPUT}"
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "Image tag: ${{ steps.prepare.outputs.image_tag }}"
+          echo "Push enabled: ${{ steps.prepare.outputs.push_enabled }}"
+          echo "Images selected: ${{ steps.prepare.outputs.matrix_count }}"
+
+  build:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.matrix_count != '0' }}
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 8
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v4
+
+      - name: Set up QEMU
+        if: ${{ matrix.platforms != 'linux/amd64' }}
+        uses: docker/setup-qemu-action@v4
+        with:
+          platforms: arm64,arm,riscv64,ppc64le,s390x
+
+      - name: Login to GHCR
+        if: ${{ needs.prepare.outputs.push_enabled == '1' }}
+        uses: docker/login-action@v4
+        with:
+          registry: ghcr.io
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Build (and optionally push) image
+        uses: docker/build-push-action@v7
+        with:
+          context: .
+          file: docker/Dockerfile
+          push: ${{ needs.prepare.outputs.push_enabled == '1' }}
+          platforms: ${{ matrix.platforms }}
+          build-args: |
+            BASE_IMAGE=${{ matrix.base_image }}
+            BUILD_TOOL=${{ matrix.build_tool }}
+          tags: |
+            ghcr.io/${{ github.repository_owner }}/xymon-${{ matrix.name }}:${{ needs.prepare.outputs.image_tag }}

@@ -1,0 +1,21 @@
+#!/usr/bin/env bash
+# Alpine "apk" backend plugin, sourced by install-packages.sh.
+# shellcheck shell=bash
+
+pkg_installed() {
+  apk info -e "$1" >/dev/null 2>&1
+}
+
+pkg_available() {
+  apk search -x "$1" >/dev/null 2>&1
+}
+
+pkg_install_one() {
+  ci_deps_as_root apk add --no-cache "$1"
+}
+
+pkg_pre_install() {
+  # No metadata refresh needed: `apk add --no-cache` re-fetches the package
+  # index on every install.
+  :
+}

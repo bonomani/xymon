@@ -1,0 +1,113 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "CMake Preset Editor - Minimal Schema",
+  "type": "object",
+  "additionalProperties": false,
+
+  "properties": {
+    "preset": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["preset_name", "generator", "binaryDir"],
+      "properties": {
+        "preset_name": { "type": "string" },
+        "src":         { "type": "string" },
+        "generator":   { "type": "string" },
+        "binaryDir":   { "type": "string" }
+      }
+    },
+
+    "mode": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["MODE_CREATE", "MODE_EDIT", "MODE_CLONE"],
+      "properties": {
+        "MODE_CREATE": { "type": "boolean" },
+        "MODE_EDIT":   { "type": "boolean" },
+        "MODE_CLONE":  { "type": "boolean" }
+      }
+    },
+
+    "variant": {
+      "type": "object",
+      "additionalProperties": false,
+      "required": ["VARIANT"],
+      "properties": {
+        "VARIANT": {
+          "type": "string",
+          "enum": ["server", "client"]
+        },
+        "LOCALCLIENT": {
+          "type": "string",
+          "enum": ["local", "remote"]
+        }
+      }
+    },
+
+    "layout": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "USE_GNUINSTALLDIRS": {
+          "type": "string",
+          "enum": ["ON", "OFF"]
+        },
+        "CMAKE_INSTALL_PREFIX": { "type": "string" }
+      }
+    },
+
+    "features": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "ENABLE_RRD":  { "type": "string", "enum": ["ON", "OFF"] },
+        "ENABLE_SNMP": { "type": "string", "enum": ["ON", "OFF"] },
+        "ENABLE_SSL":  { "type": "string", "enum": ["ON", "OFF"] },
+        "ENABLE_LDAP": { "type": "string", "enum": ["ON", "OFF"] }
+      }
+    },
+
+    "paths": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "XYMONTOPDIR":      { "type": "string" },
+        "XYMONHOME":        { "type": "string" },
+        "XYMONCLIENTHOME":  { "type": "string" },
+        "XYMONVAR":         { "type": "string" },
+        "XYMONLOGDIR":      { "type": "string" },
+        "CGIDIR":           { "type": "string" },
+        "SECURECGIDIR":     { "type": "string" },
+        "MANROOT":          { "type": "string" }
+      }
+    },
+
+    "libraries": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "RRDINCDIR":   { "type": "string" },
+        "RRDLIBDIR":   { "type": "string" },
+        "PCREINCDIR":  { "type": "string" },
+        "PCRELIBDIR":  { "type": "string" },
+        "SSLINCDIR":   { "type": "string" },
+        "SSLLIBDIR":   { "type": "string" },
+        "LDAPINCDIR":  { "type": "string" },
+        "LDAPLIBDIR":  { "type": "string" },
+        "CARESINCDIR": { "type": "string" },
+        "CARESLIBDIR": { "type": "string" }
+      }
+    }
+  },
+
+  "required": [
+    "preset",
+    "mode",
+    "variant",
+    "layout",
+    "features",
+    "paths",
+    "libraries"
+  ]
+}
+
