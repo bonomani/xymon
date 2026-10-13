@@ -76,8 +76,8 @@ jobs:
 
       # xymond attaches one SysV shared-memory segment per channel and sets up
       # nine (C_STATUS..C_USER); macOS ships kern.sysv.shmseg=8, so xymond
-      # cannot start and tests/server/hostdata-save-next.sh -- the only test
-      # that runs a real xymond -- fails on every macOS lane (#345).
+      # cannot start, and every test that runs a real xymond skips or fails on
+      # a stock Mac (#345).
       #
       # Raising it at runtime does stick on the GitHub-hosted runners: probed
       # on macOS 26, "before: 8 / after: 16". That is worth stating because the
