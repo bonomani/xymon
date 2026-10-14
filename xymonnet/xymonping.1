@@ -29,11 +29,10 @@ ping tester without much of the overhead found in other
 such utilities. The output from xymonping is similar to that
 of "fping \-Ae".
 
-xymonping probes multiple systems in parallel, and the runtime
-is therefore mostly dependent on the timeout-setting and the
-number of retries. With the default options, xymonping takes
-approximately 18 seconds to ping all hosts (tested with an
-input set of 1500 IP addresses).
+xymonping probes multiple systems in parallel, sending at most \-\-max\-pps
+packets per second, so a run takes about the number of hosts divided by
+that rate, plus the time the slowest host takes to answer or to be given
+up on (about 4 seconds with the default options).
 
 .SH PRIVILEGES
 xymonping needs to send and receive ICMP Echo (ping) packets. It first
@@ -61,14 +60,19 @@ way.
 .IP "\fB\-\-retries\fR=\fIN\fR"
 Sets the number of retries for hosts that fail to respond to
 the initial ping, i.e. the number of ping probes sent in addition
-to the initial probe. The default is \-\-retries=2, to ping a host
-3 times before concluding that it is not responding.
+to the initial probe. The default is \-\-retries=3, as with fping, to ping a host
+4 times before concluding that it is not responding.
 
 .IP "\fB\-\-timeout\fR=\fIN\fR"
-Determines the timeout (in seconds) for ping probes. If a
-host does not respond within N seconds, it is regarded as
-unavailable, unless it responds to one of the retries.
-The default is \-\-timeout=5.
+Determines the timeout (in seconds) for the first ping to a host; each
+retry waits 1.5 times longer than the one before, as fping's \-t and \-B
+do. A reply that arrives later than its own ping's timeout does not count.
+Without this option the first ping waits 500 ms, so a host that never
+answers is given up on after about 4 seconds (500, 750, 1125 and
+1688 ms), and one whose replies take longer than that is reported
+unreachable: \-\-timeout=5 gives such a link back the old 5 seconds a try.
+With \-\-samples every ping gets the same timeout: by default the
+\-\-per\-host\-interval, at most 2 seconds, as in fping's count mode.
 
 .IP "\fB\-\-responses\fR=\fIN\fR"
 xymonping normally stops pinging a host after receiving a single
@@ -107,7 +111,7 @@ leave closer together than \-\-max\-pps allows.
 Maximum number of packets per second. This limits the number of
 ICMP packets xymonping will send per second, by enforcing a
 brief delay after each packet is sent. The default setting is
-to send a maximum of 50 packets per second. Note that increasing
+to send a maximum of 100 packets per second, fping's default. Note that increasing
 this may cause flooding of the network, and since ICMP packets
 can be discarded by routers and other network equipment, this
 can cause erratic behaviour with hosts recorded as not responding
@@ -117,6 +121,12 @@ when they are in fact OK.
 Use ADDRESS as the source IP address of the ping packets sent.
 On multi-homed systems, allows you to select the source IP of
 the hosts going out, which might be necessary for ping to work.
+
+.IP "\fB\-i\fR\fIMS\fR, \fB\-r\fR\fIN\fR, \fB\-t\fR\fIMS\fR, \fB\-S\fR\fIADDRESS\fR"
+The fping options xymonping accepts, meaning what they mean to fping: the
+least time in milliseconds between two pings, the retries, the first
+ping's timeout in milliseconds, and the source address. Any other option
+starting with \- is ignored.
 
 .IP "\fB\-\-debug\fR"
 Enable debug output. This prints out all packets sent and received.

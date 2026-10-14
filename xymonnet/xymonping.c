@@ -87,10 +87,11 @@ hostdata_t *hosthead = NULL;
 int hostcount = 0;
 hostdata_t **hosts = NULL;	/* Array of pointers to the hostdata records, for fast access via ID */
 int myicmpid;
-int senddelay = (1000000 / 50);	/* Delay between sending packets, in microseconds */
+int senddelay = (1000000 / 100);	/* Delay between sending packets, in microseconds: fping's -i default, 10 ms */
 int minresponses = 1;		/* --responses: replies a host needs before it is done */
 int hosts_pending = 0;		/* hosts still short of minresponses replies */
-int64_t probe_timeout_ns = 0;	/* a reply later than this after its ping does not count */
+int64_t probe_timeout_ns = 0;	/* the first try's timeout; a reply later than its try's timeout does not count */
+double backoff = 1.0;		/* each retry's timeout is the previous one times this */
 int64_t next_send_ns = 0;	/* earliest time the next ping may leave, for --max-pps */
 int samples_count = 0;		/* >0 enables smoke mode: send exactly N pings per host, record each rtt */
 int inflight = 0;		/* --samples: pings sent and still awaiting a reply or their deadline */
@@ -321,6 +322,28 @@ static int64_t mono_ns(void)
 	return (int64_t)ts.tv_sec * 1000000000LL + (int64_t)ts.tv_nsec;
 }
 
+/* The timeout of try probe_idx: the first try's, times backoff for each
+ * retry before it, as fping's -t and -B work. Capped at an hour, so a
+ * forged probe_idx cannot overflow it or keep the loop going. */
+static int64_t try_timeout_ns(int probe_idx)
+{
+	int64_t t = probe_timeout_ns;
+	int i;
+
+	if ((backoff <= 1.0) || (t <= 0)) return t;
+	for (i = 0; (i < probe_idx) && (t < 3600000000000LL); i++) t = (int64_t)(t * backoff);
+	return t;
+}
+
+/* The --samples timeout when --timeout is not given, as fping's count mode
+ * picks it: the spacing between pings to a host, but never more than 2 s
+ * (and 500 ms, fping's -t default, when the pings are not spaced at all). */
+static int samples_timeout_ms(void)
+{
+	if (per_host_interval_ms <= 0) return 500;
+	return (per_host_interval_ms < 2000) ? per_host_interval_ms : 2000;
+}
+
 static evheap_t sends, expiries;	/* pending sends, and pending reply deadlines */
 
 /* Queue an event. One the heap cannot hold would leave a try with no
@@ -524,7 +547,7 @@ int get_response(int sock, int family, int is_dgram)
 
 		/* As fping does: a reply later than the timeout does not count,
 		 * whenever it is read. */
-		if (((int64_t)rtt.tv_sec * 1000000000LL + rtt.tv_nsec) > probe_timeout_ns) continue;
+		if (((int64_t)rtt.tv_sec * 1000000000LL + rtt.tv_nsec) > try_timeout_ns(pingdata.probe_idx)) continue;
 
 		if (hosts[hostidx]->probe_state) {
 			/* Only a ping still PS_SENT may count: PS_REPLIED rejects
@@ -639,7 +662,7 @@ static int next_event(pingevent_t *ev)
  * per host, not N. A send queues its own EV_EXPIRE at --timeout, after
  * which a reply for that ping no longer counts. The run ends once every
  * ping is sent and none is still waiting. */
-static int smoke_main_loop(int timeout)
+static int smoke_main_loop(int timeout_ms)
 {
 	int i, unsent;
 	int64_t start_ns, step_ns, stagger_ns, sent_ns;
@@ -652,7 +675,9 @@ static int smoke_main_loop(int timeout)
 		return 5;
 	}
 
-	probe_timeout_ns = (int64_t)timeout * 1000000000LL;
+	if (timeout_ms < 0) timeout_ms = samples_timeout_ms();
+	probe_timeout_ns = (int64_t)timeout_ms * 1000000LL;
+	backoff = 1.0;
 	hosts_pending = hostcount;
 	start_ns = mono_ns();
 	step_ns = (int64_t)per_host_interval_ms * 1000000LL;
@@ -702,7 +727,7 @@ static int smoke_main_loop(int timeout)
 				h->probe_state[ev.probe_idx] = PS_SENT;
 				inflight++;
 				x.kind    = EV_EXPIRE;
-				x.when_ns = mono_ns() + probe_timeout_ns;
+				x.when_ns = mono_ns() + try_timeout_ns(x.probe_idx);
 				schedule(&expiries, x);
 			}
 			else {
@@ -744,14 +769,17 @@ static int smoke_main_loop(int timeout)
  * at t+timeout. On EV_EXPIRE without a reply the host either re-arms
  * (tries_left > 0) or is given up on. The run ends when every host has its
  * --responses replies or nothing is left to do. */
-static int retry_main_loop(int timeout, int tries)
+static int retry_main_loop(int timeout_ms, int tries)
 {
 	int i;
 	int64_t senddelay_ns = (int64_t)senddelay * 1000LL;	/* senddelay is in us; honor --max-pps / -i */
 	int64_t start_ns = mono_ns();
 
 	if (tries <= 0) tries = 1;
-	probe_timeout_ns = (int64_t)timeout * 1000000000LL;
+	/* As fping: the first try waits 500 ms (or --timeout), each retry
+	 * 1.5 times longer than the one before. */
+	probe_timeout_ns = (int64_t)((timeout_ms < 0) ? 500 : timeout_ms) * 1000000LL;
+	backoff = 1.5;
 	hosts_pending = hostcount;
 
 	/* Per-try probe_state so a late reply from a timed-out attempt
@@ -806,7 +834,7 @@ static int retry_main_loop(int timeout, int tries)
 				if (h->probe_state) h->probe_state[ev.probe_idx] = PS_SENT;
 				/* Arm an EV_EXPIRE that carries forward the
 				 * remaining retry budget. */
-				ev.when_ns = mono_ns() + probe_timeout_ns;
+				ev.when_ns = mono_ns() + try_timeout_ns(ev.probe_idx);
 				ev.kind    = EV_EXPIRE;
 				schedule(&expiries, ev);
 			}
@@ -823,7 +851,7 @@ static int retry_main_loop(int timeout, int tries)
 				 * reply will arrive for this try. Expire it after
 				 * the timeout like a lost ping, so the remaining
 				 * retries still run. */
-				ev.when_ns = mono_ns() + probe_timeout_ns;
+				ev.when_ns = mono_ns() + try_timeout_ns(ev.probe_idx);
 				ev.kind    = EV_EXPIRE;
 				schedule(&expiries, ev);
 			}
@@ -946,7 +974,7 @@ static int open_icmp_socket(int family, int *is_dgram_out, int *err_out)
 int main(int argc, char *argv[])
 {
 	int sockerr = 0, binderr = 0;
-	int argi, tries = 3, timeout = 5;
+	int argi, tries = 4, timeout_ms = -1;	/* fping's defaults: -r 3, -t 500 ms (set in the loops) */
 	int need_v4 = 0, need_v6 = 0;
 	int i;
 	char *srcip = NULL;
@@ -966,7 +994,7 @@ int main(int argc, char *argv[])
 			char *delim = strchr(argv[argi], '=');
 			int t = atoi(delim+1);
 			/* 0 would refuse every reply: a reply always takes some time. */
-			if (t > 0) timeout = t;
+			if (t > 0) timeout_ms = 1000 * t;
 			else errprintf("Ignoring --timeout=%s: it must be at least 1\n", delim+1);
 		}
 		else if (strncmp(argv[argi], "--responses=", 11) == 0) {
@@ -1007,14 +1035,20 @@ int main(int argc, char *argv[])
 			return 0;
 		}
 
-		/* fping compatibility options */
+		/* fping compatibility options, meaning what fping's do: -iMS the
+		 * least time between two pings, -rN the retries, -tMS the first
+		 * try's timeout. */
 		else if (strncmp(argv[argi], "-i", 2) == 0) {
 			char *val = argv[argi] + 2;
-			if (isdigit((int) *val)) senddelay = atoi(val);
+			if (isdigit((int) *val)) senddelay = 1000 * atoi(val);
 		}
 		else if (strncmp(argv[argi], "-r", 2) == 0) {
 			char *val = argv[argi] + 2;
-			if (isdigit((int) *val)) tries = atoi(val);
+			if (isdigit((int) *val)) tries = 1 + atoi(val);
+		}
+		else if (strncmp(argv[argi], "-t", 2) == 0) {
+			char *val = argv[argi] + 2;
+			if (isdigit((int) *val) && (atoi(val) > 0)) timeout_ms = atoi(val);
 		}
 		else if (strncmp(argv[argi], "-S", 2) == 0) {
 			char *val = argv[argi] + 2;
@@ -1101,8 +1135,8 @@ int main(int argc, char *argv[])
 		 * fans out N samples per host with no retries; legacy
 		 * schedules one EV_SEND per host with EV_EXPIRE-driven
 		 * retries up to --retries=N. */
-		int rc = (samples_count > 0) ? smoke_main_loop(timeout)
-		                             : retry_main_loop(timeout, tries);
+		int rc = (samples_count > 0) ? smoke_main_loop(timeout_ms)
+		                             : retry_main_loop(timeout_ms, tries);
 		if (pingsocket_v4 != -1) close(pingsocket_v4);
 		if (pingsocket_v6 != -1) close(pingsocket_v6);
 		if (rc == 0) show_results();
