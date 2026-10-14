@@ -34,7 +34,11 @@
  * is_ip_arg() takes every address form and no option, main() still pings the
  * IPv4 hosts -- on the IPv4 socket -- and reports them when the IPv6 socket
  * cannot be opened, prints an IPv6 address as it was given, and binds an IPv6
- * --source to the IPv6 socket.
+ * --source to the IPv6 socket; and fping's defaults and options: four tries,
+ * each timeout 1.5 times the one before from 500 ms, 100 pings a second,
+ * -i/-r/-t meaning what fping's do, the --samples timeout the spacing, at
+ * most 2 s, --timeout=0 refused, and a reply judged against its own try's
+ * timeout.
  */
 
 /* What xymonping sends is recorded instead of leaving the box, with the
@@ -280,9 +284,10 @@ static int run_main(char **argv, char *out, size_t outlen)
 			memcpy(&pd, sent_pkt[i] + sizeof(struct icmp), sizeof(pd));
 			if (pd.icmpid != ntohs(icmp->icmp_id)) ours = 0;
 		}
-		printf("is_dgram=%d sent=%d payload_carries_id=%d v4sends=%d v6sends=%d bound=%s\n",
+		printf("is_dgram=%d sent=%d payload_carries_id=%d v4sends=%d v6sends=%d bound=%s senddelay=%d timeout=%lld backoff=%.1f\n",
 		       is_dgram_v4, nsent, ours, v4_sends, v6_sends,
-		       (bound_family == AF_INET6) ? "v6" : ((bound_family == AF_INET) ? "v4" : "none"));
+		       (bound_family == AF_INET6) ? "v6" : ((bound_family == AF_INET) ? "v4" : "none"),
+		       senddelay, (long long)(probe_timeout_ns / 1000000), backoff);
 		fflush(stdout);
 		_exit(status);
 	}
@@ -311,6 +316,11 @@ int main(void)
 	char *argv_source[] = { a0, b1, b2, a1, d1, b4, b5, NULL };
 	struct sockaddr_in6 *sin6;
 	struct sockaddr_in *sin4;
+	char e1[] = "-i20", e2[] = "-r1", e3[] = "-t300", e4[] = "--per-host-interval=300", e5[] = "--timeout=0", e6[] = "-r0";
+	char *argv_def[] = { a0, b4, NULL };
+	char *argv_compat[] = { a0, e1, e2, e3, b4, NULL };
+	char *argv_sdef[] = { a0, b1, e4, b4, NULL };
+	char *argv_t0[] = { a0, e5, e6, b4, NULL };
 	pingevent_t ev;
 
 	/* main(): the unprivileged socket first, the raw one when it is
@@ -339,6 +349,19 @@ int main(void)
 	      "an IPv6 result names its host as it was given");
 	CHECK(run_main(argv_source, out, sizeof(out)) == 0 && strstr(out, "bound=v6") != NULL,
 	      "an IPv6 --source binds the IPv6 socket");
+
+	/* fping's defaults, and its options meaning what fping's do -- as
+	 * main() parses them, and as many pings as they make. */
+	CHECK(run_main(argv_def, out, sizeof(out)) == 0 &&
+	      strstr(out, "sent=4 ") && strstr(out, "senddelay=10000 timeout=500 backoff=1.5"),
+	      "the defaults are fping's: four tries, 500 ms first, 1.5 times longer each, 100 pings a second");
+	CHECK(run_main(argv_compat, out, sizeof(out)) == 0 &&
+	      strstr(out, "sent=2 ") && strstr(out, "senddelay=20000 timeout=300 "),
+	      "-i20 -r1 -t300 mean what they mean to fping");
+	CHECK(run_main(argv_sdef, out, sizeof(out)) == 0 && strstr(out, "timeout=300 backoff=1.0"),
+	      "--samples times a ping out after the spacing, without backoff");
+	CHECK(run_main(argv_t0, out, sizeof(out)) == 0 && strstr(out, "timeout=500 "),
+	      "--timeout=0 is refused, the default kept");
 
 	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) != 0) { perror("socketpair"); return 2; }
 	fcntl(sv[0], F_SETFL, O_NONBLOCK);
@@ -427,7 +450,7 @@ int main(void)
 	nsent = 0;
 	senddelay = 200000;
 	stall_first = 1;
-	CHECK(retry_main_loop(1, 2) == 0, "the loop runs to the end");
+	CHECK(retry_main_loop(1000, 2) == 0, "the loop runs to the end");
 	CHECK(nsent == 6, "each of three hosts is tried twice");
 	for (i = 0; (i < nsent) && (i < MAXSENT); i++) {
 		int host, probe, j;
@@ -465,7 +488,7 @@ int main(void)
 	nsent = 0;
 	senddelay = 10000;
 	refuse_seq = 1;
-	CHECK(retry_main_loop(1, 3) == 0 && nsent == 3, "a refused host is tried three times");
+	CHECK(retry_main_loop(1000, 3) == 0 && nsent == 3, "a refused host is tried three times");
 	refuse_seq = 0;
 	if (nsent == 3) {
 		int h, pr;
@@ -497,7 +520,7 @@ int main(void)
 	senddelay = 10000;
 	is_dgram_v4 = 1;
 	echo_fd = sv[1];
-	CHECK(retry_main_loop(5, 3) == 0, "the loop with answering hosts runs to the end");
+	CHECK(retry_main_loop(5000, 3) == 0, "the loop with answering hosts runs to the end");
 	echo_fd = -1;
 	CHECK(nsent == 2, "a host that answers is not pinged again");
 	CHECK(hosts[0]->received == 1 && hosts[1]->received == 1, "each answer is counted");
@@ -517,7 +540,7 @@ int main(void)
 	stall_first = 1;
 	queue_probe = sends_queued;
 	queue_max = 0;
-	CHECK(smoke_main_loop(1) == 0, "--samples: the loop runs to the end");
+	CHECK(smoke_main_loop(1000) == 0, "--samples: the loop runs to the end");
 	CHECK(nsent == 9, "--samples: three pings to each of three hosts");
 	for (i = 0; (i < nsent) && (i < MAXSENT); i++) {
 		int host, probe, j;
@@ -553,7 +576,7 @@ int main(void)
 	nsent = 0;
 	senddelay = 100000;
 	stall_first = 1;
-	CHECK(smoke_main_loop(1) == 0 && nsent == 6, "--samples with no spacing: every ping is sent");
+	CHECK(smoke_main_loop(1000) == 0 && nsent == 6, "--samples with no spacing: every ping is sent");
 	for (i = 1; (i < nsent) && (i < MAXSENT); i++) {
 		int h0, p0, h1, p1;
 		int64_t w0, w1;
@@ -606,5 +629,47 @@ int main(void)
 	CHECK(is_ip_arg("10.1") && is_ip_arg("127.0.0.1") && is_ip_arg("::1") && is_ip_arg("fe80::1%lo"),
 	      "IPv4, short IPv4, IPv6 and scoped IPv6 are command-line addresses");
 	CHECK(!is_ip_arg("--samples=3") && !is_ip_arg("localhost"), "options and names are not");
+
+	/* fping's timeouts: each retry waits 1.5 times longer than the one
+	 * before, and a reply is judged against its own try's timeout. */
+	probe_timeout_ns = 500000000LL;
+	backoff = 1.5;
+	CHECK(try_timeout_ns(0) == 500000000LL && try_timeout_ns(1) == 750000000LL &&
+	      try_timeout_ns(2) == 1125000000LL && try_timeout_ns(3) == 1687500000LL,
+	      "try timeouts are 500, 750, 1125 and 1687.5 ms");
+	CHECK(try_timeout_ns(2000000000) <= 3600000000000LL * 2, "a forged try number cannot overflow the timeout");
+	backoff = 1.0;
+	CHECK(try_timeout_ns(2000000000) == 500000000LL, "without backoff every try has the first one's timeout");
+	load("127.0.0.1\n127.0.0.2\n");
+	for (i = 0; i < hostcount; i++) {
+		hosts[i]->probe_state = (uint8_t *)calloc(2, sizeof(uint8_t));
+		hosts[i]->probe_slots = 2;
+	}
+	harness_dgram = 1;
+	backoff = 1.5;
+	waiting(); hosts[0]->probe_state[1] = PS_SENT; p = good(); p.probe_idx = 1; p.age_ns = 600000000LL;
+	CHECK(feed(p) == 1, "a 600 ms reply counts for the retry, whose timeout is 750 ms");
+	waiting(); p = good(); p.age_ns = 600000000LL;
+	CHECK(feed(p) == 0, "a 600 ms reply does not count for the first try, whose timeout is 500 ms");
+	backoff = 1.0;
+
+	/* The --samples default timeout, as fping's count mode: the spacing,
+	 * at most 2 s, 500 ms when there is none. */
+	per_host_interval_ms = 1000; CHECK(samples_timeout_ms() == 1000, "--samples timeout: the 1000 ms spacing");
+	per_host_interval_ms = 5000; CHECK(samples_timeout_ms() == 2000, "--samples timeout: never more than 2 s");
+	per_host_interval_ms = 0;    CHECK(samples_timeout_ms() == 500, "--samples timeout: 500 ms without spacing");
+
+	/* The retry loop backs off: one host, three tries, 200 ms first. */
+	load("127.0.0.1\n");
+	nsent = 0;
+	senddelay = 10000;
+	CHECK(retry_main_loop(200, 3) == 0 && nsent == 3, "three tries are sent");
+	if (nsent == 3) {
+		int h, p0, p1, p2;
+		int64_t w0, w1, w2;
+		sent(0, &h, &p0, &w0); sent(1, &h, &p1, &w1); sent(2, &h, &p2, &w2);
+		CHECK_GAP(w1 - w0, 195000000LL, "the second try waits 200 ms");
+		CHECK_GAP(w2 - w1, 295000000LL, "the third try waits 300 ms");
+	}
 	return fails ? 1 : 0;
 }
