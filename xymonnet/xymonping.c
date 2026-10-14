@@ -56,6 +56,7 @@ int hostcount = 0;
 hostdata_t **hosts = NULL;	/* Array of pointers to the hostdata records, for fast access via ID */
 int myicmpid;
 int senddelay = (1000000 / 50);	/* Delay between sending packets, in microseconds */
+int is_dgram = 0;		/* 1 if the socket is SOCK_DGRAM (kernel-managed icmp_id, no IP header on RX) */
 
 /* This routine more or less taken from the "fping" source. Apparently by W. Stevens (public domain) */
 int calc_icmp_checksum(unsigned short *pkt, int pktlen)
@@ -161,6 +162,7 @@ void load_ips(int argc, char *argv[], FILE *fd)
  * SPARC faults on the misaligned access. */
 typedef struct pingdata_t {
 	int id;				/* ID for the host this belongs to */
+	int icmpid;			/* myicmpid of the round that sent it */
 	struct timespec timesent;	/* time we sent this ping */
 } pingdata_t;
 
@@ -206,6 +208,7 @@ int send_ping(int sock, int startidx, int minresponses)
 
 	memset(&pingdata, 0, sizeof(pingdata));	/* no stack bytes in the padding on the wire */
 	pingdata.id = idx;
+	pingdata.icmpid = myicmpid;
 	getntimer(&pingdata.timesent);
 	memcpy(buffer + sizeof(struct icmp), &pingdata, sizeof(pingdata));
 
@@ -262,9 +265,12 @@ int get_response(int sock)
 
 		getntimer(&rtt);
 
-		/* Check the IP header - we need to have at least enough bytes for an ICMP header. */
+		/* Check the IP header - we need to have at least enough bytes for an ICMP header.
+		 * A raw socket always delivers it. A SOCK_DGRAM socket leaves it out on Linux
+		 * but not on every system (macOS keeps it), so look: an IPv4 header starts with
+		 * version 4, while the echo reply we are after starts with type 0. */
 		iphdr = (struct ip *)buffer;
-		iphdrlen = (iphdr->ip_hl << 2);	/* IP header always aligned on 4-byte boundary */
+		iphdrlen = ((!is_dgram || ((n > 0) && ((buffer[0] >> 4) == 4))) ? (iphdr->ip_hl << 2) : 0);
 		if (n < (iphdrlen + PING_MINIMUM_SIZE)) {
 			errprintf("Short packet ignored\n");
 			continue;
@@ -284,7 +290,16 @@ int get_response(int sock)
 
 		switch (icmphdr->icmp_type) {
 		  case ICMP_ECHOREPLY:
-			if (ntohs(icmphdr->icmp_id) != myicmpid) {
+			memcpy(&pingdata, buffer + iphdrlen + sizeof(struct icmp), sizeof(pingdata));
+			if (is_dgram) {
+				/* A SOCK_DGRAM socket sets icmp_id itself, so the header cannot
+				 * say whether this answers this round -- nor, where the kernel
+				 * does not keep each socket's replies apart, this process. The
+				 * payload carries our id back instead. */
+				if ((n < (int)(iphdrlen + sizeof(struct icmp) + sizeof(struct pingdata_t))) ||
+				    (pingdata.icmpid != myicmpid)) break;
+			}
+			else if (ntohs(icmphdr->icmp_id) != myicmpid) {
 				/* Not one of our packets. Happens if someone else does ping simultaneously. */
 				break;
 			}
@@ -293,8 +308,6 @@ int get_response(int sock)
 				/* Looks like one of our packets succeeded. */
 				pktcount++;
 				hosts[hostidx]->received += 1;
-
-				memcpy(&pingdata, buffer + iphdrlen + sizeof(struct icmp), sizeof(pingdata));
 
 				/* Calculate the round-trip time. */
 				rtt.tv_sec -= pingdata.timesent.tv_sec;
@@ -444,18 +457,27 @@ int main(int argc, char *argv[])
 		src_addr.sin_port = htons(0);
 	}
 
-	/* Get a raw socket. Requires root privs. */
-	get_root();
-	pingsocket = socket(AF_INET, SOCK_RAW, protonumber); sockerr = errno;
+	/* Try an unprivileged SOCK_DGRAM ICMP socket first: Linux grants one to
+	 * a user whose group is inside net.ipv4.ping_group_range, with no
+	 * suid-root needed. Fall back to a raw socket, which needs root or the
+	 * cap_net_raw file capability. */
+	pingsocket = socket(AF_INET, SOCK_DGRAM, protonumber);
+	if (pingsocket != -1) {
+		is_dgram = 1;
+	}
+	else {
+		get_root();
+		pingsocket = socket(AF_INET, SOCK_RAW, protonumber); sockerr = errno;
+		drop_root();
+	}
 	if ((pingsocket != -1) && (srcip != NULL)) {
-		/* Bind to a specific source address */
+		/* Bind to a specific source address; an open socket needs no root for it */
 		if (bind(pingsocket, (struct sockaddr *) &src_addr, sizeof(src_addr)) == -1) binderr = errno;
 	}
-	drop_root();
 
 	if (pingsocket == -1) {
 		errprintf("Cannot get RAW socket: %s\n", strerror(sockerr));
-		if (sockerr == EPERM) errprintf("This program must be installed suid-root\n");
+		if (sockerr == EPERM) errprintf("Run as a user whose group is in net.ipv4.ping_group_range, or install this program suid-root or with cap_net_raw\n");
 		return 3;
 	}
 

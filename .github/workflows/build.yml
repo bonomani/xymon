@@ -98,6 +98,12 @@ jobs:
           echo "running make with $(nproc) parallel processes"
           make -j$(nproc)
 
+      # xymonping's tests ping 127.0.0.1 and ::1 with the binary as built, not
+      # suid-root, and the suite runs as an ordinary user: let it open an
+      # unprivileged ICMP socket, as many distributions do by default.
+      - name: Allow unprivileged ICMP sockets
+        run: sudo sysctl -w net.ipv4.ping_group_range="0 2147483647"
+
       # tests.yml runs the same suite without building, so any test that needs
       # a compiled binary (require_bin in tests/lib/assert.sh) silently skips
       # there. Run it here too, where the binaries this variant produced are on
