@@ -154,7 +154,11 @@ void load_ips(int argc, char *argv[], FILE *fd)
 }
 
 
-/* This is the data we send with each ping packet */
+/* This is the data we send with each ping packet. It sits at offset
+ * sizeof(struct icmp) in the packet, which need not suit its alignment
+ * (it holds a struct timespec), so it is copied in and out with memcpy()
+ * rather than read through a cast pointer: a strict-alignment CPU such as
+ * SPARC faults on the misaligned access. */
 typedef struct pingdata_t {
 	int id;				/* ID for the host this belongs to */
 	struct timespec timesent;	/* time we sent this ping */
@@ -165,7 +169,7 @@ int send_ping(int sock, int startidx, int minresponses)
 {
 	static unsigned char buffer[PING_PACKET_SIZE];
 	struct icmp *icmphdr;
-	struct pingdata_t *pingdata;
+	struct pingdata_t pingdata;
 	int sentbytes;
 	int idx = startidx;
 
@@ -200,9 +204,10 @@ int send_ping(int sock, int startidx, int minresponses)
 	icmphdr->icmp_seq = htons(idx+1);	/* So we can map response to our hosts */
 	icmphdr->icmp_id = htons(myicmpid);
 
-	pingdata = (struct pingdata_t *)(buffer + sizeof(struct icmp));
-	pingdata->id = idx;
-	getntimer(&pingdata->timesent);
+	memset(&pingdata, 0, sizeof(pingdata));	/* no stack bytes in the padding on the wire */
+	pingdata.id = idx;
+	getntimer(&pingdata.timesent);
+	memcpy(buffer + sizeof(struct icmp), &pingdata, sizeof(pingdata));
 
 	icmphdr->icmp_cksum = calc_icmp_checksum((unsigned short *)buffer, PING_PACKET_SIZE);
 
@@ -237,7 +242,7 @@ int get_response(int sock)
 	struct ip *iphdr;
 	int iphdrlen;
 	struct icmp *icmphdr;
-	struct pingdata_t *pingdata;
+	struct pingdata_t pingdata;
 	int hostidx;
 	struct timespec rtt;
 
@@ -289,11 +294,11 @@ int get_response(int sock)
 				pktcount++;
 				hosts[hostidx]->received += 1;
 
-				pingdata = (struct pingdata_t *)(buffer + iphdrlen + sizeof(struct icmp));
+				memcpy(&pingdata, buffer + iphdrlen + sizeof(struct icmp), sizeof(pingdata));
 
 				/* Calculate the round-trip time. */
-				rtt.tv_sec -= pingdata->timesent.tv_sec;
-				rtt.tv_nsec -= pingdata->timesent.tv_nsec;
+				rtt.tv_sec -= pingdata.timesent.tv_sec;
+				rtt.tv_nsec -= pingdata.timesent.tv_nsec;
 				if (rtt.tv_nsec < 0) {
 					rtt.tv_sec--;
 					rtt.tv_nsec += 1000000000;
