@@ -18,7 +18,8 @@ Optionally, if a list of IP-addresses is passed as command-line
 arguments, it will ping those IP's instead of reading them
 from stdin.
 
-xymonping only handles IP-addresses, not hostnames.
+xymonping only handles IP-addresses, not hostnames. At most 65535
+addresses are pinged in one run; the rest are refused with an error.
 
 xymonping was inspired by the
 .I fping(1)

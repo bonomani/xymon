@@ -26,7 +26,7 @@ endif
 all: $(PROGRAMS) $(EXTENSIONS) $(DBGTOOLS)
 
 NETTESTOBJS = xymonnet.o contest.o httptest.o httpresult.o ldaptest.o dns.o dns2.o httpcookies.o udpquery.o
-PINGTESTOBJS = xymonping.o
+PINGTESTOBJS = xymonping.o evheap.o
 BEASTATOBJS = beastat.o
 
 xymonnet: $(NETTESTOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONLIBS)
@@ -34,6 +34,8 @@ xymonnet: $(NETTESTOBJS) $(XYMONCOMMLIB) $(XYMONTIMELIB) $(XYMONLIBS)
 
 xymonping: $(PINGTESTOBJS) $(XYMONTIMELIB) ../lib/libxymon.a
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(PINGTESTOBJS) $(XYMONTIMELIBS) $(XYMONCOMMLIBS)
+
+xymonping.o evheap.o: evheap.h
 
 xymonnet.o: xymonnet.c ntpprobe.c udpquery.h
 	$(CC) $(CFLAGS) $(SSLFLAGS) $(LDAPFLAGS) $(SSLINCDIR) $(LDAPINCDIR) -c -o $@ xymonnet.c
