@@ -278,9 +278,11 @@
 
 [tcp]
 	# TCP tests - include all, except the HTTP tests as they tend to have
-	# much longer response times than the normal tcp tests.
+	# much longer response times than the normal tcp tests, and the
+	# SmokePing-style conn-smoke RRD which has its own schema (see
+	# [conn-smoke] below).
 	FNPATTERN ^tcp.(.+).rrd
-	EXFNPATTERN ^tcp.http.(.+).rrd
+	EXFNPATTERN ^(tcp\.http\..+\.rrd|tcp\..+-smoke\.rrd)$
 	TITLE TCP Connection Times
 	YAXIS Seconds
 	DEF:p@RRDIDX@=@RRDFN@:sec:AVERAGE
@@ -311,6 +313,44 @@
 	GPRINT:p@RRDIDX@:MAX: \: %5.1lf%s (max)
 	GPRINT:p@RRDIDX@:MIN: \: %5.1lf%s (min)
 	GPRINT:p@RRDIDX@:AVERAGE: \: %5.1lf%s (avg)\n
+
+# SmokePing-style ping graph for hosts with the "smoke" tag (hosts.cfg(5)):
+# reads tcp.conn-smoke.rrd, which xymond_rrd writes from xymonping
+# --samples=N output. The @DSIDX@ lines repeat once per sample; N is read
+# from each host's file, so hosts with different counts each get every band.
+[conn-smoke]
+	# Latency only: how fast and how steady the replies are. Loss has its
+	# own graph, [conn-smoke-loss], so each question has one answer.
+	TITLE PING Round-trip time (smoke)
+	YAXIS Seconds
+	DEF:ping@DSIDX@=tcp.conn-smoke.rrd:ping@DSIDX@:AVERAGE
+	# The median is computed from ping1..pingN; the file's own "median"
+	# data source is not used here.
+	CDEF:median=@MEDIAN:ping@
+	# SmokePing's smoke (graphs.cfg(5), @SMOKE:): the samples paired
+	# from the outside in, each pair a grey band darker toward the
+	# middle, so the shade is darkest where most replies lie.
+	@SMOKE:ping@
+	LINE2:median#0060ff:Median
+	GPRINT:median:LAST: \: %5.3lf s (cur)
+	GPRINT:median:MIN: \: %5.3lf s (min)
+	GPRINT:median:MAX: \: %5.3lf s (max)
+	GPRINT:median:AVERAGE: \: %5.3lf s (avg)\n
+
+[conn-smoke-loss]
+	# Loss only: what each run lost, and the loss over the last hour,
+	# which smooths the 5% steps of a 20-ping run into a steady figure.
+	TITLE PING Packet loss (smoke)
+	YAXIS Loss %
+	-l 0
+	DEF:loss=tcp.conn-smoke.rrd:loss:AVERAGE
+	CDEF:lossrun=loss,100,*
+	CDEF:losshour=lossrun,3600,TRENDNAN
+	AREA:lossrun#d8d8d8:Loss per run
+	LINE3:losshour#303030:Loss over the last hour\n
+	GPRINT:losshour:LAST:Last hour\: %4.1lf%%
+	GPRINT:lossrun:LAST:  Last run\: %4.1lf%%
+	GPRINT:losshour:MAX:  Worst hour in view\: %4.1lf%%\n
 
 [ntpstat]
 	TITLE NTP accuracy

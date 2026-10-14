@@ -54,6 +54,7 @@ extern struct rpcent *getrpcbyname(char *);
 #include "httpresult.h"
 #include "httpcookies.h"
 #include "ldaptest.h"
+#include "smokeping.h"
 
 #define DEFAULT_PING_CHILD_COUNT 1
 #define MSGBUFSIZE 4096
@@ -101,6 +102,102 @@ SBUF_DEFINE(pingcmd);
 char		pinglog[PATH_MAX];
 char		pingerrlog[PATH_MAX];
 pid_t		*pingpids;
+
+/* SmokePing-style probing: one worker per distinct samples count.
+ * Each worker invokes $FPING --samples=N over a separate stdin pipe and
+ * writes its parseable output to its own log file.
+ * Populated lazily as hosts with smoke tags are encountered. */
+typedef struct smoke_worker_t {
+	int samples;			/* samples count this worker invokes xymonping with */
+	pid_t pid;
+	void *iptree;			/* set of IPs assigned to this worker */
+	int ipcount;
+	char log[PATH_MAX];
+	char errlog[PATH_MAX];
+} smoke_worker_t;
+smoke_worker_t *smoke_workers = NULL;
+int smoke_worker_count = 0;
+
+static smoke_worker_t *smoke_worker_for(int samples)
+{
+	int i;
+	smoke_worker_t *w;
+
+	for (i = 0; i < smoke_worker_count; i++) {
+		if (smoke_workers[i].samples == samples) return &smoke_workers[i];
+	}
+	{
+		smoke_worker_t *tmp = (smoke_worker_t *)realloc(smoke_workers, sizeof(smoke_worker_t) * (smoke_worker_count + 1));
+		if (!tmp) {
+			errprintf("realloc smoke_workers failed: %s\n", strerror(errno));
+			return NULL;
+		}
+		smoke_workers = tmp;
+	}
+	w = &smoke_workers[smoke_worker_count++];
+	memset(w, 0, sizeof(*w));
+	w->samples = samples;
+	w->iptree = xtreeNew(strcmp);
+	snprintf(w->log, sizeof(w->log), "%s/ping-stdout.%lu.smoke%d",
+		 xgetenv("XYMONTMP"), (unsigned long)getpid(), samples);
+	snprintf(w->errlog, sizeof(w->errlog), "%s/ping-stderr.%lu.smoke%d",
+		 xgetenv("XYMONTMP"), (unsigned long)getpid(), samples);
+	return w;
+}
+
+/* Is $FPING xymonping, whose --samples line the smoke path parses, or
+ * another pinger, run in fping's count mode? The program is the first
+ * word of $FPING that is not an option ("sudo /usr/sbin/fping" is fping). */
+static int smoke_ping_is_xymonping(void)
+{
+	static int result = -1;
+
+	if (result == -1) {
+		char *cmd = strdup(xgetenv("FPING")), *tok, *sp = NULL;
+
+		result = 0;
+		for (tok = strtok_r(cmd, " \t", &sp); (tok); tok = strtok_r(NULL, " \t", &sp)) {
+			char *base = strrchr(tok, '/');
+
+			base = (base ? base + 1 : tok);
+			if (strcmp(base, "sudo") == 0) continue;
+			if (*tok == '-') continue;
+			result = (strcmp(base, "xymonping") == 0);
+			break;
+		}
+		xfree(cmd);
+	}
+	return result;
+}
+
+/* Returns the samples count to use for the conn (ping) test on this host,
+ * or 0 if legacy single-rtt ping should be used. Tags honored:
+ *   smoke_conn[:N]   - smoke for conn specifically (most specific)
+ *   smoke[:N]        - smoke for every test that has a smoke variant
+ * N defaults to $SMOKEPINGSAMPLES (with a hard fallback of 20). */
+static int smoke_samples_for_conn(void *hwalk)
+{
+	char *p;
+	int default_n;
+
+	p = xgetenv("SMOKEPINGSAMPLES");
+	default_n = (p ? atoi(p) : 20);
+	if (default_n <= 0) default_n = 20;
+
+	if ((p = xmh_custom_item(hwalk, "smoke_conn:")) != NULL) {
+		int n = atoi(p + strlen("smoke_conn:"));
+		return (n > 0 ? n : default_n);
+	}
+	if (xmh_exact_item(hwalk, "smoke_conn")) return default_n;
+
+	if ((p = xmh_custom_item(hwalk, "smoke:")) != NULL) {
+		int n = atoi(p + strlen("smoke:"));
+		return (n > 0 ? n : default_n);
+	}
+	if (xmh_exact_item(hwalk, "smoke")) return default_n;
+
+	return 0;
+}
 int		respcheck_color = COL_YELLOW;
 httpstatuscolor_t *httpstatusoverrides = NULL;
 int		extcmdtimeout = 30;
@@ -448,6 +545,7 @@ void load_tests(void)
 
 		if (xmh_item(hwalk, XMH_FLAG_NOCONN)) h->noconn = 1;
 		if (xmh_item(hwalk, XMH_FLAG_NOPING)) h->noping = 1;
+		h->smoke_samples = smoke_samples_for_conn(hwalk);
 		if (xmh_item(hwalk, XMH_FLAG_TRACE)) h->dotrace = 1;
 		if (xmh_item(hwalk, XMH_FLAG_NOTRACE)) h->dotrace = 0;
 		if (xmh_item(hwalk, XMH_FLAG_TESTIP)) h->testip = 1;
@@ -1141,19 +1239,36 @@ int start_ping_service(service_t *service)
 	void *iptree;
 	xtreePos_t handle;
 	
-	/* We build a tree of the IP's to test, so we only test each IP once */
+	/* We build a tree of the IP's to test, so we only test each IP once.
+	 * Hosts tagged for smoke are routed to a per-N smoke worker tree instead,
+	 * so the legacy fping/xymonping pool never sees them. extrapings always
+	 * go through the legacy pool for V1. */
 	iptree = xtreeNew(strcmp);
 	for (t=service->items; (t); t = t->next) {
 		char *rec;
 		char ip[IP_ADDR_STRLEN+1];
+		void *target_tree;
 
 		if (t->host->dnserror || t->host->noping) continue;
 
 		snprintf(ip, sizeof(ip), "%s", ip_to_test(t->host));
-		handle = xtreeFind(iptree, ip);
-		if (handle == xtreeEnd(iptree)) {
-			rec = strdup(ip);
-			xtreeAdd(iptree, rec, rec);
+
+		if (t->host->smoke_samples > 0) {
+			smoke_worker_t *w = smoke_worker_for(t->host->smoke_samples);
+			if (!w) continue;	/* smoke_worker_for already logged */
+			target_tree = w->iptree;
+			if (xtreeFind(target_tree, ip) == xtreeEnd(target_tree)) {
+				rec = strdup(ip);
+				xtreeAdd(target_tree, rec, rec);
+				w->ipcount++;
+			}
+		}
+		else {
+			handle = xtreeFind(iptree, ip);
+			if (handle == xtreeEnd(iptree)) {
+				rec = strdup(ip);
+				xtreeAdd(iptree, rec, rec);
+			}
 		}
 
 		if (t->host->extrapings) {
@@ -1289,6 +1404,85 @@ int start_ping_service(service_t *service)
 	}
 	xtreeDestroy(iptree);
 
+	/* Fork one extra worker per distinct smoke samples count. Each worker
+	 * runs $FPING $FPINGOPTS with "--samples=N" for xymonping, or "-C N -q"
+	 * for fping, whose count mode prints one summary line per host on
+	 * stderr. Output goes to dedicated files; finish_ping_service reads
+	 * them the same way as the legacy log (looking for "is alive" / "is
+	 * unreachable"), fping's summaries first turned into xymonping's line. */
+	for (i = 0; i < smoke_worker_count; i++) {
+		smoke_worker_t *w = &smoke_workers[i];
+		SBUF_DEFINE(smokecmd);
+		char **smokeargs;
+		char *smokecmdtok;
+		int pfd2[2];
+
+		SBUF_MALLOC(smokecmd, strlen(xgetenv("FPING")) + strlen(xgetenv("FPINGOPTS")) + 32);
+		snprintf(smokecmd, smokecmd_buflen,
+			 (smoke_ping_is_xymonping() ? "%s %s --samples=%d" : "%s %s -C %d -q"),
+			 xgetenv("FPING"), xgetenv("FPINGOPTS"), w->samples);
+		smokeargs = setup_commandargs(smokecmd, &smokecmdtok);
+
+		if (pipe(pfd2) == -1) {
+			errprintf("Could not create pipe for smoke ping worker\n");
+			xfree(smokecmd);
+			return -1;
+		}
+
+		w->pid = fork();
+		if (w->pid < 0) {
+			errprintf("Could not fork() the smoke ping worker\n");
+			xfree(smokecmd);
+			return -1;
+		}
+		else if (w->pid == 0) {
+			int outfile, errfile;
+
+			outfile = open(w->log, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
+			if (outfile == -1) errprintf("Cannot create file %s : %s\n", w->log, strerror(errno));
+			errfile = open(w->errlog, O_CREAT|O_WRONLY|O_TRUNC, S_IRUSR|S_IWUSR);
+			if (errfile == -1) errprintf("Cannot create file %s : %s\n", w->errlog, strerror(errno));
+
+			if ((outfile == -1) || (errfile == -1)) exit(98);
+
+			dup2(pfd2[0], STDIN_FILENO);
+			dup2(outfile, STDOUT_FILENO);
+			dup2(errfile, STDERR_FILENO);
+			close(pfd2[0]); close(pfd2[1]); close(outfile); close(errfile);
+
+			execvp(smokecmdtok, smokeargs);
+			fprintf(stderr, "Command '%s' failed: %s\n", smokecmdtok, strerror(errno));
+			exit(99);
+		}
+		else {
+			char ip[IP_ADDR_STRLEN+1];
+			int feederror = 0;
+
+			close(pfd2[0]);
+
+			for (handle = xtreeFirst(w->iptree); ((feederror == 0) && (handle != xtreeEnd(w->iptree))); handle = xtreeNext(w->iptree, handle)) {
+				snprintf(ip, sizeof(ip), "%s\n", (char *)xtreeKey(w->iptree, handle));
+				if (write(pfd2[1], ip, strlen(ip)) != strlen(ip)) {
+					errprintf("Cannot feed IP to smoke ping worker: %s\n", strerror(errno));
+					feederror = 1;
+					continue;
+				}
+				pingcount++;
+			}
+
+			close(pfd2[1]);
+			xfree(smokecmd);
+		}
+
+		/* Free the IP strings now; we no longer need the tree after feeding stdin */
+		for (handle = xtreeFirst(w->iptree); handle != xtreeEnd(w->iptree); handle = xtreeNext(w->iptree, handle)) {
+			char *rec = xtreeKey(w->iptree, handle);
+			xfree(rec);
+		}
+		xtreeDestroy(w->iptree);
+		w->iptree = NULL;
+	}
+
 	return 0;
 }
 
@@ -1415,10 +1609,97 @@ int finish_ping_service(service_t *service)
 		if (logfd) fclose(logfd);
 	}
 
-	/* 
+	/* Drain smoke workers. Parsing is identical to the legacy log: we look
+	 * for "is alive"/"is unreachable" in each line, and the full line is
+	 * preserved in t->banner so do_net_rrd can later pick up samples=/loss= */
+	for (i = 0; i < smoke_worker_count; i++) {
+		smoke_worker_t *w = &smoke_workers[i];
+		int smokestatus, smokefailed = 0;
+		FILE *errfd;
+		char *resultfn;
+
+		waitpid(w->pid, &smokestatus, 0);
+		switch (WEXITSTATUS(smokestatus)) {
+			case 0: case 1: case 2: break;
+			case 3:
+				smokefailed = 1;
+				errprintf("Smoke ping worker (samples=%d) failed - program not suid root?\n", w->samples);
+				break;
+			case 98:
+				smokefailed = 1;
+				errprintf("Smoke ping worker (samples=%d) could not create outputfiles in %s\n", w->samples, xgetenv("XYMONTMP"));
+				break;
+			case 99:
+				smokefailed = 1;
+				errprintf("Could not exec smoke ping worker (samples=%d)\n", w->samples);
+				break;
+			default:
+				smokefailed = 1;
+				errprintf("Smoke ping worker (samples=%d) failed with error-code %d\n", w->samples, WEXITSTATUS(smokestatus));
+		}
+
+		/* fping's count mode prints its summaries on stderr */
+		resultfn = (smoke_ping_is_xymonping() ? w->log : w->errlog);
+		logfd = fopen(resultfn, "r");
+		if (logfd == NULL) {
+			smokefailed = 1;
+			errprintf("Cannot open smoke ping output file %s\n", resultfn);
+		}
+		if (!debug) unlink(w->log);
+
+		if (smokefailed) {
+			char buf[1024];
+			errfd = fopen(w->errlog, "r");
+			if (errfd && fgets(buf, sizeof(buf), errfd)) errprintf("%s", buf);
+			if (errfd) fclose(errfd);
+		}
+		if (!debug) unlink(w->errlog);
+
+		if (smokefailed) {
+			bigfailure = 1;
+			/* Only flag the smoke-tagged test items as undecided; legacy results
+			 * from the main pool are already in t->open by now. */
+			for (t = service->items; t; t = t->next) {
+				if (t->host->smoke_samples == w->samples) t->open = -1;
+			}
+		}
+		else if (logfd) {
+			static char conv[MAX_LINE_LEN];
+
+			while (fgets(l, sizeof(l), logfd)) {
+				p = strchr(l, '\n'); if (p) *p = '\0';
+				if (!smoke_ping_is_xymonping()) {
+					/* Only fping's summaries; its other stderr lines are not results */
+					if (!smokeping_from_fping_count(l, conv, sizeof(conv))) continue;
+					strcpy(l, conv);
+				}
+				if (sscanf(l, "%d.%d.%d.%d ", &ip1, &ip2, &ip3, &ip4) == 4) {
+					snprintf(pingip, sizeof(pingip), "%d.%d.%d.%d", ip1, ip2, ip3, ip4);
+					for (t = service->items; t; t = t->next) {
+						/* Attribute only to items routed to this
+						 * worker. Without the smoke_samples check
+						 * a shared IP with mixed smoke_conn:N (or a
+						 * legacy/non-smoke peer on the same IP)
+						 * would receive another host's samples
+						 * and loss line. */
+						if (t->host->smoke_samples != w->samples) continue;
+						if (strcmp(t->host->ip, pingip) == 0) {
+							if (t->open) dbgprintf("More than one ping result for %s\n", pingip);
+							t->open = (strstr(l, "is alive") != NULL);
+							t->banner = dupstrbuffer(l);
+						}
+					}
+				}
+			}
+		}
+
+		if (logfd) fclose(logfd);
+	}
+
+	/*
 	 * Handle the router dependency stuff. I.e. for all hosts
 	 * where the ping test failed, go through the list of router
-	 * dependencies and if one of the dependent hosts also has 
+	 * dependencies and if one of the dependent hosts also has
 	 * a failed ping test, point the dependency there.
 	 */
 	for (t=service->items; (t); t = t->next) {

@@ -97,6 +97,7 @@ extern void *hostinfo(char *hostname);
 extern void *localhostinfo(char *hostname);
 extern char *xmh_item(void *host, enum xmh_item_t item);
 extern char *xmh_custom_item(void *host, char *key);
+extern char *xmh_exact_item(void *host, char *key);
 extern enum xmh_item_t xmh_key_idx(char *item);
 extern char *xmh_item_byname(void *host, char *item);
 extern char *xmh_item_walk(void *host);

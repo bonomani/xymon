@@ -30,6 +30,22 @@ optional directory @XYMONHOME@/etc/rrddefinitions.d
 	RRA:AVERAGE:0.5:1440:576
 
 
+# SmokePing-style ping files, for hosts with the hosts.cfg "smoke" tag
+# (tcp.conn-smoke.rrd; the section is named after the ping test):
+# SmokePing's own archive table. The 5-minute samples are kept 100 days
+# rather than 48 hours, and the hourly and 12-hourly MIN and MAX keep
+# the extremes that averaging hides on the long graphs. That costs disk:
+# with 20 samples a file is about 11 MB, against about 0.4 MB with the
+# default table below.
+[conn-smoke]
+	RRA:AVERAGE:0.5:1:28800
+	RRA:AVERAGE:0.5:12:9600
+	RRA:MIN:0.5:12:9600
+	RRA:MAX:0.5:12:9600
+	RRA:AVERAGE:0.5:144:2400
+	RRA:MAX:0.5:144:2400
+	RRA:MIN:0.5:144:2400
+
 # This one is the default setup. You can change it, if you like.
 []
 	# 576 datapoints w/ 5 minute interval = 48 hours @ 5 min avg.

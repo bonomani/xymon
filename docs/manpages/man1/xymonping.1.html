@@ -114,7 +114,9 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
   <dt></dt>
   <dd>Samples are in seconds; loss is reported as lost/total. A ping counts as
       lost when no reply arrives within --timeout of sending it. Without this
-      option (or with N=0) the output is unchanged.</dd>
+      option (or with N=0) the output is unchanged. <a href="../man1/xymonnet.1.html">xymonnet</a>(1) runs xymonping
+      this way for hosts carrying the &quot;smoke&quot; tag in
+    <a href="../man5/hosts.cfg.5.html">hosts.cfg</a>(5).</dd>
   <dt id="per-host-interval"><a class="permalink" href="#per-host-interval"><b>--per-host-interval</b>=<i>MS</i></a></dt>
   <dd>With --samples, the time in milliseconds between two pings to the same
       host. The default is 1000, as with fping's -p option and SmokePing: the N

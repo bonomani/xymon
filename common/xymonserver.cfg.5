@@ -719,6 +719,16 @@ tool for the connectivity test. Note that xymonnet will still expect the
 output to match the default format.
 Default: "-Ae"
 
+.IP SMOKEPINGSAMPLES
+The number of pings sent to a host carrying the "smoke" or
+"smoke_conn" tag in
+.I hosts.cfg(5)
+without its own ":N". xymonnet runs FPING with
+"\-\-samples=$SMOKEPINGSAMPLES" for such hosts when it is xymonping, and
+with "\-C $SMOKEPINGSAMPLES \-q" otherwise, fping's count mode; the RRD written by
+.I xymond_rrd(8)
+gets one "pingX" data source per sample, and the graph reads the count
+back from each file. Default: "20"
 .IP "\fBTRACEROUTE\fR"
 .IP "\fBTRACEROUTEOPTS\fR"
 Defines the location of the "traceroute" tool and

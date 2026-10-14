@@ -103,6 +103,7 @@ const static struct {
 	{ "NONETPAGE", "" },
 	{ "FPING", "xymonping" },
 	{ "FPINGOPTS", "-Ae" },
+	{ "SMOKEPINGSAMPLES", "20" },
 	{ "NTPDATE", "" },		/* ntpdate program; empty = built-in SNTP probe */
 	{ "NTPDATEOPTS", "-u -q" },
 	{ "TRACEROUTE", "traceroute" },

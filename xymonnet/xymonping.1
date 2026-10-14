@@ -101,6 +101,8 @@ the loss alone:
 Samples are in seconds; loss is reported as lost/total. A ping counts as
 lost when no reply arrives within \-\-timeout of sending it. Without this
 option (or with N=0) the output is unchanged.
+xymonnet(1) runs xymonping this way for hosts carrying the "smoke" tag
+in hosts.cfg(5).
 .IP "\fB\-\-per\-host\-interval\fR=\fIMS\fR"
 With \-\-samples, the time in milliseconds between two pings to the
 same host. The default is 1000, as with fping's \-p option and

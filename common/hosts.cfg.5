@@ -943,6 +943,29 @@ from the result of pinging the IP's and the best/worst setting.
 The default method is "best" - so it will report green if
 just one of the IP's respond to ping.
 
+.IP "smoke[:N], smoke_conn[:N]"
+SmokePing-style probing of the host's conn (ping) test. xymonnet(1)
+sends the host N pings one second apart, every round-trip time kept
+rather than only an average: through xymonping's "\-\-samples=N", or
+fping's count mode "\-C N \-q" when the FPING setting in
+xymonserver.cfg(5) runs fping. ":N"
+sets the count for this host; without it SMOKEPINGSAMPLES from
+xymonserver.cfg(5) applies (default 20). "smoke" and "smoke_conn" do
+the same today; "smoke_conn" names the conn test only, and wins when
+a host carries both.
+.IP
+xymond_rrd(8) then writes tcp.conn\-smoke.rrd, with data sources
+"median", "loss" (a fraction, 0 to 1) and "ping1".."pingN": the
+round-trip times sorted ascending, the lost pings stored as unknown
+half below and half above them, as SmokePing does - beside the usual
+tcp.conn.rrd. Its archives come from the [conn\-smoke] section of
+rrddefinitions.cfg (named after the ping test), which ships with
+SmokePing's: 5-minute values kept 100 days, and hourly and 12-hourly
+MIN and MAX beside the averages. Like every rrddefinitions.cfg change,
+it shapes new files only. The shipped graphs.cfg draws it twice:
+[conn\-smoke] shows the latency, the smoke of the replies and their
+median, and [conn\-smoke\-loss] the loss, per run and over the last
+hour.
 .IP "\fBbadconn[\-weekdays\-starttime\-endtime]:x:y:z\fR"
 NOTE: This has been deprecated, use the \fBdelayred\fR and
 \fBdelayyellow\fR settings instead.

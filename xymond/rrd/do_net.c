@@ -10,6 +10,7 @@
 
 static char do_net_rcsid[] = "$Id$";
 
+#include "smokeping.h"
 #include <math.h>	/* isfinite() - reject nan/inf offset tokens */
 
 int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
@@ -20,6 +21,7 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 	char *p;
 	float seconds = 0.0;
 	int do_default = 1;
+	int rc;
 
 	if (xymonnet_tpl == NULL) xymonnet_tpl = setup_template(xymonnet_params);
 
@@ -83,7 +85,70 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 
 		setupfn2("%s.%s.rrd", "tcp", testname);
 		snprintf(rrdvalues, sizeof(rrdvalues), "%d:%.6f", (int)tstamp, seconds);
-		return create_and_update_rrd(hostname, testname, classname, pagepaths, xymonnet_params, xymonnet_tpl);
+		rc = create_and_update_rrd(hostname, testname, classname, pagepaths, xymonnet_params, xymonnet_tpl);
+
+		/* SmokePing-style data: xymonping with --samples appends
+		 * "samples=v1,v2,...,vN loss=k/M" (alive hosts) or
+		 * "loss=M/M" (unreachable hosts). All parsing/RRD shaping
+		 * lives in lib/smokeping.c so future smoke probes can reuse
+		 * it. The legacy RRD above still gets written -- keeps the
+		 * existing [conn] graph working for smoke hosts.
+		 *
+		 * The RRD shape is keyed off the reported denominator N
+		 * (loss=K/N), not $SMOKEPINGSAMPLES, so a host configured
+		 * with smoke_conn:N != $SMOKEPINGSAMPLES still records all
+		 * its samples. The [conn-smoke] graph (web/showgraph.c)
+		 * reads the per-file DS count back via rrd_info_r, so the
+		 * graph naturally matches whatever N landed here. */
+		if (strstr(msg, "loss=") != NULL) {
+			char *lp = strstr(msg, "loss=");
+			int reported_total = 0, dummy_k = 0;
+			int n_slots, capacity;
+			double *samples;
+			int nrecv = 0, lost = 0, totalsent = 0;
+			double median, lossfrac;
+			char smokekey[64];
+
+			/* Peek at "loss=K/N" so we know how big a buffer to
+			 * allocate before parsing the samples= list. Clamp N
+			 * to SMOKEPING_MAX_SAMPLES: a malformed or hostile
+			 * status line with a huge denominator would otherwise
+			 * size a per-N RRD template cache entry (never freed)
+			 * and a samples buffer for it. */
+			(void)sscanf(lp + 5, "%d/%d", &dummy_k, &reported_total);
+			if (reported_total > SMOKEPING_MAX_SAMPLES) reported_total = SMOKEPING_MAX_SAMPLES;
+
+			n_slots = (reported_total > 0 ? reported_total : smokeping_sample_count());
+			capacity = n_slots + 4;
+			samples = (double *)calloc(capacity, sizeof(double));
+			if (!samples) {
+				errprintf("calloc(%d doubles) failed for smoke samples; skipping\n", capacity);
+				return rc;
+			}
+
+			smokeping_parse_message(msg, samples, capacity, &nrecv, &lost, &totalsent);
+
+			if (totalsent <= 0) totalsent = nrecv + lost;
+			if (totalsent <= 0) totalsent = nrecv;
+			lossfrac = (totalsent > 0 ? (double)lost / (double)totalsent : 0.0);
+
+			median = smokeping_median(samples, nrecv);
+
+			setupfn2("%s.%s-smoke.rrd", "tcp", testname);
+			smokeping_format_rrdvalues_n(rrdvalues, sizeof(rrdvalues), tstamp,
+			                             median, lossfrac, samples, nrecv,
+			                             n_slots);
+			xfree(samples);
+			/* Archives from rrddefinitions.cfg's "<test>-smoke" section, not
+			 * the test's own: the smoke file keeps SmokePing's longer and
+			 * MIN/MAX archives without changing tcp.conn.rrd's. */
+			snprintf(smokekey, sizeof(smokekey), "%s-smoke", testname);
+			create_and_update_rrd(hostname, smokekey, classname, pagepaths,
+			                      smokeping_rrd_params_n(n_slots),
+			                      smokeping_rrd_template_n(n_slots));
+		}
+
+		return rc;
 	}
 	else if (strcmp(testname, "ntp") == 0) {
 		/*
