@@ -2,7 +2,7 @@
 .SH NAME
 xymonping \- Xymon ping tool
 .SH SYNOPSIS
-.B "xymonping [\-\-retries=N] [\-\-timeout=N] [IP\-addresses]"
+.B "xymonping [\-\-retries=N] [\-\-timeout=N] [\-\-samples=N [\-\-per\-host\-interval=MS]] [IP\-addresses]"
 
 .SH DESCRIPTION
 .I xymonping(1)
@@ -75,6 +75,30 @@ it may skew the round-trip-time reports. You can then use this option
 to require N responses, and xymonping will calculate the round-trip
 time as the average of all of responsetimes.
 
+.IP "\fB\-\-samples\fR=\fIN\fR"
+Enables SmokePing-style probing: sends exactly N pings to each host (N at
+most 1000), without retries, and records every round-trip time rather
+than only the average. The pings to one host are spaced by
+\-\-per\-host\-interval, so
+each host gets one train of N pings per run. The output line for each
+host gains fields after the usual text, so that existing parsers keep
+working: an alive host gets the samples and the loss, an unreachable one
+the loss alone:
+.sp
+.nf
+\&  1.2.3.4 is alive (311 usec) samples=0.000310,0.000320,0.000305 loss=0/3
+\&  1.2.3.5 is unreachable loss=3/3
+.fi
+.IP
+Samples are in seconds; loss is reported as lost/total. A ping counts as
+lost when no reply arrives within \-\-timeout of sending it. Without this
+option (or with N=0) the output is unchanged.
+.IP "\fB\-\-per\-host\-interval\fR=\fIMS\fR"
+With \-\-samples, the time in milliseconds between two pings to the
+same host. The default is 1000, as with fping's \-p option and
+SmokePing: the N pings form a train of (N\-1) seconds. Pings to
+different hosts are interleaved within that spacing, and no two pings
+leave closer together than \-\-max\-pps allows.
 .IP "\fB\-\-max\-pps\fR=\fIN\fR"
 Maximum number of packets per second. This limits the number of
 ICMP packets xymonping will send per second, by enforcing a
