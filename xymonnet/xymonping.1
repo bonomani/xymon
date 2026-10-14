@@ -18,7 +18,8 @@ Optionally, if a list of IP-addresses is passed as command-line
 arguments, it will ping those IP's instead of reading them
 from stdin.
 
-xymonping only handles IP-addresses, not hostnames. At most 65535
+xymonping only handles IP-addresses, not hostnames: IPv4, or IPv6 with
+a link-local address given as addr%interface. At most 65535
 addresses are pinged in one run; the rest are refused with an error.
 
 xymonping was inspired by the
@@ -53,6 +54,9 @@ user-supplied or network data is handled while privileged.
 .PP
 File capabilities work as well: \fBsetcap cap_net_raw+ep\fR on the
 binary lets xymonping open the raw socket without being suid-root.
+.PP
+IPv6 addresses need the unprivileged ICMPv6 socket or root in the same
+way.
 .SH OPTIONS
 .IP "\fB\-\-retries\fR=\fIN\fR"
 Sets the number of retries for hosts that fail to respond to

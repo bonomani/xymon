@@ -33,7 +33,9 @@ static char rcsid[] = "$Id$";
 #include <netinet/in.h>
 #include <netinet/ip.h>
 #include <netinet/ip_icmp.h>
+#include <netinet/icmp6.h>
 #include <arpa/inet.h>
+#include <net/if.h>		/* if_nametoindex() for IPv6 link-local %iface */
 #include <netdb.h>
 
 #include <stdio.h>
@@ -68,7 +70,10 @@ static char rcsid[] = "$Id$";
 
 typedef struct hostdata_t {
 	int id;
-	struct sockaddr_in addr;
+	int family;			/* AF_INET or AF_INET6 */
+	struct sockaddr_storage addr;	/* sized for either family; cast on use */
+	socklen_t addrlen;
+	char *name;			/* the address as given; an IPv6 result is printed with it */
 	int received;			/* how many ICMP_ECHO replies we've got */
 	int sent;			/* how many ICMP_ECHO requests we've sent (smoke mode) */
 	struct timespec rtt_total;
@@ -90,8 +95,26 @@ int64_t next_send_ns = 0;	/* earliest time the next ping may leave, for --max-pp
 int samples_count = 0;		/* >0 enables smoke mode: send exactly N pings per host, record each rtt */
 int inflight = 0;		/* --samples: pings sent and still awaiting a reply or their deadline */
 int per_host_interval_ms = -1;	/* spacing between probes for one host in smoke mode; -1 = 1000 ms */
-int is_dgram = 0;		/* 1 if the socket is SOCK_DGRAM (kernel-managed icmp_id, no IP header on RX) */
-int pingsocket = -1;
+int is_dgram_v4 = 0;		/* 1 if v4 socket is SOCK_DGRAM (kernel-managed icmp_id, no IP header on RX) */
+int is_dgram_v6 = 0;		/* 1 if v6 socket is SOCK_DGRAM */
+int pingsocket_v4 = -1;
+int pingsocket_v6 = -1;
+
+/* Lookup a printable form of any sockaddr_storage (v4 or v6). Returns a
+ * pointer to a static per-call buffer; not reentrant. */
+static const char *sockaddr_str(const struct sockaddr_storage *ss)
+{
+	static char buf[INET6_ADDRSTRLEN];
+	if (ss->ss_family == AF_INET) {
+		const struct sockaddr_in *sin = (const struct sockaddr_in *)ss;
+		inet_ntop(AF_INET, &sin->sin_addr, buf, sizeof(buf));
+	}
+	else {
+		const struct sockaddr_in6 *sin6 = (const struct sockaddr_in6 *)ss;
+		inet_ntop(AF_INET6, &sin6->sin6_addr, buf, sizeof(buf));
+	}
+	return buf;
+}
 
 /* This routine more or less taken from the "fping" source. Apparently by W. Stevens (public domain) */
 int calc_icmp_checksum(unsigned short *pkt, int pktlen)
@@ -118,6 +141,22 @@ int calc_icmp_checksum(unsigned short *pkt, int pktlen)
 }
 
 
+/* Is s an address load_ips() will take: IPv4, or IPv6 with an optional
+ * %iface suffix? */
+static int is_ip_arg(const char *s)
+{
+	struct in_addr a4;
+	struct in6_addr a6;
+	char addr[INET6_ADDRSTRLEN];
+	size_t n = strcspn(s, "%");
+
+	if (inet_aton(s, &a4) != 0) return 1;
+	if (n >= sizeof(addr)) return 0;
+	memcpy(addr, s, n);
+	addr[n] = '\0';
+	return (inet_pton(AF_INET6, addr, &a6) == 1);
+}
+
 char *nextip(int argc, char *argv[], FILE *fd)
 {
 	static int argi = 0;
@@ -125,10 +164,10 @@ char *nextip(int argc, char *argv[], FILE *fd)
 	static char buf[4096];
 
 	if (argi == 0) {
-		/* Check if there are any command-line IP's */
-		struct sockaddr_in ina;
-
-		for (argi=1; ((argi < argc) && (inet_aton(argv[argi], &ina.sin_addr) == 0)); argi++) ;
+		/* Check if there are any command-line IP's: either family,
+		 * an IPv6 one possibly with a %iface suffix, as load_ips()
+		 * accepts on stdin. */
+		for (argi=1; ((argi < argc) && !is_ip_arg(argv[argi])); argi++) ;
 		cmdmode = (argi < argc);
 	}
 
@@ -161,6 +200,9 @@ void load_ips(int argc, char *argv[], FILE *fd)
 	while ((l = nextip(argc, argv, fd)) != NULL) {
 		hostdata_t *newitem;
 
+		/* An address ends at the first blank: inet_pton() refuses
+		 * trailing text. */
+		l[strcspn(l, " \t\r")] = '\0';
 		if (strlen(l) == 0) continue;
 
 		if (hostcount >= MAX_HOSTS) {
@@ -173,13 +215,49 @@ void load_ips(int argc, char *argv[], FILE *fd)
 			errprintf("calloc(hostdata_t) failed for %s; skipping\n", l);
 			continue;
 		}
+		newitem->name = strdup(l);
 
-		newitem->addr.sin_family = AF_INET;
-		newitem->addr.sin_port = 0;
-		if (inet_aton(l, &newitem->addr.sin_addr) == 0) {
-			errprintf("Dropping %s - not an IP\n", l);
-			xfree(newitem);
-			continue;
+		/* IPv4 is read with inet_aton(), as it always was, so the
+		 * short forms it accepts ("10.1") keep working; anything else
+		 * is tried as IPv6. A link-local IPv6 address (fe80::...)
+		 * needs its interface, given the standard way as "addr%iface":
+		 * the suffix is resolved with if_nametoindex(). */
+		{
+			struct sockaddr_in6 *sin6 = (struct sockaddr_in6 *)&newitem->addr;
+			struct sockaddr_in  *sin4 = (struct sockaddr_in  *)&newitem->addr;
+			char *pct = strchr(l, '%');
+			unsigned int scope_id = 0;
+
+			if (!pct && (inet_aton(l, &sin4->sin_addr) != 0)) {
+				newitem->family  = AF_INET;
+				sin4->sin_family = AF_INET;
+				sin4->sin_port   = 0;
+				newitem->addrlen = sizeof(struct sockaddr_in);
+			}
+			else {
+				if (pct) {
+					*pct = '\0';
+					scope_id = if_nametoindex(pct + 1);
+					if (scope_id == 0) {
+						errprintf("Dropping %s%%%s - unknown interface for scope_id\n", l, pct + 1);
+						xfree(newitem->name);
+						xfree(newitem);
+						continue;
+					}
+				}
+				if (inet_pton(AF_INET6, l, &sin6->sin6_addr) != 1) {
+					if (pct) *pct = '%';	/* restore for the diagnostic */
+					errprintf("Dropping %s - not an IP\n", l);
+					xfree(newitem->name);
+					xfree(newitem);
+					continue;
+				}
+				newitem->family     = AF_INET6;
+				sin6->sin6_family   = AF_INET6;
+				sin6->sin6_port     = 0;
+				sin6->sin6_scope_id = scope_id;
+				newitem->addrlen    = sizeof(struct sockaddr_in6);
+			}
 		}
 
 		if (tail) {
@@ -265,33 +343,56 @@ static void schedule(evheap_t *h, pingevent_t e)
 static int send_probe(int host_idx, int probe_idx)
 {
 	static unsigned char buffer[PING_PACKET_SIZE];
-	struct icmp *icmphdr = (struct icmp *)buffer;
 	struct pingdata_t pingdata;
 	size_t pd_off;			/* where the payload goes: after the ICMP header */
-	int sentbytes;
+	int sentbytes, sock;
+	int family = hosts[host_idx]->family;
+
+	sock = (family == AF_INET) ? pingsocket_v4 : pingsocket_v6;
+	if (sock < 0) return -2;	/* family not configured; treat as hard error */
 
 	memset(buffer, 0, PING_PACKET_SIZE);
 
-	icmphdr->icmp_type  = ICMP_ECHO;
-	icmphdr->icmp_code  = 0;
-	icmphdr->icmp_cksum = 0;
-	icmphdr->icmp_seq   = htons(host_idx + 1);
-	icmphdr->icmp_id    = htons(myicmpid);
-	/* RAW needs us to compute the checksum; DGRAM accepts a zero and
-	 * the kernel fills it in. Filling it unconditionally is safe --
-	 * the kernel doesn't second-guess a correct one. */
-	memset(&pingdata, 0, sizeof(pingdata));	/* no stack bytes in the padding on the wire */
-	pd_off = sizeof(struct icmp);
-	pingdata.id        = host_idx;
-	pingdata.probe_idx = probe_idx;
-	pingdata.icmpid    = myicmpid;
-	getntimer(&pingdata.timesent);
-	memcpy(buffer + pd_off, &pingdata, sizeof(pingdata));
-	icmphdr->icmp_cksum = calc_icmp_checksum((unsigned short *)buffer, PING_PACKET_SIZE);
+	if (family == AF_INET) {
+		struct icmp *icmphdr = (struct icmp *)buffer;
+		icmphdr->icmp_type  = ICMP_ECHO;
+		icmphdr->icmp_code  = 0;
+		icmphdr->icmp_cksum = 0;
+		icmphdr->icmp_seq   = htons(host_idx + 1);
+		icmphdr->icmp_id    = htons(myicmpid);
+		/* IPv4 RAW needs us to compute the checksum; IPv4 DGRAM
+		 * accepts a zero and the kernel fills it in. Filling it
+		 * unconditionally is safe -- the kernel doesn't second-
+		 * guess a correct one. */
+		memset(&pingdata, 0, sizeof(pingdata));	/* no stack bytes in the padding on the wire */
+		pd_off = sizeof(struct icmp);
+		pingdata.id        = host_idx;
+		pingdata.probe_idx = probe_idx;
+		pingdata.icmpid    = myicmpid;
+		getntimer(&pingdata.timesent);
+		memcpy(buffer + pd_off, &pingdata, sizeof(pingdata));
+		icmphdr->icmp_cksum = calc_icmp_checksum((unsigned short *)buffer, PING_PACKET_SIZE);
+	}
+	else {
+		struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)buffer;
+		icmp6hdr->icmp6_type  = ICMP6_ECHO_REQUEST;
+		icmp6hdr->icmp6_code  = 0;
+		icmp6hdr->icmp6_cksum = 0;	/* kernel computes for ICMPv6 */
+		icmp6hdr->icmp6_seq   = htons(host_idx + 1);
+		icmp6hdr->icmp6_id    = htons(myicmpid);
+		memset(&pingdata, 0, sizeof(pingdata));	/* no stack bytes in the padding on the wire */
+		pd_off = sizeof(struct icmp6_hdr);
+		pingdata.id        = host_idx;
+		pingdata.probe_idx = probe_idx;
+		pingdata.icmpid    = myicmpid;
+		getntimer(&pingdata.timesent);
+		memcpy(buffer + pd_off, &pingdata, sizeof(pingdata));
+	}
 
-	sentbytes = sendto(pingsocket, buffer, PING_PACKET_SIZE, 0,
+
+	sentbytes = sendto(sock, buffer, PING_PACKET_SIZE, 0,
 	                   (struct sockaddr *)&hosts[host_idx]->addr,
-	                   sizeof(struct sockaddr_in));
+	                   hosts[host_idx]->addrlen);
 
 	if (sentbytes == -1) {
 		if ((errno == EWOULDBLOCK) || (errno == EAGAIN)) return -1;
@@ -302,23 +403,23 @@ static int send_probe(int host_idx, int probe_idx)
 
 	if (debug) {
 		dbgprintf("Sent probe %d to %s: index=%d, id=%d\n",
-		          probe_idx, inet_ntoa(hosts[host_idx]->addr.sin_addr),
+		          probe_idx, sockaddr_str(&hosts[host_idx]->addr),
 		          host_idx, myicmpid);
 	}
 	return 0;
 }
 
 
-int get_response(void)
+int get_response(int sock, int family, int is_dgram)
 {
 	static unsigned char buffer[4096];
-	struct sockaddr_in addr;
+	struct sockaddr_storage addr;
 	int n, pktcount;
 	unsigned int addrlen;
 	struct ip *iphdr;
 	int iphdrlen;
-	struct icmp *icmphdr;
 	int reply_type, reply_id, reply_seq;
+	int hdr_size;	/* size of the ICMP/ICMPv6 header in the buffer */
 	struct pingdata_t pingdata;
 	int hostidx;
 	struct timespec rtt;
@@ -331,7 +432,7 @@ int get_response(void)
 	pktcount = 0;
 	do {
 		addrlen = sizeof(addr);
-		n = recvfrom(pingsocket, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, &addrlen);
+		n = recvfrom(sock, buffer, sizeof(buffer), 0, (struct sockaddr *)&addr, &addrlen);
 		if (n < 0) {
 			/* EWOULDBLOCK and EAGAIN differ on some systems (HP-UX); either
 			 * means nothing is left to read. */
@@ -341,11 +442,12 @@ int get_response(void)
 
 		getntimer(&rtt);
 
-		/* A raw socket always delivers the IP header. A SOCK_DGRAM socket
-		 * leaves it out on Linux but not on every system (macOS keeps
-		 * it), so look: an IPv4 header starts with version 4, while the
-		 * echo reply we are after starts with type 0. */
-		if (!is_dgram || ((n > 0) && ((buffer[0] >> 4) == 4))) {
+		/* An IPv4 raw socket always delivers the IP header; ICMPv6
+		 * sockets never do. An IPv4 SOCK_DGRAM socket leaves it out on
+		 * Linux but not on every system (macOS keeps it), so look: an
+		 * IPv4 header starts with version 4, while the echo reply we are
+		 * after starts with type 0. */
+		if ((family == AF_INET) && (!is_dgram || ((n > 0) && ((buffer[0] >> 4) == 4)))) {
 			iphdr = (struct ip *)buffer;
 			iphdrlen = (iphdr->ip_hl << 2);
 		}
@@ -357,34 +459,48 @@ int get_response(void)
 			continue;
 		}
 
-		icmphdr    = (struct icmp *)(buffer + iphdrlen);
-		reply_type = icmphdr->icmp_type;
-		reply_id   = ntohs(icmphdr->icmp_id);
-		reply_seq  = ntohs(icmphdr->icmp_seq);
+		/* Parse the ICMP/ICMPv6 header into family-neutral locals. */
+		if (family == AF_INET) {
+			struct icmp *icmphdr = (struct icmp *)(buffer + iphdrlen);
+			reply_type = icmphdr->icmp_type;
+			reply_id   = ntohs(icmphdr->icmp_id);
+			reply_seq  = ntohs(icmphdr->icmp_seq);
+			hdr_size   = sizeof(struct icmp);
+		}
+		else {
+			struct icmp6_hdr *icmp6hdr = (struct icmp6_hdr *)(buffer + iphdrlen);
+			reply_type = icmp6hdr->icmp6_type;
+			reply_id   = ntohs(icmp6hdr->icmp6_id);
+			reply_seq  = ntohs(icmp6hdr->icmp6_seq);
+			hdr_size   = sizeof(struct icmp6_hdr);
+		}
 		hostidx = reply_seq - 1;
 
 		if (debug) {
 			dbgprintf("Got packet from %s: type=%d, index=%d, id=%d\n",
-				inet_ntoa(addr.sin_addr), reply_type, reply_id, hostidx);
+				sockaddr_str(&addr), reply_type, reply_id, hostidx);
 		}
 
 		/* Non-reply types (our own echoes when pinging ourselves,
-		 * UNREACH/REDIRECT, etc.) are skipped silently. We only care
-		 * about ECHO_REPLY for our packets. */
-		if (reply_type != ICMP_ECHOREPLY) continue;
+		 * UNREACH/REDIRECT, link-local v6 chatter, etc.) are skipped
+		 * silently. We only care about ECHO_REPLY for our packets. */
+		if (reply_type != ((family == AF_INET) ? ICMP_ECHOREPLY : ICMP6_ECHO_REPLY)) {
+			continue;
+		}
 		if (!is_dgram && reply_id != myicmpid) {
 			/* SOCK_RAW: not one of our packets (someone else is
 			 * also pinging). SOCK_DGRAM: kernel already matched. */
 			continue;
 		}
 		if (hostidx < 0 || hostidx >= hostcount) continue;
+		if (hosts[hostidx]->family != family) continue;
 
 		/* Make sure the reply is large enough to actually contain
 		 * the pingdata_t payload before we dereference it. A short
 		 * but well-formed ECHOREPLY would otherwise read past the
 		 * received bytes into stale static-buffer contents. */
-		if (n < (int)(iphdrlen + sizeof(struct icmp) + sizeof(struct pingdata_t))) continue;
-		memcpy(&pingdata, buffer + iphdrlen + sizeof(struct icmp), sizeof(pingdata));
+		if (n < (int)(iphdrlen + hdr_size + sizeof(struct pingdata_t))) continue;
+		memcpy(&pingdata, buffer + iphdrlen + hdr_size, sizeof(pingdata));
 
 		/* icmp_seq carries only 16 bits of host index; the payload
 		 * carries the full 32-bit id. Cross-check so seq-aliased
@@ -445,19 +561,25 @@ int get_response(void)
 }
 
 
-/* Build readfds for the ping socket and return the nfds argument to
- * select(). */
+/* Build readfds covering both family sockets we actually opened, and
+ * return the max fd + 1 (the nfds argument to select). Used by the
+ * smoke loop and its drain phase. */
 static int select_set(fd_set *readfds)
 {
+	int maxfd = -1;
 	FD_ZERO(readfds);
-	FD_SET(pingsocket, readfds);
-	return pingsocket + 1;
+	if (pingsocket_v4 >= 0) { FD_SET(pingsocket_v4, readfds); if (pingsocket_v4 > maxfd) maxfd = pingsocket_v4; }
+	if (pingsocket_v6 >= 0) { FD_SET(pingsocket_v6, readfds); if (pingsocket_v6 > maxfd) maxfd = pingsocket_v6; }
+	return maxfd + 1;
 }
 
-/* Read the replies waiting on the ping socket, if any. */
+/* Drain whichever family socket has data ready. */
 static void drain_replies(fd_set *readfds)
 {
-	if (FD_ISSET(pingsocket, readfds)) (void)get_response();
+	if (pingsocket_v4 >= 0 && FD_ISSET(pingsocket_v4, readfds))
+		(void)get_response(pingsocket_v4, AF_INET, is_dgram_v4);
+	if (pingsocket_v6 >= 0 && FD_ISSET(pingsocket_v6, readfds))
+		(void)get_response(pingsocket_v6, AF_INET6, is_dgram_v6);
 }
 
 /* Read whatever replies are already waiting, without blocking: done
@@ -466,7 +588,8 @@ static void drain_replies(fd_set *readfds)
  * sending. */
 static void drain_now(void)
 {
-	(void)get_response();
+	if (pingsocket_v4 >= 0) (void)get_response(pingsocket_v4, AF_INET, is_dgram_v4);
+	if (pingsocket_v6 >= 0) (void)get_response(pingsocket_v6, AF_INET6, is_dgram_v6);
 }
 
 /* Wait for the next event due and pop it into *ev: the earliest expiry, or
@@ -738,6 +861,14 @@ static int retry_main_loop(int timeout, int tries)
 	return 0;
 }
 
+/* How a result names its host: an IPv4 address in dotted form, as it always
+ * was; an IPv6 one as it was given, so its text and any %iface scope match
+ * the caller's (inet_ntop() would rewrite the one and drop the other). */
+static const char *host_label(hostdata_t *h)
+{
+	return (h->family == AF_INET6) ? h->name : sockaddr_str(&h->addr);
+}
+
 void show_results(void)
 {
 	int idx;
@@ -749,7 +880,7 @@ void show_results(void)
 	 */
 	for (idx = 0; (idx < hostcount); idx++) {
 		if (hosts[idx]->received > 0) {
-			printf("%s is alive", inet_ntoa(hosts[idx]->addr.sin_addr));
+			printf("%s is alive", host_label(hosts[idx]));
 			rtt_usecs = (hosts[idx]->rtt_total.tv_sec*1000000 + (hosts[idx]->rtt_total.tv_nsec / 1000)) / hosts[idx]->received;
 			if (rtt_usecs >= 3000) {
 				printf(" (%.1f ms)", rtt_usecs / 1000.0);
@@ -781,33 +912,34 @@ void show_results(void)
 		else {
 			if (samples_count > 0) {
 				printf("%s is unreachable loss=%d/%d\n",
-				       inet_ntoa(hosts[idx]->addr.sin_addr),
+				       host_label(hosts[idx]),
 				       hosts[idx]->sent, hosts[idx]->sent);
 			}
 			else {
-				printf("%s is unreachable\n", inet_ntoa(hosts[idx]->addr.sin_addr));
+				printf("%s is unreachable\n", host_label(hosts[idx]));
 			}
 		}
 	}
 }
 
-/* Try an unprivileged SOCK_DGRAM ICMP socket first: Linux grants one to a
- * user whose group is inside net.ipv4.ping_group_range, with no suid-root
- * needed. The kernel then manages icmp_id and strips the IP header on
- * receive (get_response handles both forms). Fall back to SOCK_RAW, the
- * historical path, if that is refused. */
-static int open_icmp_socket(int *err_out)
+/* Try SOCK_DGRAM + IPPROTO_ICMP{,V6} first -- on Linux this works for
+ * unprivileged users whose GID is in net.ipv4.ping_group_range, with no
+ * setcap / suid-root needed. The kernel manages icmp_id and strips any
+ * IP header on RX (get_response handles both forms). Fall back to
+ * SOCK_RAW (the historical path) if dgram is denied. */
+static int open_icmp_socket(int family, int *is_dgram_out, int *err_out)
 {
+	int proto = (family == AF_INET) ? IPPROTO_ICMP : IPPROTO_ICMPV6;
 	int s;
 
-	s = socket(AF_INET, SOCK_DGRAM, IPPROTO_ICMP);
-	if (s >= 0) { is_dgram = 1; return s; }
+	s = socket(family, SOCK_DGRAM, proto);
+	if (s >= 0) { *is_dgram_out = 1; return s; }
 
 	get_root();
-	s = socket(AF_INET, SOCK_RAW, IPPROTO_ICMP);
+	s = socket(family, SOCK_RAW, proto);
 	*err_out = errno;
 	drop_root();
-	is_dgram = 0;
+	*is_dgram_out = 0;
 	return s;
 }
 
@@ -815,8 +947,12 @@ int main(int argc, char *argv[])
 {
 	int sockerr = 0, binderr = 0;
 	int argi, tries = 3, timeout = 5;
+	int need_v4 = 0, need_v6 = 0;
+	int i;
 	char *srcip = NULL;
 	struct sockaddr_in src_addr;
+	struct sockaddr_in6 src_addr6;
+	int src_family = 0;
 
 	/* Immediately drop all root privileges. */
 	drop_root();
@@ -867,6 +1003,7 @@ int main(int argc, char *argv[])
 		}
 		else if (strcmp(argv[argi], "--help") == 0) {
 			fprintf(stderr, "%s [--retries=N] [--timeout=N] [--responses=N] [--samples=N] [--per-host-interval=MS] [--max-pps=N] [--source=IP]\n", argv[0]);
+			fprintf(stderr, "  Reads IPv4/IPv6 addresses from stdin, one per line.\n");
 			return 0;
 		}
 
@@ -895,31 +1032,69 @@ int main(int argc, char *argv[])
 	 * link, rather than N probes squeezed into the reply timeout. */
 	if ((samples_count > 0) && (per_host_interval_ms < 0)) per_host_interval_ms = 1000;
 
+	/* --source: an IPv6 address binds the IPv6 socket, an IPv4 one the
+	 * IPv4 socket; each family's pings leave from their own source. */
+	memset(&src_addr, 0, sizeof(src_addr));
+	memset(&src_addr6, 0, sizeof(src_addr6));
 	if (srcip != NULL) {
-		/* Setup the source address */
-		src_addr.sin_family = AF_INET;
-		src_addr.sin_addr.s_addr = inet_addr(srcip);
-		src_addr.sin_port = htons(0);
+		if (inet_pton(AF_INET6, srcip, &src_addr6.sin6_addr) == 1) {
+			src_family = AF_INET6;
+			src_addr6.sin6_family = AF_INET6;
+		}
+		else {
+			src_family = AF_INET;
+			src_addr.sin_family = AF_INET;
+			src_addr.sin_addr.s_addr = inet_addr(srcip);
+			src_addr.sin_port = htons(0);
+		}
 	}
+
 
 	load_ips(argc, argv, stdin);
-	if (hostcount == 0) return 0;	/* nothing to ping: no output, as before */
 
-	pingsocket = open_icmp_socket(&sockerr);
-	if (pingsocket == -1) {
-		errprintf("Cannot open ICMP socket: %s\n", strerror(sockerr));
-		if (sockerr == EPERM || sockerr == EACCES) {
-			errprintf("Either run as a user whose group is in net.ipv4.ping_group_range,\n");
-			errprintf("or install the binary suid-root or with cap_net_raw.\n");
+	/* Decide which sockets we actually need based on the host list. */
+	for (i = 0; i < hostcount; i++) {
+		if (hosts[i]->family == AF_INET6) need_v6 = 1;
+		else                              need_v4 = 1;
+	}
+	if (!need_v4 && !need_v6) return 0;	/* nothing to ping: no output, as before */
+
+	/* A family whose socket cannot be opened is reported, and its hosts
+	 * come out unreachable (send_probe() fails for them); the other
+	 * family is still pinged. Only when no socket at all can be had
+	 * does the run end, with exit status 3. */
+	if (need_v4) {
+		pingsocket_v4 = open_icmp_socket(AF_INET, &is_dgram_v4, &sockerr);
+		if (pingsocket_v4 == -1) {
+			errprintf("Cannot open IPv4 ICMP socket: %s\n", strerror(sockerr));
+			if (sockerr == EPERM || sockerr == EACCES) {
+				errprintf("Either run as a user whose group is in net.ipv4.ping_group_range,\n");
+				errprintf("or install the binary suid-root or with cap_net_raw.\n");
+			}
 		}
-		return 3;
+		else {
+			if ((src_family == AF_INET) && (bind(pingsocket_v4, (struct sockaddr *)&src_addr, sizeof(src_addr)) == -1)) {
+				binderr = errno;
+				errprintf("Cannot bind to source address %s: %s\nUsing default address\n",
+				          srcip, strerror(binderr));
+			}
+			fcntl(pingsocket_v4, F_SETFL, O_NONBLOCK);
+		}
 	}
-	if (srcip != NULL && bind(pingsocket, (struct sockaddr *)&src_addr, sizeof(src_addr)) == -1) {
-		binderr = errno;
-		errprintf("Cannot bind to source address %s: %s\nUsing default address\n",
-		          srcip, strerror(binderr));
+
+	if (need_v6) {
+		pingsocket_v6 = open_icmp_socket(AF_INET6, &is_dgram_v6, &sockerr);
+		if (pingsocket_v6 == -1) errprintf("Cannot open IPv6 ICMP socket: %s\n", strerror(sockerr));
+		else {
+			if ((src_family == AF_INET6) && (bind(pingsocket_v6, (struct sockaddr *)&src_addr6, sizeof(src_addr6)) == -1)) {
+				errprintf("Cannot bind to source address %s: %s\nUsing default address\n",
+				          srcip, strerror(errno));
+			}
+			fcntl(pingsocket_v6, F_SETFL, O_NONBLOCK);
+		}
 	}
-	fcntl(pingsocket, F_SETFL, O_NONBLOCK);
+
+	if ((pingsocket_v4 == -1) && (pingsocket_v6 == -1)) return 3;
 
 	{
 		/* Both modes drive sends from the shared event heap. Smoke
@@ -928,7 +1103,8 @@ int main(int argc, char *argv[])
 		 * retries up to --retries=N. */
 		int rc = (samples_count > 0) ? smoke_main_loop(timeout)
 		                             : retry_main_loop(timeout, tries);
-		close(pingsocket);
+		if (pingsocket_v4 != -1) close(pingsocket_v4);
+		if (pingsocket_v6 != -1) close(pingsocket_v6);
 		if (rc == 0) show_results();
 		return rc;
 	}

@@ -28,7 +28,13 @@
  * and with --samples: each reply's rtt is kept in its slot, and the loop sends
  * every host its N pings in order, --per-host-interval apart, still never two
  * closer than --max-pps allows, then expires each one unanswered and counts it
- * lost.
+ * lost; and for IPv6: ICMPv6 replies count on either kind of socket, a reply
+ * whose family differs from its host's is ignored, load_ips() reads "10.1" as
+ * inet_aton() does, cuts a line at its first blank and keeps a %iface scope,
+ * is_ip_arg() takes every address form and no option, main() still pings the
+ * IPv4 hosts -- on the IPv4 socket -- and reports them when the IPv6 socket
+ * cannot be opened, prints an IPv6 address as it was given, and binds an IPv6
+ * --source to the IPv6 socket.
  */
 
 /* What xymonping sends is recorded instead of leaving the box, with the
@@ -54,6 +60,9 @@ static int nsent = 0;
 static int stall_first = 0;
 static int refuse_seq = 0;
 static int fail_dgram = 0;
+static int fail_v6 = 0;		/* the IPv6 socket cannot be opened at all */
+static int v4_fd = -1, v6_fd = -1;	/* the sockets handed out, per family */
+static int v4_sends = 0, v6_sends = 0, bound_family = 0;
 static int echo_fd = -1;	/* when set, every ping is answered at once through this socket */
 static int (*queue_probe)(void) = 0;	/* when set, sampled on every send */
 static int queue_max = 0;		/* the largest value queue_probe returned */
@@ -69,7 +78,9 @@ static ssize_t harness_sendto(int s, const void *b, size_t n, int f, const struc
 {
 	const unsigned char *p = (const unsigned char *)b;
 
-	(void)s; (void)f; (void)a; (void)l;
+	(void)f; (void)a; (void)l;
+	if (s == v4_fd) v4_sends++;
+	else if (s == v6_fd) v6_sends++;
 	if (stall_first) { stall_first = 0; usleep(500000); }
 	if (queue_probe && (queue_probe() > queue_max)) queue_max = queue_probe();
 	if (nsent < MAXSENT) {
@@ -92,11 +103,23 @@ static int harness_socket(int domain, int type, int proto)
 {
 	int p[2];
 
-	(void)domain; (void)proto;
+	(void)proto;
+	if (fail_v6 && (domain == AF_INET6)) { errno = EAFNOSUPPORT; return -1; }
 	if (fail_dgram && (type == SOCK_DGRAM)) { errno = EACCES; return -1; }
 	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, p) != 0) return -1;
+	if (domain == AF_INET) v4_fd = p[0];
+	else if (domain == AF_INET6) v6_fd = p[0];
 	return p[0];
 }
+
+/* bind() records the family of the address it is given, for --source. */
+static int harness_bind(int s, const struct sockaddr *a, socklen_t l)
+{
+	(void)l;
+	if ((s == v4_fd) || (s == v6_fd)) bound_family = a->sa_family;
+	return 0;
+}
+#define bind harness_bind
 #define socket harness_socket
 
 #define main xymonping_main
@@ -108,6 +131,7 @@ static int sends_queued(void) { return evheap_size(&sends); }
 
 static int fails = 0;
 static int sv[2];
+static int harness_dgram = 0;	/* the kind of socket feed() presents get_response() with */
 
 #define CHECK(cond, what) do { if (!(cond)) { printf("FAIL %s\n", what); fails++; } } while (0)
 /* A timing check that says, when it fails, what it measured. */
@@ -182,7 +206,7 @@ static int feed(pkt_t p)
 	if (send(sv[1], buf, off + sizeof(struct icmp) + sizeof(struct pingdata_t) - p.cut, 0) < 0) {
 		perror("send"); exit(2);
 	}
-	(void)get_response();
+	(void)get_response(sv[0], AF_INET, harness_dgram);
 	return hosts[0]->received;
 }
 
@@ -205,6 +229,29 @@ static void sent(int i, int *host, int *probe, int64_t *when)
 	*host  = ntohs(icmp->icmp_seq) - 1;
 	*probe = pd.probe_idx;
 	*when  = sent_call_ns[i];
+}
+
+/* Queue an ICMPv6 echo reply for host index seq-1 and let get_response()
+ * read it as an ICMPv6 socket of the given kind; return host 1's count. */
+static int feed6(int dgram, int seq, int hdr_id)
+{
+	unsigned char buf[256];
+	struct icmp6_hdr *icmp6 = (struct icmp6_hdr *)buf;
+	struct pingdata_t pd;
+
+	memset(buf, 0, sizeof(buf));
+	memset(&pd, 0, sizeof(pd));
+	icmp6->icmp6_type = ICMP6_ECHO_REPLY;
+	icmp6->icmp6_id   = htons(hdr_id);
+	icmp6->icmp6_seq  = htons(seq);
+	pd.id        = seq - 1;
+	pd.probe_idx = 0;
+	pd.icmpid    = myicmpid;
+	getntimer(&pd.timesent);
+	memcpy(buf + sizeof(struct icmp6_hdr), &pd, sizeof(pd));
+	if (send(sv[1], buf, sizeof(struct icmp6_hdr) + sizeof(struct pingdata_t), 0) < 0) { perror("send"); exit(2); }
+	(void)get_response(sv[0], AF_INET6, dgram);
+	return hosts[1]->received;
 }
 
 /* Run main() in a child with argv and stdin from /dev/null; the child
@@ -233,7 +280,9 @@ static int run_main(char **argv, char *out, size_t outlen)
 			memcpy(&pd, sent_pkt[i] + sizeof(struct icmp), sizeof(pd));
 			if (pd.icmpid != ntohs(icmp->icmp_id)) ours = 0;
 		}
-		printf("is_dgram=%d sent=%d payload_carries_id=%d\n", is_dgram, nsent, ours);
+		printf("is_dgram=%d sent=%d payload_carries_id=%d v4sends=%d v6sends=%d bound=%s\n",
+		       is_dgram_v4, nsent, ours, v4_sends, v6_sends,
+		       (bound_family == AF_INET6) ? "v6" : ((bound_family == AF_INET) ? "v4" : "none"));
 		fflush(stdout);
 		_exit(status);
 	}
@@ -253,6 +302,15 @@ int main(void)
 	char out[1024];
 	char a0[] = "xymonping", a1[] = "--timeout=1", a2[] = "--retries=0", a3[] = "127.0.0.1";
 	char *argv1[] = { a0, a1, a2, a3, NULL };
+	/* Writable, as a real argv is: load_ips() cuts an address at its first blank. */
+	char b1[] = "--samples=1", b2[] = "--per-host-interval=0", b4[] = "127.0.0.1", b5[] = "::1";
+	char *argv_mixed[] = { a0, b1, b2, a1, b4, b5, NULL };
+	char c5[] = "2001:DB8::0001";
+	char *argv_given[] = { a0, b1, b2, a1, c5, NULL };
+	char d1[] = "--source=::1";
+	char *argv_source[] = { a0, b1, b2, a1, d1, b4, b5, NULL };
+	struct sockaddr_in6 *sin6;
+	struct sockaddr_in *sin4;
 	pingevent_t ev;
 
 	/* main(): the unprivileged socket first, the raw one when it is
@@ -267,9 +325,24 @@ int main(void)
 	      "the raw socket is used when the unprivileged one is refused");
 	fail_dgram = 0;
 
+	/* main() with IPv4 and IPv6 hosts: an IPv6 socket that cannot be
+	 * opened costs the IPv6 hosts, not the run -- the IPv4 one is still
+	 * pinged, on the IPv4 socket, and reported; an IPv6 result names its
+	 * host as it was given; an IPv6 --source binds the IPv6 socket. */
+	fail_v6 = 1;
+	CHECK(run_main(argv_mixed, out, sizeof(out)) == 0, "a failed IPv6 socket does not end the run");
+	CHECK(strstr(out, "127.0.0.1 is unreachable loss=1/1") != NULL, "the IPv4 host is still reported");
+	CHECK(strstr(out, "::1 is unreachable loss=1/1") != NULL, "the IPv6 host is reported lost");
+	CHECK(strstr(out, "v4sends=1 v6sends=0") != NULL, "the IPv4 host is pinged on the IPv4 socket");
+	fail_v6 = 0;
+	CHECK(run_main(argv_given, out, sizeof(out)) == 0 && strstr(out, "2001:DB8::0001 is unreachable") != NULL,
+	      "an IPv6 result names its host as it was given");
+	CHECK(run_main(argv_source, out, sizeof(out)) == 0 && strstr(out, "bound=v6") != NULL,
+	      "an IPv6 --source binds the IPv6 socket");
+
 	if (socketpair(AF_UNIX, SOCK_DGRAM, 0, sv) != 0) { perror("socketpair"); return 2; }
 	fcntl(sv[0], F_SETFL, O_NONBLOCK);
-	pingsocket = sv[0];
+	pingsocket_v4 = sv[0];
 	myicmpid = 1234;
 	probe_timeout_ns = 1000000000LL;
 	minresponses = 1;
@@ -282,7 +355,7 @@ int main(void)
 	}
 
 	/* Raw socket: header always there, our icmp_id required. */
-	is_dgram = 0;
+	harness_dgram = 0;
 	waiting(); p = good(); p.iphdr = 1;
 	CHECK(feed(p) == 1, "raw: our reply counts");
 	CHECK(hosts[0]->probe_state[0] == PS_REPLIED, "raw: the try is marked replied");
@@ -291,7 +364,7 @@ int main(void)
 	CHECK(feed(p) == 0, "raw: another icmp_id is ignored");
 
 	/* SOCK_DGRAM: the kernel's icmp_id, our id in the payload. */
-	is_dgram = 1;
+	harness_dgram = 1;
 	waiting(); p = good(); p.hdr_id = 77;
 	CHECK(feed(p) == 1, "dgram without IP header: our reply counts");
 	waiting(); p = good(); p.hdr_id = 77; p.iphdr = 1;
@@ -422,7 +495,7 @@ int main(void)
 	load("127.0.0.1\n127.0.0.2\n");
 	nsent = 0;
 	senddelay = 10000;
-	is_dgram = 1;
+	is_dgram_v4 = 1;
 	echo_fd = sv[1];
 	CHECK(retry_main_loop(5, 3) == 0, "the loop with answering hosts runs to the end");
 	echo_fd = -1;
@@ -489,5 +562,49 @@ int main(void)
 		CHECK_GAP(w1 - w0, 95000000LL, "--samples with no spacing: no two pings closer than --max-pps allows");
 	}
 	samples_count = 0;
+
+	/* IPv6 replies, and replies of the wrong family. */
+	load("127.0.0.1\n::1\n");
+	CHECK(hostcount == 2 && hosts[1]->family == AF_INET6, "::1 is loaded as IPv6");
+	for (i = 0; i < hostcount; i++) {
+		hosts[i]->probe_state = (uint8_t *)calloc(1, sizeof(uint8_t));
+		hosts[i]->probe_slots = 1;
+		hosts[i]->probe_state[0] = PS_SENT;
+	}
+	probe_timeout_ns = 1000000000LL;
+	CHECK(feed6(1, 2, 77) == 1, "dgram: an ICMPv6 reply for the IPv6 host counts");
+	hosts[1]->received = 0; hosts[1]->probe_state[0] = PS_SENT;
+	CHECK(feed6(0, 2, 999) == 0, "raw: an ICMPv6 reply with another icmp_id is ignored");
+	CHECK(feed6(0, 2, myicmpid) == 1, "raw: an ICMPv6 reply with our icmp_id counts");
+	hosts[0]->received = 0;
+	CHECK((feed6(1, 1, 77), hosts[0]->received == 0), "an ICMPv6 reply naming the IPv4 host is ignored");
+	hosts[1]->received = 0; hosts[1]->probe_state[0] = PS_SENT;
+	harness_dgram = 1; p = good(); p.seq = 2; p.payload_id = 1;
+	(void)feed(p);
+	CHECK(hosts[1]->received == 0, "an ICMP reply naming the IPv6 host is ignored");
+
+	/* load_ips(): the address forms. */
+	load("10.1\n1.2.3.4 trailing text\n::1\n::2 trailing text\nfe80::1%lo\nfe80::1%nosuchif\n");
+	CHECK(hostcount == 5 || hostcount == 4, "the addresses load, the unknown interface is dropped");
+	sin4 = (struct sockaddr_in *)&hosts[0]->addr;
+	CHECK(hosts[0]->family == AF_INET && sin4->sin_addr.s_addr == htonl(0x0a000001),
+	      "10.1 is read as 10.0.0.1, as inet_aton() always read it");
+	sin4 = (struct sockaddr_in *)&hosts[1]->addr;
+	CHECK(hosts[1]->family == AF_INET && sin4->sin_addr.s_addr == htonl(0x01020304),
+	      "an address ends at the first blank");
+	CHECK(hosts[2]->family == AF_INET6, "::1 is IPv6");
+	sin6 = (struct sockaddr_in6 *)&hosts[3]->addr;
+	CHECK(hosts[3]->family == AF_INET6 && sin6->sin6_addr.s6_addr[0] == 0 && sin6->sin6_addr.s6_addr[15] == 2,
+	      "an IPv6 address ends at the first blank too: ::2 is loaded");
+	if (if_nametoindex("lo") != 0) {
+		sin6 = (struct sockaddr_in6 *)&hosts[4]->addr;
+		CHECK(hostcount == 5 && hosts[4]->family == AF_INET6 && sin6->sin6_scope_id == if_nametoindex("lo"),
+		      "fe80::1%lo carries lo's interface index");
+	}
+
+	/* is_ip_arg(): which command-line words are addresses. */
+	CHECK(is_ip_arg("10.1") && is_ip_arg("127.0.0.1") && is_ip_arg("::1") && is_ip_arg("fe80::1%lo"),
+	      "IPv4, short IPv4, IPv6 and scoped IPv6 are command-line addresses");
+	CHECK(!is_ip_arg("--samples=3") && !is_ip_arg("localhost"), "options and names are not");
 	return fails ? 1 : 0;
 }
