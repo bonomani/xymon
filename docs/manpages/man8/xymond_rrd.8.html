@@ -368,8 +368,11 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
     name is restricted to letters, digits, &quot;_&quot; and &quot;-&quot; (max
     64 characters); an invalid name skips the whole block. The name may be left
     out (&quot;&lt;!--XYMON METRICS&quot; alone): the block then takes the
-    test's name. A message may carry several blocks. The block is invisible on
-    the rendered status page.</p>
+    test's name. A message may carry several blocks. On the status page the
+    block is shown, where it sits in the message, as a table: one row per
+    instance, one column per dataset, each value green, or yellow or red when it
+    crosses a &quot;warn&quot; or &quot;crit&quot; THRESHOLD the block declares
+    (see below).</p>
 <p class="Pp">An instance line is the instance name, then its values separated
     by &quot;:&quot;, one per declared dataset. The values are the last field on
     the line, so an instance name may contain spaces (&quot;/media/My

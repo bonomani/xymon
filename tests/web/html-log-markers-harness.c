@@ -157,16 +157,57 @@ int main(void)
 	free(html);
 
 	/* An UNNAMED METRICS block + an UNNAMED GRAPH both default to the test
-	 * name, so the graph renders from the message alone (name-optional). */
+	 * name (name-optional). The block is ALSO rendered in place as a status
+	 * table whose value cells are coloured by their declared THRESHOLDs. */
 	html = render_log_msg("smart", 0, "",
 		"<!--XYMON METRICS\n"
-		"DS:temp:GAUGE:600:0:U\n"
-		"sda 32\n"
+		"DS:temp:GAUGE:600:0:U:Celsius\n"
+		"THRESHOLD:temp:>55:warn\n"
+		"THRESHOLD:temp:>65:crit\n"
+		"sda 38\n"
 		"nvme0 29\n"
+		"sdb 58\n"
+		"hot 72\n"
 		"-->\n"
 		"<!--XYMON GRAPH -->\n"
 		"status text\n");
 	expect_contains("unnamed METRICS+GRAPH default to the test name", html, "service=smart&amp;");
+	expect_contains("METRICS block renders a status table", html, "<table");
+	expect_contains("table header is the DS name", html, ">temp</th>");
+	expect_contains("table shows the raw value", html, "38</td>");
+	expect_contains("warn-band value coloured yellow (58>55)", html, "alt=\"yellow\"");
+	expect_contains("crit-band value coloured red (72>65)", html, "alt=\"red\"");
+	free(html);
+
+	/* Several DS specs on one line - the form the disk and inode blocks
+	 * use - are all columns, and a THRESHOLD on a later one is evaluated. */
+	html = render_log_msg("disk", 0, "",
+		"<!--XYMON METRICS: diskx\n"
+		"DS:pct:GAUGE:600:0:100 DS:used:GAUGE:600:0:U\n"
+		"THRESHOLD:used:>800:crit\n"
+		"/var 50:500\n"
+		"/data 90:900\n"
+		"-->\n"
+		"status text\n");
+	expect_contains("first DS on the line is a column", html, ">pct</th>");
+	expect_contains("second DS on the same line is a column too", html, ">used</th>");
+	expect_contains("the second value is shown", html, "500</td>");
+	expect_contains("a THRESHOLD on the second DS is evaluated (900>800)", html, "alt=\"red\"");
+	free(html);
+
+	/* CRLF line ends and a declaration keyword the table does not know:
+	 * the keyword line is no instance row, and the last value of a row is
+	 * still a number (no trailing CR), so its cell is coloured. */
+	html = render_log_msg("smart", 0, "",
+		"<!--XYMON METRICS: crlf\r\n"
+		"DS:temp:GAUGE:600:0:U\r\n"
+		"SCALE: 2\r\n"
+		"THRESHOLD:temp:>55:warn\r\n"
+		"sdb 58\r\n"
+		"-->\r\n"
+		"status text\r\n");
+	expect_not_contains("an unknown declaration is not an instance row", html, ">SCALE:</td>");
+	expect_contains("a CRLF row's last value is still coloured (58>55)", html, "alt=\"yellow\"");
 	free(html);
 
 	/* Marker names are exact identities: "diskio_busy2" must not inherit
