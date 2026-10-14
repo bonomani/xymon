@@ -24,7 +24,11 @@
  * and for load_ips(): at most 65535 hosts, empty input loads none, and a line
  * that is not an address is dropped; and for the loop without --samples, as
  * seen in the packets it sends: each host is tried --retries+1 times in order,
- * a retry only after the timeout, no two pings closer than --max-pps allows.
+ * a retry only after the timeout, no two pings closer than --max-pps allows;
+ * and with --samples: each reply's rtt is kept in its slot, and the loop sends
+ * every host its N pings in order, --per-host-interval apart, still never two
+ * closer than --max-pps allows, then expires each one unanswered and counts it
+ * lost.
  */
 
 /* What xymonping sends is recorded instead of leaving the box, with the
@@ -51,6 +55,8 @@ static int stall_first = 0;
 static int refuse_seq = 0;
 static int fail_dgram = 0;
 static int echo_fd = -1;	/* when set, every ping is answered at once through this socket */
+static int (*queue_probe)(void) = 0;	/* when set, sampled on every send */
+static int queue_max = 0;		/* the largest value queue_probe returned */
 
 static int64_t harness_now_ns(void)
 {
@@ -65,6 +71,7 @@ static ssize_t harness_sendto(int s, const void *b, size_t n, int f, const struc
 
 	(void)s; (void)f; (void)a; (void)l;
 	if (stall_first) { stall_first = 0; usleep(500000); }
+	if (queue_probe && (queue_probe() > queue_max)) queue_max = queue_probe();
 	if (nsent < MAXSENT) {
 		memcpy(sent_pkt[nsent], b, (n < 64) ? n : 64);
 		sent_call_ns[nsent] = harness_now_ns();
@@ -95,6 +102,9 @@ static int harness_socket(int domain, int type, int proto)
 #define main xymonping_main
 #include "xymonping.c"
 #undef main
+
+/* How many sends are queued, for queue_probe. */
+static int sends_queued(void) { return evheap_size(&sends); }
 
 static int fails = 0;
 static int sv[2];
@@ -312,6 +322,15 @@ int main(void)
 	CHECK(feed(p) == 0, "a reply later than the timeout is ignored, though read before the try expired");
 	CHECK(hosts[0]->probe_state[0] == PS_SENT, "a late reply leaves the try for its expiry to settle");
 
+	/* --samples: the reply's rtt is kept in the slot of its ping. */
+	hosts[0]->samples_usec = (unsigned long *)calloc(2, sizeof(unsigned long));
+	inflight = 1;
+	waiting(); p = good(); p.probe_idx = 1; hosts[0]->probe_state[1] = PS_SENT; p.age_ns = 3000000LL;
+	CHECK(feed(p) == 1, "--samples: the reply counts");
+	CHECK((hosts[0]->samples_usec[1] >= 3000) && (hosts[0]->samples_usec[1] < 1000000), "--samples: its rtt is kept in its ping's slot");
+	CHECK(inflight == 0, "--samples: the ping is no longer in flight");
+	xfree(hosts[0]->samples_usec);
+
 	/* --responses: the host stays pending until it has enough replies. */
 	minresponses = 2;
 	waiting(); hosts[0]->probe_state[1] = PS_SENT; p = good();
@@ -411,5 +430,64 @@ int main(void)
 	CHECK(hosts[0]->received == 1 && hosts[1]->received == 1, "each answer is counted");
 	CHECK(evheap_size(&sends) == 0 && evheap_size(&expiries) == 0,
 	      "the loop leaves no expiry behind when it stops early");
+
+	/* The --samples loop: three hosts nobody answers, three pings each,
+	 * 300 ms apart, at most 20 a second, a 1 s timeout. The first send
+	 * stalls for 500 ms: the next ping to that host must still leave
+	 * 300 ms after it, not at its place in the original schedule. */
+	samples_count = 3;
+	per_host_interval_ms = 300;
+	load("127.0.0.1\n127.0.0.2\n127.0.0.3\n");
+	nsent = 0;
+	senddelay = 50000;
+	inflight = 0;
+	stall_first = 1;
+	queue_probe = sends_queued;
+	queue_max = 0;
+	CHECK(smoke_main_loop(1) == 0, "--samples: the loop runs to the end");
+	CHECK(nsent == 9, "--samples: three pings to each of three hosts");
+	for (i = 0; (i < nsent) && (i < MAXSENT); i++) {
+		int host, probe, j;
+		int64_t when;
+
+		sent(i, &host, &probe, &when);
+		for (j = 0; j < i; j++) {
+			int h0, p0;
+			int64_t w0;
+			sent(j, &h0, &p0, &w0);
+			CHECK_GAP(when - w0, 45000000LL, "--samples: no two pings closer than --max-pps allows");
+			if (h0 == host) {
+				CHECK(p0 < probe, "--samples: a host's pings go in order");
+				CHECK_GAP(when - w0, 295000000LL, "--samples: a host's pings are --per-host-interval apart");
+			}
+		}
+	}
+	CHECK(inflight == 0, "--samples: no ping is left in flight");
+	queue_probe = 0;
+	CHECK(queue_max <= hostcount, "--samples: only each host's next ping is queued, not all N");
+	CHECK(hosts_pending >= 0, "--samples: the pending-host count stays consistent");
+	CHECK(evheap_size(&sends) == 0 && evheap_size(&expiries) == 0, "--samples: the loop leaves no event behind");
+	for (i = 0; i < hostcount; i++) {
+		CHECK(hosts[i]->sent == 3 && hosts[i]->received == 0, "--samples: three pings sent, none answered");
+		CHECK(hosts[i]->probe_state[0] == PS_TIMEOUT && hosts[i]->probe_state[2] == PS_TIMEOUT,
+		      "--samples: each unanswered ping expires");
+	}
+
+	/* With no spacing at all, --max-pps still holds, also when the loop
+	 * falls behind. */
+	per_host_interval_ms = 0;
+	load("127.0.0.1\n127.0.0.2\n");
+	nsent = 0;
+	senddelay = 100000;
+	stall_first = 1;
+	CHECK(smoke_main_loop(1) == 0 && nsent == 6, "--samples with no spacing: every ping is sent");
+	for (i = 1; (i < nsent) && (i < MAXSENT); i++) {
+		int h0, p0, h1, p1;
+		int64_t w0, w1;
+		sent(i - 1, &h0, &p0, &w0);
+		sent(i, &h1, &p1, &w1);
+		CHECK_GAP(w1 - w0, 95000000LL, "--samples with no spacing: no two pings closer than --max-pps allows");
+	}
+	samples_count = 0;
 	return fails ? 1 : 0;
 }

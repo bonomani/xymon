@@ -44,25 +44,37 @@ static char rcsid[] = "$Id$";
 #define PING_PACKET_SIZE 64
 #define PING_MINIMUM_SIZE ICMP_MINLEN
 
+/* Safety caps. xymon is normally run with a few thousand hosts at
+ * most; these are several orders of magnitude above realistic and
+ * exist only to fail cleanly on a corrupt or hostile hosts.cfg
+ * instead of OOM-ing the box. */
 /* The 16-bit ICMP echo sequence carries (host_idx + 1), so two hosts
- * whose indices differ by a multiple of 65536 would receive each
- * other's replies. Refuse hosts beyond that rather than let the
- * reply-side cross-check on pingdata.id silently drop them. */
+ * with indices that differ by a multiple of 65536 would receive each
+ * other's replies. The reply-side cross-check on pingdata.id catches
+ * the alias, but advertising a 1M cap when only the first ~65535 can
+ * ever match is misleading. MAX_TOTAL_PROBES still bounds the total. */
 #define MAX_HOSTS            65535
+#define MAX_SAMPLES_PER_HOST 1000
+#define MAX_TOTAL_PROBES     10000000
 
-/* Per-probe state, indexed by the probe_idx a reply carries back. */
+/* Per-probe state machine for smoke mode. Indexed by probe_idx so
+ * samples_usec[k] is always the RTT for the kth scheduled probe to
+ * that host, regardless of arrival order. */
 #define PS_SCHED   0	/* not yet sent */
 #define PS_SENT    1	/* sent, awaiting reply */
 #define PS_REPLIED 2	/* reply received */
+#define PS_ERROR   3	/* send hard-failed; no reply possible */
 #define PS_TIMEOUT 4	/* in-flight deadline elapsed; counted as lost */
 
 typedef struct hostdata_t {
 	int id;
 	struct sockaddr_in addr;
 	int received;			/* how many ICMP_ECHO replies we've got */
+	int sent;			/* how many ICMP_ECHO requests we've sent (smoke mode) */
 	struct timespec rtt_total;
-	uint8_t       *probe_state;	/* PS_* per try, so a late reply is rejected after PS_TIMEOUT */
-	int probe_slots;		/* length of probe_state (tries) */
+	unsigned long *samples_usec;	/* --samples: rtt in usec per probe_idx; NULL otherwise */
+	uint8_t       *probe_state;	/* PS_* per probe_idx; legacy allocates [tries] so late replies are rejected after PS_TIMEOUT */
+	int probe_slots;		/* length of probe_state (and samples_usec): samples_count with --samples, else tries */
 	struct hostdata_t *next;
 } hostdata_t;
 
@@ -75,6 +87,9 @@ int minresponses = 1;		/* --responses: replies a host needs before it is done */
 int hosts_pending = 0;		/* hosts still short of minresponses replies */
 int64_t probe_timeout_ns = 0;	/* a reply later than this after its ping does not count */
 int64_t next_send_ns = 0;	/* earliest time the next ping may leave, for --max-pps */
+int samples_count = 0;		/* >0 enables smoke mode: send exactly N pings per host, record each rtt */
+int inflight = 0;		/* --samples: pings sent and still awaiting a reply or their deadline */
+int per_host_interval_ms = -1;	/* spacing between probes for one host in smoke mode; -1 = 1000 ms */
 int is_dgram = 0;		/* 1 if the socket is SOCK_DGRAM (kernel-managed icmp_id, no IP header on RX) */
 int pingsocket = -1;
 
@@ -185,11 +200,27 @@ void load_ips(int argc, char *argv[], FILE *fd)
 	}
 	for (i=0, walk=hosthead; (walk); walk=walk->next, i++) hosts[i] = walk;
 	hosts[hostcount] = NULL;
+
+	/* With --samples, each host gets a per-sample rtt array and a
+	 * per-probe state, both indexed by probe_idx. The loop relies on
+	 * them, so a failed allocation ends the run like the host table
+	 * above. */
+	if (samples_count > 0) {
+		for (i = 0; i < hostcount; i++) {
+			hosts[i]->samples_usec  = (unsigned long *)calloc(samples_count, sizeof(unsigned long));
+			hosts[i]->probe_state   = (uint8_t *)calloc(samples_count, sizeof(uint8_t));
+			if (!hosts[i]->samples_usec || !hosts[i]->probe_state) {
+				errprintf("calloc(%d samples) failed for host idx %d; aborting\n", samples_count, i);
+				exit(1);
+			}
+			hosts[i]->probe_slots = samples_count;
+		}
+	}
 }
 
 
 /* This is the data we send with each ping packet: the host index and the
- * try it belongs to, so a reply can be matched back to the
+ * try (or sample) it belongs to, so a reply can be matched back to the
  * ping that sent it, our id, and the send time. icmp_seq encodes the host
  * index too. It sits after the ICMP header, which need not suit its
  * alignment (it holds a struct timespec), so it is copied in and out with
@@ -197,7 +228,7 @@ void load_ips(int argc, char *argv[], FILE *fd)
  * CPU faults on that. */
 typedef struct pingdata_t {
 	int id;				/* ID for the host this belongs to */
-	int probe_idx;			/* which try: 0 for the first, +1 per retry */
+	int probe_idx;			/* the try, or with --samples the sample: 0, 1, ... */
 	int icmpid;			/* our myicmpid, checked where the header id is the kernel's */
 	struct timespec timesent;	/* time we sent this ping */
 } pingdata_t;
@@ -380,13 +411,20 @@ int get_response(void)
 		if (((int64_t)rtt.tv_sec * 1000000000LL + rtt.tv_nsec) > probe_timeout_ns) continue;
 
 		if (hosts[hostidx]->probe_state) {
-			/* Only a try still PS_SENT may count: PS_REPLIED rejects
+			/* Only a ping still PS_SENT may count: PS_REPLIED rejects
 			 * duplicates, and PS_TIMEOUT rejects a late reply whose
-			 * deadline has passed (otherwise it would revive a host
-			 * the loop already gave up on for that try). */
+			 * deadline has passed (otherwise it would revive a ping
+			 * the loop already gave up on). With --samples the rtt
+			 * is kept at the slot the payload carries. */
 			int pidx = pingdata.probe_idx;
 			if (pidx < 0 || pidx >= hosts[hostidx]->probe_slots) continue;
 			if (hosts[hostidx]->probe_state[pidx] != PS_SENT) continue;
+			if (hosts[hostidx]->samples_usec) {
+				hosts[hostidx]->samples_usec[pidx] =
+					(unsigned long)(rtt.tv_sec) * 1000000UL +
+					(unsigned long)(rtt.tv_nsec / 1000);
+				inflight--;
+			}
 			hosts[hostidx]->probe_state[pidx] = PS_REPLIED;
 		}
 
@@ -469,6 +507,113 @@ static int next_event(pingevent_t *ev)
 		}
 		if (n > 0) drain_replies(&readfds);
 	}
+}
+
+/* --samples driver. Each host's samples_count pings go out
+ * per_host_interval_ms apart, the hosts staggered within that interval so
+ * they interleave on the wire, and no two pings closer than --max-pps
+ * allows. Only each host's next ping is queued, so the queue holds one send
+ * per host, not N. A send queues its own EV_EXPIRE at --timeout, after
+ * which a reply for that ping no longer counts. The run ends once every
+ * ping is sent and none is still waiting. */
+static int smoke_main_loop(int timeout)
+{
+	int i, unsent;
+	int64_t start_ns, step_ns, stagger_ns, sent_ns;
+	int64_t senddelay_ns = (int64_t)senddelay * 1000LL;	/* senddelay is in us; honor --max-pps / -i */
+
+	if ((int64_t)hostcount * (int64_t)samples_count > (int64_t)MAX_TOTAL_PROBES) {
+		errprintf("Refusing to schedule %d hosts x %d samples = %lld probes (cap %d)\n",
+		          hostcount, samples_count,
+		          (long long)hostcount * samples_count, MAX_TOTAL_PROBES);
+		return 5;
+	}
+
+	probe_timeout_ns = (int64_t)timeout * 1000000000LL;
+	hosts_pending = hostcount;
+	start_ns = mono_ns();
+	step_ns = (int64_t)per_host_interval_ms * 1000000LL;
+	stagger_ns = (hostcount > 0) ? step_ns / hostcount : 0;
+
+	for (i = 0; i < hostcount; i++) {
+		pingevent_t e;
+		e.when_ns    = start_ns + (int64_t)i * stagger_ns;
+		e.host_idx   = i;
+		e.probe_idx  = 0;
+		e.retries    = 0;
+		e.kind       = EV_SEND;
+		e.tries_left = 0;	/* --samples doesn't retry */
+		schedule(&sends, e);
+	}
+	unsent = hostcount * samples_count;
+
+	myicmpid = (getpid() & 0x7FFF);
+	next_send_ns = start_ns;
+
+	while ((unsent > 0) || (inflight > 0)) {
+		pingevent_t ev;
+		hostdata_t *h;
+		int r = next_event(&ev);
+
+		if (r < 0) return 4;
+		if (r == 0) break;
+		h = hosts[ev.host_idx];
+
+		if (ev.kind == EV_SEND) {
+			r = send_probe(ev.host_idx, ev.probe_idx);
+			sent_ns = mono_ns();	/* when the ping left: send_probe() has returned */
+			if (r != -1) next_send_ns = mono_ns() + senddelay_ns;
+			if ((r == -1) && (ev.retries < EWOULDBLOCK_MAX_RETRIES)) {
+				/* EWOULDBLOCK: socket buffer momentarily full.
+				 * Reschedule 1 ms later, bounded retries. */
+				ev.retries++;
+				ev.when_ns = mono_ns() + 1000000LL;
+				schedule(&sends, ev);
+				continue;
+			}
+
+			unsent--;
+			h->sent++;
+			if (r == 0) {
+				pingevent_t x = ev;
+				h->probe_state[ev.probe_idx] = PS_SENT;
+				inflight++;
+				x.kind    = EV_EXPIRE;
+				x.when_ns = mono_ns() + probe_timeout_ns;
+				schedule(&expiries, x);
+			}
+			else {
+				/* Hard send error, or EWOULDBLOCK exhausted: it
+				 * counts as sent for loss accounting, and no reply
+				 * will arrive. */
+				h->probe_state[ev.probe_idx] = PS_ERROR;
+			}
+
+			/* Queue this host's next ping one --per-host-interval after
+			 * this one actually left, as fping does: a ping that went out
+			 * late does not shorten the gap to the next. */
+			if (ev.probe_idx + 1 < samples_count) {
+				ev.probe_idx++;
+				ev.retries = 0;
+				ev.when_ns = sent_ns + step_ns;
+				schedule(&sends, ev);
+			}
+		}
+		else {
+			/* EV_EXPIRE: this ping's reply deadline. Read what is
+			 * already waiting first, so a reply that arrived in
+			 * time still counts. */
+			drain_now();
+			if (h->probe_state[ev.probe_idx] == PS_SENT) {
+				h->probe_state[ev.probe_idx] = PS_TIMEOUT;
+				inflight--;
+			}
+		}
+	}
+
+	evheap_clear(&sends);
+	evheap_clear(&expiries);
+	return 0;
 }
 
 /* Main loop without --samples. Each host gets one EV_SEND, in host order
@@ -607,14 +752,41 @@ void show_results(void)
 			printf("%s is alive", inet_ntoa(hosts[idx]->addr.sin_addr));
 			rtt_usecs = (hosts[idx]->rtt_total.tv_sec*1000000 + (hosts[idx]->rtt_total.tv_nsec / 1000)) / hosts[idx]->received;
 			if (rtt_usecs >= 3000) {
-				printf(" (%.1f ms)\n", rtt_usecs / 1000.0);
+				printf(" (%.1f ms)", rtt_usecs / 1000.0);
 			}
 			else {
-				printf(" (%lu usec)\n", rtt_usecs);
+				printf(" (%lu usec)", rtt_usecs);
+			}
+			if (samples_count > 0) {
+				/* Walk probe_state[] in send order so consumers see
+				 * samples in the order they were issued, not the
+				 * order replies arrived. Median consumers don't care
+				 * about ordering; humans reading the line do. */
+				int k, emitted = 0;
+				printf(" samples=");
+				for (k = 0; k < samples_count; k++) {
+					if (hosts[idx]->probe_state[k] != PS_REPLIED) continue;
+					printf("%s%.6f", (emitted > 0 ? "," : ""),
+					       hosts[idx]->samples_usec[k] / 1000000.0);
+					emitted++;
+				}
+				printf(" loss=%d/%d\n",
+				       hosts[idx]->sent - hosts[idx]->received,
+				       hosts[idx]->sent);
+			}
+			else {
+				printf("\n");
 			}
 		}
 		else {
-			printf("%s is unreachable\n", inet_ntoa(hosts[idx]->addr.sin_addr));
+			if (samples_count > 0) {
+				printf("%s is unreachable loss=%d/%d\n",
+				       inet_ntoa(hosts[idx]->addr.sin_addr),
+				       hosts[idx]->sent, hosts[idx]->sent);
+			}
+			else {
+				printf("%s is unreachable\n", inet_ntoa(hosts[idx]->addr.sin_addr));
+			}
 		}
 	}
 }
@@ -665,6 +837,21 @@ int main(int argc, char *argv[])
 			char *delim = strchr(argv[argi], '=');
 			minresponses = atoi(delim+1);
 		}
+		else if (strncmp(argv[argi], "--samples=", 10) == 0) {
+			char *delim = strchr(argv[argi], '=');
+			samples_count = atoi(delim+1);
+			if (samples_count < 0) samples_count = 0;
+			if (samples_count > MAX_SAMPLES_PER_HOST) {
+				errprintf("Clamping --samples=%d to the per-host cap of %d\n",
+				          samples_count, MAX_SAMPLES_PER_HOST);
+				samples_count = MAX_SAMPLES_PER_HOST;
+			}
+		}
+		else if (strncmp(argv[argi], "--per-host-interval=", 20) == 0) {
+			char *delim = strchr(argv[argi], '=');
+			per_host_interval_ms = atoi(delim+1);
+			if (per_host_interval_ms < 0) per_host_interval_ms = -1;
+		}
 		else if (strncmp(argv[argi], "--source=", 9) == 0) {
 			char *delim = strchr(argv[argi], '=');
 			srcip = strdup(delim+1);
@@ -679,7 +866,7 @@ int main(int argc, char *argv[])
 			if (delim) set_debugfile(delim+1, 0);
 		}
 		else if (strcmp(argv[argi], "--help") == 0) {
-			fprintf(stderr, "%s [--retries=N] [--timeout=N] [--responses=N] [--max-pps=N] [--source=IP]\n", argv[0]);
+			fprintf(stderr, "%s [--retries=N] [--timeout=N] [--responses=N] [--samples=N] [--per-host-interval=MS] [--max-pps=N] [--source=IP]\n", argv[0]);
 			return 0;
 		}
 
@@ -700,6 +887,13 @@ int main(int argc, char *argv[])
 			/* Ignore everything else - for fping compatibility */
 		}
 	}
+
+	/* Smoke mode is driven by smoke_main_loop() further down; the
+	 * legacy retry/pending loop is not entered. Probes to one host go
+	 * out 1000 ms apart by default, fping's -p default and so what
+	 * SmokePing measures with: one train per cycle, a snapshot of the
+	 * link, rather than N probes squeezed into the reply timeout. */
+	if ((samples_count > 0) && (per_host_interval_ms < 0)) per_host_interval_ms = 1000;
 
 	if (srcip != NULL) {
 		/* Setup the source address */
@@ -728,7 +922,12 @@ int main(int argc, char *argv[])
 	fcntl(pingsocket, F_SETFL, O_NONBLOCK);
 
 	{
-		int rc = retry_main_loop(timeout, tries);
+		/* Both modes drive sends from the shared event heap. Smoke
+		 * fans out N samples per host with no retries; legacy
+		 * schedules one EV_SEND per host with EV_EXPIRE-driven
+		 * retries up to --retries=N. */
+		int rc = (samples_count > 0) ? smoke_main_loop(timeout)
+		                             : retry_main_loop(timeout, tries);
 		close(pingsocket);
 		if (rc == 0) show_results();
 		return rc;

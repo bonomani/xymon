@@ -20,7 +20,8 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
 <section class="Sh">
 <p>&#160;</p>
 <h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
-<p class="Pp"><b>xymonping [--retries=N] [--timeout=N] [IP-addresses]</b></p>
+<p class="Pp"><b>xymonping [--retries=N] [--timeout=N] [--samples=N
+    [--per-host-interval=MS]] [IP-addresses]</b></p>
 <p class="Pp"></p>
 </section>
 <section class="Sh">
@@ -89,6 +90,28 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
       of all of responsetimes.
     <p class="Pp"></p>
   </dd>
+  <dt id="samples"><a class="permalink" href="#samples"><b>--samples</b>=<i>N</i></a></dt>
+  <dd>Enables SmokePing-style probing: sends exactly N pings to each host (N at
+      most 1000), without retries, and records every round-trip time rather than
+      only the average. The pings to one host are spaced by --per-host-interval,
+      so each host gets one train of N pings per run. The output line for each
+      host gains fields after the usual text, so that existing parsers keep
+      working: an alive host gets the samples and the loss, an unreachable one
+      the loss alone:
+    <p class="Pp"></p>
+    <pre>  1.2.3.4 is alive (311 usec) samples=0.000310,0.000320,0.000305 loss=0/3
+  1.2.3.5 is unreachable loss=3/3</pre>
+  </dd>
+  <dt></dt>
+  <dd>Samples are in seconds; loss is reported as lost/total. A ping counts as
+      lost when no reply arrives within --timeout of sending it. Without this
+      option (or with N=0) the output is unchanged.</dd>
+  <dt id="per-host-interval"><a class="permalink" href="#per-host-interval"><b>--per-host-interval</b>=<i>MS</i></a></dt>
+  <dd>With --samples, the time in milliseconds between two pings to the same
+      host. The default is 1000, as with fping's -p option and SmokePing: the N
+      pings form a train of (N-1) seconds. Pings to different hosts are
+      interleaved within that spacing, and no two pings leave closer together
+      than --max-pps allows.</dd>
   <dt id="max-pps"><a class="permalink" href="#max-pps"><b>--max-pps</b>=<i>N</i></a></dt>
   <dd>Maximum number of packets per second. This limits the number of ICMP
       packets xymonping will send per second, by enforcing a brief delay after
