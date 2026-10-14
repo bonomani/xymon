@@ -34,8 +34,9 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
     which performs all of the Xymon network tests.</p>
 <p class="Pp">Optionally, if a list of IP-addresses is passed as command-line
     arguments, it will ping those IP's instead of reading them from stdin.</p>
-<p class="Pp">xymonping only handles IP-addresses, not hostnames. At most 65535
-    addresses are pinged in one run; the rest are refused with an error.</p>
+<p class="Pp">xymonping only handles IP-addresses, not hostnames: IPv4, or IPv6
+    with a link-local address given as addr%interface. At most 65535 addresses
+    are pinged in one run; the rest are refused with an error.</p>
 <p class="Pp">xymonping was inspired by the <i>fping(1)</i> tool, but has been
     written from scratch to implement a fast ping tester without much of the
     overhead found in other such utilities. The output from xymonping is similar
@@ -62,6 +63,8 @@ Section: User Commands (1)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="
     or network data is handled while privileged.</p>
 <p class="Pp">File capabilities work as well: <b>setcap cap_net_raw+ep</b> on
     the binary lets xymonping open the raw socket without being suid-root.</p>
+<p class="Pp">IPv6 addresses need the unprivileged ICMPv6 socket or root in the
+    same way.</p>
 </section>
 <section class="Sh">
 <p>&#160;</p>
