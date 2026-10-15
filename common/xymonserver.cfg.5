@@ -729,6 +729,18 @@ with "\-C $SMOKEPINGSAMPLES \-q" otherwise, fping's count mode; the RRD written 
 .I xymond_rrd(8)
 gets one "pingX" data source per sample, and the graph reads the count
 back from each file. Default: "20"
+.IP "SMOKELOSSWARN, SMOKELOSSCRIT, SMOKELOSSBURST"
+The packet loss, in percent of the pings sent over the last hour, at
+which a smoke host's status column turns yellow (default 3) or red
+(default 10), and the loss of a single run that turns it yellow at
+once, red when the next run does too (default 50). 0 disables a level;
+the hosts.cfg(5) tag "smokeloss" sets them per host.
+.IP SMOKECOLUMN
+The status column xymonnet judges smoke hosts in. Default: "smoke".
+GRAPHS_<column> lists the graphs shown under it.
+.IP GRAPHS_smoke
+The graphs shown under the smoke column. Default:
+"conn\-smoke,conn\-smoke\-loss"
 .IP "\fBTRACEROUTE\fR"
 .IP "\fBTRACEROUTEOPTS\fR"
 Defines the location of the "traceroute" tool and

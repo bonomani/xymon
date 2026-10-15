@@ -338,19 +338,39 @@
 	GPRINT:median:AVERAGE: \: %5.3lf s (avg)\n
 
 [conn-smoke-loss]
-	# Loss only: what each run lost, and the loss over the last hour,
-	# which smooths the 5% steps of a 20-ping run into a steady figure.
+	# Loss only: what each run lost, and the loss over the last hour the
+	# smoke column judges, coloured by the colour it gave, between the
+	# levels it was judged by. xymond_rrd stores that verdict from the
+	# ping line, so the graph shows what the status said, a host's own
+	# levels included. Where no verdict was stored, the hour is
+	# estimated from the runs and drawn dark grey.
 	TITLE PING Packet loss (smoke)
 	YAXIS Loss %
 	-l 0
 	DEF:loss=tcp.conn-smoke.rrd:loss:AVERAGE
+	DEF:lh=tcp.conn-smoke.rrd:losshour:AVERAGE
+	DEF:ls=tcp.conn-smoke.rrd:lossstate:AVERAGE
+	DEF:lw=tcp.conn-smoke.rrd:losswarn:AVERAGE
+	DEF:lc=tcp.conn-smoke.rrd:losscrit:AVERAGE
 	CDEF:lossrun=loss,100,*
-	CDEF:losshour=lossrun,3600,TRENDNAN
+	CDEF:hour=lh,100,*
+	CDEF:hourest=lh,UN,lossrun,UN,0,1,IF,*,lossrun,3600,TRENDNAN,UNKN,IF
+	CDEF:hg=ls,0.5,LT,hour,UNKN,IF
+	CDEF:hy=ls,0.5,GE,ls,1.5,LT,*,hour,UNKN,IF
+	CDEF:hr=ls,1.5,GE,hour,UNKN,IF
+	CDEF:warn=lw,0,GT,lw,100,*,UNKN,IF
+	CDEF:crit=lc,0,GT,lc,100,*,UNKN,IF
 	AREA:lossrun#d8d8d8:Loss per run
-	LINE3:losshour#303030:Loss over the last hour\n
-	GPRINT:losshour:LAST:Last hour\: %4.1lf%%
+	LINE1:warn#e0b000:Warning level:dashes
+	LINE1:crit#d00000:Critical level\n:dashes
+	COMMENT:Last hour\:
+	LINE3:hg#20c020:green
+	LINE3:hy#e0b000:yellow
+	LINE3:hr#d00000:red
+	LINE3:hourest#303030:no verdict stored\n
+	GPRINT:hour:LAST:Last hour\: %4.1lf%%
 	GPRINT:lossrun:LAST:  Last run\: %4.1lf%%
-	GPRINT:losshour:MAX:  Worst hour in view\: %4.1lf%%\n
+	GPRINT:hour:MAX:  Worst hour in view\: %4.1lf%%\n
 
 [ntpstat]
 	TITLE NTP accuracy

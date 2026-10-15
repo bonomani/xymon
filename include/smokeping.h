@@ -87,4 +87,69 @@ int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
                                const double *sorted_samples,
                                int received);
 
+/* The values of the verdict columns that follow the samples, from the
+ * "losshour= lossstate= losswarn= losscrit=" fields xymonnet adds to a
+ * smoke host's ping line (fractions, the state 0 green 1 yellow 2 red):
+ * ":<v>:<v>:<v>:<v>", "U" for each absent or malformed. Appended by the
+ * caller to the smokeping_format_rrdvalues*() string. Returns bytes
+ * written, or -1 when out is too small. */
+int smokeping_format_verdict(const char *msg, char *out, int outlen);
+
+/* ---- Loss judgement -------------------------------------------------- */
+
+/* One run of a smoke host, kept between xymonnet runs: when, how many
+ * pings were lost of how many sent, and the run's median and spread
+ * (p90 - p50) in seconds, NAN when nothing came back. */
+typedef struct smoke_run_t {
+	time_t t;
+	int lost, sent;
+	double median, spread;
+} smoke_run_t;
+
+#define SMOKE_MAXRUNS 64
+
+/* A host's recent runs, oldest first, and the verdicts carried from one
+ * run to the next: the hour's state (0 green, 1 yellow, 2 red), for
+ * the levels' hysteresis, and whether the last run was a burst. */
+typedef struct smoke_hist_t {
+	int nruns;
+	smoke_run_t run[SMOKE_MAXRUNS];
+	int hourstate;
+	int burst;
+} smoke_hist_t;
+
+/* The levels a host is judged by, in percent of the pings sent; 0
+ * disables a level. */
+typedef struct smoke_levels_t {
+	double warn, crit, burst;
+} smoke_levels_t;
+
+/* What one judgement found. state is the column's colour from loss:
+ * 0 green, 1 yellow, 2 red. */
+typedef struct smoke_verdict_t {
+	int state;
+	int hourlost, hoursent;		/* over the window */
+	int judged;			/* the window held enough pings */
+	int burst;			/* this run reached the burst level */
+} smoke_verdict_t;
+
+/* The history as one line - "<hourstate> <burst> t:lost:sent:median:spread ..." -
+ * and back. Parsing ignores what it does not recognise and returns the
+ * number of runs read. */
+int smokeping_hist_format(const smoke_hist_t *h, char *out, int outlen);
+int smokeping_hist_parse(const char *line, smoke_hist_t *h);
+
+/* Add a run, dropping the runs older than `window` seconds before it. */
+void smokeping_hist_add(smoke_hist_t *h, const smoke_run_t *run, time_t window);
+
+/* Judge the loss of the window ending with the newest run:
+ *   - over the window, once it holds `minpings`: red at crit, yellow at
+ *     warn; a level reached clears only below two thirds of it;
+ *   - the newest run losing burst% or more is at least yellow, and red
+ *     when the run before it did too.
+ * The colour is the worse of the two. Updates h->hourstate and
+ * h->burst for the next run. */
+void smokeping_judge(smoke_hist_t *h, time_t window, int minpings,
+                     const smoke_levels_t *lv, smoke_verdict_t *v);
+
 #endif

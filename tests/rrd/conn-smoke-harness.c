@@ -79,7 +79,7 @@ int main(void)
 	rc = record("green <!-- [flags:OrdAstLe] --> conn ok\n\n"
 		    "&green 127.0.0.1 is alive (1.00 ms) samples=0.001000,0.003000,0.002000 loss=1/4\n", 0);
 	expect_write(0, "tcp.conn.rrd", "1000:0.001000", "smoke status, usual RRD");
-	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.002000:0.250000:0.001000:0.002000:0.003000:U",
+	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.002000:0.250000:0.001000:0.002000:0.003000:U:U:U:U:U",
 		     "smoke status, smoke RRD");
 	if (writes != 2) { printf("FAIL smoke status: %d updates, expected 2\n", writes); fails++; }
 	/* The smoke file takes its archives from rrddefinitions.cfg's
@@ -89,6 +89,12 @@ int main(void)
 		fails++;
 	}
 	if (rc != 0) { printf("FAIL smoke status: returned %d, expected 0\n", rc); fails++; }
+
+	/* The verdict xymonnet adds after the loss is stored after the samples. */
+	rc = record("green conn ok\n\n&green 127.0.0.1 is alive (1.00 ms) samples=0.001000,0.002000 loss=0/2"
+		    " losshour=0.033333 lossstate=1 losswarn=0.030000 losscrit=0.100000\n", 0);
+	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.001500:0.000000:0.001000:0.002000:0.033333:1.000000:0.030000:0.100000",
+		     "smoke status with its verdict");
 
 	/* No samples= or loss=: only the usual RRD. */
 	rc = record("green <!-- [flags:OrdAstLe] --> conn ok\n\n&green 127.0.0.1 is alive (1.00 ms)\n", 0);

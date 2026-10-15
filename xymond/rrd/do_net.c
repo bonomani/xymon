@@ -138,6 +138,10 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 			smokeping_format_rrdvalues_n(rrdvalues, sizeof(rrdvalues), tstamp,
 			                             median, lossfrac, samples, nrecv,
 			                             n_slots);
+			{
+				size_t used = strlen(rrdvalues);
+				smokeping_format_verdict(msg, rrdvalues + used, sizeof(rrdvalues) - used);
+			}
 			xfree(samples);
 			/* Archives from rrddefinitions.cfg's "<test>-smoke" section, not
 			 * the test's own: the smoke file keeps SmokePing's longer and

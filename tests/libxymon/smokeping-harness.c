@@ -154,7 +154,10 @@ int main(void)
 		CHECK_STR(p[1], "DS:loss:GAUGE:600:0:U",   "params-loss");
 		CHECK_STR(p[2], "DS:ping1:GAUGE:600:0:U",  "params-ping1");
 		CHECK_STR(p[6], "DS:ping5:GAUGE:600:0:U",  "params-ping5");
-		CHECK(p[7] == NULL, "params-terminator");
+		CHECK_STR(p[7], "DS:losshour:GAUGE:600:0:1",  "params-losshour");
+		CHECK_STR(p[8], "DS:lossstate:GAUGE:600:0:2", "params-lossstate");
+		CHECK_STR(p[10], "DS:losscrit:GAUGE:600:0:1", "params-losscrit");
+		CHECK(p[11] == NULL, "params-terminator");
 	}
 
 	/* rrd_template returns the shim'd template handle */
@@ -207,7 +210,7 @@ int main(void)
 		CHECK(p != NULL, "params-n8-not-null");
 		CHECK_STR(p[2], "DS:ping1:GAUGE:600:0:U",  "params-n8-ping1");
 		CHECK_STR(p[9], "DS:ping8:GAUGE:600:0:U",  "params-n8-ping8");
-		CHECK(p[10] == NULL, "params-n8-terminator");
+		CHECK(p[14] == NULL, "params-n8-terminator");
 	}
 
 	/* Explicit-N: rrd_params_n(8) is cached (same pointer on re-call) */
@@ -309,6 +312,119 @@ int main(void)
 		CHECK_EQ(lost, 1, "converted line: 1 lost");
 		CHECK_EQ(tot, 4, "converted line: of 4");
 		CHECK_NEAR(smokeping_median(s, recv), 0.002, 1e-9, "converted line: median 2 ms");
+	}
+
+	/* The verdict xymonnet puts on the ping line becomes the four values
+	 * after the samples; absent or malformed ones are U. */
+	{
+		char out[128];
+
+		CHECK(smokeping_format_verdict("x is alive (1 ms) samples=0.1 loss=0/20 losshour=0.033333 lossstate=1 losswarn=0.030000 losscrit=0.100000", out, sizeof(out)) > 0, "verdict: formats");
+		CHECK_STR(out, ":0.033333:1.000000:0.030000:0.100000", "verdict: the four fields in order");
+		smokeping_format_verdict("x is alive (1 ms) samples=0.1 loss=0/20", out, sizeof(out));
+		CHECK_STR(out, ":U:U:U:U", "verdict: none on the line");
+		smokeping_format_verdict("losshour=abc lossstate=-1 losswarn=nan losscrit=0.1", out, sizeof(out));
+		CHECK_STR(out, ":U:U:U:0.100000", "verdict: malformed fields are U");
+		CHECK_EQ(smokeping_format_verdict("losshour=0.5", out, 10), -1, "verdict: too small a buffer is refused");
+	}
+
+	/* Loss judgement: the window's loss with hysteresis, the burst rule,
+	 * the minimum sample, and the history round trip. */
+	{
+		smoke_hist_t h;
+		smoke_verdict_t v;
+		smoke_levels_t lv = { 3, 10, 50 };
+		smoke_run_t r;
+		char line[4096];
+		int i;
+		time_t t0 = 100000;
+
+		memset(&h, 0, sizeof(h));
+		/* 4 runs = 80 pings: below the 100-ping minimum, not judged */
+		for (i = 0; i < 4; i++) {
+			r.t = t0 + 300 * i; r.lost = 2; r.sent = 20; r.median = 0.020; r.spread = 0.004;
+			smokeping_hist_add(&h, &r, 3600);
+		}
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK(!v.judged, "judge: 80 pings are not enough");
+		CHECK_EQ(v.state, 0, "judge: not judged is green");
+		/* a 5th run: 100 pings, 10 lost = 10% -> red */
+		r.t = t0 + 1200; r.lost = 2; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK(v.judged, "judge: 100 pings are judged");
+		CHECK_EQ(v.hourlost, 10, "judge: 10 lost in the window");
+		CHECK_EQ(v.hoursent, 100, "judge: of 100 sent");
+		CHECK_EQ(v.state, 2, "judge: 10% is red");
+		/* clean runs: 10/120 = 8.3% stays red (above 2/3 of 10%) */
+		r.t = t0 + 1500; r.lost = 0; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 2, "judge: red holds above two thirds of the level");
+		/* 10/160 = 6.25%: below 6.67%, falls to yellow (above 3%) */
+		r.t = t0 + 1800; smokeping_hist_add(&h, &r, 3600);
+		r.t = t0 + 2100; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 1, "judge: below two thirds of red, yellow");
+		/* the lossy runs age out: once only clean runs remain, green */
+		for (i = 0; i < 12; i++) { r.t = t0 + 2400 + 300 * i; smokeping_hist_add(&h, &r, 3600); }
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.hourlost, 0, "judge: old runs leave the window");
+		CHECK_EQ(v.state, 0, "judge: a clean hour is green");
+		CHECK(h.nruns <= 12, "judge: the history keeps only the window");
+
+		/* yellow hysteresis: 3% enters, 2.5% holds, 1.5% clears */
+		memset(&h, 0, sizeof(h));
+		for (i = 0; i < 10; i++) { r.t = t0 + 300 * i; r.lost = (i < 6 ? 1 : 0); r.sent = 20; smokeping_hist_add(&h, &r, 3600); }
+		smokeping_judge(&h, 3600, 100, &lv, &v);	/* 6/200 = 3% */
+		CHECK_EQ(v.state, 1, "judge: 3% enters yellow");
+		h.run[0].lost = 0;				/* 5/200 = 2.5% */
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 1, "judge: 2.5% holds yellow");
+		h.run[1].lost = 0; h.run[2].lost = 0;		/* 3/200 = 1.5% */
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 0, "judge: 1.5% clears yellow");
+		h.run[0].lost = 1; h.run[1].lost = 1;		/* 5/200 = 2.5% from green */
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 0, "judge: 2.5% does not enter yellow from green");
+
+		/* burst: one run at 50% is yellow at once, two in a row red */
+		memset(&h, 0, sizeof(h));
+		r.t = t0; r.lost = 10; r.sent = 20; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK(v.burst, "judge: 10/20 is a burst");
+		CHECK_EQ(v.state, 1, "judge: one burst is yellow, before the window is judged");
+		r.t = t0 + 300; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 2, "judge: two bursts in a row are red");
+		r.t = t0 + 600; r.lost = 0; smokeping_hist_add(&h, &r, 3600);
+		smokeping_judge(&h, 3600, 100, &lv, &v);
+		CHECK_EQ(v.state, 0, "judge: a clean run ends the burst (window not judged yet)");
+
+		/* a level of 0 is off */
+		{
+			smoke_levels_t off = { 3, 0, 0 };
+			memset(&h, 0, sizeof(h));
+			for (i = 0; i < 5; i++) { r.t = t0 + 300 * i; r.lost = 15; r.sent = 20; smokeping_hist_add(&h, &r, 3600); }
+			smokeping_judge(&h, 3600, 100, &off, &v);
+			CHECK_EQ(v.state, 1, "judge: with red and burst off, heavy loss is yellow");
+		}
+
+		/* the history line round-trips, U for a missing median */
+		memset(&h, 0, sizeof(h));
+		h.hourstate = 1; h.burst = 1;
+		r.t = 1000; r.lost = 1; r.sent = 20; r.median = 0.0213; r.spread = 0.0041; smokeping_hist_add(&h, &r, 3600);
+		r.t = 1300; r.lost = 20; r.sent = 20; r.median = NAN; r.spread = NAN; smokeping_hist_add(&h, &r, 3600);
+		CHECK(smokeping_hist_format(&h, line, sizeof(line)) > 0, "hist: formats");
+		CHECK_STR(line, "1 1 1000:1:20:0.021300:0.004100 1300:20:20:U:U", "hist: line");
+		{
+			smoke_hist_t h2;
+			CHECK_EQ(smokeping_hist_parse(line, &h2), 2, "hist: parses 2 runs");
+			CHECK_EQ(h2.hourstate, 1, "hist: hour state back");
+			CHECK_EQ(h2.burst, 1, "hist: burst back");
+			CHECK_NEAR(h2.run[0].median, 0.0213, 1e-9, "hist: median back");
+			CHECK(isnan(h2.run[1].median), "hist: U back as unknown");
+			CHECK_EQ(smokeping_hist_parse("garbage", &h2), 0, "hist: garbage is no history");
+			CHECK_EQ(smokeping_hist_parse("1 0 1000:5:4:U:U", &h2), 0, "hist: lost > sent is dropped");
+		}
 	}
 
 	if (failures) { fprintf(stderr, "\n%d failure(s)\n", failures); return 1; }

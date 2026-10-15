@@ -91,14 +91,21 @@ char **smokeping_rrd_params_n(int n)
 	c = cache_lookup_or_create(n);
 	if (c->params) return c->params;
 
-	c->params = (char **)calloc(n + 3, sizeof(char *));
+	c->params = (char **)calloc(n + 7, sizeof(char *));
 	c->params[0] = strdup("DS:median:GAUGE:600:0:U");
 	c->params[1] = strdup("DS:loss:GAUGE:600:0:U");
 	for (i = 0; i < n; i++) {
 		snprintf(buf, sizeof(buf), "DS:ping%d:GAUGE:600:0:U", i + 1);
 		c->params[2 + i] = strdup(buf);
 	}
-	c->params[n + 2] = NULL;
+	/* The smoke column's verdict, after the samples (see
+	 * smokeping_format_verdict): the loss over the last hour, the
+	 * colour it gave, and the levels it was judged by. */
+	c->params[n + 2] = strdup("DS:losshour:GAUGE:600:0:1");
+	c->params[n + 3] = strdup("DS:lossstate:GAUGE:600:0:2");
+	c->params[n + 4] = strdup("DS:losswarn:GAUGE:600:0:1");
+	c->params[n + 5] = strdup("DS:losscrit:GAUGE:600:0:1");
+	c->params[n + 6] = NULL;
 	return c->params;
 }
 
@@ -210,6 +217,116 @@ int smokeping_from_fping_count(const char *line, char *out, int outlen)
 			off += snprintf(out + off, outlen - off, " loss=%d/%d", total - received, total);
 	}
 	return ((off >= 0) && (off < outlen));
+}
+
+int smokeping_format_verdict(const char *msg, char *out, int outlen)
+{
+	static const char *keys[] = { "losshour=", "lossstate=", "losswarn=", "losscrit=", NULL };
+	locale_t c_loc = smokeping_c_locale();
+	int off = 0, i;
+
+	for (i = 0; (keys[i] && (off >= 0) && (off < outlen)); i++) {
+		const char *p = strstr(msg, keys[i]);
+		char *end = NULL;
+		double v = NAN;
+
+		if (p) {
+			p += strlen(keys[i]);
+			v = (c_loc ? strtod_l(p, &end, c_loc) : strtod(p, &end));
+			if ((end == p) || !isfinite(v) || (v < 0)) v = NAN;
+		}
+		if (isfinite(v)) off += snprintf(out + off, outlen - off, ":%.6f", v);
+		else off += snprintf(out + off, outlen - off, ":U");
+	}
+	return (((off >= 0) && (off < outlen)) ? off : -1);
+}
+
+int smokeping_hist_format(const smoke_hist_t *h, char *out, int outlen)
+{
+	int off, i;
+
+	off = snprintf(out, outlen, "%d %d", h->hourstate, h->burst);
+	for (i = 0; ((i < h->nruns) && (off >= 0) && (off < outlen)); i++) {
+		const smoke_run_t *r = &h->run[i];
+		char med[32], spr[32];
+
+		if (isfinite(r->median)) snprintf(med, sizeof(med), "%.6f", r->median); else strcpy(med, "U");
+		if (isfinite(r->spread)) snprintf(spr, sizeof(spr), "%.6f", r->spread); else strcpy(spr, "U");
+		off += snprintf(out + off, outlen - off, " %ld:%d:%d:%s:%s", (long)r->t, r->lost, r->sent, med, spr);
+	}
+	return (((off >= 0) && (off < outlen)) ? off : -1);
+}
+
+int smokeping_hist_parse(const char *line, smoke_hist_t *h)
+{
+	const char *p = line;
+	int n;
+
+	memset(h, 0, sizeof(*h));
+	if (sscanf(p, "%d %d%n", &h->hourstate, &h->burst, &n) < 2) { h->hourstate = h->burst = 0; return 0; }
+	if ((h->hourstate < 0) || (h->hourstate > 2)) h->hourstate = 0;
+	h->burst = (h->burst != 0);
+	p += n;
+	while (*p && (h->nruns < SMOKE_MAXRUNS)) {
+		smoke_run_t r;
+		long t;
+		char med[32], spr[32];
+		locale_t c_loc = smokeping_c_locale();
+
+		p += strspn(p, " \t");
+		if (*p == '\0' || *p == '\n') break;
+		if (sscanf(p, "%ld:%d:%d:%31[^:]:%31[^ \t\n]", &t, &r.lost, &r.sent, med, spr) != 5) break;
+		r.t = (time_t)t;
+		r.median = (strcmp(med, "U") ? (c_loc ? strtod_l(med, NULL, c_loc) : strtod(med, NULL)) : NAN);
+		r.spread = (strcmp(spr, "U") ? (c_loc ? strtod_l(spr, NULL, c_loc) : strtod(spr, NULL)) : NAN);
+		if ((r.sent > 0) && (r.lost >= 0) && (r.lost <= r.sent)) h->run[h->nruns++] = r;
+		p += strcspn(p, " \t\n");
+	}
+	return h->nruns;
+}
+
+void smokeping_hist_add(smoke_hist_t *h, const smoke_run_t *run, time_t window)
+{
+	int i, keep = 0;
+
+	for (i = 0; (i < h->nruns); i++) {
+		if (h->run[i].t > run->t - window) h->run[keep++] = h->run[i];
+	}
+	h->nruns = keep;
+	if (h->nruns == SMOKE_MAXRUNS) {
+		memmove(&h->run[0], &h->run[1], (SMOKE_MAXRUNS - 1) * sizeof(smoke_run_t));
+		h->nruns--;
+	}
+	h->run[h->nruns++] = *run;
+}
+
+void smokeping_judge(smoke_hist_t *h, time_t window, int minpings,
+                     const smoke_levels_t *lv, smoke_verdict_t *v)
+{
+	const smoke_run_t *last = (h->nruns ? &h->run[h->nruns - 1] : NULL);
+	int i, state = 0, burststate = 0;
+
+	memset(v, 0, sizeof(*v));
+	for (i = 0; (i < h->nruns); i++) {
+		if (last && (h->run[i].t <= last->t - window)) continue;
+		v->hourlost += h->run[i].lost;
+		v->hoursent += h->run[i].sent;
+	}
+
+	v->judged = ((v->hoursent > 0) && (v->hoursent >= minpings));
+	if (v->judged) {
+		double pct = 100.0 * v->hourlost / v->hoursent;
+
+		if ((lv->crit > 0) && ((pct >= lv->crit) || ((h->hourstate == 2) && (pct >= lv->crit * 2 / 3)))) state = 2;
+		else if ((lv->warn > 0) && ((pct >= lv->warn) || ((h->hourstate >= 1) && (pct >= lv->warn * 2 / 3)))) state = 1;
+	}
+	h->hourstate = state;
+
+	v->burst = (last && (lv->burst > 0) && (last->sent > 0) && (100.0 * last->lost / last->sent >= lv->burst));
+	if (v->burst) burststate = (h->burst ? 2 : 1);
+	h->burst = v->burst;
+
+	v->state = ((state > burststate) ? state : burststate);
 }
 
 static int qsort_double(const void *a, const void *b)
