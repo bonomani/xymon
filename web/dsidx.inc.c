@@ -2,7 +2,8 @@
  * web/dsidx.inc.c
  *
  * Parse-time expansion of the graphs.cfg @DSIDX@ family (@DSIDX@,
- * @PREVDSIDX@, @DSSTART:N@) and the DEF-line helpers it needs.
+ * @PREVDSIDX@, @DSSTART:N@, and the @SMOKE:name@ line) and the DEF-line
+ * helpers it needs.
  *
  * #include'd by web/showgraph.c and by tests/web/dsidx-harness.c, so the
  * test drives this code rather than a copy of it.
@@ -34,17 +35,69 @@ static char *str_replace_all(const char *src, const char *needle, const char *re
 	return out;
 }
 
+/* A line that is only "@SMOKE:name@": returns the length of name (an
+ * identifier) and points *name at it, else 0. */
+static int smoke_line_name(const char *line, const char **name)
+{
+	int len;
+
+	if (strncmp(line, "@SMOKE:", 7) != 0) return 0;
+	line += 7;
+	len = (int)strspn(line, "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789_");
+	if ((len == 0) || (line[len] != '@') || (line[len + 1] != '\0')) return 0;
+	*name = line;
+	return len;
+}
+
+/* The lines "@SMOKE:name@" stands for, over name1..nameN: SmokePing's
+ * smoke. The samples pair from the outside in - 1 with N, 2 with N-1 -
+ * and each pair draws an invisible base up to its lower sample and the
+ * gap to its upper one stacked on it, in a grey darker toward the
+ * middle pair, so where most samples lie is darkest. A pair missing a
+ * sample draws nothing. Fewer than 3 samples make no smoke. Writes the
+ * lines into out (when not NULL) and returns how many there are.
+ * Pairing by slot is only right for samples stored as SmokePing stores
+ * them - sorted, the lost ones as UNKN centred around them - which
+ * nothing here can check (graphs.cfg(5)). */
+static int smoke_lines(const char *name, int namelen, int n, char **out)
+{
+	int ibot, itop, count = 0;
+	double half = n / 2.0;
+	char buf[256];
+
+	if (n < 3) return 0;
+	for (ibot = 1, itop = n; (itop > ibot); ibot++, itop--) {
+		int grey = (int)(190 / half * (half - ibot)) + 50;
+
+		if (out) {
+			snprintf(buf, sizeof(buf), "CDEF:%.*ssmoke%d=%.*s%d,UN,UNKN,%.*s%d,%.*s%d,-,IF",
+				 namelen, name, ibot, namelen, name, ibot, namelen, name, itop, namelen, name, ibot);
+			out[count] = strdup(buf);
+			snprintf(buf, sizeof(buf), "AREA:%.*s%d", namelen, name, ibot);
+			out[count + 1] = strdup(buf);
+			snprintf(buf, sizeof(buf), "AREA:%.*ssmoke%d#%02x%02x%02x::STACK", namelen, name, ibot, grey, grey, grey);
+			out[count + 2] = strdup(buf);
+		}
+		count += 3;
+	}
+	return count;
+}
+
 /* Classify a def line for @DSIDX@ expansion.
  *   *body  - the line content after any @DSSTART:N@ prefix is stripped
  *   *start - lower bound of the index loop:
  *              * explicit @DSSTART:N@ prefix wins
  *              * else 2 if the line uses @PREVDSIDX@ (skips ping0)
  *              * else 1
- * Returns 1 if the line should be looped, 0 if it should be emitted once. */
+ * Returns 1 if the line should be looped, 0 if it should be emitted once.
+ * A "@SMOKE:name@" line counts as looped: it expands per file too. */
 static int classify_dsidx_line(char *line, char **body, int *start)
 {
+	const char *smokename;
+
 	*body = line;
 	*start = 1;
+	if (smoke_line_name(line, &smokename)) return 1;
 
 	if (strncmp(line, "@DSSTART:", 9) == 0) {
 		char *p = line + 9;
@@ -87,8 +140,13 @@ static char **expand_dsidx_array(char *const *defs, int n)
 	for (i = 0; defs[i]; i++) {
 		char *body;
 		int start;
+		const char *smokename;
+		int smokelen = smoke_line_name(defs[i], &smokename);
 		char *line = strdup(defs[i]);
-		if (classify_dsidx_line(line, &body, &start)) {
+		if (smokelen) {
+			newcount += smoke_lines(smokename, smokelen, n, NULL);
+		}
+		else if (classify_dsidx_line(line, &body, &start)) {
 			int m = n - start + 1;
 			newcount += (m > 0 ? m : 0);
 		}
@@ -102,8 +160,13 @@ static char **expand_dsidx_array(char *const *defs, int n)
 	for (i = 0; defs[i]; i++) {
 		char *body;
 		int start;
+		const char *smokename;
+		int smokelen = smoke_line_name(defs[i], &smokename);
 		char *line = strdup(defs[i]);
-		if (classify_dsidx_line(line, &body, &start)) {
+		if (smokelen) {
+			outi += smoke_lines(smokename, smokelen, n, newdefs + outi);
+		}
+		else if (classify_dsidx_line(line, &body, &start)) {
 			int idx;
 			for (idx = start; idx <= n; idx++) {
 				char *tmp;

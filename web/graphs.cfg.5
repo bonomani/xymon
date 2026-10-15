@@ -134,6 +134,22 @@ and "@COUNT:ping@" counts the samples that hold a value. A line
 starting at a higher index ("@PREVDSIDX@", "@DSSTART:K@") makes the
 set start there.
 .PP
+A line holding only "@SMOKE:name@" draws SmokePing's smoke over
+name1..nameN. The samples pair from the outside in (1 with N, 2 with
+N\-1, ...), and each pair is a band from its lower to its upper sample,
+in a grey darker toward the middle pair, so the shade is darkest where
+most samples lie. A pair missing a sample draws nothing; fewer than
+three samples draw no smoke. Draw the median over it, e.g.
+"LINE2:med#FF0000" after "CDEF:med=@MEDIAN:ping@".
+.PP
+The smoke is only true for samples stored the way SmokePing stores
+them: sorted ascending, the lost ones as unknown values, half below the
+received ones and half above. "@SMOKE:" does not check this, and
+samples stored in any other order draw smoke that looks right and is
+wrong. The ping samples xymond_rrd(8) writes for a host with the
+"smoke" tag (see hosts.cfg(5)) are stored this way; for other data, the
+program writing it must sort and centre the samples itself.
+.PP
 For a bundle viewed one service at a time (e.g. "tcp:conn"), FNPATTERN
 capture group 1 must be exactly the service component: showgraph uses it
 both as the legend (@RRDPARAM@) and to select the single service \- see

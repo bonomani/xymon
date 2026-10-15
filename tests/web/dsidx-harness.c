@@ -255,6 +255,48 @@ int main(void)
 		{ int i; for (i = 0; out3[i]; i++) free(out3[i]); free(out3); }
 	}
 
+	/* "@SMOKE:name@" becomes SmokePing's smoke for the file's N: per
+	 * pair from the outside in, a guarded gap CDEF, an invisible base and
+	 * the gap stacked on it, grey darker toward the middle; N < 3 draws
+	 * nothing, and a line carrying anything else is no smoke line. */
+	{
+		char *in[] = { "DEF:p@DSIDX@=x.rrd:p@DSIDX@:AVERAGE", "@SMOKE:p@", "LINE2:med#FF0000", NULL };
+		char **o = expand_dsidx_array(in, 4);
+		int k, n = 0;
+
+		check_line("smoke-def1", o[0], "DEF:p1=x.rrd:p1:AVERAGE");
+		check_line("smoke-def4", o[3], "DEF:p4=x.rrd:p4:AVERAGE");
+		check_line("smoke-pair1-gap",  o[4], "CDEF:psmoke1=p1,UN,UNKN,p4,p1,-,IF");
+		check_line("smoke-pair1-base", o[5], "AREA:p1");
+		check_line("smoke-pair1-band", o[6], "AREA:psmoke1#919191::STACK");
+		check_line("smoke-pair2-gap",  o[7], "CDEF:psmoke2=p2,UN,UNKN,p3,p2,-,IF");
+		check_line("smoke-pair2-base", o[8], "AREA:p2");
+		check_line("smoke-pair2-band", o[9], "AREA:psmoke2#323232::STACK");
+		check_line("smoke-after", o[10], "LINE2:med#FF0000");
+		for (k = 0; o[k]; k++) n++;
+		if (n != 11) { fprintf(stderr, "FAIL smoke-count: %d lines (want 11)\n", n); failures++; }
+		else printf("ok   smoke-count\n");
+		for (k = 0; o[k]; k++) free(o[k]);
+		free(o);
+	}
+	{
+		char *in[] = { "@SMOKE:p@", "LINE2:med#FF0000", NULL };
+		char **o = expand_dsidx_array(in, 2);
+
+		check_line("smoke-too-few", o[0], "LINE2:med#FF0000");
+		if (o[1] != NULL) { fprintf(stderr, "FAIL smoke-too-few-stop\n"); failures++; }
+		else printf("ok   smoke-too-few-stop\n");
+		free(o[0]); free(o);
+	}
+	{
+		char *in[] = { "@SMOKE:p@ trailing", "@SMOKE:@", NULL };
+		char **o = expand_dsidx_array(in, 4);
+
+		check_line("smoke-not-alone", o[0], "@SMOKE:p@ trailing");
+		check_line("smoke-no-name", o[1], "@SMOKE:@");
+		free(o[0]); free(o[1]); free(o);
+	}
+
 	/* The names @DSIDX@-templated DEF and CDEF lines make, with the
 	 * index each line starts at, recorded for the aggregate tokens -
 	 * in both regimes, before DSCOUNT expansion replaces the templates. */
