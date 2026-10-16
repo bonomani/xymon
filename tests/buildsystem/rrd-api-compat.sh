@@ -39,6 +39,7 @@ write_mock_rrd_h() {            # $1 = legacy | const
 typedef double rrd_value_t;
 int rrd_update(int, $argv);
 int rrd_create(int, $argv);
+int rrd_tune(int, $argv);
 int rrd_fetch(int, $argv, time_t *, time_t *, unsigned long *,
               unsigned long *, char ***, rrd_value_t **);
 int rrd_graph(int, $argv, char ***, int *, int *, void *, double *, double *);
@@ -61,6 +62,7 @@ int main(void)
 
 	(void)xymon_rrd_update(1, argv);
 	(void)xymon_rrd_create(1, argv);
+	(void)xymon_rrd_tune(1, argv);
 	(void)xymon_rrd_fetch(1, argv, &start, &end, &step, &dscount,
 			      &dsnames, &data);
 	(void)xymon_rrd_graph(1, argv, &calcpr, &xsize, &ysize, 0,

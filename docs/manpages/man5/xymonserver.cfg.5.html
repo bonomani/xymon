@@ -835,6 +835,29 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
       match the default format. Default: &quot;-Ae&quot;
     <p class="Pp"></p>
   </dd>
+  <dt id="SMOKEPINGSAMPLES"><a class="permalink" href="#SMOKEPINGSAMPLES">SMOKEPINGSAMPLES</a></dt>
+  <dd>The number of pings sent to a host carrying the &quot;smoke&quot; or
+      &quot;smoke_conn&quot; tag in <i><a href="../man5/hosts.cfg.5.html">hosts.cfg</a>(5)</i> without its own
+      &quot;:N&quot;. xymonnet runs FPING with
+      &quot;--samples=$SMOKEPINGSAMPLES&quot; for such hosts when it is
+      xymonping, and with &quot;-C $SMOKEPINGSAMPLES -q&quot; otherwise, fping's
+      count mode; the RRD written by <i><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)</i> gets one
+      &quot;pingX&quot; data source per sample, and the graph reads the count
+      back from each file. Default: &quot;20&quot;</dd>
+  <dt id="SMOKELOSSWARN"><a class="permalink" href="#SMOKELOSSWARN">SMOKELOSSWARN,
+    SMOKELOSSCRIT, SMOKELOSSBURST</a></dt>
+  <dd>The packet loss, in percent of the pings sent over the last hour, at which
+      a smoke host's status column turns yellow (default 3) or red (default 10),
+      and the loss of a single run that turns it yellow at once, red when the
+      next run does too (default 50). 0 disables a level; the <a href="../man5/hosts.cfg.5.html">hosts.cfg</a>(5) tag
+      &quot;smokeloss&quot; sets them per host.</dd>
+  <dt id="SMOKECOLUMN"><a class="permalink" href="#SMOKECOLUMN">SMOKECOLUMN</a></dt>
+  <dd>The status column xymonnet judges smoke hosts in. Default:
+      &quot;smoke&quot;. GRAPHS_&lt;column&gt; lists the graphs shown under
+    it.</dd>
+  <dt id="GRAPHS_smoke"><a class="permalink" href="#GRAPHS_smoke">GRAPHS_smoke</a></dt>
+  <dd>The graphs shown under the smoke column. Default:
+      &quot;conn-smoke,conn-smoke-loss&quot;</dd>
   <dt id="TRACEROUTE"><a class="permalink" href="#TRACEROUTE"><b>TRACEROUTE</b></a></dt>
   <dd></dd>
   <dt id="TRACEROUTEOPTS"><a class="permalink" href="#TRACEROUTEOPTS"><b>TRACEROUTEOPTS</b></a></dt>

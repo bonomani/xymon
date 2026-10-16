@@ -18,6 +18,11 @@
 # file in the set. "@RRDPARAM@" contains the first word extracted from the
 # pattern of files (see e.g. "[memory]" how this is used). "@COLOR@" picks
 # a new color for each graph automatically.
+# Aggregates across all matched files can be built with "@AVG:name@",
+# "@SUM:name@", "@MIN:name@", "@MAX:name@", "@AVGNAN:name@",
+# "@SUMNAN:name@", "@MINNAN:name@", "@MAXNAN:name@", "@COUNT:name@",
+# "@MEDIAN:name@", "@STDEV:name@", "@PERCENT:name:pct@" and "@Ppct:name@".
+# For example "CDEF:avg=@AVG:p@" becomes an RRDtool CDEF over p0, p1, ...
 #
 # For a bundle viewed one service at a time (e.g. "tcp:conn"), FNPATTERN
 # capture group 1 must be exactly the service component: showgraph uses it
@@ -273,9 +278,11 @@
 
 [tcp]
 	# TCP tests - include all, except the HTTP tests as they tend to have
-	# much longer response times than the normal tcp tests.
+	# much longer response times than the normal tcp tests, and the
+	# SmokePing-style conn-smoke RRD which has its own schema (see
+	# [conn-smoke] below).
 	FNPATTERN ^tcp.(.+).rrd
-	EXFNPATTERN ^tcp.http.(.+).rrd
+	EXFNPATTERN ^(tcp\.http\..+\.rrd|tcp\..+-smoke(-summary)?\.rrd)$
 	TITLE TCP Connection Times
 	YAXIS Seconds
 	DEF:p@RRDIDX@=@RRDFN@:sec:AVERAGE
@@ -306,6 +313,65 @@
 	GPRINT:p@RRDIDX@:MAX: \: %5.1lf%s (max)
 	GPRINT:p@RRDIDX@:MIN: \: %5.1lf%s (min)
 	GPRINT:p@RRDIDX@:AVERAGE: \: %5.1lf%s (avg)\n
+
+# SmokePing-style ping graph for hosts with the "smoke" tag (hosts.cfg(5)):
+# reads tcp.conn-smoke.rrd, which xymond_rrd writes from xymonping
+# --samples=N output. The @DSIDX@ lines repeat once per sample; N is read
+# from each host's file, so hosts with different counts each get every band.
+[conn-smoke]
+	# Latency only: how fast and how steady the replies are. Loss has its
+	# own graph, [conn-smoke-loss], so each question has one answer.
+	TITLE PING Round-trip time (smoke)
+	YAXIS Seconds
+	DEF:ping@DSIDX@=tcp.conn-smoke.rrd:ping@DSIDX@:AVERAGE
+	# The median line is computed from ping1..pingN, so it is the median
+	# of exactly the samples the smoke draws.
+	CDEF:median=@MEDIAN:ping@
+	# SmokePing's smoke (graphs.cfg(5), @SMOKE:): the samples paired
+	# from the outside in, each pair a grey band darker toward the
+	# middle, so the shade is darkest where most replies lie.
+	@SMOKE:ping@
+	LINE2:median#0060ff:Median
+	GPRINT:median:LAST: \: %5.3lf s (cur)
+	GPRINT:median:MIN: \: %5.3lf s (min)
+	GPRINT:median:MAX: \: %5.3lf s (max)
+	GPRINT:median:AVERAGE: \: %5.3lf s (avg)\n
+
+[conn-smoke-loss]
+	# Loss only: what each run lost, and the loss over the last hour the
+	# smoke column judges, coloured by the colour it gave, between the
+	# levels it was judged by. xymond_rrd stores that verdict from the
+	# ping line in tcp.conn-smoke-summary.rrd, so the graph shows what the
+	# status said, a host's own levels included; the colour is read as
+	# MAX, the worst of each period on the long graphs. Where no verdict
+	# was stored, the hour is estimated from the runs and drawn dark grey.
+	TITLE PING Packet loss (smoke)
+	YAXIS Loss %
+	-l 0
+	DEF:loss=tcp.conn-smoke-summary.rrd:loss:AVERAGE
+	DEF:lh=tcp.conn-smoke-summary.rrd:losshour:AVERAGE
+	DEF:ls=tcp.conn-smoke-summary.rrd:lossstate:MAX
+	DEF:lw=tcp.conn-smoke-summary.rrd:losswarn:AVERAGE
+	DEF:lc=tcp.conn-smoke-summary.rrd:losscrit:AVERAGE
+	CDEF:lossrun=loss,100,*
+	CDEF:hour=lh,100,*
+	CDEF:hourest=lh,UN,lossrun,UN,0,1,IF,*,lossrun,3600,TRENDNAN,UNKN,IF
+	CDEF:hg=ls,0.5,LT,hour,UNKN,IF
+	CDEF:hy=ls,0.5,GE,ls,1.5,LT,*,hour,UNKN,IF
+	CDEF:hr=ls,1.5,GE,hour,UNKN,IF
+	CDEF:warn=lw,0,GT,lw,100,*,UNKN,IF
+	CDEF:crit=lc,0,GT,lc,100,*,UNKN,IF
+	AREA:lossrun#d8d8d8:Loss per run
+	LINE1:warn#e0b000:Warning level:dashes
+	LINE1:crit#d00000:Critical level\n:dashes
+	COMMENT:Last hour\:
+	LINE3:hg#20c020:green
+	LINE3:hy#e0b000:yellow
+	LINE3:hr#d00000:red
+	LINE3:hourest#303030:no verdict stored\n
+	GPRINT:hour:LAST:Last hour\: %4.1lf%%
+	GPRINT:lossrun:LAST:  Last run\: %4.1lf%%
+	GPRINT:hour:MAX:  Worst hour in view\: %4.1lf%%\n
 
 [ntpstat]
 	TITLE NTP accuracy

@@ -71,7 +71,44 @@ typedef struct updcacheitem_t {
 	char *vals[CACHESZ];
 	int updseq[CACHESZ];
 	time_t updtime[CACHESZ];
+	int dschecked;		/* the file was given every dataset tpl names */
 } updcacheitem_t;
+
+/* Give an existing RRD file the datasets the parameters declare that it
+ * lacks, with "rrdtool tune": a handler that declares more datasets for
+ * a file than it was created with - a smoke host's sample count raised -
+ * would otherwise have every later update refused for naming a dataset
+ * the file does not have, freezing the file's old datasets too. A new
+ * dataset starts empty; the others keep their history. Needs RRDtool
+ * 1.5 or later, and logs the refusal otherwise. */
+static void rrd_add_missing_ds(char *fn, char *creparams[])
+{
+	xymon_rrd_argv_item_t tuneparams[2+64+1] = { "rrdtune", fn, NULL, };
+	rrd_info_t *info, *p;
+	int i, argc = 2;
+
+	rrd_clear_error();
+	info = rrd_info_r(fn);
+	if (!info) { rrd_clear_error(); return; }
+	for (i = 0; (creparams[i] && (argc < 2+64)); i++) {
+		char key[128], *name = creparams[i] + 3;
+		int found = 0;
+
+		if (strncasecmp(creparams[i], "DS:", 3) != 0) continue;
+		snprintf(key, sizeof(key), "ds[%.*s].type", (int)strcspn(name, ":"), name);
+		for (p = info; (p && !found); p = p->next) found = (strcmp(p->key, key) == 0);
+		if (!found) tuneparams[argc++] = creparams[i];
+	}
+	rrd_info_free(info);
+	if (argc == 2) return;
+
+	tuneparams[argc] = NULL;
+	optind = opterr = 0; rrd_clear_error();
+	if (xymon_rrd_tune(argc, tuneparams) != 0)
+		errprintf("RRD error adding datasets to %s: %s\n", fn, rrd_get_error());
+	else
+		dbgprintf("Added %d dataset(s) to %s\n", argc - 2, fn);
+}
 
 static void * flushtree;
 static int have_flushtree = 0;
@@ -363,6 +400,16 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 	}
 	else {
 		cacheitem = (updcacheitem_t *)xtreeData(updcache, handle);
+
+		/* The handler passes another template for this file - a smoke
+		 * host's sample count changed: write what is queued under the
+		 * old one, then switch, and match the file to the new one
+		 * below. Handlers' templates are shared and live forever. */
+		if (template && (template != cacheitem->tpl)) {
+			if (cacheitem->valcount > 0) flush_cached_updates(cacheitem, NULL);
+			cacheitem->tpl = template;
+			cacheitem->dschecked = 0;
+		}
 		if (!template) template = cacheitem->tpl;
 	}
 
@@ -428,6 +475,12 @@ static int create_and_update_rrd(char *hostname, char *testname, char *classname
 			return 1;
 		}
 	}
+	else if (!cacheitem->dschecked) {
+		/* Once per file and template: a file created with fewer
+		 * datasets than its template now names lacks the new ones. */
+		rrd_add_missing_ds(filedir, creparams);
+	}
+	cacheitem->dschecked = 1;
 
 	updtime = atoi(rrdvalues);
 	if (cacheitem->valcount > 0) {
