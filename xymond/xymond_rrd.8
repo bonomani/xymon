@@ -331,6 +331,28 @@ as "diskio_ops.%2Fvar.rrd". Case is kept, so "sda" and "SDA" are two
 instances with two files, except on a filesystem that ignores case,
 where they share one file and their values collide.
 
+A block may leave out its DS: line. It then takes the datasets of the
+"METRICDS:" lines in rrddefinitions.cfg: those of the block's own
+section, else its column's, else the default section's, whichever has
+them first. The shipped default is one GAUGE dataset named "value",
+with a 600-second heartbeat and no limits, so a block may carry only
+its name and one value per instance line:
+
+.nf
+   <!--XYMON METRICS: temp
+   cpu 42
+   \-\->
+.fi
+
+A counter needs its own DS: line, since a GAUGE stores its running
+total; so does a value sent less often than every 10 minutes, which the
+600-second heartbeat would leave unknown. With no METRICDS: line for
+it, a block without DS: lines is not stored, and the log says so once.
+As with archives, the datasets are fixed when a file is created. A
+rrddefinitions.d fragment that replaces a section replaces it whole,
+METRICDS: lines included, so a fragment replacing the default section
+carries its own METRICDS: line.
+
 A block may gain a dataset later: xymond_rrd adds it to the files
 already written with "rrdtool tune" (RRDtool 1.5 or later), where it
 starts empty while the other datasets keep their history. A dataset

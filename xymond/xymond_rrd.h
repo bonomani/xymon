@@ -13,5 +13,6 @@
 
 extern char **get_rrd_definition(char *key, int *count);
 extern int have_rrd_definition(char *key);
+extern char **get_metric_ds(char *key, int *count);
 #endif
 

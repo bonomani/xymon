@@ -14,9 +14,10 @@ static char devmon_rcsid[] = "$Id $";
 #define MAXCOLS 20
 
 /*
- * Read the DS specs in columns[numds...] into params, and record their
- * units, names and heartbeats in the fileset index. Returns the new
- * dataset count.
+ * Read the DS specs in columns[numds...] - a block's DS: line, or the
+ * METRICDS: lines of its rrddefinitions.cfg section - into params, and
+ * record their units, names and heartbeats in the fileset index.
+ * Returns the new dataset count.
  */
 static int devmon_parse_ds(char **columns, char **devmon_params, int numds)
 {
@@ -308,6 +309,33 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 		/* Now we should be on to values:
 		 * eth0.0 4678222:9966777
 		 */
+		if ((numds == 0) && metrics_block) {
+			/* No DS line in this block: take the METRICDS: datasets of
+			 * the first section that has them - the block's own, its
+			 * column's, then the default one (rrddefinitions.cfg). */
+			char *mdskeys[3];
+			char **mds = NULL;
+			int k, mdscount = 0;
+
+			mdskeys[0] = rrdbasename; mdskeys[1] = testname; mdskeys[2] = "";
+			for (k = 0; ((k < 3) && (mdscount == 0)); k++) mds = get_metric_ds(mdskeys[k], &mdscount);
+			if (mdscount > 0) {
+				char *mdscols[MAXCOLS+1];
+
+				for (k = 0; (k <= MAXCOLS); k++) mdscols[k] = "";
+				for (k = 0; ((k < mdscount) && (k < MAXCOLS)); k++) mdscols[k] = mds[k];
+				numds = devmon_parse_ds(mdscols, devmon_params, 0);
+			}
+			else {
+				static void *warned = NULL;
+
+				if (!warned) warned = xtreeNew(strcmp);
+				if (xtreeFind(warned, rrdbasename) == xtreeEnd(warned)) {
+					errprintf("METRICS block '%s' has no DS: line, and rrddefinitions.cfg has no METRICDS: for it - not stored\n", rrdbasename);
+					xtreeAdd(warned, strdup(rrdbasename), NULL);
+				}
+			}
+		}
 		if (numds == 0) {
 			/* No DS line in this block: nothing can be created. */
 			dbgprintf("Skipping line %d, block has no DS definitions\n",lineno);
