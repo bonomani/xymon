@@ -343,6 +343,107 @@ Section: Maintenance Commands (8)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a
 </section>
 <section class="Sh">
 <p>&#160;</p>
+<h1 class="Sh" id="SELF-DESCRIBING_STATUS_MESSAGES_(XYMON_METRICS_MARKERS)"><a class="permalink" href="#SELF-DESCRIBING_STATUS_MESSAGES_(XYMON_METRICS_MARKERS)">SELF-DESCRIBING
+  STATUS MESSAGES (XYMON METRICS MARKERS)</a></h1>
+<p class="Pp">A status message may carry its own RRD storage schema in a hidden
+    block, with no TEST2RRD setting needed - the message is routed to the RRD
+    writer by content:</p>
+<p class="Pp"></p>
+<pre>
+<br/>
+   &lt;!--XYMON METRICS: diskio_ops
+<br/>
+   DS:reads:GAUGE:600:0:U DS:writes:GAUGE:600:0:U
+<br/>
+   ada0 10:20
+<br/>
+   ada1 5:6
+<br/>
+   --&gt;</pre>
+<p class="Pp">This creates or updates one multi-dataset RRD file per instance
+    line, named &quot;diskio_ops.ada0.rrd&quot; etc. Its archives come from the
+    rrddefinitions.cfg section named after the block (&quot;[diskio_ops]&quot;),
+    or, without one, from the column's section as for any status; an unnamed
+    block takes the column's name, so it gets the column's section. The block
+    name is restricted to letters, digits, &quot;_&quot; and &quot;-&quot; (max
+    64 characters); an invalid name skips the whole block. The name may be left
+    out (&quot;&lt;!--XYMON METRICS&quot; alone): the block then takes the
+    test's name. A message may carry several blocks. The block is invisible on
+    the rendered status page.</p>
+<p class="Pp">An instance line is the instance name, then its values separated
+    by &quot;:&quot;, one per declared dataset. The values are the last field on
+    the line, so an instance name may contain spaces (&quot;/media/My
+    Book&quot;). The name is encoded into the file name so that it can be
+    decoded back: &quot;/&quot; and any byte outside a safe set become
+    &quot;%XX&quot;, so &quot;/var&quot; is stored as
+    &quot;diskio_ops.%2Fvar.rrd&quot;. Case is kept, so &quot;sda&quot; and
+    &quot;SDA&quot; are two instances with two files, except on a filesystem
+    that ignores case, where they share one file and their values collide.</p>
+<p class="Pp">A block may gain a dataset later: xymond_rrd adds it to the files
+    already written with &quot;rrdtool tune&quot; (RRDtool 1.5 or later), where
+    it starts empty while the other datasets keep their history. A dataset the
+    block drops stays in the files and receives no more values.</p>
+<p class="Pp">The routing is by content: a status whose text merely QUOTES a
+    marker line at the start of a line (a log checker echoing one, for instance)
+    is taken for a self-describing status, and the column's built-in RRD handler
+    is bypassed for that message. Scripts that may reproduce foreign log content
+    verbatim should indent it.</p>
+<p class="Pp">A DS spec may carry an optional seventh colon-separated field
+    declaring the metric's unit, e.g. &quot;DS:temp:GAUGE:600:-30:50:degC&quot;.
+    The writer strips the suffix before the spec reaches rrdtool, so a declared
+    unit never affects storage; a spec without it is unchanged.</p>
+<p class="Pp">Inside a block, any line whose first token is an ALL-CAPS keyword
+    ending in &quot;:&quot; is a declaration line. Unknown declarations are
+    ignored, and declaration lines are never instances, so the block dialect can
+    grow new keyword lines without breaking deployed servers. Consequently, an
+    instance name must not have the form of a declaration keyword. This version
+    knows two: &quot;DS:&quot; (above) and</p>
+<p class="Pp"></p>
+<pre>
+<br/>
+   THRESHOLD:&lt;base-ds&gt;:&lt;relop&gt;&lt;operand&gt;[:&lt;severity&gt;]</pre>
+<p class="Pp">which declares that crossing &lt;operand&gt; (another DS of the
+    same block, or a literal number) in the &lt;relop&gt; direction (one of &gt;
+    &lt; &gt;= &lt;=, glued to the operand) means &lt;severity&gt;
+    (&quot;warn&quot; or &quot;crit&quot;, default crit) for &lt;base-ds&gt;.
+    The relation is a declared fact: the writer validates it and records it with
+    the file's schema. Both DS names must be declared in the same block; invalid
+    relations are ignored.</p>
+<p class="Pp">File creation is eager: every instance's RRD file is created on
+    the first sample. Unknown banner attributes are ignored, so the dialect
+    stays forward-compatible.</p>
+<p class="Pp">To display graphs of these files on the status page, add one</p>
+<p class="Pp"></p>
+<pre>
+<br/>
+   &lt;!--XYMON GRAPH: diskio_ops --&gt;</pre>
+<p class="Pp">marker per graph. The graph paging count is exact by construction:
+    it is taken from the instance-line count of the same-named METRICS block in
+    the same message. A marker may instead specify &quot;instances=N&quot;
+    explicitly (for graphs whose files are written elsewhere) or
+    &quot;instances=all&quot; to render one unsliced image regardless of any ::N
+    split size (useful for stacked-total graphs, which must never be split).
+    Graph appearance comes from the <a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5) entry of the same name.</p>
+<p class="Pp">To alert on an aggregate over the stored values (e.g. the total of
+    a dataset across all instances) without storing the total anywhere, see the
+    AGGDS rules in <i><a href="../man5/analysis.cfg.5.html">analysis.cfg</a>(5).</i></p>
+<p class="Pp">The legacy &quot;&lt;!--DEVMON RRD:&quot; banner emitted by the
+    devmon SNMP collector is the ancestor of this mechanism and is accepted
+    forever; it implies both store and show, and is now also routed by content
+    (previously it required TEST2RRD=&quot;&lt;column&gt;=devmon&quot;, which
+    still works). Content routing takes precedence over explicit TEST2RRD
+    mappings and over built-in column handlers (disk, memory, ncv, ...) -
+    deliberately so: a status that declares its own metrics is stored as it
+    declares them. The flip side: a message carrying a line-anchored marker
+    banner is stored by the block writer INSTEAD of its column's normal handler,
+    so a column that echoes third-party text verbatim at line starts (log
+    excerpts, service banners) should not be given a TEST2RRD/built-in handler
+    it relies on - hostile or accidental marker-shaped content would divert
+  it.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
 <h1 class="Sh" id="SENDING_METRIC_DATA_TO_AN_ADDITIONAL_PROCESS"><a class="permalink" href="#SENDING_METRIC_DATA_TO_AN_ADDITIONAL_PROCESS">SENDING
   METRIC DATA TO AN ADDITIONAL PROCESS</a></h1>
 <p class="Pp">xymond_rrd provides a mechanism to send a copy of isolated metric
@@ -542,6 +643,7 @@ exit 0</pre>
 <dt><a href="#ENVIRONMENT">ENVIRONMENT</a></dt>
 <dt><a href="#COLLECTED_DATA">COLLECTED DATA</a></dt>
 <dt><a href="#CUSTOM_RRD_DATA_IN_NAME-COLON-VALUE_(NCV)_FORMAT">CUSTOM RRD DATA IN NAME-COLON-VALUE (NCV) FORMAT</a></dt>
+<dt><a href="#SELF-DESCRIBING_STATUS_MESSAGES_(XYMON_METRICS_MARKERS)">SELF-DESCRIBING STATUS MESSAGES (XYMON METRICS MARKERS)</a></dt>
 <dt><a href="#SENDING_METRIC_DATA_TO_AN_ADDITIONAL_PROCESS">SENDING METRIC DATA TO AN ADDITIONAL PROCESS</a></dt>
 <dt><a href="#CUSTOM_RRD_DATA_VIA_SCRIPTS">CUSTOM RRD DATA VIA SCRIPTS</a></dt>
 <dt><a href="#COMPATIBILITY">COMPATIBILITY</a></dt>

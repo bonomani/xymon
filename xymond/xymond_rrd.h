@@ -12,5 +12,6 @@
 #define _XYMOND_RRD_H__
 
 extern char **get_rrd_definition(char *key, int *count);
+extern int have_rrd_definition(char *key);
 #endif
 
