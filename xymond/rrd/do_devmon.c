@@ -11,9 +11,111 @@
 
 static char devmon_rcsid[] = "$Id $";
 
+#define MAXCOLS 20
+
+/*
+ * Read the DS specs in columns[numds...] into params, and record their
+ * units, names and heartbeats in the fileset index. Returns the new
+ * dataset count.
+ */
+static int devmon_parse_ds(char **columns, char **devmon_params, int numds)
+{
+	strbuffer_t *unitspec = newstrbuffer(0);
+	strbuffer_t *dsnspec = newstrbuffer(0);
+	strbuffer_t *hbspec = newstrbuffer(0);
+	int startds = numds;
+
+	dbgprintf("Looking for DS definitions from %s\n",columns[numds]);
+	while ( numds < MAXCOLS) {
+		char *spec, *cp, *unit = NULL;
+		int ncolon = 0;
+
+		dbgprintf("Seeing if column %d that has %s is a DS\n",numds,columns[numds]);
+		if (strncmp(columns[numds],"DS:",3)) break;
+		spec = xstrdup(columns[numds]);
+		/* A DS spec may declare a unit as an optional 7th
+		 * colon field (DS:name:GAUGE:600:0:U:ms). rrdtool
+		 * accepts only the 6-field spec, so cut the suffix
+		 * before it reaches rrdcreate - and record the unit
+		 * in the fileset index, where the renderer looks. */
+		for (cp = spec; (*cp); cp++) {
+			if (*cp != ':') continue;
+			if (++ncolon == 6) { *cp = '\0'; unit = cp+1; break; }
+		}
+		if (unit && *unit) {
+			char *dsname = spec + 3;
+			char *dsend = strchr(dsname, ':');
+			char *uc;
+			int unitok = (strlen(unit) <= 15);
+
+			/* Unit syntax: printable, no ':' ',' or blank -
+			 * anything else would corrupt the index spec */
+			for (uc = unit; (unitok && *uc); uc++) {
+				if (!isprint((unsigned char)*uc) || (*uc == ':') || (*uc == ',') || (*uc == ' ')) unitok = 0;
+			}
+			if (!unitok) {
+				dbgprintf("Ignoring invalid unit on DS %s\n", spec);
+			}
+			else if (dsend) {
+				if (STRBUFLEN(unitspec)) addtobuffer(unitspec, ",");
+				addtobufferraw(unitspec, dsname, dsend - dsname);
+				addtobuffer(unitspec, ":");
+				addtobuffer(unitspec, unit);
+			}
+		}
+		{
+			/* positional DS names, for the AGGDS census */
+			char *dsname = spec + 3;
+			char *dsend = strchr(dsname, ':');
+			if (dsend) {
+				if (STRBUFLEN(dsnspec)) addtobuffer(dsnspec, ",");
+				addtobufferraw(dsnspec, dsname, dsend - dsname);
+			}
+			/* ... and the declared heartbeat (colon field 4,
+			 * DS:name:type:HB:min:max), recorded so the
+			 * reconcile tool can compare files against the
+			 * current declaration. All-digit or skipped -
+			 * rrdcreate rejects anything else anyway. */
+			if (dsend) {
+				char *hb = strchr(dsend+1, ':');
+				char *hbend = (hb ? strchr(hb+1, ':') : NULL);
+				if (hbend && (hbend > hb+1)) {
+					char *dc;
+					int hbok = 1;
+					for (dc = hb+1; (hbok && (dc < hbend)); dc++) {
+						if (!isdigit((unsigned char)*dc)) hbok = 0;
+					}
+					if (hbok) {
+						if (STRBUFLEN(hbspec)) addtobuffer(hbspec, ",");
+						addtobufferraw(hbspec, dsname, dsend - dsname);
+						addtobuffer(hbspec, ":");
+						addtobufferraw(hbspec, hb+1, hbend - (hb+1));
+					}
+				}
+			}
+		}
+		devmon_params[numds] = spec;
+		numds++;
+	}
+	dbgprintf("Found %d DS definitions\n",numds);
+	devmon_params[numds] = NULL;
+	/* Only a DS line that actually declared something may set
+	 * (or clear) the units - a later, ignored DS line must not
+	 * wipe the first one's declarations. */
+	if (numds > startds) {
+		fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
+		fsidx_set_dsnames(STRBUFLEN(dsnspec) ? STRBUF(dsnspec) : NULL);
+		fsidx_set_heartbeats(STRBUFLEN(hbspec) ? STRBUF(hbspec) : NULL);
+	}
+	freestrbuffer(unitspec);
+	freestrbuffer(dsnspec);
+	freestrbuffer(hbspec);
+
+	return numds;
+}
+
 int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepaths, char *msg, time_t tstamp)
 {
-#define MAXCOLS 20
 	char *devmon_params[MAXCOLS+7] = { NULL, };
 
 	char *eoln, *curline;
@@ -125,97 +227,7 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 
 		/* DS:ds0:COUNTER:600:0:U DS:ds1:COUNTER:600:0:U */
 		if (!strncmp(curline, "DS:",3)) {
-			strbuffer_t *unitspec = newstrbuffer(0);
-			strbuffer_t *dsnspec = newstrbuffer(0);
-			strbuffer_t *hbspec = newstrbuffer(0);
-			int startds = numds;
-
-			dbgprintf("Looking for DS definitions in %s\n",curline);
-			while ( numds < MAXCOLS) {
-				char *spec, *cp, *unit = NULL;
-				int ncolon = 0;
-
-				dbgprintf("Seeing if column %d that has %s is a DS\n",numds,columns[numds]);
-				if (strncmp(columns[numds],"DS:",3)) break;
-				spec = xstrdup(columns[numds]);
-				/* A DS spec may declare a unit as an optional 7th
-				 * colon field (DS:name:GAUGE:600:0:U:ms). rrdtool
-				 * accepts only the 6-field spec, so cut the suffix
-				 * before it reaches rrdcreate - and record the unit
-				 * in the fileset index, where the renderer looks. */
-				for (cp = spec; (*cp); cp++) {
-					if (*cp != ':') continue;
-					if (++ncolon == 6) { *cp = '\0'; unit = cp+1; break; }
-				}
-				if (unit && *unit) {
-					char *dsname = spec + 3;
-					char *dsend = strchr(dsname, ':');
-					char *uc;
-					int unitok = (strlen(unit) <= 15);
-
-					/* Unit syntax: printable, no ':' ',' or blank -
-					 * anything else would corrupt the index spec */
-					for (uc = unit; (unitok && *uc); uc++) {
-						if (!isprint((unsigned char)*uc) || (*uc == ':') || (*uc == ',') || (*uc == ' ')) unitok = 0;
-					}
-					if (!unitok) {
-						dbgprintf("Ignoring invalid unit on DS %s\n", spec);
-					}
-					else if (dsend) {
-						if (STRBUFLEN(unitspec)) addtobuffer(unitspec, ",");
-						addtobufferraw(unitspec, dsname, dsend - dsname);
-						addtobuffer(unitspec, ":");
-						addtobuffer(unitspec, unit);
-					}
-				}
-				{
-					/* positional DS names, for the AGGDS census */
-					char *dsname = spec + 3;
-					char *dsend = strchr(dsname, ':');
-					if (dsend) {
-						if (STRBUFLEN(dsnspec)) addtobuffer(dsnspec, ",");
-						addtobufferraw(dsnspec, dsname, dsend - dsname);
-					}
-					/* ... and the declared heartbeat (colon field 4,
-					 * DS:name:type:HB:min:max), recorded so the
-					 * reconcile tool can compare files against the
-					 * current declaration. All-digit or skipped -
-					 * rrdcreate rejects anything else anyway. */
-					if (dsend) {
-						char *hb = strchr(dsend+1, ':');
-						char *hbend = (hb ? strchr(hb+1, ':') : NULL);
-						if (hbend && (hbend > hb+1)) {
-							char *dc;
-							int hbok = 1;
-							for (dc = hb+1; (hbok && (dc < hbend)); dc++) {
-								if (!isdigit((unsigned char)*dc)) hbok = 0;
-							}
-							if (hbok) {
-								if (STRBUFLEN(hbspec)) addtobuffer(hbspec, ",");
-								addtobufferraw(hbspec, dsname, dsend - dsname);
-								addtobuffer(hbspec, ":");
-								addtobufferraw(hbspec, hb+1, hbend - (hb+1));
-							}
-						}
-					}
-				}
-				devmon_params[numds] = spec;
-				numds++;
-			}
-			dbgprintf("Found %d DS definitions\n",numds);
-			devmon_params[numds] = NULL;
-			/* Only a DS line that actually declared something may set
-			 * (or clear) the units - a later, ignored DS line must not
-			 * wipe the first one's declarations. */
-			if (numds > startds) {
-				fsidx_set_units(STRBUFLEN(unitspec) ? STRBUF(unitspec) : NULL);
-				fsidx_set_dsnames(STRBUFLEN(dsnspec) ? STRBUF(dsnspec) : NULL);
-				fsidx_set_heartbeats(STRBUFLEN(hbspec) ? STRBUF(hbspec) : NULL);
-			}
-			freestrbuffer(unitspec);
-			freestrbuffer(dsnspec);
-			freestrbuffer(hbspec);
-
+			numds = devmon_parse_ds(columns, devmon_params, numds);
 			goto nextline;
 		}
 
