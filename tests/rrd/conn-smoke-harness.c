@@ -7,11 +7,12 @@
  * file that WOULD be updated is captured with its update string.
  *
  * Pins that a conn status carrying xymonping's "samples=... loss=K/N" fields
- * updates tcp.conn-smoke.rrd (median, loss fraction, then the N samples
- * sorted, "U" for each lost one, half below and half above) beside the
- * usual tcp.conn.rrd; that a plain
- * conn status updates tcp.conn.rrd alone; and that do_net_rrd returns what
- * the tcp.conn.rrd update returned, smoke data or not.
+ * updates, beside the usual tcp.conn.rrd, tcp.conn-smoke.rrd with the N
+ * samples sorted ("U" for each lost one, half below and half above) and
+ * tcp.conn-smoke-summary.rrd with the median, the loss fraction and the
+ * verdict, each under the archive key of its kind; that a plain conn
+ * status updates tcp.conn.rrd alone; and that do_net_rrd returns what the
+ * tcp.conn.rrd update returned, smoke data or not.
  */
 
 #define _GNU_SOURCE
@@ -79,13 +80,17 @@ int main(void)
 	rc = record("green <!-- [flags:OrdAstLe] --> conn ok\n\n"
 		    "&green 127.0.0.1 is alive (1.00 ms) samples=0.001000,0.003000,0.002000 loss=1/4\n", 0);
 	expect_write(0, "tcp.conn.rrd", "1000:0.001000", "smoke status, usual RRD");
-	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.002000:0.250000:0.001000:0.002000:0.003000:U:U:U:U:U",
-		     "smoke status, smoke RRD");
-	if (writes != 2) { printf("FAIL smoke status: %d updates, expected 2\n", writes); fails++; }
-	/* The smoke file takes its archives from rrddefinitions.cfg's
-	 * [conn-smoke], the usual one keeps [conn]'s. */
-	if ((writes >= 2) && (strcmp(written_key[0], "conn") || strcmp(written_key[1], "conn-smoke"))) {
-		printf("FAIL archive keys: '%s' and '%s', expected 'conn' and 'conn-smoke'\n", written_key[0], written_key[1]);
+	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.001000:0.002000:0.003000:U",
+		     "smoke status, samples RRD");
+	expect_write(2, "tcp.conn-smoke-summary.rrd", "1000:0.002000:0.250000:U:U:U:U",
+		     "smoke status, summary RRD");
+	if (writes != 3) { printf("FAIL smoke status: %d updates, expected 3\n", writes); fails++; }
+	/* Each file takes its archives from the rrddefinitions.cfg section of
+	 * its kind; the usual one keeps [conn]'s. */
+	if ((writes >= 3) && (strcmp(written_key[0], "conn") || strcmp(written_key[1], "conn-smoke") ||
+			      strcmp(written_key[2], "conn-smoke-summary"))) {
+		printf("FAIL archive keys: '%s', '%s' and '%s', expected 'conn', 'conn-smoke' and 'conn-smoke-summary'\n",
+		       written_key[0], written_key[1], written_key[2]);
 		fails++;
 	}
 	if (rc != 0) { printf("FAIL smoke status: returned %d, expected 0\n", rc); fails++; }
@@ -93,8 +98,9 @@ int main(void)
 	/* The verdict xymonnet adds after the loss is stored after the samples. */
 	rc = record("green conn ok\n\n&green 127.0.0.1 is alive (1.00 ms) samples=0.001000,0.002000 loss=0/2"
 		    " losshour=0.033333 lossstate=1 losswarn=0.030000 losscrit=0.100000\n", 0);
-	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.001500:0.000000:0.001000:0.002000:0.033333:1.000000:0.030000:0.100000",
-		     "smoke status with its verdict");
+	expect_write(1, "tcp.conn-smoke.rrd", "1000:0.001000:0.002000", "smoke status with its verdict, samples");
+	expect_write(2, "tcp.conn-smoke-summary.rrd", "1000:0.001500:0.000000:0.033333:1.000000:0.030000:0.100000",
+		     "smoke status with its verdict, summary");
 
 	/* No samples= or loss=: only the usual RRD. */
 	rc = record("green <!-- [flags:OrdAstLe] --> conn ok\n\n&green 127.0.0.1 is alive (1.00 ms)\n", 0);

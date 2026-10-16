@@ -954,18 +954,21 @@ xymonserver.cfg(5) applies (default 20). "smoke" and "smoke_conn" do
 the same today; "smoke_conn" names the conn test only, and wins when
 a host carries both.
 .IP
-xymond_rrd(8) then writes tcp.conn\-smoke.rrd, with data sources
-"median", "loss" (a fraction, 0 to 1) and "ping1".."pingN": the
-round-trip times sorted ascending, the lost pings stored as unknown
-half below and half above them, as SmokePing does - beside the usual
-tcp.conn.rrd. Its archives come from the [conn\-smoke] section of
-rrddefinitions.cfg (named after the ping test), which ships with
-SmokePing's: 5-minute values kept 100 days, and hourly and 12-hourly
-MIN and MAX beside the averages. Like every rrddefinitions.cfg change,
-it shapes new files only. N may change later: raised, the new "pingK" data
-sources are added to the existing file, which keeps its history;
-lowered, the extra ones stay unknown. The shipped graphs.cfg draws it
-twice: [conn\-smoke] shows the latency, the smoke of the replies and
+xymond_rrd(8) then writes two files beside the usual tcp.conn.rrd, one
+per kind of data. tcp.conn\-smoke.rrd holds the samples, "ping1" to
+"pingN": the round-trip times sorted ascending, the lost pings stored
+as unknown half below and half above them, as SmokePing does.
+tcp.conn\-smoke\-summary.rrd holds the run's "median" and "loss" (a
+fraction, 0 to 1), and the verdict of the smoke column described below.
+Each file's archives come from the rrddefinitions.cfg section named
+after the ping test and its kind, [conn\-smoke] and
+[conn\-smoke\-summary], which ship with SmokePing's: 5-minute values
+kept 100 days, and hourly and 12-hourly MIN and MAX beside the
+averages; the summary also keeps a 5-minute MAX. Like every
+rrddefinitions.cfg change, they shape new files only. N may change
+later: raised, the new "pingK" data sources are added to the existing
+samples file, which keeps its history; lowered, the extra ones stay
+unknown. The shipped graphs.cfg draws them twice: [conn\-smoke] shows the latency, the smoke of the replies and
 their median, and [conn\-smoke\-loss] the loss, per run and over the
 last hour.
 .IP

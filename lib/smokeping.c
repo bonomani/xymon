@@ -91,22 +91,39 @@ char **smokeping_rrd_params_n(int n)
 	c = cache_lookup_or_create(n);
 	if (c->params) return c->params;
 
-	c->params = (char **)calloc(n + 7, sizeof(char *));
-	c->params[0] = strdup("DS:median:GAUGE:600:0:U");
-	c->params[1] = strdup("DS:loss:GAUGE:600:0:U");
+	c->params = (char **)calloc(n + 1, sizeof(char *));
 	for (i = 0; i < n; i++) {
 		snprintf(buf, sizeof(buf), "DS:ping%d:GAUGE:600:0:U", i + 1);
-		c->params[2 + i] = strdup(buf);
+		c->params[i] = strdup(buf);
 	}
-	/* The smoke column's verdict, after the samples (see
-	 * smokeping_format_verdict): the loss over the last hour, the
-	 * colour it gave, and the levels it was judged by. */
-	c->params[n + 2] = strdup("DS:losshour:GAUGE:600:0:1");
-	c->params[n + 3] = strdup("DS:lossstate:GAUGE:600:0:2");
-	c->params[n + 4] = strdup("DS:losswarn:GAUGE:600:0:1");
-	c->params[n + 5] = strdup("DS:losscrit:GAUGE:600:0:1");
-	c->params[n + 6] = NULL;
+	c->params[n] = NULL;
 	return c->params;
+}
+
+/* The summary file's datasets: the run's median and loss, then the
+ * smoke column's verdict (see smokeping_format_summary) - the loss over
+ * the last hour, the colour it gave and the levels it was judged by. */
+static char *summary_params[] = {
+	"DS:median:GAUGE:600:0:U",
+	"DS:loss:GAUGE:600:0:U",
+	"DS:losshour:GAUGE:600:0:1",
+	"DS:lossstate:GAUGE:600:0:2",
+	"DS:losswarn:GAUGE:600:0:1",
+	"DS:losscrit:GAUGE:600:0:1",
+	NULL
+};
+
+char **smokeping_summary_params(void)
+{
+	return summary_params;
+}
+
+void *smokeping_summary_template(void)
+{
+	static void *tpl = NULL;
+
+	if (!tpl) tpl = setup_template(summary_params);
+	return tpl;
 }
 
 char **smokeping_rrd_params(void)
@@ -343,23 +360,16 @@ double smokeping_median(double *samples, int received)
 	return (samples[received / 2 - 1] + samples[received / 2]) / 2.0;
 }
 
-int smokeping_format_rrdvalues_n(char *out, int outlen, time_t tstamp,
-                                 double median, double lossfrac,
-                                 const double *sorted_samples,
-                                 int received, int n_slots)
+int smokeping_format_samples_n(char *out, int outlen, time_t tstamp,
+                               const double *sorted_samples,
+                               int received, int n_slots)
 {
 	int off, i, lower;
 
 	if (n_slots <= 0) n_slots = smokeping_sample_count();
 	lower = ((received < n_slots) ? (n_slots - received) / 2 : 0);
 
-	off = snprintf(out, outlen, "%d:", (int)tstamp);
-	if (received > 0) {
-		off += snprintf(out + off, outlen - off, "%.6f:%.6f", median, lossfrac);
-	}
-	else {
-		off += snprintf(out + off, outlen - off, "U:%.6f", lossfrac);
-	}
+	off = snprintf(out, outlen, "%d", (int)tstamp);
 	for (i = 0; (i < n_slots) && (off < outlen); i++) {
 		if ((i >= lower) && (i - lower < received)) {
 			off += snprintf(out + off, outlen - off, ":%.6f", sorted_samples[i - lower]);
@@ -371,11 +381,14 @@ int smokeping_format_rrdvalues_n(char *out, int outlen, time_t tstamp,
 	return off;
 }
 
-int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
-                               double median, double lossfrac,
-                               const double *sorted_samples, int received)
+int smokeping_format_summary(char *out, int outlen, time_t tstamp,
+                             double median, double lossfrac, int received,
+                             const char *msg)
 {
-	return smokeping_format_rrdvalues_n(out, outlen, tstamp, median,
-	                                    lossfrac, sorted_samples,
-	                                    received, smokeping_sample_count());
+	int off;
+
+	if (received > 0) off = snprintf(out, outlen, "%d:%.6f:%.6f", (int)tstamp, median, lossfrac);
+	else off = snprintf(out, outlen, "%d:U:%.6f", (int)tstamp, lossfrac);
+	if ((off < 0) || (off >= outlen)) return -1;
+	return ((smokeping_format_verdict(msg, out + off, outlen - off) < 0) ? -1 : (int)strlen(out));
 }

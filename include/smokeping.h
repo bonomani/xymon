@@ -29,8 +29,8 @@
  * caches the result; defaults to 20 if unset or non-positive. */
 int smokeping_sample_count(void);
 
-/* NULL-terminated array of rrdtool DS specs for a smoke RRD with `n`
- * per-cycle samples: DS:median, DS:loss, DS:ping1..pingN. Per-N cache;
+/* NULL-terminated array of rrdtool DS specs for the samples file with `n`
+ * per-cycle samples: DS:ping1..pingN. Per-N cache;
  * do not free. _n() is the explicit variant; the zero-arg form is a
  * convenience wrapper using smokeping_sample_count().
  *
@@ -69,29 +69,33 @@ int smokeping_from_fping_count(const char *line, char *out, int outlen);
  * median. Returns NAN when received == 0. */
 double smokeping_median(double *samples, int received);
 
-/* Format an rrdvalues string suitable for create_and_update_rrd():
- *   "<tstamp>:<median|U>:<lossfrac>:<s1>:<s2>:...:<sN>"
- * with `n_slots` ping slots. sorted_samples must be ascending. When
- * received < n_slots the lost pings are "U", half below the samples and
- * half above (the odd one above), as SmokePing stores them: the smoke
- * pairs slot i with slot N+1-i, and centring keeps the samples it pairs
- * the fastest and slowest received.
- * The zero-arg-N form uses smokeping_sample_count().
- * Returns bytes written (excluding NUL). */
-int smokeping_format_rrdvalues_n(char *out, int outlen, time_t tstamp,
-                                 double median, double lossfrac,
-                                 const double *sorted_samples,
-                                 int received, int n_slots);
-int smokeping_format_rrdvalues(char *out, int outlen, time_t tstamp,
-                               double median, double lossfrac,
+/* The samples file's update: "<tstamp>:<s1>:...:<sN>" with `n_slots`
+ * ping slots. sorted_samples must be ascending. When received <
+ * n_slots the lost pings are "U", half below the samples and half above
+ * (the odd one above), as SmokePing stores them: the smoke pairs slot i
+ * with slot N+1-i, and centring keeps the samples it pairs the fastest
+ * and slowest received. Returns bytes written (excluding NUL). */
+int smokeping_format_samples_n(char *out, int outlen, time_t tstamp,
                                const double *sorted_samples,
-                               int received);
+                               int received, int n_slots);
+
+/* The summary file's datasets and template (median, loss and the
+ * verdict), the same for every sample count; do not free. */
+char **smokeping_summary_params(void);
+void *smokeping_summary_template(void);
+
+/* The summary file's update: "<tstamp>:<median|U>:<lossfrac>" and the
+ * verdict values from `msg` (smokeping_format_verdict). Returns bytes
+ * written, or -1 when out is too small. */
+int smokeping_format_summary(char *out, int outlen, time_t tstamp,
+                             double median, double lossfrac, int received,
+                             const char *msg);
 
 /* The values of the verdict columns that follow the samples, from the
  * "losshour= lossstate= losswarn= losscrit=" fields xymonnet adds to a
  * smoke host's ping line (fractions, the state 0 green 1 yellow 2 red):
- * ":<v>:<v>:<v>:<v>", "U" for each absent or malformed. Appended by the
- * caller to the smokeping_format_rrdvalues*() string. Returns bytes
+ * ":<v>:<v>:<v>:<v>", "U" for each absent or malformed. Appended by
+ * smokeping_format_summary(). Returns bytes
  * written, or -1 when out is too small. */
 int smokeping_format_verdict(const char *msg, char *out, int outlen);
 

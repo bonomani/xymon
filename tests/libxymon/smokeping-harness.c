@@ -150,14 +150,22 @@ int main(void)
 	{
 		char **p = smokeping_rrd_params();
 		CHECK(p != NULL, "params-not-null");
-		CHECK_STR(p[0], "DS:median:GAUGE:600:0:U", "params-median");
-		CHECK_STR(p[1], "DS:loss:GAUGE:600:0:U",   "params-loss");
-		CHECK_STR(p[2], "DS:ping1:GAUGE:600:0:U",  "params-ping1");
-		CHECK_STR(p[6], "DS:ping5:GAUGE:600:0:U",  "params-ping5");
-		CHECK_STR(p[7], "DS:losshour:GAUGE:600:0:1",  "params-losshour");
-		CHECK_STR(p[8], "DS:lossstate:GAUGE:600:0:2", "params-lossstate");
-		CHECK_STR(p[10], "DS:losscrit:GAUGE:600:0:1", "params-losscrit");
-		CHECK(p[11] == NULL, "params-terminator");
+		CHECK_STR(p[0], "DS:ping1:GAUGE:600:0:U",  "params-ping1");
+		CHECK_STR(p[4], "DS:ping5:GAUGE:600:0:U",  "params-ping5");
+		CHECK(p[5] == NULL, "params-terminator");
+	}
+
+	/* the summary file: median, loss and the verdict, whatever N is */
+	{
+		char **p = smokeping_summary_params();
+		CHECK_STR(p[0], "DS:median:GAUGE:600:0:U",    "summary-median");
+		CHECK_STR(p[1], "DS:loss:GAUGE:600:0:U",      "summary-loss");
+		CHECK_STR(p[2], "DS:losshour:GAUGE:600:0:1",  "summary-losshour");
+		CHECK_STR(p[3], "DS:lossstate:GAUGE:600:0:2", "summary-lossstate");
+		CHECK_STR(p[5], "DS:losscrit:GAUGE:600:0:1",  "summary-losscrit");
+		CHECK(p[6] == NULL, "summary-terminator");
+		CHECK(smokeping_summary_template() != NULL, "summary-template");
+		CHECK(smokeping_summary_template() == smokeping_summary_template(), "summary-template-cached");
 	}
 
 	/* rrd_template returns the shim'd template handle */
@@ -170,20 +178,31 @@ int main(void)
 	{
 		char out[256];
 		double sorted[] = {0.000305, 0.000310, 0.000320};
-		smokeping_format_rrdvalues(out, sizeof(out), 1234567890,
-		                            0.000310, 0.0, sorted, 3);
+		smokeping_format_samples_n(out, sizeof(out), 1234567890, sorted, 3, 5);
 		CHECK_STR(out,
-		          "1234567890:0.000310:0.000000:U:0.000305:0.000310:0.000320:U",
+		          "1234567890:U:0.000305:0.000310:0.000320:U",
 		          "format-3-of-5");
 	}
 
-	/* format with zero received (unreachable) -> median is U, lossfrac kept */
+	/* format with zero received (unreachable): every slot U; the summary
+	 * has no median but keeps the loss */
 	{
 		char out[256];
-		smokeping_format_rrdvalues(out, sizeof(out), 1234567890, 0, 1.0, NULL, 0);
-		CHECK_STR(out,
-		          "1234567890:U:1.000000:U:U:U:U:U",
-		          "format-0-of-5");
+		smokeping_format_samples_n(out, sizeof(out), 1234567890, NULL, 0, 5);
+		CHECK_STR(out, "1234567890:U:U:U:U:U", "format-0-of-5");
+		smokeping_format_summary(out, sizeof(out), 1234567890, 0, 1.0, 0, "x is unreachable loss=5/5");
+		CHECK_STR(out, "1234567890:U:1.000000:U:U:U:U", "summary-unreachable");
+	}
+
+	/* the summary update: median, loss and the verdict from the ping line */
+	{
+		char out[256];
+		smokeping_format_summary(out, sizeof(out), 100, 0.0213, 0.05, 19,
+			"x is alive (21 ms) samples=0.02 loss=1/20 losshour=0.033333 lossstate=1 losswarn=0.030000 losscrit=0.100000");
+		CHECK_STR(out, "100:0.021300:0.050000:0.033333:1.000000:0.030000:0.100000", "summary-with-verdict");
+		smokeping_format_summary(out, sizeof(out), 100, 0.0213, 0.0, 20, "x is alive (21 ms) samples=0.02 loss=0/20");
+		CHECK_STR(out, "100:0.021300:0.000000:U:U:U:U", "summary-without-verdict");
+		CHECK_EQ(smokeping_format_summary(out, 20, 100, 0.0213, 0.0, 20, "loss=0/20"), -1, "summary-too-small");
 	}
 
 	/* End-to-end: parse -> median -> format for an alive message */
@@ -197,20 +216,21 @@ int main(void)
 		smokeping_parse_message(msg, s, 10, &nrecv, &lost, &total);
 		lossfrac = (total > 0 ? (double)lost / (double)total : 0.0);
 		med = smokeping_median(s, nrecv);
-		smokeping_format_rrdvalues(out, sizeof(out), 1234567890, med, lossfrac, s, nrecv);
-
+		smokeping_format_samples_n(out, sizeof(out), 1234567890, s, nrecv, 5);
 		CHECK_STR(out,
-		          "1234567890:0.000310:0.000000:U:0.000305:0.000310:0.000320:U",
+		          "1234567890:U:0.000305:0.000310:0.000320:U",
 		          "end-to-end-alive");
+		smokeping_format_summary(out, sizeof(out), 1234567890, med, lossfrac, nrecv, msg);
+		CHECK_STR(out, "1234567890:0.000310:0.000000:U:U:U:U", "end-to-end-alive-summary");
 	}
 
 	/* Explicit-N: rrd_params_n(8) yields 8 ping slots regardless of env */
 	{
 		char **p = smokeping_rrd_params_n(8);
 		CHECK(p != NULL, "params-n8-not-null");
-		CHECK_STR(p[2], "DS:ping1:GAUGE:600:0:U",  "params-n8-ping1");
-		CHECK_STR(p[9], "DS:ping8:GAUGE:600:0:U",  "params-n8-ping8");
-		CHECK(p[14] == NULL, "params-n8-terminator");
+		CHECK_STR(p[0], "DS:ping1:GAUGE:600:0:U",  "params-n8-ping1");
+		CHECK_STR(p[7], "DS:ping8:GAUGE:600:0:U",  "params-n8-ping8");
+		CHECK(p[8] == NULL, "params-n8-terminator");
 	}
 
 	/* Explicit-N: rrd_params_n(8) is cached (same pointer on re-call) */
@@ -227,35 +247,32 @@ int main(void)
 		char **p_env = smokeping_rrd_params();
 		char **p_8 = smokeping_rrd_params_n(8);
 		CHECK(p_env != p_8, "params-distinct-by-n");
-		CHECK_STR(p_env[6], "DS:ping5:GAUGE:600:0:U", "params-env-still-5");
-		CHECK_STR(p_8[9],   "DS:ping8:GAUGE:600:0:U", "params-explicit-still-8");
+		CHECK_STR(p_env[4], "DS:ping5:GAUGE:600:0:U", "params-env-still-5");
+		CHECK_STR(p_8[7],   "DS:ping8:GAUGE:600:0:U", "params-explicit-still-8");
 	}
 
-	/* format_rrdvalues_n: explicit n_slots overrides the global, both
+	/* format_samples_n: explicit n_slots overrides the global, both
 	 * larger and smaller than the env value. */
 	{
 		char out[512];
 		double sorted8[] = {0.001, 0.002, 0.003, 0.004, 0.005, 0.006, 0.007, 0.008};
 
 		/* n_slots=8 > env=5: all 8 samples + no padding */
-		smokeping_format_rrdvalues_n(out, sizeof(out), 100, 0.0045, 0.0,
-		                              sorted8, 8, 8);
+		smokeping_format_samples_n(out, sizeof(out), 100, sorted8, 8, 8);
 		CHECK_STR(out,
-		          "100:0.004500:0.000000:0.001000:0.002000:0.003000:0.004000:0.005000:0.006000:0.007000:0.008000",
+		          "100:0.001000:0.002000:0.003000:0.004000:0.005000:0.006000:0.007000:0.008000",
 		          "format-n8-full");
 
 		/* n_slots=8, received=3: 5 lost, 2 U below the values and 3 above */
-		smokeping_format_rrdvalues_n(out, sizeof(out), 100, 0.002, 0.625,
-		                              sorted8, 3, 8);
+		smokeping_format_samples_n(out, sizeof(out), 100, sorted8, 3, 8);
 		CHECK_STR(out,
-		          "100:0.002000:0.625000:U:U:0.001000:0.002000:0.003000:U:U:U",
+		          "100:U:U:0.001000:0.002000:0.003000:U:U:U",
 		          "format-n8-partial");
 
 		/* n_slots=3 < env=5: only 3 slots */
-		smokeping_format_rrdvalues_n(out, sizeof(out), 100, 0.002, 0.0,
-		                              sorted8, 3, 3);
+		smokeping_format_samples_n(out, sizeof(out), 100, sorted8, 3, 3);
 		CHECK_STR(out,
-		          "100:0.002000:0.000000:0.001000:0.002000:0.003000",
+		          "100:0.001000:0.002000:0.003000",
 		          "format-n3-shrunk");
 	}
 
@@ -275,10 +292,9 @@ int main(void)
 		CHECK_EQ(total, 7, "parse-n7-total");
 		lossfrac = (total > 0 ? (double)lost / (double)total : 0.0);
 		med = smokeping_median(s, nrecv);
-		smokeping_format_rrdvalues_n(out, sizeof(out), 100, med, lossfrac,
-		                              s, nrecv, total);
+		smokeping_format_samples_n(out, sizeof(out), 100, s, nrecv, total);
 		CHECK_STR(out,
-		          "100:0.000400:0.000000:0.000100:0.000200:0.000300:0.000400:0.000500:0.000600:0.000700",
+		          "100:0.000100:0.000200:0.000300:0.000400:0.000500:0.000600:0.000700",
 		          "end-to-end-n7-gt-env");
 	}
 

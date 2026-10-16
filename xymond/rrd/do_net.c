@@ -134,22 +134,31 @@ int do_net_rrd(char *hostname, char *testname, char *classname, char *pagepaths,
 
 			median = smokeping_median(samples, nrecv);
 
+			/* Two files, each with the archives of its own kind of
+			 * data - rrddefinitions.cfg's "<test>-smoke" and
+			 * "<test>-smoke-summary" sections, not the test's own, so
+			 * tcp.conn.rrd keeps its archives:
+			 *   tcp.<test>-smoke.rrd          the N samples, the smoke;
+			 *   tcp.<test>-smoke-summary.rrd  median, loss and the verdict,
+			 *     a few datasets that can carry archives (MAX for the
+			 *     verdict's colour) the samples do not need. */
 			setupfn2("%s.%s-smoke.rrd", "tcp", testname);
-			smokeping_format_rrdvalues_n(rrdvalues, sizeof(rrdvalues), tstamp,
-			                             median, lossfrac, samples, nrecv,
-			                             n_slots);
-			{
-				size_t used = strlen(rrdvalues);
-				smokeping_format_verdict(msg, rrdvalues + used, sizeof(rrdvalues) - used);
-			}
+			smokeping_format_samples_n(rrdvalues, sizeof(rrdvalues), tstamp,
+			                           samples, nrecv, n_slots);
 			xfree(samples);
-			/* Archives from rrddefinitions.cfg's "<test>-smoke" section, not
-			 * the test's own: the smoke file keeps SmokePing's longer and
-			 * MIN/MAX archives without changing tcp.conn.rrd's. */
 			snprintf(smokekey, sizeof(smokekey), "%s-smoke", testname);
 			create_and_update_rrd(hostname, smokekey, classname, pagepaths,
 			                      smokeping_rrd_params_n(n_slots),
 			                      smokeping_rrd_template_n(n_slots));
+
+			setupfn2("%s.%s-smoke-summary.rrd", "tcp", testname);
+			if (smokeping_format_summary(rrdvalues, sizeof(rrdvalues), tstamp,
+			                             median, lossfrac, nrecv, msg) > 0) {
+				snprintf(smokekey, sizeof(smokekey), "%s-smoke-summary", testname);
+				create_and_update_rrd(hostname, smokekey, classname, pagepaths,
+				                      smokeping_summary_params(),
+				                      smokeping_summary_template());
+			}
 		}
 
 		return rc;

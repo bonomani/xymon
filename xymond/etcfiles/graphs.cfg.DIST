@@ -282,7 +282,7 @@
 	# SmokePing-style conn-smoke RRD which has its own schema (see
 	# [conn-smoke] below).
 	FNPATTERN ^tcp.(.+).rrd
-	EXFNPATTERN ^(tcp\.http\..+\.rrd|tcp\..+-smoke\.rrd)$
+	EXFNPATTERN ^(tcp\.http\..+\.rrd|tcp\..+-smoke(-summary)?\.rrd)$
 	TITLE TCP Connection Times
 	YAXIS Seconds
 	DEF:p@RRDIDX@=@RRDFN@:sec:AVERAGE
@@ -324,8 +324,8 @@
 	TITLE PING Round-trip time (smoke)
 	YAXIS Seconds
 	DEF:ping@DSIDX@=tcp.conn-smoke.rrd:ping@DSIDX@:AVERAGE
-	# The median is computed from ping1..pingN; the file's own "median"
-	# data source is not used here.
+	# The median line is computed from ping1..pingN, so it is the median
+	# of exactly the samples the smoke draws.
 	CDEF:median=@MEDIAN:ping@
 	# SmokePing's smoke (graphs.cfg(5), @SMOKE:): the samples paired
 	# from the outside in, each pair a grey band darker toward the
@@ -341,17 +341,18 @@
 	# Loss only: what each run lost, and the loss over the last hour the
 	# smoke column judges, coloured by the colour it gave, between the
 	# levels it was judged by. xymond_rrd stores that verdict from the
-	# ping line, so the graph shows what the status said, a host's own
-	# levels included. Where no verdict was stored, the hour is
-	# estimated from the runs and drawn dark grey.
+	# ping line in tcp.conn-smoke-summary.rrd, so the graph shows what the
+	# status said, a host's own levels included; the colour is read as
+	# MAX, the worst of each period on the long graphs. Where no verdict
+	# was stored, the hour is estimated from the runs and drawn dark grey.
 	TITLE PING Packet loss (smoke)
 	YAXIS Loss %
 	-l 0
-	DEF:loss=tcp.conn-smoke.rrd:loss:AVERAGE
-	DEF:lh=tcp.conn-smoke.rrd:losshour:AVERAGE
-	DEF:ls=tcp.conn-smoke.rrd:lossstate:AVERAGE
-	DEF:lw=tcp.conn-smoke.rrd:losswarn:AVERAGE
-	DEF:lc=tcp.conn-smoke.rrd:losscrit:AVERAGE
+	DEF:loss=tcp.conn-smoke-summary.rrd:loss:AVERAGE
+	DEF:lh=tcp.conn-smoke-summary.rrd:losshour:AVERAGE
+	DEF:ls=tcp.conn-smoke-summary.rrd:lossstate:MAX
+	DEF:lw=tcp.conn-smoke-summary.rrd:losswarn:AVERAGE
+	DEF:lc=tcp.conn-smoke-summary.rrd:losscrit:AVERAGE
 	CDEF:lossrun=loss,100,*
 	CDEF:hour=lh,100,*
 	CDEF:hourest=lh,UN,lossrun,UN,0,1,IF,*,lossrun,3600,TRENDNAN,UNKN,IF

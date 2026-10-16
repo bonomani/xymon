@@ -33,4 +33,4 @@ if ! ASAN_OPTIONS="detect_leaks=0${ASAN_OPTIONS:+:$ASAN_OPTIONS}" \
 	fail "do_net.c does not record conn samples as pinned (see output above)"
 fi
 
-pass "do_net.c writes xymonping's samples to tcp.conn-smoke.rrd beside tcp.conn.rrd, and returns the tcp.conn.rrd update's result"
+pass "do_net.c writes the samples to tcp.conn-smoke.rrd and the median, loss and verdict to tcp.conn-smoke-summary.rrd beside tcp.conn.rrd, and returns the tcp.conn.rrd update's result"
