@@ -64,7 +64,7 @@ printf '%s' "$message" | env \
 	"$XYMOND_RRD" --no-cache --rrddir="$work/rrd" \
 	>"$work/xymond_rrd.log" 2>&1
 
-rrd="$work/rrd/unix.test/inode,root.rrd"
+rrd="$work/rrd/unix.test/inode.%2F.rrd"
 assert_file_exists "$rrd" "UNIX-column root inode RRD"
 
 lastupdate=$("$work/rrd-lastupdate" "$rrd")
