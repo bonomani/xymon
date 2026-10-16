@@ -2,7 +2,7 @@
 .SH NAME
 xymonping \- Xymon ping tool
 .SH SYNOPSIS
-.B "xymonping [\-\-retries=N] [\-\-timeout=N] [IP\-addresses]"
+.B "xymonping [\-\-retries=N] [\-\-timeout=N] [\-\-samples=N [\-\-per\-host\-interval=MS]] [IP\-addresses]"
 
 .SH DESCRIPTION
 .I xymonping(1)
@@ -18,7 +18,9 @@ Optionally, if a list of IP-addresses is passed as command-line
 arguments, it will ping those IP's instead of reading them
 from stdin.
 
-xymonping only handles IP-addresses, not hostnames.
+xymonping only handles IP-addresses, not hostnames: IPv4, or IPv6 with
+a link-local address given as addr%interface. At most 65535
+addresses are pinged in one run; the rest are refused with an error.
 
 xymonping was inspired by the
 .I fping(1)
@@ -27,39 +29,50 @@ ping tester without much of the overhead found in other
 such utilities. The output from xymonping is similar to that
 of "fping \-Ae".
 
-xymonping probes multiple systems in parallel, and the runtime
-is therefore mostly dependent on the timeout-setting and the
-number of retries. With the default options, xymonping takes
-approximately 18 seconds to ping all hosts (tested with an
-input set of 1500 IP addresses).
+xymonping probes multiple systems in parallel, sending at most \-\-max\-pps
+packets per second, so a run takes about the number of hosts divided by
+that rate, plus the time the slowest host takes to answer or to be given
+up on (about 4 seconds with the default options).
 
-.SH SUID-ROOT INSTALLATION REQUIRED
-xymonping needs to be installed with suid-root privileges,
-since it requires a "raw socket" to send and receive ICMP
-Echo (ping) packets.
-
-xymonping is implemented such that it immediately drops
-the root privileges, and only regains them to perform two
-operations: Obtaining the raw socket, and optionally binding
-it to a specific source address. These operations are performed
-as root, the rest of the time xymonping runs with normal user
-privileges. Specifically, no user-supplied data or network data
-is used while running with root privileges. Therefore it
-should be safe to provide xymonping with the necessary
-suid-root privileges.
-
+.SH PRIVILEGES
+xymonping needs to send and receive ICMP Echo (ping) packets. It first
+tries an unprivileged ICMP socket (SOCK_DGRAM). Linux allows one to a
+user whose group is inside the
+.B net.ipv4.ping_group_range
+sysctl; many distributions set that range to cover every group. To
+allow it everywhere:
+.sp
+.nf
+\&   sysctl \-w net.ipv4.ping_group_range="0 2147483647"
+.fi
+.PP
+If that socket is refused, xymonping falls back to a raw socket, which
+needs root: install xymonping suid-root. It drops root privileges
+immediately, and only regains them to open the raw socket; no
+user-supplied or network data is handled while privileged.
+.PP
+File capabilities work as well: \fBsetcap cap_net_raw+ep\fR on the
+binary lets xymonping open the raw socket without being suid-root.
+.PP
+IPv6 addresses need the unprivileged ICMPv6 socket or root in the same
+way.
 .SH OPTIONS
 .IP "\fB\-\-retries\fR=\fIN\fR"
 Sets the number of retries for hosts that fail to respond to
 the initial ping, i.e. the number of ping probes sent in addition
-to the initial probe. The default is \-\-retries=2, to ping a host
-3 times before concluding that it is not responding.
+to the initial probe. The default is \-\-retries=3, as with fping, to ping a host
+4 times before concluding that it is not responding.
 
 .IP "\fB\-\-timeout\fR=\fIN\fR"
-Determines the timeout (in seconds) for ping probes. If a
-host does not respond within N seconds, it is regarded as
-unavailable, unless it responds to one of the retries.
-The default is \-\-timeout=5.
+Determines the timeout (in seconds) for the first ping to a host; each
+retry waits 1.5 times longer than the one before, as fping's \-t and \-B
+do. A reply that arrives later than its own ping's timeout does not count.
+Without this option the first ping waits 500 ms, so a host that never
+answers is given up on after about 4 seconds (500, 750, 1125 and
+1688 ms), and one whose replies take longer than that is reported
+unreachable: \-\-timeout=5 gives such a link back the old 5 seconds a try.
+With \-\-samples every ping gets the same timeout: by default the
+\-\-per\-host\-interval, at most 2 seconds, as in fping's count mode.
 
 .IP "\fB\-\-responses\fR=\fIN\fR"
 xymonping normally stops pinging a host after receiving a single
@@ -70,11 +83,35 @@ it may skew the round-trip-time reports. You can then use this option
 to require N responses, and xymonping will calculate the round-trip
 time as the average of all of responsetimes.
 
+.IP "\fB\-\-samples\fR=\fIN\fR"
+Enables SmokePing-style probing: sends exactly N pings to each host (N at
+most 1000), without retries, and records every round-trip time rather
+than only the average. The pings to one host are spaced by
+\-\-per\-host\-interval, so
+each host gets one train of N pings per run. The output line for each
+host gains fields after the usual text, so that existing parsers keep
+working: an alive host gets the samples and the loss, an unreachable one
+the loss alone:
+.sp
+.nf
+\&  1.2.3.4 is alive (311 usec) samples=0.000310,0.000320,0.000305 loss=0/3
+\&  1.2.3.5 is unreachable loss=3/3
+.fi
+.IP
+Samples are in seconds; loss is reported as lost/total. A ping counts as
+lost when no reply arrives within \-\-timeout of sending it. Without this
+option (or with N=0) the output is unchanged.
+.IP "\fB\-\-per\-host\-interval\fR=\fIMS\fR"
+With \-\-samples, the time in milliseconds between two pings to the
+same host. The default is 1000, as with fping's \-p option and
+SmokePing: the N pings form a train of (N\-1) seconds. Pings to
+different hosts are interleaved within that spacing, and no two pings
+leave closer together than \-\-max\-pps allows.
 .IP "\fB\-\-max\-pps\fR=\fIN\fR"
 Maximum number of packets per second. This limits the number of
 ICMP packets xymonping will send per second, by enforcing a
 brief delay after each packet is sent. The default setting is
-to send a maximum of 50 packets per second. Note that increasing
+to send a maximum of 100 packets per second, fping's default. Note that increasing
 this may cause flooding of the network, and since ICMP packets
 can be discarded by routers and other network equipment, this
 can cause erratic behaviour with hosts recorded as not responding
@@ -84,6 +121,12 @@ when they are in fact OK.
 Use ADDRESS as the source IP address of the ping packets sent.
 On multi-homed systems, allows you to select the source IP of
 the hosts going out, which might be necessary for ping to work.
+
+.IP "\fB\-i\fR\fIMS\fR, \fB\-r\fR\fIN\fR, \fB\-t\fR\fIMS\fR, \fB\-S\fR\fIADDRESS\fR"
+The fping options xymonping accepts, meaning what they mean to fping: the
+least time in milliseconds between two pings, the retries, the first
+ping's timeout in milliseconds, and the source address. Any other option
+starting with \- is ignored.
 
 .IP "\fB\-\-debug\fR"
 Enable debug output. This prints out all packets sent and received.
