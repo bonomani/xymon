@@ -255,6 +255,89 @@ int loadhostdata(char *hostname, char **ip, char **displayname, char **compacts,
 	return 0;
 }
 
+/* The testgroup aggregator page: a rollup band of the member statuses, then
+ * each member's content (body/table + graphs) stacked below via the frameless
+ * htmllog render. Members are fetched live from xymond, one xymondlog each. */
+static void generate_group_page(char *hostname, char *ip, char *displayname, tc_group_t *group, FILE *output)
+{
+	int i, worst = COL_GREEN;
+	int *mcolor;
+	char **mfirst, **mbody, **mlog;
+
+	if (group->nmembers <= 0) return;
+	mcolor = (int *)calloc(group->nmembers, sizeof(int));
+	mfirst = (char **)calloc(group->nmembers, sizeof(char *));
+	mbody  = (char **)calloc(group->nmembers, sizeof(char *));
+	mlog   = (char **)calloc(group->nmembers, sizeof(char *));
+
+	/* Fetch each member's current colour + status body from xymond. */
+	for (i = 0; i < group->nmembers; i++) {
+		size_t reqsz = 64 + strlen(hostname) + strlen(group->members[i]);
+		char *req = (char *)malloc(reqsz);
+		sendreturn_t *sres;
+		char *log = NULL, *p;
+
+		mcolor[i] = COL_CLEAR; mfirst[i] = mbody[i] = "";
+		/* Being allowed the group name is not being allowed its members:
+		 * a member this user may not view is left out of the band, the
+		 * sections and the page colour. -1 marks it. */
+		if (accessfn && !web_access_allowed(getenv("REMOTE_USER"), hostname, group->members[i], WEB_ACCESS_VIEW)) {
+			mcolor[i] = -1; xfree(req);
+			continue;
+		}
+		snprintf(req, reqsz, "xymondlog host=%s test=%s fields=color", hostname, group->members[i]);
+		sres = newsendreturnbuf(1, NULL);
+		if (sendmessage(req, NULL, XYMON_TIMEOUT, sres) == XYMONSEND_OK) log = getsendreturnstr(sres, 1);
+		freesendreturnbuf(sres);
+		xfree(req);
+		if (log && *log) {
+			mlog[i] = log;
+			p = strchr(log, '\n');
+			if (p) {
+				/* The field line, then the status line - the heading,
+				 * as on the member's own page - then the body. */
+				*p = '\0'; mcolor[i] = parse_color(log);
+				mfirst[i] = p + 1;
+				p = strchr(mfirst[i], '\n');
+				if (p) { *p = '\0'; mbody[i] = p + 1; }
+			}
+			else mcolor[i] = parse_color(log);
+			if (mcolor[i] > worst) worst = mcolor[i];
+		}
+	}
+
+	sethostenv(displayname, ip, group->name, colorname(worst), hostname);
+	headfoot(output, "hostsvc", "", "header", worst);
+
+	/* Rollup band: every member's status, side by side. */
+	fprintf(output, "<center>\n<table border=0 cellpadding=4 summary=\"group\"><tr>\n");
+	for (i = 0; i < group->nmembers; i++)
+		if (mcolor[i] >= 0) fprintf(output, "<td align=center><img src=\"%s/%s\" alt=\"%s\" border=0> %s</td>\n",
+			xgetenv("XYMONSKIN"), dotgiffilename(mcolor[i], 0, 1),
+			colorname(mcolor[i]), htmlquoted(group->members[i]));
+	fprintf(output, "</tr></table>\n<hr width=\"90%%\">\n");
+
+	/* Each member's content (body/table + graphs), stacked, frameless. */
+	htmllog_frameless = 1;
+	for (i = 0; i < group->nmembers; i++) {
+		if (mcolor[i] < 0) continue;
+		fprintf(output, "<h3>%s</h3>\n", htmlquoted(group->members[i]));
+		generate_html_log(hostname, displayname, group->members[i], ip,
+				  mcolor[i], 0, "Xymon", "",
+				  getcurrenttime(NULL), "",
+				  mfirst[i], mbody[i], NULL,
+				  0, NULL, NULL, 0, NULL,
+				  0, 0, 0, 0, NULL, NULL, NULL, NULL, NULL, 0, output);
+	}
+	htmllog_frameless = 0;
+	fprintf(output, "</center>\n");
+
+	headfoot(output, "hostsvc", "", "footer", worst);
+
+	for (i = 0; i < group->nmembers; i++) if (mlog[i]) xfree(mlog[i]);
+	xfree(mcolor); xfree(mfirst); xfree(mbody); xfree(mlog);
+}
+
 int do_request(void)
 {
 	int color = 0, flapping = 0;
@@ -290,6 +373,20 @@ int do_request(void)
 		if (!web_access_allowed(getenv("REMOTE_USER"), hostname, service, WEB_ACCESS_VIEW)) {
 			errormsg(403, "Not available (restricted).");
 			return 1;
+		}
+	}
+
+	/* A testgroup name (from test.cfg) renders the merged aggregator page
+	 * instead of a single status. */
+	if (service && *service) {
+		tc_group_t *g;
+		for (g = testcfg_groups(); (g); g = g->next)
+			if (strcasecmp(g->name, service) == 0) break;
+		if (g) {
+			if (loadhostdata(hostname, &ip, &displayname, &compacts, 0) != 0) return 1;
+			fprintf(stdout, "Content-type: %s\n\n", xgetenv("HTMLCONTENTTYPE"));
+			generate_group_page(hostname, (ip ? ip : ""), (displayname ? displayname : hostname), g, stdout);
+			return 0;
 		}
 	}
 

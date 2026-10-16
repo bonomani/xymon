@@ -1,0 +1,193 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <link rel="stylesheet" href="../mandoc.css" type="text/css" media="all"/>
+  <title>TEST.CFG(5)</title>
+</head>
+<body>
+<h1 class="head-name">TEST.CFG</h1>
+Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#INDEX">Index</a>
+<a href="../index.html">Return to Main Contents</a><hr/>
+
+<div class="manual-text">
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="NAME"><a class="permalink" href="#NAME">NAME</a></h1>
+<p class="Pp">test.cfg - per-test settings and test groups</p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="SYNOPSIS"><a class="permalink" href="#SYNOPSIS">SYNOPSIS</a></h1>
+<p class="Pp"><b>$XYMONHOME/etc/test.cfg</b></p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="DESCRIPTION"><a class="permalink" href="#DESCRIPTION">DESCRIPTION</a></h1>
+<p class="Pp">test.cfg holds settings that belong to one test (one status
+    column), in one place instead of spread over environment variables in
+    <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5), and declares test groups. The file is optional: without
+    it, or for a test it does not mention, everything works from the environment
+    as before.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="FILE_FORMAT"><a class="permalink" href="#FILE_FORMAT">FILE
+  FORMAT</a></h1>
+<p class="Pp">The file is a list of blocks. A block is a keyword and a name,
+    then its contents between &quot;{&quot; and &quot;}&quot;. Inside a block,
+    each statement is a keyword followed by its arguments, ended by a newline or
+    &quot;;&quot;. Blocks nest. Whitespace is insignificant, &quot;#&quot;
+    starts a comment, and a word containing blanks can be quoted with double
+    quotes.</p>
+<p class="Pp"></p>
+<pre>
+<br/>
+    TEST myapp {
+<br/>
+            HANDLER ncv
+<br/>
+            GRAPHS myapp, myapp_errors
+<br/>
+            METRIC myapp {
+<br/>
+                    NCV requests:GAUGE errors:DERIVE
+<br/>
+            }
+<br/>
+    }
+<br/>
+    group web {
+<br/>
+            member http
+<br/>
+            member https
+<br/>
+            member apache
+<br/>
+    }</pre>
+<p class="Pp">A syntax error is reported in the log of the program reading the
+    file, with its line number, and the whole file is then ignored: every test
+    falls back to the environment.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="TEST_BLOCKS"><a class="permalink" href="#TEST_BLOCKS">TEST
+  BLOCKS</a></h1>
+<p class="Pp"><b>TEST name { ... }</b> holds the settings for the test
+    &quot;name&quot;.</p>
+<p class="Pp"></p>
+<dl class="Bl-tag">
+  <dt id="HANDLER"><a class="permalink" href="#HANDLER"><b>HANDLER</b>
+    handler</a></dt>
+  <dd>The RRD handler that stores this test's data (see <i><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)),</i>
+      for example &quot;ncv&quot; or &quot;devmon&quot;. This takes precedence
+      over the TEST2RRD environment variable for this test.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="GRAPHS"><a class="permalink" href="#GRAPHS"><b>GRAPHS</b> graph[,
+    graph ...]</a></dt>
+  <dd>The graphs shown on this test's status page, replacing the
+      GRAPHS_&lt;test&gt; environment variable. Commas between the names are
+      optional.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="METRIC"><a class="permalink" href="#METRIC"><b>METRIC</b> name { ...
+    }</a></dt>
+  <dd>A metric the test produces. When a test has exactly one METRIC and no
+      HANDLER, the metric binds the test to an RRD handler: &quot;ncv&quot; when
+      the metric carries an NCV or SPLITNCV statement, otherwise the handler
+      named like the metric. Such an implicit binding never replaces a TEST2RRD
+      mapping the environment already has for the test - the environment's
+      mapping is kept and a warning is logged; use HANDLER to override it.</dd>
+</dl>
+<p class="Pp">Inside a METRIC block:</p>
+<p class="Pp"></p>
+<dl class="Bl-tag">
+  <dt id="NCV"><a class="permalink" href="#NCV"><b>NCV</b> name:type [name:type
+    ...]</a></dt>
+  <dd></dd>
+  <dt id="SPLITNCV"><a class="permalink" href="#SPLITNCV"><b>SPLITNCV</b>
+    name:type [name:type ...]</a></dt>
+  <dd>The name-colon-value datasets to store, replacing the NCV_&lt;test&gt; or
+      SPLITNCV_&lt;test&gt; environment variable (see the NCV section of
+      <i><a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)).</i> The pairs may also be written as a block, one per
+      statement: &quot;NCV { requests:GAUGE; errors:DERIVE }&quot;. An NCV
+      statement without any pair is ignored, with a warning.
+    <p class="Pp"></p>
+  </dd>
+  <dt id="COUNTLINES"><a class="permalink" href="#COUNTLINES"><b>COUNTLINES</b></a></dt>
+  <dd>Page this test's graphs by the number of lines in its status message, as
+      the tests listed in the --multigraphs option of <i><a href="../man1/svcstatus.cgi.1.html">svcstatus.cgi</a>(1)</i>
+      are (disk, inode and a few others by default).</dd>
+</dl>
+<p class="Pp">TEST and METRIC blocks also accept SOURCE, CMD, INTERVAL, PORT,
+    TRACKMAX, and storage statements (EXCLUDE, STOREPATTERN, and blocks naming a
+    storage backend). This version reads but does not use them; the graph-side
+    storage filters are set in <i><a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5)</i> instead.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="TEST_GROUPS"><a class="permalink" href="#TEST_GROUPS">TEST
+  GROUPS</a></h1>
+<p class="Pp"><b>group name { member test ... }</b> declares a group of tests
+    shown together. A member statement may name one test or several. The group
+    name must not be the name of a test: the group takes over that column on the
+    overview pages and its svcstatus.cgi page, so the test itself can no longer
+    be viewed.</p>
+<p class="Pp">A group is for display only. It has no status of its own, sends no
+    alert and cannot be acknowledged: its members keep their own status,
+    history, alerts and acknowledgements.</p>
+<p class="Pp">On the overview pages generated by <i><a href="../man1/xymongen.1.html">xymongen</a>(1),</i> a host's
+    members are replaced by one column named after the group. Its light shows
+    the worst colour among the host's members, and links to the group page:
+    svcstatus.cgi with SERVICE=&lt;group&gt; shows a band with each member's
+    colour, followed by each member's status, and the page itself takes the
+    worst colour. A host with none of a group's members shows no column for
+  it.</p>
+<p class="Pp">When svcstatus.cgi runs with --access, a user allowed to view the
+    group sees only the members they are allowed to view: the others are left
+    out of the band, the sections and the page colour.</p>
+<p class="Pp">&quot;rollup worst&quot; may be written in a group; it is the only
+    rollup, and the default.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="WHEN_CHANGES_TAKE_EFFECT"><a class="permalink" href="#WHEN_CHANGES_TAKE_EFFECT">WHEN
+  CHANGES TAKE EFFECT</a></h1>
+<p class="Pp">Each program reads the file once, when it first needs it. The CGIs
+    and xymongen start for every request or run, so they see a change at once;
+    xymond_rrd must be restarted to see it.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
+<h1 class="Sh" id="SEE_ALSO"><a class="permalink" href="#SEE_ALSO">SEE
+  ALSO</a></h1>
+<p class="Pp"><a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5), <a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8), <a href="../man5/graphs.cfg.5.html">graphs.cfg</a>(5), <a href="../man1/xymongen.1.html">xymongen</a>(1),
+    <a href="../man1/svcstatus.cgi.1.html">svcstatus.cgi</a>(1), <a href="../man7/xymon.7.html">xymon</a>(7)</p>
+</section>
+<p>&#160;</p>
+<h1 class="Sh" id="INDEX"><a class="permalink" href="#INDEX">Index</a></h1>
+<dl class="Bl-tag">
+<dt><a href="#NAME">NAME</a></dt>
+<dt><a href="#SYNOPSIS">SYNOPSIS</a></dt>
+<dt><a href="#DESCRIPTION">DESCRIPTION</a></dt>
+<dt><a href="#FILE_FORMAT">FILE FORMAT</a></dt>
+<dt><a href="#TEST_BLOCKS">TEST BLOCKS</a></dt>
+<dt><a href="#TEST_GROUPS">TEST GROUPS</a></dt>
+<dt><a href="#WHEN_CHANGES_TAKE_EFFECT">WHEN CHANGES TAKE EFFECT</a></dt>
+<dt><a href="#SEE_ALSO">SEE ALSO</a></dt>
+</dl>
+</div>
+<hr/>
+This document was created by mandoc, using the manual pages.
+
+</body>
+</html>
