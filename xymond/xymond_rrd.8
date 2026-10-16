@@ -432,7 +432,12 @@ explicitly (for graphs whose files are written elsewhere) or
 "instances=all" to render one unsliced image regardless of any ::N
 split size (useful for stacked-total graphs, which must never be
 split). Graph appearance comes from the graphs.cfg(5) entry of the
-same name.
+same name: a hand-written entry, one with DEF lines, wins over the graph
+synthesized from the block. If that entry draws other files - it has no
+FNPATTERN, so its DEF lines name fixed files, or its FNPATTERN does not
+match "<block>.<instance>.rrd" - the block is stored but never shown,
+and xymond_rrd logs that once per block name. Rename the block, or
+update the entry to draw its files.
 
 To alert on an aggregate over the stored values (e.g. the total of a
 dataset across all instances) without storing the total anywhere, see

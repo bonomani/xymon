@@ -52,6 +52,7 @@ extern xymongraph_t *find_xymon_graph(char *rrdname);
 extern void rrd_destroy(void);
 extern int xymon_gdef_maxinstancesperimage(char *name);
 extern int xymon_gdef_store_allowed(char *fn);
+extern int xymon_gdef_misses_blockfile(char *name, char *fn);
 extern int xymon_gdef_fileset_unknown(char *name);
 extern int xymon_gdef_fileset_count(char *hostname, char *name);
 extern int xymon_gdef_thresholds_off(char *name);

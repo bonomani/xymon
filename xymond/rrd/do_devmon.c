@@ -418,6 +418,20 @@ int do_devmon_rrd(char *hostname, char *testname, char *classname, char *pagepat
 			 * encoded names - the rename target must be the file the
 			 * writer will actually update. */
 			setupfn2("%s.%s.rrd", rrdbasename, encinst);
+			{
+				/* A hand-written graph of the block's name that does not
+				 * draw its files wins over the synthesized one: the data
+				 * is stored and never shown. Say so, once per name. */
+				static void *gdefwarned = NULL;
+
+				if (!gdefwarned) gdefwarned = xtreeNew(strcmp);
+				if ((xtreeFind(gdefwarned, rrdbasename) == xtreeEnd(gdefwarned)) &&
+				    xymon_gdef_misses_blockfile(rrdbasename, rrdfn)) {
+					errprintf("METRICS block '%s' is stored in %s.*.rrd, but graphs.cfg [%s] draws other files - rename the block or update [%s]\n",
+						  rrdbasename, rrdbasename, rrdbasename, rrdbasename);
+					xtreeAdd(gdefwarned, strdup(rrdbasename), NULL);
+				}
+			}
 
 			/* One-time legacy migration, ported from do_disk: a block
 			 * that replaced a legacy writer must carry the pre-cutover
