@@ -1,0 +1,76 @@
+.TH RRDRECONCILE 8 "Version 4.3.30:  4 Sep 2019" "Xymon"
+.SH NAME
+rrdreconcile \- bring existing RRD files in line with the declared schema
+.SH SYNOPSIS
+.B "rrdreconcile [options]"
+
+.SH DESCRIPTION
+An RRD file keeps the schema it was created with. Two declarations
+that shape a file can change afterwards, and then only new files
+follow them:
+
+.IP \(bu 3
+the consolidation functions (AVERAGE, MIN, MAX, LAST) that the
+matching
+.I graphs.cfg(5)
+definitions read in their DEF lines, which
+.I xymond_rrd(8)
+uses to choose a new file's archives;
+.IP \(bu 3
+the dataset heartbeats a status message declares in its XYMON METRICS
+block, which
+.I xymond_rrd(8)
+records in each host's fileset index.
+.PP
+rrdreconcile walks the RRD directory and compares the files of each
+host against these declarations: the files its fileset index lists, or,
+for a host without an index, every .rrd file in its directory (archives
+only then, since the heartbeats come from the index). It repairs the
+divergence
+with "rrdtool tune": a changed heartbeat is set on the dataset, and a
+missing consolidation function gets one archive for each existing
+AVERAGE archive, with the same geometry.
+
+By default it only prints the plan. With \-\-apply it runs it. It
+never changes a file on its own initiative, and xymond_rrd never runs
+it: run it by hand, or from cron, after changing graphs.cfg DEF lines
+or the heartbeats a producer declares.
+
+The repairs work forward only. An added archive starts empty and fills
+from now on; the history already consolidated into other archives is
+not copied into it. A changed heartbeat applies to future updates;
+gaps already recorded as unknown stay unknown.
+
+For a file with more than 64 archives, adding archives is skipped and
+reported; its heartbeats are still reconciled. An index entry whose
+name would leave the host's directory is skipped.
+
+.SH OPTIONS
+.IP "\-\-apply"
+Run the repairs instead of only printing them.
+.IP "\-\-dry\-run"
+Only print the repairs. This is the default.
+.IP "\-\-rrddir=DIRECTORY"
+The RRD directory to walk. Defaults to $XYMONRRDS.
+.IP "\-\-host=HOSTNAME"
+Only reconcile this host's files.
+.IP "\-\-config=FILENAME"
+The graphs.cfg file to read the definitions from. Defaults to
+$XYMONHOME/etc/graphs.cfg.
+.IP "\-\-rrdtool=PATH"
+The rrdtool command to run. Defaults to "rrdtool", found in the PATH.
+Adding archives needs rrdtool 1.5 or later.
+.IP "\-\-env=FILENAME"
+Load the environment from FILENAME, for example xymonserver.cfg, to
+find $XYMONRRDS and $XYMONHOME.
+.IP "\-\-area=NAME"
+The environment area to use with \-\-env.
+.IP "\-\-debug"
+Print debugging output.
+
+.SH "EXIT STATUS"
+0 when every file conforms or every repair succeeded, 1 when a repair
+failed or the RRD directory cannot be read.
+
+.SH "SEE ALSO"
+xymond_rrd(8), graphs.cfg(5), xymonserver.cfg(5), rrdtool(1)
