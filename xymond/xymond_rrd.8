@@ -317,7 +317,10 @@ block takes the column's name, so it gets the column's section. The block name i
 letters, digits, "_" and "-" (max 64 characters); an invalid name
 skips the whole block. The name may be left out ("<!--XYMON METRICS"
 alone): the block then takes the test's name. A message may carry
-several blocks. The block is invisible on the rendered status page.
+several blocks. On the status page the block is shown, where it sits in
+the message, as a table: one row per instance, one column per dataset,
+each value green, or yellow or red when it crosses a "warn" or "crit"
+THRESHOLD the block declares (see below).
 
 An instance line is the instance name, then its values separated by
 ":", one per declared dataset. The values are the last field on the
