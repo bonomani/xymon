@@ -250,3 +250,23 @@ jobs:
       ref_mode: ${{ needs.build-matrix.outputs.ref_mode }}
       publish: ${{ needs.build-matrix.outputs.publish }}
       allow_failure_mode: ${{ needs.build-matrix.outputs.allow_failure_mode }}
+
+  # In xymon-monitoring/xymon-experimental, experimental-lanes.yml reruns the
+  # lanes GitHub cancelled for want of a runner and reports the lanes once
+  # every run for a commit has finished. These runs are started with the
+  # workflow token, so their completion starts no workflow_run there; a
+  # dispatch from inside the run does. It passes this run's id, so that
+  # experimental-lanes.yml waits for this run to finish before reading it.
+  # Elsewhere there is no such workflow, and the job does not run.
+  notify-lanes:
+    needs: [build-matrix, ref-lanes]
+    if: ${{ always() && github.repository == 'xymon-monitoring/xymon-experimental' }}
+    runs-on: ubuntu-22.04
+    continue-on-error: true
+    permissions:
+      actions: write
+    steps:
+      - name: Ask experimental-lanes.yml to look at this run
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: gh workflow run experimental-lanes.yml -R "$GITHUB_REPOSITORY" --ref main -f after_run="$GITHUB_RUN_ID"
