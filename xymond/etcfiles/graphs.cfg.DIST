@@ -327,10 +327,29 @@
 	# The median line is computed from ping1..pingN, so it is the median
 	# of exactly the samples the smoke draws.
 	CDEF:median=@MEDIAN:ping@
+	# The usual latency, behind the smoke: the median at the same time of
+	# day on each of the 7 days before, within 15 minutes either side
+	# (PREDICT), one standard deviation either side of it (PREDICTSIGMA).
+	# The seven shifts are listed one by one: in the "86400,-7" form,
+	# rrdtool (1.7.0 to 1.9.0) counts the current day as one of the
+	# seven. It reads the summary file's median, one data source rather
+	# than N. rrdtool fetches only the graph's own span, so the DEF starts
+	# 19 days back, enough for the 12-day graph. The deviation can come
+	# out unknown when the seven values are equal, and then counts as 0.
+	# The band shows once there is a day of history.
+	DEF:smed=tcp.conn-smoke-summary.rrd:median:AVERAGE:start=end-19d
+	CDEF:usual=86400,172800,259200,345600,432000,518400,604800,7,1800,smed,PREDICT
+	CDEF:usualsdx=86400,172800,259200,345600,432000,518400,604800,7,1800,smed,PREDICTSIGMA
+	CDEF:usualsd=usualsdx,UN,0,usualsdx,IF
+	CDEF:usuallo=usual,usualsd,-,0,MAX
+	CDEF:usualband=usual,usualsd,+,usuallo,-
+	AREA:usuallo
+	AREA:usualband#dbe7f5:Usual (this time of day, last 7 days)\n:STACK
 	# SmokePing's smoke (graphs.cfg(5), @SMOKE:): the samples paired
 	# from the outside in, each pair a grey band darker toward the
 	# middle, so the shade is darkest where most replies lie.
 	@SMOKE:ping@
+	LINE1:usual#7f9cc8::dashes
 	LINE2:median#0060ff:Median
 	GPRINT:median:LAST: \: %5.3lf s (cur)
 	GPRINT:median:MIN: \: %5.3lf s (min)

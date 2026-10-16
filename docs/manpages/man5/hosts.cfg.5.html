@@ -1035,7 +1035,12 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
       which keeps its history; lowered, the extra ones stay unknown. The shipped
       graphs.cfg draws them twice: [conn-smoke] shows the latency, the smoke of
       the replies and their median, and [conn-smoke-loss] the loss, per run and
-      over the last hour.</dd>
+      over the last hour. Behind the smoke, [conn-smoke] draws the usual
+      latency: the median at the same time of day on each of the last 7 days,
+      one standard deviation either side, so a day that departs from its usual
+      pattern stands out. It shows once the summary file holds a day of history,
+      and reaches back 19 days: on a graph longer than 12 days it covers the
+      last 19 days only.</dd>
   <dt></dt>
   <dd>xymonnet also judges the link in a status column of its own,
       &quot;smoke&quot; (SMOKECOLUMN in <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5)), and shows both
