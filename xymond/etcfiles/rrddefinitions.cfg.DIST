@@ -11,6 +11,15 @@
 # Each section key is the column- or data-name reported from your
 # client test. Typically this is "cpu", "memory", "tcp", or some
 # custom test you have created.
+#
+# A "METRICDS:" line gives the datasets of a self-describing METRICS
+# block that declares none (see xymond_rrd(8)), written as a DS: spec
+# after the keyword. Such a block takes the METRICDS: lines of the first
+# section that has them: the block's own, its column's, then the
+# default section below. They are read by the METRICS block writer only
+# and are never passed to rrdtool, so built-in handlers ignore them; a
+# plain "DS:" line keeps its meaning, an extra dataset in every file
+# the section creates.
 
 # Local additions: any file dropped into the directory below is included.
 # It is read before the sections below so a fragment can override one of
@@ -32,6 +41,9 @@ optional directory @XYMONHOME@/etc/rrddefinitions.d
 
 # This one is the default setup. You can change it, if you like.
 []
+	# A METRICS block without DS: lines stores one value, as a GAUGE
+	# with no limits. A counter needs its own DS: line in the block.
+	METRICDS:value:GAUGE:600:U:U
 	# 576 datapoints w/ 5 minute interval = 48 hours @ 5 min avg.
 	RRA:AVERAGE:0.5:1:576
 	# 576 datapoints w/ 6*5 minute averaged = 12 days @ 30 min avg.

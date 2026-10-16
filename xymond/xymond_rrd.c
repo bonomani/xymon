@@ -51,6 +51,8 @@ typedef struct rrddeftree_t {
 	char *key;
 	int count;
 	char **defs;
+	int mdscount;	/* METRICDS: lines, kept apart: never rrdcreate arguments */
+	char **mds;	/* ... stored as "DS:..." specs */
 } rrddeftree_t;
 static void * rrddeftree;
 
@@ -112,8 +114,8 @@ static void load_rrddefs(void)
 	FILE *fd;
 	strbuffer_t *inbuf = newstrbuffer(0);
 	char *key = NULL, *p;
-	char **defs = NULL;
-	int defcount = 0;
+	char **defs = NULL, **mds = NULL;
+	int defcount = 0, mdscount = 0;
 	rrddeftree_t *newrec;
 
 	rrddeftree = xtreeNew(strcasecmp);
@@ -126,19 +128,32 @@ static void load_rrddefs(void)
 		sanitize_input(inbuf, 1, 0); if (STRBUFLEN(inbuf) == 0) continue;
 
 		if (*(STRBUF(inbuf)) == '[') {
-			if (key && (defcount > 0)) {
+			if (key && ((defcount > 0) || (mdscount > 0))) {
 				/* Save the current record */
 				newrec = (rrddeftree_t *)malloc(sizeof(rrddeftree_t));
 				newrec->key = key;
 				newrec->defs = defs;
 				newrec->count = defcount;
+				newrec->mds = mds;
+				newrec->mdscount = mdscount;
 				xtreeAdd(rrddeftree, newrec->key, newrec);
 
-				key = NULL; defs = NULL; defcount = 0;
+				key = NULL; defs = NULL; defcount = 0; mds = NULL; mdscount = 0;
 			}
 
 			key = strdup(STRBUF(inbuf)+1);
 			p = strchr(key, ']'); if (p) *p = '\0';
+		}
+		else if (key && (strncmp(STRBUF(inbuf) + strspn(STRBUF(inbuf), " \t"), "METRICDS:", 9) == 0)) {
+			/* The datasets a METRICS block without DS: lines takes
+			 * (xymond_rrd(8)). Never passed to rrdcreate: a plain DS:
+			 * line here keeps its meaning, an extra dataset for every
+			 * file the section creates. */
+			p = STRBUF(inbuf); p += strspn(p, " \t") + 9;
+			mds = (char **)realloc(mds, (mdscount + 1) * sizeof(char *));
+			mds[mdscount] = (char *)malloc(strlen(p) + 4);
+			snprintf(mds[mdscount], strlen(p) + 4, "DS:%s", p);
+			mdscount++;
 		}
 		else if (key) {
 			if (!defs) {
@@ -154,12 +169,14 @@ static void load_rrddefs(void)
 		}
 	}
 
-	if (key && (defcount > 0)) {
+	if (key && ((defcount > 0) || (mdscount > 0))) {
 		/* Save the last record */
 		newrec = (rrddeftree_t *)malloc(sizeof(rrddeftree_t));
 		newrec->key = key;
 		newrec->defs = defs;
 		newrec->count = defcount;
+		newrec->mds = mds;
+		newrec->mdscount = mdscount;
 		xtreeAdd(rrddeftree, newrec->key, newrec);
 	}
 
@@ -179,6 +196,8 @@ loaddone:
 		newrec->defs[2] = strdup("RRA:AVERAGE:0.5:24:576");
 		newrec->defs[3] = strdup("RRA:AVERAGE:0.5:288:576");
 		newrec->count = 4;
+		newrec->mds = NULL;
+		newrec->mdscount = 0;
 		xtreeAdd(rrddeftree, newrec->key, newrec);
 	}
 }
@@ -197,13 +216,32 @@ char **get_rrd_definition(char *key, int *count)
 	rrddeftree_t *rec;
 
 	handle = xtreeFind(rrddeftree, key);
-	if (handle == xtreeEnd(rrddeftree)) {
-		handle = xtreeFind(rrddeftree, "");	/* The default record */
+	if ((handle == xtreeEnd(rrddeftree)) ||
+	    (((rrddeftree_t *)xtreeData(rrddeftree, handle))->count == 0)) {
+		/* The default record - also for a section holding only
+		 * METRICDS: lines, which has no archives of its own */
+		handle = xtreeFind(rrddeftree, "");
 	}
 	rec = (rrddeftree_t *)xtreeData(rrddeftree, handle);
 
 	*count = rec->count;
 	return rec->defs;
+}
+
+/* The METRICDS: datasets of this section only - no fallback, the caller
+ * walks the block's own section, its column's and the default one. */
+char **get_metric_ds(char *key, int *count)
+{
+	xtreePos_t handle;
+	rrddeftree_t *rec;
+
+	*count = 0;
+	if (!rrddeftree) return NULL;
+	handle = xtreeFind(rrddeftree, key);
+	if (handle == xtreeEnd(rrddeftree)) return NULL;
+	rec = (rrddeftree_t *)xtreeData(rrddeftree, handle);
+	*count = rec->mdscount;
+	return rec->mds;
 }
 
 int main(int argc, char *argv[])
