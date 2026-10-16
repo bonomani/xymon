@@ -34,6 +34,32 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
 </section>
 <section class="Sh">
 <p>&#160;</p>
+<h1 class="Sh" id="VOCABULARY"><a class="permalink" href="#VOCABULARY">VOCABULARY</a></h1>
+<p class="Pp">Four terms are used consistently in this page and in the keywords
+    below:</p>
+<dl class="Bl-tag">
+  <dt id="metric"><a class="permalink" href="#metric">metric</a></dt>
+  <dd>one measured quantity (one DS: line of an RRD) - the curves drawn on an
+      image.</dd>
+  <dt id="instance"><a class="permalink" href="#instance">instance</a></dt>
+  <dd>one measured object (a filesystem, a disk, an interface) - one RRD file.
+      Instances are what filters match, counts count, and paging slices.</dd>
+  <dt id="graph"><a class="permalink" href="#graph">graph</a></dt>
+  <dd>one [section] definition in this file.</dd>
+  <dt id="image"><a class="permalink" href="#image">image</a></dt>
+  <dd>one rendered picture (a paging slice). MAXINSTANCESPERIMAGE instances fill
+      one image.</dd>
+</dl>
+<p class="Pp">Historical names are kept as frozen aliases and documented against
+    these terms: the third field of a GRAPHS environment entry
+    (&quot;name:partname:N&quot;, internally &quot;maxgraphs&quot;) is the
+    historical spelling of MAXINSTANCESPERIMAGE; the &quot;&lt;!-- linecount=N
+    --&gt;&quot; status hint is the historical spelling of an instance
+  count.</p>
+<p class="Pp"></p>
+</section>
+<section class="Sh">
+<p>&#160;</p>
 <h1 class="Sh" id="FILE_FORMAT"><a class="permalink" href="#FILE_FORMAT">FILE
   FORMAT</a></h1>
 <p class="Pp">Each definition of a graph type begins with a
@@ -51,6 +77,82 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
   <dt id="YAXIS"><a class="permalink" href="#YAXIS"><b>YAXIS</b></a></dt>
   <dd>text shown as the YAXIS heading.</dd>
 </dl>
+<p class="Pp">A definition may also carry &quot;MAXINSTANCESPERIMAGE N&quot;:
+    how many of the matched RRD files are drawn per image when a status or
+    trends page splits this graph. This keeps the split size with the graph it
+    describes; it overrides the legacy &quot;name::N&quot; suffix in the GRAPHS
+    environment variable (see <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5)), which remains supported.</p>
+<p class="Pp">&quot;EXSTOREPATTERN &lt;regex&gt;&quot; and &quot;STOREPATTERN
+    &lt;regex&gt;&quot; filter which instances are stored at all, for every
+    writer path targeting this graph's files: instances matching EXSTOREPATTERN
+    are never written, and when STOREPATTERN is set only matching instances are.
+    Patterns are matched (unanchored, so a substring hit counts - anchor with
+    &quot;^&quot; and &quot;$&quot; for a whole-name match) against the RRD
+    filename minus its &quot;.rrd&quot; suffix, case-insensitively. Note this
+    differs from FNPATTERN/ EXFNPATTERN, which match the full name including
+    &quot;.rrd&quot;. A graph with storage filters has a file set that diverges
+    from what a status message shows, so a message-derived paging count cannot
+    be trusted: the count comes from the fileset index instead, with an unsliced
+    render only when no index is reachable. To make the status line disappear
+    too, use analysis.cfg's &quot;DISK ... IGNORE&quot;.</p>
+<p class="Pp">Writer-side keywords (EXSTOREPATTERN, STOREPATTERN) are read once
+    at xymond_rrd startup, so a change to them takes effect only after
+    xymond_rrd is restarted; the presentation keywords are re-read by the CGIs
+    on every page request.</p>
+<p class="Pp">An &quot;EXSTALEPATTERN &lt;regex&gt;&quot; keyword exempts
+    matching instances from staleness. The freshness window itself is one fixed
+    number - 86400 seconds (one day), Xymon's historic value: RRD files older
+    than that are hidden from graphs requested with showgraph.cgi's
+    &quot;nostale&quot; option - the graph links Xymon's own pages generate
+    always pass it; a hand-written URL without it shows every file - and the
+    writer-kept fileset index applies the same window to its paging counts, so
+    the count always equals what renders. Instances the pattern matches are
+    NEVER considered stale: they always render and always count. Use it for
+    legitimately periodic instances - a weekly backup mount, a monthly job -
+    whose graph must stay visible between appearances (e.g. &quot;EXSTALEPATTERN
+    backup&quot;). The pattern is matched like the storage patterns (against the
+    filename minus its &quot;.rrd&quot; suffix, case-insensitively, unanchored).
+    An exempted instance that is truly gone stays visible until its RRD file is
+    deleted - the file is easy to spot, its mtime stops moving. Note the window
+    has a practical floor: freshness advances only as fast as the update cache
+    writes (up to ~1h behind), which the fixed one-day window absorbs.</p>
+<p class="Pp">A &quot;GRAPHOPTIONS &lt;options&gt;&quot; keyword passes extra
+    rrdtool graph options for this graph. When set it REPLACES the global
+    RRDGRAPHOPTS environment (see <a href="../man5/xymonserver.cfg.5.html">xymonserver.cfg</a>(5)) for this graph - the two
+    are not combined. Static Y-range options placed here (-u/-l,
+    --upper-limit/--lower-limit) are dropped whenever the viewer supplies a
+    range - the zoom feature - so a zoom box always wins; prefer declaring fixed
+    ranges only where zooming that graph is pointless.</p>
+<p class="Pp">A &quot;THRESHOLDS OFF&quot; keyword suppresses the automatic
+    co-plot of threshold relations a self-describing METRICS block declared (see
+    <a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8)): the threshold curves and HRULEs disappear from the
+    synthesized graph, while the threshold datasets still never plot as peer
+    metrics. The default (no keyword, or &quot;THRESHOLDS ON&quot;) co-plots on
+    single-instance images. A section may carry only this keyword - the graph
+    definition itself stays synthesized; a hand-written definition always has
+    the last word.</p>
+<p class="Pp">A &quot;TRENDS&quot; keyword makes the graph a member of the
+    trends-column page without an entry in the GRAPHS environment variable - the
+    membership lives with the graph definition. Graphs listed in GRAPHS remain
+    members as before.</p>
+<p class="Pp">&quot;INCLUDE &lt;name&gt;&quot; inherits an earlier-defined
+    graph: its header keywords (TITLE, YAXIS, FNPATTERN, MAXINSTANCESPERIMAGE,
+    TRENDS, ...) are copied, and its definition lines are copied in place. The
+    variant's own keywords override the inherited ones, wherever they appear
+    relative to the INCLUDE line, and its definition lines append - so a variant
+    can retitle, retune the split size, or add curves without repeating the
+    base. Two caveats: the base must be defined earlier in the file (a forward
+    reference inherits nothing), and the keyword must be written in upper case -
+    a lowercase &quot;include&quot; is the configuration reader's file-inclusion
+    directive (include &lt;filename&gt;), processed before graphs are
+  parsed:</p>
+<p class="Pp">[diskio_ops_wide]
+  <br/>
+   INCLUDE diskio_ops
+  <br/>
+   TITLE Disk operations (wide)
+  <br/>
+   MAXINSTANCESPERIMAGE 5</p>
 <p class="Pp">If a fixed set of RRD files are used for the graph, you just write
     those in the RRDtool definitions. Note that Xymon keeps all RRD files for a
     host in a separate directory per host, so you need not worry about the
@@ -75,6 +177,89 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
   <dt>&quot;@COLOR@&quot;</dt>
   <dd>picks a new color for each graph automatically.</dd>
 </dl>
+<p class="Pp">Aggregate values across all files selected by FNPATTERN can be
+    built with &quot;@AVG:name@&quot;, &quot;@SUM:name@&quot;,
+    &quot;@MIN:name@&quot;, &quot;@MAX:name@&quot;, &quot;@AVGNAN:name@&quot;,
+    &quot;@SUMNAN:name@&quot;, &quot;@MINNAN:name@&quot;,
+    &quot;@MAXNAN:name@&quot;, &quot;@COUNT:name@&quot;,
+    &quot;@MEDIAN:name@&quot;, &quot;@STDEV:name@&quot;,
+    &quot;@PERCENT:name:pct@&quot; and &quot;@Ppct:name@&quot; (short form, e.g.
+    &quot;@P95:name@&quot; or &quot;@P99.9:name@&quot;). The &quot;name&quot;
+    portion is the variable-name prefix used by preceding
+    &quot;DEF:name@RRDIDX@=...&quot; lines - the aggregate expands to
+    &quot;name0,name1,...,nameN-1&quot; followed by the operator's RPN.
+    &quot;pct&quot; is a decimal percentile (0-100, at most one dot). For
+    example, after defining &quot;DEF:t@RRDIDX@=@RRDFN@:ds0:AVERAGE&quot;, the
+    line &quot;CDEF:avg=@AVG:t@&quot; expands to
+    &quot;CDEF:avg=t0,t1,+,t2,+,3,/&quot; when three files are matched;
+    &quot;@P95:t@&quot; expands to an RPN that picks the nearest rank among the
+    files holding a value (see below); &quot;@PERCENT:t:99.9@&quot; is the long
+    form of &quot;@P99.9:t@&quot;.</p>
+<p class="Pp">When the graph is sliced by the
+    &quot;first&quot;/&quot;count&quot; CGI parameters, the aggregates honour
+    the slice: only the selected files contribute. An empty selection yields
+    &quot;UNKN&quot; for arithmetic operators and &quot;0&quot; for
+    &quot;@COUNT:&quot;, so dividing a &quot;@SUMNAN:&quot; by a
+    &quot;@COUNT:&quot; stays safe on the empty set (UNKN divided by 0 is UNKN
+    in RRDtool RPN). &quot;@COUNT:&quot; counts, at each point, only the files
+    that hold a value, so that division is the mean of the files reporting, the
+    same as &quot;@AVGNAN:&quot;.</p>
+<p class="Pp">The operators follow rrdgraph_rpn(1). &quot;@MEDIAN:&quot; and
+    &quot;@STDEV:&quot; skip UNKN values; &quot;@MEDIAN:&quot; averages the two
+    middle values when N is even, and &quot;@STDEV:&quot; is the sample standard
+    deviation (divides by N-1, so it is UNKN for a single value).
+    &quot;@AVG:&quot; divides by the selected count, so one UNKN contributor
+    makes the result UNKN - &quot;@AVGNAN:&quot; skips them.
+    &quot;@SUMNAN:&quot;, &quot;@MINNAN:&quot; and &quot;@MAXNAN:&quot; skip
+    UNKN values too, but give UNKN when every contributor is UNKN: a total of
+    silent files is unknown, not 0. &quot;@PERCENT:&quot; skips UNKN values too:
+    with C files holding a value at a point, it returns the value at rank
+    round(pct*C/100) of their sorted values (nearest rank, no interpolation),
+    and the smallest one for any percentile below 50/C. So &quot;@P50:&quot;
+    differs from &quot;@MEDIAN:&quot; when C is even, and with few files a high
+    percentile is the maximum. A percentile above 100 gives UNKN.</p>
+<p class="Pp">Names accept alphanumerics and underscore (and the inner
+    &quot;:&quot; in the &quot;@PERCENT:name:pct@&quot; form). The
+    &quot;@DSIDX@&quot; tokens below must not appear inside an aggregate
+    operand: they are not expanded there.</p>
+<p class="Pp">To draw the total of a dataset across all matched files, define
+    the per-file DEF and sum it with &quot;@SUMNAN:&quot; (unknown values count
+    as 0; use &quot;@SUM:&quot; if one silent contributor should make the total
+    unknown instead). Such a graph should render unsliced - a paged aggregate
+    would show partial sums - so either give the entry no split size or have the
+    status declare it with instances=all (see <a href="../man8/xymond_rrd.8.html">xymond_rrd</a>(8) on self-describing
+    statuses). Example - one curve with the total read rate across all
+  disks:</p>
+<p class="Pp"></p>
+<pre>[diskio_ops_total]
+        FNPATTERN ^diskio_ops\.(.+)\.rrd
+        TITLE Total disk operations
+        YAXIS Operations/sec
+        DEF:t@RRDIDX@=@RRDFN@:reads:AVERAGE
+        CDEF:rtotal=@SUMNAN:t@
+        LINE2:rtotal#00CC00:total reads</pre>
+<p class="Pp">Alternatively &quot;@STACKIT@&quot; stacks the per-file curves,
+    whose silhouette is also the sum while keeping each file's contribution
+    visible.</p>
+<p class="Pp">For a file that stores N samples of one measurement as N data
+    sources (e.g. ping1..pingN), use the &quot;DSCOUNT N&quot; directive
+    together with the &quot;@DSIDX@&quot; token. At parse time, every definition
+    line containing &quot;@DSIDX@&quot; is expanded into N copies with
+    &quot;@DSIDX@&quot; replaced by 1..N. The companion &quot;@PREVDSIDX@&quot;
+    token expands to the current index minus one; a line that uses it loops over
+    2..N, so it never refers to a &quot;ping0&quot;. To change the lower bound
+    for one line, prefix it with &quot;@DSSTART:K@&quot;: the prefix is removed
+    and K becomes the lower bound. If DSCOUNT is omitted, the count is read from
+    each matched RRD file when the graph is drawn, so hosts that store different
+    numbers of samples each get every line.</p>
+<p class="Pp">The aggregate tokens above work on such samples too. A token
+    follows the line that made its variables: when a DEF or CDEF line names them
+    with &quot;@DSIDX@&quot;, as &quot;DEF:ping@DSIDX@=...&quot;,
+    &quot;@MEDIAN:ping@&quot; combines ping1..pingN of that file instead of one
+    variable per matched file, and &quot;@COUNT:ping@&quot; counts the samples
+    that hold a value. A line starting at a higher index
+    (&quot;@PREVDSIDX@&quot;, &quot;@DSSTART:K@&quot;) makes the set start
+    there.</p>
 <p class="Pp">For a bundle viewed one service at a time (e.g.
     &quot;tcp:conn&quot;), FNPATTERN capture group 1 must be exactly the service
     component: showgraph uses it both as the legend (@RRDPARAM@) and to select
@@ -167,6 +352,7 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
 <dt><a href="#NAME">NAME</a></dt>
 <dt><a href="#SYNOPSIS">SYNOPSIS</a></dt>
 <dt><a href="#DESCRIPTION">DESCRIPTION</a></dt>
+<dt><a href="#VOCABULARY">VOCABULARY</a></dt>
 <dt><a href="#FILE_FORMAT">FILE FORMAT</a></dt>
 <dt><a href="#ADVANCED_GRAPH_TITLES">ADVANCED GRAPH TITLES</a></dt>
 <dt><a href="#ENVIRONMENT">ENVIRONMENT</a></dt>
