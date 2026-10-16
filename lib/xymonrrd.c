@@ -274,6 +274,24 @@ static int gdefmeta_matchfile(gdefmeta_t *walk, char *fn)
 	}
 }
 
+/* A METRICS block named "name" writes the file fn: has graphs.cfg a
+ * hand-written definition of that name which does not draw fn? It wins
+ * over the synthesized graph, so the block's files would be stored and
+ * never shown. Hand-written means it has DEF lines (a section with only
+ * THRESHOLDS OFF, say, stays synthesized). Without an FNPATTERN its DEFs
+ * name fixed files, never the block's per-instance ones - the prefix
+ * rule of gdefmeta_matchfile() serves the trends page, not showgraph. */
+int xymon_gdef_misses_blockfile(char *name, char *fn)
+{
+	gdefmeta_t *walk;
+
+	load_gdef_meta();
+	for (walk = gdefmetahead; (walk && strcmp(walk->name, name)); walk = walk->next) ;
+	if (!walk || (walk->cfset == 0)) return 0;
+	if (!walk->fnpat) return 1;
+	return !gdefmeta_matchfile(walk, fn);
+}
+
 /* The graph definition whose files include this one. */
 static gdefmeta_t *gdefmeta_forfile(char *fn)
 {
