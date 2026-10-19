@@ -7,8 +7,7 @@ target_link_libraries(xymond
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_channel
@@ -18,8 +17,7 @@ target_link_libraries(xymond_channel
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_locator
@@ -29,8 +27,7 @@ target_link_libraries(xymond_locator
     xymoncomm
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_filestore
@@ -41,8 +38,7 @@ target_link_libraries(xymond_filestore
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_history
@@ -52,8 +48,7 @@ add_executable(xymond_history
 target_link_libraries(xymond_history
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_alert
@@ -65,8 +60,7 @@ target_link_libraries(xymond_alert
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_sample
@@ -76,8 +70,7 @@ add_executable(xymond_sample
 target_link_libraries(xymond_sample
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_client
@@ -89,8 +82,7 @@ target_link_libraries(xymond_client
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_hostdata
@@ -100,8 +92,7 @@ add_executable(xymond_hostdata
 target_link_libraries(xymond_hostdata
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_capture
@@ -112,8 +103,7 @@ target_link_libraries(xymond_capture
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymond_distribute
@@ -124,8 +114,7 @@ target_link_libraries(xymond_distribute
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(combostatus
@@ -135,8 +124,7 @@ target_link_libraries(combostatus
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymonfetch
@@ -145,8 +133,7 @@ add_executable(xymonfetch
 target_link_libraries(xymonfetch
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymon_mailack
@@ -160,8 +147,7 @@ target_link_libraries(xymon_mailack
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(trimhistory
@@ -171,8 +157,7 @@ target_link_libraries(trimhistory
     xymoncomm
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(convertnk
@@ -182,8 +167,7 @@ target_link_libraries(convertnk
     xymoncomm
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(rrdcachectl
@@ -193,8 +177,7 @@ target_link_libraries(rrdcachectl
     xymoncomm
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 if(ENABLE_RRD)
@@ -222,8 +205,7 @@ if(ENABLE_RRD)
             ${RRD_LIBRARY}
             ${_XYMOND_RRD_EXTRA_LIBS}
             ${XYMON_PCRE_LIBRARY}
-            ssl
-            crypto
+            ${XYMON_SSL_LIBRARIES}
         )
     endif()
 endif()

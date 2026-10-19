@@ -115,14 +115,12 @@ if(XYMON_BUILD_SERVER)
     if(XYMON_PCRE_LIBRARY)
         target_link_libraries(xymoncomm
             "${XYMON_PCRE_LIBRARY}"
-            ssl
-            crypto
+            ${XYMON_SSL_LIBRARIES}
             ${XYMON_NET_LIBRARIES}
         )
     else()
         target_link_libraries(xymoncomm
-            ssl
-            crypto
+            ${XYMON_SSL_LIBRARIES}
             ${XYMON_NET_LIBRARIES}
         )
     endif()

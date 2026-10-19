@@ -25,8 +25,7 @@ target_link_libraries(xymongen
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 install(TARGETS xymongen

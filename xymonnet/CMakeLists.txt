@@ -32,8 +32,7 @@ target_link_libraries(xymonnet
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymonping
@@ -42,8 +41,7 @@ add_executable(xymonping
 target_link_libraries(xymonping
     xymontime
     xymoncomm
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(beastat
@@ -54,8 +52,7 @@ target_link_libraries(beastat
     xymontime
     xymoncomm
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(contest
@@ -73,8 +70,7 @@ if(APPLE)
     target_link_libraries(contest
         xymontime
         xymoncomm
-        ssl
-        crypto
+        ${XYMON_SSL_LIBRARIES}
     )
 else()
     target_link_libraries(contest
@@ -82,8 +78,7 @@ else()
         xymontime
         xymoncomm
         -Wl,--end-group
-        ssl
-        crypto
+        ${XYMON_SSL_LIBRARIES}
     )
 endif()
 

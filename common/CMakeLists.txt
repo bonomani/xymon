@@ -8,8 +8,7 @@ target_link_libraries(xymongrep
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymondigest
@@ -20,8 +19,7 @@ target_link_libraries(xymondigest
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymon_common
@@ -35,8 +33,7 @@ target_link_libraries(xymon_common
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymoncmd
@@ -47,8 +44,7 @@ target_link_libraries(xymoncmd
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymonlaunch
@@ -58,8 +54,7 @@ target_link_libraries(xymonlaunch
     xymontime
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymoncfg
@@ -70,8 +65,7 @@ target_link_libraries(xymoncfg
     xymoncomm
     xymon
     ${XYMON_PCRE_LIBRARY}
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 install(TARGETS xymongrep xymondigest xymon_common xymoncmd xymonlaunch xymoncfg

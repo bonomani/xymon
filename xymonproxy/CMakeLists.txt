@@ -7,8 +7,7 @@ target_link_libraries(xymonproxy
     xymoncomm
     xymontime
     xymon
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(xymoncgimsg.cgi
@@ -18,8 +17,7 @@ target_link_libraries(xymoncgimsg.cgi
     xymontime
     xymoncomm
     xymon
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 install(TARGETS xymonproxy xymoncgimsg.cgi
