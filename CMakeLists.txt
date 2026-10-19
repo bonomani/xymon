@@ -365,6 +365,22 @@ elseif(CMAKE_SYSTEM_NAME STREQUAL "NetBSD")
     link_directories(/usr/pkg/lib)
     set(CMAKE_EXE_LINKER_FLAGS "${CMAKE_EXE_LINKER_FLAGS} -L/usr/pkg/lib")
 elseif(APPLE)
+    # macOS ships no OpenSSL headers, so FindOpenSSL needs to be told where a
+    # Homebrew one is; OPENSSL_ROOT_DIR is how it takes that. The paths below
+    # are the same ones this block already searched.
+    if(NOT OPENSSL_ROOT_DIR)
+        foreach(_ssl_prefix
+                /opt/homebrew/opt/openssl@3
+                /opt/homebrew/opt/openssl@1.1
+                /usr/local/opt/openssl@3
+                /usr/local/opt/openssl@1.1)
+            if(EXISTS "${_ssl_prefix}/include/openssl/ssl.h")
+                set(OPENSSL_ROOT_DIR "${_ssl_prefix}")
+                break()
+            endif()
+        endforeach()
+    endif()
+
     find_path(OPENSSL_INCLUDE_DIR openssl/ssl.h
         PATHS
             /opt/homebrew/opt/openssl@3/include
@@ -405,9 +421,25 @@ add_compile_definitions(
     _FILE_OFFSET_BITS=64
 )
 
-# Legacy configure.server injects -DHAVE_OPENSSL when SSL support is enabled.
+# Legacy configure.server probes for OpenSSL and then sets both halves together:
+# SSLDEF is -DHAVE_OPENSSL only when the probe succeeded, and SSLLIBS carries the
+# libraries only then as well. Without OpenSSL both are empty, so the SSL code
+# compiles out and nothing is linked. Keep that contract here: probe first, and
+# let XYMON_SSL_LIBRARIES be what the targets link, empty when there is no
+# OpenSSL to link. ENABLE_SSL=OFF must therefore also leave the link line clean.
+set(XYMON_SSL_LIBRARIES "")
 if(ENABLE_SSL)
-    add_compile_definitions(HAVE_OPENSSL)
+    find_package(OpenSSL)
+    if(OpenSSL_FOUND)
+        add_compile_definitions(HAVE_OPENSSL)
+        set(XYMON_SSL_LIBRARIES OpenSSL::SSL OpenSSL::Crypto)
+    else()
+        # configure.server does not fail here either: it reports the miss and
+        # builds a server without the SSL-dependent tests.
+        message(WARNING
+            "ENABLE_SSL is on but no OpenSSL was found: building without SSL. "
+            "Set OPENSSL_ROOT_DIR to point at an installation, or -DENABLE_SSL=OFF.")
+    endif()
 endif()
 
 if(APPLE)

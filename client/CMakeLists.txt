@@ -12,8 +12,7 @@ set_target_properties(client_xymon PROPERTIES
 target_link_libraries(client_xymon
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(client_xymonlaunch
@@ -49,8 +48,7 @@ set_target_properties(client_xymongrep PROPERTIES
 target_link_libraries(client_xymongrep
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(client_xymoncfg
@@ -74,8 +72,7 @@ set_target_properties(client_xymondigest PROPERTIES
 target_link_libraries(client_xymondigest
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(logfetch
@@ -97,8 +94,7 @@ set_target_properties(clientupdate PROPERTIES
 target_link_libraries(clientupdate
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(orcaxymon
@@ -110,8 +106,7 @@ set_target_properties(orcaxymon PROPERTIES
 target_link_libraries(orcaxymon
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 add_executable(msgcache
@@ -123,8 +118,7 @@ set_target_properties(msgcache PROPERTIES
 target_link_libraries(msgcache
     xymonclientcomm
     xymonclient
-    ssl
-    crypto
+    ${XYMON_SSL_LIBRARIES}
 )
 
 set(_CLIENT_EXTRA_MEMINFO_TARGETS)
