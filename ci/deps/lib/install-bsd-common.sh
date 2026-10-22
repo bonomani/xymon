@@ -2,6 +2,14 @@
 set -euo pipefail
 
 BSD_DEPS_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
+# Official OpenBSD mirrors, tried in turn for what the image's mirror did not
+# install. The CDN keeps only the supported releases; ftp.eu keeps older ones
+# too (7.6 is on ftp.eu, not on cdn, as of 22 Oct 2026). %c and %a are
+# pkg_add's own: the release and the architecture.
+OPENBSD_FALLBACK_PKG_PATHS=(
+  "https://cdn.openbsd.org/pub/OpenBSD/%c/packages/%a/"
+  "https://ftp.eu.openbsd.org/pub/OpenBSD/%c/packages/%a/"
+)
 
 bsd_sort_versions() {
   if sort -V </dev/null >/dev/null 2>&1; then
@@ -538,10 +546,30 @@ bsd_install_pkg_add() {
       return 1
     fi
   else
-    # Checked, as the NetBSD branch is: unchecked, a package that did not
-    # install (a mirror error, say) let the lane go on to fail later.
-    if ! ci_deps_as_root /usr/sbin/pkg_add -I "${PKGS[@]}"; then
-      echo "pkg_add failed: ${PKGS[*]}" >&2
+    # What is installed is checked, not pkg_add's status: it reports
+    # "Can't find gmake" and still exits 0. The image's mirror first, then
+    # the official ones in turn for whatever is still missing, as the NetBSD
+    # branch tries its next mirror: on 20 Oct the image's mirror failed one
+    # gmake download, and that failed the whole lane.
+    local -a missing=() still=()
+    local pkg="" pkg_path_try=""
+    ci_deps_as_root /usr/sbin/pkg_add -I "${PKGS[@]}" || true
+    for pkg in "${PKGS[@]}"; do
+      bsd_pkg_installed pkg_add "${pkg}" || missing+=("${pkg}")
+    done
+    for pkg_path_try in "${OPENBSD_FALLBACK_PKG_PATHS[@]}"; do
+      ((${#missing[@]})) || break
+      echo "pkg_add left ${missing[*]} uninstalled; retrying on ${pkg_path_try}" >&2
+      ci_deps_as_root env PKG_PATH="${pkg_path_try}" \
+        /usr/sbin/pkg_add -I "${missing[@]}" || true
+      still=()
+      for pkg in "${missing[@]}"; do
+        bsd_pkg_installed pkg_add "${pkg}" || still+=("${pkg}")
+      done
+      missing=(${still[@]+"${still[@]}"})
+    done
+    if ((${#missing[@]})); then
+      echo "pkg_add failed: ${missing[*]}" >&2
       return 1
     fi
   fi
