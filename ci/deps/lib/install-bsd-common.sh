@@ -386,7 +386,10 @@ bsd_pkg_installed() {
       /usr/pkg/bin/pkg_info -e "${pkg}" >/dev/null 2>&1
       ;;
     pkg_add)
-      /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1
+      # -e matches a full package name or a pattern, not a bare stem:
+      # "pkg_info -e gmake" fails with gmake-4.4.1p0 installed.
+      /usr/sbin/pkg_info -e "${pkg}" >/dev/null 2>&1 \
+        || /usr/sbin/pkg_info -e "${pkg}-*" >/dev/null 2>&1
       ;;
     *)
       return 1
