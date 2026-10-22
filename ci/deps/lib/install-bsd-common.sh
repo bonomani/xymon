@@ -534,7 +534,12 @@ bsd_install_pkg_add() {
       return 1
     fi
   else
-    ci_deps_as_root /usr/sbin/pkg_add -I "${PKGS[@]}"
+    # Checked, as the NetBSD branch is: unchecked, a package that did not
+    # install (a mirror error, say) let the lane go on to fail later.
+    if ! ci_deps_as_root /usr/sbin/pkg_add -I "${PKGS[@]}"; then
+      echo "pkg_add failed: ${PKGS[*]}" >&2
+      return 1
+    fi
   fi
 
   if [[ "${BSD_OS_LOWER}" == "openbsd" ]]; then
