@@ -16,9 +16,16 @@ pkg_install_one() {
   # settings prepared by bsd_prepare_netbsd_pkg_environment have to be handed
   # over explicitly or the OS-ABI check refuses packages built for the base
   # release. See bsd_netbsd_pkg_env_args().
+  local rc=0
   bsd_netbsd_pkg_env_args
   ci_deps_as_root env ${NETBSD_PKG_ENV_ARGS[@]+"${NETBSD_PKG_ENV_ARGS[@]}"} \
-    /usr/pkg/bin/pkgin -y install "$1"
+    /usr/pkg/bin/pkgin -y install "$1" || rc=$?
+  # pkgin only counts pkg_install's errors; the reasons are in its log.
+  if [[ "${rc}" -ne 0 ]]; then
+    echo "pkgin install of $1 failed (rc=${rc}); pkg_install's error log:" >&2
+    cat /var/db/pkgin/pkg_install-err.log >&2 2>/dev/null || true
+  fi
+  return "${rc}"
 }
 
 # Runs once before the per-package install loop: prepare the pkgsrc repo config,

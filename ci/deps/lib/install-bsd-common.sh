@@ -454,6 +454,10 @@ bsd_prepare_netbsd_pkg_environment() {
   PKG_INSTALL_CONF="/tmp/pkg_install.conf"
   printf "%s\n" "CHECK_OSABI=no" > "${PKG_INSTALL_CONF}" 2>/dev/null || true
   export PKG_INSTALL_CONF
+  # Also in the system pkg_install.conf, which pkg_add reads whatever the
+  # environment says: carried through env, the setting still did not reach
+  # the pkg_add pkgin runs, and NetBSD 10.1 kept refusing net-snmp.
+  ci_deps_as_root sh -c "grep -qx 'CHECK_OSABI=no' /etc/pkg_install.conf 2>/dev/null || printf '%s\n' 'CHECK_OSABI=no' >> /etc/pkg_install.conf" || true
   export PKG_PATH="${NETBSD_PKG_PATHS[0]}"
 
   # Strip the trailing slash: pkgin appends "/pkg_summary.*" itself, and the
