@@ -481,8 +481,10 @@ ci_deps_run_installer_with_report() {
     printf -v "${file}" '%s' "${created_file}"
   done
 
-  if ! ci_deps_capture_installed_packages "${installed_before_file}"; then
-    target_rc=$?
+  # "|| target_rc=$?", not "if ! cmd; then target_rc=$?": after "!" the
+  # status is the negation's, 0, and the failure would be reported as success.
+  ci_deps_capture_installed_packages "${installed_before_file}" || target_rc=$?
+  if [[ "${target_rc}" -ne 0 ]]; then
     ci_deps_write_json_report \
       "${report_json_path}" \
       "${requested_file}" \
@@ -528,10 +530,8 @@ ci_deps_run_installer_with_report() {
         echo "${install_banner}"
       fi
       PKGS=("${install_specs[@]}")
-      if ! ci_deps_install_packages_with_alternatives \
-          "${installed_fn}" "${available_fn}" "${install_fn}"; then
-        target_rc=$?
-      fi
+      ci_deps_install_packages_with_alternatives \
+          "${installed_fn}" "${available_fn}" "${install_fn}" || target_rc=$?
       ;;
     *)
       echo "Unsupported mode: ${mode}" >&2

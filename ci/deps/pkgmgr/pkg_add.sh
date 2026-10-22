@@ -17,9 +17,7 @@ pkg_install_one() {
   local -a saved_pkgs=("${PKGS[@]}")
 
   PKGS=("${pkg}")
-  if ! bsd_install_pkg_add; then
-    rc=$?
-  fi
+  bsd_install_pkg_add || rc=$?
 
   PKGS=("${saved_pkgs[@]}")
   return "${rc}"
