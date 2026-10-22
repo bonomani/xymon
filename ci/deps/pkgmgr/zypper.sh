@@ -10,8 +10,10 @@ pkg_available() {
   zypper --non-interactive info "$1" >/dev/null 2>&1
 }
 
+# --no-recommends, as apt.sh's --no-install-recommends: what a package
+# requires, not what it recommends.
 pkg_install_one() {
-  ci_deps_as_root zypper --non-interactive install "$1"
+  ci_deps_as_root zypper --non-interactive install --no-recommends "$1"
 }
 
 pkg_pre_install() {

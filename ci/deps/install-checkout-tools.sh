@@ -91,11 +91,11 @@ if [ "${CI_DEPS_REEXECED_WITH_BASH:-0}" != "1" ]; then
       apt_bootstrap_with_retry install -y --no-install-recommends bash
     elif command -v zypper >/dev/null 2>&1; then
       run_bootstrap_as_root zypper --non-interactive refresh
-      run_bootstrap_as_root zypper --non-interactive install bash
+      run_bootstrap_as_root zypper --non-interactive install --no-recommends bash
     elif command -v apk >/dev/null 2>&1; then
       run_bootstrap_as_root apk add --no-cache bash
     elif command -v dnf >/dev/null 2>&1; then
-      run_bootstrap_as_root dnf -y install bash
+      run_bootstrap_as_root dnf -y --setopt=install_weak_deps=False install bash
     elif command -v microdnf >/dev/null 2>&1; then
       run_bootstrap_as_root microdnf -y install bash dnf
     elif command -v yum >/dev/null 2>&1; then
@@ -139,7 +139,7 @@ if command -v apt-get >/dev/null 2>&1; then
   ci_deps_apt_get install -y --no-install-recommends "${install_pkgs[@]}"
 elif command -v zypper >/dev/null 2>&1; then
   ci_deps_as_root zypper --non-interactive refresh
-  ci_deps_as_root zypper --non-interactive install "${install_pkgs[@]}"
+  ci_deps_as_root zypper --non-interactive install --no-recommends "${install_pkgs[@]}"
 elif command -v apk >/dev/null 2>&1; then
   ci_deps_as_root apk add --no-cache "${install_pkgs[@]}"
 elif command -v dnf >/dev/null 2>&1; then
@@ -158,9 +158,9 @@ elif command -v dnf >/dev/null 2>&1; then
     fi
   fi
   if ((${#dnf_repo_args[@]})); then
-    ci_deps_as_root dnf -y "${dnf_repo_args[@]}" install "${install_pkgs[@]}"
+    ci_deps_as_root dnf -y --setopt=install_weak_deps=False "${dnf_repo_args[@]}" install "${install_pkgs[@]}"
   else
-    ci_deps_as_root dnf -y install "${install_pkgs[@]}"
+    ci_deps_as_root dnf -y --setopt=install_weak_deps=False install "${install_pkgs[@]}"
   fi
 elif command -v microdnf >/dev/null 2>&1; then
   ci_deps_as_root microdnf -y install dnf "${install_pkgs[@]}"

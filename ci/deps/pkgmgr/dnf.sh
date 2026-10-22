@@ -46,11 +46,14 @@ install_optional_epel_release() {
   dnf_run -y install "${epel_package}" || true
 }
 
+# Weak dependencies off: each package brings what it requires, not what it
+# recommends. The lanes need neither 7zip nor bat, and every extra download
+# is one more a mirror can fail.
 dnf_run() {
   if ((${#DNF_REPO_ARGS[@]})); then
-    ci_deps_as_root dnf "${DNF_REPO_ARGS[@]}" "$@"
+    ci_deps_as_root dnf --setopt=install_weak_deps=False "${DNF_REPO_ARGS[@]}" "$@"
   else
-    ci_deps_as_root dnf "$@"
+    ci_deps_as_root dnf --setopt=install_weak_deps=False "$@"
   fi
 }
 
