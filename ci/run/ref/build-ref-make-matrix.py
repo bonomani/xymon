@@ -318,6 +318,7 @@ def apply_platform_runtime_defaults(
     platform_entry,
     platform_id,
     platform_runtime,
+    lane_sets_runs_on,
 ):
     if platform_entry is None:
         return
@@ -326,12 +327,12 @@ def apply_platform_runtime_defaults(
         lane_obj["container"] = require_non_empty_string(
             platform_entry.get("image"), f"Platform '{platform_id}'.image"
         )
-    elif platform_runtime == "host":
-        lane_obj.setdefault(
-            "runs_on",
-            require_non_empty_string(
-                platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
-            ),
+    elif platform_runtime == "host" and not lane_sets_runs_on:
+        # A host platform names the runner it is: it overrides the runtime's
+        # default (macos_host's macos-latest), or every macOS lane would run
+        # on the same image whatever version it is named after.
+        lane_obj["runs_on"] = require_non_empty_string(
+            platform_entry.get("runner"), f"Platform '{platform_id}'.runner"
         )
 
     os_version_key = family_entry["os_version_key"]
@@ -545,6 +546,7 @@ def normalize_lane(
         platform_entry,
         platform_id,
         platform_runtime,
+        "runs_on" in lane or "runs_on" in family_entry["lane_overrides"],
     )
     auto_name_lane(family_entry, lane_obj, platform_entry, platform_id)
 

@@ -40,7 +40,10 @@ else
   git clone --depth 1 "${MACPORTS_REPO}" "${workdir}/macports-base"
   (
     cd "${workdir}/macports-base"
-    ./configure --prefix="${PREFIX}" --with-applications-dir="${PREFIX}/Applications"
+    # Keep MacPorts' default applications_dir (/Applications/MacPorts): its
+    # binary archives are used only when it matches the one they were built
+    # with, and otherwise every port is compiled from source.
+    ./configure --prefix="${PREFIX}"
     make
     as_root make install
   )
