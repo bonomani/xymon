@@ -297,6 +297,12 @@ platforms:
     platform_os: rockylinux
     platform_version: '9'
     image: rockylinux/rockylinux:9
+  solaris-11_4:
+    runtime: vm
+    platform_os: solaris
+    platform_version: '11.4'
+    provider: vmactions
+    source_arch: x86-64
   ubuntu-22_04:
     runtime: docker
     platform_os: ubuntu

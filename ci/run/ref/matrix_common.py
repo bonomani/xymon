@@ -97,6 +97,7 @@ def derive_platform_display_name(platform_id: str, platform_entry: dict) -> str:
             "freebsd": "FreeBSD",
             "netbsd": "NetBSD",
             "openbsd": "OpenBSD",
+            "solaris": "Solaris",
         }
         if platform_os == "netbsd" and version:
             return f"{vm_os_names[platform_os]} {version} x86-64"

@@ -661,6 +661,7 @@ def iter_ref_validation_lanes() -> list[tuple[str, Path, str, dict]]:
                 "linux_host",
                 "linux_container",
                 "bsd_vm",
+                "solaris_vm",
                 "macos_host",
             ),
         )

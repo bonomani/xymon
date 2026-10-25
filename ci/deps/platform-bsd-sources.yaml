@@ -49,6 +49,11 @@ sources:
     version: "7.6"
     repo: cross-platform-actions/openbsd-builder
     arch: x86-64
+  # Solaris: vmactions/solaris-vm brings its own images, so no release repo.
+  solaris-11_4:
+    os: solaris
+    version: "11.4"
+    arch: x86-64
   freebsd-15_1:
     os: freebsd
     version: "15.1"

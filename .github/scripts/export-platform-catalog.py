@@ -595,16 +595,24 @@ def discover_vm_releases(
         if platform_os not in vm_platform_oses:
             continue
         version = field_str(entry, "version", f"{BSD_SOURCES}.sources.{platform_id}")
-        repo = field_str(entry, "repo", f"{BSD_SOURCES}.sources.{platform_id}")
         source_arch = field_str(entry, "arch", f"{BSD_SOURCES}.sources.{platform_id}")
         discovered[platform_id] = {
             "runtime": "vm",
             "platform_os": platform_os,
             "platform_version": version,
-            "provider": "cross-platform-actions",
-            "repo": repo,
-            "source_arch": source_arch,
+            # The catalog names the provider: cross-platform-actions for the
+            # BSDs, vmactions for Solaris.
+            "provider": str(
+                platform_catalog[platform_os].get("provider", "cross-platform-actions")
+            ),
         }
+        # A source without a release repo (vmactions picks its own images) is
+        # not looked up there.
+        if entry.get("repo"):
+            discovered[platform_id]["repo"] = field_str(
+                entry, "repo", f"{BSD_SOURCES}.sources.{platform_id}"
+            )
+        discovered[platform_id]["source_arch"] = source_arch
     return discovered
 
 

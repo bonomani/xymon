@@ -88,6 +88,10 @@ resolve_runtime_metadata() {
       execution="vm"
       outcome="bsd_vm"
       ;;
+    solaris_vm)
+      execution="vm"
+      outcome="solaris_vm"
+      ;;
     macos_host)
       execution="host"
       outcome="host_container"

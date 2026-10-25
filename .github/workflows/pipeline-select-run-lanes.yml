@@ -25,6 +25,7 @@ on:
           - fedora
           - oraclelinux
           - ubuntu
+          - solaris
       variant:
         description: Select which lane variant to run
         required: true

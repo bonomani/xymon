@@ -485,6 +485,27 @@ setup_os() {
     openbsd)
       prepare_os "www" "/usr/local" "/usr/pkg"
       ;;
+    solaris)
+      # GNU grep, sed, awk and friends first: the scripts and the test suite
+      # use GNU options that /usr/bin's tools lack.
+      export PATH="/usr/gnu/bin:/usr/bin:/usr/sbin:/opt/csw/bin:${PATH}"
+      HTTPDGID="webservd"
+      if [ "${BUILD_TOOL}" = "make" ]; then
+        MAKE_BIN="gmake"
+      fi
+      bash ci/deps/install-solaris.sh
+      # Where Solaris 11.4 keeps what configure's searches miss: PCRE2's
+      # header under /usr/include/pcre, the 64-bit libraries under
+      # /usr/lib/amd64, RRDtool from OpenCSW (Oracle made image/rrdtool
+      # obsolete in 11.4.30). configure reads these from the environment as
+      # it does from --pcreinclude and the like.
+      export USERPCREINC=/usr/include/pcre USERPCRELIB=/usr/lib/amd64
+      export USERCARESLIB=/usr/lib/amd64 USERLDAPLIB=/usr/lib/amd64
+      export USERRRDINC=/opt/csw/include USERRRDLIB=/opt/csw/lib/amd64
+      # c-ares is in the system directories; configure finds it there.
+      CARES_PREFIX=""
+      ensure_user_group "${HTTPDGID}"
+      ;;
     netbsd)
       prepare_os "www" "/usr/pkg" "/usr/local" "/usr/pkg"
       if [ "${BUILD_TOOL}" = "make" ] && [ -x /usr/pkg/bin/gmake ]; then

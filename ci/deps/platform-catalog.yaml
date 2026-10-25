@@ -59,6 +59,11 @@ platforms:
     repository: library/archlinux
     deps:
       package_family: arch
+  solaris:
+    runtime: vm
+    provider: vmactions
+    deps:
+      package_family: solaris
   freebsd:
     runtime: vm
     provider: cross-platform-actions

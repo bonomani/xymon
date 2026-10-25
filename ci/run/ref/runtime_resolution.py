@@ -38,6 +38,7 @@ def parse_args() -> argparse.Namespace:
     outcome.add_argument("--runtime", required=True)
     outcome.add_argument("--outcome-host-container", default="")
     outcome.add_argument("--outcome-bsd-vm", default="")
+    outcome.add_argument("--outcome-solaris-vm", default="")
     outcome.add_argument(
         "--runtime-model",
         default=str(DEFAULT_RUNTIME_MODEL_PATH),
@@ -83,6 +84,7 @@ def resolve_lane_outcome(
     runtime: str,
     outcome_host_container: str,
     outcome_bsd_vm: str,
+    outcome_solaris_vm: str,
     runtime_model: dict,
 ) -> str:
     supported = set(runtime_model["ordered_keys"])
@@ -94,6 +96,8 @@ def resolve_lane_outcome(
         outcome = outcome_host_container
     elif outcome_channel == "bsd_vm":
         outcome = outcome_bsd_vm
+    elif outcome_channel == "solaris_vm":
+        outcome = outcome_solaris_vm
     else:
         die(
             f"Unsupported outcome channel '{outcome_channel}' for runtime '{runtime}'"
@@ -135,6 +139,7 @@ def main() -> None:
             runtime=args.runtime,
             outcome_host_container=args.outcome_host_container,
             outcome_bsd_vm=args.outcome_bsd_vm,
+            outcome_solaris_vm=args.outcome_solaris_vm,
             runtime_model=runtime_model,
         )
         write_output({"value": outcome}, args.github_output)

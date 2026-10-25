@@ -12,6 +12,11 @@ runtime_defaults_shared:
     runs_on: ubuntu-22.04
     vm_memory: 1024M
     vm_cpu_count: 2
+  # vmactions/solaris-vm runs QEMU on an Ubuntu runner; mem is in MB.
+  solaris_vm:
+    runs_on: ubuntu-24.04
+    vm_memory: 6144
+    vm_cpu_count: 2
   macos_host:
     runs_on: macos-latest
 
@@ -142,3 +147,13 @@ families:
   common:
     runtime: linux_container
     lane_file: ci/run/ref/lanes/ubuntu.yml
+
+# Solaris 11.4 x86_64 (vmactions/solaris-vm). No reference artifacts exist for
+# it yet, so it takes no part in comparisons.
+- family: solaris
+  common:
+    runtime: solaris_vm
+    lane_file: ci/run/ref/lanes/solaris.yml
+    os_version_key: solaris_version
+    default_architecture: x86-64
+  validation: false

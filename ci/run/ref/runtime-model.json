@@ -25,6 +25,14 @@
       "requires_runs_on": true
     },
     {
+      "key": "solaris_vm",
+      "platform_runtime": "vm",
+      "execution": "vm",
+      "outcome_channel": "solaris_vm",
+      "default_ref_os": "family",
+      "requires_runs_on": true
+    },
+    {
       "key": "macos_host",
       "platform_runtime": "host",
       "execution": "host",

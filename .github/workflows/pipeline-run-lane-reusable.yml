@@ -108,7 +108,7 @@ jobs:
 
       - name: Run lane orchestration on BSD VM
         id: lane_run_bsd_vm
-        if: ${{ steps.lane_ctx.outputs.runtime_execution == 'vm' }}
+        if: ${{ steps.lane_ctx.outputs.runtime == 'bsd_vm' }}
         continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
         # cross-platform-actions retries the VM SSH handshake forever when the
         # VM never boots; healthy BSD lanes finish in <5 minutes, so bound the
@@ -128,6 +128,25 @@ jobs:
             export LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}"
             bash ci/run/ref/run-runtime-lane.sh
 
+      # Solaris runs in a QEMU VM from vmactions/solaris-vm (cross-platform-
+      # actions has no Solaris). The "-gcc" image is Solaris 11.4 CBE with gcc
+      # installed; the action rsyncs the workspace in at the same absolute
+      # path and copies it back, so LANE_ENV_FILE and the results resolve as
+      # on the BSD lanes. It runs "run" with sh, hence the explicit bash.
+      - name: Run lane orchestration on Solaris VM
+        id: lane_run_solaris_vm
+        if: ${{ steps.lane_ctx.outputs.runtime == 'solaris_vm' }}
+        continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
+        timeout-minutes: 60
+        uses: vmactions/solaris-vm@v1.4.2
+        with:
+          release: ${{ steps.lane_ctx.outputs.os_version }}-gcc
+          mem: ${{ steps.lane_ctx.outputs.vm_memory }}
+          cpu: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
+          copyback: true
+          run: |
+            LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}" bash ci/run/ref/run-runtime-lane.sh
+
       - name: Resolve lane run outcome
         id: lane_outcome
         if: ${{ always() }}
@@ -136,12 +155,14 @@ jobs:
           RUNTIME: ${{ steps.lane_ctx.outputs.runtime }}
           OUTCOME_HOST_CONTAINER: ${{ steps.lane_run_host_container.outcome }}
           OUTCOME_BSD_VM: ${{ steps.lane_run_bsd_vm.outcome }}
+          OUTCOME_SOLARIS_VM: ${{ steps.lane_run_solaris_vm.outcome }}
         run: |
           set -euo pipefail
           python3 ci/run/ref/runtime_resolution.py outcome \
             --runtime "${RUNTIME}" \
             --outcome-host-container "${OUTCOME_HOST_CONTAINER}" \
             --outcome-bsd-vm "${OUTCOME_BSD_VM}" \
+            --outcome-solaris-vm "${OUTCOME_SOLARIS_VM}" \
             --github-output "${GITHUB_OUTPUT}"
 
       - name: Post lane (policy + artifacts)
