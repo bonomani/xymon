@@ -608,6 +608,30 @@ bsd_netbsd_ensure_ca_certs() {
   return 1
 }
 
+# Point pkgin at the next mirror in NETBSD_PKG_PATHS whose index it can
+# refresh (forced), trying each in turn. Returns 1 when none is left. A mirror
+# can fail the refresh itself, or serve an index older than its
+# files: on 25 Oct 2026 the CDN copy reaching GitHub's runners still listed
+# curl-8.22.0 a day after NetBSD replaced it with 8.23.0, so every download it
+# named was "Not Found" or failed "size does not match pkg_summary", while
+# ftp.netbsd.org served the current set.
+bsd_pkgin_next_mirror() {
+  local next=0 path=""
+  while :; do
+    next=$(( ${NETBSD_PKGIN_MIRROR:-0} + 1 ))
+    [[ "${next}" -lt "${#NETBSD_PKG_PATHS[@]}" ]] || return 1
+    NETBSD_PKGIN_MIRROR="${next}"
+    path="${NETBSD_PKG_PATHS[${next}]}"
+    echo "pkgin: switching to the next mirror, ${path}" >&2
+    ci_deps_as_root sh -c "printf '%s\n' '${path%/}' > /usr/pkg/etc/pkgin/repositories.conf" || continue
+    export PKG_PATH="${path}"
+    if ci_deps_as_root /usr/pkg/bin/pkgin -f -y update; then
+      return 0
+    fi
+    echo "pkgin: could not refresh the index on ${path}" >&2
+  done
+}
+
 # One-time setup before per-package pkgin installs (use as a pre_install hook).
 # Ensures the pkgsrc repo config, a CA trust store (so pkgin can verify https),
 # and the pkgin binary exist, then refreshes repository metadata so dependency
@@ -631,5 +655,8 @@ bsd_pkgin_prepare() {
       PKGS=("${saved_pkgs[@]}")
     fi
   fi
-  ci_deps_as_root /usr/pkg/bin/pkgin -y update
+  if ! ci_deps_as_root /usr/pkg/bin/pkgin -y update; then
+    echo "pkgin: could not refresh the index on the first mirror" >&2
+    bsd_pkgin_next_mirror
+  fi
 }
