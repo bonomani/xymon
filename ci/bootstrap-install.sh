@@ -120,6 +120,9 @@ LEGACY_DESTROOT_FALLBACK="/tmp/var/lib/xymon"
 DEFAULT_TOP="/var/lib/xymon"
 MAKE_BIN="make"
 CARES_PREFIX=""
+# The c-ares library directory, when it is not CARES_PREFIX/lib (Solaris
+# keeps its 64-bit libraries in /usr/lib/amd64).
+CARES_LIBDIR=""
 CMAKE_BIN="${CMAKE_BIN:-cmake}"
 if [ -n "${CMAKE_BUILD_DIR:-}" ]; then
   CMAKE_BUILD_DIR_USER_SET=1
@@ -502,8 +505,9 @@ setup_os() {
       export USERPCREINC=/usr/include/pcre USERPCRELIB=/usr/lib/amd64
       export USERCARESLIB=/usr/lib/amd64 USERLDAPLIB=/usr/lib/amd64
       export USERRRDINC=/opt/csw/include USERRRDLIB=/opt/csw/lib/amd64
-      # c-ares is in the system directories; configure finds it there.
-      CARES_PREFIX=""
+      # The build passes c-ares' flags itself, from these.
+      CARES_PREFIX="/usr"
+      CARES_LIBDIR="/usr/lib/amd64"
       ensure_user_group "${HTTPDGID}"
       ;;
     netbsd)
@@ -669,7 +673,7 @@ build_project_make() {
   local make_jobs=1
   if [ -n "${CARES_PREFIX}" ]; then
     caresinc="-I${CARES_PREFIX}/include"
-    careslib="-L${CARES_PREFIX}/lib -lcares"
+    careslib="-L${CARES_LIBDIR:-${CARES_PREFIX}/lib} -lcares"
   fi
   local base_cflags=""
   if [ "${VARIANT}" = "client" ] || [ "${VARIANT}" = "localclient" ]; then
