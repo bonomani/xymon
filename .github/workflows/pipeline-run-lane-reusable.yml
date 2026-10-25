@@ -132,7 +132,9 @@ jobs:
       # actions has no Solaris). The "-gcc" image is Solaris 11.4 CBE with gcc
       # installed; the action rsyncs the workspace in at the same absolute
       # path and copies it back, so LANE_ENV_FILE and the results resolve as
-      # on the BSD lanes. It runs "run" with sh, hence the explicit bash.
+      # on the BSD lanes. It runs "run" with sh, hence the explicit bash; and
+      # with Solaris' own /usr/bin first, whose awk, grep and sed lack what
+      # the lane scripts use -- GNU's /usr/gnu/bin goes first.
       - name: Run lane orchestration on Solaris VM
         id: lane_run_solaris_vm
         if: ${{ steps.lane_ctx.outputs.runtime == 'solaris_vm' }}
@@ -145,7 +147,7 @@ jobs:
           cpu: ${{ steps.lane_ctx.outputs.vm_cpu_count }}
           copyback: true
           run: |
-            LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}" bash ci/run/ref/run-runtime-lane.sh
+            PATH="/usr/gnu/bin:$PATH" LANE_ENV_FILE="${{ steps.lane_env.outputs.path }}" bash ci/run/ref/run-runtime-lane.sh
 
       - name: Resolve lane run outcome
         id: lane_outcome
