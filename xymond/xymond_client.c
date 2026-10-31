@@ -49,6 +49,10 @@ int sendclearfiles = 1;
 int sendclearports = 1;
 int sendclearsvcs = 1;
 int localmode     = 0;
+
+/* Every sample of the report being analysed: the analysers add and judge,
+ * the statuses are written from it, and it is cleared for the next report. */
+static metricbatch_t *report_batch = NULL;
 int unknownclientosok = 0;
 int noreportcolor = COL_CLEAR;
 int separate_uptime_status = 0;
@@ -319,7 +323,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	int cpucolor = COL_GREEN, upstatuscolor = COL_GREEN;
 	int loadcolor;
-	metricsample_t load, uptime, clock;
+	int load, uptime, clock;
 	metricrule_t rule[2];
 
 	char msgline[4096];
@@ -429,12 +433,15 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	cpumsg = newstrbuffer(0);
 
 	/* The three measurements of the cpu test, each judged by its own
-	 * keyword's conditions; how their colours fold into the status is as
-	 * it was: load sets it, uptime and clock recolour it unless it is red. */
-	metric_set(&load, "cpu", NULL, "load", load5, METRIC_OK);
+	 * keyword's conditions. How their colours fold into the status is as
+	 * it was, by hand: load sets it, uptime and clock recolour it unless
+	 * it is red. That is not the worst-wins fold of metric_batch_color():
+	 * an UP or CLOCK colour below the load's lowers the status. Making
+	 * it worst-wins is a visible change, and the registry's to make. */
+	load = metric_batch_add(report_batch, "cpu", NULL, "load", load5, METRIC_OK);
 	metric_rule(&rule[0], "load", METRIC_GT, loadred,    COL_RED);
 	metric_rule(&rule[1], "load", METRIC_GT, loadyellow, COL_YELLOW);
-	loadcolor = metric_judge(&load, 1, rule, 2, NULL);
+	loadcolor = metric_batch_judge(report_batch, load, 1, rule, 2);
 	if (loadcolor == COL_RED) {
 		cpucolor = COL_RED;
 		addtobuffer(cpumsg, "&red Load is CRITICAL\n");
@@ -447,19 +454,19 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	/* An uptime the line did not yield is unmeasured; a limit of -1 is no
 	 * rule. Both UP conditions are tested, as a recent limit above the
 	 * ancient one makes both true. */
-	metric_set(&uptime, "cpu", NULL, "uptime", (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
+	uptime = metric_batch_add(report_batch, "cpu", NULL, "uptime", (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
 	metric_rule(&rule[0], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
 	metric_rule(&rule[1], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
 
 	if (separate_uptime_status) {
 		upmsg = newstrbuffer(0);
 
-		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
+		if ((recentlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[0])) {
 			upstatuscolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(upmsg, msgline);
 		}
-		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
+		if ((ancientlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[1])) {
 			upstatuscolor = uptimecolor;
 			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
@@ -468,12 +475,12 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	}
 	else {
-		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
+		if ((recentlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[0])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(cpumsg, msgline);
 		}
-		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
+		if ((ancientlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[1])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
 			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
@@ -507,11 +514,11 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 			/* The offset keeps its sign; CLOCK's "more than N seconds
 			 * off" either way is one condition above N and one below -N. */
-			metric_set(&clock, "cpu", NULL, "clockoffset", (double)clockdiff.tv_sec, METRIC_OK);
+			clock = metric_batch_add(report_batch, "cpu", NULL, "clockoffset", (double)clockdiff.tv_sec, METRIC_OK);
 			metric_rule(&rule[0], "clockoffset", METRIC_GT, (double)maxclockdiff,  clockdiffcolor);
 			metric_rule(&rule[1], "clockoffset", METRIC_LT, -(double)maxclockdiff, clockdiffcolor);
 
-			if ((maxclockdiff > 0) && (metric_judge(&clock, 1, rule, 2, NULL) != COL_GREEN)) {
+			if ((maxclockdiff > 0) && (metric_batch_judge(report_batch, clock, 1, rule, 2) != COL_GREEN)) {
 				if (cpucolor != COL_RED) cpucolor = clockdiffcolor;
 				sprintf(msgline, "&%s System clock is %ld seconds off (max %ld)\n",
 					colorname(clockdiffcolor), (long) clockdiff.tv_sec, (long) maxclockdiff);
@@ -600,6 +607,7 @@ static void unix_fs_report(fsreport_t *rep,
 	char *fname;
 	int fmin, fmax, fcount, fcolor;
 	char *group;
+	int firstsample, i;
 
 	if (!want_msgtype(hinfo, rep->msgtype)) return;
 	if (!dfstr) return;
@@ -610,7 +618,11 @@ static void unix_fs_report(fsreport_t *rep,
 	dfstr_filtered = newstrbuffer(0);
 	rep->clearcounts(hinfo, clientclass);
 	clearalertgroups();
+	firstsample = report_batch->count;
 
+	/* First pass: the table. Each mount that is not ignored becomes two
+	 * samples of the test, units free then percent used, judged as a pair
+	 * under its DISK/INODE rule with the verdict on the percent sample. */
 	bol = dfstr; /* Must do this always, to at least grab the column-numbers we need */
 	while (bol) {
 		int ignored = 0;
@@ -636,9 +648,8 @@ static void unix_fs_report(fsreport_t *rep,
 			p = strdup(bol);
 			fsname = getcolumn(p, mntcol);
 			if (fsname) {
-				metricsample_t sample[2];
-				metricrule_t rule[2], *hit;
-				int color;
+				metricrule_t rule[2];
+				int freeidx, pctidx;
 
 				rep->addcount(fsname);
 				rep->thresholds(hinfo, clientclass, fsname,
@@ -659,56 +670,26 @@ static void unix_fs_report(fsreport_t *rep,
 					rep->label, fsname, levelpct, levelabs,
 					warnlevel, paniclevel, abswarn, abspanic);
 
-				if (rep->idmarker) sprintf(idmark, "<!-- ID=%s --> ", fsname); else *idmark = '\0';
+				if (!ignored) {
+					/* The client's unavailable-mount marker is "-" sizes
+					 * because nothing measured them, and 100% so the column
+					 * still goes red on a server without this check; that
+					 * pair is the unmeasured state. An all-dash row (AIX
+					 * /proc) has no 100%: it is judged as the zero it reads
+					 * as, which is what it always was, and not this
+					 * change's to settle. */
+					freeidx = metric_batch_add(report_batch, rep->test, fsname, "free", levelabs,
+								   ((unmeasured && (levelpct == 100)) ? METRIC_UNMEASURED : METRIC_OK));
+					pctidx = metric_batch_add(report_batch, rep->test, fsname, "pct", levelpct, METRIC_OK);
+					metric_batch_sample(report_batch, freeidx)->data = group;
 
-				/* The mount's two samples. The client's unavailable-mount
-				 * marker is "-" sizes because nothing measured them, and
-				 * 100% so the column still goes red on a server without
-				 * this check; that pair is the unmeasured state. An
-				 * all-dash row (AIX /proc) has no 100%: it is judged as
-				 * the zero it reads as, which is what it always was, and
-				 * not this change's to settle. */
-				metric_set(&sample[0], rep->test, fsname, "pct", levelpct, METRIC_OK);
-				metric_set(&sample[1], rep->test, fsname, "free", levelabs,
-					   ((unmeasured && (levelpct == 100)) ? METRIC_UNMEASURED : METRIC_OK));
-
-				/* The DISK/INODE rule as two conditions, each on the
-				 * metric its unit names: a level in units free trips at
-				 * or below it, a percent at or above. Red first, so the
-				 * panic level is the one reported when both trip. */
-				metric_rule(&rule[0], (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), paniclevel, COL_RED);
-				metric_rule(&rule[1], (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), warnlevel,  COL_YELLOW);
-
-				if (ignored) {
-					/* Forget about this one */
-				}
-				else if (sample[1].state == METRIC_UNMEASURED) {
-					if (fscolor < COL_RED) fscolor = COL_RED;
-
-					sprintf(msgline, "&red %s%s is unreachable (not measured)\n", idmark, fsname);
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
-				}
-				else if ((color = metric_judge(sample, 2, rule, 2, &hit)) != COL_GREEN) {
-					char *msgp = msgline;
-					int below = (hit->op == METRIC_LE);
-					long hitvalue = (long)(below ? sample[1].value : sample[0].value);
-					long hitlevel = (long)hit->level;
-
-					if (fscolor < color) fscolor = color;
-
-					msgp += sprintf(msgp, "&%s %s%s ", colorname(color), idmark, fsname);
-
-					if (below) msgp += sprintf(msgp, "(%lu units free)", hitvalue);
-					else msgp += sprintf(msgp, "(%lu%% used)", hitvalue);
-
-					msgp += sprintf(msgp, " has reached the %s level ", ((color == COL_RED) ? "PANIC" : "WARNING"));
-
-					if (below) msgp += sprintf(msgp, "(%lu units)\n", hitlevel);
-					else msgp += sprintf(msgp, "(%lu%%)\n", hitlevel);
-
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
+					/* The DISK/INODE rule as two conditions, each on the
+					 * metric its unit names: a level in units free trips at
+					 * or below it, a percent at or above. Red first, so the
+					 * panic level is the one reported when both trip. */
+					metric_rule(&rule[0], (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), paniclevel, COL_RED);
+					metric_rule(&rule[1], (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), warnlevel,  COL_YELLOW);
+					metric_batch_judge(report_batch, freeidx, 2, rule, 2);
 				}
 			}
 
@@ -722,9 +703,45 @@ static void unix_fs_report(fsreport_t *rep,
 		if (nl) { *nl = '\n'; bol = nl+1; } else bol = NULL;
 	}
 
+	/* Second pass: the lines, from the samples. */
+	for (i = firstsample; (i < report_batch->count); i++) {
+		metricsample_t *freesample = metric_batch_sample(report_batch, i);
+		metricsample_t *pctsample;
+
+		if (strcmp(freesample->name, "free") != 0) continue;
+		pctsample = metric_batch_sample(report_batch, i+1);
+		group = (char *)freesample->data;
+		if (rep->idmarker) sprintf(idmark, "<!-- ID=%s --> ", freesample->instance); else *idmark = '\0';
+
+		if (freesample->state == METRIC_UNMEASURED) {
+			freesample->color = COL_RED;
+			sprintf(msgline, "&red %s%s is unreachable (not measured)\n", idmark, freesample->instance);
+			addtobuffer(monmsg, msgline);
+			addalertgroup(group);
+		}
+		else if (freesample->judged) {
+			char *msgp = msgline;
+			int below = (freesample->hit.op == METRIC_LE);
+			long hitvalue = (long)(below ? freesample->value : pctsample->value);
+			long hitlevel = (long)freesample->hit.level;
+
+			msgp += sprintf(msgp, "&%s %s%s ", colorname(freesample->color), idmark, freesample->instance);
+
+			if (below) msgp += sprintf(msgp, "(%lu units free)", hitvalue);
+			else msgp += sprintf(msgp, "(%lu%% used)", hitvalue);
+
+			msgp += sprintf(msgp, " has reached the %s level ", ((freesample->color == COL_RED) ? "PANIC" : "WARNING"));
+
+			if (below) msgp += sprintf(msgp, "(%lu units)\n", hitlevel);
+			else msgp += sprintf(msgp, "(%lu%%)\n", hitlevel);
+
+			addtobuffer(monmsg, msgline);
+			addalertgroup(group);
+		}
+	}
+
 	if ((capacol == -1) && (mntcol == -1)) {
 		if (rep->emptyok && (strlen(dfstr) == 0)) {
-			fscolor = COL_GREEN;
 			sprintf(msgline, "&green No filesystems reporting %s data\n", rep->test);
 			addtobuffer(monmsg, msgline);
 		}
@@ -744,9 +761,11 @@ static void unix_fs_report(fsreport_t *rep,
 		}
 	}
 
-	/* Check for filesystems that must (not) exist */
+	/* Check for filesystems that must (not) exist: each is a count sample
+	 * of the test, its verdict already given by count_color(). */
 	while ((fname = rep->checkcount(&fcount, &fmin, &fmax, &fcolor, &group)) != NULL) {
 		char limtxt[1024];
+		int idx;
 
 		*limtxt = '\0';
 
@@ -759,8 +778,10 @@ static void unix_fs_report(fsreport_t *rep,
 			else if (fmin == 0) sprintf(limtxt, "at most %d", fmax);
 		}
 
+		idx = metric_batch_add(report_batch, rep->test, fname, "count", fcount, METRIC_OK);
+		metric_batch_sample(report_batch, idx)->color = fcolor;
+
 		if (fcolor != COL_GREEN) {
-			if (fcolor > fscolor) fscolor = fcolor;
 			if (rep->idmarker) sprintf(idmark, "<!-- ID=%s -->", fname); else *idmark = '\0';
 			sprintf(msgline, "&%s %sFilesystem %s (found %d, req. %s)\n",
 				colorname(fcolor), idmark, fname, fcount, limtxt);
@@ -768,6 +789,10 @@ static void unix_fs_report(fsreport_t *rep,
 			addalertgroup(group);
 		}
 	}
+
+	/* The status colour: the worst verdict among the test's samples, and
+	 * the yellow of a table whose headers were not found. */
+	if (metric_batch_color(report_batch, rep->test) > fscolor) fscolor = metric_batch_color(report_batch, rep->test);
 
 	/* Now we know the result, so generate a status message */
 	init_status(fscolor);
@@ -824,17 +849,21 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 }
 
 /* One row of the memory status -- Real/Physical, Actual/Virtual or
- * Swap/Page -- judged as a sample of the memory test under its MEMPHYS,
- * MEMACT or MEMSWAP pair: strictly above the warn level is yellow, strictly
- * above the panic level red. */
-static int memory_row_color(metricsample_t *sample, int yellow, int red)
+ * Swap/Page -- added to the report's batch as a sample of the memory test
+ * and judged under its MEMPHYS, MEMACT or MEMSWAP pair: strictly above the
+ * warn level is yellow, strictly above the panic level red. Returns the
+ * sample's index. */
+static int memory_row(char *name, long pct, metricstate_t state, int yellow, int red)
 {
 	metricrule_t rule[2];
+	int idx;
 
-	metric_rule(&rule[0], sample->name, METRIC_GT, red,    COL_RED);
-	metric_rule(&rule[1], sample->name, METRIC_GT, yellow, COL_YELLOW);
+	idx = metric_batch_add(report_batch, "memory", NULL, name, (double)pct, state);
+	metric_rule(&rule[0], name, METRIC_GT, red,    COL_RED);
+	metric_rule(&rule[1], name, METRIC_GT, yellow, COL_YELLOW);
+	metric_batch_judge(report_batch, idx, 1, rule, 2);
 
-	return metric_judge(sample, 1, rule, 2, NULL);
+	return idx;
 }
 
 void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
@@ -849,7 +878,7 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	int memorycolor = COL_GREEN, physcolor, swapcolor, actcolor;
 	char *memorysummary = "OK";
-	metricsample_t phys, act, swap;
+	int phys, act, swap;
 
 	char msgline[4096];
 
@@ -863,26 +892,23 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	 * is not a measurement: physical is left unjudged, swap is reported as
 	 * invalid data. Actual can be above 100 and is judged as it is. */
 	memphyspct = (memphystotal > 0) ? ((100 * memphysused) / memphystotal) : 0;
-	metric_set(&phys, "memory", NULL, "phys", memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID));
-	physcolor = memory_row_color(&phys, physyellow, physred);
+	phys = memory_row("phys", memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID), physyellow, physred);
 
 	if (memswapused != -1) memswappct = (memswaptotal > 0) ? ((100 * memswapused) / memswaptotal) : 0;
-	metric_set(&swap, "memory", NULL, "swap", memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID));
-	swapcolor = memory_row_color(&swap, swapyellow, swapred);
-	if (swap.state == METRIC_INVALID) invaliddata = 1;
+	swap = memory_row("swap", memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID), swapyellow, swapred);
+	if (metric_batch_sample(report_batch, swap)->state == METRIC_INVALID) invaliddata = 1;
 
 	if (memactused != -1) memactpct = (memacttotal > 0) ? ((100 * memactused) / memacttotal) : 0;
-	metric_set(&act, "memory", NULL, "act", memactpct, METRIC_OK);
-	actcolor = memory_row_color(&act, actyellow, actred);
+	act = memory_row("act", memactpct, METRIC_OK, actyellow, actred);
 
-	if ((physcolor == COL_RED) || (swapcolor == COL_RED) || (actcolor == COL_RED)) {
-		memorycolor = COL_RED;
-		memorysummary = "CRITICAL";
-	}
-	else if ((physcolor == COL_YELLOW) || (swapcolor == COL_YELLOW) || (actcolor == COL_YELLOW)) {
-		memorycolor = COL_YELLOW;
-		memorysummary = "low";
-	}
+	physcolor = metric_batch_sample(report_batch, phys)->color;
+	swapcolor = metric_batch_sample(report_batch, swap)->color;
+	actcolor  = metric_batch_sample(report_batch, act)->color;
+
+	/* The status colour is the worst row, and the summary names it. */
+	memorycolor = metric_batch_color(report_batch, "memory");
+	if (memorycolor == COL_RED) memorysummary = "CRITICAL";
+	else if (memorycolor == COL_YELLOW) memorysummary = "low";
 
 	if ((memphystotal == 0) && (memorycolor == COL_GREEN)) {
 		memorycolor = COL_YELLOW;
@@ -915,7 +941,7 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	}
 
 	if (memswapused != -1) {
-		if (swap.state == METRIC_OK)
+		if (metric_batch_sample(report_batch, swap)->state == METRIC_OK)
 			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 				colorname(swapcolor), "Swap/Page", memswapused, memswaptotal, memswappct);
 		else
@@ -2093,6 +2119,7 @@ int main(int argc, char *argv[])
 	signal(SIGCHLD, SIG_IGN);
 
 	updinfotree = xtreeNew(strcasecmp);
+	report_batch = metric_batch_new();
 	running = 1;
 
 	usebackfeedqueue = (sendmessage_init_local() > 0);
@@ -2166,6 +2193,7 @@ int main(int argc, char *argv[])
 			if (add_updateinfo(hostname, seq, timestamp) != 0) continue;
 
 			if (usebackfeedqueue) combo_start_local(); else combo_start();
+			metric_batch_clear(report_batch);
 			switch (os) {
                           case OS_FREEBSD:
                                 handle_freebsd_client(hostname, clientclass, os, hinfo, sender, timestamp, restofmsg);
