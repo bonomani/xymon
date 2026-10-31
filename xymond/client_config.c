@@ -3544,6 +3544,23 @@ static void add_count3(char *pname0, char *pname1, char *pname2 , mon_proc_t *he
 	}
 }
 
+/* The colour of a count against the rule's limits, as a sample of the
+ * count metric judged by two conditions: below the lower limit when one
+ * is set (0 is none), above the upper limit when one is set (-1 is none).
+ * One copy for PROC, PORT, SVC, DISK and INODE, which each had their own. */
+static int count_color(char *test, char *instance, int count, int lowlim, int uplim, int color)
+{
+	metricsample_t sample;
+	metricrule_t rule[2];
+	int n = 0;
+
+	metric_set(&sample, test, instance, "count", (double)count, METRIC_OK);
+	if (lowlim != 0)  metric_rule(&rule[n++], "count", METRIC_LT, (double)lowlim, color);
+	if (uplim  != -1) metric_rule(&rule[n++], "count", METRIC_GT, (double)uplim,  color);
+
+	return metric_judge(&sample, 1, rule, n, NULL);
+}
+
 static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *uplim, int *color, mon_proc_t **walk, char **id, int *trackit,
 		char **group)
 {
@@ -3560,8 +3577,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.proc.pcount;
 		*lowlim = (*walk)->rule->rule.proc.pmin;
 		*uplim = (*walk)->rule->rule.proc.pmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.proc.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.proc.color;
+		*color = count_color("procs", result, *count, *lowlim, *uplim, (*walk)->rule->rule.proc.color);
 		*trackit = ((*walk)->rule->chkflags & CHK_TRACKIT);
 		*id = (*walk)->rule->rrdidstr;
 		if (group) *group = (*walk)->rule->groups;
@@ -3572,8 +3588,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.disk.dcount;
 		*lowlim = (*walk)->rule->rule.disk.dmin;
 		*uplim = (*walk)->rule->rule.disk.dmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.disk.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.disk.color;
+		*color = count_color("disk", result, *count, *lowlim, *uplim, (*walk)->rule->rule.disk.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
@@ -3582,9 +3597,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.inode.icount;
 		*lowlim = (*walk)->rule->rule.inode.imin;
 		*uplim = (*walk)->rule->rule.inode.imax;
-		*color = COL_GREEN;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.inode.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.inode.color;
+		*color = count_color("inode", result, *count, *lowlim, *uplim, (*walk)->rule->rule.inode.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
@@ -3629,8 +3642,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.port.pcount;
 		*lowlim = (*walk)->rule->rule.port.pmin;
 		*uplim = (*walk)->rule->rule.port.pmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.port.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.port.color;
+		*color = count_color("ports", result, *count, *lowlim, *uplim, (*walk)->rule->rule.port.color);
 		*trackit = ((*walk)->rule->chkflags & CHK_TRACKIT);
 		*id = (*walk)->rule->rrdidstr;
 		if (group) *group = (*walk)->rule->groups;
@@ -3684,7 +3696,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 				xfree((*walk)->rule->rule.svc.startup);
 		}
 		*count = (*walk)->rule->rule.svc.scount;
-		if (*count == 0) *color = (*walk)->rule->rule.svc.color;
+		*color = count_color("svcs", result, *count, 1, -1, (*walk)->rule->rule.svc.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 

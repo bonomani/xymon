@@ -1,0 +1,15 @@
+status svcs1,test.svcs red Fri Oct 31 10:00:00 CET 2026 - Services NOT ok
+&green Spooler is started/automatic - want started/automatic
+&red MSSQLSERVER is stopped/automatic - want started/Any
+&red Backup: No matching service - want started/Any
+
+Spooler automatic started
+W32Time manual stopped
+MSSQLSERVER automatic stopped
+Status message received from 127.0.0.1
+status svcs1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status svcs1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

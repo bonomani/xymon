@@ -37,6 +37,14 @@
 #   - cpu-freebsd-ancient: "load averages:" without commas, load above the
 #     red level; UP with an uptime beyond the ancient limit
 #   - cpu-linux-clock: a [clock] epoch far from the server's: CLOCK trips
+# Procs, ports and services, the counting analysers:
+#   - procs-linux-rules: PROC with a count inside, above and below its limits,
+#     a pattern that matches more than one command, TRACK= and TEXT=
+#   - procs-linux-noheader: a ps table without the command heading
+#   - ports-linux-rules: PORT on local address and state, inside, above and
+#     below its limits, with TEXT= and TRACK=
+#   - svcs-bbwin-rules: SVC on a Windows service list: a service as wanted,
+#     one in the wrong state, one absent
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
