@@ -1,5 +1,5 @@
-/* Regression test for lib/metric.c: a metric sample and the rule that
- * judges it.
+/* Regression test for lib/metric.c: a metric sample, the rule that judges
+ * it, and the batch that holds a report's samples.
  *
  * metric_judge() is the one comparison the client analysers share, so what
  * it promises is pinned here rather than in each analyser's status text:
@@ -12,6 +12,15 @@
  *   - an unmeasured or invalid sample trips nothing, whatever value it
  *     carries;
  *   - a value is real: a load average of 5.5 is above 5 and not above 5.5.
+ *
+ * The batch:
+ *   - keeps its own copies of the strings, so a sample outlives the row
+ *     buffer it was read from;
+ *   - judging a set records the verdict on the set's first sample: colour
+ *     and the rule that gave it;
+ *   - a test's colour is the worst verdict among its samples, green when
+ *     none; samples of other tests do not count;
+ *   - clearing drops the samples and the batch can be filled again.
  *
  * Driven through the library's public interface only.
  */
@@ -35,13 +44,16 @@ int main(int argc, char *argv[])
 {
 	metricsample_t s[2];
 	metricrule_t r[3], *hit;
+	metricbatch_t *b;
+	char rowbuf[64];
+	int i, j;
 
 	metric_set(&s[0], "disk", "/var", "pct", 92, METRIC_OK);
 	metric_set(&s[1], "disk", "/var", "free", 4000, METRIC_OK);
 
 	expect("metric_set", (strcmp(s[0].test, "disk") == 0) && (strcmp(s[0].instance, "/var") == 0)
 	       && (strcmp(s[0].name, "pct") == 0) && (s[0].value == 92) && (s[0].state == METRIC_OK)
-	       && (s[0].phase == METRIC_NATIVE),
+	       && (s[0].phase == METRIC_NATIVE) && (s[0].color == COL_GREEN) && !s[0].judged,
 	       "the sample does not carry what it was set to");
 
 	/* At or above: 92 against 90 trips, against 92 trips, against 93 does not. */
@@ -113,6 +125,63 @@ int main(int argc, char *argv[])
 	/* A tripped pointer may be left out. */
 	metric_rule(&r[0], "pct", METRIC_GE, 90, COL_YELLOW);
 	expect("no hit pointer", metric_judge(s, 1, r, 1, NULL) == COL_YELLOW, "judging without a tripped pointer failed");
+
+	/* The batch keeps copies: the row buffer is overwritten after the add. */
+	b = metric_batch_new();
+	strcpy(rowbuf, "/var");
+	i = metric_batch_add(b, "disk", rowbuf, "free", 4000, METRIC_OK);
+	j = metric_batch_add(b, "disk", rowbuf, "pct", 92, METRIC_OK);
+	strcpy(rowbuf, "/overwritten");
+	expect("batch copies", (strcmp(metric_batch_sample(b, i)->instance, "/var") == 0)
+	       && (strcmp(metric_batch_sample(b, j)->instance, "/var") == 0)
+	       && (metric_batch_sample(b, i)->instance != rowbuf),
+	       "a sample points at the caller's buffer instead of its own copy");
+	expect("batch index", (i == 0) && (j == 1) && (b->count == 2), "indices or count are off after two adds");
+
+	/* Judging a pair records the verdict on the first sample. */
+	metric_rule(&r[0], "pct", METRIC_GE, 95, COL_RED);
+	metric_rule(&r[1], "pct", METRIC_GE, 90, COL_YELLOW);
+	expect("batch judge", metric_batch_judge(b, i, 2, r, 2) == COL_YELLOW, "the pair was not judged yellow");
+	expect("batch verdict", metric_batch_sample(b, i)->judged && (metric_batch_sample(b, i)->color == COL_YELLOW)
+	       && (metric_batch_sample(b, i)->hit.level == 90) && (metric_batch_sample(b, i)->hit.color == COL_YELLOW),
+	       "the verdict on the first sample does not name the rule that tripped");
+	expect("batch second untouched", !metric_batch_sample(b, j)->judged && (metric_batch_sample(b, j)->color == COL_GREEN),
+	       "the verdict was written on the second sample");
+
+	/* A test's colour is the worst verdict among its samples; other tests do not count. */
+	i = metric_batch_add(b, "memory", NULL, "swap", 85, METRIC_OK);
+	metric_rule(&r[0], "swap", METRIC_GT, 80, COL_RED);
+	metric_batch_judge(b, i, 1, r, 1);
+	expect("batch color", metric_batch_color(b, "disk") == COL_YELLOW, "disk is not the yellow of its mount");
+	expect("batch color other", metric_batch_color(b, "memory") == COL_RED, "memory is not the red of its swap row");
+	expect("batch color none", metric_batch_color(b, "cpu") == COL_GREEN, "a test with no samples is not green");
+
+	/* A verdict set by hand counts too: a count sample coloured by its own check. */
+	i = metric_batch_add(b, "cpu", "x", "count", 0, METRIC_OK);
+	metric_batch_sample(b, i)->color = COL_RED;
+	expect("batch hand colour", metric_batch_color(b, "cpu") == COL_RED, "a colour set on a sample is not folded");
+
+	/* Clearing drops everything and the batch takes samples again. */
+	metric_batch_clear(b);
+	expect("batch clear", (b->count == 0) && (metric_batch_color(b, "disk") == COL_GREEN), "clearing left samples behind");
+	i = metric_batch_add(b, "disk", "/", "pct", 1, METRIC_OK);
+	expect("batch reuse", (i == 0) && (b->count == 1), "the cleared batch did not take a sample at index 0");
+	metric_batch_free(b);
+
+	/* Growth: more samples than the first allocation, every one intact. */
+	b = metric_batch_new();
+	for (i = 0; (i < 1000); i++) {
+		char name[16];
+		sprintf(name, "m%d", i);
+		metric_batch_add(b, "many", name, "v", (double)i, METRIC_OK);
+	}
+	for (i = 0; (i < 1000); i++) {
+		char name[16];
+		sprintf(name, "m%d", i);
+		if ((metric_batch_sample(b, i)->value != (double)i) || (strcmp(metric_batch_sample(b, i)->instance, name) != 0)) break;
+	}
+	expect("batch growth", (i == 1000) && (b->count == 1000), "a sample was lost or changed when the batch grew");
+	metric_batch_free(b);
 
 	if (failures) {
 		fprintf(stderr, "%d failure(s)\n", failures);
