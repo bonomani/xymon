@@ -1,0 +1,16 @@
+status/group:ops fs5,test.disk red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&yellow /var (92% used) has reached the WARNING level (90%)
+&red Filesystem /must (found 0, req. between 1 and 1)
+
+Filesystem     1024-blocks      Used Available Capacity Mounted on
+/dev/sda1         20000000  10000000  10000000      50% /
+/dev/sdb1         50000000  46000000   4000000      92% /var
+status fs5,test.inode green Fri Oct 31 10:00:00 CET 2026 - Filesystems ok
+Filesystem      Inodes   IUsed    IFree IUse% Mounted on
+/dev/sda1      1310720  131072  1179648   10% /
+status fs5,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs5,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

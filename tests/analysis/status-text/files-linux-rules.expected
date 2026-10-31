@@ -1,0 +1,16 @@
+status files1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status files1,test.files yellow Fri Oct 31 10:00:00 CET 2026 - Files NOT ok
+
+&yellow /var/tmp
+Directory has size 250000  - should be <200000
+
+&yellow /var/log/big.log
+File has size 5368709120  - should be <1000000000
+
+
+&green /etc/passwd
+
+data files1,test.filesizes
+/var/log/big.log:5368709120
+

@@ -1,0 +1,21 @@
+status fs4,test.disk red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&red / (500000 units free) has reached the PANIC level (600000 units)
+&yellow /usr (1500000 units free) has reached the WARNING level (2000000 units)
+&yellow /var (29% used) has reached the WARNING level (20%)
+
+Filesystem    1024-blocks      Free %Used    Iused %Iused Mounted on
+/dev/hd4          2097152    500000   77%    12000     9% /
+/dev/hd2         10485760   1500000   86%    60000    12% /usr
+/dev/hd9var       4194304   3000000   29%     8000     3% /var
+status fs4,test.inode yellow Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&yellow <!-- ID=/usr --> /usr (12% used) has reached the WARNING level (10%)
+
+Filesystem       iused     avail %iused Mounted on
+/dev/hd4         12000    120000     9% /
+/dev/hd2         60000    440000    12% /usr
+status fs4,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs4,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

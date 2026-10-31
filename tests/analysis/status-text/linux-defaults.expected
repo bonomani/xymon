@@ -1,0 +1,22 @@
+status fs1,test.disk red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&yellow /var (92% used) has reached the WARNING level (90%)
+&red /data (98% used) has reached the PANIC level (95%)
+
+Filesystem     1024-blocks      Used Available Capacity Mounted on
+/dev/sda1         20000000  10000000  10000000      50% /
+/dev/sdb1         50000000  46000000   4000000      92% /var
+/dev/sdc1         80000000  78000000   2000000      98% /data
+status fs1,test.inode red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&yellow <!-- ID=/var --> /var (80% used) has reached the WARNING level (70%)
+&red <!-- ID=/data --> /data (95% used) has reached the PANIC level (90%)
+
+Filesystem      Inodes   IUsed    IFree IUse% Mounted on
+/dev/sda1      1310720  131072  1179648   10% /
+/dev/sdb1      3276800 2621440   655360   80% /var
+/dev/sdc1      5242880 4980736   262144   95% /data
+status fs1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

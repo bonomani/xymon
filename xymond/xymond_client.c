@@ -303,10 +303,10 @@ char *nocolon(char *txt)
 	return result;
 }
 
-void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os, 
-		     void *hinfo, char *fromline, char *timestr, 
+void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
+		     void *hinfo, char *fromline, char *timestr,
 		     char *uptimestr, char *clockstr, char *msgcachestr,
-		     char *whostr, int usercount, 
+		     char *whostr, int usercount,
 		     char *psstr, int pscount, char *topstr)
 {
 	char *p;
@@ -318,6 +318,9 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	char myupstr[100];
 
 	int cpucolor = COL_GREEN, upstatuscolor = COL_GREEN;
+	int loadcolor;
+	metricsample_t load, uptime, clock;
+	metricrule_t rule[2];
 
 	char msgline[4096];
 	strbuffer_t *cpumsg, *upmsg = NULL;
@@ -336,7 +339,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 		uptimeresult = strdup(p+3);
 
-		/* 
+		/*
 		 * Linux: " up 178 days,  9:15,"
 		 * BSD: ""
 		 * Solaris: " up 21 days 20:58,"
@@ -425,40 +428,54 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	cpumsg = newstrbuffer(0);
 
-	if (load5 > loadred) {
+	/* The three measurements of the cpu test, each judged by its own
+	 * keyword's conditions; how their colours fold into the status is as
+	 * it was: load sets it, uptime and clock recolour it unless it is red. */
+	metric_set(&load, "cpu", NULL, "load", load5, METRIC_OK);
+	metric_rule(&rule[0], "load", METRIC_GT, loadred,    COL_RED);
+	metric_rule(&rule[1], "load", METRIC_GT, loadyellow, COL_YELLOW);
+	loadcolor = metric_judge(&load, 1, rule, 2, NULL);
+	if (loadcolor == COL_RED) {
 		cpucolor = COL_RED;
 		addtobuffer(cpumsg, "&red Load is CRITICAL\n");
 	}
-	else if (load5 > loadyellow) {
+	else if (loadcolor == COL_YELLOW) {
 		cpucolor = COL_YELLOW;
 		addtobuffer(cpumsg, "&yellow Load is HIGH\n");
 	}
 
+	/* An uptime the line did not yield is unmeasured; a limit of -1 is no
+	 * rule. Both UP conditions are tested, as a recent limit above the
+	 * ancient one makes both true. */
+	metric_set(&uptime, "cpu", NULL, "uptime", (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
+	metric_rule(&rule[0], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
+	metric_rule(&rule[1], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
+
 	if (separate_uptime_status) {
 		upmsg = newstrbuffer(0);
 
-		if ((uptimesecs != -1) && (recentlimit != -1) && (uptimesecs < recentlimit)) {
+		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
 			upstatuscolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(upmsg, msgline);
 		}
-		if ((uptimesecs != -1) && (ancientlimit != -1) && (uptimesecs > ancientlimit)) {
+		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
 			upstatuscolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n", 
+			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
 			addtobuffer(upmsg, msgline);
 		}
 
 	}
 	else {
-		if ((uptimesecs != -1) && (recentlimit != -1) && (uptimesecs < recentlimit)) {
+		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(cpumsg, msgline);
 		}
-		if ((uptimesecs != -1) && (ancientlimit != -1) && (uptimesecs > ancientlimit)) {
+		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n", 
+			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
 			addtobuffer(cpumsg, msgline);
 		}
@@ -468,7 +485,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 		char *p;
 		struct timeval clockval;
 
-		p = strstr(clockstr, "epoch:"); 
+		p = strstr(clockstr, "epoch:");
 		if (p && (sscanf(p, "epoch: %ld.%ld", (long int *)&clockval.tv_sec, (long int *)&clockval.tv_usec) == 2)) {
 			struct timeval clockdiff;
 			struct timezone tz;
@@ -488,7 +505,13 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 				clockdiff.tv_sec -= 1;
 			}
 
-			if ((maxclockdiff > 0) && (abs(clockdiff.tv_sec) > maxclockdiff)) {
+			/* The offset keeps its sign; CLOCK's "more than N seconds
+			 * off" either way is one condition above N and one below -N. */
+			metric_set(&clock, "cpu", NULL, "clockoffset", (double)clockdiff.tv_sec, METRIC_OK);
+			metric_rule(&rule[0], "clockoffset", METRIC_GT, (double)maxclockdiff,  clockdiffcolor);
+			metric_rule(&rule[1], "clockoffset", METRIC_LT, -(double)maxclockdiff, clockdiffcolor);
+
+			if ((maxclockdiff > 0) && (metric_judge(&clock, 1, rule, 2, NULL) != COL_GREEN)) {
 				if (cpucolor != COL_RED) cpucolor = clockdiffcolor;
 				sprintf(msgline, "&%s System clock is %ld seconds off (max %ld)\n",
 					colorname(clockdiffcolor), (long) clockdiff.tv_sec, (long) maxclockdiff);
@@ -503,11 +526,11 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	init_status(cpucolor);
 	sprintf(msgline, "status %s.cpu %s %s %s, %d users, %d procs, load=%s\n",
-		commafy(hostname), colorname(cpucolor), 
-		(timestr ? timestr : "<no timestamp data>"), 
-		myupstr, 
-		(whostr ? linecount(whostr) : usercount), 
-		(psstr ? linecount(psstr)-1 : pscount), 
+		commafy(hostname), colorname(cpucolor),
+		(timestr ? timestr : "<no timestamp data>"),
+		myupstr,
+		(whostr ? linecount(whostr) : usercount),
+		(psstr ? linecount(psstr)-1 : pscount),
 		loadresult);
 	addtostatus(msgline);
 	if (STRBUFLEN(cpumsg)) {
@@ -525,7 +548,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	if (separate_uptime_status) {
 		init_status(upstatuscolor);
 		sprintf(msgline, "status %s.uptime %s %s Uptime %s\n",
-			commafy(hostname), colorname(upstatuscolor), 
+			commafy(hostname), colorname(upstatuscolor),
 			(timestr ? timestr : "<no timestamp data>"),
 			((upstatuscolor == COL_GREEN) ? "OK" : "Not OK"));
 		addtostatus(msgline);
@@ -540,30 +563,52 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 }
 
 
-void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
-		      void *hinfo, char *fromline, char *timestr, 
-		      char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
+/* The disk and inode statuses are one report: a filesystem table from the
+ * client, one row per mount, and two numbers per row -- percent used and
+ * units free -- that a DISK or INODE rule judges. The two differed only in
+ * the names below, and each carried its own copy of the comparison; the
+ * comparison is now metric_judge() in lib/metric.c, and one function
+ * builds both statuses. */
+typedef struct fsreport_t {
+	char *test;		/* the status column, and the metric samples' test: "disk", "inode" */
+	char *label;		/* in debug lines: "Disk", "Inode" */
+	enum msgtype_t msgtype;
+	int (*clearcounts)(void *hinfo, char *classname);
+	void (*addcount)(char *fsname);
+	char *(*checkcount)(int *count, int *lowlim, int *uplim, int *color, char **group);
+	int (*thresholds)(void *hinfo, char *classname, char *fsname,
+			  long *warnlevel, long *paniclevel, int *abswarn, int *abspanic,
+			  int *ignored, char **group);
+	int idmarker;		/* every line names its mount in an "<!-- ID=... -->" comment */
+	int emptyok;		/* an empty table is a green status: Solaris with only ZFS sends no inode table */
+} fsreport_t;
+
+static void unix_fs_report(fsreport_t *rep,
+			   char *hostname, char *clientclass, enum ostype_t os,
+			   void *hinfo, char *fromline, char *timestr,
+			   char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
 {
-	int diskcolor = COL_GREEN;
+	int fscolor = COL_GREEN;
 
 	int freecol = -1;
 	int capacol = -1;
 	int mntcol  = -1;
 	char *p, *bol, *nl;
 	char msgline[4096];
+	char idmark[1024];
 	strbuffer_t *monmsg, *dfstr_filtered;
-	char *dname;
-	int dmin, dmax, dcount, dcolor;
+	char *fname;
+	int fmin, fmax, fcount, fcolor;
 	char *group;
 
-	if (!want_msgtype(hinfo, MSG_DISK)) return;
+	if (!want_msgtype(hinfo, rep->msgtype)) return;
 	if (!dfstr) return;
 
-	dbgprintf("Disk check host %s\n", hostname);
+	dbgprintf("%s check host %s\n", rep->label, hostname);
 
 	monmsg = newstrbuffer(0);
 	dfstr_filtered = newstrbuffer(0);
-	clear_disk_counts(hinfo, clientclass);
+	rep->clearcounts(hinfo, clientclass);
 	clearalertgroups();
 
 	bol = dfstr; /* Must do this always, to at least grab the column-numbers we need */
@@ -581,7 +626,7 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 			strcpy(p, bol);
 			mntcol = selectcolumn(p, mnthdr);
 			xfree(p);
-			dbgprintf("Disk check: header '%s', columns %d and %d\n", bol, freecol, capacol, mntcol);
+			dbgprintf("%s check: header '%s', columns %d and %d\n", rep->label, bol, freecol, capacol, mntcol);
 		}
 		else {
 			char *fsname = NULL, *levelstr = NULL;
@@ -589,15 +634,17 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 			long levelpct = -1, levelabs = -1, warnlevel, paniclevel;
 
 			p = strdup(bol);
-			fsname = getcolumn(p, mntcol); 
+			fsname = getcolumn(p, mntcol);
 			if (fsname) {
-				char *msgp = msgline;
+				metricsample_t sample[2];
+				metricrule_t rule[2], *hit;
+				int color;
 
-				add_disk_count(fsname);
-				get_disk_thresholds(hinfo, clientclass, fsname, 
-						    &warnlevel, &paniclevel, 
-						    &abswarn, &abspanic, 
-						    &ignored, &group);
+				rep->addcount(fsname);
+				rep->thresholds(hinfo, clientclass, fsname,
+						&warnlevel, &paniclevel,
+						&abswarn, &abspanic,
+						&ignored, &group);
 
 				strcpy(p, bol);
 				levelstr = getcolumn(p, freecol);
@@ -608,54 +655,57 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 				strcpy(p, bol);
 				levelstr = getcolumn(p, capacol); if (levelstr) levelpct = atol(levelstr);
 
-				dbgprintf("Disk check: FS='%s' level %ld%%/%ldU (thresholds: %lu/%lu, abs: %d/%d)\n",
-					fsname, levelpct, levelabs, 
+				dbgprintf("%s check: FS='%s' level %ld%%/%ldU (thresholds: %lu/%lu, abs: %d/%d)\n",
+					rep->label, fsname, levelpct, levelabs,
 					warnlevel, paniclevel, abswarn, abspanic);
+
+				if (rep->idmarker) sprintf(idmark, "<!-- ID=%s --> ", fsname); else *idmark = '\0';
+
+				/* The mount's two samples. The client's unavailable-mount
+				 * marker is "-" sizes because nothing measured them, and
+				 * 100% so the column still goes red on a server without
+				 * this check; that pair is the unmeasured state. An
+				 * all-dash row (AIX /proc) has no 100%: it is judged as
+				 * the zero it reads as, which is what it always was, and
+				 * not this change's to settle. */
+				metric_set(&sample[0], rep->test, fsname, "pct", levelpct, METRIC_OK);
+				metric_set(&sample[1], rep->test, fsname, "free", levelabs,
+					   ((unmeasured && (levelpct == 100)) ? METRIC_UNMEASURED : METRIC_OK));
+
+				/* The DISK/INODE rule as two conditions, each on the
+				 * metric its unit names: a level in units free trips at
+				 * or below it, a percent at or above. Red first, so the
+				 * panic level is the one reported when both trip. */
+				metric_rule(&rule[0], (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), paniclevel, COL_RED);
+				metric_rule(&rule[1], (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), warnlevel,  COL_YELLOW);
 
 				if (ignored) {
 					/* Forget about this one */
 				}
-				else if (unmeasured && (levelpct == 100)) {
-					/* The client's unavailable-mount marker: "-" sizes because
-					 * nothing measured them, 100% so the column still goes red
-					 * on a server without this check. An all-dash row (AIX
-					 * /proc) has no 100% and stays out. */
-					if (diskcolor < COL_RED) diskcolor = COL_RED;
+				else if (sample[1].state == METRIC_UNMEASURED) {
+					if (fscolor < COL_RED) fscolor = COL_RED;
 
-					sprintf(msgline, "&red %s is unreachable (not measured)\n", fsname);
+					sprintf(msgline, "&red %s%s is unreachable (not measured)\n", idmark, fsname);
 					addtobuffer(monmsg, msgline);
 					addalertgroup(group);
 				}
-				else if ( (abspanic && (levelabs <= paniclevel)) || 
-				     (!abspanic && (levelpct >= paniclevel)) ) {
-					if (diskcolor < COL_RED) diskcolor = COL_RED;
+				else if ((color = metric_judge(sample, 2, rule, 2, &hit)) != COL_GREEN) {
+					char *msgp = msgline;
+					int below = (hit->op == METRIC_LE);
+					long hitvalue = (long)(below ? sample[1].value : sample[0].value);
+					long hitlevel = (long)hit->level;
 
-					msgp += sprintf(msgp, "&red %s ", fsname);
+					if (fscolor < color) fscolor = color;
 
-					if (abspanic) msgp += sprintf(msgp, "(%lu units free)", levelabs);
-					else msgp += sprintf(msgp, "(%lu%% used)", levelpct);
+					msgp += sprintf(msgp, "&%s %s%s ", colorname(color), idmark, fsname);
 
-					msgp += sprintf(msgp, " has reached the PANIC level ");
+					if (below) msgp += sprintf(msgp, "(%lu units free)", hitvalue);
+					else msgp += sprintf(msgp, "(%lu%% used)", hitvalue);
 
-					if (abspanic) msgp += sprintf(msgp, "(%lu units)\n", paniclevel);
-					else msgp += sprintf(msgp, "(%lu%%)\n", paniclevel);
+					msgp += sprintf(msgp, " has reached the %s level ", ((color == COL_RED) ? "PANIC" : "WARNING"));
 
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
-				}
-				else if ( (abswarn && (levelabs <= warnlevel)) || 
-				          (!abswarn && (levelpct >= warnlevel)) ) {
-					if (diskcolor < COL_YELLOW) diskcolor = COL_YELLOW;
-
-					msgp += sprintf(msgp, "&yellow %s ", fsname);
-
-					if (abswarn) msgp += sprintf(msgp, "(%lu units free)", levelabs);
-					else msgp += sprintf(msgp, "(%lu%% used)", levelpct);
-
-					msgp += sprintf(msgp, " has reached the WARNING level ");
-
-					if (abswarn) msgp += sprintf(msgp, "(%lu units)\n", warnlevel);
-					else msgp += sprintf(msgp, "(%lu%%)\n", warnlevel);
+					if (below) msgp += sprintf(msgp, "(%lu units)\n", hitlevel);
+					else msgp += sprintf(msgp, "(%lu%%)\n", hitlevel);
 
 					addtobuffer(monmsg, msgline);
 					addalertgroup(group);
@@ -673,252 +723,62 @@ void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
 	}
 
 	if ((capacol == -1) && (mntcol == -1)) {
-		/* If this happens, we havent found our headers so no filesystems have been processed */
-		diskcolor = COL_YELLOW;
-		sprintf(msgline, "&red Expected strings (%s and %s) not found in df output\n", 
-			capahdr, mnthdr);
-		addtobuffer(monmsg, msgline);
-
-		errprintf("Host %s (%s) sent incomprehensible disk report - missing columnheaders '%s' and '%s'\n",
-			  hostname, osname(os), capahdr, mnthdr);
-	}
-
-	/* Check for filesystems that must (not) exist */
-	while ((dname = check_disk_count(&dcount, &dmin, &dmax, &dcolor, &group)) != NULL) {
-		char limtxt[1024];
-
-		*limtxt = '\0';
-
-		if (dmax == -1) {
-			if (dmin > 0) sprintf(limtxt, "%d or more", dmin);
-			else if (dmin == 0) sprintf(limtxt, "none");
-		}
-		else {
-			if (dmin > 0) sprintf(limtxt, "between %d and %d", dmin, dmax);
-			else if (dmin == 0) sprintf(limtxt, "at most %d", dmax);
-		}
-
-		if (dcolor != COL_GREEN) {
-			if (dcolor > diskcolor) diskcolor = dcolor;
-			sprintf(msgline, "&%s Filesystem %s (found %d, req. %s)\n", 
-				colorname(dcolor), dname, dcount, limtxt);
-			addtobuffer(monmsg, msgline);
-			addalertgroup(group);
-		}
-	}
-
-	/* Now we know the result, so generate a status message */
-	init_status(diskcolor);
-	group = getalertgroups();
-	if (group) sprintf(msgline, "status/group:%s ", group); else strcpy(msgline, "status ");
-	addtostatus(msgline);
-
-	sprintf(msgline, "%s.disk %s %s - Filesystems %s\n",
-		commafy(hostname), colorname(diskcolor), 
-		(timestr ? timestr : "<No timestamp data>"), 
-		(((diskcolor == COL_RED) || (diskcolor == COL_YELLOW)) ? "NOT ok" : "ok"));
-	addtostatus(msgline);
-
-	/* And add the info about what's wrong */
-	if (STRBUFLEN(monmsg)) {
-		addtostrstatus(monmsg);
-		addtostatus("\n");
-	}
-
-	/* And the full df output */
-	addtostrstatus(dfstr_filtered);
-
-	if (fromline && !localmode) addtostatus(fromline);
-	finish_status();
-
-	freestrbuffer(monmsg);
-	freestrbuffer(dfstr_filtered);
-}
-
-void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
-		      void *hinfo, char *fromline, char *timestr, 
-		      char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
-{
-	int inodecolor = COL_GREEN;
-
-	int freecol = -1;
-	int capacol = -1;
-	int mntcol  = -1;
-	char *p, *bol, *nl;
-	char msgline[4096];
-	strbuffer_t *monmsg, *dfstr_filtered;
-	char *iname;
-	int imin, imax, icount, icolor;
-	char *group;
-
-	if (!want_msgtype(hinfo, MSG_INODE)) return;
-	if (!dfstr) return;
-
-	dbgprintf("Inode check host %s\n", hostname);
-
-	monmsg = newstrbuffer(0);
-	dfstr_filtered = newstrbuffer(0);
-	clear_inode_counts(hinfo, clientclass);
-	clearalertgroups();
-
-	bol = dfstr; /* Must do this always, to at least grab the column-numbers we need */
-	while (bol) {
-		int ignored = 0;
-
-		nl = strchr(bol, '\n'); if (nl) *nl = '\0';
-
-		if ((capacol == -1) && (mntcol == -1) && (freecol == -1)) {
-			/* First line: Check the header and find the columns we want */
-			p = strdup(bol);
-			freecol = selectcolumn(p, freehdr);
-			strcpy(p, bol);
-			capacol = selectcolumn(p, capahdr);
-			strcpy(p, bol);
-			mntcol = selectcolumn(p, mnthdr);
-			xfree(p);
-			dbgprintf("Inode check: header '%s', columns %d and %d\n", bol, freecol, capacol, mntcol);
-		}
-		else {
-			char *fsname = NULL, *levelstr = NULL;
-			int abswarn, abspanic, unmeasured = 0;
-			long levelpct = -1, levelabs = -1, warnlevel, paniclevel;
-
-			p = strdup(bol);
-			fsname = getcolumn(p, mntcol); 
-			if (fsname) {
-				char *msgp = msgline;
-
-				add_inode_count(fsname);
-				get_inode_thresholds(hinfo, clientclass, fsname, 
-						    &warnlevel, &paniclevel, 
-						    &abswarn, &abspanic, 
-						    &ignored, &group);
-
-				strcpy(p, bol);
-				levelstr = getcolumn(p, freecol);
-				if (levelstr) {
-					unmeasured = (strcmp(levelstr, "-") == 0);
-					levelabs = atol(levelstr);
-				}
-				strcpy(p, bol);
-				levelstr = getcolumn(p, capacol); if (levelstr) levelpct = atol(levelstr);
-
-				dbgprintf("Inode check: FS='%s' level %ld%%/%ldU (thresholds: %lu/%lu, abs: %d/%d)\n",
-					fsname, levelpct, levelabs, 
-					warnlevel, paniclevel, abswarn, abspanic);
-
-				if (ignored) {
-					/* Forget about this one */
-				}
-				else if (unmeasured && (levelpct == 100)) {
-					/* The unavailable-mount marker, passed through by the
-					 * clients' inode reformatters -- same shape as in the
-					 * disk report. */
-					if (inodecolor < COL_RED) inodecolor = COL_RED;
-
-					sprintf(msgline, "&red <!-- ID=%s --> %s is unreachable (not measured)\n", fsname, fsname);
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
-				}
-				else if ( (abspanic && (levelabs <= paniclevel)) || 
-				     (!abspanic && (levelpct >= paniclevel)) ) {
-					if (inodecolor < COL_RED) inodecolor = COL_RED;
-
-					msgp += sprintf(msgp, "&red <!-- ID=%s --> %s ", fsname, fsname);
-
-					if (abspanic) msgp += sprintf(msgp, "(%lu units free)", levelabs);
-					else msgp += sprintf(msgp, "(%lu%% used)", levelpct);
-
-					msgp += sprintf(msgp, " has reached the PANIC level ");
-
-					if (abspanic) msgp += sprintf(msgp, "(%lu units)\n", paniclevel);
-					else msgp += sprintf(msgp, "(%lu%%)\n", paniclevel);
-
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
-				}
-				else if ( (abswarn && (levelabs <= warnlevel)) || 
-				          (!abswarn && (levelpct >= warnlevel)) ) {
-					if (inodecolor < COL_YELLOW) inodecolor = COL_YELLOW;
-
-					msgp += sprintf(msgp, "&yellow <!-- ID=%s --> %s ", fsname, fsname);
-
-					if (abswarn) msgp += sprintf(msgp, "(%lu units free)", levelabs);
-					else msgp += sprintf(msgp, "(%lu%% used)", levelpct);
-
-					msgp += sprintf(msgp, " has reached the WARNING level ");
-
-					if (abswarn) msgp += sprintf(msgp, "(%lu units)\n", warnlevel);
-					else msgp += sprintf(msgp, "(%lu%%)\n", warnlevel);
-
-					addtobuffer(monmsg, msgline);
-					addalertgroup(group);
-				}
-			}
-
-			xfree(p);
-		}
-
-		if (!ignored) {
-			addtobuffer(dfstr_filtered, bol);
-			addtobuffer(dfstr_filtered, "\n");
-		}
-		if (nl) { *nl = '\n'; bol = nl+1; } else bol = NULL;
-	}
-
-	if ((capacol == -1) && (mntcol == -1)) {
-		if (strlen(dfstr) == 0) {
-			/* Empty inode report, happens on Solaris when all filesystems are ZFS */
-			inodecolor = COL_GREEN;
-			sprintf(msgline, "&green No filesystems reporting inode data\n");
+		if (rep->emptyok && (strlen(dfstr) == 0)) {
+			fscolor = COL_GREEN;
+			sprintf(msgline, "&green No filesystems reporting %s data\n", rep->test);
 			addtobuffer(monmsg, msgline);
 		}
 		else {
 			/* If this happens, we havent found our headers so no filesystems have been processed */
-			inodecolor = COL_YELLOW;
-			sprintf(msgline, "&red Expected strings (%s and %s) not found in df output\n", 
+			fscolor = COL_YELLOW;
+			sprintf(msgline, "&red Expected strings (%s and %s) not found in df output\n",
 				capahdr, mnthdr);
 			addtobuffer(monmsg, msgline);
-	
-			errprintf("Host %s (%s) sent incomprehensible inode report - missing columnheaders '%s' and '%s'\n%s\n",
-				  hostname, osname(os), capahdr, mnthdr, dfstr);
+
+			if (rep->emptyok)
+				errprintf("Host %s (%s) sent incomprehensible %s report - missing columnheaders '%s' and '%s'\n%s\n",
+					  hostname, osname(os), rep->test, capahdr, mnthdr, dfstr);
+			else
+				errprintf("Host %s (%s) sent incomprehensible %s report - missing columnheaders '%s' and '%s'\n",
+					  hostname, osname(os), rep->test, capahdr, mnthdr);
 		}
 	}
 
 	/* Check for filesystems that must (not) exist */
-	while ((iname = check_inode_count(&icount, &imin, &imax, &icolor, &group)) != NULL) {
+	while ((fname = rep->checkcount(&fcount, &fmin, &fmax, &fcolor, &group)) != NULL) {
 		char limtxt[1024];
 
 		*limtxt = '\0';
 
-		if (imax == -1) {
-			if (imin > 0) sprintf(limtxt, "%d or more", imin);
-			else if (imin == 0) sprintf(limtxt, "none");
+		if (fmax == -1) {
+			if (fmin > 0) sprintf(limtxt, "%d or more", fmin);
+			else if (fmin == 0) sprintf(limtxt, "none");
 		}
 		else {
-			if (imin > 0) sprintf(limtxt, "between %d and %d", imin, imax);
-			else if (imin == 0) sprintf(limtxt, "at most %d", imax);
+			if (fmin > 0) sprintf(limtxt, "between %d and %d", fmin, fmax);
+			else if (fmin == 0) sprintf(limtxt, "at most %d", fmax);
 		}
 
-		if (icolor != COL_GREEN) {
-			if (icolor > inodecolor) inodecolor = icolor;
-			sprintf(msgline, "&%s <!-- ID=%s -->Filesystem %s (found %d, req. %s)\n",
-				colorname(icolor), iname, iname, icount, limtxt);
+		if (fcolor != COL_GREEN) {
+			if (fcolor > fscolor) fscolor = fcolor;
+			if (rep->idmarker) sprintf(idmark, "<!-- ID=%s -->", fname); else *idmark = '\0';
+			sprintf(msgline, "&%s %sFilesystem %s (found %d, req. %s)\n",
+				colorname(fcolor), idmark, fname, fcount, limtxt);
 			addtobuffer(monmsg, msgline);
 			addalertgroup(group);
 		}
 	}
 
 	/* Now we know the result, so generate a status message */
-	init_status(inodecolor);
+	init_status(fscolor);
 	group = getalertgroups();
 	if (group) sprintf(msgline, "status/group:%s ", group); else strcpy(msgline, "status ");
 	addtostatus(msgline);
 
-	sprintf(msgline, "%s.inode %s %s - Filesystems %s\n",
-		commafy(hostname), colorname(inodecolor), 
-		(timestr ? timestr : "<No timestamp data>"), 
-		(((inodecolor == COL_RED) || (inodecolor == COL_YELLOW)) ? "NOT ok" : "ok"));
+	sprintf(msgline, "%s.%s %s %s - Filesystems %s\n",
+		commafy(hostname), rep->test, colorname(fscolor),
+		(timestr ? timestr : "<No timestamp data>"),
+		(((fscolor == COL_RED) || (fscolor == COL_YELLOW)) ? "NOT ok" : "ok"));
 	addtostatus(msgline);
 
 	/* And add the info about what's wrong */
@@ -937,8 +797,48 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	freestrbuffer(dfstr_filtered);
 }
 
+void unix_disk_report(char *hostname, char *clientclass, enum ostype_t os,
+		      void *hinfo, char *fromline, char *timestr,
+		      char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
+{
+	static fsreport_t disk = {
+		"disk", "Disk", MSG_DISK,
+		clear_disk_counts, add_disk_count, check_disk_count, get_disk_thresholds,
+		0, 0
+	};
+
+	unix_fs_report(&disk, hostname, clientclass, os, hinfo, fromline, timestr, freehdr, capahdr, mnthdr, dfstr);
+}
+
+void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
+		      void *hinfo, char *fromline, char *timestr,
+		      char *freehdr, char *capahdr, char *mnthdr, char *dfstr)
+{
+	static fsreport_t inode = {
+		"inode", "Inode", MSG_INODE,
+		clear_inode_counts, add_inode_count, check_inode_count, get_inode_thresholds,
+		1, 1
+	};
+
+	unix_fs_report(&inode, hostname, clientclass, os, hinfo, fromline, timestr, freehdr, capahdr, mnthdr, dfstr);
+}
+
+/* One row of the memory status -- Real/Physical, Actual/Virtual or
+ * Swap/Page -- judged as a sample of the memory test under its MEMPHYS,
+ * MEMACT or MEMSWAP pair: strictly above the warn level is yellow, strictly
+ * above the panic level red. */
+static int memory_row_color(metricsample_t *sample, int yellow, int red)
+{
+	metricrule_t rule[2];
+
+	metric_rule(&rule[0], sample->name, METRIC_GT, red,    COL_RED);
+	metric_rule(&rule[1], sample->name, METRIC_GT, yellow, COL_YELLOW);
+
+	return metric_judge(sample, 1, rule, 2, NULL);
+}
+
 void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
-		        void *hinfo, char *fromline, char *timestr, 
+		        void *hinfo, char *fromline, char *timestr,
 			long memphystotal, long memphysused,
 			long memacttotal, long memactused,
 			long memswaptotal, long memswapused)
@@ -947,8 +847,9 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	int physyellow, physred, swapyellow, swapred, actyellow, actred;
 	int invaliddata = 0;
 
-	int memorycolor = COL_GREEN, physcolor = COL_GREEN, swapcolor = COL_GREEN, actcolor = COL_GREEN;
+	int memorycolor = COL_GREEN, physcolor, swapcolor, actcolor;
 	char *memorysummary = "OK";
+	metricsample_t phys, act, swap;
 
 	char msgline[4096];
 
@@ -958,23 +859,21 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	get_memory_thresholds(hinfo, clientclass, &physyellow, &physred, &swapyellow, &swapred, &actyellow, &actred);
 
+	/* Three samples, one per row. A physical or swap percentage over 100
+	 * is not a measurement: physical is left unjudged, swap is reported as
+	 * invalid data. Actual can be above 100 and is judged as it is. */
 	memphyspct = (memphystotal > 0) ? ((100 * memphysused) / memphystotal) : 0;
-	if (memphyspct <= 100) {
-		if (memphyspct > physyellow) physcolor = COL_YELLOW;
-		if (memphyspct > physred)    physcolor = COL_RED;
-	}
+	metric_set(&phys, "memory", NULL, "phys", memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID));
+	physcolor = memory_row_color(&phys, physyellow, physred);
 
 	if (memswapused != -1) memswappct = (memswaptotal > 0) ? ((100 * memswapused) / memswaptotal) : 0;
-	if (memswappct <= 100) {
-		if (memswappct > swapyellow) swapcolor = COL_YELLOW;
-		if (memswappct > swapred)    swapcolor = COL_RED;
-	}
-	else invaliddata = 1;
+	metric_set(&swap, "memory", NULL, "swap", memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID));
+	swapcolor = memory_row_color(&swap, swapyellow, swapred);
+	if (swap.state == METRIC_INVALID) invaliddata = 1;
 
 	if (memactused != -1) memactpct = (memacttotal > 0) ? ((100 * memactused) / memacttotal) : 0;
-	/* Actual percentage can be above 100 */
-		if (memactpct  > actyellow)  actcolor  = COL_YELLOW;
-		if (memactpct  > actred)     actcolor  = COL_RED;
+	metric_set(&act, "memory", NULL, "act", memactpct, METRIC_OK);
+	actcolor = memory_row_color(&act, actyellow, actred);
 
 	if ((physcolor == COL_RED) || (swapcolor == COL_RED) || (actcolor == COL_RED)) {
 		memorycolor = COL_RED;
@@ -996,7 +895,7 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	init_status(memorycolor);
 	sprintf(msgline, "status %s.memory %s %s - Memory %s\n",
-		commafy(hostname), colorname(memorycolor), 
+		commafy(hostname), colorname(memorycolor),
 		(timestr ? timestr : "<No timestamp data>"),
 		memorysummary);
 	addtostatus(msgline);
@@ -1004,23 +903,23 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	sprintf(msgline, "   %-16s%12s%12s%12s\n", "Memory", "Used", "Total", "Percentage");
 	addtostatus(msgline);
 
-	sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+	sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 		colorname(physcolor), "Real/Physical", memphysused, memphystotal, memphyspct);
 	addtostatus(msgline);
 
 	if (memactused != -1) {
-		sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+		sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 			colorname(actcolor), "Actual/Virtual", memactused, memacttotal, memactpct);
-			
+
 		addtostatus(msgline);
 	}
 
 	if (memswapused != -1) {
-		if (memswappct <= 100)
-			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+		if (swap.state == METRIC_OK)
+			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 				colorname(swapcolor), "Swap/Page", memswapused, memswaptotal, memswappct);
 		else
-			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%% - invalid data\n", 
+			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%% - invalid data\n",
 				colorname(COL_YELLOW), "Swap/Page", memswapused, memswaptotal, 0L);
 
 		addtostatus(msgline);

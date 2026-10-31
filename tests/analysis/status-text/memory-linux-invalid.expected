@@ -1,0 +1,11 @@
+status mem3,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status mem3,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+status mem3,test.memory yellow Fri Oct 31 10:00:00 CET 2026 - Memory invalid data when parsing
+Memory                  Used       Total  Percentage
+&green Real/Physical          4882M       4000M        122%
+&green Actual/Virtual         3512M       4000M         87%
+&yellow Swap/Page              2000M       1000M          0% - invalid data
+

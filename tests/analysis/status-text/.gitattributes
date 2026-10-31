@@ -1,0 +1,3 @@
+# Recorded status text, compared byte for byte by client-status-text.sh: a
+# status may end in blank lines, and they are part of what is pinned.
+*.expected -whitespace

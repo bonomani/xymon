@@ -85,6 +85,7 @@ typedef struct strbuffer_t {
 #include "../lib/matching.h"
 #include "../lib/md5.h"
 #include "../lib/memory.h"
+#include "../lib/metric.h"
 #include "../lib/misc.h"
 #include "../lib/msort.h"
 #include "../lib/netservices.h"

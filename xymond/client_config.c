@@ -282,6 +282,8 @@ typedef struct c_rule_t {
 	} rule;
 } c_rule_t;
 
+static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color);
+
 static c_rule_t *rulehead = NULL;
 static c_rule_t *ruletail = NULL;
 static exprlist_t *exprhead = NULL;
@@ -2560,7 +2562,7 @@ int check_mibvals(void *hinfo, char *classname,
 			break;
 
 		  default:
-			if (actval < minval) {
+			if (sample_trips("mib", dnam, (keyname ? keyname : dnam), (double)actval, METRIC_LT, (double)minval, rulecolor)) {
 				if (keyname)
 					sprintf(msgline, "&%s %s:%s %ld (minimum: %ld)\n",
 						colorname(rulecolor), keyname, dnam, actval, minval);
@@ -2572,7 +2574,7 @@ int check_mibvals(void *hinfo, char *classname,
 				if (group) addalertgroup(group);
 			}
 
-			if (actval > maxval) {
+			if (sample_trips("mib", dnam, (keyname ? keyname : dnam), (double)actval, METRIC_GT, (double)maxval, rulecolor)) {
 				if (keyname)
 					sprintf(msgline, "&%s %s:%s %ld (maximum: %ld)\n",
 						colorname(rulecolor), keyname, dnam, actval, maxval);
@@ -2693,6 +2695,20 @@ int scan_log(void *hinfo, char *classname,
 	}
 
 	return result;
+}
+
+/* One measured value against one limit of a rule -- a file's size or age
+ * under FILE, a directory's size under DIR, a MIB value under MIBVAL -- as a
+ * sample of the test judged by one condition. */
+static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
+{
+	metricsample_t sample;
+	metricrule_t rule;
+
+	metric_set(&sample, test, instance, name, value, METRIC_OK);
+	metric_rule(&rule, name, op, level, color);
+
+	return metric_trips(&sample, &rule);
 }
 
 int check_file(void *hinfo, char *classname, 
@@ -2853,7 +2869,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MINSIZE) {
-			if (fsize < rwalk->rule.fcheck.minsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_LT, (double)rwalk->rule.fcheck.minsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be >%lld\n", 
@@ -2866,7 +2882,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MAXSIZE) {
-			if (fsize > rwalk->rule.fcheck.maxsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_GT, (double)rwalk->rule.fcheck.maxsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be <%lld\n", 
@@ -2879,7 +2895,8 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_EQLSIZE) {
-			if (fsize != rwalk->rule.fcheck.eqlsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_LT, (double)rwalk->rule.fcheck.eqlsize, rwalk->rule.fcheck.color) ||
+			    sample_trips("files", filename, "size", (double)fsize, METRIC_GT, (double)rwalk->rule.fcheck.eqlsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be %lld\n", 
@@ -2892,7 +2909,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MINLINKS) {
-			if (linkcount < rwalk->rule.fcheck.minlinks) {
+			if (sample_trips("files", filename, "linkcount", (double)linkcount, METRIC_LT, (double)rwalk->rule.fcheck.minlinks, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has linkcount %u  - should be >%u\n", 
 					linkcount, rwalk->rule.fcheck.minlinks);
@@ -2900,7 +2917,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MAXLINKS) {
-			if (linkcount > rwalk->rule.fcheck.maxlinks) {
+			if (sample_trips("files", filename, "linkcount", (double)linkcount, METRIC_GT, (double)rwalk->rule.fcheck.maxlinks, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has linkcount %u  - should be <%u\n", 
 					linkcount, rwalk->rule.fcheck.maxlinks);
@@ -2942,7 +2959,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMIN) {
-			if (ctimedif < rwalk->rule.fcheck.minctimedif) {
+			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_LT, (double)rwalk->rule.fcheck.minctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be >%u\n", 
 					ctimedif, rwalk->rule.fcheck.minctimedif);
@@ -2950,7 +2967,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMAX) {
-			if (ctimedif > rwalk->rule.fcheck.maxctimedif) {
+			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be <%u\n", 
 					ctimedif, rwalk->rule.fcheck.maxctimedif);
@@ -2958,7 +2975,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMIN) {
-			if (mtimedif < rwalk->rule.fcheck.minmtimedif) {
+			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_LT, (double)rwalk->rule.fcheck.minmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be >%u\n", 
 					mtimedif, rwalk->rule.fcheck.minmtimedif);
@@ -2966,7 +2983,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMAX) {
-			if (mtimedif > rwalk->rule.fcheck.maxmtimedif) {
+			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be <%u\n", 
 					mtimedif, rwalk->rule.fcheck.maxmtimedif);
@@ -2974,7 +2991,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMIN) {
-			if (atimedif < rwalk->rule.fcheck.minatimedif) {
+			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_LT, (double)rwalk->rule.fcheck.minatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be >%u\n", 
 					atimedif, rwalk->rule.fcheck.minatimedif);
@@ -2982,7 +2999,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMAX) {
-			if (atimedif > rwalk->rule.fcheck.maxatimedif) {
+			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be <%u\n", 
 					atimedif, rwalk->rule.fcheck.maxatimedif);
@@ -3120,7 +3137,7 @@ int check_dir(void *hinfo, char *classname,
 		if (!rwalk->rule.fcheck.filename || !namematch(filename, rwalk->rule.fcheck.filename->pattern, rwalk->rule.fcheck.filename->exp)) continue;
 
 		if (rwalk->flags & FCHK_MAXSIZE) {
-			if (dsize > rwalk->rule.dcheck.maxsize) {
+			if (sample_trips("files", filename, "size", (double)dsize, METRIC_GT, (double)rwalk->rule.dcheck.maxsize, rwalk->rule.dcheck.color)) {
 				rulecolor = rwalk->rule.dcheck.color;
 				sprintf(msgline, "Directory has size %lu  - should be <%lu\n", 
 					dsize, rwalk->rule.dcheck.maxsize);
@@ -3128,7 +3145,7 @@ int check_dir(void *hinfo, char *classname,
 			}
 		}
 		else if (rwalk->flags & FCHK_MINSIZE) {
-			if (dsize < rwalk->rule.dcheck.minsize) {
+			if (sample_trips("files", filename, "size", (double)dsize, METRIC_LT, (double)rwalk->rule.dcheck.minsize, rwalk->rule.dcheck.color)) {
 				rulecolor = rwalk->rule.dcheck.color;
 				sprintf(msgline, "Directory has size %lu  - should be >%lu\n", 
 					dsize, rwalk->rule.dcheck.minsize);
@@ -3159,6 +3176,8 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 	double val;
 	void *hinfo;
 	strbuffer_t *seen;
+	metricsample_t sample;
+	metricrule_t lower, upper;
 
 	if (!resbuf) resbuf = newstrbuffer(0);
 	clearstrbuffer(resbuf);
@@ -3212,12 +3231,14 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 		if (strstr(STRBUF(seen), msgline)) goto nextrule;
 		addtobuffer(seen, msgline);
 
-		/* Do the checks */
+		/* The DS value as a sample of the rule's column, named by its dataset,
+		 * judged by the rule's condition: one operator and level, or for an
+		 * interval a lower bound and an upper bound that must both hold. */
+		metric_set(&sample, rule->rule.rrdds.column, rrdkey, rule->rule.rrdds.rrdds, val, METRIC_OK);
 		if (rule->flags & RRDDSCHK_INTVL) {
-			rulematch = ( ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.rrdds.limitval))  ||
-				        ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.rrdds.limitval)) ) &&
-				      ( ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.rrdds.limitval2))  ||
-				        ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.rrdds.limitval2)) ) );
+			metric_rule(&lower, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : METRIC_GE), rule->rule.rrdds.limitval,  rule->rule.rrdds.color);
+			metric_rule(&upper, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE), rule->rule.rrdds.limitval2, rule->rule.rrdds.color);
+			rulematch = (metric_trips(&sample, &lower) && metric_trips(&sample, &upper));
 
 			if (!rule->statustext) {
 				char fmt[100];
@@ -3233,10 +3254,10 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 			}
 		}
 		else {
-			rulematch = ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.rrdds.limitval))  ||
-				      ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.rrdds.limitval)) ||
-				      ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.rrdds.limitval))  ||
-				      ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.rrdds.limitval))   );
+			metric_rule(&lower, rule->rule.rrdds.rrdds,
+				    ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : (rule->flags & RRDDSCHK_GE) ? METRIC_GE : (rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE),
+				    rule->rule.rrdds.limitval, rule->rule.rrdds.color);
+			rulematch = metric_trips(&sample, &lower);
 
 			if (!rule->statustext) {
 				char *fmt = "";
@@ -3544,6 +3565,23 @@ static void add_count3(char *pname0, char *pname1, char *pname2 , mon_proc_t *he
 	}
 }
 
+/* The colour of a count against the rule's limits, as a sample of the
+ * count metric judged by two conditions: below the lower limit when one
+ * is set (0 is none), above the upper limit when one is set (-1 is none).
+ * One copy for PROC, PORT, SVC, DISK and INODE, which each had their own. */
+static int count_color(char *test, char *instance, int count, int lowlim, int uplim, int color)
+{
+	metricsample_t sample;
+	metricrule_t rule[2];
+	int n = 0;
+
+	metric_set(&sample, test, instance, "count", (double)count, METRIC_OK);
+	if (lowlim != 0)  metric_rule(&rule[n++], "count", METRIC_LT, (double)lowlim, color);
+	if (uplim  != -1) metric_rule(&rule[n++], "count", METRIC_GT, (double)uplim,  color);
+
+	return metric_judge(&sample, 1, rule, n, NULL);
+}
+
 static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *uplim, int *color, mon_proc_t **walk, char **id, int *trackit,
 		char **group)
 {
@@ -3560,8 +3598,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.proc.pcount;
 		*lowlim = (*walk)->rule->rule.proc.pmin;
 		*uplim = (*walk)->rule->rule.proc.pmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.proc.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.proc.color;
+		*color = count_color("procs", result, *count, *lowlim, *uplim, (*walk)->rule->rule.proc.color);
 		*trackit = ((*walk)->rule->chkflags & CHK_TRACKIT);
 		*id = (*walk)->rule->rrdidstr;
 		if (group) *group = (*walk)->rule->groups;
@@ -3572,8 +3609,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.disk.dcount;
 		*lowlim = (*walk)->rule->rule.disk.dmin;
 		*uplim = (*walk)->rule->rule.disk.dmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.disk.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.disk.color;
+		*color = count_color("disk", result, *count, *lowlim, *uplim, (*walk)->rule->rule.disk.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
@@ -3582,9 +3618,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.inode.icount;
 		*lowlim = (*walk)->rule->rule.inode.imin;
 		*uplim = (*walk)->rule->rule.inode.imax;
-		*color = COL_GREEN;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.inode.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.inode.color;
+		*color = count_color("inode", result, *count, *lowlim, *uplim, (*walk)->rule->rule.inode.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
@@ -3629,8 +3663,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		*count = (*walk)->rule->rule.port.pcount;
 		*lowlim = (*walk)->rule->rule.port.pmin;
 		*uplim = (*walk)->rule->rule.port.pmax;
-		if ((*lowlim !=  0) && (*count < *lowlim)) *color = (*walk)->rule->rule.port.color;
-		if ((*uplim  != -1) && (*count > *uplim)) *color = (*walk)->rule->rule.port.color;
+		*color = count_color("ports", result, *count, *lowlim, *uplim, (*walk)->rule->rule.port.color);
 		*trackit = ((*walk)->rule->chkflags & CHK_TRACKIT);
 		*id = (*walk)->rule->rrdidstr;
 		if (group) *group = (*walk)->rule->groups;
@@ -3684,7 +3717,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 				xfree((*walk)->rule->rule.svc.startup);
 		}
 		*count = (*walk)->rule->rule.svc.scount;
-		if (*count == 0) *color = (*walk)->rule->rule.svc.color;
+		*color = count_color("svcs", result, *count, 1, -1, (*walk)->rule->rule.svc.color);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 

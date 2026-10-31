@@ -1,0 +1,18 @@
+status ports1,test.ports red Fri Oct 31 10:00:00 CET 2026 - Ports NOT ok
+&green sshd (found 1, req. 1 or more)
+&yellow xymond-clients (found 3, req. between 1 and 2)
+&red httpd (found 0, req. 1 or more)
+
+tcp        0      0 0.0.0.0:22              0.0.0.0:*               LISTEN
+tcp        0      0 0.0.0.0:1984            0.0.0.0:*               LISTEN
+tcp        0      0 192.168.1.10:1984       192.168.1.20:40001      ESTABLISHED
+tcp        0      0 192.168.1.10:1984       192.168.1.21:40002      ESTABLISHED
+tcp        0      0 192.168.1.10:1984       192.168.1.22:40003      ESTABLISHED
+tcp        0      0 192.168.1.10:22         192.168.1.5:51000       ESTABLISHED
+Status message received from 127.0.0.1
+status ports1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status ports1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

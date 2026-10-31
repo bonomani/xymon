@@ -1,0 +1,20 @@
+status procs1,test.procs red Fri Oct 31 10:00:00 CET 2026 - Processes NOT ok
+&red xymond (found 4, req. between 1 and 1)
+&yellow xymond_channel (found 3, req. between 1 and 2)
+&green %^/usr/sbin/sshd (found 1, req. 1 or more)
+&red cron (found 0, req. 1 or more)
+
+PID  PPID USER     STARTED S PRI %CPU     TIME %MEM   RSZ   VSZ CMD
+1     0 root     Oct30   S  80  0.0 00:00:03  0.1  9000 160000 /sbin/init
+912     1 xymon    Oct30   S  80  0.1 00:01:10  0.4 30000 400000 xymond --pidfile=/var/run/xymond.pid
+913   912 xymon    Oct30   S  80  0.0 00:00:01  0.2 12000 300000 xymond_channel --channel=status xymond_filestore
+914   912 xymon    Oct30   S  80  0.0 00:00:01  0.2 12000 300000 xymond_channel --channel=client xymond_client
+915   912 xymon    Oct30   S  80  0.0 00:00:01  0.2 12000 300000 xymond_channel --channel=data xymond_rrd
+2001     1 root     09:55   S  80  0.0 00:00:00  0.1  5000  80000 /usr/sbin/sshd -Ddata procs1,test.proccounts
+sshd:1
+status procs1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status procs1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

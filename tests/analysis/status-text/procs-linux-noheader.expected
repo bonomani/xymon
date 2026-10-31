@@ -1,0 +1,10 @@
+status procs2,test.procs yellow Fri Oct 31 10:00:00 CET 2026 - Processes NOT ok
+&yellow Expected string CMD not found in ps output header
+
+PID USER     COMMAND
+1 root     /sbin/initstatus procs2,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status procs2,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+
