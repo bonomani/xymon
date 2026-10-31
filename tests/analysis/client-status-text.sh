@@ -45,6 +45,9 @@
 #     below its limits, with TEXT= and TRACK=
 #   - svcs-bbwin-rules: SVC on a Windows service list: a service as wanted,
 #     one in the wrong state, one absent
+# Files, the attribute analyser:
+#   - files-linux-rules: FILE on size and modification age, a size above its
+#     limit with TRACK, DIR on a directory size inside its limits
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh

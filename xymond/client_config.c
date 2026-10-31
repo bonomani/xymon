@@ -282,6 +282,8 @@ typedef struct c_rule_t {
 	} rule;
 } c_rule_t;
 
+static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color);
+
 static c_rule_t *rulehead = NULL;
 static c_rule_t *ruletail = NULL;
 static exprlist_t *exprhead = NULL;
@@ -2560,7 +2562,7 @@ int check_mibvals(void *hinfo, char *classname,
 			break;
 
 		  default:
-			if (actval < minval) {
+			if (sample_trips("mib", dnam, (keyname ? keyname : dnam), (double)actval, METRIC_LT, (double)minval, rulecolor)) {
 				if (keyname)
 					sprintf(msgline, "&%s %s:%s %ld (minimum: %ld)\n",
 						colorname(rulecolor), keyname, dnam, actval, minval);
@@ -2572,7 +2574,7 @@ int check_mibvals(void *hinfo, char *classname,
 				if (group) addalertgroup(group);
 			}
 
-			if (actval > maxval) {
+			if (sample_trips("mib", dnam, (keyname ? keyname : dnam), (double)actval, METRIC_GT, (double)maxval, rulecolor)) {
 				if (keyname)
 					sprintf(msgline, "&%s %s:%s %ld (maximum: %ld)\n",
 						colorname(rulecolor), keyname, dnam, actval, maxval);
@@ -2693,6 +2695,20 @@ int scan_log(void *hinfo, char *classname,
 	}
 
 	return result;
+}
+
+/* One measured value against one limit of a rule -- a file's size or age
+ * under FILE, a directory's size under DIR, a MIB value under MIBVAL -- as a
+ * sample of the test judged by one condition. */
+static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
+{
+	metricsample_t sample;
+	metricrule_t rule;
+
+	metric_set(&sample, test, instance, name, value, METRIC_OK);
+	metric_rule(&rule, name, op, level, color);
+
+	return metric_trips(&sample, &rule);
 }
 
 int check_file(void *hinfo, char *classname, 
@@ -2853,7 +2869,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MINSIZE) {
-			if (fsize < rwalk->rule.fcheck.minsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_LT, (double)rwalk->rule.fcheck.minsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be >%lld\n", 
@@ -2866,7 +2882,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MAXSIZE) {
-			if (fsize > rwalk->rule.fcheck.maxsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_GT, (double)rwalk->rule.fcheck.maxsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be <%lld\n", 
@@ -2879,7 +2895,8 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_EQLSIZE) {
-			if (fsize != rwalk->rule.fcheck.eqlsize) {
+			if (sample_trips("files", filename, "size", (double)fsize, METRIC_LT, (double)rwalk->rule.fcheck.eqlsize, rwalk->rule.fcheck.color) ||
+			    sample_trips("files", filename, "size", (double)fsize, METRIC_GT, (double)rwalk->rule.fcheck.eqlsize, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 #ifdef _LARGEFILE_SOURCE
 				sprintf(msgline, "File has size %lld  - should be %lld\n", 
@@ -2892,7 +2909,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MINLINKS) {
-			if (linkcount < rwalk->rule.fcheck.minlinks) {
+			if (sample_trips("files", filename, "linkcount", (double)linkcount, METRIC_LT, (double)rwalk->rule.fcheck.minlinks, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has linkcount %u  - should be >%u\n", 
 					linkcount, rwalk->rule.fcheck.minlinks);
@@ -2900,7 +2917,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MAXLINKS) {
-			if (linkcount > rwalk->rule.fcheck.maxlinks) {
+			if (sample_trips("files", filename, "linkcount", (double)linkcount, METRIC_GT, (double)rwalk->rule.fcheck.maxlinks, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has linkcount %u  - should be <%u\n", 
 					linkcount, rwalk->rule.fcheck.maxlinks);
@@ -2942,7 +2959,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMIN) {
-			if (ctimedif < rwalk->rule.fcheck.minctimedif) {
+			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_LT, (double)rwalk->rule.fcheck.minctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be >%u\n", 
 					ctimedif, rwalk->rule.fcheck.minctimedif);
@@ -2950,7 +2967,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMAX) {
-			if (ctimedif > rwalk->rule.fcheck.maxctimedif) {
+			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be <%u\n", 
 					ctimedif, rwalk->rule.fcheck.maxctimedif);
@@ -2958,7 +2975,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMIN) {
-			if (mtimedif < rwalk->rule.fcheck.minmtimedif) {
+			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_LT, (double)rwalk->rule.fcheck.minmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be >%u\n", 
 					mtimedif, rwalk->rule.fcheck.minmtimedif);
@@ -2966,7 +2983,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMAX) {
-			if (mtimedif > rwalk->rule.fcheck.maxmtimedif) {
+			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be <%u\n", 
 					mtimedif, rwalk->rule.fcheck.maxmtimedif);
@@ -2974,7 +2991,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMIN) {
-			if (atimedif < rwalk->rule.fcheck.minatimedif) {
+			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_LT, (double)rwalk->rule.fcheck.minatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be >%u\n", 
 					atimedif, rwalk->rule.fcheck.minatimedif);
@@ -2982,7 +2999,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMAX) {
-			if (atimedif > rwalk->rule.fcheck.maxatimedif) {
+			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be <%u\n", 
 					atimedif, rwalk->rule.fcheck.maxatimedif);
@@ -3120,7 +3137,7 @@ int check_dir(void *hinfo, char *classname,
 		if (!rwalk->rule.fcheck.filename || !namematch(filename, rwalk->rule.fcheck.filename->pattern, rwalk->rule.fcheck.filename->exp)) continue;
 
 		if (rwalk->flags & FCHK_MAXSIZE) {
-			if (dsize > rwalk->rule.dcheck.maxsize) {
+			if (sample_trips("files", filename, "size", (double)dsize, METRIC_GT, (double)rwalk->rule.dcheck.maxsize, rwalk->rule.dcheck.color)) {
 				rulecolor = rwalk->rule.dcheck.color;
 				sprintf(msgline, "Directory has size %lu  - should be <%lu\n", 
 					dsize, rwalk->rule.dcheck.maxsize);
@@ -3128,7 +3145,7 @@ int check_dir(void *hinfo, char *classname,
 			}
 		}
 		else if (rwalk->flags & FCHK_MINSIZE) {
-			if (dsize < rwalk->rule.dcheck.minsize) {
+			if (sample_trips("files", filename, "size", (double)dsize, METRIC_LT, (double)rwalk->rule.dcheck.minsize, rwalk->rule.dcheck.color)) {
 				rulecolor = rwalk->rule.dcheck.color;
 				sprintf(msgline, "Directory has size %lu  - should be >%lu\n", 
 					dsize, rwalk->rule.dcheck.minsize);
