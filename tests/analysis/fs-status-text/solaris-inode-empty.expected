@@ -1,0 +1,7 @@
+status fs3,test.disk green Fri Oct 31 10:00:00 CET 2026 - Filesystems ok
+Filesystem            kbytes    used   avail capacity  Mounted on
+rpool/ROOT/solaris  41943040 8388608 33554432    20%    /
+status fs3,test.inode green Fri Oct 31 10:00:00 CET 2026 - Filesystems ok
+&green No filesystems reporting inode data
+
+

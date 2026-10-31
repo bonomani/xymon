@@ -1,0 +1,10 @@
+status fs6,test.disk yellow Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&red Expected strings (Capacity and Mounted) not found in df output
+
+Dateisystem  1K-Bloecke Benutzt Verfuegbar Verw% Eingehaengt
+/dev/sda1      20000000 10000000  10000000   50% /
+status fs6,test.inode yellow Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&red Expected strings (IUse% and Mounted) not found in df output
+
+Dateisystem  INodes IBenutzt IFrei IUse Eingehaengt
+/dev/sda1   1310720   131072 1179648 10% /
