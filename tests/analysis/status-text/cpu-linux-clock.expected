@@ -1,0 +1,13 @@
+status cpu4,test.cpu red Fri Oct 31 10:00:00 CET 2026 up: 3 days, 0 users, 1 procs, load=0.20
+&red System clock is N seconds off (max 60)
+
+status cpu4,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
+&clear No process checks defined
+
+USER  PID  %CPU  %MEM  COMMAND
+root    1   0.0   0.1  /sbin/initstatus cpu4,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status cpu4,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

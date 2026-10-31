@@ -303,10 +303,10 @@ char *nocolon(char *txt)
 	return result;
 }
 
-void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os, 
-		     void *hinfo, char *fromline, char *timestr, 
+void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
+		     void *hinfo, char *fromline, char *timestr,
 		     char *uptimestr, char *clockstr, char *msgcachestr,
-		     char *whostr, int usercount, 
+		     char *whostr, int usercount,
 		     char *psstr, int pscount, char *topstr)
 {
 	char *p;
@@ -318,6 +318,9 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	char myupstr[100];
 
 	int cpucolor = COL_GREEN, upstatuscolor = COL_GREEN;
+	int loadcolor;
+	metricsample_t load, uptime, clock;
+	metricrule_t rule[2];
 
 	char msgline[4096];
 	strbuffer_t *cpumsg, *upmsg = NULL;
@@ -336,7 +339,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 		uptimeresult = strdup(p+3);
 
-		/* 
+		/*
 		 * Linux: " up 178 days,  9:15,"
 		 * BSD: ""
 		 * Solaris: " up 21 days 20:58,"
@@ -425,40 +428,54 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	cpumsg = newstrbuffer(0);
 
-	if (load5 > loadred) {
+	/* The three measurements of the cpu test, each judged by its own
+	 * keyword's conditions; how their colours fold into the status is as
+	 * it was: load sets it, uptime and clock recolour it unless it is red. */
+	metric_set(&load, "cpu", NULL, "load", load5, METRIC_OK);
+	metric_rule(&rule[0], "load", METRIC_GT, loadred,    COL_RED);
+	metric_rule(&rule[1], "load", METRIC_GT, loadyellow, COL_YELLOW);
+	loadcolor = metric_judge(&load, 1, rule, 2, NULL);
+	if (loadcolor == COL_RED) {
 		cpucolor = COL_RED;
 		addtobuffer(cpumsg, "&red Load is CRITICAL\n");
 	}
-	else if (load5 > loadyellow) {
+	else if (loadcolor == COL_YELLOW) {
 		cpucolor = COL_YELLOW;
 		addtobuffer(cpumsg, "&yellow Load is HIGH\n");
 	}
 
+	/* An uptime the line did not yield is unmeasured; a limit of -1 is no
+	 * rule. Both UP conditions are tested, as a recent limit above the
+	 * ancient one makes both true. */
+	metric_set(&uptime, "cpu", NULL, "uptime", (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
+	metric_rule(&rule[0], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
+	metric_rule(&rule[1], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
+
 	if (separate_uptime_status) {
 		upmsg = newstrbuffer(0);
 
-		if ((uptimesecs != -1) && (recentlimit != -1) && (uptimesecs < recentlimit)) {
+		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
 			upstatuscolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(upmsg, msgline);
 		}
-		if ((uptimesecs != -1) && (ancientlimit != -1) && (uptimesecs > ancientlimit)) {
+		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
 			upstatuscolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n", 
+			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
 			addtobuffer(upmsg, msgline);
 		}
 
 	}
 	else {
-		if ((uptimesecs != -1) && (recentlimit != -1) && (uptimesecs < recentlimit)) {
+		if ((recentlimit != -1) && metric_trips(&uptime, &rule[0])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
 			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
 			addtobuffer(cpumsg, msgline);
 		}
-		if ((uptimesecs != -1) && (ancientlimit != -1) && (uptimesecs > ancientlimit)) {
+		if ((ancientlimit != -1) && metric_trips(&uptime, &rule[1])) {
 			if (cpucolor != COL_RED) cpucolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n", 
+			sprintf(msgline, "&%s Machine has been up more than %d days\n",
 				colorname(uptimecolor), (ancientlimit / 86400));
 			addtobuffer(cpumsg, msgline);
 		}
@@ -468,7 +485,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 		char *p;
 		struct timeval clockval;
 
-		p = strstr(clockstr, "epoch:"); 
+		p = strstr(clockstr, "epoch:");
 		if (p && (sscanf(p, "epoch: %ld.%ld", (long int *)&clockval.tv_sec, (long int *)&clockval.tv_usec) == 2)) {
 			struct timeval clockdiff;
 			struct timezone tz;
@@ -488,7 +505,13 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 				clockdiff.tv_sec -= 1;
 			}
 
-			if ((maxclockdiff > 0) && (abs(clockdiff.tv_sec) > maxclockdiff)) {
+			/* The offset keeps its sign; CLOCK's "more than N seconds
+			 * off" either way is one condition above N and one below -N. */
+			metric_set(&clock, "cpu", NULL, "clockoffset", (double)clockdiff.tv_sec, METRIC_OK);
+			metric_rule(&rule[0], "clockoffset", METRIC_GT, (double)maxclockdiff,  clockdiffcolor);
+			metric_rule(&rule[1], "clockoffset", METRIC_LT, -(double)maxclockdiff, clockdiffcolor);
+
+			if ((maxclockdiff > 0) && (metric_judge(&clock, 1, rule, 2, NULL) != COL_GREEN)) {
 				if (cpucolor != COL_RED) cpucolor = clockdiffcolor;
 				sprintf(msgline, "&%s System clock is %ld seconds off (max %ld)\n",
 					colorname(clockdiffcolor), (long) clockdiff.tv_sec, (long) maxclockdiff);
@@ -503,11 +526,11 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	init_status(cpucolor);
 	sprintf(msgline, "status %s.cpu %s %s %s, %d users, %d procs, load=%s\n",
-		commafy(hostname), colorname(cpucolor), 
-		(timestr ? timestr : "<no timestamp data>"), 
-		myupstr, 
-		(whostr ? linecount(whostr) : usercount), 
-		(psstr ? linecount(psstr)-1 : pscount), 
+		commafy(hostname), colorname(cpucolor),
+		(timestr ? timestr : "<no timestamp data>"),
+		myupstr,
+		(whostr ? linecount(whostr) : usercount),
+		(psstr ? linecount(psstr)-1 : pscount),
 		loadresult);
 	addtostatus(msgline);
 	if (STRBUFLEN(cpumsg)) {
@@ -525,7 +548,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	if (separate_uptime_status) {
 		init_status(upstatuscolor);
 		sprintf(msgline, "status %s.uptime %s %s Uptime %s\n",
-			commafy(hostname), colorname(upstatuscolor), 
+			commafy(hostname), colorname(upstatuscolor),
 			(timestr ? timestr : "<no timestamp data>"),
 			((upstatuscolor == COL_GREEN) ? "OK" : "Not OK"));
 		addtostatus(msgline);

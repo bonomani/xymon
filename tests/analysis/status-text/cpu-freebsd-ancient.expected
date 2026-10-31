@@ -1,0 +1,14 @@
+status cpu3,test.cpu red Fri Oct 31 10:00:00 CET 2026 up: 400 days, 0 users, 1 procs, load=11.50
+&red Load is CRITICAL
+&yellow Machine has been up more than 365 days
+
+status cpu3,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
+&clear No process checks defined
+
+USER  PID  %CPU %MEM COMMAND
+root    1  0.0  0.1 /sbin/initstatus cpu3,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status cpu3,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

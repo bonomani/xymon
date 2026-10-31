@@ -25,10 +25,18 @@
 # Memory:
 #   - memory-linux-defaults: new-style free(1), built-in levels
 #   - memory-linux-rules: old-style free(1) with -/+ buffers/cache; MEMPHYS,
-#     MEMACT and MEMSWAP rules, one row exactly one point above its level
+#     MEMACT and MEMSWAP rules, one row exactly at its level, which does not trip
 #   - memory-linux-invalid: swap used above swap total is invalid data
 #   - memory-linux-zero: a zero total is "detection FAILED"
 #   - memory-darwin: vm_stat page counters and sysctl swap
+# Cpu:
+#   - cpu-linux-defaults: built-in load levels, a long uptime, users and
+#     processes counted from [who] and [ps]
+#   - cpu-linux-rules: LOAD with the load exactly at the yellow level, which
+#     does not trip; UP with a reboot inside the recent limit, in red
+#   - cpu-freebsd-ancient: "load averages:" without commas, load above the
+#     red level; UP with an uptime beyond the ancient limit
+#   - cpu-linux-clock: a [clock] epoch far from the server's: CLOCK trips
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -42,9 +50,12 @@ work=$(mktempdir)
 mkdir -p "$work/home"
 
 # Everything from the first status of a local-mode run, without the combo
-# header that precedes it and its padding.
+# header that precedes it and its padding. The cpu status prints the client's
+# clock offset from the server's clock at the time of the run, which no
+# recording can pin; the number is replaced by N on both sides.
 statuses() {
-	sed -n '/^ *status/,$p' | sed 's/^ *//'
+	sed -n '/^ *status/,$p' | sed 's/^ *//' |
+		sed -E 's/(System clock is )-?[0-9]+( seconds off)/\1N\2/'
 }
 
 n=0

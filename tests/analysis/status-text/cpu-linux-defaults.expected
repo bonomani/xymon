@@ -1,0 +1,12 @@
+status cpu1,test.cpu green Fri Oct 31 10:00:00 CET 2026 up: 178 days, 3 users, 2 procs, load=2.01
+status cpu1,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
+&clear No process checks defined
+
+USER  PID  %CPU  %MEM  COMMAND
+root    1   0.0   0.1  /sbin/init
+bc    912   2.3   0.4  xymondstatus cpu1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status cpu1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+
