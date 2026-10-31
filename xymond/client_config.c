@@ -3235,6 +3235,7 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 		 * judged by the rule's condition: one operator and level, or for an
 		 * interval a lower bound and an upper bound that must both hold. */
 		metric_set(&sample, rule->rule.rrdds.column, rrdkey, rule->rule.rrdds.rrdds, val, METRIC_OK);
+		sample.phase = METRIC_STORED;
 		if (rule->flags & RRDDSCHK_INTVL) {
 			metric_rule(&lower, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : METRIC_GE), rule->rule.rrdds.limitval,  rule->rule.rrdds.color);
 			metric_rule(&upper, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE), rule->rule.rrdds.limitval2, rule->rule.rrdds.color);
