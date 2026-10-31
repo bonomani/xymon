@@ -3176,6 +3176,8 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 	double val;
 	void *hinfo;
 	strbuffer_t *seen;
+	metricsample_t sample;
+	metricrule_t lower, upper;
 
 	if (!resbuf) resbuf = newstrbuffer(0);
 	clearstrbuffer(resbuf);
@@ -3229,12 +3231,14 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 		if (strstr(STRBUF(seen), msgline)) goto nextrule;
 		addtobuffer(seen, msgline);
 
-		/* Do the checks */
+		/* The DS value as a sample of the rule's column, named by its dataset,
+		 * judged by the rule's condition: one operator and level, or for an
+		 * interval a lower bound and an upper bound that must both hold. */
+		metric_set(&sample, rule->rule.rrdds.column, rrdkey, rule->rule.rrdds.rrdds, val, METRIC_OK);
 		if (rule->flags & RRDDSCHK_INTVL) {
-			rulematch = ( ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.rrdds.limitval))  ||
-				        ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.rrdds.limitval)) ) &&
-				      ( ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.rrdds.limitval2))  ||
-				        ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.rrdds.limitval2)) ) );
+			metric_rule(&lower, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : METRIC_GE), rule->rule.rrdds.limitval,  rule->rule.rrdds.color);
+			metric_rule(&upper, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE), rule->rule.rrdds.limitval2, rule->rule.rrdds.color);
+			rulematch = (metric_trips(&sample, &lower) && metric_trips(&sample, &upper));
 
 			if (!rule->statustext) {
 				char fmt[100];
@@ -3250,10 +3254,10 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 			}
 		}
 		else {
-			rulematch = ( ((rule->flags & RRDDSCHK_GT) && (val > rule->rule.rrdds.limitval))  ||
-				      ((rule->flags & RRDDSCHK_GE) && (val >= rule->rule.rrdds.limitval)) ||
-				      ((rule->flags & RRDDSCHK_LT) && (val < rule->rule.rrdds.limitval))  ||
-				      ((rule->flags & RRDDSCHK_LE) && (val <= rule->rule.rrdds.limitval))   );
+			metric_rule(&lower, rule->rule.rrdds.rrdds,
+				    ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : (rule->flags & RRDDSCHK_GE) ? METRIC_GE : (rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE),
+				    rule->rule.rrdds.limitval, rule->rule.rrdds.color);
+			rulematch = metric_trips(&sample, &lower);
 
 			if (!rule->statustext) {
 				char *fmt = "";

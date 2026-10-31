@@ -35,6 +35,10 @@
 #               shadowed across colours would drop this to 1.
 #   k_first   : two same-colour rules where the FIRST triggers -> 1 modify. The
 #               first-match result; before the fix this emitted 2.
+#
+# Four more keys pin the comparison itself, now metric_trips() in lib/metric.c,
+# at the value's own edge: k_le (<=3.5 fires), k_lt (<3.5 does not), k_in
+# (>3.0 <4.0 fires), k_out (>3.6 <4.0 does not).
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -83,11 +87,15 @@ DS c_shadow  k_shadow:load  >1.0  color=red
 DS c_colours k_colours:load >1.0  color=yellow
 DS c_colours k_colours:load >2.0  color=red
 DS c_first   k_first:load   >1.0  color=red
+DS c_le      k_le:load      <=3.5 color=red
+DS c_lt      k_lt:load      <3.5  color=red
+DS c_in      k_in:load      >3.0 <4.0 color=red
+DS c_out     k_out:load     >3.6 <4.0 color=red
 DS c_first   k_first:load   >2.0  color=red
 EOF
 
 out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
-	load 3.5 k_shadow k_colours k_first 2>"$work/run.log") \
+	load 3.5 k_shadow k_colours k_first k_le k_lt k_in k_out 2>"$work/run.log") \
 	|| { cat "$work/run.log" >&2; fail "harness run failed"; }
 
 get() { printf '%s\n' "$out" | sed -n "s/^$1=//p"; }
@@ -98,5 +106,12 @@ assert_equal "2" "$(get k_colours)" \
 	"DS shadowing is too aggressive: yellow and red thresholds on one dataset must both fire (#32)"
 assert_equal "1" "$(get k_first)" \
 	"DS first-match regressed: two same-colour rules both fired instead of the first winning (#32)"
+
+# The four operators and the interval form, each at the value's own edge:
+# 3.5 is at or below 3.5 and not below it; inside 3.0-4.0, outside 3.6-4.0.
+assert_equal "1" "$(get k_le)" "DS <= did not fire at the level"
+assert_equal "0" "$(get k_lt)" "DS < fired at the level"
+assert_equal "1" "$(get k_in)" "DS interval did not fire inside its bounds"
+assert_equal "0" "$(get k_out)" "DS interval fired outside its lower bound"
 
 pass "DS threshold rules honour analysis.cfg first-match per (column, dataset, colour) (#32)"
