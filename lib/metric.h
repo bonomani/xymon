@@ -28,24 +28,28 @@ typedef enum { METRIC_NATIVE } metricphase_t;
 
 typedef struct metricsample_t {
 	char *test;		/* the status it feeds: "disk" */
-	char *instance;		/* the measured object: a mount point */
+	char *instance;		/* the measured object: a mount point; NULL where the test has one */
 	char *name;		/* what was measured: "pct", "free" */
-	long value;
+	double value;		/* a load average is not an integer */
 	metricstate_t state;
 	metricphase_t phase;
 } metricsample_t;
 
-/* One condition on one named metric, and the colour it gives. "below" set
- * means the rule trips at or below the level (units free); clear means at
- * or above it (percent used). */
+/* How a rule compares. The keywords in analysis.cfg use all four: DISK is
+ * at or above a percent and at or below a units-free figure, LOAD and MEM*
+ * are strictly above, UP is strictly below the recent-reboot limit. */
+typedef enum { METRIC_GE, METRIC_GT, METRIC_LE, METRIC_LT } metricop_t;
+
+/* One condition on one named metric, and the colour it gives. */
 typedef struct metricrule_t {
 	char *name;
-	long level;
-	int below;
+	metricop_t op;
+	double level;
 	int color;
 } metricrule_t;
 
-extern void metric_set(metricsample_t *s, char *test, char *instance, char *name, long value, metricstate_t state);
+extern void metric_set(metricsample_t *s, char *test, char *instance, char *name, double value, metricstate_t state);
+extern void metric_rule(metricrule_t *r, char *name, metricop_t op, double level, int color);
 extern int metric_trips(metricsample_t *s, metricrule_t *r);
 extern int metric_judge(metricsample_t *samples, int nsamples, metricrule_t *rules, int nrules, metricrule_t **tripped);
 

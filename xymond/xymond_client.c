@@ -653,8 +653,8 @@ static void unix_fs_report(fsreport_t *rep,
 				 * metric its unit names: a level in units free trips at
 				 * or below it, a percent at or above. Red first, so the
 				 * panic level is the one reported when both trip. */
-				rule[0].name = (abspanic ? "free" : "pct"); rule[0].level = paniclevel; rule[0].below = abspanic; rule[0].color = COL_RED;
-				rule[1].name = (abswarn  ? "free" : "pct"); rule[1].level = warnlevel;  rule[1].below = abswarn;  rule[1].color = COL_YELLOW;
+				metric_rule(&rule[0], (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), paniclevel, COL_RED);
+				metric_rule(&rule[1], (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), warnlevel,  COL_YELLOW);
 
 				if (ignored) {
 					/* Forget about this one */
@@ -668,19 +668,21 @@ static void unix_fs_report(fsreport_t *rep,
 				}
 				else if ((color = metric_judge(sample, 2, rule, 2, &hit)) != COL_GREEN) {
 					char *msgp = msgline;
-					metricsample_t *hitsample = (hit->below ? &sample[1] : &sample[0]);
+					int below = (hit->op == METRIC_LE);
+					long hitvalue = (long)(below ? sample[1].value : sample[0].value);
+					long hitlevel = (long)hit->level;
 
 					if (fscolor < color) fscolor = color;
 
 					msgp += sprintf(msgp, "&%s %s%s ", colorname(color), idmark, fsname);
 
-					if (hit->below) msgp += sprintf(msgp, "(%lu units free)", hitsample->value);
-					else msgp += sprintf(msgp, "(%lu%% used)", hitsample->value);
+					if (below) msgp += sprintf(msgp, "(%lu units free)", hitvalue);
+					else msgp += sprintf(msgp, "(%lu%% used)", hitvalue);
 
 					msgp += sprintf(msgp, " has reached the %s level ", ((color == COL_RED) ? "PANIC" : "WARNING"));
 
-					if (hit->below) msgp += sprintf(msgp, "(%lu units)\n", hit->level);
-					else msgp += sprintf(msgp, "(%lu%%)\n", hit->level);
+					if (below) msgp += sprintf(msgp, "(%lu units)\n", hitlevel);
+					else msgp += sprintf(msgp, "(%lu%%)\n", hitlevel);
 
 					addtobuffer(monmsg, msgline);
 					addalertgroup(group);
@@ -800,14 +802,14 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 
 /* One row of the memory status -- Real/Physical, Actual/Virtual or
  * Swap/Page -- judged as a sample of the memory test under its MEMPHYS,
- * MEMACT or MEMSWAP pair. The keyword's levels are exclusive, "above N",
- * so the inclusive rule level is N+1. */
+ * MEMACT or MEMSWAP pair: strictly above the warn level is yellow, strictly
+ * above the panic level red. */
 static int memory_row_color(metricsample_t *sample, int yellow, int red)
 {
 	metricrule_t rule[2];
 
-	rule[0].name = sample->name; rule[0].level = (long)red + 1;    rule[0].below = 0; rule[0].color = COL_RED;
-	rule[1].name = sample->name; rule[1].level = (long)yellow + 1; rule[1].below = 0; rule[1].color = COL_YELLOW;
+	metric_rule(&rule[0], sample->name, METRIC_GT, red,    COL_RED);
+	metric_rule(&rule[1], sample->name, METRIC_GT, yellow, COL_YELLOW);
 
 	return metric_judge(sample, 1, rule, 2, NULL);
 }

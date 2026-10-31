@@ -19,7 +19,7 @@
 
 #include "libxymon.h"
 
-void metric_set(metricsample_t *s, char *test, char *instance, char *name, long value, metricstate_t state)
+void metric_set(metricsample_t *s, char *test, char *instance, char *name, double value, metricstate_t state)
 {
 	s->test = test;
 	s->instance = instance;
@@ -29,15 +29,30 @@ void metric_set(metricsample_t *s, char *test, char *instance, char *name, long 
 	s->phase = METRIC_NATIVE;
 }
 
+void metric_rule(metricrule_t *r, char *name, metricop_t op, double level, int color)
+{
+	r->name = name;
+	r->op = op;
+	r->level = level;
+	r->color = color;
+}
+
 /* Does the rule's condition hold on this sample? Only a sample of the metric
- * the rule names, and only one that was measured: an unmeasured sample trips
- * nothing, whatever value it carries. */
+ * the rule names, and only one that was measured: an unmeasured or invalid
+ * sample trips nothing, whatever value it carries. */
 int metric_trips(metricsample_t *s, metricrule_t *r)
 {
 	if (s->state != METRIC_OK) return 0;
 	if (strcmp(s->name, r->name) != 0) return 0;
 
-	return (r->below ? (s->value <= r->level) : (s->value >= r->level));
+	switch (r->op) {
+	  case METRIC_GE: return (s->value >= r->level);
+	  case METRIC_GT: return (s->value >  r->level);
+	  case METRIC_LE: return (s->value <= r->level);
+	  case METRIC_LT: return (s->value <  r->level);
+	}
+
+	return 0;
 }
 
 /* The colour of a set of samples under a set of rules: the worst colour of
