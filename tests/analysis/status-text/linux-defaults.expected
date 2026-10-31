@@ -14,3 +14,9 @@ Filesystem      Inodes   IUsed    IFree IUse% Mounted on
 /dev/sda1      1310720  131072  1179648   10% /
 /dev/sdb1      3276800 2621440   655360   80% /var
 /dev/sdc1      5242880 4980736   262144   95% /data
+status fs1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

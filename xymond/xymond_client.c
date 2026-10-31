@@ -798,8 +798,22 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	unix_fs_report(&inode, hostname, clientclass, os, hinfo, fromline, timestr, freehdr, capahdr, mnthdr, dfstr);
 }
 
+/* One row of the memory status -- Real/Physical, Actual/Virtual or
+ * Swap/Page -- judged as a sample of the memory test under its MEMPHYS,
+ * MEMACT or MEMSWAP pair. The keyword's levels are exclusive, "above N",
+ * so the inclusive rule level is N+1. */
+static int memory_row_color(metricsample_t *sample, int yellow, int red)
+{
+	metricrule_t rule[2];
+
+	rule[0].name = sample->name; rule[0].level = (long)red + 1;    rule[0].below = 0; rule[0].color = COL_RED;
+	rule[1].name = sample->name; rule[1].level = (long)yellow + 1; rule[1].below = 0; rule[1].color = COL_YELLOW;
+
+	return metric_judge(sample, 1, rule, 2, NULL);
+}
+
 void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
-		        void *hinfo, char *fromline, char *timestr, 
+		        void *hinfo, char *fromline, char *timestr,
 			long memphystotal, long memphysused,
 			long memacttotal, long memactused,
 			long memswaptotal, long memswapused)
@@ -808,8 +822,9 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	int physyellow, physred, swapyellow, swapred, actyellow, actred;
 	int invaliddata = 0;
 
-	int memorycolor = COL_GREEN, physcolor = COL_GREEN, swapcolor = COL_GREEN, actcolor = COL_GREEN;
+	int memorycolor = COL_GREEN, physcolor, swapcolor, actcolor;
 	char *memorysummary = "OK";
+	metricsample_t phys, act, swap;
 
 	char msgline[4096];
 
@@ -819,23 +834,21 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	get_memory_thresholds(hinfo, clientclass, &physyellow, &physred, &swapyellow, &swapred, &actyellow, &actred);
 
+	/* Three samples, one per row. A physical or swap percentage over 100
+	 * is not a measurement: physical is left unjudged, swap is reported as
+	 * invalid data. Actual can be above 100 and is judged as it is. */
 	memphyspct = (memphystotal > 0) ? ((100 * memphysused) / memphystotal) : 0;
-	if (memphyspct <= 100) {
-		if (memphyspct > physyellow) physcolor = COL_YELLOW;
-		if (memphyspct > physred)    physcolor = COL_RED;
-	}
+	metric_set(&phys, "memory", NULL, "phys", memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID));
+	physcolor = memory_row_color(&phys, physyellow, physred);
 
 	if (memswapused != -1) memswappct = (memswaptotal > 0) ? ((100 * memswapused) / memswaptotal) : 0;
-	if (memswappct <= 100) {
-		if (memswappct > swapyellow) swapcolor = COL_YELLOW;
-		if (memswappct > swapred)    swapcolor = COL_RED;
-	}
-	else invaliddata = 1;
+	metric_set(&swap, "memory", NULL, "swap", memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID));
+	swapcolor = memory_row_color(&swap, swapyellow, swapred);
+	if (swap.state == METRIC_INVALID) invaliddata = 1;
 
 	if (memactused != -1) memactpct = (memacttotal > 0) ? ((100 * memactused) / memacttotal) : 0;
-	/* Actual percentage can be above 100 */
-		if (memactpct  > actyellow)  actcolor  = COL_YELLOW;
-		if (memactpct  > actred)     actcolor  = COL_RED;
+	metric_set(&act, "memory", NULL, "act", memactpct, METRIC_OK);
+	actcolor = memory_row_color(&act, actyellow, actred);
 
 	if ((physcolor == COL_RED) || (swapcolor == COL_RED) || (actcolor == COL_RED)) {
 		memorycolor = COL_RED;
@@ -857,7 +870,7 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	init_status(memorycolor);
 	sprintf(msgline, "status %s.memory %s %s - Memory %s\n",
-		commafy(hostname), colorname(memorycolor), 
+		commafy(hostname), colorname(memorycolor),
 		(timestr ? timestr : "<No timestamp data>"),
 		memorysummary);
 	addtostatus(msgline);
@@ -865,23 +878,23 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	sprintf(msgline, "   %-16s%12s%12s%12s\n", "Memory", "Used", "Total", "Percentage");
 	addtostatus(msgline);
 
-	sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+	sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 		colorname(physcolor), "Real/Physical", memphysused, memphystotal, memphyspct);
 	addtostatus(msgline);
 
 	if (memactused != -1) {
-		sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+		sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 			colorname(actcolor), "Actual/Virtual", memactused, memacttotal, memactpct);
-			
+
 		addtostatus(msgline);
 	}
 
 	if (memswapused != -1) {
-		if (memswappct <= 100)
-			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n", 
+		if (swap.state == METRIC_OK)
+			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%%\n",
 				colorname(swapcolor), "Swap/Page", memswapused, memswaptotal, memswappct);
 		else
-			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%% - invalid data\n", 
+			sprintf(msgline, "&%s %-16s%11ldM%11ldM%11ld%% - invalid data\n",
 				colorname(COL_YELLOW), "Swap/Page", memswapused, memswaptotal, 0L);
 
 		addtostatus(msgline);

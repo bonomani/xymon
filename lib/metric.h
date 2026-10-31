@@ -15,9 +15,10 @@
 #define __METRIC_H__
 
 /* What the sample's value means. A rule compares an OK sample only: a value
- * nothing measured is a state, not a number, and comparing it would turn an
- * absent measurement into a colour. */
-typedef enum { METRIC_OK, METRIC_UNMEASURED } metricstate_t;
+ * nothing measured, or one the analyser does not believe (a percentage over
+ * 100 where none is possible), is a state, not a number, and comparing it
+ * would turn an absent or broken measurement into a colour. */
+typedef enum { METRIC_OK, METRIC_UNMEASURED, METRIC_INVALID } metricstate_t;
 
 /* Where the sample was read. The native phase is the client report parsed by
  * xymond_client; a value read back from a status or an RRD file is another

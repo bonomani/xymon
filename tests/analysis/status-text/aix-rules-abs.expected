@@ -13,3 +13,9 @@ status fs4,test.inode yellow Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
 Filesystem       iused     avail %iused Mounted on
 /dev/hd4         12000    120000     9% /
 /dev/hd2         60000    440000    12% /usr
+status fs4,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs4,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

@@ -5,3 +5,9 @@ status fs3,test.inode green Fri Oct 31 10:00:00 CET 2026 - Filesystems ok
 &green No filesystems reporting inode data
 
 
+status fs3,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs3,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

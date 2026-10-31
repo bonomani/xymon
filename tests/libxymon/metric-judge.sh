@@ -45,4 +45,4 @@ harness_ldflags=$(xymon_ldflags "$ROOT")
 	|| fail "metric_judge assertions failed:
 $(cat "$work/stderr.log")"
 
-pass "metric_judge trips at the level, on the named metric only, worst colour first, never on an unmeasured sample"
+pass "metric_judge trips at the level, on the named metric only, worst colour first, never on an unmeasured or invalid sample"

@@ -8,3 +8,9 @@ Filesystem     1024-blocks      Used Available Capacity Mounted on
 status fs5,test.inode green Fri Oct 31 10:00:00 CET 2026 - Filesystems ok
 Filesystem      Inodes   IUsed    IFree IUse% Mounted on
 /dev/sda1      1310720  131072  1179648   10% /
+status fs5,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs5,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

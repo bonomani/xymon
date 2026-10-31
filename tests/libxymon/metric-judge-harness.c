@@ -89,6 +89,11 @@ int main(int argc, char *argv[])
 	expect("unmeasured", !metric_trips(&s[1], &r[0]), "an unmeasured sample tripped a rule");
 	expect("unmeasured judge", metric_judge(&s[1], 1, r, 1, NULL) == COL_GREEN, "an unmeasured sample coloured the set");
 
+	/* An invalid sample is a state too: a percentage the analyser does not believe. */
+	metric_set(&s[1], "memory", NULL, "swap", 250, METRIC_INVALID);
+	rule(&r[0], "swap", 80, 0, COL_RED);
+	expect("invalid", !metric_trips(&s[1], &r[0]), "an invalid sample tripped a rule");
+
 	/* A tripped pointer may be left out. */
 	rule(&r[0], "pct", 90, 0, COL_YELLOW);
 	expect("no hit pointer", metric_judge(s, 1, r, 1, NULL) == COL_YELLOW, "judging without a tripped pointer failed");

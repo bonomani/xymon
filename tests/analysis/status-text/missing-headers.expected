@@ -8,3 +8,9 @@ status fs6,test.inode yellow Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
 
 Dateisystem  INodes IBenutzt IFrei IUse Eingehaengt
 /dev/sda1   1310720   131072 1179648 10% /
+status fs6,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs6,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

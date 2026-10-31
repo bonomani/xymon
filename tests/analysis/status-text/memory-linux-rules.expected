@@ -1,0 +1,11 @@
+status mem2,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status mem2,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+status mem2,test.memory yellow Fri Oct 31 10:00:00 CET 2026 - Memory low
+Memory                  Used       Total  Percentage
+&green Real/Physical          6835M       8000M         85%
+&yellow Actual/Virtual         4882M       8000M         61%
+&yellow Swap/Page              1000M       4000M         25%
+
