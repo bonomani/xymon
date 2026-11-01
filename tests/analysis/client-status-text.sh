@@ -7,8 +7,9 @@
 # they had before the analysers were moved onto metric samples judged by
 # lib/metric.c. Each case in status-text/ is a client report (NAME.msg), the
 # analysis.cfg it is judged under (NAME.cfg) and every status the report
-# produced on the tree before that change (NAME.expected), recorded from
-# "xymond_client --local" and kept byte for byte.
+# produced (NAME.expected), recorded from "xymond_client --local" and kept
+# byte for byte: from the tree before that change, except where a case says
+# it pins a change made since.
 #
 # The cases cover what each analyser does differently or by exception.
 # Disk and inode:
@@ -37,6 +38,10 @@
 #   - cpu-freebsd-ancient: "load averages:" without commas, load above the
 #     red level; UP with an uptime beyond the ancient limit
 #   - cpu-linux-clock: a [clock] epoch far from the server's: CLOCK trips
+#   - cpu-linux-up-clear: LOAD trips yellow and an UP rule in clear trips
+#     too; the status is the worst of the two, yellow. Recorded after that
+#     fold replaced the old one, under which the later clear overwrote the
+#     yellow
 # Procs, ports and services, the counting analysers:
 #   - procs-linux-rules: PROC with a count inside, above and below its limits,
 #     a pattern that matches more than one command, TRACK= and TEXT=
