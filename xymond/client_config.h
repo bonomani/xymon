@@ -16,6 +16,7 @@
 extern int load_client_config(char *configfn);
 extern void client_config_batch(metricbatch_t *b);
 extern int client_config_thresholds(void *hinfo, char *classname, char *test, strbuffer_t *lines);
+extern int client_config_keywords(void *hinfo, char *classname, char *test, strbuffer_t *lines);
 extern void dump_client_config(void);
 
 extern void clearalertgroups(void);

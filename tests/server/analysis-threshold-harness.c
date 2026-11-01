@@ -9,7 +9,11 @@
  * ok or stale, then judges every test named in the batch under the host's
  * THRESHOLD rules and prints, per test, "test <name> <colour>" followed by
  * the lines the rules wrote, then "sample <test> <instance> <name> <colour>"
- * for every sample, and the rules as --dump-config prints them.
+ * for every sample, and the rules as --dump-config prints them. Before the
+ * THRESHOLD rules it runs the keyword rules -- LOAD, UP, CLOCK compiled to
+ * tagged threshold rules -- the same way, printing "keyword <test> <colour>"
+ * and their lines, and it prints what get_cpu_thresholds() reads back from
+ * those rules for testhost and otherhost as "cpu <host> ...".
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -51,9 +55,28 @@ int main(int argc, char *argv[])
 		if (j < i) continue;
 
 		lines = newstrbuffer(0);
+		color = client_config_keywords(hinfo, "", s->test, lines);
+		printf("keyword %s %s\n%s", s->test, colorname(color), STRBUF(lines));
+		clearstrbuffer(lines);
 		color = client_config_thresholds(hinfo, "", s->test, lines);
 		printf("test %s %s\n%s", s->test, colorname(color), STRBUF(lines));
 		freestrbuffer(lines);
+	}
+
+	{
+		char *hosts[2] = { "testhost", "otherhost" };
+		int h;
+
+		for (h = 0; (h < 2); h++) {
+			float loadyellow, loadred;
+			int recentlimit, ancientlimit, uptimecolor, maxclockdiff, clockdiffcolor;
+			void *hi = hostinfo(hosts[h]);
+
+			if (!hi) continue;
+			get_cpu_thresholds(hi, "", &loadyellow, &loadred, &recentlimit, &ancientlimit, &uptimecolor, &maxclockdiff, &clockdiffcolor);
+			printf("cpu %s load %.1f %.1f up %d %d %s clock %d %s\n", hosts[h], loadyellow, loadred,
+			       recentlimit, ancientlimit, colorname(uptimecolor), maxclockdiff, colorname(clockdiffcolor));
+		}
 	}
 
 	for (i = 0; (i < b->count); i++) {

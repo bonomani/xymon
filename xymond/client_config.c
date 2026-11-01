@@ -40,18 +40,6 @@ typedef struct exprlist_t {
 	struct exprlist_t *next;
 } exprlist_t;
 
-typedef struct c_load_t {
-	float warnlevel, paniclevel;
-} c_load_t;
-
-typedef struct c_uptime_t {
-	int recentlimit, ancientlimit, color;
-} c_uptime_t;
-
-typedef struct c_clock_t {
-	int maxdiff, color;
-} c_clock_t;
-
 typedef struct c_disk_t {
 	exprlist_t *fsexp;
 	long warnlevel, paniclevel;
@@ -232,14 +220,29 @@ typedef struct c_rrdds_t {
 /* THRESHOLD test.instance.name <op>level [color]: one condition on one
  * named metric of the report's batch, judged where the metric is born. The
  * instance is a pattern, or none, which is every instance of the metric. */
-typedef struct c_threshold_t {
-	char *test;		/* the metric's test, and the status it colours: "cpu" */
-	exprlist_t *instance;	/* the measured object, or NULL for every one */
-	char *name;		/* what was measured: "load" */
+typedef struct c_threshold_cond_t {
 	metricop_t op;
 	double level;
 	char *levelstr;		/* the level as written, for the status line: "10m" */
 	int color;
+	char *text;		/* a keyword's own line; a THRESHOLD's TEXT= is the rule's statustext */
+} c_threshold_cond_t;
+
+typedef struct c_threshold_t {
+	char *test;		/* the metric's test, and the status it colours: "cpu"; NULL for a keyword whose metric may sit in another test */
+	exprlist_t *instance;	/* the measured object, or NULL for every one */
+	char *name;		/* what was measured: "load" */
+	int ncond;		/* one for a THRESHOLD line, up to two for a keyword's */
+	c_threshold_cond_t cond[2];
+
+	/* A keyword line -- LOAD, UP, CLOCK -- compiles to this rule tagged with
+	 * its keyword. Keyword rules keep their first-match contract: for a
+	 * metric, the first matching rule of each keyword applies, or the
+	 * built-in default appended after the file; every untagged THRESHOLD
+	 * rule applies on top. */
+	char *keyword;
+	int ladder;		/* the conditions are levels of one scale: only the worst that trips writes its line */
+	int builtin;		/* the default, not in any file */
 } c_threshold_t;
 
 typedef struct c_mq_queue_t {
@@ -252,7 +255,7 @@ typedef struct c_mq_channel_t {
 	exprlist_t *qmgrname, *chnname, *warnstates, *alertstates;
 } c_mq_channel_t;
 
-typedef enum { C_LOAD, C_UPTIME, C_CLOCK, C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
+typedef enum { C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
 
 typedef struct c_rule_t {
 	exprlist_t *hostexp;
@@ -270,9 +273,6 @@ typedef struct c_rule_t {
 	uint32_t chkflags;
 	struct c_rule_t *next;
 	union {
-		c_load_t load;
-		c_uptime_t uptime;
-		c_clock_t clock;
 		c_disk_t disk;
 		c_inode_t inode;
 		c_mem_t mem;
@@ -546,6 +546,32 @@ static exprlist_t *setup_expr(char *ptn, int multiline)
 	return newitem;
 }
 
+/* A keyword line as a threshold rule: tagged with the keyword, on the metric
+ * the keyword always judged, with its conditions added one by one. */
+static void keyword_rule(c_rule_t *rule, char *keyword, char *test, char *name, int ladder)
+{
+	rule->rule.threshold.keyword = keyword;
+	rule->rule.threshold.test = (test ? strdup(test) : NULL);
+	rule->rule.threshold.name = strdup(name);
+	rule->rule.threshold.ladder = ladder;
+	rule->rule.threshold.ncond = 0;
+}
+
+static void keyword_cond(c_rule_t *rule, metricop_t op, double level, int color, char *text)
+{
+	c_threshold_cond_t *c;
+	char levelstr[40];
+
+	if (rule->rule.threshold.ncond >= 2) return;
+	c = &rule->rule.threshold.cond[rule->rule.threshold.ncond++];
+	c->op = op;
+	c->level = level;
+	c->color = color;
+	c->text = strdup(text);
+	if (level == (double)(long long)level) sprintf(levelstr, "%lld", (long long)level); else sprintf(levelstr, "%.2f", level);
+	c->levelstr = strdup(levelstr);
+}
+
 static c_rule_t *setup_rule(ruletype_t ruletype, 
 			    exprlist_t *curhost, exprlist_t *curexhost, 
 			    exprlist_t *curpage, exprlist_t *curexpage, 
@@ -707,9 +733,16 @@ int load_client_config(char *configfn)
 			break;
 
 		  case C_THRESHOLD:
-			if (tmp->rule.threshold.test) xfree(tmp->rule.threshold.test);
-			if (tmp->rule.threshold.name) xfree(tmp->rule.threshold.name);
-			if (tmp->rule.threshold.levelstr) xfree(tmp->rule.threshold.levelstr);
+			{
+				int c;
+
+				if (tmp->rule.threshold.test) xfree(tmp->rule.threshold.test);
+				if (tmp->rule.threshold.name) xfree(tmp->rule.threshold.name);
+				for (c = 0; (c < tmp->rule.threshold.ncond); c++) {
+					if (tmp->rule.threshold.cond[c].levelstr) xfree(tmp->rule.threshold.cond[c].levelstr);
+					if (tmp->rule.threshold.cond[c].text) xfree(tmp->rule.threshold.cond[c].text);
+				}
+			}
 			break;
 
 		  default:
@@ -842,36 +875,77 @@ int load_client_config(char *configfn)
 				currule = NULL;
 			}
 			else if (strcasecmp(tok, "UP") == 0) {
-				currule = NEWRULE(C_UPTIME)
-				currule->rule.uptime.recentlimit = 3600;
-				currule->rule.uptime.ancientlimit = -1;
-				currule->rule.uptime.color = COL_YELLOW;
+				/* UP bootlimit toolonglimit [color]: two conditions on
+				 * the uptime, below the first and above the second. A
+				 * toolonglimit of -1 or "never", or none, is no second
+				 * condition: that is the "never" the manual promised, which
+				 * the old parser read as a limit of -60 seconds. */
+				int recentlimit = 3600, ancientlimit = -1, color = COL_YELLOW;
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.uptime.recentlimit = 60*durationvalue(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.uptime.ancientlimit = 60*durationvalue(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				if (tok) currule->rule.uptime.color = parse_color(tok);
+				tok = wstok(NULL);
+				if (!isqual(tok)) {
+					recentlimit = 60*durationvalue(tok);
+					tok = wstok(NULL);
+					if (!isqual(tok)) {
+						if ((strcmp(tok, "-1") != 0) && (strcasecmp(tok, "never") != 0)) ancientlimit = 60*durationvalue(tok);
+						tok = wstok(NULL);
+						if (!isqual(tok)) color = parse_color(tok);
+					}
+				}
+
+				currule = NEWRULE(C_THRESHOLD);
+				keyword_rule(currule, "UP", NULL, "uptime", 0);
+				keyword_cond(currule, METRIC_LT, (double)recentlimit, color, "Machine recently rebooted");
+				if (ancientlimit > 0) {
+					char text[100];
+
+					sprintf(text, "Machine has been up more than %d days", (ancientlimit / 86400));
+					keyword_cond(currule, METRIC_GT, (double)ancientlimit, color, text);
+				}
+				if (isqual(tok)) continue;
 			}
 			else if (strcasecmp(tok, "CLOCK") == 0) {
-				currule = NEWRULE(C_CLOCK);
-				currule->rule.clock.maxdiff = 60;
-				currule->rule.clock.color = COL_YELLOW;
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.clock.maxdiff = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				if (tok) currule->rule.clock.color = parse_color(tok);
+				/* CLOCK max.offset [color]: off by more than the limit
+				 * either way. A limit of 0 is no check, as it always was. */
+				int maxdiff = 60, color = COL_YELLOW;
+
+				tok = wstok(NULL);
+				if (!isqual(tok)) {
+					maxdiff = atoi(tok);
+					tok = wstok(NULL);
+					if (!isqual(tok)) color = parse_color(tok);
+				}
+
+				currule = NEWRULE(C_THRESHOLD);
+				keyword_rule(currule, "CLOCK", "cpu", "clockoffset", 0);
+				if (maxdiff > 0) {
+					char text[100];
+
+					sprintf(text, "System clock is &V seconds off (max %d)", maxdiff);
+					keyword_cond(currule, METRIC_GT, (double)maxdiff, color, text);
+					keyword_cond(currule, METRIC_LT, -(double)maxdiff, color, text);
+				}
+				if (isqual(tok)) continue;
 			}
 			else if (strcasecmp(tok, "LOAD") == 0) {
-				currule = NEWRULE(C_LOAD);
-				currule->rule.load.warnlevel = 5.0;
-				currule->rule.load.paniclevel = atof(tok);
+				/* LOAD warnlevel paniclevel: a ladder of two levels on the
+				 * load, so a load above both writes the one line of the
+				 * worst. The levels default as they did: 5, and 0 for a
+				 * paniclevel not given -- "LOAD 3" alone was always red. */
+				float warnlevel = 5.0, paniclevel = 0.0;
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.load.warnlevel = atof(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.load.paniclevel = atof(tok);
+				tok = wstok(NULL);
+				if (!isqual(tok)) {
+					warnlevel = atof(tok);
+					tok = wstok(NULL);
+					if (!isqual(tok)) paniclevel = atof(tok);
+				}
+
+				currule = NEWRULE(C_THRESHOLD);
+				keyword_rule(currule, "LOAD", "cpu", "load", 1);
+				keyword_cond(currule, METRIC_GT, (double)paniclevel, COL_RED, "Load is CRITICAL");
+				keyword_cond(currule, METRIC_GT, (double)warnlevel, COL_YELLOW, "Load is HIGH");
+				if (isqual(tok)) continue;
 			}
 			else if (strcasecmp(tok, "THRESHOLD") == 0) {
 				char *metric, *first, *last;
@@ -897,7 +971,7 @@ int load_client_config(char *configfn)
 				}
 
 				currule = NEWRULE(C_THRESHOLD);
-				currule->rule.threshold.color = COL_RED;
+				currule->rule.threshold.cond[0].color = COL_RED;
 				currule->rule.threshold.test = (char *)malloc((first - metric) + 1);
 				memcpy(currule->rule.threshold.test, metric, (first - metric));
 				currule->rule.threshold.test[first - metric] = '\0';
@@ -913,16 +987,16 @@ int load_client_config(char *configfn)
 
 					tok = wstok(NULL); if (!tok || isqual(tok)) continue;
 
-					if      (strncmp(tok, ">=", 2) == 0) { currule->rule.threshold.op = METRIC_GE; oplen = 2; }
-					else if (strncmp(tok, "<=", 2) == 0) { currule->rule.threshold.op = METRIC_LE; oplen = 2; }
-					else if (strncmp(tok, ">", 1) == 0)  { currule->rule.threshold.op = METRIC_GT; oplen = 1; }
-					else if (strncmp(tok, "<", 1) == 0)  { currule->rule.threshold.op = METRIC_LT; oplen = 1; }
+					if      (strncmp(tok, ">=", 2) == 0) { currule->rule.threshold.cond[0].op = METRIC_GE; oplen = 2; }
+					else if (strncmp(tok, "<=", 2) == 0) { currule->rule.threshold.cond[0].op = METRIC_LE; oplen = 2; }
+					else if (strncmp(tok, ">", 1) == 0)  { currule->rule.threshold.cond[0].op = METRIC_GT; oplen = 1; }
+					else if (strncmp(tok, "<", 1) == 0)  { currule->rule.threshold.cond[0].op = METRIC_LT; oplen = 1; }
 					else if (strncasecmp(tok, "color=", 6) == 0) {
 						int col = parse_color(tok+6);
-						if (col != -1) currule->rule.threshold.color = col;
+						if (col != -1) currule->rule.threshold.cond[0].color = col;
 					}
 					else if (parse_color(tok) != -1) {
-						currule->rule.threshold.color = parse_color(tok);
+						currule->rule.threshold.cond[0].color = parse_color(tok);
 					}
 					else {
 						errprintf("Syntax error line %d: THRESHOLD does not understand '%s'\n", cfid, tok);
@@ -939,10 +1013,11 @@ int load_client_config(char *configfn)
 						 * is; anything else is a number in the metric's
 						 * own unit. The text keeps what was written. */
 						if (durationseconds(tok+oplen, &secs) && (strpbrk(tok+oplen, "mhdw") != NULL))
-							currule->rule.threshold.level = (double)secs;
+							currule->rule.threshold.cond[0].level = (double)secs;
 						else
-							currule->rule.threshold.level = atof(tok+oplen);
-						currule->rule.threshold.levelstr = strdup(tok+oplen);
+							currule->rule.threshold.cond[0].level = atof(tok+oplen);
+						currule->rule.threshold.cond[0].levelstr = strdup(tok+oplen);
+						currule->rule.threshold.ncond = 1;
 						conditions++;
 					}
 				} while (tok && (!isqual(tok)));
@@ -1824,6 +1899,20 @@ int load_client_config(char *configfn)
 
 	stackfclose(fd);
 	freestrbuffer(inbuf);
+
+	/* The built-in defaults, as keyword rules after every rule of the
+	 * file, so a host's own LOAD or UP is the first match and these are
+	 * what a host without one gets: LOAD 5 10, UP 1h yellow, no CLOCK. */
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "LOAD", "cpu", "load", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GT, 10.0, COL_RED, "Load is CRITICAL");
+	keyword_cond(currule, METRIC_GT, 5.0, COL_YELLOW, "Load is HIGH");
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "UP", NULL, "uptime", 0);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_LT, 3600.0, COL_YELLOW, "Machine recently rebooted");
+
 	if (curtime) xfree(curtime);
 	if (curextime) xfree(curextime);
 	if (curtext) xfree(curtext);
@@ -1842,17 +1931,6 @@ void dump_client_config(void)
 
 	for (rwalk = rulehead; (rwalk); rwalk = rwalk->next) {
 		switch (rwalk->ruletype) {
-		  case C_UPTIME:
-			printf("UP %d %d", rwalk->rule.uptime.recentlimit, rwalk->rule.uptime.ancientlimit);
-			break;
-
-		  case C_CLOCK:
-			printf("CLOCK %d", rwalk->rule.clock.maxdiff);
-			break;
-
-		  case C_LOAD:
-			printf("LOAD %.2f %.2f", rwalk->rule.load.warnlevel, rwalk->rule.load.paniclevel);
-			break;
 
 		  case C_DISK:
 			if (!rwalk->rule.disk.fsexp) break;
@@ -2073,18 +2151,30 @@ void dump_client_config(void)
 			break;
 
 		  case C_THRESHOLD:
-			if (!*rwalk->rule.threshold.name) {
-				printf("THRESHOLD %s (no condition, not a rule)", rwalk->rule.threshold.test);
-				break;
+			{
+				int c;
+
+				if (rwalk->rule.threshold.builtin) continue;	/* no file line to show */
+				if (!*rwalk->rule.threshold.name) {
+					printf("THRESHOLD %s (no condition, not a rule)", rwalk->rule.threshold.test);
+					break;
+				}
+				/* A keyword line prints as what it compiled to, under its keyword. */
+				if (rwalk->rule.threshold.keyword) printf("%s: ", rwalk->rule.threshold.keyword);
+				for (c = 0; (c < rwalk->rule.threshold.ncond); c++) {
+					c_threshold_cond_t *cond = &rwalk->rule.threshold.cond[c];
+
+					printf("%sTHRESHOLD %s.%s%s%s %s%s %s", ((c > 0) ? "; " : ""),
+						(rwalk->rule.threshold.test ? rwalk->rule.threshold.test : "*"),
+						(rwalk->rule.threshold.instance ? rwalk->rule.threshold.instance->pattern : ""),
+						(rwalk->rule.threshold.instance ? "." : ""),
+						rwalk->rule.threshold.name,
+						((cond->op == METRIC_GE) ? ">=" : (cond->op == METRIC_LE) ? "<=" : (cond->op == METRIC_GT) ? ">" : "<"),
+						(cond->levelstr ? cond->levelstr : ""),
+						colorname(cond->color));
+				}
+				if (!rwalk->rule.threshold.ncond) printf("%s: no condition", rwalk->rule.threshold.keyword);
 			}
-			printf("THRESHOLD %s.%s%s%s %s%s %s",
-				rwalk->rule.threshold.test,
-				(rwalk->rule.threshold.instance ? rwalk->rule.threshold.instance->pattern : ""),
-				(rwalk->rule.threshold.instance ? "." : ""),
-				rwalk->rule.threshold.name,
-				((rwalk->rule.threshold.op == METRIC_GE) ? ">=" : (rwalk->rule.threshold.op == METRIC_LE) ? "<=" : (rwalk->rule.threshold.op == METRIC_GT) ? ">" : "<"),
-				(rwalk->rule.threshold.levelstr ? rwalk->rule.threshold.levelstr : ""),
-				colorname(rwalk->rule.threshold.color));
 			break;
 
 		  case C_RRDDS:
@@ -2197,23 +2287,26 @@ static char *threshold_value(double v, char *buf)
  * metric as a rule writes it, &V the value, &L and &U both the level, since a
  * THRESHOLD has one -- or, without TEXT, "&N is &V, above &L" in the words
  * of the condition. */
-static void threshold_line(strbuffer_t *lines, c_rule_t *rule, metricsample_t *s)
+static void threshold_line(strbuffer_t *lines, c_rule_t *rule, c_threshold_cond_t *cond, metricsample_t *s)
 {
 	char metric[PATH_MAX], value[64];
 	char *fmt, *bot, *marker;
-	char *word = (rule->rule.threshold.op == METRIC_GE) ? "at or above" :
-		     (rule->rule.threshold.op == METRIC_LE) ? "at or below" :
-		     (rule->rule.threshold.op == METRIC_GT) ? "above" : "below";
+	char *word = (cond->op == METRIC_GE) ? "at or above" :
+		     (cond->op == METRIC_LE) ? "at or below" :
+		     (cond->op == METRIC_GT) ? "above" : "below";
 
 	if (s->instance) snprintf(metric, sizeof(metric), "%s.%s.%s", s->test, s->instance, s->name);
 	else snprintf(metric, sizeof(metric), "%s.%s", s->test, s->name);
 	threshold_value(s->value, value);
 
 	addtobuffer(lines, "&");
-	addtobuffer(lines, colorname(rule->rule.threshold.color));
+	addtobuffer(lines, colorname(cond->color));
 	addtobuffer(lines, " ");
 
-	if (rule->statustext) {
+	if (cond->text) {
+		fmt = cond->text;
+	}
+	else if (rule->statustext) {
 		fmt = rule->statustext;
 	}
 	else {
@@ -2232,7 +2325,7 @@ static void threshold_line(strbuffer_t *lines, c_rule_t *rule, metricsample_t *s
 			  case 'N': addtobuffer(lines, metric); marker += 2; break;
 			  case 'V': addtobuffer(lines, value); marker += 2; break;
 			  case 'L':
-			  case 'U': addtobuffer(lines, (rule->rule.threshold.levelstr ? rule->rule.threshold.levelstr : "")); marker += 2; break;
+			  case 'U': addtobuffer(lines, (cond->levelstr ? cond->levelstr : "")); marker += 2; break;
 			  default: addtobuffer(lines, "&"); marker++; break;
 			}
 			bot = marker;
@@ -2244,7 +2337,79 @@ static void threshold_line(strbuffer_t *lines, c_rule_t *rule, metricsample_t *s
 	} while (bot);
 	addtobuffer(lines, "\n");
 
-	if (fmt != rule->statustext) xfree(fmt);
+	if ((fmt != rule->statustext) && (fmt != cond->text)) xfree(fmt);
+}
+
+/* Does this rule name this sample? The test when the rule has one, the
+ * name, and the instance when the rule has one. */
+static int threshold_names(c_rule_t *rule, metricsample_t *s, char *test)
+{
+	if (rule->rule.threshold.test && (strcmp(rule->rule.threshold.test, test) != 0)) return 0;
+	if (!s->name || (strcmp(rule->rule.threshold.name, s->name) != 0)) return 0;
+	if (rule->rule.threshold.instance) {
+		if (!s->instance) return 0;
+		if (!namematch(s->instance, rule->rule.threshold.instance->pattern, rule->rule.threshold.instance->exp)) return 0;
+	}
+
+	return 1;
+}
+
+/* Judge every sample of a test under the keyword rules -- LOAD, UP, CLOCK
+ * as the file wrote them, or the built-in default -- with each keyword's
+ * first-match contract: for a sample, the first matching rule of each
+ * keyword applies and later ones do not. Every condition of that rule is
+ * judged and the worst verdict kept on the sample; a line is written for
+ * each condition that trips, or, on a ladder, for the worst of them only,
+ * which is the one line LOAD always wrote. Returns the worst colour that
+ * tripped. The analyser calls this first, then client_config_thresholds()
+ * for the rules written as THRESHOLD, so the keyword lines come first as
+ * they always did. */
+int client_config_keywords(void *hinfo, char *classname, char *test, strbuffer_t *lines)
+{
+	char *hostname, *pagename;
+	metricbatch_t *b = check_batch();
+	int idx, color = COL_GREEN;
+
+	hostname = xmh_item(hinfo, XMH_HOSTNAME);
+	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
+
+	for (idx = 0; (idx < b->count); idx++) {
+		metricsample_t *s = metric_batch_sample(b, idx);
+		c_rule_t *rwalk;
+		char *seen[8];
+		int nseen = 0, k;
+
+		if (!s->test || (strcmp(s->test, test) != 0)) continue;
+
+		for (rwalk = getrule(hostname, pagename, classname, hinfo, C_THRESHOLD); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_THRESHOLD)) {
+			c_threshold_cond_t *worst = NULL;
+			int c;
+
+			if (!rwalk->rule.threshold.keyword) continue;
+			if (!threshold_names(rwalk, s, test)) continue;
+			for (k = 0; (k < nseen); k++) if (strcmp(seen[k], rwalk->rule.threshold.keyword) == 0) break;
+			if (k < nseen) continue;		/* a later rule of a keyword already matched */
+			if (nseen < 8) seen[nseen++] = rwalk->rule.threshold.keyword;
+
+			for (c = 0; (c < rwalk->rule.threshold.ncond); c++) {
+				c_threshold_cond_t *cond = &rwalk->rule.threshold.cond[c];
+				metricrule_t r;
+
+				metric_rule(&r, s->name, cond->op, cond->level, cond->color);
+				if (!metric_batch_trips(b, idx, &r)) continue;
+
+				if (rwalk->rule.threshold.ladder) {
+					if (!worst || (cond->color > worst->color)) worst = cond;
+				}
+				else if (lines) threshold_line(lines, rwalk, cond, s);
+				if (rwalk->groups) addalertgroup(rwalk->groups);
+				if (cond->color > color) color = cond->color;
+			}
+			if (worst && lines) threshold_line(lines, rwalk, worst, s);
+		}
+	}
+
+	return color;
 }
 
 /* Judge every sample of a test in the report's batch under the THRESHOLD
@@ -2270,25 +2435,35 @@ int client_config_thresholds(void *hinfo, char *classname, char *test, strbuffer
 		if (!s->test || (strcmp(s->test, test) != 0)) continue;
 
 		for (rwalk = getrule(hostname, pagename, classname, hinfo, C_THRESHOLD); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_THRESHOLD)) {
+			c_threshold_cond_t *cond = &rwalk->rule.threshold.cond[0];
 			metricrule_t r;
 
-			if (strcmp(rwalk->rule.threshold.test, test) != 0) continue;
-			if (!s->name || (strcmp(rwalk->rule.threshold.name, s->name) != 0)) continue;
-			if (rwalk->rule.threshold.instance) {
-				if (!s->instance) continue;
-				if (!namematch(s->instance, rwalk->rule.threshold.instance->pattern, rwalk->rule.threshold.instance->exp)) continue;
-			}
+			if (rwalk->rule.threshold.keyword) continue;	/* a keyword's: client_config_keywords() */
+			if (!rwalk->rule.threshold.ncond) continue;
+			if (!threshold_names(rwalk, s, test)) continue;
 
-			metric_rule(&r, s->name, rwalk->rule.threshold.op, rwalk->rule.threshold.level, rwalk->rule.threshold.color);
+			metric_rule(&r, s->name, cond->op, cond->level, cond->color);
 			if (!metric_batch_trips(b, idx, &r)) continue;
 
-			if (lines) threshold_line(lines, rwalk, s);
+			if (lines) threshold_line(lines, rwalk, cond, s);
 			if (rwalk->groups) addalertgroup(rwalk->groups);
-			if (rwalk->rule.threshold.color > color) color = rwalk->rule.threshold.color;
+			if (cond->color > color) color = cond->color;
 		}
 	}
 
 	return color;
+}
+
+/* The first matching rule of a keyword for the host, or NULL. */
+static c_rule_t *keyword_match(char *hostname, char *pagename, char *classname, void *hinfo, char *keyword)
+{
+	c_rule_t *rwalk;
+
+	for (rwalk = getrule(hostname, pagename, classname, hinfo, C_THRESHOLD); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_THRESHOLD)) {
+		if (rwalk->rule.threshold.keyword && (strcmp(rwalk->rule.threshold.keyword, keyword) == 0)) return rwalk;
+	}
+
+	return NULL;
 }
 
 int get_cpu_thresholds(void *hinfo, char *classname, 
@@ -2303,33 +2478,47 @@ int get_cpu_thresholds(void *hinfo, char *classname,
 	hostname = xmh_item(hinfo, XMH_HOSTNAME);
 	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
 
+	/* The values as the keyword rules hold them: the first matching rule
+	 * of each keyword, which is the built-in default when the file has
+	 * none for the host. The analysers that still judge by hand read them
+	 * from here, as they did. */
 	*loadyellow = 5.0;
 	*loadred = 10.0;
 	*uptimecolor = *clockdiffcolor = COL_YELLOW;
-
-	rule = getrule(hostname, pagename, classname, hinfo, C_LOAD);
-	if (rule) {
-		*loadyellow = rule->rule.load.warnlevel;
-		*loadred    = rule->rule.load.paniclevel;
-		result = rule->cfid;
-	}
-
 	*recentlimit = 3600;
 	*ancientlimit = -1;
+	*maxclockdiff = -1;
 
-	rule = getrule(hostname, pagename, classname, hinfo, C_UPTIME);
+	rule = keyword_match(hostname, pagename, classname, hinfo, "LOAD");
 	if (rule) {
-		*recentlimit  = rule->rule.uptime.recentlimit;
-		*ancientlimit = rule->rule.uptime.ancientlimit;
-		*uptimecolor = rule->rule.uptime.color;
-		result = rule->cfid;
+		int c;
+
+		for (c = 0; (c < rule->rule.threshold.ncond); c++) {
+			if (rule->rule.threshold.cond[c].color == COL_RED) *loadred = (float)rule->rule.threshold.cond[c].level;
+			else *loadyellow = (float)rule->rule.threshold.cond[c].level;
+		}
+		if (!rule->rule.threshold.builtin) result = rule->cfid;
 	}
 
-	*maxclockdiff = -1;
-	rule = getrule(hostname, pagename, classname, hinfo, C_CLOCK);
+	rule = keyword_match(hostname, pagename, classname, hinfo, "UP");
 	if (rule) {
-		*maxclockdiff = rule->rule.clock.maxdiff;
-		*clockdiffcolor = rule->rule.clock.color;
+		int c;
+
+		for (c = 0; (c < rule->rule.threshold.ncond); c++) {
+			if (rule->rule.threshold.cond[c].op == METRIC_LT) *recentlimit = (int)rule->rule.threshold.cond[c].level;
+			else *ancientlimit = (int)rule->rule.threshold.cond[c].level;
+			*uptimecolor = rule->rule.threshold.cond[c].color;
+		}
+		if (!rule->rule.threshold.builtin) result = rule->cfid;
+	}
+
+	rule = keyword_match(hostname, pagename, classname, hinfo, "CLOCK");
+	if (rule && rule->rule.threshold.ncond) {
+		*maxclockdiff = (int)rule->rule.threshold.cond[0].level;
+		*clockdiffcolor = rule->rule.threshold.cond[0].color;
+	}
+	else if (rule) {
+		*maxclockdiff = 0;	/* CLOCK 0: a rule that checks nothing */
 	}
 
 	return result;

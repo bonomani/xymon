@@ -15,7 +15,13 @@
 #     the DS placeholders &N &V &L &U;
 #   - a stale sample trips nothing; a rule for another host, test or name
 #     does not apply; a rule with no condition is no rule;
-#   - --dump-config prints the rule back.
+#   - --dump-config prints the rule back;
+#   - LOAD, UP and CLOCK are keyword rules: the first matching line of each
+#     keyword applies to the host, or the built-in default (LOAD 5 10,
+#     UP 1h yellow, no CLOCK), and a THRESHOLD never shadows them; LOAD
+#     writes the one line of the worst level that trips; UP's "-1" and
+#     "never" are no second condition; get_cpu_thresholds() reads the same
+#     values back for the analysers that still judge by hand.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -66,11 +72,17 @@ THRESHOLD disk./home.pct >=50 yellow
 THRESHOLD disk.%^/var.free <1000 red
 THRESHOLD files.mtimeage >1 red
 THRESHOLD files.size clear
+LOAD 2 4 HOST=testhost
+LOAD 1 1 HOST=testhost
+UP 10m 2d red HOST=testhost
+UP 1h -1 HOST=otherhost
+CLOCK 30 red HOST=testhost
 EOF2
 
 out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
 	cpu - load 12 ok \
 	cpu - uptime 300 ok \
+	cpu - clockoffset -45 ok \
 	disk / pct 95 ok \
 	disk /home pct 60 ok \
 	disk /var/log free 500.5 ok \
@@ -88,7 +100,7 @@ assert_equal "red" "$(sample cpu - load)" "the load sample is not the worst of i
 assert_contains "&yellow cpu.load is 12, above 5" "$out" "the default line is not in the words of the condition"
 assert_contains "&red cpu.load is 12, above 10" "$out" "the second rule on the same sample wrote no line"
 assert_contains "&yellow Rebooted 300 s ago, limit 10m (cpu.uptime)" "$out" "TEXT placeholders were not expanded, or the level lost its unit"
-assert_equal "yellow" "$(sample cpu - uptime)" "a duration level of 10m was not read as 600 seconds"
+assert_equal "red" "$(sample cpu - uptime)" "the uptime sample is not the worst of its UP (red) and THRESHOLD (yellow) rules"
 assert_not_contains $'above 1\n' "$out" "a rule for another host, or with an instance the sample lacks, applied"
 
 assert_equal "red" "$(test_color disk)" "the disk colour returned is not the worst THRESHOLD that tripped"
@@ -104,7 +116,19 @@ assert_equal "green" "$(sample files /x size)" "a THRESHOLD without a condition 
 assert_equal "green" "$(test_color memory)" "a test with no THRESHOLD rule got a colour"
 assert_contains "has no condition" "$(cat "$work/run.log")" "a THRESHOLD with no condition was not reported"
 
+keyword_color() { printf '%s\n' "$out" | sed -n "s|^keyword $1 ||p"; }
+assert_equal "red" "$(keyword_color cpu)" "the keyword pass did not return the worst colour that tripped"
+assert_contains $'&red Load is CRITICAL\n' "$out" "LOAD 2 4 did not write its CRITICAL line on a load of 12"
+assert_not_contains "Load is HIGH" "$out" "LOAD wrote both levels' lines where it always wrote the worst"
+assert_contains $'&red Machine recently rebooted\n' "$out" "UP 10m 2d red did not trip on an uptime of 300"
+assert_contains "&red System clock is -45 seconds off (max 30)" "$out" "CLOCK 30 red did not trip on an offset of -45, or lost its text"
+assert_equal "green" "$(keyword_color disk)" "a keyword rule tripped on a test that has none"
+assert_contains "cpu testhost load 2.0 4.0 up 600 172800 red clock 30 red" "$out" "get_cpu_thresholds does not read the host's first LOAD, UP and CLOCK back (LOAD 1 1 must be shadowed)"
+assert_contains "cpu otherhost load 5.0 10.0 up 3600 -1 yellow clock -1 yellow" "$out" "a host without LOAD or CLOCK did not get the built-in default, or UP 1h -1 kept a second condition"
+assert_contains "LOAD: THRESHOLD cpu.load >4 red; THRESHOLD cpu.load >2 yellow" "$out" "--dump-config does not print a LOAD line as what it compiled to"
+assert_contains "UP: THRESHOLD *.uptime <3600 yellow" "$out" "--dump-config does not print UP 1h -1 as one condition on the uptime of any test"
+
 assert_contains "THRESHOLD disk./home.pct >=50 yellow" "$out" "--dump-config does not print the rule back"
 assert_contains "THRESHOLD cpu.uptime <10m yellow" "$out" "--dump-config lost the level as written"
 
-pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept, one line per rule that trips"
+pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP and CLOCK are keyword rules with first match and built-in defaults"
