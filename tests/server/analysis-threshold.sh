@@ -1,0 +1,110 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# tests/server/analysis-threshold.sh
+#
+# THRESHOLD rules in analysis.cfg: one condition on one named metric of the
+# report's batch, judged where the metric is born. Through a harness that
+# fills a batch and calls client_config_thresholds() as an analyser does:
+#   - a metric is test.name, or test.instance.name with the instance a
+#     pattern; a rule without an instance is every instance of the metric;
+#   - every rule that addresses a sample is applied and the worst colour is
+#     kept; the colour returned to the analyser is the worst that tripped;
+#   - a level with a unit of time is seconds; the line keeps it as written;
+#   - the line is "&colour test.instance.name is V, above L" or TEXT= with
+#     the DS placeholders &N &V &L &U;
+#   - a stale sample trips nothing; a rule for another host, test or name
+#     does not apply; a rule with no condition is no rule;
+#   - --dump-config prints the rule back.
+
+set -euo pipefail
+# shellcheck source=tests/lib/assert.sh
+. "$(dirname "$0")/../lib/assert.sh"
+
+ROOT=$(find_root)
+here=$(dirname "$0")
+CLIENT_CONFIG_C="$ROOT/xymond/client_config.c"
+[ -f "$CLIENT_CONFIG_C" ] || skip "xymond/client_config.c not present in this checkout"
+
+CC=${CC:-cc}
+command -v "$CC" >/dev/null 2>&1 || skip "no C compiler available (CC=$CC)"
+require_gnu_make
+[ -f "$ROOT/include/config.h" ] && [ -f "$ROOT/lib/libxymoncomm.a" ] \
+	|| skip "tree not built (run make first; the post-build CI suite covers this)"
+
+work=$(mktempdir)
+
+"$XYMON_MAKE" -C "$ROOT/lib" libxymoncomm.a >"$work/libbuild.log" 2>&1 \
+	|| { cat "$work/libbuild.log" >&2; fail "cannot refresh libxymoncomm.a"; }
+
+pcre_libs=${PCRELIBS:-}
+if [ -z "$pcre_libs" ] && command -v pkg-config >/dev/null 2>&1; then
+	pcre_libs=$(pkg-config --libs libpcre2-8 2>/dev/null || true)
+fi
+[ -n "$pcre_libs" ] || pcre_libs="-lpcre2-8"
+
+harness_cflags=$(xymon_cflags "$ROOT")
+harness_ldflags=$(xymon_ldflags "$ROOT")
+"$CC" $harness_cflags -iquote "$ROOT/xymond" -o "$work/harness" \
+	"$here/analysis-threshold-harness.c" "$CLIENT_CONFIG_C" \
+	"$ROOT/lib/libxymoncomm.a" $harness_ldflags $pcre_libs 2>"$work/cc.log" \
+	|| { cat "$work/cc.log" >&2; fail "harness does not compile"; }
+
+cat >"$work/hosts.cfg" <<'EOF2'
+127.0.0.1 testhost #
+127.0.0.2 otherhost #
+EOF2
+
+cat >"$work/analysis.cfg" <<'EOF2'
+THRESHOLD cpu.load >5 yellow
+THRESHOLD cpu.load >10 COLOR=red GROUP=ops
+THRESHOLD cpu.uptime <10m yellow "TEXT=Rebooted &V s ago, limit &L (&N)"
+THRESHOLD cpu.load >1 red HOST=otherhost
+THRESHOLD cpu.x.load >1 red
+THRESHOLD disk.pct >=90 red
+THRESHOLD disk./home.pct >=50 yellow
+THRESHOLD disk.%^/var.free <1000 red
+THRESHOLD files.mtimeage >1 red
+THRESHOLD files.size clear
+EOF2
+
+out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
+	cpu - load 12 ok \
+	cpu - uptime 300 ok \
+	disk / pct 95 ok \
+	disk /home pct 60 ok \
+	disk /var/log free 500.5 ok \
+	disk /var/log pct 10 ok \
+	files /x mtimeage 100000 stale \
+	files /x size 10 ok \
+	memory - phys 50 ok 2>"$work/run.log") \
+	|| { cat "$work/run.log" >&2; fail "harness run failed"; }
+
+sample() { printf '%s\n' "$out" | sed -n "s|^sample $1 $2 $3 ||p"; }
+test_color() { printf '%s\n' "$out" | sed -n "s|^test $1 ||p"; }
+
+assert_equal "red" "$(test_color cpu)" "the cpu colour returned is not the worst THRESHOLD that tripped"
+assert_equal "red" "$(sample cpu - load)" "the load sample is not the worst of its two rules"
+assert_contains "&yellow cpu.load is 12, above 5" "$out" "the default line is not in the words of the condition"
+assert_contains "&red cpu.load is 12, above 10" "$out" "the second rule on the same sample wrote no line"
+assert_contains "&yellow Rebooted 300 s ago, limit 10m (cpu.uptime)" "$out" "TEXT placeholders were not expanded, or the level lost its unit"
+assert_equal "yellow" "$(sample cpu - uptime)" "a duration level of 10m was not read as 600 seconds"
+assert_not_contains $'above 1\n' "$out" "a rule for another host, or with an instance the sample lacks, applied"
+
+assert_equal "red" "$(test_color disk)" "the disk colour returned is not the worst THRESHOLD that tripped"
+assert_equal "red" "$(sample disk / pct)" "a rule without an instance did not apply to every mount"
+assert_equal "yellow" "$(sample disk /home pct)" "a rule with an instance did not apply to it, or the every-mount rule tripped below its level"
+assert_equal "red" "$(sample disk /var/log free)" "a pattern instance did not match"
+assert_equal "green" "$(sample disk /var/log pct)" "a rule applied to a sample of another name"
+assert_contains "&red disk./var/log.free is 500.50, below 1000" "$out" "a non-integer value is not printed to two decimals"
+
+assert_equal "green" "$(test_color files)" "a stale sample tripped, or a rule with no condition did"
+assert_equal "green" "$(sample files /x mtimeage)" "a stale age was judged"
+assert_equal "green" "$(sample files /x size)" "a THRESHOLD without a condition judged a sample"
+assert_equal "green" "$(test_color memory)" "a test with no THRESHOLD rule got a colour"
+assert_contains "has no condition" "$(cat "$work/run.log")" "a THRESHOLD with no condition was not reported"
+
+assert_contains "THRESHOLD disk./home.pct >=50 yellow" "$out" "--dump-config does not print the rule back"
+assert_contains "THRESHOLD cpu.uptime <10m yellow" "$out" "--dump-config lost the level as written"
+
+pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept, one line per rule that trips"
