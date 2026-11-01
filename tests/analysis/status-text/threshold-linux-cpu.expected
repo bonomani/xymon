@@ -1,0 +1,15 @@
+status thr1,test.cpu red Fri Oct 31 10:00:00 CET 2026 up: 00:12, 0 users, 1 procs, load=2.00
+&yellow Machine recently rebooted
+&yellow cpu.load is 2, above 1.5
+&red Rebooted 720 seconds ago, less than 1d
+
+status thr1,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
+&clear No process checks defined
+
+USER  PID  %CPU  %MEM  COMMAND
+root    1   0.0   0.1  /sbin/initstatus thr1,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status thr1,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

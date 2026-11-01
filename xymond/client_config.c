@@ -2975,12 +2975,19 @@ static int sample_trips(char *test, char *instance, char *name, double value, me
  * minus a timestamp the client wrote, so when the report's clock is off
  * beyond the CLOCK limit the age is stale and trips nothing: a clock that
  * stepped since the file was written puts the file's age anywhere. */
+static int age_sample(char *test, char *instance, char *name, double value)
+{
+	int idx = report_sample(test, instance, name, value);
+
+	if (metric_batch_skewed(current)) metric_batch_sample(current, idx)->state = METRIC_STALE;
+
+	return idx;
+}
+
 static int age_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
 {
 	if (metric_batch_skewed(current)) {
-		int idx = report_sample(test, instance, name, value);
-
-		metric_batch_sample(current, idx)->state = METRIC_STALE;
+		age_sample(test, instance, name, value);
 		return 0;
 	}
 
@@ -3103,6 +3110,17 @@ int check_file(void *hinfo, char *classname,
 	ctimedif = clock - ctime;
 	atimedif = clock - atime;
 	mtimedif = clock - mtime;
+
+	/* What the client measured goes in the batch whether or not a FILE
+	 * rule addresses it, so a THRESHOLD rule can: the FILE conditions
+	 * below find these same samples by identity. */
+	if (exists) {
+		report_sample("files", filename, "size", (double)fsize);
+		report_sample("files", filename, "linkcount", (double)linkcount);
+		age_sample("files", filename, "ctimeage", (double)ctimedif);
+		age_sample("files", filename, "mtimeage", (double)mtimedif);
+		age_sample("files", filename, "atimeage", (double)atimedif);
+	}
 
 	for (rwalk = getrule(hostname, pagename, classname, hinfo, C_FILE); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_FILE)) {
 		int rulecolor = COL_GREEN;
@@ -3400,6 +3418,7 @@ int check_dir(void *hinfo, char *classname,
 	}
 
 	*dirsize = dsize;
+	if (gotsize) report_sample("files", filename, "size", (double)dsize);
 
 	/* Got the data? */
 	if (!gotsize) {

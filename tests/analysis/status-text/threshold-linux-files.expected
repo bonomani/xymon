@@ -1,0 +1,15 @@
+status thr4,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status thr4,test.files red Fri Oct 31 10:00:00 CET 2026 - Files NOT ok
+
+&yellow files./var/tmp.size is 250000, above 100000
+&yellow files./etc/passwd.size is 2048, above 1000
+&red files./etc/passwd.mtimeage is 10000000, above 1d
+
+&green /var/tmp
+
+&green /var/log/big.log
+
+&green /etc/passwd
+
+

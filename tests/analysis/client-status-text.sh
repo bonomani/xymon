@@ -58,6 +58,16 @@
 #     rule the [clock] epoch is far beyond: the age is stale and trips
 #     nothing, the file is green and cpu carries the clock. Recorded after
 #     that rule was added; before it the file was red
+# THRESHOLD, the generic rule, recorded when it was added:
+#   - threshold-linux-cpu: cpu.load above its level beside the UP default,
+#     cpu.uptime below a level written as 1d, with TEXT
+#   - threshold-linux-disk: disk.pct for every mount, disk./data.free with
+#     GROUP=, inode on a pattern instance; the keyword lines stay
+#   - threshold-linux-memory: memory.phys with TEXT and a literal %
+#   - threshold-linux-procs: a PROC count judged again by a THRESHOLD, the
+#     PROC line green and the status yellow from the THRESHOLD
+#   - threshold-linux-files: a file's size and age with no FILE rule naming
+#     them, a directory's size, and a rule for every file's link count
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh

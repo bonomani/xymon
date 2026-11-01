@@ -510,6 +510,14 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 		}
 	}
 
+	/* The host's THRESHOLD rules on the cpu samples, after the keyword
+	 * rules and before the fold, so the status is the worst of both. */
+	client_config_thresholds(hinfo, clientclass, "cpu", cpumsg);
+	if (separate_uptime_status) {
+		upmsg = newstrbuffer(0);
+		client_config_thresholds(hinfo, clientclass, "uptime", upmsg);
+	}
+
 	cpucolor = metric_batch_color(report_batch, "cpu");
 	init_status(cpucolor);
 	sprintf(msgline, "status %s.cpu %s %s %s, %d users, %d procs, load=%s\n",
@@ -542,6 +550,10 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 		addtostatus(msgline);
 		sprintf(msgline, "\nSystem has been %s\n", myupstr);
 		addtostatus(msgline);
+		if (STRBUFLEN(upmsg)) {
+			addtostrstatus(upmsg);
+			addtostatus("\n");
+		}
 		if (fromline && !localmode) addtostatus(fromline);
 		finish_status();
 	}
@@ -771,8 +783,10 @@ static void unix_fs_report(fsreport_t *rep,
 		}
 	}
 
-	/* The status colour: the worst verdict among the test's samples, and
-	 * the yellow of a table whose headers were not found. */
+	/* The host's THRESHOLD rules on the test's samples, then the status
+	 * colour: the worst verdict among them, and the yellow of a table
+	 * whose headers were not found. */
+	client_config_thresholds(hinfo, clientclass, rep->test, monmsg);
 	if (metric_batch_color(report_batch, rep->test) > fscolor) fscolor = metric_batch_color(report_batch, rep->test);
 
 	/* Now we know the result, so generate a status message */
@@ -860,6 +874,7 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	int memorycolor = COL_GREEN, physcolor, swapcolor, actcolor;
 	char *memorysummary = "OK";
 	int phys, act, swap;
+	strbuffer_t *memmsg;
 
 	char msgline[4096];
 
@@ -886,7 +901,10 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	swapcolor = metric_batch_sample(report_batch, swap)->color;
 	actcolor  = metric_batch_sample(report_batch, act)->color;
 
-	/* The status colour is the worst row, and the summary names it. */
+	/* The host's THRESHOLD rules on the three samples, then the status
+	 * colour: the worst row, and the summary names it. */
+	memmsg = newstrbuffer(0);
+	client_config_thresholds(hinfo, clientclass, "memory", memmsg);
 	memorycolor = metric_batch_color(report_batch, "memory");
 	if (memorycolor == COL_RED) memorysummary = "CRITICAL";
 	else if (memorycolor == COL_YELLOW) memorysummary = "low";
@@ -931,6 +949,11 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 
 		addtostatus(msgline);
 	}
+	if (STRBUFLEN(memmsg)) {
+		addtostatus("\n");
+		addtostrstatus(memmsg);
+	}
+	freestrbuffer(memmsg);
 	if (fromline && !localmode) addtostatus(fromline);
 	finish_status();
 }
@@ -1061,8 +1084,10 @@ void unix_procs_report(char *hostname, char *clientclass, enum ostype_t os,
 			}
 		}
 
-		/* The status colour: the worst verdict among the count samples
-		 * check_process_count() judged into the batch. */
+		/* The host's THRESHOLD rules on the count samples, then the status
+		 * colour: the worst verdict among the samples check_process_count()
+		 * and the rules judged into the batch. */
+		client_config_thresholds(hinfo, clientclass, "procs", monmsg);
 		pscolor = metric_batch_color(report_batch, "procs");
 	}
 	else {
@@ -1281,6 +1306,7 @@ void file_report(char *hostname, char *clientclass, enum ostype_t os,
 	sectlist_t *swalk;
 	strbuffer_t *filesummary;
 	int filecolor = -1, onecolor;
+	strbuffer_t *threshdata;
 	char msgline[PATH_MAX];
 	char sectionname[PATH_MAX];
 	int anyszdata = 0;
@@ -1403,6 +1429,13 @@ void file_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	freestrbuffer(filesummary);
 
+	/* The host's THRESHOLD rules on the files samples -- every size, link
+	 * count and age check_file() measured, whether or not a FILE rule
+	 * addressed it -- fold into the colour of a status that has files. */
+	threshdata = newstrbuffer(0);
+	onecolor = client_config_thresholds(hinfo, clientclass, "files", threshdata);
+	if ((filecolor != -1) && (onecolor > filecolor)) filecolor = onecolor;
+
 	if ((filecolor == -1) && sendclearfiles) {
 		filecolor = noreportcolor;
 		addtobuffer(greendata, "No files checked\n");
@@ -1420,6 +1453,11 @@ void file_report(char *hostname, char *clientclass, enum ostype_t os,
 			(timestr ? timestr : "<No timestamp data>"),
 			(((filecolor == COL_RED) || (filecolor == COL_YELLOW)) ? "NOT ok" : "ok"));
 		addtostatus(msgline);
+
+		if (STRBUFLEN(threshdata)) {
+			addtostatus("\n");
+			addtostrstatus(threshdata);
+		}
 
 		if (STRBUFLEN(reddata)) {
 			addtostrstatus(reddata);
@@ -1448,6 +1486,7 @@ void file_report(char *hostname, char *clientclass, enum ostype_t os,
 		clearstrbuffer(yellowdata);
 		clearstrbuffer(greendata);
 	}
+	freestrbuffer(threshdata);
 
 	if (anyszdata) combo_add(sizedata);
 	clearstrbuffer(sizedata);
@@ -1687,6 +1726,7 @@ void unix_ports_report(char *hostname, char *clientclass, enum ostype_t os,
 		/* The status colour: the worst verdict among the count samples
 		 * check_port_count() judged into the batch. With at least one
 		 * PORT rule there is at least one sample, so the status is sent. */
+		client_config_thresholds(hinfo, clientclass, "ports", monmsg);
 		portcolor = metric_batch_color(report_batch, "ports");
 	}
 
