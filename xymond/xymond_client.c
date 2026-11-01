@@ -471,7 +471,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 		p = strstr(clockstr, "epoch:");
 		if (p && (sscanf(p, "epoch: %ld.%ld", (long int *)&clockval.tv_sec, (long int *)&clockval.tv_usec) == 2)) {
-			struct timeval clockdiff;
+			struct timeval now, clockdiff;
 			struct timezone tz;
 			int cachedelay = 0;
 
@@ -481,13 +481,15 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 				if (p) cachedelay = atoi(p+11);
 			}
 
-			gettimeofday(&clockdiff, &tz);
-			clockdiff.tv_sec -= (clockval.tv_sec + cachedelay);
-			clockdiff.tv_usec -= clockval.tv_usec;
-			if (clockdiff.tv_usec < 0) {
-				clockdiff.tv_usec += 1000000;
-				clockdiff.tv_sec -= 1;
-			}
+			/* The report's clocks go on the batch: measured at the client,
+			 * moved forward by the time it sat in msgcache, and received as
+			 * the server's time now, which is what this comparison always
+			 * used. The offset is then one number for everything that
+			 * reads the batch, not this analyser's local. */
+			clockval.tv_sec += cachedelay;
+			gettimeofday(&now, &tz);
+			metric_batch_clock(report_batch, &clockval, &now);
+			metric_batch_offset(report_batch, &clockdiff);
 
 			/* The offset keeps its sign; CLOCK's "more than N seconds
 			 * off" either way is one condition above N and one below -N. */

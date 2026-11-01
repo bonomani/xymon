@@ -108,6 +108,7 @@ void metric_batch_clear(metricbatch_t *b)
 		if (b->samples[i].name) xfree(b->samples[i].name);
 	}
 	b->count = 0;
+	b->clocks = 0;
 }
 
 void metric_batch_free(metricbatch_t *b)
@@ -154,6 +155,33 @@ int metric_batch_judge(metricbatch_t *b, int first, int nsamples, metricrule_t *
 	if (hit) s->hit = *hit;
 
 	return s->color;
+}
+
+/* The report's clocks. A producer that sat in msgcache has its measured
+ * time moved forward by the cache delay before it gets here, so the offset
+ * is between clocks and not between queues. */
+void metric_batch_clock(metricbatch_t *b, struct timeval *measured, struct timeval *received)
+{
+	b->measured = *measured;
+	b->received = *received;
+	b->clocks = 1;
+}
+
+/* received minus measured, in whole seconds and microseconds, the seconds
+ * rounded down: a server 1.3 s ahead is 1 s off, 0.7 s behind is -1 s off.
+ * 0 when a clock is unknown, and *offset is left alone. */
+int metric_batch_offset(metricbatch_t *b, struct timeval *offset)
+{
+	if (!b->clocks) return 0;
+
+	offset->tv_sec = b->received.tv_sec - b->measured.tv_sec;
+	offset->tv_usec = b->received.tv_usec - b->measured.tv_usec;
+	if (offset->tv_usec < 0) {
+		offset->tv_usec += 1000000;
+		offset->tv_sec -= 1;
+	}
+
+	return 1;
 }
 
 /* The colour of a test: the worst verdict among its samples, COL_GREEN
