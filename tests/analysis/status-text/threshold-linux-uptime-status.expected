@@ -1,0 +1,19 @@
+status thr6,test.cpu yellow Fri Oct 31 10:00:00 CET 2026 up: 00:12, 0 users, 1 procs, load=2.00
+&yellow cpu.load is 2, above 1.5
+
+status thr6,test.uptime red Fri Oct 31 10:00:00 CET 2026 Uptime Not OK
+
+System has been up: 00:12
+&red Machine recently rebooted
+&yellow Rebooted 720 seconds ago
+
+status thr6,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
+&clear No process checks defined
+
+USER  PID  %CPU  %MEM  COMMAND
+root    1   0.0   0.1  /sbin/initstatus thr6,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status thr6,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+

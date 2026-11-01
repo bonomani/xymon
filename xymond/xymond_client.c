@@ -513,10 +513,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	/* The host's THRESHOLD rules on the cpu samples, after the keyword
 	 * rules and before the fold, so the status is the worst of both. */
 	client_config_thresholds(hinfo, clientclass, "cpu", cpumsg);
-	if (separate_uptime_status) {
-		upmsg = newstrbuffer(0);
-		client_config_thresholds(hinfo, clientclass, "uptime", upmsg);
-	}
+	if (separate_uptime_status) client_config_thresholds(hinfo, clientclass, "uptime", upmsg);
 
 	cpucolor = metric_batch_color(report_batch, "cpu");
 	init_status(cpucolor);

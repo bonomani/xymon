@@ -6,7 +6,8 @@
 # The statuses xymond_client builds from a client report, pinned to the text
 # they had before the analysers were moved onto metric samples judged by
 # lib/metric.c. Each case in status-text/ is a client report (NAME.msg), the
-# analysis.cfg it is judged under (NAME.cfg) and every status the report
+# analysis.cfg it is judged under (NAME.cfg), any extra command-line flags
+# for the run (NAME.flags, optional) and every status the report
 # produced (NAME.expected), recorded from "xymond_client --local" and kept
 # byte for byte: from the tree before that change, except where a case says
 # it pins a change made since.
@@ -61,6 +62,8 @@
 # THRESHOLD, the generic rule, recorded when it was added:
 #   - threshold-linux-cpu: cpu.load above its level beside the UP default,
 #     cpu.uptime below a level written as 1d, with TEXT
+#   - threshold-linux-uptime-status: the same under --uptime-status: the UP
+#     line and the uptime.uptime THRESHOLD line both in the uptime status
 #   - threshold-linux-disk: disk.pct for every mount, disk./data.free with
 #     GROUP=, inode on a pattern instance; the keyword lines stay
 #   - threshold-linux-memory: memory.phys with TEXT and a literal %
@@ -95,8 +98,12 @@ for msg in "$cases"/*.msg; do
 	expected=$cases/$name.expected
 	[ -f "$expected" ] || fail "$name has no expected output beside it"
 
+	flags=""
+	[ -f "$cases/$name.flags" ] && flags=$(cat "$cases/$name.flags")
+
+	# shellcheck disable=SC2086
 	env XYMONHOME="$work/home" XYMONTMP="$work" \
-		"$XYMOND_CLIENT" --local --no-update --config="$cases/$name.cfg" \
+		"$XYMOND_CLIENT" --local --no-update --config="$cases/$name.cfg" $flags \
 		<"$msg" 2>"$work/$name.stderr" | statuses >"$work/$name.got" \
 		|| fail "xymond_client exited non-zero on $name: $(cat "$work/$name.stderr")"
 
