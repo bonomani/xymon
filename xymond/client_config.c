@@ -284,6 +284,42 @@ typedef struct c_rule_t {
 
 static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color);
 
+/* Where a check's samples go. The analyser that judges a client report hands
+ * its report batch in, so the file, directory, MIB and count samples sit
+ * beside the disk and cpu ones and the same fold sees them all. With no
+ * batch given -- xymond_rrd judging DS rules, the harnesses -- a scratch
+ * batch is emptied at each check, and its samples live no longer than the
+ * check, as they always did. */
+static metricbatch_t *batch = NULL;
+static metricbatch_t *scratch = NULL;
+static metricbatch_t *current = NULL;
+
+void client_config_batch(metricbatch_t *b)
+{
+	batch = b;
+}
+
+static metricbatch_t *check_batch(void)
+{
+	if (batch) return (current = batch);
+
+	if (!scratch) scratch = metric_batch_new();
+	metric_batch_clear(scratch);
+	return (current = scratch);
+}
+
+/* A sample of this report, found by its identity or added: a file's size is
+ * one sample however many FILE rules address it, each judging it in turn. */
+static int report_sample(char *test, char *instance, char *name, double value)
+{
+	int idx;
+
+	if (!current) check_batch();
+	idx = metric_batch_find(current, test, instance, name);
+
+	return ((idx >= 0) ? idx : metric_batch_add(current, test, instance, name, value, METRIC_OK));
+}
+
 static c_rule_t *rulehead = NULL;
 static c_rule_t *ruletail = NULL;
 static exprlist_t *exprhead = NULL;
@@ -2544,6 +2580,7 @@ int check_mibvals(void *hinfo, char *classname,
 	 * and check all values against the configured limits.
 	 */
 	*anyrules = 1;
+	check_batch();
 	bol = mibdata;
 	while (bol && *anyrules) {
 		eoln = strchr(bol, '\n'); if (eoln) *eoln = '\0';
@@ -2702,13 +2739,12 @@ int scan_log(void *hinfo, char *classname,
  * sample of the test judged by one condition. */
 static int sample_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
 {
-	metricsample_t sample;
 	metricrule_t rule;
+	int idx = report_sample(test, instance, name, value);
 
-	metric_set(&sample, test, instance, name, value, METRIC_OK);
 	metric_rule(&rule, name, op, level, color);
 
-	return metric_trips(&sample, &rule);
+	return metric_batch_trips(current, idx, &rule);
 }
 
 int check_file(void *hinfo, char *classname, 
@@ -2734,6 +2770,7 @@ int check_file(void *hinfo, char *classname,
 	hostname = xmh_item(hinfo, XMH_HOSTNAME);
 	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
 	*trackit = *anyrules = 0;
+	check_batch();
 
 	boln = filedata;
 	while (boln && *boln) {
@@ -3099,6 +3136,7 @@ int check_dir(void *hinfo, char *classname,
 	hostname = xmh_item(hinfo, XMH_HOSTNAME);
 	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
 	*trackit = 0;
+	check_batch();
 
 	boln = filedata;
 	while (boln && *boln) {
@@ -3176,12 +3214,13 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 	double val;
 	void *hinfo;
 	strbuffer_t *seen;
-	metricsample_t sample;
 	metricrule_t lower, upper;
+	int idx;
 
 	if (!resbuf) resbuf = newstrbuffer(0);
 	clearstrbuffer(resbuf);
 	seen = newstrbuffer(0);
+	check_batch();
 
 	hinfo = hostinfo(hostname);
 	rule = getrule(hostname, pagepaths, classname, hinfo, C_RRDDS);
@@ -3234,12 +3273,15 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 		/* The DS value as a sample of the rule's column, named by its dataset,
 		 * judged by the rule's condition: one operator and level, or for an
 		 * interval a lower bound and an upper bound that must both hold. */
-		metric_set(&sample, rule->rule.rrdds.column, rrdkey, rule->rule.rrdds.rrdds, val, METRIC_OK);
-		sample.phase = METRIC_STORED;
+		idx = report_sample(rule->rule.rrdds.column, rrdkey, rule->rule.rrdds.rrdds, val);
+		metric_batch_sample(current, idx)->phase = METRIC_STORED;
 		if (rule->flags & RRDDSCHK_INTVL) {
 			metric_rule(&lower, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : METRIC_GE), rule->rule.rrdds.limitval,  rule->rule.rrdds.color);
 			metric_rule(&upper, rule->rule.rrdds.rrdds, ((rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE), rule->rule.rrdds.limitval2, rule->rule.rrdds.color);
-			rulematch = (metric_trips(&sample, &lower) && metric_trips(&sample, &upper));
+			/* Both bounds must hold before the rule matches, so the verdict
+			 * is recorded only then, under the lower bound. */
+			rulematch = (metric_trips(metric_batch_sample(current, idx), &lower) && metric_trips(metric_batch_sample(current, idx), &upper));
+			if (rulematch) metric_batch_trips(current, idx, &lower);
 
 			if (!rule->statustext) {
 				char fmt[100];
@@ -3258,7 +3300,7 @@ strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname, char *pagep
 			metric_rule(&lower, rule->rule.rrdds.rrdds,
 				    ((rule->flags & RRDDSCHK_GT) ? METRIC_GT : (rule->flags & RRDDSCHK_GE) ? METRIC_GE : (rule->flags & RRDDSCHK_LT) ? METRIC_LT : METRIC_LE),
 				    rule->rule.rrdds.limitval, rule->rule.rrdds.color);
-			rulematch = metric_trips(&sample, &lower);
+			rulematch = metric_batch_trips(current, idx, &lower);
 
 			if (!rule->statustext) {
 				char *fmt = "";
@@ -3572,15 +3614,20 @@ static void add_count3(char *pname0, char *pname1, char *pname2 , mon_proc_t *he
  * One copy for PROC, PORT, SVC, DISK and INODE, which each had their own. */
 static int count_color(char *test, char *instance, int count, int lowlim, int uplim, int color)
 {
-	metricsample_t sample;
-	metricrule_t rule[2];
-	int n = 0;
+	metricrule_t rule;
+	int idx = report_sample(test, instance, "count", (double)count);
+	int tripped = 0;
 
-	metric_set(&sample, test, instance, "count", (double)count, METRIC_OK);
-	if (lowlim != 0)  metric_rule(&rule[n++], "count", METRIC_LT, (double)lowlim, color);
-	if (uplim  != -1) metric_rule(&rule[n++], "count", METRIC_GT, (double)uplim,  color);
+	if (lowlim != 0) {
+		metric_rule(&rule, "count", METRIC_LT, (double)lowlim, color);
+		tripped |= metric_batch_trips(current, idx, &rule);
+	}
+	if (uplim != -1) {
+		metric_rule(&rule, "count", METRIC_GT, (double)uplim, color);
+		tripped |= metric_batch_trips(current, idx, &rule);
+	}
 
-	return metric_judge(&sample, 1, rule, n, NULL);
+	return (tripped ? color : COL_GREEN);
 }
 
 static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *uplim, int *color, mon_proc_t **walk, char **id, int *trackit,
@@ -3591,6 +3638,7 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 	*color = COL_GREEN;
 	*count = 0;
 	if (*walk == NULL) return NULL;
+	check_batch();
 
 	switch (ruletype) {
 	  case C_PROC:

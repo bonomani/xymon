@@ -2100,6 +2100,7 @@ int main(int argc, char *argv[])
 
 	updinfotree = xtreeNew(strcasecmp);
 	report_batch = metric_batch_new();
+	client_config_batch(report_batch);
 	running = 1;
 
 	usebackfeedqueue = (sendmessage_init_local() > 0);

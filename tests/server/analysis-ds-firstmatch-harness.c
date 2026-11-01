@@ -16,6 +16,12 @@
  * analysis.cfg passed on argv, and prints "<key>=<modify-count>" for each RRD
  * key it is asked about. The scenarios and their expected counts live in the
  * shell script, which owns the pass/fail decision.
+ *
+ * It also hands client_config a metric batch, as xymond_client does for a
+ * client report, and prints every sample the DS checks left in it as
+ * "sample <column> <key> <dataset> <colour> <phase>": one sample per dataset
+ * however many rules address it, its colour the worst rule that tripped,
+ * and the stored phase on each.
  */
 
 #include <stdio.h>
@@ -24,6 +30,7 @@
 #include "libxymon.h"
 
 extern int load_client_config(char *configfn);
+extern void client_config_batch(metricbatch_t *b);
 extern strbuffer_t *check_rrdds_thresholds(char *hostname, char *classname,
 	char *pagepaths, char *rrdkey, void *valnames, char *vals);
 
@@ -55,6 +62,7 @@ static int count_modify(strbuffer_t *b)
 int main(int argc, char *argv[])
 {
 	void *valnames;
+	metricbatch_t *b;
 	int i;
 
 	if (argc < 6) {
@@ -65,10 +73,18 @@ int main(int argc, char *argv[])
 	load_hostnames(argv[1], NULL, get_fqdn());
 	load_client_config(argv[2]);
 	valnames = make_valnames(argv[3]);
+	b = metric_batch_new();
+	client_config_batch(b);
 
 	for (i = 5; i < argc; i++) {
 		strbuffer_t *r = check_rrdds_thresholds("testhost", "", "", argv[i], valnames, argv[4]);
 		printf("%s=%d\n", argv[i], count_modify(r));
+	}
+
+	for (i = 0; i < b->count; i++) {
+		metricsample_t *s = metric_batch_sample(b, i);
+		printf("sample %s %s %s %s %s\n", s->test, s->instance, s->name, colorname(s->color),
+		       ((s->phase == METRIC_STORED) ? "stored" : "native"));
 	}
 
 	return 0;
