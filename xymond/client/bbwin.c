@@ -348,9 +348,6 @@ void bbwin_svcs_report(char *hostname, char *clientclass, enum ostype_t os,
 
                 /* Check the status and state found for each monitored svc */
                 while ((sname = check_svc_count(&scount, &scolor, &group)) != NULL) {
-
-                        if (scolor > svccolor) svccolor = scolor;
-
                         if (scolor == COL_GREEN) {
                                 sprintf(msgline, "&green %s\n", sname);
                                 addtobuffer(monmsg, msgline);
@@ -362,6 +359,11 @@ void bbwin_svcs_report(char *hostname, char *clientclass, enum ostype_t os,
                                 addalertgroup(group);
                         }
                 }
+
+                /* The status colour: the worst verdict among the count samples
+                 * check_svc_count() judged into the batch. With at least one
+                 * SVC rule there is at least one sample, so the status is sent. */
+                svccolor = metric_batch_color(report_batch, "svcs");
         }
 
         if ((svccolor == -1) && sendclearsvcs) {
