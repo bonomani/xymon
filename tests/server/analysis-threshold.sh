@@ -21,7 +21,10 @@
 #     UP 1h yellow, no CLOCK), and a THRESHOLD never shadows them; LOAD
 #     writes the one line of the worst level that trips; UP's "-1" and
 #     "never" are no second condition; get_cpu_thresholds() reads the same
-#     values back for the analysers that still judge by hand.
+#     values back for the analysers that still judge by hand;
+#   - MEMPHYS, MEMSWAP and MEMACT are keyword rules the same way, with the
+#     built-in defaults 100 101, 50 80, 90 97; their verdict is the row's
+#     colour, so they write no line; get_memory_thresholds() reads them back.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -77,6 +80,9 @@ LOAD 1 1 HOST=testhost
 UP 10m 2d red HOST=testhost
 UP 1h -1 HOST=otherhost
 CLOCK 30 red HOST=testhost
+MEMSWAP 20 40 HOST=testhost
+MEMSWAP 90 95 HOST=testhost
+MEMCSA 10 20 HOST=testhost
 EOF2
 
 out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
@@ -89,7 +95,9 @@ out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
 	disk /var/log pct 10 ok \
 	files /x mtimeage 100000 stale \
 	files /x size 10 ok \
-	memory - phys 50 ok 2>"$work/run.log") \
+	memory - phys 50 ok \
+	memory - swap 50 ok \
+	memory - act 95 ok 2>"$work/run.log") \
 	|| { cat "$work/run.log" >&2; fail "harness run failed"; }
 
 sample() { printf '%s\n' "$out" | sed -n "s|^sample $1 $2 $3 ||p"; }
@@ -125,10 +133,19 @@ assert_contains "&red System clock is -45 seconds off (max 30)" "$out" "CLOCK 30
 assert_equal "green" "$(keyword_color disk)" "a keyword rule tripped on a test that has none"
 assert_contains "cpu testhost load 2.0 4.0 up 600 172800 red clock 30 red" "$out" "get_cpu_thresholds does not read the host's first LOAD, UP and CLOCK back (LOAD 1 1 must be shadowed)"
 assert_contains "cpu otherhost load 5.0 10.0 up 3600 -1 yellow clock -1 yellow" "$out" "a host without LOAD or CLOCK did not get the built-in default, or UP 1h -1 kept a second condition"
+assert_equal "red" "$(keyword_color memory)" "MEMSWAP 20 40 did not colour a swap of 50 red, or the second MEMSWAP shadowed the first"
+assert_contains $'keyword memory red\ntest memory green' "$out" "a memory keyword wrote a line where its verdict is the row's colour"
+assert_equal "red" "$(sample memory - swap)" "the swap sample does not carry the MEMSWAP verdict"
+assert_equal "yellow" "$(sample memory - act)" "the built-in MEMACT 90 97 did not colour an actual of 95 yellow"
+assert_equal "green" "$(sample memory - phys)" "the built-in MEMPHYS 100 101 coloured a physical of 50"
+assert_contains "mem testhost phys 100 101 swap 20 40 act 90 97" "$out" "get_memory_thresholds does not read the host's first MEMSWAP back with the defaults for the rest, or a MEMCSA rule was read as a memory keyword"
+assert_contains "mem otherhost phys 100 101 swap 50 80 act 90 97" "$out" "a host without memory keywords did not get the built-in defaults"
+assert_contains "MEMSWAP: THRESHOLD memory.swap >40 red; THRESHOLD memory.swap >20 yellow" "$out" "--dump-config does not print a MEMSWAP line as what it compiled to"
+assert_contains "MEMCSA 10 20" "$out" "--dump-config does not print a z/OS memory keyword under its own name"
 assert_contains "LOAD: THRESHOLD cpu.load >4 red; THRESHOLD cpu.load >2 yellow" "$out" "--dump-config does not print a LOAD line as what it compiled to"
 assert_contains "UP: THRESHOLD *.uptime <3600 yellow" "$out" "--dump-config does not print UP 1h -1 as one condition on the uptime of any test"
 
 assert_contains "THRESHOLD disk./home.pct >=50 yellow" "$out" "--dump-config does not print the rule back"
 assert_contains "THRESHOLD cpu.uptime <10m yellow" "$out" "--dump-config lost the level as written"
 
-pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP and CLOCK are keyword rules with first match and built-in defaults"
+pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP, CLOCK and the memory keywords are keyword rules with first match and built-in defaults"

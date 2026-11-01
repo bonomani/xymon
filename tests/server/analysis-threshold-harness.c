@@ -12,8 +12,9 @@
  * for every sample, and the rules as --dump-config prints them. Before the
  * THRESHOLD rules it runs the keyword rules -- LOAD, UP, CLOCK compiled to
  * tagged threshold rules -- the same way, printing "keyword <test> <colour>"
- * and their lines, and it prints what get_cpu_thresholds() reads back from
- * those rules for testhost and otherhost as "cpu <host> ...".
+ * and their lines, and it prints what get_cpu_thresholds() and
+ * get_memory_thresholds() read back from those rules for testhost and
+ * otherhost as "cpu <host> ..." and "mem <host> ...".
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -70,12 +71,15 @@ int main(int argc, char *argv[])
 		for (h = 0; (h < 2); h++) {
 			float loadyellow, loadred;
 			int recentlimit, ancientlimit, uptimecolor, maxclockdiff, clockdiffcolor;
+			int physyellow, physred, swapyellow, swapred, actyellow, actred;
 			void *hi = hostinfo(hosts[h]);
 
 			if (!hi) continue;
 			get_cpu_thresholds(hi, "", &loadyellow, &loadred, &recentlimit, &ancientlimit, &uptimecolor, &maxclockdiff, &clockdiffcolor);
 			printf("cpu %s load %.1f %.1f up %d %d %s clock %d %s\n", hosts[h], loadyellow, loadred,
 			       recentlimit, ancientlimit, colorname(uptimecolor), maxclockdiff, colorname(clockdiffcolor));
+			get_memory_thresholds(hi, "", &physyellow, &physred, &swapyellow, &swapred, &actyellow, &actred);
+			printf("mem %s phys %d %d swap %d %d act %d %d\n", hosts[h], physyellow, physred, swapyellow, swapred, actyellow, actred);
 		}
 	}
 
