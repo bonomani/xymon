@@ -43,6 +43,11 @@
 #     too; the status is the worst of the two, yellow. Recorded after that
 #     fold replaced the old one, under which the later clear overwrote the
 #     yellow
+#   - cpu-linux-up-never: UP 1h -1 on a host up 400 days with a low load:
+#     green, the -1 being no second limit as the manual says. Recorded
+#     after the keywords became threshold rules; before, the old parser
+#     read -1 as a limit of -60 seconds and the status was red, "up more
+#     than 0 days"
 # Procs, ports and services, the counting analysers:
 #   - procs-linux-rules: PROC with a count inside, above and below its limits,
 #     a pattern that matches more than one command, TRACK= and TEXT=

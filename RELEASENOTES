@@ -35,6 +35,18 @@ shows that yellow from the first report, where it showed clear before;
 keeping the board itself quiet for a while is the viewdelay tag proposed in
 xymon-monitoring/xymon issue 229, not yet available.
 
+Server -- UP with a second limit of -1 or "never"
+-------------------------------------------------
+
+"UP 1h -1" and "UP 1h never" in analysis.cfg now mean what analysis.cfg(5)
+always said: no limit on how long a host may be up. The parser used to read
+both as a limit of -60 seconds, so every host under such a rule was coloured
+"Machine has been up more than 0 days" from its first report. Rules that
+leave the second limit out, which was the only working way to say "never",
+are unchanged. The three cpu keywords LOAD, UP and CLOCK are now the same
+rules as THRESHOLD underneath, which is where the fix comes from; their
+syntax, defaults and status lines are as before.
+
 Server -- THRESHOLD rules in analysis.cfg
 -----------------------------------------
 
