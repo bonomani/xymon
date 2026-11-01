@@ -472,6 +472,68 @@ Example: Flag "conn" status a yellow if responsetime exceeds
 .br
 	DS conn tcp.conn.rrd:sec >0.1 COLOR=yellow TEXT="Response time &V exceeds &U seconds"
 .sp
+.SH THRESHOLD - a condition on any measured value
+.sp
+.BR "THRESHOLD test.name condition [color] [TEXT=explanation]"
+.br
+.BR "THRESHOLD test.instance.name condition [color] [TEXT=explanation]"
+.sp
+One condition on one value the client reported, judged where the value
+is measured and coloured in that value's own status. Every number the
+keywords above judge is such a value, named by the status it belongs to
+("test"), the thing measured ("instance": a mount point, a file, a
+process pattern; absent where the status has one of the value) and what
+was measured ("name"). A THRESHOLD without an instance applies to every
+instance of the value. The instance may be a pattern, with a leading
+"%" as elsewhere in this file.
+.sp
+The values:
+.IP
+.nf
+cpu.load             load average (5 minutes)
+cpu.uptime           seconds since boot (uptime.uptime with \-\-uptime\-status)
+cpu.clockoffset      client clock minus server clock, seconds
+disk.MOUNT.pct       percent used        disk.MOUNT.free     units free
+inode.MOUNT.pct      percent used        inode.MOUNT.free    inodes free
+disk.NAME.count      filesystems matching a DISK count rule (also inode)
+memory.phys          percent used        memory.act          memory.swap
+procs.NAME.count     processes matching the PROC rule shown as NAME
+ports.NAME.count     connections matching the PORT rule shown as NAME
+svcs.NAME.count      services matching the SVC rule shown as NAME
+files.PATH.size      bytes (a directory: as the client reports it)
+files.PATH.linkcount
+files.PATH.mtimeage  seconds since modified; also ctimeage, atimeage
+.fi
+.LP
+"condition" is one of ">", ">=", "<" or "<=" followed by the level. A
+level written with a unit of time (30s, 10m, 2h, 1d, 1w) is seconds;
+any other level is a number in the value's own unit. One condition per
+rule. "color" is the colour the rule gives, red when none is given.
+.sp
+Every THRESHOLD that names a value is applied to it, and the value
+takes the worst colour; the status takes the worst colour of all its
+values, from its keyword rules and its THRESHOLD rules alike. Each rule
+that trips adds one line to the status: "&yellow cpu.load is 12, above
+5", or the "explanation" with the placeholders "&N" (the value's full
+name), "&V" (the value) and "&L" or "&U" (the level as written). The
+rules take the usual HOST=, CLASS=, PAGE=, TIME= and GROUP= settings.
+.sp
+A file age is not judged, by FILE or by THRESHOLD, on a report whose
+clock a CLOCK rule finds off; see CLOCK above. The file lines of the
+files status keep the colour their FILE rules gave them; a THRESHOLD on
+a file colours the status and writes its own line.
+.sp
+Example: Yellow when the 5-minute load is above 4, red above 8; red
+when /var/spool/heartbeat has not been modified for 10 minutes; yellow
+when any filesystem is 85% full, with a text of its own.
+.IP
+.nf
+THRESHOLD cpu.load >4 yellow
+THRESHOLD cpu.load >8 red
+THRESHOLD files./var/spool/heartbeat.mtimeage >10m red
+THRESHOLD disk.pct >=85 yellow "TEXT=&N at &V%, limit &L%"
+.fi
+.LP
 .SH MQ Series SETTINGS
 .sp
 .BR "MQ_QUEUE queuename [age\-warning=N] [age\-critical=N] [depth\-warning=N] [depth\-critical=N]"

@@ -363,6 +363,7 @@ void bbwin_svcs_report(char *hostname, char *clientclass, enum ostype_t os,
                 /* The status colour: the worst verdict among the count samples
                  * check_svc_count() judged into the batch. With at least one
                  * SVC rule there is at least one sample, so the status is sent. */
+                client_config_thresholds(hinfo, clientclass, "svcs", monmsg);
                 svccolor = metric_batch_color(report_batch, "svcs");
         }
 

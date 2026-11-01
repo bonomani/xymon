@@ -35,6 +35,22 @@ shows that yellow from the first report, where it showed clear before;
 keeping the board itself quiet for a while is the viewdelay tag proposed in
 xymon-monitoring/xymon issue 229, not yet available.
 
+Server -- THRESHOLD rules in analysis.cfg
+-----------------------------------------
+
+analysis.cfg has a generic rule: "THRESHOLD test.name condition [color]"
+or "THRESHOLD test.instance.name condition [color]", one condition on one
+value the client reported, in the words of the value's own status: cpu.load,
+cpu.uptime, disk./usr.pct, memory.swap, procs.NAME.count,
+files./etc/passwd.mtimeage and the others listed in analysis.cfg(5). It
+judges the same number the keyword rule judges, where it is measured, and
+colours that status; a rule that trips adds a line to the status, in its
+own words or a TEXT= of its own with the DS placeholders. A level with a
+unit of time is seconds, so "<10m" is ten minutes. The keyword rules are
+unchanged, and so are hosts without a THRESHOLD rule. The size, link count
+and ages of every file the client reports are now judged values whether or
+not a FILE rule names them, which changes nothing unless a THRESHOLD does.
+
 Server -- file ages when the client clock is off
 ------------------------------------------------
 

@@ -229,6 +229,19 @@ typedef struct c_rrdds_t {
 } c_rrdds_t;
 
 
+/* THRESHOLD test.instance.name <op>level [color]: one condition on one
+ * named metric of the report's batch, judged where the metric is born. The
+ * instance is a pattern, or none, which is every instance of the metric. */
+typedef struct c_threshold_t {
+	char *test;		/* the metric's test, and the status it colours: "cpu" */
+	exprlist_t *instance;	/* the measured object, or NULL for every one */
+	char *name;		/* what was measured: "load" */
+	metricop_t op;
+	double level;
+	char *levelstr;		/* the level as written, for the status line: "10m" */
+	int color;
+} c_threshold_t;
+
 typedef struct c_mq_queue_t {
 	exprlist_t *qmgrname, *qname;
 	int warnlen, critlen;
@@ -239,7 +252,7 @@ typedef struct c_mq_channel_t {
 	exprlist_t *qmgrname, *chnname, *warnstates, *alertstates;
 } c_mq_channel_t;
 
-typedef enum { C_LOAD, C_UPTIME, C_CLOCK, C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL } ruletype_t;
+typedef enum { C_LOAD, C_UPTIME, C_CLOCK, C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
 
 typedef struct c_rule_t {
 	exprlist_t *hostexp;
@@ -277,6 +290,7 @@ typedef struct c_rule_t {
 		c_paging_t paging;
 		c_mibval_t mibval;
 		c_rrdds_t rrdds;
+		c_threshold_t threshold;
 		c_mq_queue_t mqqueue;
 		c_mq_channel_t mqchannel;
 	} rule;
@@ -692,6 +706,12 @@ int load_client_config(char *configfn)
 			if (tmp->rule.rrdds.column) xfree(tmp->rule.rrdds.column);
 			break;
 
+		  case C_THRESHOLD:
+			if (tmp->rule.threshold.test) xfree(tmp->rule.threshold.test);
+			if (tmp->rule.threshold.name) xfree(tmp->rule.threshold.name);
+			if (tmp->rule.threshold.levelstr) xfree(tmp->rule.threshold.levelstr);
+			break;
+
 		  default:
 			break;
 		}
@@ -852,6 +872,87 @@ int load_client_config(char *configfn)
 				currule->rule.load.warnlevel = atof(tok);
 				tok = wstok(NULL); if (isqual(tok)) continue;
 				currule->rule.load.paniclevel = atof(tok);
+			}
+			else if (strcasecmp(tok, "THRESHOLD") == 0) {
+				char *metric, *first, *last;
+				int conditions = 0;
+
+				tok = wstok(NULL);
+				if (tok == NULL) {
+					errprintf("Syntax error line %d: THRESHOLD with no metric\n", cfid);
+					unknowntok = 1;
+					break;
+				}
+
+				/* test.instance.name: the first dot ends the test, the
+				 * last begins the name, and the instance is what lies
+				 * between, dots and all, since a mount point has them. */
+				metric = tok;
+				first = strchr(metric, '.');
+				last = strrchr(metric, '.');
+				if (!first || (first == metric) || (*(last+1) == '\0')) {
+					errprintf("Syntax error line %d: THRESHOLD metric '%s' is not test.name or test.instance.name\n", cfid, metric);
+					unknowntok = 1;
+					break;
+				}
+
+				currule = NEWRULE(C_THRESHOLD);
+				currule->rule.threshold.color = COL_RED;
+				currule->rule.threshold.test = (char *)malloc((first - metric) + 1);
+				memcpy(currule->rule.threshold.test, metric, (first - metric));
+				currule->rule.threshold.test[first - metric] = '\0';
+				currule->rule.threshold.name = strdup(last+1);
+				if (last > first) {
+					*last = '\0';
+					currule->rule.threshold.instance = setup_expr(first+1, 0);
+					*last = '.';
+				}
+
+				do {
+					int oplen = 0;
+
+					tok = wstok(NULL); if (!tok || isqual(tok)) continue;
+
+					if      (strncmp(tok, ">=", 2) == 0) { currule->rule.threshold.op = METRIC_GE; oplen = 2; }
+					else if (strncmp(tok, "<=", 2) == 0) { currule->rule.threshold.op = METRIC_LE; oplen = 2; }
+					else if (strncmp(tok, ">", 1) == 0)  { currule->rule.threshold.op = METRIC_GT; oplen = 1; }
+					else if (strncmp(tok, "<", 1) == 0)  { currule->rule.threshold.op = METRIC_LT; oplen = 1; }
+					else if (strncasecmp(tok, "color=", 6) == 0) {
+						int col = parse_color(tok+6);
+						if (col != -1) currule->rule.threshold.color = col;
+					}
+					else if (parse_color(tok) != -1) {
+						currule->rule.threshold.color = parse_color(tok);
+					}
+					else {
+						errprintf("Syntax error line %d: THRESHOLD does not understand '%s'\n", cfid, tok);
+					}
+
+					if (oplen && conditions) {
+						errprintf("Syntax error line %d: THRESHOLD takes one condition, '%s' ignored\n", cfid, tok);
+					}
+					else if (oplen) {
+						int secs;
+
+						/* A level with a unit of time -- 10m, 2d -- is
+						 * seconds, as every age and uptime in the batch
+						 * is; anything else is a number in the metric's
+						 * own unit. The text keeps what was written. */
+						if (durationseconds(tok+oplen, &secs) && (strpbrk(tok+oplen, "mhdw") != NULL))
+							currule->rule.threshold.level = (double)secs;
+						else
+							currule->rule.threshold.level = atof(tok+oplen);
+						currule->rule.threshold.levelstr = strdup(tok+oplen);
+						conditions++;
+					}
+				} while (tok && (!isqual(tok)));
+
+				if (!conditions) {
+					/* No condition is no rule: the name no sample has. */
+					errprintf("Syntax error line %d: THRESHOLD %s has no condition\n", cfid, metric);
+					xfree(currule->rule.threshold.name);
+					currule->rule.threshold.name = strdup("");
+				}
 			}
 			else if (strcasecmp(tok, "DISK") == 0) {
 				currule = NEWRULE(C_DISK);
@@ -1971,6 +2072,21 @@ void dump_client_config(void)
 			printf(" color=%s", colorname(rwalk->rule.mibval.color));
 			break;
 
+		  case C_THRESHOLD:
+			if (!*rwalk->rule.threshold.name) {
+				printf("THRESHOLD %s (no condition, not a rule)", rwalk->rule.threshold.test);
+				break;
+			}
+			printf("THRESHOLD %s.%s%s%s %s%s %s",
+				rwalk->rule.threshold.test,
+				(rwalk->rule.threshold.instance ? rwalk->rule.threshold.instance->pattern : ""),
+				(rwalk->rule.threshold.instance ? "." : ""),
+				rwalk->rule.threshold.name,
+				((rwalk->rule.threshold.op == METRIC_GE) ? ">=" : (rwalk->rule.threshold.op == METRIC_LE) ? "<=" : (rwalk->rule.threshold.op == METRIC_GT) ? ">" : "<"),
+				(rwalk->rule.threshold.levelstr ? rwalk->rule.threshold.levelstr : ""),
+				colorname(rwalk->rule.threshold.color));
+			break;
+
 		  case C_RRDDS:
 			if (!rwalk->rule.rrdds.rrdkey) break;
 
@@ -2065,6 +2181,114 @@ static c_rule_t *getrule(char *hostname, char *pagename, char *classname, void *
 	}
 
 	return NULL;
+}
+
+/* The number, for a status line: an integer as one, anything else to two
+ * decimals, as the analysers print their own. */
+static char *threshold_value(double v, char *buf)
+{
+	if (v == (double)(long long)v) sprintf(buf, "%lld", (long long)v);
+	else sprintf(buf, "%.2f", v);
+
+	return buf;
+}
+
+/* The line for a tripped THRESHOLD: TEXT= with the DS placeholders -- &N the
+ * metric as a rule writes it, &V the value, &L and &U both the level, since a
+ * THRESHOLD has one -- or, without TEXT, "&N is &V, above &L" in the words
+ * of the condition. */
+static void threshold_line(strbuffer_t *lines, c_rule_t *rule, metricsample_t *s)
+{
+	char metric[PATH_MAX], value[64];
+	char *fmt, *bot, *marker;
+	char *word = (rule->rule.threshold.op == METRIC_GE) ? "at or above" :
+		     (rule->rule.threshold.op == METRIC_LE) ? "at or below" :
+		     (rule->rule.threshold.op == METRIC_GT) ? "above" : "below";
+
+	if (s->instance) snprintf(metric, sizeof(metric), "%s.%s.%s", s->test, s->instance, s->name);
+	else snprintf(metric, sizeof(metric), "%s.%s", s->test, s->name);
+	threshold_value(s->value, value);
+
+	addtobuffer(lines, "&");
+	addtobuffer(lines, colorname(rule->rule.threshold.color));
+	addtobuffer(lines, " ");
+
+	if (rule->statustext) {
+		fmt = rule->statustext;
+	}
+	else {
+		fmt = (char *)malloc(strlen(word) + 20);
+		sprintf(fmt, "&N is &V, %s &L", word);
+	}
+
+	bot = fmt;
+	do {
+		marker = strchr(bot, '&');
+		if (marker) {
+			*marker = '\0';
+			addtobuffer(lines, bot);
+			*marker = '&';
+			switch (*(marker+1)) {
+			  case 'N': addtobuffer(lines, metric); marker += 2; break;
+			  case 'V': addtobuffer(lines, value); marker += 2; break;
+			  case 'L':
+			  case 'U': addtobuffer(lines, (rule->rule.threshold.levelstr ? rule->rule.threshold.levelstr : "")); marker += 2; break;
+			  default: addtobuffer(lines, "&"); marker++; break;
+			}
+			bot = marker;
+		}
+		else {
+			addtobuffer(lines, bot);
+			bot = NULL;
+		}
+	} while (bot);
+	addtobuffer(lines, "\n");
+
+	if (fmt != rule->statustext) xfree(fmt);
+}
+
+/* Judge every sample of a test in the report's batch under the THRESHOLD
+ * rules that address it -- the host's rules in file order, each applied to
+ * each sample whose test, name and instance it names, the worst verdict
+ * kept on the sample as every rule's is -- and write one line per rule that
+ * trips. Returns the worst colour that tripped, COL_GREEN when none did. The
+ * analyser calls this after its own rules and before it folds the colour,
+ * so the status is the worst of both. */
+int client_config_thresholds(void *hinfo, char *classname, char *test, strbuffer_t *lines)
+{
+	char *hostname, *pagename;
+	metricbatch_t *b = check_batch();
+	int idx, color = COL_GREEN;
+
+	hostname = xmh_item(hinfo, XMH_HOSTNAME);
+	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
+
+	for (idx = 0; (idx < b->count); idx++) {
+		metricsample_t *s = metric_batch_sample(b, idx);
+		c_rule_t *rwalk;
+
+		if (!s->test || (strcmp(s->test, test) != 0)) continue;
+
+		for (rwalk = getrule(hostname, pagename, classname, hinfo, C_THRESHOLD); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_THRESHOLD)) {
+			metricrule_t r;
+
+			if (strcmp(rwalk->rule.threshold.test, test) != 0) continue;
+			if (!s->name || (strcmp(rwalk->rule.threshold.name, s->name) != 0)) continue;
+			if (rwalk->rule.threshold.instance) {
+				if (!s->instance) continue;
+				if (!namematch(s->instance, rwalk->rule.threshold.instance->pattern, rwalk->rule.threshold.instance->exp)) continue;
+			}
+
+			metric_rule(&r, s->name, rwalk->rule.threshold.op, rwalk->rule.threshold.level, rwalk->rule.threshold.color);
+			if (!metric_batch_trips(b, idx, &r)) continue;
+
+			if (lines) threshold_line(lines, rwalk, s);
+			if (rwalk->groups) addalertgroup(rwalk->groups);
+			if (rwalk->rule.threshold.color > color) color = rwalk->rule.threshold.color;
+		}
+	}
+
+	return color;
 }
 
 int get_cpu_thresholds(void *hinfo, char *classname, 
@@ -2751,12 +2975,19 @@ static int sample_trips(char *test, char *instance, char *name, double value, me
  * minus a timestamp the client wrote, so when the report's clock is off
  * beyond the CLOCK limit the age is stale and trips nothing: a clock that
  * stepped since the file was written puts the file's age anywhere. */
+static int age_sample(char *test, char *instance, char *name, double value)
+{
+	int idx = report_sample(test, instance, name, value);
+
+	if (metric_batch_skewed(current)) metric_batch_sample(current, idx)->state = METRIC_STALE;
+
+	return idx;
+}
+
 static int age_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
 {
 	if (metric_batch_skewed(current)) {
-		int idx = report_sample(test, instance, name, value);
-
-		metric_batch_sample(current, idx)->state = METRIC_STALE;
+		age_sample(test, instance, name, value);
 		return 0;
 	}
 
@@ -2879,6 +3110,17 @@ int check_file(void *hinfo, char *classname,
 	ctimedif = clock - ctime;
 	atimedif = clock - atime;
 	mtimedif = clock - mtime;
+
+	/* What the client measured goes in the batch whether or not a FILE
+	 * rule addresses it, so a THRESHOLD rule can: the FILE conditions
+	 * below find these same samples by identity. */
+	if (exists) {
+		report_sample("files", filename, "size", (double)fsize);
+		report_sample("files", filename, "linkcount", (double)linkcount);
+		age_sample("files", filename, "ctimeage", (double)ctimedif);
+		age_sample("files", filename, "mtimeage", (double)mtimedif);
+		age_sample("files", filename, "atimeage", (double)atimedif);
+	}
 
 	for (rwalk = getrule(hostname, pagename, classname, hinfo, C_FILE); (rwalk); rwalk = getrule(NULL, NULL, NULL, hinfo, C_FILE)) {
 		int rulecolor = COL_GREEN;
@@ -3176,6 +3418,7 @@ int check_dir(void *hinfo, char *classname,
 	}
 
 	*dirsize = dsize;
+	if (gotsize) report_sample("files", filename, "size", (double)dsize);
 
 	/* Got the data? */
 	if (!gotsize) {

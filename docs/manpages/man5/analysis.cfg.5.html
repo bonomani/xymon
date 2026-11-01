@@ -504,6 +504,71 @@ MEMACT  warnlevel=90 paniclevel=97</pre>
 </section>
 <section class="Sh">
 <p>&#160;</p>
+<h1 class="Sh" id="THRESHOLD_-_a_condition_on_any_measured_value"><a class="permalink" href="#THRESHOLD_-_a_condition_on_any_measured_value">THRESHOLD
+  - a condition on any measured value</a></h1>
+<p class="Pp"><b>THRESHOLD test.name condition [color] [TEXT=explanation]</b>
+  <br/>
+  <b>THRESHOLD test.instance.name condition [color] [TEXT=explanation]</b></p>
+<p class="Pp">One condition on one value the client reported, judged where the
+    value is measured and coloured in that value's own status. Every number the
+    keywords above judge is such a value, named by the status it belongs to
+    (&quot;test&quot;), the thing measured (&quot;instance&quot;: a mount point,
+    a file, a process pattern; absent where the status has one of the value) and
+    what was measured (&quot;name&quot;). A THRESHOLD without an instance
+    applies to every instance of the value. The instance may be a pattern, with
+    a leading &quot;%&quot; as elsewhere in this file.</p>
+<p class="Pp">The values:</p>
+<dl class="Bl-tag">
+  <dt></dt>
+  <dd>
+    <pre>cpu.load             load average (5 minutes)
+cpu.uptime           seconds since boot (uptime.uptime with --uptime-status)
+cpu.clockoffset      client clock minus server clock, seconds
+disk.MOUNT.pct       percent used        disk.MOUNT.free     units free
+inode.MOUNT.pct      percent used        inode.MOUNT.free    inodes free
+disk.NAME.count      filesystems matching a DISK count rule (also inode)
+memory.phys          percent used        memory.act          memory.swap
+procs.NAME.count     processes matching the PROC rule shown as NAME
+ports.NAME.count     connections matching the PORT rule shown as NAME
+svcs.NAME.count      services matching the SVC rule shown as NAME
+files.PATH.size      bytes (a directory: as the client reports it)
+files.PATH.linkcount
+files.PATH.mtimeage  seconds since modified; also ctimeage, atimeage</pre>
+  </dd>
+</dl>
+<p class="Pp">&quot;condition&quot; is one of &quot;&gt;&quot;,
+    &quot;&gt;=&quot;, &quot;&lt;&quot; or &quot;&lt;=&quot; followed by the
+    level. A level written with a unit of time (30s, 10m, 2h, 1d, 1w) is
+    seconds; any other level is a number in the value's own unit. One condition
+    per rule. &quot;color&quot; is the colour the rule gives, red when none is
+    given.</p>
+<p class="Pp">Every THRESHOLD that names a value is applied to it, and the value
+    takes the worst colour; the status takes the worst colour of all its values,
+    from its keyword rules and its THRESHOLD rules alike. Each rule that trips
+    adds one line to the status: &quot;&amp;yellow cpu.load is 12, above
+    5&quot;, or the &quot;explanation&quot; with the placeholders
+    &quot;&amp;N&quot; (the value's full name), &quot;&amp;V&quot; (the value)
+    and &quot;&amp;L&quot; or &quot;&amp;U&quot; (the level as written). The
+    rules take the usual HOST=, CLASS=, PAGE=, TIME= and GROUP= settings.</p>
+<p class="Pp">A file age is not judged, by FILE or by THRESHOLD, on a report
+    whose clock a CLOCK rule finds off; see CLOCK above. The file lines of the
+    files status keep the colour their FILE rules gave them; a THRESHOLD on a
+    file colours the status and writes its own line.</p>
+<p class="Pp">Example: Yellow when the 5-minute load is above 4, red above 8;
+    red when /var/spool/heartbeat has not been modified for 10 minutes; yellow
+    when any filesystem is 85% full, with a text of its own.</p>
+<dl class="Bl-tag">
+  <dt></dt>
+  <dd>
+    <pre>THRESHOLD cpu.load &gt;4 yellow
+THRESHOLD cpu.load &gt;8 red
+THRESHOLD files./var/spool/heartbeat.mtimeage &gt;10m red
+THRESHOLD disk.pct &gt;=85 yellow &quot;TEXT=&amp;N at &amp;V%, limit &amp;L%&quot;</pre>
+  </dd>
+</dl>
+</section>
+<section class="Sh">
+<p>&#160;</p>
 <h1 class="Sh" id="MQ_Series_SETTINGS"><a class="permalink" href="#MQ_Series_SETTINGS">MQ
   Series SETTINGS</a></h1>
 <p class="Pp"><b>MQ_QUEUE queuename [age-warning=N] [age-critical=N]
@@ -740,6 +805,7 @@ group Production databases
 <dt><a href="#PORTS_STATUS_COLUMN_SETTINGS">PORTS STATUS COLUMN SETTINGS</a></dt>
 <dt><a href="#SVCS_status_(Microsoft_Windows_clients)">SVCS status (Microsoft Windows clients)</a></dt>
 <dt><a href="#DS_-_RRD_based_status_override">DS - RRD based status override</a></dt>
+<dt><a href="#THRESHOLD_-_a_condition_on_any_measured_value">THRESHOLD - a condition on any measured value</a></dt>
 <dt><a href="#MQ_Series_SETTINGS">MQ Series SETTINGS</a></dt>
 <dt><a href="#CHANGING_THE_DEFAULT_SETTINGS">CHANGING THE DEFAULT SETTINGS</a></dt>
 <dt><a href="#RULES_TO_SELECT_HOSTS">RULES TO SELECT HOSTS</a></dt>
