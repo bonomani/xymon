@@ -322,9 +322,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	char myupstr[100];
 
 	int cpucolor, upstatuscolor;
-	int loadcolor;
-	int load, uptime, clock, nrules;
-	metricrule_t rule[2];
+	int clock = -1;
 
 	char msgline[4096];
 	strbuffer_t *cpumsg, *upmsg = NULL;
@@ -432,38 +430,16 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	cpumsg = newstrbuffer(0);
 
-	/* The three measurements of the cpu test, each judged by its own
-	 * keyword's conditions, and the status colour the worst verdict among
-	 * them: the fold every other test uses. With a separate uptime status
-	 * the uptime sample belongs to that test, and folds there. */
-	load = metric_batch_add(report_batch, "cpu", NULL, "load", load5, METRIC_OK);
-	metric_rule(&rule[0], "load", METRIC_GT, loadred,    COL_RED);
-	metric_rule(&rule[1], "load", METRIC_GT, loadyellow, COL_YELLOW);
-	loadcolor = metric_batch_judge(report_batch, load, 1, rule, 2);
-	if (loadcolor == COL_RED) addtobuffer(cpumsg, "&red Load is CRITICAL\n");
-	else if (loadcolor == COL_YELLOW) addtobuffer(cpumsg, "&yellow Load is HIGH\n");
-
-	/* An uptime the line did not yield is unmeasured; a limit of -1 is no
-	 * rule, and is left out of the set. Both UP conditions are tested, as
-	 * a recent limit above the ancient one makes both true. */
-	uptime = metric_batch_add(report_batch, (separate_uptime_status ? "uptime" : "cpu"), NULL, "uptime",
-				  (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
-	nrules = 0;
-	if (recentlimit != -1)  metric_rule(&rule[nrules++], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
-	if (ancientlimit != -1) metric_rule(&rule[nrules++], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
-	metric_batch_judge(report_batch, uptime, 1, rule, nrules);
-
+	/* The three measurements of the cpu test go in the batch; the LOAD,
+	 * UP and CLOCK rules that judge them are keyword rules in
+	 * client_config, applied below with every other rule of the host. An
+	 * uptime the line did not yield is unmeasured and trips nothing. With
+	 * a separate uptime status the uptime sample belongs to that test,
+	 * and folds there. */
+	metric_batch_add(report_batch, "cpu", NULL, "load", load5, METRIC_OK);
+	metric_batch_add(report_batch, (separate_uptime_status ? "uptime" : "cpu"), NULL, "uptime",
+			 (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
 	if (separate_uptime_status) upmsg = newstrbuffer(0);
-
-	if ((recentlimit != -1) && (uptimesecs != -1) && (uptimesecs < recentlimit)) {
-		sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
-		addtobuffer((separate_uptime_status ? upmsg : cpumsg), msgline);
-	}
-	if ((ancientlimit != -1) && (uptimesecs != -1) && (uptimesecs > ancientlimit)) {
-		sprintf(msgline, "&%s Machine has been up more than %d days\n",
-			colorname(uptimecolor), (ancientlimit / 86400));
-		addtobuffer((separate_uptime_status ? upmsg : cpumsg), msgline);
-	}
 
 	if (clockstr) {
 		char *p;
@@ -492,28 +468,27 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 			metric_batch_skew(report_batch, (double)maxclockdiff);
 			metric_batch_offset(report_batch, &clockdiff);
 
-			/* The offset keeps its sign; CLOCK's "more than N seconds
-			 * off" either way is one condition above N and one below -N. */
+			/* The offset keeps its sign; the CLOCK rule is one condition
+			 * above its limit and one below the negative of it. */
 			clock = metric_batch_add(report_batch, "cpu", NULL, "clockoffset", (double)clockdiff.tv_sec, METRIC_OK);
-			metric_rule(&rule[0], "clockoffset", METRIC_GT, (double)maxclockdiff,  clockdiffcolor);
-			metric_rule(&rule[1], "clockoffset", METRIC_LT, -(double)maxclockdiff, clockdiffcolor);
-
-			if ((maxclockdiff > 0) && (metric_batch_judge(report_batch, clock, 1, rule, 2) != COL_GREEN)) {
-				sprintf(msgline, "&%s System clock is %ld seconds off (max %ld)\n",
-					colorname(clockdiffcolor), (long) clockdiff.tv_sec, (long) maxclockdiff);
-				addtobuffer(cpumsg, msgline);
-			}
-			else {
-				sprintf(msgline, "System clock is %ld seconds off\n", (long) clockdiff.tv_sec);
-				addtobuffer(cpumsg, msgline);
-			}
 		}
 	}
 
-	/* The host's THRESHOLD rules on the cpu samples, after the keyword
-	 * rules and before the fold, so the status is the worst of both. */
+	/* The host's rules on the cpu samples, keyword rules first -- LOAD, UP,
+	 * CLOCK, or their built-in defaults, writing the lines they always
+	 * wrote -- then the THRESHOLD rules, before the fold, so the status is
+	 * the worst of all. A clock within its limit, or under no CLOCK rule,
+	 * is still reported, without a colour. */
+	client_config_keywords(hinfo, clientclass, "cpu", cpumsg);
+	if ((clock != -1) && (metric_batch_sample(report_batch, clock)->color == COL_GREEN)) {
+		sprintf(msgline, "System clock is %ld seconds off\n", (long)metric_batch_sample(report_batch, clock)->value);
+		addtobuffer(cpumsg, msgline);
+	}
 	client_config_thresholds(hinfo, clientclass, "cpu", cpumsg);
-	if (separate_uptime_status) client_config_thresholds(hinfo, clientclass, "uptime", upmsg);
+	if (separate_uptime_status) {
+		client_config_keywords(hinfo, clientclass, "uptime", upmsg);
+		client_config_thresholds(hinfo, clientclass, "uptime", upmsg);
+	}
 
 	cpucolor = metric_batch_color(report_batch, "cpu");
 	init_status(cpucolor);
