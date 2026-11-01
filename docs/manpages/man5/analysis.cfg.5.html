@@ -72,11 +72,11 @@ Section: File Formats (5)<br/>Updated: Version 4.3.30: 4 Sep 2019<br/><a href="#
     more than +/- 5 seconds, but it will let you catch a client clock that goes
     completely wrong. The default is NOT to check the system clock.
   <br/>
-  When the offset is beyond &quot;max.offset&quot;, the file ages of that
-    report are not judged: the mtime, ctime and atime conditions of its FILE
-    rules neither trip nor clear, since an age read against a clock that is
-    off cannot be trusted. The other FILE conditions, and the DIR rules, are
-    judged as usual. Without a CLOCK rule the ages are always judged.
+  When the offset is beyond &quot;max.offset&quot;, the file ages of that report
+    are not judged: the mtime, ctime and atime conditions of its FILE rules
+    neither trip nor clear, since an age read against a clock that is off cannot
+    be trusted. The other FILE conditions, and the DIR rules, are judged as
+    usual. Without a CLOCK rule the ages are always judged.
   <br/>
   <b>NOTE:</b> Correct operation of this test obviously requires that the system
     clock of the Xymon server is correct. You should therefore make sure that
