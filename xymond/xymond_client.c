@@ -1045,7 +1045,6 @@ void unix_procs_report(char *hostname, char *clientclass, enum ostype_t os,
 				addtobuffer(monmsg, msgline);
 			}
 			else {
-				if (pcolor > pscolor) pscolor = pcolor;
 				sprintf(msgline, "&%s %s (found %d, req. %s)\n", 
 					colorname(pcolor), pname, pcount, limtxt);
 				addtobuffer(monmsg, msgline);
@@ -1060,6 +1059,10 @@ void unix_procs_report(char *hostname, char *clientclass, enum ostype_t os,
 				anycountdata = 1;
 			}
 		}
+
+		/* The status colour: the worst verdict among the count samples
+		 * check_process_count() judged into the batch. */
+		pscolor = metric_batch_color(report_batch, "procs");
 	}
 	else {
 		pscolor = COL_YELLOW;
