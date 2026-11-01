@@ -20,8 +20,10 @@
 /* What the sample's value means. A rule compares an OK sample only: a value
  * nothing measured, or one the analyser does not believe (a percentage over
  * 100 where none is possible), is a state, not a number, and comparing it
- * would turn an absent or broken measurement into a colour. */
-typedef enum { METRIC_OK, METRIC_UNMEASURED, METRIC_INVALID } metricstate_t;
+ * would turn an absent or broken measurement into a colour. Stale is a
+ * number measured against a clock the report shows to be off: a file's age
+ * from a client whose clock is beyond the CLOCK limit. */
+typedef enum { METRIC_OK, METRIC_UNMEASURED, METRIC_INVALID, METRIC_STALE } metricstate_t;
 
 /* Where the sample was read. Native is the client report as xymond_client
  * parses it; stored is a dataset on its way into an RRD file, the same
@@ -73,6 +75,7 @@ typedef struct metricbatch_t {
 	 * carries is relative to. */
 	int clocks;		/* both are known */
 	struct timeval measured, received;
+	double maxoffset;	/* the CLOCK limit, in seconds; 0 is no limit */
 } metricbatch_t;
 
 extern void metric_set(metricsample_t *s, char *test, char *instance, char *name, double value, metricstate_t state);
@@ -91,5 +94,7 @@ extern int metric_batch_find(metricbatch_t *b, char *test, char *instance, char 
 extern int metric_batch_trips(metricbatch_t *b, int idx, metricrule_t *r);
 extern void metric_batch_clock(metricbatch_t *b, struct timeval *measured, struct timeval *received);
 extern int metric_batch_offset(metricbatch_t *b, struct timeval *offset);
+extern void metric_batch_skew(metricbatch_t *b, double maxoffset);
+extern int metric_batch_skewed(metricbatch_t *b);
 
 #endif

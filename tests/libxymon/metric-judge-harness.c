@@ -27,7 +27,10 @@
  *     reports whether that rule trips;
  *   - the report's two clocks give one offset, received minus measured,
  *     rounded down to the second, unknown until both are set and unknown
- *     again after a clear.
+ *     again after a clear;
+ *   - a stale sample trips nothing;
+ *   - a report is skewed only with both clocks known, a limit set, and
+ *     the offset beyond it either way; the limit is gone after a clear.
  *
  * Driven through the library's public interface only.
  */
@@ -218,8 +221,34 @@ int main(int argc, char *argv[])
 
 		metric_batch_clear(b);
 		expect("clock cleared", !metric_batch_offset(b, &offset), "the clocks survived a clear");
+
+		/* Skew: the offset against the CLOCK limit. */
+		metric_batch_skew(b, 60);
+		expect("skew no clocks", !metric_batch_skewed(b), "a batch with no clocks was skewed");
+		measured.tv_sec = 1000; measured.tv_usec = 0;
+		received.tv_sec = 1060; received.tv_usec = 999999;
+		metric_batch_clock(b, &measured, &received);
+		expect("skew at limit", !metric_batch_skewed(b), "an offset of 60 s was beyond a limit of 60");
+		received.tv_sec = 1061;
+		metric_batch_clock(b, &measured, &received);
+		expect("skew ahead", metric_batch_skewed(b), "an offset of 61 s was within a limit of 60");
+		metric_batch_clock(b, &received, &measured);
+		expect("skew behind", metric_batch_skewed(b), "an offset of -62 s was within a limit of 60");
+		metric_batch_skew(b, 0);
+		expect("skew no limit", !metric_batch_skewed(b), "a batch with no limit was skewed");
+		metric_batch_skew(b, -1);
+		expect("skew negative limit", !metric_batch_skewed(b), "a negative limit counted as one");
+		metric_batch_skew(b, 60);
+		metric_batch_clear(b);
+		metric_batch_clock(b, &received, &measured);
+		expect("skew cleared", !metric_batch_skewed(b), "the limit survived a clear");
 	}
 	metric_batch_free(b);
+
+	/* A stale sample trips nothing, whatever its value. */
+	metric_set(&s[0], "files", "/x", "mtimeage", 100000, METRIC_STALE);
+	metric_rule(&r[0], "mtimeage", METRIC_GT, 600, COL_RED);
+	expect("stale trips not", !metric_trips(&s[0], &r[0]), "a stale age tripped a rule");
 
 	/* Growth: more samples than the first allocation, every one intact. */
 	b = metric_batch_new();
