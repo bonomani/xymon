@@ -15,6 +15,8 @@
 #ifndef __METRIC_H__
 #define __METRIC_H__
 
+#include <sys/time.h>
+
 /* What the sample's value means. A rule compares an OK sample only: a value
  * nothing measured, or one the analyser does not believe (a percentage over
  * 100 where none is possible), is a state, not a number, and comparing it
@@ -64,6 +66,13 @@ typedef struct metricsample_t {
 typedef struct metricbatch_t {
 	metricsample_t *samples;
 	int count, size;
+
+	/* The report's two clocks, when known: the producer's when it measured,
+	 * and the server's when it took the report. Their difference is the
+	 * clock offset a CLOCK rule judges, and what every age the report
+	 * carries is relative to. */
+	int clocks;		/* both are known */
+	struct timeval measured, received;
 } metricbatch_t;
 
 extern void metric_set(metricsample_t *s, char *test, char *instance, char *name, double value, metricstate_t state);
@@ -78,5 +87,7 @@ extern int metric_batch_add(metricbatch_t *b, char *test, char *instance, char *
 extern metricsample_t *metric_batch_sample(metricbatch_t *b, int idx);
 extern int metric_batch_judge(metricbatch_t *b, int first, int nsamples, metricrule_t *rules, int nrules);
 extern int metric_batch_color(metricbatch_t *b, char *test);
+extern void metric_batch_clock(metricbatch_t *b, struct timeval *measured, struct timeval *received);
+extern int metric_batch_offset(metricbatch_t *b, struct timeval *offset);
 
 #endif

@@ -20,7 +20,10 @@
  *     and the rule that gave it;
  *   - a test's colour is the worst verdict among its samples, green when
  *     none; samples of other tests do not count;
- *   - clearing drops the samples and the batch can be filled again.
+ *   - clearing drops the samples and the batch can be filled again;
+ *   - the report's two clocks give one offset, received minus measured,
+ *     rounded down to the second, unknown until both are set and unknown
+ *     again after a clear.
  *
  * Driven through the library's public interface only.
  */
@@ -166,6 +169,29 @@ int main(int argc, char *argv[])
 	expect("batch clear", (b->count == 0) && (metric_batch_color(b, "disk") == COL_GREEN), "clearing left samples behind");
 	i = metric_batch_add(b, "disk", "/", "pct", 1, METRIC_OK);
 	expect("batch reuse", (i == 0) && (b->count == 1), "the cleared batch did not take a sample at index 0");
+	metric_batch_free(b);
+
+	/* The clocks: unknown until set, one offset rounded down, gone on clear. */
+	b = metric_batch_new();
+	{
+		struct timeval measured, received, offset;
+
+		offset.tv_sec = 99; offset.tv_usec = 99;
+		expect("clock unknown", !metric_batch_offset(b, &offset) && (offset.tv_sec == 99), "an offset came from a batch with no clocks");
+
+		measured.tv_sec = 1000; measured.tv_usec = 500000;
+		received.tv_sec = 1002; received.tv_usec = 200000;
+		metric_batch_clock(b, &measured, &received);
+		expect("clock ahead", metric_batch_offset(b, &offset) && (offset.tv_sec == 1) && (offset.tv_usec == 700000),
+		       "1002.2 - 1000.5 is not 1 s 700000 us");
+
+		metric_batch_clock(b, &received, &measured);
+		expect("clock behind", metric_batch_offset(b, &offset) && (offset.tv_sec == -2) && (offset.tv_usec == 300000),
+		       "1000.5 - 1002.2 is not -2 s 300000 us");
+
+		metric_batch_clear(b);
+		expect("clock cleared", !metric_batch_offset(b, &offset), "the clocks survived a clear");
+	}
 	metric_batch_free(b);
 
 	/* Growth: more samples than the first allocation, every one intact. */
