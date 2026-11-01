@@ -28,6 +28,10 @@
 #   - memory-linux-defaults: new-style free(1), built-in levels
 #   - memory-linux-rules: old-style free(1) with -/+ buffers/cache; MEMPHYS,
 #     MEMACT and MEMSWAP rules, one row exactly at its level, which does not trip
+#   - memory-linux-firstmatch: the same report under two MEMSWAP and two
+#     MEMACT lines: the first of each applies, the second is shadowed.
+#     Recorded from the unchanged upstream build before the memory keywords
+#     became threshold rules
 #   - memory-linux-invalid: swap used above swap total is invalid data
 #   - memory-linux-zero: a zero total is "detection FAILED"
 #   - memory-darwin: vm_stat page counters and sysctl swap

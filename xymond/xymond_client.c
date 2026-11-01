@@ -815,24 +815,6 @@ void unix_inode_report(char *hostname, char *clientclass, enum ostype_t os,
 	unix_fs_report(&inode, hostname, clientclass, os, hinfo, fromline, timestr, freehdr, capahdr, mnthdr, dfstr);
 }
 
-/* One row of the memory status -- Real/Physical, Actual/Virtual or
- * Swap/Page -- added to the report's batch as a sample of the memory test
- * and judged under its MEMPHYS, MEMACT or MEMSWAP pair: strictly above the
- * warn level is yellow, strictly above the panic level red. Returns the
- * sample's index. */
-static int memory_row(char *name, long pct, metricstate_t state, int yellow, int red)
-{
-	metricrule_t rule[2];
-	int idx;
-
-	idx = metric_batch_add(report_batch, "memory", NULL, name, (double)pct, state);
-	metric_rule(&rule[0], name, METRIC_GT, red,    COL_RED);
-	metric_rule(&rule[1], name, METRIC_GT, yellow, COL_YELLOW);
-	metric_batch_judge(report_batch, idx, 1, rule, 2);
-
-	return idx;
-}
-
 void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 		        void *hinfo, char *fromline, char *timestr,
 			long memphystotal, long memphysused,
@@ -840,7 +822,6 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 			long memswaptotal, long memswapused)
 {
 	long memphyspct = 0, memswappct = 0, memactpct = 0;
-	int physyellow, physred, swapyellow, swapred, actyellow, actred;
 	int invaliddata = 0;
 
 	int memorycolor = COL_GREEN, physcolor, swapcolor, actcolor;
@@ -854,28 +835,31 @@ void unix_memory_report(char *hostname, char *clientclass, enum ostype_t os,
 	if (memphystotal == -1) return;
 	if (memphysused  == -1) return;
 
-	get_memory_thresholds(hinfo, clientclass, &physyellow, &physred, &swapyellow, &swapred, &actyellow, &actred);
-
-	/* Three samples, one per row. A physical or swap percentage over 100
-	 * is not a measurement: physical is left unjudged, swap is reported as
-	 * invalid data. Actual can be above 100 and is judged as it is. */
+	/* Three samples of the memory test, one per row. A physical or swap
+	 * percentage over 100 is not a measurement: physical is left unjudged,
+	 * swap is reported as invalid data. Actual can be above 100 and is
+	 * judged as it is. */
 	memphyspct = (memphystotal > 0) ? ((100 * memphysused) / memphystotal) : 0;
-	phys = memory_row("phys", memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID), physyellow, physred);
+	phys = metric_batch_add(report_batch, "memory", NULL, "phys", (double)memphyspct, ((memphyspct <= 100) ? METRIC_OK : METRIC_INVALID));
 
 	if (memswapused != -1) memswappct = (memswaptotal > 0) ? ((100 * memswapused) / memswaptotal) : 0;
-	swap = memory_row("swap", memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID), swapyellow, swapred);
+	swap = metric_batch_add(report_batch, "memory", NULL, "swap", (double)memswappct, ((memswappct <= 100) ? METRIC_OK : METRIC_INVALID));
 	if (metric_batch_sample(report_batch, swap)->state == METRIC_INVALID) invaliddata = 1;
 
 	if (memactused != -1) memactpct = (memacttotal > 0) ? ((100 * memactused) / memacttotal) : 0;
-	act = memory_row("act", memactpct, METRIC_OK, actyellow, actred);
+	act = metric_batch_add(report_batch, "memory", NULL, "act", (double)memactpct, METRIC_OK);
 
+	/* The host's MEMPHYS, MEMSWAP and MEMACT, keyword rules whose verdict
+	 * is each row's colour and no line. */
+	memmsg = newstrbuffer(0);
+	client_config_keywords(hinfo, clientclass, "memory", memmsg);
 	physcolor = metric_batch_sample(report_batch, phys)->color;
 	swapcolor = metric_batch_sample(report_batch, swap)->color;
 	actcolor  = metric_batch_sample(report_batch, act)->color;
 
-	/* The host's THRESHOLD rules on the three samples, then the status
-	 * colour: the worst row, and the summary names it. */
-	memmsg = newstrbuffer(0);
+	/* Then its THRESHOLD rules on the same samples, each with a line of
+	 * its own below the table and none of them recolouring a row, then the
+	 * status colour: the worst verdict, and the summary names it. */
 	client_config_thresholds(hinfo, clientclass, "memory", memmsg);
 	memorycolor = metric_batch_color(report_batch, "memory");
 	if (memorycolor == COL_RED) memorysummary = "CRITICAL";

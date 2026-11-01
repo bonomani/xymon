@@ -58,11 +58,6 @@ typedef struct c_inode_t {
 	int ignored;
 } c_inode_t;
 
-typedef struct c_mem_t {
-	enum { C_MEM_PHYS, C_MEM_SWAP, C_MEM_ACT } memtype;
-	int warnlevel, paniclevel;
-} c_mem_t;
-
 typedef struct c_zos_mem_t {
 	enum { C_MEM_CSA, C_MEM_ECSA, C_MEM_SQA, C_MEM_ESQA } zos_memtype;
 	int warnlevel, paniclevel;
@@ -225,7 +220,7 @@ typedef struct c_threshold_cond_t {
 	double level;
 	char *levelstr;		/* the level as written, for the status line: "10m" */
 	int color;
-	char *text;		/* a keyword's own line; a THRESHOLD's TEXT= is the rule's statustext */
+	char *text;		/* a keyword's own line, NULL for a keyword whose verdict is shown on a row and not a line; a THRESHOLD's TEXT= is the rule's statustext */
 } c_threshold_cond_t;
 
 typedef struct c_threshold_t {
@@ -235,8 +230,8 @@ typedef struct c_threshold_t {
 	int ncond;		/* one for a THRESHOLD line, up to two for a keyword's */
 	c_threshold_cond_t cond[2];
 
-	/* A keyword line -- LOAD, UP, CLOCK -- compiles to this rule tagged with
-	 * its keyword. Keyword rules keep their first-match contract: for a
+	/* A keyword line -- LOAD, UP, CLOCK, MEMPHYS, MEMSWAP, MEMACT -- compiles
+	 * to this rule tagged with its keyword. Keyword rules keep their first-match contract: for a
 	 * metric, the first matching rule of each keyword applies, or the
 	 * built-in default appended after the file; every untagged THRESHOLD
 	 * rule applies on top. */
@@ -275,7 +270,6 @@ typedef struct c_rule_t {
 	union {
 		c_disk_t disk;
 		c_inode_t inode;
-		c_mem_t mem;
 		c_zos_mem_t zos_mem;
 		c_zvse_vsize_t zvse_vsize;
 		c_zvse_getvis_t zvse_getvis;
@@ -567,7 +561,7 @@ static void keyword_cond(c_rule_t *rule, metricop_t op, double level, int color,
 	c->op = op;
 	c->level = level;
 	c->color = color;
-	c->text = strdup(text);
+	c->text = (text ? strdup(text) : NULL);
 	if (level == (double)(long long)level) sprintf(levelstr, "%lld", (long long)level); else sprintf(levelstr, "%.2f", level);
 	c->levelstr = strdup(levelstr);
 }
@@ -1118,38 +1112,39 @@ int load_client_config(char *configfn)
 				currule->rule.inode.color = parse_color(tok);
 			}
 
-			else if ((strcasecmp(tok, "MEMREAL") == 0) || (strcasecmp(tok, "MEMPHYS") == 0) || (strcasecmp(tok, "PHYS") == 0)) {
-				currule = NEWRULE(C_MEM);
-				currule->rule.mem.memtype = C_MEM_PHYS;
-				currule->rule.mem.warnlevel = 100;
-				currule->rule.mem.paniclevel = 101;
+			else if ((strcasecmp(tok, "MEMREAL") == 0) || (strcasecmp(tok, "MEMPHYS") == 0) || (strcasecmp(tok, "PHYS") == 0) ||
+				 (strcasecmp(tok, "MEMSWAP") == 0) || (strcasecmp(tok, "SWAP") == 0) ||
+				 (strcasecmp(tok, "MEMACT") == 0) || (strcasecmp(tok, "ACTUAL") == 0) || (strcasecmp(tok, "ACT") == 0)) {
+				/* MEMPHYS|MEMSWAP|MEMACT warnlevel paniclevel: a ladder of
+				 * two levels on the row's percentage, with the verdict shown
+				 * as the row's colour and not as a line of its own. The
+				 * levels default as they did: 100/101 physical (never red),
+				 * 50/80 swap, 90/97 actual. */
+				char *keyword, *name;
+				int warnlevel, paniclevel;
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.warnlevel = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.paniclevel = atoi(tok);
-			}
-			else if ((strcasecmp(tok, "MEMSWAP") == 0) || (strcasecmp(tok, "SWAP") == 0)) {
-				currule = NEWRULE(C_MEM);
-				currule->rule.mem.memtype = C_MEM_SWAP;
-				currule->rule.mem.warnlevel = 50;
-				currule->rule.mem.paniclevel = 80;
+				if ((strcasecmp(tok, "MEMSWAP") == 0) || (strcasecmp(tok, "SWAP") == 0)) {
+					keyword = "MEMSWAP"; name = "swap"; warnlevel = 50; paniclevel = 80;
+				}
+				else if ((strcasecmp(tok, "MEMREAL") == 0) || (strcasecmp(tok, "MEMPHYS") == 0) || (strcasecmp(tok, "PHYS") == 0)) {
+					keyword = "MEMPHYS"; name = "phys"; warnlevel = 100; paniclevel = 101;
+				}
+				else {
+					keyword = "MEMACT"; name = "act"; warnlevel = 90; paniclevel = 97;
+				}
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.warnlevel = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.paniclevel = atoi(tok);
-			}
-			else if ((strcasecmp(tok, "MEMACT") == 0) || (strcasecmp(tok, "ACTUAL") == 0) || (strcasecmp(tok, "ACT") == 0)) {
-				currule = NEWRULE(C_MEM);
-				currule->rule.mem.memtype = C_MEM_ACT;
-				currule->rule.mem.warnlevel = 90;
-				currule->rule.mem.paniclevel = 97;
+				tok = wstok(NULL);
+				if (!isqual(tok)) {
+					warnlevel = atoi(tok);
+					tok = wstok(NULL);
+					if (!isqual(tok)) paniclevel = atoi(tok);
+				}
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.warnlevel = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.mem.paniclevel = atoi(tok);
+				currule = NEWRULE(C_THRESHOLD);
+				keyword_rule(currule, keyword, "memory", name, 1);
+				keyword_cond(currule, METRIC_GT, (double)paniclevel, COL_RED, NULL);
+				keyword_cond(currule, METRIC_GT, (double)warnlevel, COL_YELLOW, NULL);
+				if (isqual(tok)) continue;
 			}
 			else if (strcasecmp(tok, "MEMCSA") == 0) {
 				currule = NEWRULE(C_MEM);
@@ -1902,7 +1897,8 @@ int load_client_config(char *configfn)
 
 	/* The built-in defaults, as keyword rules after every rule of the
 	 * file, so a host's own LOAD or UP is the first match and these are
-	 * what a host without one gets: LOAD 5 10, UP 1h yellow, no CLOCK. */
+	 * what a host without one gets: LOAD 5 10, UP 1h yellow, no CLOCK,
+	 * MEMPHYS 100 101, MEMSWAP 50 80, MEMACT 90 97. */
 	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "LOAD", "cpu", "load", 1);
 	currule->rule.threshold.builtin = 1;
@@ -1912,6 +1908,21 @@ int load_client_config(char *configfn)
 	keyword_rule(currule, "UP", NULL, "uptime", 0);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_LT, 3600.0, COL_YELLOW, "Machine recently rebooted");
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "MEMPHYS", "memory", "phys", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GT, 101.0, COL_RED, NULL);
+	keyword_cond(currule, METRIC_GT, 100.0, COL_YELLOW, NULL);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "MEMSWAP", "memory", "swap", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GT, 80.0, COL_RED, NULL);
+	keyword_cond(currule, METRIC_GT, 50.0, COL_YELLOW, NULL);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "MEMACT", "memory", "act", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GT, 97.0, COL_RED, NULL);
+	keyword_cond(currule, METRIC_GT, 90.0, COL_YELLOW, NULL);
 
 	if (curtime) xfree(curtime);
 	if (curextime) xfree(curextime);
@@ -1959,12 +1970,14 @@ void dump_client_config(void)
 			break;
 
 		  case C_MEM:
-			switch (rwalk->rule.mem.memtype) {
-			  case C_MEM_PHYS: printf("MEMREAL"); break;
-			  case C_MEM_SWAP: printf("MEMSWAP"); break;
-			  case C_MEM_ACT: printf("MEMACT"); break;
+			/* The z/OS keywords; MEMPHYS, MEMSWAP and MEMACT are threshold rules. */
+			switch (rwalk->rule.zos_mem.zos_memtype) {
+			  case C_MEM_CSA: printf("MEMCSA"); break;
+			  case C_MEM_ECSA: printf("MEMECSA"); break;
+			  case C_MEM_SQA: printf("MEMSQA"); break;
+			  case C_MEM_ESQA: printf("MEMESQA"); break;
 			}
-			printf(" %d %d", rwalk->rule.mem.warnlevel, rwalk->rule.mem.paniclevel);
+			printf(" %d %d", rwalk->rule.zos_mem.warnlevel, rwalk->rule.zos_mem.paniclevel);
 			break;
 
                   case C_ASID:
@@ -2360,7 +2373,9 @@ static int threshold_names(c_rule_t *rule, metricsample_t *s, char *test)
  * keyword applies and later ones do not. Every condition of that rule is
  * judged and the worst verdict kept on the sample; a line is written for
  * each condition that trips, or, on a ladder, for the worst of them only,
- * which is the one line LOAD always wrote. Returns the worst colour that
+ * which is the one line LOAD always wrote; a keyword whose verdict is the
+ * colour of a row -- the memory keywords -- has no text and writes none.
+ * Returns the worst colour that
  * tripped. The analyser calls this first, then client_config_thresholds()
  * for the rules written as THRESHOLD, so the keyword lines come first as
  * they always did. */
@@ -2401,11 +2416,11 @@ int client_config_keywords(void *hinfo, char *classname, char *test, strbuffer_t
 				if (rwalk->rule.threshold.ladder) {
 					if (!worst || (cond->color > worst->color)) worst = cond;
 				}
-				else if (lines) threshold_line(lines, rwalk, cond, s);
+				else if (lines && cond->text) threshold_line(lines, rwalk, cond, s);
 				if (rwalk->groups) addalertgroup(rwalk->groups);
 				if (cond->color > color) color = cond->color;
 			}
-			if (worst && lines) threshold_line(lines, rwalk, worst, s);
+			if (worst && lines && worst->text) threshold_line(lines, rwalk, worst, s);
 		}
 	}
 
@@ -2690,16 +2705,23 @@ void get_zvsegetvis_thresholds(void *hinfo, char *classname, char *pid,
         	}
 }
 
+/* The levels a memory keyword's first matching rule holds, for whoever
+ * reads them back; the built-in default when the file has none. */
+static void keyword_levels(void *hinfo, char *classname, char *keyword, int *yellow, int *red)
+{
+	c_rule_t *rule = keyword_match(xmh_item(hinfo, XMH_HOSTNAME), xmh_item(hinfo, XMH_ALLPAGEPATHS), classname, hinfo, keyword);
+	int c;
+
+	if (!rule) return;
+	for (c = 0; (c < rule->rule.threshold.ncond); c++) {
+		if (rule->rule.threshold.cond[c].color == COL_RED) *red = (int)rule->rule.threshold.cond[c].level;
+		else *yellow = (int)rule->rule.threshold.cond[c].level;
+	}
+}
+
 void get_memory_thresholds(void *hinfo, char *classname,
 			   int *physyellow, int *physred, int *swapyellow, int *swapred, int *actyellow, int *actred)
 {
-	char *hostname, *pagename;
-	c_rule_t *rule;
-	int gotphys = 0, gotswap = 0, gotact = 0;
-
-	hostname = xmh_item(hinfo, XMH_HOSTNAME);
-	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
-
 	*physyellow = 100;
 	*physred = 101;
 	*swapyellow = 50;
@@ -2707,33 +2729,9 @@ void get_memory_thresholds(void *hinfo, char *classname,
 	*actyellow = 90;
 	*actred = 97;
 
-	rule = getrule(hostname, pagename, classname, hinfo, C_MEM);
-	while (rule) {
-		switch (rule->rule.mem.memtype) {
-		  case C_MEM_PHYS:
-			if (!gotphys) {
-				*physyellow = rule->rule.mem.warnlevel;
-				*physred    = rule->rule.mem.paniclevel;
-				gotphys     = 1;
-			}
-			break;
-		  case C_MEM_ACT:
-			if (!gotact) {
-				*actyellow  = rule->rule.mem.warnlevel;
-				*actred     = rule->rule.mem.paniclevel;
-				gotact      = 1;
-			}
-			break;
-		  case C_MEM_SWAP:
-			if (!gotswap) {
-				*swapyellow = rule->rule.mem.warnlevel;
-				*swapred    = rule->rule.mem.paniclevel;
-				gotswap     = 1;
-			}
-			break;
-		}
-		rule = getrule(NULL, NULL, NULL, hinfo, C_MEM);
-	}
+	keyword_levels(hinfo, classname, "MEMPHYS", physyellow, physred);
+	keyword_levels(hinfo, classname, "MEMSWAP", swapyellow, swapred);
+	keyword_levels(hinfo, classname, "MEMACT", actyellow, actred);
 }
 
 void get_zos_memory_thresholds(void *hinfo, char *classname,

@@ -47,6 +47,20 @@ are unchanged. The three cpu keywords LOAD, UP and CLOCK are now the same
 rules as THRESHOLD underneath, which is where the fix comes from; their
 syntax, defaults and status lines are as before.
 
+Server -- MEMPHYS and MEMCSA no longer read each other's levels
+----------------------------------------------------------------
+
+The memory keywords MEMPHYS, MEMSWAP and MEMACT and the z/OS memory
+keywords MEMCSA, MEMECSA, MEMSQA and MEMESQA used to be one rule type in
+analysis.cfg, and a rule of one kind was read as the other: a MEMCSA line
+in a host's scope set that host's MEMPHYS levels, MEMECSA its MEMSWAP,
+MEMSQA its MEMACT, and a MEMPHYS line set a z/OS host's MEMCSA levels in
+the same way. A unix host under an unscoped "MEMCSA 90 95" was coloured
+yellow at 90% physical memory where the default is never to go yellow.
+The three memory keywords are now the same rules as THRESHOLD underneath,
+like LOAD, UP and CLOCK, and each kind sees only its own lines. Their
+syntax, defaults and the row colours are as before.
+
 Server -- THRESHOLD rules in analysis.cfg
 -----------------------------------------
 
