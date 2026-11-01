@@ -1663,8 +1663,6 @@ void unix_ports_report(char *hostname, char *clientclass, enum ostype_t os,
 				else if (pmin == 0) sprintf(limtxt, "at most %d", pmax);
 			}
 
-			if (pcolor > portcolor) portcolor = pcolor;
-
 			if (pcolor == COL_GREEN) {
 				sprintf(msgline, "&green %s (found %d, req. %s)\n", pname, pcount, limtxt);
 				addtobuffer(monmsg, msgline);
@@ -1684,6 +1682,11 @@ void unix_ports_report(char *hostname, char *clientclass, enum ostype_t os,
 				anycountdata = 1;
 			}
  		}
+
+		/* The status colour: the worst verdict among the count samples
+		 * check_port_count() judged into the batch. With at least one
+		 * PORT rule there is at least one sample, so the status is sent. */
+		portcolor = metric_batch_color(report_batch, "ports");
 	}
 
 	if ((portcolor == -1) && sendclearports) {
