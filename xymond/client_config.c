@@ -2747,6 +2747,22 @@ static int sample_trips(char *test, char *instance, char *name, double value, me
 	return metric_batch_trips(current, idx, &rule);
 }
 
+/* An age under one limit of a FILE rule. An age is the client's clock
+ * minus a timestamp the client wrote, so when the report's clock is off
+ * beyond the CLOCK limit the age is stale and trips nothing: a clock that
+ * stepped since the file was written puts the file's age anywhere. */
+static int age_trips(char *test, char *instance, char *name, double value, metricop_t op, double level, int color)
+{
+	if (metric_batch_skewed(current)) {
+		int idx = report_sample(test, instance, name, value);
+
+		metric_batch_sample(current, idx)->state = METRIC_STALE;
+		return 0;
+	}
+
+	return sample_trips(test, instance, name, value, op, level, color);
+}
+
 int check_file(void *hinfo, char *classname, 
 	       char *filename, char *filedata, char *section, 
 	       strbuffer_t *summarybuf, off_t *filesize, 
@@ -2996,7 +3012,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMIN) {
-			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_LT, (double)rwalk->rule.fcheck.minctimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_LT, (double)rwalk->rule.fcheck.minctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be >%u\n", 
 					ctimedif, rwalk->rule.fcheck.minctimedif);
@@ -3004,7 +3020,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_CTIMEMAX) {
-			if (sample_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxctimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "ctimeage", (double)ctimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxctimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File status changed %u seconds ago - should be <%u\n", 
 					ctimedif, rwalk->rule.fcheck.maxctimedif);
@@ -3012,7 +3028,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMIN) {
-			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_LT, (double)rwalk->rule.fcheck.minmtimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_LT, (double)rwalk->rule.fcheck.minmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be >%u\n", 
 					mtimedif, rwalk->rule.fcheck.minmtimedif);
@@ -3020,7 +3036,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_MTIMEMAX) {
-			if (sample_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxmtimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "mtimeage", (double)mtimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxmtimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was modified %u seconds ago - should be <%u\n", 
 					mtimedif, rwalk->rule.fcheck.maxmtimedif);
@@ -3028,7 +3044,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMIN) {
-			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_LT, (double)rwalk->rule.fcheck.minatimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "atimeage", (double)atimedif, METRIC_LT, (double)rwalk->rule.fcheck.minatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be >%u\n", 
 					atimedif, rwalk->rule.fcheck.minatimedif);
@@ -3036,7 +3052,7 @@ int check_file(void *hinfo, char *classname,
 			}
 		}
 		if (rwalk->flags & FCHK_ATIMEMAX) {
-			if (sample_trips("files", filename, "atimeage", (double)atimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxatimedif, rwalk->rule.fcheck.color)) {
+			if (age_trips("files", filename, "atimeage", (double)atimedif, METRIC_GT, (double)rwalk->rule.fcheck.maxatimedif, rwalk->rule.fcheck.color)) {
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File was accessed %u seconds ago - should be <%u\n", 
 					atimedif, rwalk->rule.fcheck.maxatimedif);

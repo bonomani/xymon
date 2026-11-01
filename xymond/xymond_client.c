@@ -489,6 +489,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 			clockval.tv_sec += cachedelay;
 			gettimeofday(&now, &tz);
 			metric_batch_clock(report_batch, &clockval, &now);
+			metric_batch_skew(report_batch, (double)maxclockdiff);
 			metric_batch_offset(report_batch, &clockdiff);
 
 			/* The offset keeps its sign; CLOCK's "more than N seconds

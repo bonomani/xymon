@@ -109,6 +109,7 @@ void metric_batch_clear(metricbatch_t *b)
 	}
 	b->count = 0;
 	b->clocks = 0;
+	b->maxoffset = 0;
 }
 
 void metric_batch_free(metricbatch_t *b)
@@ -223,6 +224,27 @@ int metric_batch_offset(metricbatch_t *b, struct timeval *offset)
 	}
 
 	return 1;
+}
+
+/* The CLOCK limit: how far apart the two clocks may be before the report's
+ * ages are not to be trusted. 0, or a negative value, is no limit. */
+void metric_batch_skew(metricbatch_t *b, double maxoffset)
+{
+	b->maxoffset = maxoffset;
+}
+
+/* Is the report's clock off? Only when both clocks are known, a limit is
+ * set, and the offset is beyond it either way, in whole seconds as a CLOCK
+ * rule reads it. A report without a [clock] section, or without a CLOCK
+ * rule, is never skewed: nothing says its ages are wrong. */
+int metric_batch_skewed(metricbatch_t *b)
+{
+	struct timeval offset;
+
+	if (b->maxoffset <= 0) return 0;
+	if (!metric_batch_offset(b, &offset)) return 0;
+
+	return ((offset.tv_sec > b->maxoffset) || (offset.tv_sec < -b->maxoffset));
 }
 
 /* The colour of a test: the worst verdict among its samples, COL_GREEN

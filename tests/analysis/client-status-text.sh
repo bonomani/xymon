@@ -53,6 +53,11 @@
 # Files, the attribute analyser:
 #   - files-linux-rules: FILE on size and modification age, a size above its
 #     limit with TRACK, DIR on a directory size inside its limits
+#   - files-linux-age-red: an mtime condition that trips, under no CLOCK rule
+#   - files-linux-clock-stale: the same report and condition under a CLOCK
+#     rule the [clock] epoch is far beyond: the age is stale and trips
+#     nothing, the file is green and cpu carries the clock. Recorded after
+#     that rule was added; before it the file was red
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
