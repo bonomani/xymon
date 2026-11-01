@@ -157,6 +157,47 @@ int metric_batch_judge(metricbatch_t *b, int first, int nsamples, metricrule_t *
 	return s->color;
 }
 
+/* The index of the sample with this identity, -1 when there is none. The
+ * search runs from the newest sample back, since a check that addresses
+ * one sample under several rules added it a moment ago. A NULL instance
+ * matches only a sample with none. */
+int metric_batch_find(metricbatch_t *b, char *test, char *instance, char *name)
+{
+	int i;
+
+	for (i = b->count - 1; (i >= 0); i--) {
+		metricsample_t *s = &b->samples[i];
+
+		if (s->test && test && (strcmp(s->test, test) != 0)) continue;
+		if ((s->instance == NULL) != (instance == NULL)) continue;
+		if (s->instance && (strcmp(s->instance, instance) != 0)) continue;
+		if (s->name && name && (strcmp(s->name, name) != 0)) continue;
+		return i;
+	}
+
+	return -1;
+}
+
+/* Judge one sample under one more rule, keeping the worst verdict: a sample
+ * that several rules address, a file's size under every FILE rule naming
+ * the file, is coloured by the worst of them and reports the rule that
+ * gave that colour. Returns whether this rule trips, whatever the colour
+ * already on the sample. */
+int metric_batch_trips(metricbatch_t *b, int idx, metricrule_t *r)
+{
+	metricsample_t *s = metric_batch_sample(b, idx);
+
+	if (!s || !metric_trips(s, r)) return 0;
+
+	if (r->color > s->color) {
+		s->color = r->color;
+		s->hit = *r;
+	}
+	s->judged = 1;
+
+	return 1;
+}
+
 /* The report's clocks. A producer that sat in msgcache has its measured
  * time moved forward by the cache delay before it gets here, so the offset
  * is between clocks and not between queues. */
