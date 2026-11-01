@@ -52,6 +52,12 @@ being accurate to more than +/\- 5 seconds, but it will let you
 catch a client clock that goes completely wrong. The default is
 NOT to check the system clock.
 .br
+When the offset is beyond "max.offset", the file ages of that report
+are not judged: the mtime, ctime and atime conditions of its FILE
+rules neither trip nor clear, since an age read against a clock that
+is off cannot be trusted. The other FILE conditions, and the DIR rules,
+are judged as usual. Without a CLOCK rule the ages are always judged.
+.br
 \fBNOTE:\fR Correct operation of this test obviously requires that
 the system clock of the Xymon server is correct. You should therefore
 make sure that the Xymon server is synchronized to the real clock,
@@ -355,7 +361,9 @@ be met - only when they are met will the status be green.
 
 So "mtime<600" means "the difference between current time and the mtime
 of the file must be less than 600 seconds - if not, the file status will
-go red".
+go red". The current time is the client's, and when a CLOCK rule finds
+the client's clock off, the age conditions of that report are not
+judged; see CLOCK above.
 
 
 .SH PORTS STATUS COLUMN SETTINGS

@@ -35,6 +35,22 @@ shows that yellow from the first report, where it showed clear before;
 keeping the board itself quiet for a while is the viewdelay tag proposed in
 xymon-monitoring/xymon issue 229, not yet available.
 
+Server -- file ages when the client clock is off
+------------------------------------------------
+
+On a host with a CLOCK rule in analysis.cfg, a report whose clock is off
+by more than the rule's limit no longer has its file ages judged: the
+mtime, ctime and atime conditions of its FILE rules neither trip nor
+clear for that report, and the file is coloured by its other conditions
+only. The cpu status shows the clock being off, as it did. An age is the
+client's clock minus a timestamp the client wrote, and once the clock is
+known to be wrong the server cannot tell an age read before a clock step
+from one read after it; a "must be updated in the last N minutes" rule
+used to go red on such a report. Hosts without a CLOCK rule, and reports
+within the limit, are judged exactly as before. The files status carries
+no line for an age it did not judge; the CLOCK line in the cpu status is
+the record.
+
 Clients -- filesystem reporting
 -------------------------------
 

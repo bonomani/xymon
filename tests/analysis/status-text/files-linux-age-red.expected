@@ -1,0 +1,11 @@
+status files2,test.cpu green Fri Oct 31 10:00:00 CET 2026 up: 3 days, 0 users, 0 procs, load=0.20
+System clock is N seconds off
+
+status files2,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status files2,test.files red Fri Oct 31 10:00:00 CET 2026 - Files NOT ok
+
+&red /var/spool/heartbeat
+File was modified 10000 seconds ago - should be <600
+
+
