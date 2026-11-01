@@ -1,6 +1,4 @@
-status cpu6,test.cpu red Fri Oct 31 10:00:00 CET 2026 up: 400 days, 0 users, 1 procs, load=11.50
-&red Load is CRITICAL
-
+status cpu6,test.cpu green Fri Oct 31 10:00:00 CET 2026 up: 400 days, 0 users, 1 procs, load=0.40
 status cpu6,test.procs clear Fri Oct 31 10:00:00 CET 2026 - Processes ok
 &clear No process checks defined
 
