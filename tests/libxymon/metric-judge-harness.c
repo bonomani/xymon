@@ -21,6 +21,10 @@
  *   - a test's colour is the worst verdict among its samples, green when
  *     none; samples of other tests do not count;
  *   - clearing drops the samples and the batch can be filled again;
+ *   - a sample is found again by its identity, the newest first, and a
+ *     NULL instance is its own identity;
+ *   - judging a sample under one more rule keeps the worst verdict and
+ *     reports whether that rule trips;
  *   - the report's two clocks give one offset, received minus measured,
  *     rounded down to the second, unknown until both are set and unknown
  *     again after a clear.
@@ -169,6 +173,29 @@ int main(int argc, char *argv[])
 	expect("batch clear", (b->count == 0) && (metric_batch_color(b, "disk") == COL_GREEN), "clearing left samples behind");
 	i = metric_batch_add(b, "disk", "/", "pct", 1, METRIC_OK);
 	expect("batch reuse", (i == 0) && (b->count == 1), "the cleared batch did not take a sample at index 0");
+	metric_batch_free(b);
+
+	/* Finding a sample by identity, newest first; NULL instance is its own. */
+	b = metric_batch_new();
+	metric_batch_add(b, "files", "/var/log/x", "size", 10, METRIC_OK);
+	metric_batch_add(b, "files", NULL, "size", 20, METRIC_OK);
+	i = metric_batch_add(b, "files", "/var/log/x", "size", 30, METRIC_OK);
+	expect("batch find", metric_batch_find(b, "files", "/var/log/x", "size") == i, "the newest sample of the identity was not found");
+	expect("batch find none", metric_batch_find(b, "files", "/var/log/x", "mtimeage") == -1, "a sample was found for a name nobody added");
+	expect("batch find null", metric_batch_find(b, "files", NULL, "size") == 1, "a NULL instance did not find its own sample");
+	expect("batch find other test", metric_batch_find(b, "procs", "/var/log/x", "size") == -1, "a sample answered for another test");
+
+	/* One more rule on a sample: the worst verdict stays, each rule reports itself. */
+	metric_rule(&r[0], "size", METRIC_GT, 5, COL_RED);
+	metric_rule(&r[1], "size", METRIC_GT, 25, COL_YELLOW);
+	metric_rule(&r[2], "size", METRIC_LT, 5, COL_RED);
+	expect("batch trips", metric_batch_trips(b, i, &r[0]) && (metric_batch_sample(b, i)->color == COL_RED)
+	       && (metric_batch_sample(b, i)->hit.level == 5), "the first rule did not trip or was not recorded");
+	expect("batch trips lower", metric_batch_trips(b, i, &r[1]) && (metric_batch_sample(b, i)->color == COL_RED)
+	       && (metric_batch_sample(b, i)->hit.level == 5), "a yellow rule tripping lowered a red verdict or replaced its rule");
+	expect("batch trips not", !metric_batch_trips(b, i, &r[2]) && (metric_batch_sample(b, i)->color == COL_RED),
+	       "a rule that does not trip reported tripping or changed the verdict");
+	expect("batch trips fold", metric_batch_color(b, "files") == COL_RED, "the fold does not see a verdict recorded rule by rule");
 	metric_batch_free(b);
 
 	/* The clocks: unknown until set, one offset rounded down, gone on clear. */

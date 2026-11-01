@@ -87,6 +87,8 @@ extern int metric_batch_add(metricbatch_t *b, char *test, char *instance, char *
 extern metricsample_t *metric_batch_sample(metricbatch_t *b, int idx);
 extern int metric_batch_judge(metricbatch_t *b, int first, int nsamples, metricrule_t *rules, int nrules);
 extern int metric_batch_color(metricbatch_t *b, char *test);
+extern int metric_batch_find(metricbatch_t *b, char *test, char *instance, char *name);
+extern int metric_batch_trips(metricbatch_t *b, int idx, metricrule_t *r);
 extern void metric_batch_clock(metricbatch_t *b, struct timeval *measured, struct timeval *received);
 extern int metric_batch_offset(metricbatch_t *b, struct timeval *offset);
 

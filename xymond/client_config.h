@@ -14,6 +14,7 @@
 #include "libxymon.h"
 
 extern int load_client_config(char *configfn);
+extern void client_config_batch(metricbatch_t *b);
 extern void dump_client_config(void);
 
 extern void clearalertgroups(void);

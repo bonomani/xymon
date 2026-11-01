@@ -114,4 +114,16 @@ assert_equal "0" "$(get k_lt)" "DS < fired at the level"
 assert_equal "1" "$(get k_in)" "DS interval did not fire inside its bounds"
 assert_equal "0" "$(get k_out)" "DS interval fired outside its lower bound"
 
+# The samples the checks left in the batch they were handed: one per
+# dataset however many rules addressed it, coloured by the worst rule that
+# tripped, and all in the stored phase. k_out's sample is green: a bound of
+# an interval that holds alone does not colour it.
+sample() { printf '%s\n' "$out" | sed -n "s/^sample c_[a-z]* $1 load //p"; }
+assert_equal "7" "$(printf '%s\n' "$out" | grep -c '^sample ')" \
+	"the DS checks did not leave one sample per dataset in the batch they were handed"
+assert_equal "red stored" "$(sample k_colours)" "the k_colours sample is not the worst of its yellow and red rules, or not stored"
+assert_equal "red stored" "$(sample k_in)" "the k_in sample was not coloured by the interval that holds"
+assert_equal "green stored" "$(sample k_out)" "the k_out sample was coloured by a bound that holds alone"
+assert_equal "green stored" "$(sample k_shadow)" "the k_shadow sample was coloured by a rule that does not trip"
+
 pass "DS threshold rules honour analysis.cfg first-match per (column, dataset, colour) (#32)"
