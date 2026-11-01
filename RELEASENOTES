@@ -16,6 +16,25 @@ released)" section below. See CONTRIBUTING.md; full rules in RELEASING.md.
 Changes for 4.3.31 (not yet released)
 =====================================
 
+Server -- cpu status colour
+---------------------------
+
+The colour of the cpu status is now the worst of its LOAD, UP and CLOCK
+verdicts, as the disk, inode and memory statuses have always taken the worst
+of their rows. It used to be whichever of UP or CLOCK tripped last, unless
+the load was already red: a LOAD warning in yellow was pulled down to clear
+by an UP or CLOCK rule written with the colour clear. Such a rule no longer
+hides a load warning; a host rebooted inside its UP window while its load is
+high now shows yellow where it showed clear. Rules in yellow or red, and the
+separate uptime status of --uptime-status, are unaffected. Anyone who wrote
+an UP rule in clear to keep a boot-time load quiet should use FOR=N on the
+cpu service in alerts.cfg instead, which delays the notification without
+changing the colour on record: "COLOR=yellow FOR=15" is silent on a load
+that stays yellow less than 15 minutes after any colour change. The board
+shows that yellow from the first report, where it showed clear before;
+keeping the board itself quiet for a while is the viewdelay tag proposed in
+xymon-monitoring/xymon issue 229, not yet available.
+
 Clients -- filesystem reporting
 -------------------------------
 

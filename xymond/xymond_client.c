@@ -321,9 +321,9 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	long uptimesecs = -1;
 	char myupstr[100];
 
-	int cpucolor = COL_GREEN, upstatuscolor = COL_GREEN;
+	int cpucolor, upstatuscolor;
 	int loadcolor;
-	int load, uptime, clock;
+	int load, uptime, clock, nrules;
 	metricrule_t rule[2];
 
 	char msgline[4096];
@@ -433,59 +433,36 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	cpumsg = newstrbuffer(0);
 
 	/* The three measurements of the cpu test, each judged by its own
-	 * keyword's conditions. How their colours fold into the status is as
-	 * it was, by hand: load sets it, uptime and clock recolour it unless
-	 * it is red. That is not the worst-wins fold of metric_batch_color():
-	 * an UP or CLOCK colour below the load's lowers the status. Making
-	 * it worst-wins is a visible change, and the registry's to make. */
+	 * keyword's conditions, and the status colour the worst verdict among
+	 * them: the fold every other test uses. With a separate uptime status
+	 * the uptime sample belongs to that test, and folds there. */
 	load = metric_batch_add(report_batch, "cpu", NULL, "load", load5, METRIC_OK);
 	metric_rule(&rule[0], "load", METRIC_GT, loadred,    COL_RED);
 	metric_rule(&rule[1], "load", METRIC_GT, loadyellow, COL_YELLOW);
 	loadcolor = metric_batch_judge(report_batch, load, 1, rule, 2);
-	if (loadcolor == COL_RED) {
-		cpucolor = COL_RED;
-		addtobuffer(cpumsg, "&red Load is CRITICAL\n");
-	}
-	else if (loadcolor == COL_YELLOW) {
-		cpucolor = COL_YELLOW;
-		addtobuffer(cpumsg, "&yellow Load is HIGH\n");
-	}
+	if (loadcolor == COL_RED) addtobuffer(cpumsg, "&red Load is CRITICAL\n");
+	else if (loadcolor == COL_YELLOW) addtobuffer(cpumsg, "&yellow Load is HIGH\n");
 
 	/* An uptime the line did not yield is unmeasured; a limit of -1 is no
-	 * rule. Both UP conditions are tested, as a recent limit above the
-	 * ancient one makes both true. */
-	uptime = metric_batch_add(report_batch, "cpu", NULL, "uptime", (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
-	metric_rule(&rule[0], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
-	metric_rule(&rule[1], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
+	 * rule, and is left out of the set. Both UP conditions are tested, as
+	 * a recent limit above the ancient one makes both true. */
+	uptime = metric_batch_add(report_batch, (separate_uptime_status ? "uptime" : "cpu"), NULL, "uptime",
+				  (double)uptimesecs, ((uptimesecs != -1) ? METRIC_OK : METRIC_UNMEASURED));
+	nrules = 0;
+	if (recentlimit != -1)  metric_rule(&rule[nrules++], "uptime", METRIC_LT, (double)recentlimit,  uptimecolor);
+	if (ancientlimit != -1) metric_rule(&rule[nrules++], "uptime", METRIC_GT, (double)ancientlimit, uptimecolor);
+	metric_batch_judge(report_batch, uptime, 1, rule, nrules);
 
-	if (separate_uptime_status) {
-		upmsg = newstrbuffer(0);
+	if (separate_uptime_status) upmsg = newstrbuffer(0);
 
-		if ((recentlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[0])) {
-			upstatuscolor = uptimecolor;
-			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
-			addtobuffer(upmsg, msgline);
-		}
-		if ((ancientlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[1])) {
-			upstatuscolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n",
-				colorname(uptimecolor), (ancientlimit / 86400));
-			addtobuffer(upmsg, msgline);
-		}
-
+	if ((recentlimit != -1) && (uptimesecs != -1) && (uptimesecs < recentlimit)) {
+		sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
+		addtobuffer((separate_uptime_status ? upmsg : cpumsg), msgline);
 	}
-	else {
-		if ((recentlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[0])) {
-			if (cpucolor != COL_RED) cpucolor = uptimecolor;
-			sprintf(msgline, "&%s Machine recently rebooted\n", colorname(uptimecolor));
-			addtobuffer(cpumsg, msgline);
-		}
-		if ((ancientlimit != -1) && metric_trips(metric_batch_sample(report_batch, uptime), &rule[1])) {
-			if (cpucolor != COL_RED) cpucolor = uptimecolor;
-			sprintf(msgline, "&%s Machine has been up more than %d days\n",
-				colorname(uptimecolor), (ancientlimit / 86400));
-			addtobuffer(cpumsg, msgline);
-		}
+	if ((ancientlimit != -1) && (uptimesecs != -1) && (uptimesecs > ancientlimit)) {
+		sprintf(msgline, "&%s Machine has been up more than %d days\n",
+			colorname(uptimecolor), (ancientlimit / 86400));
+		addtobuffer((separate_uptime_status ? upmsg : cpumsg), msgline);
 	}
 
 	if (clockstr) {
@@ -519,7 +496,6 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 			metric_rule(&rule[1], "clockoffset", METRIC_LT, -(double)maxclockdiff, clockdiffcolor);
 
 			if ((maxclockdiff > 0) && (metric_batch_judge(report_batch, clock, 1, rule, 2) != COL_GREEN)) {
-				if (cpucolor != COL_RED) cpucolor = clockdiffcolor;
 				sprintf(msgline, "&%s System clock is %ld seconds off (max %ld)\n",
 					colorname(clockdiffcolor), (long) clockdiff.tv_sec, (long) maxclockdiff);
 				addtobuffer(cpumsg, msgline);
@@ -531,6 +507,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 		}
 	}
 
+	cpucolor = metric_batch_color(report_batch, "cpu");
 	init_status(cpucolor);
 	sprintf(msgline, "status %s.cpu %s %s %s, %d users, %d procs, load=%s\n",
 		commafy(hostname), colorname(cpucolor),
@@ -553,6 +530,7 @@ void unix_cpu_report(char *hostname, char *clientclass, enum ostype_t os,
 	finish_status();
 
 	if (separate_uptime_status) {
+		upstatuscolor = metric_batch_color(report_batch, "uptime");
 		init_status(upstatuscolor);
 		sprintf(msgline, "status %s.uptime %s %s Uptime %s\n",
 			commafy(hostname), colorname(upstatuscolor),
