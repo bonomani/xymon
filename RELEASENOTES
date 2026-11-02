@@ -72,6 +72,20 @@ it were not there. DISK and INODE are now the same rules as THRESHOLD
 underneath, like LOAD, UP, CLOCK and the memory keywords; their syntax,
 defaults, IGNORE, counts and status lines are as before.
 
+Server -- WHEN: a rule scoped on another value of the report
+-------------------------------------------------------------
+
+Any rule in analysis.cfg can carry "WHEN metric<op>level", beside HOST=,
+CLASS= and TIME=: the rule applies only while another value of the same
+client report satisfies the condition. "LOAD 5 10 WHEN uptime>15m" leaves
+the load alone for the first 15 minutes after a boot, and "PROC httpd 1
+WHEN uptime>5m" gives a service five minutes to start, where the only way
+to quieten a boot was an UP rule in clear, which muted the whole cpu
+column. The metric is written as for THRESHOLD, the level takes a unit of
+time where the value is an age or an uptime, and a value the report does
+not carry leaves the rule in force. See analysis.cfg(5), "RULES TO SELECT
+HOSTS".
+
 Server -- THRESHOLD rules in analysis.cfg
 -----------------------------------------
 

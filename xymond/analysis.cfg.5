@@ -516,7 +516,8 @@ values, from its keyword rules and its THRESHOLD rules alike. Each rule
 that trips adds one line to the status: "&yellow cpu.load is 12, above
 5", or the "explanation" with the placeholders "&N" (the value's full
 name), "&V" (the value) and "&L" or "&U" (the level as written). The
-rules take the usual HOST=, CLASS=, PAGE=, TIME= and GROUP= settings.
+rules take the usual HOST=, CLASS=, PAGE=, TIME= and GROUP= settings,
+and WHEN; see "RULES TO SELECT HOSTS".
 .sp
 A file age is not judged, by FILE or by THRESHOLD, on a report whose
 clock a CLOCK rule finds off; see CLOCK above. The file lines of the
@@ -658,6 +659,22 @@ time specification in the hosts.cfg file.  E.g. "TIME=W:0400:0600"
 applied to a rule will make this rule exclude on week-days between
 4AM and 6AM. This applies on top of any TIME= specification, so both
 must match.
+.PP
+.IP "\fBWHEN\fR \fImetric\fR\fIcondition\fR"
+Rule applying only while another value of the same client report
+satisfies the condition. "LOAD 5 10 WHEN uptime>15m" judges the load
+only once the host has been up 15 minutes, and "PROC httpd 1 WHEN uptime>5m"
+gives a service five minutes after a boot to start. The metric is written
+as for THRESHOLD: "name", "test.name" or "test.instance.name", a bare
+name being the value in whichever status carries it. The condition is
+one of > >= < <= and a level, which may carry a unit of time (15m, 2d)
+where the value is an age or an uptime. A value the report does not
+carry, or carries unmeasured, leaves the rule in force, so a scope
+never switches a check off by accident. The cpu values, uptime among
+them, are read before every other status and can scope any rule; a
+value read later can scope only the rules of statuses read after it.
+Like TIME=, WHEN applies to the rule on its line, or alone on a line to
+every rule after it.
 .SH DIRECTING ALERTS TO GROUPS
 For some tests - e.g. "procs" or "msgs" - the right group of people
 to alert in case of a failure may be different, depending on which
