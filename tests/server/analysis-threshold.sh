@@ -35,7 +35,10 @@
 #     report: the rule applies only while the condition holds; the metric
 #     is a bare name, test.name or test.instance.name; a metric the report
 #     does not carry leaves the rule in force; a keyword rule scoped out is
-#     not the first match; --dump-config prints it back.
+#     not the first match; --dump-config prints it back;
+#   - a rule's colour is green, yellow, red or clear: blue and purple are
+#     xymond's and are refused with a line in the log, the rule keeping
+#     its default; an unknown word is refused the same way.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -104,6 +107,9 @@ DISK /home 50 70 HOST=testhost
 DISK /home 10 20 HOST=testhost
 DISK %^/var 1000U 500U 1 2 yellow GROUP=storage HOST=testhost
 INODE /home 10 20 HOST=testhost
+THRESHOLD cpu.uptime >1 purple "TEXT=a refused colour keeps the default"
+THRESHOLD cpu.uptime >1 COLOR=blue "TEXT=a refused COLOR= keeps the default"
+THRESHOLD cpu.uptime >1 COLOR=mauve "TEXT=an unknown colour keeps the default"
 WHEN uptime<1m
 THRESHOLD cpu.load >11 yellow "TEXT=a line-level WHEN scopes the rules after it"
 EOF2
@@ -145,6 +151,13 @@ assert_equal "green" "$(test_color files)" "a stale sample tripped, or a rule wi
 assert_equal "green" "$(sample files /x mtimeage)" "a stale age was judged"
 assert_equal "green" "$(sample files /x size)" "a THRESHOLD without a condition judged a sample"
 assert_equal "green" "$(test_color memory)" "a test with no THRESHOLD rule got a colour"
+assert_contains "&red a refused colour keeps the default" "$out" "purple on a rule was not refused in favour of the default"
+assert_contains "&red a refused COLOR= keeps the default" "$out" "COLOR=blue on a rule was not refused in favour of the default"
+assert_contains "&red an unknown colour keeps the default" "$out" "an unknown colour word was not refused in favour of the default"
+assert_contains "a rule cannot be purple" "$(cat "$work/run.log")" "the refused purple was not reported"
+assert_contains "a rule cannot be blue" "$(cat "$work/run.log")" "the refused blue was not reported"
+assert_contains "'mauve' is not a colour" "$(cat "$work/run.log")" "the unknown colour word was not reported"
+assert_contains "a rule in clear adds its line and no alarm" "$(cat "$work/run.log")" "clear on a rule was not noted"
 assert_contains "has no condition" "$(cat "$work/run.log")" "a THRESHOLD with no condition was not reported"
 
 keyword_color() { printf '%s\n' "$out" | sed -n "s|^keyword $1 ||p"; }
