@@ -24,6 +24,10 @@
 #     filesystem that must exist and one that must not; GROUP= on the
 #     tripping rule puts the group in the status line
 #   - missing-headers: a table without the expected column names
+#   - disk-linux-firstmatch: two DISK lines on /var, two on %^/tmp (the
+#     second an IGNORE), two INODE lines on /: the first of each applies and
+#     the second is shadowed, so /tmp stays in the table. Recorded from the
+#     unchanged upstream build before DISK and INODE became threshold rules
 # Memory:
 #   - memory-linux-defaults: new-style free(1), built-in levels
 #   - memory-linux-rules: old-style free(1) with -/+ buffers/cache; MEMPHYS,
