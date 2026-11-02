@@ -61,6 +61,17 @@ The three memory keywords are now the same rules as THRESHOLD underneath,
 like LOAD, UP and CLOCK, and each kind sees only its own lines. Their
 syntax, defaults and the row colours are as before.
 
+Server -- INODE rules with PAGE= on a host that is on several pages
+-------------------------------------------------------------------
+
+An INODE rule scoped with PAGE= in analysis.cfg now applies to a host that
+is on that page among others, as a DISK rule and every other rule always
+did. The INODE lookup matched the page against the host's first page only,
+so a host listed on two pages saw an INODE rule for its second page as if
+it were not there. DISK and INODE are now the same rules as THRESHOLD
+underneath, like LOAD, UP, CLOCK and the memory keywords; their syntax,
+defaults, IGNORE, counts and status lines are as before.
+
 Server -- THRESHOLD rules in analysis.cfg
 -----------------------------------------
 

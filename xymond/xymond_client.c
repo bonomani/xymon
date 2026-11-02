@@ -586,8 +586,9 @@ static void unix_fs_report(fsreport_t *rep,
 	firstsample = report_batch->count;
 
 	/* First pass: the table. Each mount that is not ignored becomes two
-	 * samples of the test, units free then percent used, judged as a pair
-	 * under its DISK/INODE rule with the verdict on the percent sample. */
+	 * samples of the test, units free then percent used; the host's DISK
+	 * or INODE rule on the mount says whether it is ignored and names its
+	 * group, and judges the pair in the keyword pass after the table. */
 	bol = dfstr; /* Must do this always, to at least grab the column-numbers we need */
 	while (bol) {
 		int ignored = 0;
@@ -613,8 +614,7 @@ static void unix_fs_report(fsreport_t *rep,
 			p = strdup(bol);
 			fsname = getcolumn(p, mntcol);
 			if (fsname) {
-				metricrule_t rule[2];
-				int freeidx, pctidx;
+				int freeidx;
 
 				rep->addcount(fsname);
 				rep->thresholds(hinfo, clientclass, fsname,
@@ -645,16 +645,8 @@ static void unix_fs_report(fsreport_t *rep,
 					 * change's to settle. */
 					freeidx = metric_batch_add(report_batch, rep->test, fsname, "free", levelabs,
 								   ((unmeasured && (levelpct == 100)) ? METRIC_UNMEASURED : METRIC_OK));
-					pctidx = metric_batch_add(report_batch, rep->test, fsname, "pct", levelpct, METRIC_OK);
+					metric_batch_add(report_batch, rep->test, fsname, "pct", levelpct, METRIC_OK);
 					metric_batch_sample(report_batch, freeidx)->data = group;
-
-					/* The DISK/INODE rule as two conditions, each on the
-					 * metric its unit names: a level in units free trips at
-					 * or below it, a percent at or above. Red first, so the
-					 * panic level is the one reported when both trip. */
-					metric_rule(&rule[0], (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), paniclevel, COL_RED);
-					metric_rule(&rule[1], (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), warnlevel,  COL_YELLOW);
-					metric_batch_judge(report_batch, freeidx, 2, rule, 2);
 				}
 			}
 
@@ -668,13 +660,22 @@ static void unix_fs_report(fsreport_t *rep,
 		if (nl) { *nl = '\n'; bol = nl+1; } else bol = NULL;
 	}
 
-	/* Second pass: the lines, from the samples. */
+	/* The host's DISK or INODE rules, keyword rules whose verdict is each
+	 * mount's own line below and no line of their own: the first rule
+	 * naming the mount, or the built-in default, each level on the metric
+	 * its unit names. */
+	client_config_keywords(hinfo, clientclass, rep->test, monmsg);
+
+	/* Second pass: the lines, from the samples. A mount's verdict is the
+	 * worse of its two samples; the panic level is on the red one, so it
+	 * is the one reported when both trip. */
 	for (i = firstsample; (i < report_batch->count); i++) {
 		metricsample_t *freesample = metric_batch_sample(report_batch, i);
-		metricsample_t *pctsample;
+		metricsample_t *pctsample, *hit;
 
 		if (strcmp(freesample->name, "free") != 0) continue;
 		pctsample = metric_batch_sample(report_batch, i+1);
+		hit = ((pctsample->color > freesample->color) ? pctsample : freesample);
 		group = (char *)freesample->data;
 		if (rep->idmarker) sprintf(idmark, "<!-- ID=%s --> ", freesample->instance); else *idmark = '\0';
 
@@ -684,18 +685,18 @@ static void unix_fs_report(fsreport_t *rep,
 			addtobuffer(monmsg, msgline);
 			addalertgroup(group);
 		}
-		else if (freesample->judged) {
+		else if (hit->judged && (hit->color > COL_GREEN)) {
 			char *msgp = msgline;
-			int below = (freesample->hit.op == METRIC_LE);
-			long hitvalue = (long)(below ? freesample->value : pctsample->value);
-			long hitlevel = (long)freesample->hit.level;
+			int below = (hit->hit.op == METRIC_LE);
+			long hitvalue = (long)hit->value;
+			long hitlevel = (long)hit->hit.level;
 
-			msgp += sprintf(msgp, "&%s %s%s ", colorname(freesample->color), idmark, freesample->instance);
+			msgp += sprintf(msgp, "&%s %s%s ", colorname(hit->color), idmark, freesample->instance);
 
 			if (below) msgp += sprintf(msgp, "(%lu units free)", hitvalue);
 			else msgp += sprintf(msgp, "(%lu%% used)", hitvalue);
 
-			msgp += sprintf(msgp, " has reached the %s level ", ((freesample->color == COL_RED) ? "PANIC" : "WARNING"));
+			msgp += sprintf(msgp, " has reached the %s level ", ((hit->color == COL_RED) ? "PANIC" : "WARNING"));
 
 			if (below) msgp += sprintf(msgp, "(%lu units)\n", hitlevel);
 			else msgp += sprintf(msgp, "(%lu%%)\n", hitlevel);

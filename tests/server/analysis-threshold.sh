@@ -24,7 +24,13 @@
 #     values back for the analysers that still judge by hand;
 #   - MEMPHYS, MEMSWAP and MEMACT are keyword rules the same way, with the
 #     built-in defaults 100 101, 50 80, 90 97; their verdict is the row's
-#     colour, so they write no line; get_memory_thresholds() reads them back.
+#     colour, so they write no line; get_memory_thresholds() reads them back;
+#   - DISK and INODE are keyword rules on a filesystem pattern, each level
+#     on disk.fs.pct or, written with a U, on disk.fs.free; the first rule
+#     naming a filesystem applies to it, IGNORE is a rule with no condition,
+#     the built-in defaults are DISK 90 95 and INODE 70 90 on every
+#     filesystem; the analyser writes the line, so they write none;
+#     get_disk_thresholds() and get_inode_thresholds() read them back.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -83,6 +89,11 @@ CLOCK 30 red HOST=testhost
 MEMSWAP 20 40 HOST=testhost
 MEMSWAP 90 95 HOST=testhost
 MEMCSA 10 20 HOST=testhost
+DISK / IGNORE HOST=testhost
+DISK /home 50 70 HOST=testhost
+DISK /home 10 20 HOST=testhost
+DISK %^/var 1000U 500U 1 2 yellow GROUP=storage HOST=testhost
+INODE /home 10 20 HOST=testhost
 EOF2
 
 out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
@@ -130,7 +141,18 @@ assert_contains $'&red Load is CRITICAL\n' "$out" "LOAD 2 4 did not write its CR
 assert_not_contains "Load is HIGH" "$out" "LOAD wrote both levels' lines where it always wrote the worst"
 assert_contains $'&red Machine recently rebooted\n' "$out" "UP 10m 2d red did not trip on an uptime of 300"
 assert_contains "&red System clock is -45 seconds off (max 30)" "$out" "CLOCK 30 red did not trip on an offset of -45, or lost its text"
-assert_equal "green" "$(keyword_color disk)" "a keyword rule tripped on a test that has none"
+assert_equal "yellow" "$(keyword_color disk)" "DISK /home 50 70 on 60% and DISK %^/var 1000U 500U on 500.5 free did not give yellow, or the IGNORE rule on / did not shadow the default on 95%"
+assert_not_contains $'keyword disk yellow\n&' "$out" "a DISK rule wrote a line where the analyser writes it"
+assert_contains "disk testhost / 90% 95% ignored file" "$out" "DISK / IGNORE is not read back as ignored with the default levels"
+assert_contains "disk testhost /home 50% 70% file" "$out" "the first DISK rule naming /home is not the one read back"
+assert_contains "disk testhost /var/log 1000U 500U group=storage file" "$out" "levels in units free, or the group, are not read back"
+assert_contains "disk testhost /other 90% 95% default" "$out" "a filesystem no DISK rule names did not get the built-in default"
+assert_contains "disk otherhost /home 90% 95% default" "$out" "another host's DISK rule applied"
+assert_contains "inode testhost /home 10% 20% file" "$out" "INODE /home is not read back"
+assert_contains "inode testhost / 70% 90% default" "$out" "a DISK rule was read as an INODE rule, or the INODE default is wrong"
+assert_contains "DISK: IGNORE disk./" "$out" "--dump-config does not print an IGNORE rule"
+assert_not_contains "; count 0 0 " "$out" "--dump-config prints a count on a rule that has none"
+assert_contains "DISK: THRESHOLD disk.%^/var.free <=500 red; THRESHOLD disk.%^/var.free <=1000 yellow; count 1 2 yellow" "$out" "--dump-config does not print a DISK line with units and a count as what it compiled to"
 assert_contains "cpu testhost load 2.0 4.0 up 600 172800 red clock 30 red" "$out" "get_cpu_thresholds does not read the host's first LOAD, UP and CLOCK back (LOAD 1 1 must be shadowed)"
 assert_contains "cpu otherhost load 5.0 10.0 up 3600 -1 yellow clock -1 yellow" "$out" "a host without LOAD or CLOCK did not get the built-in default, or UP 1h -1 kept a second condition"
 assert_equal "red" "$(keyword_color memory)" "MEMSWAP 20 40 did not colour a swap of 50 red, or the second MEMSWAP shadowed the first"
@@ -148,4 +170,4 @@ assert_contains "UP: THRESHOLD *.uptime <3600 yellow" "$out" "--dump-config does
 assert_contains "THRESHOLD disk./home.pct >=50 yellow" "$out" "--dump-config does not print the rule back"
 assert_contains "THRESHOLD cpu.uptime <10m yellow" "$out" "--dump-config lost the level as written"
 
-pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP, CLOCK and the memory keywords are keyword rules with first match and built-in defaults"
+pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP, CLOCK, the memory keywords, DISK and INODE are keyword rules with first match and built-in defaults"

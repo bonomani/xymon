@@ -1,0 +1,21 @@
+status fs7,test.disk red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&red /tmp (0 units free) has reached the PANIC level (1000000 units)
+&red /var (92% used) has reached the PANIC level (60%)
+
+Filesystem     1024-blocks      Used Available Capacity Mounted on
+/dev/sda1         20000000  10000000  10000000      50% /
+tmpfs              4000000   4000000         0     100% /tmp
+/dev/sdb1         50000000  46000000   4000000      92% /var
+status fs7,test.inode red Fri Oct 31 10:00:00 CET 2026 - Filesystems NOT ok
+&red <!-- ID=/ --> / (10% used) has reached the PANIC level (8%)
+&red <!-- ID=/tmp --> /tmp (100% used) has reached the PANIC level (90%)
+
+Filesystem      Inodes   IUsed    IFree IUse% Mounted on
+/dev/sda1      1310720  131072  1179648   10% /
+tmpfs          1000000 1000000        0  100% /tmp
+status fs7,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status fs7,test.files clear Fri Oct 31 10:00:00 CET 2026 - Files ok
+No files checked
+
+
