@@ -592,6 +592,35 @@ static int fs_level(char *tok, long *level)
 	}
 }
 
+/* The colour a rule gives, from the word on its line. A rule alarms in
+ * yellow or red, or says something in green. Blue and purple are
+ * xymond's: blue is an acknowledged or disabled status, purple one that
+ * stopped reporting, and a rule that produced them would be taken for
+ * both; the word is refused, with a line in the log, and the rule keeps
+ * the colour it would have had without it. Clear on a rule means "a line
+ * and no alarm", and is accepted as it always was; it is also what an
+ * unmeasured value renders as, so the log says so once per load. An
+ * unknown word is refused the same way instead of becoming colour -1. */
+static int rule_color(char *tok, int cfid, int dflt)
+{
+	int col = parse_color(tok);
+
+	switch (col) {
+	  case COL_BLUE:
+	  case COL_PURPLE:
+		errprintf("Line %d: a rule cannot be %s, that colour is xymond's; keeping %s\n", cfid, colorname(col), colorname(dflt));
+		return dflt;
+	  case COL_CLEAR:
+		errprintf("Line %d: a rule in clear adds its line and no alarm; clear is also how an unmeasured value shows\n", cfid);
+		return col;
+	  case -1:
+		errprintf("Line %d: '%s' is not a colour; keeping %s\n", cfid, tok, colorname(dflt));
+		return dflt;
+	  default:
+		return col;
+	}
+}
+
 /* A WHEN condition as written: the metric as THRESHOLD writes it -- name,
  * test.name or test.instance.name -- one of > >= < <=, and a level, in
  * seconds when it carries a unit of time. NULL, and a line in the log, for
@@ -982,7 +1011,7 @@ int load_client_config(char *configfn)
 					if (!isqual(tok)) {
 						if ((strcmp(tok, "-1") != 0) && (strcasecmp(tok, "never") != 0)) ancientlimit = 60*durationvalue(tok);
 						tok = wstok(NULL);
-						if (!isqual(tok)) color = parse_color(tok);
+						if (!isqual(tok)) color = rule_color(tok, cfid, color);
 					}
 				}
 
@@ -1006,7 +1035,7 @@ int load_client_config(char *configfn)
 				if (!isqual(tok)) {
 					maxdiff = atoi(tok);
 					tok = wstok(NULL);
-					if (!isqual(tok)) color = parse_color(tok);
+					if (!isqual(tok)) color = rule_color(tok, cfid, color);
 				}
 
 				currule = NEWRULE(C_THRESHOLD);
@@ -1086,11 +1115,10 @@ int load_client_config(char *configfn)
 					else if (strncmp(tok, ">", 1) == 0)  { currule->rule.threshold.cond[0].op = METRIC_GT; oplen = 1; }
 					else if (strncmp(tok, "<", 1) == 0)  { currule->rule.threshold.cond[0].op = METRIC_LT; oplen = 1; }
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						int col = parse_color(tok+6);
-						if (col != -1) currule->rule.threshold.cond[0].color = col;
+						currule->rule.threshold.cond[0].color = rule_color(tok+6, cfid, currule->rule.threshold.cond[0].color);
 					}
 					else if (parse_color(tok) != -1) {
-						currule->rule.threshold.cond[0].color = parse_color(tok);
+						currule->rule.threshold.cond[0].color = rule_color(tok, cfid, currule->rule.threshold.cond[0].color);
 					}
 					else {
 						errprintf("Syntax error line %d: THRESHOLD does not understand '%s'\n", cfid, tok);
@@ -1169,7 +1197,7 @@ int load_client_config(char *configfn)
 								currule->rule.threshold.cmax = atoi(tok);
 								tok = wstok(NULL);
 								if (!isqual(tok)) {
-									currule->rule.threshold.ccolor = parse_color(tok);
+									currule->rule.threshold.ccolor = rule_color(tok, cfid, currule->rule.threshold.ccolor);
 									tok = wstok(NULL);
 								}
 							}
@@ -1332,7 +1360,7 @@ int load_client_config(char *configfn)
 						}
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						currule->rule.proc.color = parse_color(tok+6);
+						currule->rule.proc.color = rule_color(tok+6, cfid, currule->rule.proc.color);
 					}
 					else if (strncasecmp(tok, "track", 5) == 0) {
 						currule->chkflags |= CHK_TRACKIT;
@@ -1347,7 +1375,7 @@ int load_client_config(char *configfn)
 						idx++;
 					}
 					else if (idx == 2) {
-						currule->rule.proc.color = parse_color(tok);
+						currule->rule.proc.color = rule_color(tok, cfid, currule->rule.proc.color);
 						idx++;
 					}
 				} while (tok && (!isqual(tok)));
@@ -1381,7 +1409,7 @@ int load_client_config(char *configfn)
 						currule->rule.log.ignoreexp = setup_expr(tok+7, 1);
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						currule->rule.log.color = parse_color(tok+6);
+						currule->rule.log.color = rule_color(tok+6, cfid, currule->rule.log.color);
 					}
 					else if (strcasecmp(tok, "optional") == 0) {
 						currule->chkflags |= CHK_OPTIONAL;
@@ -1396,7 +1424,7 @@ int load_client_config(char *configfn)
 						idx++;
 					}
 					else if (idx == 2) {
-						currule->rule.log.color = parse_color(tok);
+						currule->rule.log.color = rule_color(tok, cfid, currule->rule.log.color);
 						idx++;
 					}
 					else if (idx == 3) {
@@ -1562,9 +1590,8 @@ int load_client_config(char *configfn)
 						/* IFEXIST is an alias for OPTIONAL: skip the check if the file does not exist */
 						currule->chkflags |= CHK_OPTIONAL;
 					}
-					else {
-						int col = parse_color(tok);
-						if (col != -1) currule->rule.fcheck.color = col;
+					else if (parse_color(tok) != -1) {
+						currule->rule.fcheck.color = rule_color(tok, cfid, currule->rule.fcheck.color);
 					}
 				} while (tok && (!isqual(tok)));
 			}
@@ -1590,9 +1617,8 @@ int load_client_config(char *configfn)
 						currule->chkflags |= CHK_TRACKIT;
 						if (*(tok+5) == '=') currule->rrdidstr = strdup(tok+6);
 					}
-					else {
-						int col = parse_color(tok);
-						if (col != -1) currule->rule.dcheck.color = col;
+					else if (parse_color(tok) != -1) {
+						currule->rule.dcheck.color = rule_color(tok, cfid, currule->rule.dcheck.color);
 					}
 				} while (tok && (!isqual(tok)));
 			}
@@ -1643,10 +1669,10 @@ int load_client_config(char *configfn)
 						}
 					}
 					else if (strncasecmp(tok, "col=", 4) == 0) {
-						currule->rule.port.color = parse_color(tok+4);
+						currule->rule.port.color = rule_color(tok+4, cfid, currule->rule.port.color);
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						currule->rule.port.color = parse_color(tok+6);
+						currule->rule.port.color = rule_color(tok+6, cfid, currule->rule.port.color);
 					}
 					else if (strncasecmp(tok, "track", 5) == 0) {
 						currule->chkflags |= CHK_TRACKIT;
@@ -1744,10 +1770,10 @@ int load_client_config(char *configfn)
 							currule->rule.svc.stateexp = setup_expr(tok+7, 0);
 						}
 						else if (strncasecmp(tok, "col=", 4) == 0) {
-							currule->rule.svc.color = parse_color(tok+4);
+							currule->rule.svc.color = rule_color(tok+4, cfid, currule->rule.svc.color);
 						}
 						else if (strncasecmp(tok, "color=", 6) == 0) {
-							currule->rule.svc.color = parse_color(tok+6);
+							currule->rule.svc.color = rule_color(tok+6, cfid, currule->rule.svc.color);
 						}
 					} while (tok && (!isqual(tok)));
 
@@ -1787,8 +1813,7 @@ int load_client_config(char *configfn)
 						currule->rule.mibval.matchexp = setup_expr(tok+6, 0);
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						int col = parse_color(tok+6);
-						if (col != -1) currule->rule.mibval.color = col;
+						currule->rule.mibval.color = rule_color(tok+6, cfid, currule->rule.mibval.color);
 					}
 				} while (tok && (!isqual(tok)));
 			}
@@ -1841,8 +1866,7 @@ int load_client_config(char *configfn)
 						getnumber = 1;
 					}
 					else if (strncasecmp(tok, "color=", 6) == 0) {
-						int col = parse_color(tok+6);
-						if (col != -1) currule->rule.rrdds.color = col;
+						currule->rule.rrdds.color = rule_color(tok+6, cfid, currule->rule.rrdds.color);
 					}
 
 					if (getnumber) {

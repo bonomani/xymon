@@ -72,6 +72,19 @@ it were not there. DISK and INODE are now the same rules as THRESHOLD
 underneath, like LOAD, UP, CLOCK and the memory keywords; their syntax,
 defaults, IGNORE, counts and status lines are as before.
 
+Server -- blue and purple are refused as rule colours
+-----------------------------------------------------
+
+An analysis.cfg rule can no longer be coloured blue or purple. Those two
+colours are the server's own: blue is an acknowledged or disabled status
+and purple one that has stopped reporting, and a rule that produced them
+was taken for both by xymond and the pages. A rule written in either now
+keeps the colour it would have had without the word, and a line in the
+log says so at load; the same happens to a word that is not a colour,
+which used to leave the rule with no valid colour at all. Green, yellow,
+red and clear are unchanged; a rule in clear still adds its line and
+raises no alarm.
+
 Server -- WHEN: a rule scoped on another value of the report
 -------------------------------------------------------------
 

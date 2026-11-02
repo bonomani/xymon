@@ -12,6 +12,14 @@ data - typically the cpu, disk, memory, procs- and msgs-columns. Color
 is decided on the basis of some \fBsettings\fR defined in this file;
 settings apply to specific hosts through a set of \fBrules\fR.
 
+The colour a rule gives is green, yellow, red or clear. A rule in clear
+adds its line to the status and raises no alarm; clear is also how a
+value the client could not measure shows. Blue and purple belong to the
+server: blue is an acknowledged or disabled status, purple one that has
+stopped reporting. A rule written in either is refused with a line in the
+log and keeps the colour it would have had without the word, as is a word
+that is not a colour.
+
 Note: This file is only used on the Xymon server - it is not
 used by the Xymon client, so there is no need to distribute
 it to your client systems.
