@@ -30,7 +30,12 @@
 #     naming a filesystem applies to it, IGNORE is a rule with no condition,
 #     the built-in defaults are DISK 90 95 and INODE 70 90 on every
 #     filesystem; the analyser writes the line, so they write none;
-#     get_disk_thresholds() and get_inode_thresholds() read them back.
+#     get_disk_thresholds() and get_inode_thresholds() read them back;
+#   - WHEN metric<op>level scopes any rule on another measurement of the
+#     report: the rule applies only while the condition holds; the metric
+#     is a bare name, test.name or test.instance.name; a metric the report
+#     does not carry leaves the rule in force; a keyword rule scoped out is
+#     not the first match; --dump-config prints it back.
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
@@ -81,6 +86,11 @@ THRESHOLD disk./home.pct >=50 yellow
 THRESHOLD disk.%^/var.free <1000 red
 THRESHOLD files.mtimeage >1 red
 THRESHOLD files.size clear
+THRESHOLD cpu.load >1 red WHEN uptime>1h HOST=testhost
+THRESHOLD cpu.load >11 yellow WHEN uptime<1h "TEXT=Load &V inside the boot window"
+THRESHOLD cpu.uptime >1 yellow WHEN nosuch>1 "TEXT=a scope on an unmeasured metric applies"
+THRESHOLD cpu.load >11 yellow WHEN disk./home.pct>50 "TEXT=a scope by test and instance"
+LOAD 1 1 WHEN uptime>1d HOST=testhost
 LOAD 2 4 HOST=testhost
 LOAD 1 1 HOST=testhost
 UP 10m 2d red HOST=testhost
@@ -94,6 +104,8 @@ DISK /home 50 70 HOST=testhost
 DISK /home 10 20 HOST=testhost
 DISK %^/var 1000U 500U 1 2 yellow GROUP=storage HOST=testhost
 INODE /home 10 20 HOST=testhost
+WHEN uptime<1m
+THRESHOLD cpu.load >11 yellow "TEXT=a line-level WHEN scopes the rules after it"
 EOF2
 
 out=$("$work/harness" "$work/hosts.cfg" "$work/analysis.cfg" \
@@ -167,7 +179,12 @@ assert_contains "MEMCSA 10 20" "$out" "--dump-config does not print a z/OS memor
 assert_contains "LOAD: THRESHOLD cpu.load >4 red; THRESHOLD cpu.load >2 yellow" "$out" "--dump-config does not print a LOAD line as what it compiled to"
 assert_contains "UP: THRESHOLD *.uptime <3600 yellow" "$out" "--dump-config does not print UP 1h -1 as one condition on the uptime of any test"
 
+assert_contains "&yellow Load 12 inside the boot window" "$out" "WHEN uptime<1h did not apply with an uptime of 300"
+assert_contains "a scope on an unmeasured metric applies" "$out" "a WHEN on a metric the report does not carry switched the rule off"
+assert_contains "a scope by test and instance" "$out" "WHEN disk./home.pct>50 did not find the sample by test and instance"
+assert_not_contains "&yellow a line-level WHEN scopes" "$out" "a WHEN alone on a line did not scope the rules after it"
+assert_contains "THRESHOLD cpu.load >1 red WHEN uptime>1h HOST=testhost" "$out" "--dump-config does not print WHEN back"
 assert_contains "THRESHOLD disk./home.pct >=50 yellow" "$out" "--dump-config does not print the rule back"
 assert_contains "THRESHOLD cpu.uptime <10m yellow" "$out" "--dump-config lost the level as written"
 
-pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP, CLOCK, the memory keywords, DISK and INODE are keyword rules with first match and built-in defaults"
+pass "THRESHOLD rules judge a test's samples by name and instance, worst colour kept; LOAD, UP, CLOCK, the memory keywords, DISK and INODE are keyword rules with first match and built-in defaults; WHEN scopes a rule on another measurement"

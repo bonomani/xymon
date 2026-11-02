@@ -242,6 +242,19 @@ typedef struct c_mq_channel_t {
 
 typedef enum { C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
 
+/* WHEN metric<op>level: the rule applies only while another measurement
+ * of the same report satisfies the condition -- a boot window on any rule,
+ * "LOAD 5 10 WHEN uptime>15m", "PROC httpd 1 WHEN uptime>5m". A scope
+ * beside TIME= and CLASS=: it has no memory and overwrites nothing. */
+typedef struct c_when_t {
+	char *spec;		/* as written, for --dump-config */
+	char *test;		/* NULL: the metric in whichever test carries it */
+	char *instance;		/* NULL: a metric with no instance */
+	char *name;
+	metricop_t op;
+	double level;
+} c_when_t;
+
 typedef struct c_rule_t {
 	exprlist_t *hostexp;
 	exprlist_t *exhostexp;
@@ -252,6 +265,7 @@ typedef struct c_rule_t {
 	exprlist_t *classexp;
 	exprlist_t *exclassexp;
 	char *timespec, *extimespec, *statustext, *rrdidstr, *groups;
+	c_when_t *when;
 	ruletype_t ruletype;
 	int cfid;
 	uint32_t flags;
@@ -578,12 +592,72 @@ static int fs_level(char *tok, long *level)
 	}
 }
 
+/* A WHEN condition as written: the metric as THRESHOLD writes it -- name,
+ * test.name or test.instance.name -- one of > >= < <=, and a level, in
+ * seconds when it carries a unit of time. NULL, and a line in the log, for
+ * anything else. */
+static c_when_t *setup_when(char *spec, int cfid)
+{
+	c_when_t *w;
+	char *op, *level, *first, *last;
+	int oplen, secs;
+
+	op = strpbrk(spec, "<>");
+	if (!op || (op == spec)) {
+		errprintf("Syntax error line %d: WHEN '%s' is not metric<op>level\n", cfid, spec);
+		return NULL;
+	}
+	oplen = ((*(op+1) == '=') ? 2 : 1);
+	level = op + oplen;
+	if (!*level) {
+		errprintf("Syntax error line %d: WHEN '%s' has no level\n", cfid, spec);
+		return NULL;
+	}
+
+	w = (c_when_t *)calloc(1, sizeof(c_when_t));
+	w->spec = strdup(spec);
+	w->op = ((*op == '>') ? ((oplen == 2) ? METRIC_GE : METRIC_GT) : ((oplen == 2) ? METRIC_LE : METRIC_LT));
+	if (durationseconds(level, &secs) && (strpbrk(level, "mhdw") != NULL)) w->level = (double)secs;
+	else w->level = atof(level);
+
+	*op = '\0';
+	first = strchr(spec, '.');
+	last = strrchr(spec, '.');
+	if (!first) {
+		w->name = strdup(spec);
+	}
+	else {
+		w->test = (char *)malloc((first - spec) + 1);
+		memcpy(w->test, spec, (first - spec));
+		w->test[first - spec] = '\0';
+		w->name = strdup(last+1);
+		if (last > first) {
+			w->instance = (char *)malloc((last - first));
+			memcpy(w->instance, first+1, (last - first - 1));
+			w->instance[last - first - 1] = '\0';
+		}
+	}
+	*op = ((w->op == METRIC_GE) || (w->op == METRIC_GT)) ? '>' : '<';
+
+	return w;
+}
+
+static void free_when(c_when_t *w)
+{
+	if (!w) return;
+	if (w->spec) xfree(w->spec);
+	if (w->test) xfree(w->test);
+	if (w->instance) xfree(w->instance);
+	if (w->name) xfree(w->name);
+	xfree(w);
+}
+
 static c_rule_t *setup_rule(ruletype_t ruletype, 
 			    exprlist_t *curhost, exprlist_t *curexhost, 
 			    exprlist_t *curpage, exprlist_t *curexpage, 
 			    exprlist_t *curdg, exprlist_t *curexdg, 
 			    exprlist_t *curclass, exprlist_t *curexclass, 
-			    char *curtime, char *curextime, char *curtext, char *curgroup,
+			    char *curtime, char *curextime, char *curtext, char *curgroup, char *curwhen,
 			    int cfid)
 {
 	c_rule_t *newitem = (c_rule_t *)calloc(1, sizeof(c_rule_t));
@@ -603,6 +677,7 @@ static c_rule_t *setup_rule(ruletype_t ruletype,
 	if (curextime) newitem->extimespec = strdup(curextime);
 	if (curtext) newitem->statustext = strdup(curtext);
 	if (curgroup) newitem->groups = strdup(curgroup);
+	if (curwhen) newitem->when = setup_when(curwhen, cfid);
 	newitem->cfid = cfid;
 
 	return newitem;
@@ -624,7 +699,8 @@ static int isqual(char *token)
 	     (strncasecmp(token, "TEXT=", 5) == 0)		||
 	     (strncasecmp(token, "GROUP=", 6) == 0)		||
 	     (strncasecmp(token, "TIME=", 5) == 0)		||
-	     (strncasecmp(token, "EXTIME=", 7) == 0)		) return 1;
+	     (strncasecmp(token, "EXTIME=", 7) == 0)		||
+	     (strcasecmp(token, "WHEN") == 0)			) return 1;
 
 	return 0;
 }
@@ -691,7 +767,7 @@ int load_client_config(char *configfn)
 	strbuffer_t *inbuf;
 	char *tok;
 	exprlist_t *curhost, *curpage, *curclass, *curexhost, *curexpage, *curexclass, *curdg, *curexdg;
-	char *curtime, *curextime, *curtext, *curgroup;
+	char *curtime, *curextime, *curtext, *curgroup, *curwhen;
 	c_rule_t *currule = NULL;
 	int cfid = 0;
 
@@ -727,6 +803,7 @@ int load_client_config(char *configfn)
 		if (tmp->extimespec) xfree(tmp->extimespec);
 		if (tmp->statustext) xfree(tmp->statustext);
 		if (tmp->rrdidstr) xfree(tmp->rrdidstr);
+		free_when(tmp->when);
 
 		switch (tmp->ruletype) {
 		  case C_MIBVAL:
@@ -785,14 +862,14 @@ int load_client_config(char *configfn)
 		havetree = 0;
 	}
 
-#define NEWRULE(X) (setup_rule(X, curhost, curexhost, curpage, curexpage, curdg, curexdg, curclass, curexclass, curtime, curextime, curtext, curgroup, cfid));
+#define NEWRULE(X) (setup_rule(X, curhost, curexhost, curpage, curexpage, curdg, curexdg, curclass, curexclass, curtime, curextime, curtext, curgroup, curwhen, cfid));
 
 	curhost = curpage = curclass = curexhost = curexpage = curexclass = curdg = curexdg = NULL;
-	curtime = curextime = curtext = curgroup = NULL;
+	curtime = curextime = curtext = curgroup = curwhen = NULL;
 	inbuf = newstrbuffer(0);
 	while (stackfgets(inbuf, NULL)) {
 		exprlist_t *newhost, *newpage, *newexhost, *newexpage, *newclass, *newexclass, *newdg, *newexdg;
-		char *newtime, *newextime, *newtext, *newgroup;
+		char *newtime, *newextime, *newtext, *newgroup, *newwhen;
 		int unknowntok = 0;
 
 		cfid++;
@@ -800,7 +877,7 @@ int load_client_config(char *configfn)
 		sanitize_input(inbuf, 1, 0); if (STRBUFLEN(inbuf) == 0) continue;
 
 		newhost = newpage = newexhost = newexpage = newclass = newexclass = newdg = newexdg = NULL;
-		newtime = newextime = newtext = newgroup = NULL;
+		newtime = newextime = newtext = newgroup = newwhen = NULL;
 		currule = NULL;
 
 		tok = wstok(STRBUF(inbuf));
@@ -869,6 +946,16 @@ int load_client_config(char *configfn)
 				char *p = strchr(tok, '=');
 				if (currule) currule->statustext = strdup(p+1);
 				else newtext = strdup(p+1);
+				tok = wstok(NULL); continue;
+			}
+			else if (strcasecmp(tok, "WHEN") == 0) {
+				tok = wstok(NULL);
+				if (!tok) {
+					errprintf("Syntax error line %d: WHEN with no condition\n", cfid);
+					continue;
+				}
+				if (currule) currule->when = setup_when(tok, cfid);
+				else newwhen = strdup(tok);
 				tok = wstok(NULL); continue;
 			}
 			else if (strncasecmp(tok, "GROUP=", 6) == 0) {
@@ -1875,6 +1962,7 @@ int load_client_config(char *configfn)
 			if (curextime) xfree(curextime); curextime = newextime;
 			if (curtext) xfree(curtext); curtext = newtext;
 			if (curgroup) xfree(curgroup); curgroup = newgroup;
+			if (curwhen) xfree(curwhen); curwhen = newwhen;
 		}
 	}
 
@@ -1886,36 +1974,36 @@ int load_client_config(char *configfn)
 	 * what a host without one gets: LOAD 5 10, UP 1h yellow, no CLOCK,
 	 * MEMPHYS 100 101, MEMSWAP 50 80, MEMACT 90 97, and for every
 	 * filesystem DISK 90 95 and INODE 70 90. */
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "LOAD", "cpu", "load", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GT, 10.0, COL_RED, "Load is CRITICAL");
 	keyword_cond(currule, METRIC_GT, 5.0, COL_YELLOW, "Load is HIGH");
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "UP", NULL, "uptime", 0);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_LT, 3600.0, COL_YELLOW, "Machine recently rebooted");
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "MEMPHYS", "memory", "phys", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GT, 101.0, COL_RED, NULL);
 	keyword_cond(currule, METRIC_GT, 100.0, COL_YELLOW, NULL);
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "MEMSWAP", "memory", "swap", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GT, 80.0, COL_RED, NULL);
 	keyword_cond(currule, METRIC_GT, 50.0, COL_YELLOW, NULL);
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "MEMACT", "memory", "act", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GT, 97.0, COL_RED, NULL);
 	keyword_cond(currule, METRIC_GT, 90.0, COL_YELLOW, NULL);
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "DISK", "disk", "pct", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GE, 95.0, COL_RED, NULL);
 	keyword_cond(currule, METRIC_GE, 90.0, COL_YELLOW, NULL);
-	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "INODE", "inode", "pct", 1);
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GE, 90.0, COL_RED, NULL);
@@ -1924,6 +2012,7 @@ int load_client_config(char *configfn)
 	if (curtime) xfree(curtime);
 	if (curextime) xfree(curextime);
 	if (curtext) xfree(curtext);
+	if (curwhen) xfree(curwhen);
 
 	/* Create the ruletree, but leave it empty - it will be filled as clients report */
 	ruletree = xtreeNew(strcasecmp);
@@ -2224,6 +2313,7 @@ void dump_client_config(void)
 
 		if (rwalk->timespec) printf(" TIME=%s", rwalk->timespec);
 		if (rwalk->extimespec) printf(" EXTIME=%s", rwalk->extimespec);
+		if (rwalk->when) printf(" WHEN %s", rwalk->when->spec);
 		if (rwalk->hostexp) printf(" HOST=%s", rwalk->hostexp->pattern);
 		if (rwalk->exhostexp) printf(" EXHOST=%s", rwalk->exhostexp->pattern);
 		if (rwalk->dgexp) printf(" DISPLAYGROUP=%s", rwalk->dgexp->pattern);
@@ -2235,6 +2325,26 @@ void dump_client_config(void)
 		if (rwalk->statustext) printf(" TEXT=%s", rwalk->statustext);
 		printf(" (line: %d)\n", rwalk->cfid);
 	}
+}
+
+/* Does the report satisfy a rule's WHEN? Only a measured sample can say
+ * no: a metric the report does not carry, or carries unmeasured, leaves
+ * the rule in force, so a scope never switches a check off by accident.
+ * With no batch, in the interactive test mode, every rule is in force. */
+static int when_holds(c_when_t *w)
+{
+	metricsample_t *s;
+	metricrule_t r;
+	int idx;
+
+	if (!current) return 1;
+	idx = metric_batch_find(current, w->test, w->instance, w->name);
+	if (idx == -1) return 1;
+	s = metric_batch_sample(current, idx);
+	if (s->state != METRIC_OK) return 1;
+
+	metric_rule(&r, w->name, w->op, w->level, COL_RED);
+	return metric_trips(s, &r);
 }
 
 static c_rule_t *getrule(char *hostname, char *pagename, char *classname, void *hinfo, ruletype_t ruletype)
@@ -2255,6 +2365,7 @@ static c_rule_t *getrule(char *hostname, char *pagename, char *classname, void *
 		if (rwalk->rule->ruletype != ruletype) continue;
 		if (rwalk->rule->timespec && !timematch(holidayset, rwalk->rule->timespec)) continue;
 		if (rwalk->rule->extimespec && timematch(holidayset, rwalk->rule->extimespec)) continue;
+		if (rwalk->rule->when && !when_holds(rwalk->rule->when)) continue;
 
 		/* If we get here, then we have something that matches */
 		return rwalk->rule;
