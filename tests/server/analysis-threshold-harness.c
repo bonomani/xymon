@@ -14,7 +14,9 @@
  * tagged threshold rules -- the same way, printing "keyword <test> <colour>"
  * and their lines, and it prints what get_cpu_thresholds() and
  * get_memory_thresholds() read back from those rules for testhost and
- * otherhost as "cpu <host> ..." and "mem <host> ...".
+ * otherhost as "cpu <host> ..." and "mem <host> ...", and what
+ * get_disk_thresholds() and get_inode_thresholds() read back for a few
+ * filesystems as "disk <host> <fs> ..." and "inode <host> <fs> ...".
  */
 #include <stdio.h>
 #include <stdlib.h>
@@ -80,6 +82,25 @@ int main(int argc, char *argv[])
 			       recentlimit, ancientlimit, colorname(uptimecolor), maxclockdiff, colorname(clockdiffcolor));
 			get_memory_thresholds(hi, "", &physyellow, &physred, &swapyellow, &swapred, &actyellow, &actred);
 			printf("mem %s phys %d %d swap %d %d act %d %d\n", hosts[h], physyellow, physred, swapyellow, swapred, actyellow, actred);
+
+			{
+				char *fs[4] = { "/", "/home", "/var/log", "/other" };
+				long warnlevel, paniclevel;
+				int abswarn, abspanic, ignored, cfid, f;
+				char *group;
+
+				for (f = 0; (f < 4); f++) {
+					cfid = get_disk_thresholds(hi, "", fs[f], &warnlevel, &paniclevel, &abswarn, &abspanic, &ignored, &group);
+					printf("disk %s %s %ld%c %ld%c%s%s%s %s\n", hosts[h], fs[f],
+					       warnlevel, (abswarn ? 'U' : '%'), paniclevel, (abspanic ? 'U' : '%'),
+					       (ignored ? " ignored" : ""), (group ? " group=" : ""), (group ? group : ""),
+					       (cfid ? "file" : "default"));
+					cfid = get_inode_thresholds(hi, "", fs[f], &warnlevel, &paniclevel, &abswarn, &abspanic, &ignored, &group);
+					printf("inode %s %s %ld%c %ld%c%s %s\n", hosts[h], fs[f],
+					       warnlevel, (abswarn ? 'U' : '%'), paniclevel, (abspanic ? 'U' : '%'),
+					       (ignored ? " ignored" : ""), (cfid ? "file" : "default"));
+				}
+			}
 		}
 	}
 

@@ -40,24 +40,6 @@ typedef struct exprlist_t {
 	struct exprlist_t *next;
 } exprlist_t;
 
-typedef struct c_disk_t {
-	exprlist_t *fsexp;
-	long warnlevel, paniclevel;
-	int abswarn, abspanic;
-	int dmin, dmax, dcount;
-	int color;
-	int ignored;
-} c_disk_t;
-
-typedef struct c_inode_t {
-	exprlist_t *fsexp;
-	long warnlevel, paniclevel;
-	int abswarn, abspanic;
-	int imin, imax, icount;
-	int color;
-	int ignored;
-} c_inode_t;
-
 typedef struct c_zos_mem_t {
 	enum { C_MEM_CSA, C_MEM_ECSA, C_MEM_SQA, C_MEM_ESQA } zos_memtype;
 	int warnlevel, paniclevel;
@@ -216,6 +198,7 @@ typedef struct c_rrdds_t {
  * named metric of the report's batch, judged where the metric is born. The
  * instance is a pattern, or none, which is every instance of the metric. */
 typedef struct c_threshold_cond_t {
+	char *name;		/* the metric, when not the rule's: a DISK level in units is on free, one in percent on pct */
 	metricop_t op;
 	double level;
 	char *levelstr;		/* the level as written, for the status line: "10m" */
@@ -230,14 +213,21 @@ typedef struct c_threshold_t {
 	int ncond;		/* one for a THRESHOLD line, up to two for a keyword's */
 	c_threshold_cond_t cond[2];
 
-	/* A keyword line -- LOAD, UP, CLOCK, MEMPHYS, MEMSWAP, MEMACT -- compiles
-	 * to this rule tagged with its keyword. Keyword rules keep their first-match contract: for a
+	/* A keyword line -- LOAD, UP, CLOCK, MEMPHYS, MEMSWAP, MEMACT, DISK,
+	 * INODE -- compiles to this rule tagged with its keyword. Keyword rules keep their first-match contract: for a
 	 * metric, the first matching rule of each keyword applies, or the
 	 * built-in default appended after the file; every untagged THRESHOLD
 	 * rule applies on top. */
 	char *keyword;
 	int ladder;		/* the conditions are levels of one scale: only the worst that trips writes its line */
 	int builtin;		/* the default, not in any file */
+
+	/* DISK and INODE only: "DISK fs IGNORE" drops the filesystem from the
+	 * status, and "DISK fs warn panic min max color" also counts the
+	 * filesystems matching the pattern against min and max. The count
+	 * rides on the keyword rule until counts are rules of their own. */
+	int ignored;
+	int cmin, cmax, ccount, ccolor;
 } c_threshold_t;
 
 typedef struct c_mq_queue_t {
@@ -250,7 +240,7 @@ typedef struct c_mq_channel_t {
 	exprlist_t *qmgrname, *chnname, *warnstates, *alertstates;
 } c_mq_channel_t;
 
-typedef enum { C_DISK, C_INODE, C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
+typedef enum { C_MEM, C_PROC, C_LOG, C_FILE, C_DIR, C_PORT, C_SVC, C_CICS, C_PAGING, C_MEM_GETVIS, C_MEM_VSIZE, C_ASID, C_RRDDS, C_MQ_QUEUE, C_MQ_CHANNEL, C_MIBVAL, C_THRESHOLD } ruletype_t;
 
 typedef struct c_rule_t {
 	exprlist_t *hostexp;
@@ -268,8 +258,6 @@ typedef struct c_rule_t {
 	uint32_t chkflags;
 	struct c_rule_t *next;
 	union {
-		c_disk_t disk;
-		c_inode_t inode;
 		c_zos_mem_t zos_mem;
 		c_zvse_vsize_t zvse_vsize;
 		c_zvse_getvis_t zvse_getvis;
@@ -549,21 +537,45 @@ static void keyword_rule(c_rule_t *rule, char *keyword, char *test, char *name, 
 	rule->rule.threshold.name = strdup(name);
 	rule->rule.threshold.ladder = ladder;
 	rule->rule.threshold.ncond = 0;
+	rule->rule.threshold.cmin = 0;
+	rule->rule.threshold.cmax = -1;
+	rule->rule.threshold.ccolor = COL_RED;
 }
 
-static void keyword_cond(c_rule_t *rule, metricop_t op, double level, int color, char *text)
+/* A condition of a keyword rule, on the rule's metric or, with a name, on
+ * another of the same instance. */
+static void keyword_cond_on(c_rule_t *rule, char *name, metricop_t op, double level, int color, char *text)
 {
 	c_threshold_cond_t *c;
 	char levelstr[40];
 
 	if (rule->rule.threshold.ncond >= 2) return;
 	c = &rule->rule.threshold.cond[rule->rule.threshold.ncond++];
+	c->name = (name ? strdup(name) : NULL);
 	c->op = op;
 	c->level = level;
 	c->color = color;
 	c->text = (text ? strdup(text) : NULL);
 	if (level == (double)(long long)level) sprintf(levelstr, "%lld", (long long)level); else sprintf(levelstr, "%.2f", level);
 	c->levelstr = strdup(levelstr);
+}
+
+static void keyword_cond(c_rule_t *rule, metricop_t op, double level, int color, char *text)
+{
+	keyword_cond_on(rule, NULL, op, level, color, text);
+}
+
+/* A DISK or INODE level as written: a number in percent used, or with a U
+ * in units free; a bare number above 200 is units, as it always was. */
+static int fs_level(char *tok, long *level)
+{
+	*level = atol(tok);
+	switch (*(tok + strspn(tok, "0123456789"))) {
+	  case 'U':
+	  case 'u': return 1;
+	  case '%': return 0;
+	  default : return (*level > 200);
+	}
 }
 
 static c_rule_t *setup_rule(ruletype_t ruletype, 
@@ -1023,93 +1035,66 @@ int load_client_config(char *configfn)
 					currule->rule.threshold.name = strdup("");
 				}
 			}
-			else if (strcasecmp(tok, "DISK") == 0) {
-				currule = NEWRULE(C_DISK);
-				currule->rule.disk.abswarn = 0;
-				currule->rule.disk.warnlevel = 90;
-				currule->rule.disk.abspanic = 0;
-				currule->rule.disk.paniclevel = 95;
-				currule->rule.disk.dmin = 0;
-				currule->rule.disk.dmax = -1;
-				currule->rule.disk.color = COL_RED;
-				currule->rule.disk.ignored = 0;
+			else if ((strcasecmp(tok, "DISK") == 0) || (strcasecmp(tok, "INODE") == 0)) {
+				/* DISK|INODE fs warnlevel paniclevel [min max color], or
+				 * DISK|INODE fs IGNORE: a ladder of two levels on the
+				 * filesystem's percent used, or on its units free for a
+				 * level written with a U, the verdict shown on the
+				 * filesystem's own line in the status. The defaults are as
+				 * they were: 90% and 95% for DISK, 70% and 90% for INODE.
+				 * min, max and color count the filesystems that match. */
+				char *keyword, *test;
+				long warnlevel, paniclevel;
+				int abswarn = 0, abspanic = 0;
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.disk.fsexp = setup_expr(tok, 0);
+				if (strcasecmp(tok, "DISK") == 0) { keyword = "DISK"; test = "disk"; warnlevel = 90; paniclevel = 95; }
+				else { keyword = "INODE"; test = "inode"; warnlevel = 70; paniclevel = 90; }
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				if (strcasecmp(tok, "ignore") == 0) {
-					currule->rule.disk.ignored = 1;
-					tok = wstok(NULL);
+				currule = NEWRULE(C_THRESHOLD);
+				keyword_rule(currule, keyword, test, "pct", 1);
+
+				tok = wstok(NULL);
+				if (isqual(tok)) {
+					/* No filesystem is no rule: the name no sample has. */
+					xfree(currule->rule.threshold.name);
+					currule->rule.threshold.name = strdup("");
 					continue;
 				}
-				currule->rule.disk.warnlevel = atol(tok);
-				switch (*(tok + strspn(tok, "0123456789"))) {
-				  case 'U':
-				  case 'u': currule->rule.disk.abswarn = 1; break;
-				  case '%': currule->rule.disk.abswarn = 0; break;
-				  default : currule->rule.disk.abswarn = (currule->rule.disk.warnlevel > 200 ? 1 : 0); break;
-				}
+				currule->rule.threshold.instance = setup_expr(tok, 0);
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.disk.paniclevel = atol(tok);
-				switch (*(tok + strspn(tok, "0123456789"))) {
-				  case 'U':
-				  case 'u': currule->rule.disk.abspanic = 1; break;
-				  case '%': currule->rule.disk.abspanic = 0; break;
-				  default : currule->rule.disk.abspanic = (currule->rule.disk.paniclevel > 200 ? 1 : 0); break;
-				}
-
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.disk.dmin = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.disk.dmax = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.disk.color = parse_color(tok);
-			}
-			else if (strcasecmp(tok, "INODE") == 0) {
-				currule = NEWRULE(C_INODE);
-				currule->rule.inode.abswarn = 0;
-				currule->rule.inode.warnlevel = 70;
-				currule->rule.inode.abspanic = 0;
-				currule->rule.inode.paniclevel = 90;
-				currule->rule.inode.imin = 0;
-				currule->rule.inode.imax = -1;
-				currule->rule.inode.color = COL_RED;
-				currule->rule.inode.ignored = 0;
-
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.inode.fsexp = setup_expr(tok, 0);
-
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				if (strcasecmp(tok, "ignore") == 0) {
-					currule->rule.inode.ignored = 1;
+				tok = wstok(NULL);
+				if (!isqual(tok)) {
+					if (strcasecmp(tok, "ignore") == 0) {
+						currule->rule.threshold.ignored = 1;
+						tok = wstok(NULL);
+						continue;
+					}
+					abswarn = fs_level(tok, &warnlevel);
 					tok = wstok(NULL);
-					continue;
-				}
-				currule->rule.inode.warnlevel = atol(tok);
-				switch (*(tok + strspn(tok, "0123456789"))) {
-				  case 'U':
-				  case 'u': currule->rule.inode.abswarn = 1; break;
-				  case '%': currule->rule.inode.abswarn = 0; break;
-				  default : currule->rule.inode.abswarn = (currule->rule.inode.warnlevel > 200 ? 1 : 0); break;
+					if (!isqual(tok)) {
+						abspanic = fs_level(tok, &paniclevel);
+						tok = wstok(NULL);
+						if (!isqual(tok)) {
+							currule->rule.threshold.cmin = atoi(tok);
+							tok = wstok(NULL);
+							if (!isqual(tok)) {
+								currule->rule.threshold.cmax = atoi(tok);
+								tok = wstok(NULL);
+								if (!isqual(tok)) {
+									currule->rule.threshold.ccolor = parse_color(tok);
+									tok = wstok(NULL);
+								}
+							}
+						}
+					}
 				}
 
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.inode.paniclevel = atol(tok);
-				switch (*(tok + strspn(tok, "0123456789"))) {
-				  case 'U':
-				  case 'u': currule->rule.inode.abspanic = 1; break;
-				  case '%': currule->rule.inode.abspanic = 0; break;
-				  default : currule->rule.inode.abspanic = (currule->rule.inode.paniclevel > 200 ? 1 : 0); break;
-				}
-
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.inode.imin = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.inode.imax = atoi(tok);
-				tok = wstok(NULL); if (isqual(tok)) continue;
-				currule->rule.inode.color = parse_color(tok);
+				/* Red first, so the panic level is the one reported when
+				 * both trip. A level in units free trips at or below it,
+				 * one in percent at or above. */
+				keyword_cond_on(currule, (abspanic ? "free" : "pct"), (abspanic ? METRIC_LE : METRIC_GE), (double)paniclevel, COL_RED, NULL);
+				keyword_cond_on(currule, (abswarn  ? "free" : "pct"), (abswarn  ? METRIC_LE : METRIC_GE), (double)warnlevel,  COL_YELLOW, NULL);
+				if (isqual(tok)) continue;
 			}
 
 			else if ((strcasecmp(tok, "MEMREAL") == 0) || (strcasecmp(tok, "MEMPHYS") == 0) || (strcasecmp(tok, "PHYS") == 0) ||
@@ -1898,7 +1883,8 @@ int load_client_config(char *configfn)
 	/* The built-in defaults, as keyword rules after every rule of the
 	 * file, so a host's own LOAD or UP is the first match and these are
 	 * what a host without one gets: LOAD 5 10, UP 1h yellow, no CLOCK,
-	 * MEMPHYS 100 101, MEMSWAP 50 80, MEMACT 90 97. */
+	 * MEMPHYS 100 101, MEMSWAP 50 80, MEMACT 90 97, and for every
+	 * filesystem DISK 90 95 and INODE 70 90. */
 	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
 	keyword_rule(currule, "LOAD", "cpu", "load", 1);
 	currule->rule.threshold.builtin = 1;
@@ -1923,6 +1909,16 @@ int load_client_config(char *configfn)
 	currule->rule.threshold.builtin = 1;
 	keyword_cond(currule, METRIC_GT, 97.0, COL_RED, NULL);
 	keyword_cond(currule, METRIC_GT, 90.0, COL_YELLOW, NULL);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "DISK", "disk", "pct", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GE, 95.0, COL_RED, NULL);
+	keyword_cond(currule, METRIC_GE, 90.0, COL_YELLOW, NULL);
+	currule = setup_rule(C_THRESHOLD, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, NULL, 0);
+	keyword_rule(currule, "INODE", "inode", "pct", 1);
+	currule->rule.threshold.builtin = 1;
+	keyword_cond(currule, METRIC_GE, 90.0, COL_RED, NULL);
+	keyword_cond(currule, METRIC_GE, 70.0, COL_YELLOW, NULL);
 
 	if (curtime) xfree(curtime);
 	if (curextime) xfree(curextime);
@@ -1942,32 +1938,6 @@ void dump_client_config(void)
 
 	for (rwalk = rulehead; (rwalk); rwalk = rwalk->next) {
 		switch (rwalk->ruletype) {
-
-		  case C_DISK:
-			if (!rwalk->rule.disk.fsexp) break;
-
-			printf("DISK %s", rwalk->rule.disk.fsexp->pattern);
-			if (rwalk->rule.disk.ignored)
-				printf(" IGNORE");
-			else {
-				printf(" %lu%c", rwalk->rule.disk.warnlevel, (rwalk->rule.disk.abswarn ? 'U' : '%'));
-				printf(" %lu%c", rwalk->rule.disk.paniclevel, (rwalk->rule.disk.abspanic  ? 'U' : '%'));
-				printf(" %d %d %s", rwalk->rule.disk.dmin, rwalk->rule.disk.dmax, colorname(rwalk->rule.disk.color));
-			}
-			break;
-
-		  case C_INODE:
-			if (!rwalk->rule.inode.fsexp) break;
-
-			printf("INODE %s", rwalk->rule.inode.fsexp->pattern);
-			if (rwalk->rule.inode.ignored)
-				printf(" IGNORE");
-			else {
-				printf(" %lu%c", rwalk->rule.inode.warnlevel, (rwalk->rule.inode.abswarn ? 'U' : '%'));
-				printf(" %lu%c", rwalk->rule.inode.paniclevel, (rwalk->rule.inode.abspanic  ? 'U' : '%'));
-				printf(" %d %d %s", rwalk->rule.inode.imin, rwalk->rule.inode.imax, colorname(rwalk->rule.inode.color));
-			}
-			break;
 
 		  case C_MEM:
 			/* The z/OS keywords; MEMPHYS, MEMSWAP and MEMACT are threshold rules. */
@@ -2174,6 +2144,10 @@ void dump_client_config(void)
 				}
 				/* A keyword line prints as what it compiled to, under its keyword. */
 				if (rwalk->rule.threshold.keyword) printf("%s: ", rwalk->rule.threshold.keyword);
+				if (rwalk->rule.threshold.ignored) {
+					printf("IGNORE %s.%s", rwalk->rule.threshold.test, rwalk->rule.threshold.instance->pattern);
+					break;
+				}
 				for (c = 0; (c < rwalk->rule.threshold.ncond); c++) {
 					c_threshold_cond_t *cond = &rwalk->rule.threshold.cond[c];
 
@@ -2181,12 +2155,14 @@ void dump_client_config(void)
 						(rwalk->rule.threshold.test ? rwalk->rule.threshold.test : "*"),
 						(rwalk->rule.threshold.instance ? rwalk->rule.threshold.instance->pattern : ""),
 						(rwalk->rule.threshold.instance ? "." : ""),
-						rwalk->rule.threshold.name,
+						(cond->name ? cond->name : rwalk->rule.threshold.name),
 						((cond->op == METRIC_GE) ? ">=" : (cond->op == METRIC_LE) ? "<=" : (cond->op == METRIC_GT) ? ">" : "<"),
 						(cond->levelstr ? cond->levelstr : ""),
 						colorname(cond->color));
 				}
 				if (!rwalk->rule.threshold.ncond) printf("%s: no condition", rwalk->rule.threshold.keyword);
+				if ((rwalk->rule.threshold.cmin != 0) || (rwalk->rule.threshold.cmax != -1))
+					printf("; count %d %d %s", rwalk->rule.threshold.cmin, rwalk->rule.threshold.cmax, colorname(rwalk->rule.threshold.ccolor));
 			}
 			break;
 
@@ -2354,11 +2330,19 @@ static void threshold_line(strbuffer_t *lines, c_rule_t *rule, c_threshold_cond_
 }
 
 /* Does this rule name this sample? The test when the rule has one, the
- * name, and the instance when the rule has one. */
+ * name -- the rule's, or one of a condition's own -- and the instance when
+ * the rule has one. */
 static int threshold_names(c_rule_t *rule, metricsample_t *s, char *test)
 {
+	int c, named = 0;
+
 	if (rule->rule.threshold.test && (strcmp(rule->rule.threshold.test, test) != 0)) return 0;
-	if (!s->name || (strcmp(rule->rule.threshold.name, s->name) != 0)) return 0;
+	if (!s->name) return 0;
+	if (strcmp(rule->rule.threshold.name, s->name) == 0) named = 1;
+	for (c = 0; (!named && (c < rule->rule.threshold.ncond)); c++) {
+		if (rule->rule.threshold.cond[c].name && (strcmp(rule->rule.threshold.cond[c].name, s->name) == 0)) named = 1;
+	}
+	if (!named) return 0;
 	if (rule->rule.threshold.instance) {
 		if (!s->instance) return 0;
 		if (!namematch(s->instance, rule->rule.threshold.instance->pattern, rule->rule.threshold.instance->exp)) return 0;
@@ -2374,7 +2358,10 @@ static int threshold_names(c_rule_t *rule, metricsample_t *s, char *test)
  * judged and the worst verdict kept on the sample; a line is written for
  * each condition that trips, or, on a ladder, for the worst of them only,
  * which is the one line LOAD always wrote; a keyword whose verdict is the
- * colour of a row -- the memory keywords -- has no text and writes none.
+ * colour of a row or a line the analyser writes -- the memory, DISK and
+ * INODE keywords -- has no text and writes none. A condition on another
+ * metric of the instance, a DISK level in units free, is judged on that
+ * sample when its turn comes.
  * Returns the worst colour that
  * tripped. The analyser calls this first, then client_config_thresholds()
  * for the rules written as THRESHOLD, so the keyword lines come first as
@@ -2410,6 +2397,7 @@ int client_config_keywords(void *hinfo, char *classname, char *test, strbuffer_t
 				c_threshold_cond_t *cond = &rwalk->rule.threshold.cond[c];
 				metricrule_t r;
 
+				if (strcmp((cond->name ? cond->name : rwalk->rule.threshold.name), s->name) != 0) continue;
 				metric_rule(&r, s->name, cond->op, cond->level, cond->color);
 				if (!metric_batch_trips(b, idx, &r)) continue;
 
@@ -2539,41 +2527,57 @@ int get_cpu_thresholds(void *hinfo, char *classname,
 	return result;
 }
 
-int get_disk_thresholds(void *hinfo, char *classname, 
-			char *fsname, 
-			long *warnlevel, long *paniclevel, 
-			int *abswarn, int *abspanic,
-			int *ignored, char **group)
+/* The first DISK or INODE rule naming this filesystem, or the built-in
+ * default: its levels, each in percent used or units free, whether the
+ * filesystem is ignored, and its group. The rule's cfid, 0 for the default
+ * or none. */
+static int fs_thresholds(void *hinfo, char *classname, char *keyword, char *fsname,
+			 long *warnlevel, long *paniclevel, int *abswarn, int *abspanic,
+			 int *ignored, char **group)
 {
 	char *hostname, *pagename;
 	c_rule_t *rule;
+	int c;
 
 	hostname = xmh_item(hinfo, XMH_HOSTNAME);
 	pagename = xmh_item(hinfo, XMH_ALLPAGEPATHS);
 
-	*warnlevel = 90;
-	*paniclevel = 95;
 	*abswarn = 0;
 	*abspanic = 0;
 	*ignored = 0;
 	*group = NULL;
 
-	rule = getrule(hostname, pagename, classname, hinfo, C_DISK);
-	while (rule && (!rule->rule.disk.fsexp || !namematch(fsname, rule->rule.disk.fsexp->pattern, rule->rule.disk.fsexp->exp))) {
-		rule = getrule(NULL, NULL, NULL, hinfo, C_DISK);
+	for (rule = getrule(hostname, pagename, classname, hinfo, C_THRESHOLD); (rule); rule = getrule(NULL, NULL, NULL, hinfo, C_THRESHOLD)) {
+		if (!rule->rule.threshold.keyword || (strcmp(rule->rule.threshold.keyword, keyword) != 0)) continue;
+		if (!*rule->rule.threshold.name) continue;	/* no filesystem: no rule */
+		if (rule->rule.threshold.instance && !namematch(fsname, rule->rule.threshold.instance->pattern, rule->rule.threshold.instance->exp)) continue;
+		break;
+	}
+	if (!rule) return 0;
+
+	*ignored = rule->rule.threshold.ignored;
+	*group = rule->groups;
+	for (c = 0; (c < rule->rule.threshold.ncond); c++) {
+		c_threshold_cond_t *cond = &rule->rule.threshold.cond[c];
+		int abs = (cond->name && (strcmp(cond->name, "free") == 0));
+
+		if (cond->color == COL_RED) { *paniclevel = (long)cond->level; *abspanic = abs; }
+		else { *warnlevel = (long)cond->level; *abswarn = abs; }
 	}
 
-	if (rule) {
-		*warnlevel = rule->rule.disk.warnlevel;
-		*abswarn = rule->rule.disk.abswarn;
-		*paniclevel = rule->rule.disk.paniclevel;
-		*abspanic = rule->rule.disk.abspanic;
-		*ignored = rule->rule.disk.ignored;
-		*group = rule->groups;
-		return rule->cfid;
-	}
+	return (rule->rule.threshold.builtin ? 0 : rule->cfid);
+}
 
-	return 0;
+int get_disk_thresholds(void *hinfo, char *classname,
+			char *fsname,
+			long *warnlevel, long *paniclevel,
+			int *abswarn, int *abspanic,
+			int *ignored, char **group)
+{
+	*warnlevel = 90;
+	*paniclevel = 95;
+
+	return fs_thresholds(hinfo, classname, "DISK", fsname, warnlevel, paniclevel, abswarn, abspanic, ignored, group);
 }
 
 int get_inode_thresholds(void *hinfo, char *classname, 
@@ -2582,35 +2586,10 @@ int get_inode_thresholds(void *hinfo, char *classname,
 		int *abswarn, int *abspanic,
 		int *ignored, char **group)
 {
-	char *hostname, *pagename;
-	c_rule_t *rule;
-
-	hostname = xmh_item(hinfo, XMH_HOSTNAME);
-	pagename = xmh_item(hinfo, XMH_PAGEPATH);
-
 	*warnlevel = 70;
 	*paniclevel = 90;
-	*abswarn = 0;
-	*abspanic = 0;
-	*ignored = 0;
-	*group = NULL;
 
-	rule = getrule(hostname, pagename, classname, hinfo, C_INODE);
-	while (rule && (!rule->rule.inode.fsexp || !namematch(fsname, rule->rule.inode.fsexp->pattern, rule->rule.inode.fsexp->exp))) {
-		rule = getrule(NULL, NULL, NULL, hinfo, C_INODE);
-	}
-
-	if (rule) {
-		*warnlevel = rule->rule.inode.warnlevel;
-		*abswarn = rule->rule.inode.abswarn;
-		*paniclevel = rule->rule.inode.paniclevel;
-		*abspanic = rule->rule.inode.abspanic;
-		*ignored = rule->rule.inode.ignored;
-		*group = rule->groups;
-		return rule->cfid;
-	}
-
-	return 0;
+	return fs_thresholds(hinfo, classname, "INODE", fsname, warnlevel, paniclevel, abswarn, abspanic, ignored, group);
 }
 
 void get_cics_thresholds(void *hinfo, char *classname, char *appid,
@@ -3885,7 +3864,7 @@ typedef struct mon_proc_t {
 	struct mon_proc_t *next;
 } mon_proc_t;
 
-static int clear_counts(void *hinfo, char *classname, ruletype_t ruletype, 
+static int clear_counts(void *hinfo, char *classname, ruletype_t ruletype, char *keyword,
 			mon_proc_t **head, mon_proc_t **tail, mon_proc_t **walk)
 {
 	char *hostname, *pagename;
@@ -3904,8 +3883,17 @@ static int clear_counts(void *hinfo, char *classname, ruletype_t ruletype,
 
 	rule = getrule(hostname, pagename, classname, hinfo, ruletype);
 	while (rule) {
-		mon_proc_t *newitem = (mon_proc_t *)calloc(1, sizeof(mon_proc_t));
+		mon_proc_t *newitem;
 
+		/* The DISK and INODE counts ride on the keyword's threshold rules:
+		 * those of the keyword with a filesystem pattern, not the default. */
+		if ((ruletype == C_THRESHOLD) &&
+		    (!rule->rule.threshold.keyword || (strcmp(rule->rule.threshold.keyword, keyword) != 0) || !rule->rule.threshold.instance)) {
+			rule = getrule(NULL, NULL, NULL, hinfo, ruletype);
+			continue;
+		}
+
+		newitem = (mon_proc_t *)calloc(1, sizeof(mon_proc_t));
 		newitem->rule = rule;
 		newitem->next = NULL;
 		if (*tail) { (*tail)->next = newitem; *tail = newitem; }
@@ -3913,8 +3901,7 @@ static int clear_counts(void *hinfo, char *classname, ruletype_t ruletype,
 
 		count++;
 		switch (rule->ruletype) {
-		  case C_DISK : rule->rule.disk.dcount = 0; break;
-		  case C_INODE: rule->rule.inode.icount = 0; break;
+		  case C_THRESHOLD: rule->rule.threshold.ccount = 0; break;
 		  case C_PROC : rule->rule.proc.pcount = 0; break;
 		  case C_PORT : rule->rule.port.pcount = 0; break;
 		  case C_SVC  : rule->rule.svc.scount = 0; break;
@@ -3958,26 +3945,17 @@ static void add_count(char *pname, mon_proc_t *head)
 			}
 			break;
 
-		  case C_DISK:
-			if (!pwalk->rule->rule.disk.fsexp->exp) {
-				if (strstr(pname, pwalk->rule->rule.disk.fsexp->pattern))
-					pwalk->rule->rule.disk.dcount++;
+		  case C_THRESHOLD:
+			/* A DISK or INODE rule's filesystem pattern */
+			if (!pwalk->rule->rule.threshold.instance->exp) {
+				if (strstr(pname, pwalk->rule->rule.threshold.instance->pattern))
+					pwalk->rule->rule.threshold.ccount++;
 			}
 			else {
-				if (namematch(pname, pwalk->rule->rule.disk.fsexp->pattern, pwalk->rule->rule.disk.fsexp->exp))
-					pwalk->rule->rule.disk.dcount++;
+				if (namematch(pname, pwalk->rule->rule.threshold.instance->pattern, pwalk->rule->rule.threshold.instance->exp))
+					pwalk->rule->rule.threshold.ccount++;
 			}
 			break;
-
-		  case C_INODE:
-			if (!pwalk->rule->rule.inode.fsexp->exp) {
-				if (strstr(pname, pwalk->rule->rule.inode.fsexp->pattern))
-					pwalk->rule->rule.inode.icount++;
-			}
-			else {
-				if (namematch(pname, pwalk->rule->rule.inode.fsexp->pattern, pwalk->rule->rule.inode.fsexp->exp))
-					pwalk->rule->rule.inode.icount++;
-			}
 
 		  default: break;
 		}
@@ -4099,21 +4077,13 @@ static char *check_count(int *count, ruletype_t ruletype, int *lowlim, int *upli
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
-	  case C_DISK:
-		result = (*walk)->rule->rule.disk.fsexp->pattern;
-		*count = (*walk)->rule->rule.disk.dcount;
-		*lowlim = (*walk)->rule->rule.disk.dmin;
-		*uplim = (*walk)->rule->rule.disk.dmax;
-		*color = count_color("disk", result, *count, *lowlim, *uplim, (*walk)->rule->rule.disk.color);
-		if (group) *group = (*walk)->rule->groups;
-		break;
-
-	  case C_INODE:
-		result = (*walk)->rule->rule.inode.fsexp->pattern;
-		*count = (*walk)->rule->rule.inode.icount;
-		*lowlim = (*walk)->rule->rule.inode.imin;
-		*uplim = (*walk)->rule->rule.inode.imax;
-		*color = count_color("inode", result, *count, *lowlim, *uplim, (*walk)->rule->rule.inode.color);
+	  case C_THRESHOLD:
+		/* A DISK or INODE rule's count of matching filesystems */
+		result = (*walk)->rule->rule.threshold.instance->pattern;
+		*count = (*walk)->rule->rule.threshold.ccount;
+		*lowlim = (*walk)->rule->rule.threshold.cmin;
+		*uplim = (*walk)->rule->rule.threshold.cmax;
+		*color = count_color((*walk)->rule->rule.threshold.test, result, *count, *lowlim, *uplim, (*walk)->rule->rule.threshold.ccolor);
 		if (group) *group = (*walk)->rule->groups;
 		break;
 
@@ -4232,27 +4202,27 @@ static mon_proc_t *svchead = NULL, *svctail = NULL, *svcmonwalk = NULL;
 
 int clear_process_counts(void *hinfo, char *classname)
 {
-	return clear_counts(hinfo, classname, C_PROC, &phead, &ptail, &pmonwalk);
+	return clear_counts(hinfo, classname, C_PROC, NULL, &phead, &ptail, &pmonwalk);
 }
 
 int clear_disk_counts(void *hinfo, char *classname)
 {
-	return clear_counts(hinfo, classname, C_DISK, &dhead, &dtail, &dmonwalk);
+	return clear_counts(hinfo, classname, C_THRESHOLD, "DISK", &dhead, &dtail, &dmonwalk);
 }
 
 int clear_inode_counts(void *hinfo, char *classname)
 {
-	return clear_counts(hinfo, classname, C_INODE, &ihead, &itail, &imonwalk);
+	return clear_counts(hinfo, classname, C_THRESHOLD, "INODE", &ihead, &itail, &imonwalk);
 }
 
 int clear_port_counts(void *hinfo, char *classname)
 {
-	return clear_counts(hinfo, classname, C_PORT, &porthead, &porttail, &portmonwalk);
+	return clear_counts(hinfo, classname, C_PORT, NULL, &porthead, &porttail, &portmonwalk);
 }
 
 int clear_svc_counts(void *hinfo, char *classname)
 {
-        return clear_counts(hinfo, classname, C_SVC, &svchead, &svctail, &svcmonwalk);
+        return clear_counts(hinfo, classname, C_SVC, NULL, &svchead, &svctail, &svcmonwalk);
 }
 
 void add_process_count(char *pname)
@@ -4287,12 +4257,12 @@ char *check_process_count(int *count, int *lowlim, int *uplim, int *color, char 
 
 char *check_disk_count(int *count, int *lowlim, int *uplim, int *color, char **group)
 {
-	return check_count(count, C_DISK, lowlim, uplim, color, &dmonwalk, NULL, NULL, group);
+	return check_count(count, C_THRESHOLD, lowlim, uplim, color, &dmonwalk, NULL, NULL, group);
 }
 
 char *check_inode_count(int *count, int *lowlim, int *uplim, int *color, char **group)
 {
-	return check_count(count, C_INODE, lowlim, uplim, color, &imonwalk, NULL, NULL, group);
+	return check_count(count, C_THRESHOLD, lowlim, uplim, color, &imonwalk, NULL, NULL, group);
 }
 
 char *check_port_count(int *count, int *lowlim, int *uplim, int *color, char **id, int *trackit, char **group)
