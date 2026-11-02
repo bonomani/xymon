@@ -84,6 +84,10 @@
 #     PROC line green and the status yellow from the THRESHOLD
 #   - threshold-linux-files: a file's size and age with no FILE rule naming
 #     them, a directory's size, and a rule for every file's link count
+# WHEN, the scope on another measurement, recorded when it was added:
+#   - cpu-linux-when-boot: LOAD 1 2 WHEN uptime>1h on a host up 12 minutes
+#     with a load of 2.50: the load is not judged and the status carries
+#     only the UP line; without the WHEN the same report is "Load is HIGH"
 
 set -euo pipefail
 # shellcheck source=tests/lib/assert.sh
