@@ -1,0 +1,26 @@
+status files3,test.msgs clear System logs at Fri Oct 31 10:00:00 CET 2026 : No log data available
+The client did not report any logfile data
+status files3,test.files red Fri Oct 31 10:00:00 CET 2026 - Files NOT ok
+
+&red /var/run/app.pid
+File is missing
+
+&red /etc/shadow
+File is mode 644 - should be 640
+File is owned by group 42  - should be 0
+File has MD5 hash d41d8cd98f00b204e9800998ecf8427e  - should be 0123456789abcdef0123456789abcdef
+
+
+&yellow /var/cache
+Could not determine size of directory /var/cache
+
+&yellow /tmp
+File is a dir - should be file
+
+&yellow /etc/nologin
+File exists
+
+
+&green /opt/optional.cfg
+
+

@@ -1388,10 +1388,12 @@ void file_report(char *hostname, char *clientclass, enum ostype_t os,
 
 	/* The host's THRESHOLD rules on the files samples -- every size, link
 	 * count and age check_file() measured, whether or not a FILE rule
-	 * addressed it -- fold into the colour of a status that has files. */
+	 * addressed it -- then the status colour: the worst verdict among the
+	 * samples, every FILE and DIR verdict being on one, when there are
+	 * files at all. */
 	threshdata = newstrbuffer(0);
-	onecolor = client_config_thresholds(hinfo, clientclass, "files", threshdata);
-	if ((filecolor != -1) && (onecolor > filecolor)) filecolor = onecolor;
+	client_config_thresholds(hinfo, clientclass, "files", threshdata);
+	if (filecolor != -1) filecolor = metric_batch_color(report_batch, "files");
 
 	if ((filecolor == -1) && sendclearfiles) {
 		filecolor = noreportcolor;
