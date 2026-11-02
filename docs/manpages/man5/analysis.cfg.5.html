@@ -702,21 +702,20 @@ group Production databases
       specification, so both must match.</dd>
   <dt id="WHEN"><a class="permalink" href="#WHEN"><b>WHEN</b>
     <i>metric</i><i>condition</i></a></dt>
-  <dd>Rule applying only while another value of the same client report
-      satisfies the condition. &quot;LOAD 5 10 WHEN uptime&gt;15m&quot; judges
-      the load only once the host has been up 15 minutes, and &quot;PROC httpd
-      1 WHEN uptime&gt;5m&quot; gives a service five minutes after a boot to
-      start. The metric is written as for THRESHOLD: &quot;name&quot;,
-      &quot;test.name&quot; or &quot;test.instance.name&quot;, a bare name
-      being the value in whichever status carries it. The condition is one of
-      &gt; &gt;= &lt; &lt;= and a level, which may carry a unit of time (15m,
-      2d) where the value is an age or an uptime. A value the report does not
-      carry, or carries unmeasured, leaves the rule in force, so a scope never
-      switches a check off by accident. The cpu values, uptime among them, are
-      read before every other status and can scope any rule; a value read
-      later can scope only the rules of statuses read after it. Like TIME=,
-      WHEN applies to the rule on its line, or alone on a line to every rule
-      after it.</dd>
+  <dd>Rule applying only while another value of the same client report satisfies
+      the condition. &quot;LOAD 5 10 WHEN uptime&gt;15m&quot; judges the load
+      only once the host has been up 15 minutes, and &quot;PROC httpd 1 WHEN
+      uptime&gt;5m&quot; gives a service five minutes after a boot to start. The
+      metric is written as for THRESHOLD: &quot;name&quot;,
+      &quot;test.name&quot; or &quot;test.instance.name&quot;, a bare name being
+      the value in whichever status carries it. The condition is one of &gt;
+      &gt;= &lt; &lt;= and a level, which may carry a unit of time (15m, 2d)
+      where the value is an age or an uptime. A value the report does not carry,
+      or carries unmeasured, leaves the rule in force, so a scope never switches
+      a check off by accident. The cpu values, uptime among them, are read
+      before every other status and can scope any rule; a value read later can
+      scope only the rules of statuses read after it. Like TIME=, WHEN applies
+      to the rule on its line, or alone on a line to every rule after it.</dd>
 </dl>
 </section>
 <section class="Sh">
