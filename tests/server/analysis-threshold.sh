@@ -151,6 +151,7 @@ assert_contains "disk otherhost /home 90% 95% default" "$out" "another host's DI
 assert_contains "inode testhost /home 10% 20% file" "$out" "INODE /home is not read back"
 assert_contains "inode testhost / 70% 90% default" "$out" "a DISK rule was read as an INODE rule, or the INODE default is wrong"
 assert_contains "DISK: IGNORE disk./" "$out" "--dump-config does not print an IGNORE rule"
+assert_not_contains "; count 0 0 " "$out" "--dump-config prints a count on a rule that has none"
 assert_contains "DISK: THRESHOLD disk.%^/var.free <=500 red; THRESHOLD disk.%^/var.free <=1000 yellow; count 1 2 yellow" "$out" "--dump-config does not print a DISK line with units and a count as what it compiled to"
 assert_contains "cpu testhost load 2.0 4.0 up 600 172800 red clock 30 red" "$out" "get_cpu_thresholds does not read the host's first LOAD, UP and CLOCK back (LOAD 1 1 must be shadowed)"
 assert_contains "cpu otherhost load 5.0 10.0 up 3600 -1 yellow clock -1 yellow" "$out" "a host without LOAD or CLOCK did not get the built-in default, or UP 1h -1 kept a second condition"

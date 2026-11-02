@@ -978,6 +978,7 @@ int load_client_config(char *configfn)
 
 				currule = NEWRULE(C_THRESHOLD);
 				currule->rule.threshold.cond[0].color = COL_RED;
+				currule->rule.threshold.cmax = -1;	/* no count: a THRESHOLD judges, the DISK keyword counts */
 				currule->rule.threshold.test = (char *)malloc((first - metric) + 1);
 				memcpy(currule->rule.threshold.test, metric, (first - metric));
 				currule->rule.threshold.test[first - metric] = '\0';
