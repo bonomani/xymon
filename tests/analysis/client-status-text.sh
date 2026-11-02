@@ -67,6 +67,11 @@
 # Files, the attribute analyser:
 #   - files-linux-rules: FILE on size and modification age, a size above its
 #     limit with TRACK, DIR on a directory size inside its limits
+#   - files-linux-attrs: the conditions that are not a number: a required
+#     file missing and an OPTIONAL one, a file that must not exist, a wrong
+#     mode, group and MD5 digest on one file, a directory where a file was
+#     wanted, and a DIR the client gave no size for. Recorded from the
+#     unchanged upstream build before these verdicts went on samples
 #   - files-linux-age-red: an mtime condition that trips, under no CLOCK rule
 #   - files-linux-clock-stale: the same report and condition under a CLOCK
 #     rule the [clock] epoch is far beyond: the age is stale and trips

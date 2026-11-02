@@ -3249,6 +3249,19 @@ static int sample_trips(char *test, char *instance, char *name, double value, me
 	return metric_batch_trips(current, idx, &rule);
 }
 
+/* A verdict a FILE rule reached by hand -- a type, mode, owner or digest
+ * that is not what the rule says, none of them a comparison on a number --
+ * recorded on the sample that carries the fact, so the files status folds
+ * from its samples like every other. The worst colour stays. */
+static void sample_verdict(char *test, char *instance, char *name, double value, metricstate_t state, int color)
+{
+	metricsample_t *s = metric_batch_sample(current, report_sample(test, instance, name, value));
+
+	s->state = state;
+	if (color > s->color) s->color = color;
+	s->judged = 1;
+}
+
 /* An age under one limit of a FILE rule. An age is the client's clock
  * minus a timestamp the client wrote, so when the report's clock is off
  * beyond the CLOCK limit the age is stale and trips nothing: a clock that
@@ -3391,10 +3404,17 @@ int check_file(void *hinfo, char *classname,
 
 	/* What the client measured goes in the batch whether or not a FILE
 	 * rule addresses it, so a THRESHOLD rule can: the FILE conditions
-	 * below find these same samples by identity. */
+	 * below find these same samples by identity. present is 1 or 0 and
+	 * carries the verdicts on the file as a whole: that it is there, that
+	 * it is not, and that its content is what a digest says. */
+	report_sample("files", filename, "present", (exists ? 1.0 : 0.0));
 	if (exists) {
 		report_sample("files", filename, "size", (double)fsize);
 		report_sample("files", filename, "linkcount", (double)linkcount);
+		report_sample("files", filename, "type", (double)(islink ? S_IFLNK : ftype));
+		report_sample("files", filename, "mode", (double)fmode);
+		report_sample("files", filename, "owner", (double)ownerid);
+		report_sample("files", filename, "group", (double)groupid);
 		age_sample("files", filename, "ctimeage", (double)ctimedif);
 		age_sample("files", filename, "mtimeage", (double)mtimedif);
 		age_sample("files", filename, "atimeage", (double)atimedif);
@@ -3412,6 +3432,7 @@ int check_file(void *hinfo, char *classname,
 
 			if (!(rwalk->flags & FCHK_NOEXIST)) {
 				/* Required file does not exist */
+				sample_trips("files", filename, "present", 0.0, METRIC_LT, 1.0, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				addtobuffer(summarybuf, "File is missing\n");
 			}
@@ -3420,6 +3441,7 @@ int check_file(void *hinfo, char *classname,
 
 		if (rwalk->flags & FCHK_NOEXIST) {
 			/* File exists, but it shouldn't */
+			sample_trips("files", filename, "present", 1.0, METRIC_GT, 0.0, rwalk->rule.fcheck.color);
 			rulecolor = rwalk->rule.fcheck.color;
 			addtobuffer(summarybuf, "File exists\n");
 			goto nextcheck;
@@ -3427,6 +3449,7 @@ int check_file(void *hinfo, char *classname,
 
 		if (rwalk->flags & FCHK_TYPE) {
 			if ( ((rwalk->rule.fcheck.ftype == S_IFLNK) && !islink) || (rwalk->rule.fcheck.ftype != ftype) ) {
+				sample_verdict("files", filename, "type", (double)(islink ? S_IFLNK : ftype), METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is a %s - should be %s\n", 
 					ftypestr(ftype), ftypestr(rwalk->rule.fcheck.ftype));
@@ -3435,6 +3458,7 @@ int check_file(void *hinfo, char *classname,
 		}
 		if (rwalk->flags & FCHK_MODE) {
 			if (rwalk->rule.fcheck.fmode != fmode) {
+				sample_verdict("files", filename, "mode", (double)fmode, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is mode %03o - should be %03o\n", 
 					fmode, rwalk->rule.fcheck.fmode);
@@ -3499,6 +3523,7 @@ int check_file(void *hinfo, char *classname,
 		}
 		if (rwalk->flags & FCHK_OWNERID) {
 			if (ownerid != rwalk->rule.fcheck.ownerid) {
+				sample_verdict("files", filename, "owner", (double)ownerid, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is owned by user %u  - should be %u\n", 
 					ownerid, rwalk->rule.fcheck.ownerid);
@@ -3508,6 +3533,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_OWNERSTR) {
 			if (!ownerstr) ownerstr = "(No owner data)";
 			if (strcmp(ownerstr, rwalk->rule.fcheck.ownerstr) != 0) {
+				sample_verdict("files", filename, "owner", (double)ownerid, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is owned by user %s  - should be %s\n", 
 					ownerstr, rwalk->rule.fcheck.ownerstr);
@@ -3516,6 +3542,7 @@ int check_file(void *hinfo, char *classname,
 		}
 		if (rwalk->flags & FCHK_GROUPID) {
 			if (groupid != rwalk->rule.fcheck.groupid) {
+				sample_verdict("files", filename, "group", (double)groupid, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is owned by group %u  - should be %u\n", 
 					groupid, rwalk->rule.fcheck.groupid);
@@ -3525,6 +3552,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_GROUPSTR) {
 			if (!groupstr) groupstr = "(No group data)";
 			if (strcmp(groupstr, rwalk->rule.fcheck.groupstr) != 0) {
+				sample_verdict("files", filename, "group", (double)groupid, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File is owned by group %s  - should be %s\n", 
 					groupstr, rwalk->rule.fcheck.groupstr);
@@ -3582,6 +3610,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_MD5) {
 			if (!md5hash) md5hash = "(No MD5 data)";
 			if (strcmp(md5hash, rwalk->rule.fcheck.md5hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has MD5 hash %s  - should be %s\n", 
 					md5hash, rwalk->rule.fcheck.md5hash);
@@ -3591,6 +3620,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_SHA1) {
 			if (!sha1hash) sha1hash = "(No SHA1 data)";
 			if (strcmp(sha1hash, rwalk->rule.fcheck.sha1hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has SHA1 hash %s  - should be %s\n", 
 					sha1hash, rwalk->rule.fcheck.sha1hash);
@@ -3600,6 +3630,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_SHA256) {
 			if (!sha256hash) sha256hash = "(No SHA256 data)";
 			if (strcmp(sha256hash, rwalk->rule.fcheck.sha256hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has SHA256 hash %s  - should be %s\n", 
 					sha256hash, rwalk->rule.fcheck.sha256hash);
@@ -3609,6 +3640,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_SHA512) {
 			if (!sha512hash) sha512hash = "(No SHA256 data)";
 			if (strcmp(sha512hash, rwalk->rule.fcheck.sha512hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has SHA512 hash %s  - should be %s\n", 
 					sha512hash, rwalk->rule.fcheck.sha512hash);
@@ -3618,6 +3650,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_SHA224) {
 			if (!sha224hash) sha224hash = "(No SHA224 data)";
 			if (strcmp(sha224hash, rwalk->rule.fcheck.sha224hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has SHA224 hash %s  - should be %s\n", 
 					sha224hash, rwalk->rule.fcheck.sha224hash);
@@ -3627,6 +3660,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_SHA384) {
 			if (!sha384hash) sha384hash = "(No SHA384 data)";
 			if (strcmp(sha384hash, rwalk->rule.fcheck.sha384hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has SHA384 hash %s  - should be %s\n", 
 					sha384hash, rwalk->rule.fcheck.sha384hash);
@@ -3636,6 +3670,7 @@ int check_file(void *hinfo, char *classname,
 		if (rwalk->flags & FCHK_RMD160) {
 			if (!rmd160hash) rmd160hash = "(No RMD160 data)";
 			if (strcmp(rmd160hash, rwalk->rule.fcheck.rmd160hash) != 0) {
+				sample_verdict("files", filename, "present", 1.0, METRIC_OK, rwalk->rule.fcheck.color);
 				rulecolor = rwalk->rule.fcheck.color;
 				sprintf(msgline, "File has RMD160 hash %s  - should be %s\n", 
 					rmd160hash, rwalk->rule.fcheck.rmd160hash);
@@ -3698,8 +3733,10 @@ int check_dir(void *hinfo, char *classname,
 	*dirsize = dsize;
 	if (gotsize) report_sample("files", filename, "size", (double)dsize);
 
-	/* Got the data? */
+	/* Got the data? A directory the client gave no size for is an
+	 * unmeasured sample, yellow, so the files status folds from it. */
 	if (!gotsize) {
+		sample_verdict("files", filename, "size", 0.0, METRIC_UNMEASURED, COL_YELLOW);
 		sprintf(msgline, "Could not determine size of directory %s\n", filename);
 		addtobuffer(summarybuf, msgline);
 		return COL_YELLOW;
