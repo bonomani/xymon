@@ -62,6 +62,10 @@ break a working installation, it needs no entry. An entry goes in the open
 request that makes the change, so its reviewer reads the two together. The
 first pull request after a release that needs an entry opens that section, and
 sets the version in the title box above it.
+That heading is also what the milestones follow: a workflow puts every pull
+request merged into `main` on the milestone named there, when it merges and
+once a day, so a merged pull request on no milestone or a wrong one is a
+heading that was not opened, or a milestone not yet created on GitHub.
 
 The next `Changes from X -> Y` heading sits open with a placeholder date. That
 date, and dropping `(not yet released)` from `RELEASENOTES`, happen at release,

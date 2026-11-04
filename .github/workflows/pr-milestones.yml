@@ -1,0 +1,76 @@
+name: pr milestones
+
+# Every pull request merged into main ships with the next release, so it
+# carries that release's milestone. Which release that is, the tree says: the
+# open "Changes for X.Y.Z (not yet released)" heading of RELEASENOTES. This
+# sets the milestone from it, when a pull request merges and once a day for
+# the ones set by hand to something else since.
+#
+# The merge event is pull_request_target, not pull_request: it runs in the
+# base repository with a token that may write, which a pull request from a
+# fork never gets. It checks out main, never the pull request's code, and
+# runs only the script that main carries. A pull request that changes the
+# script runs its self-test instead.
+
+on:
+  schedule:
+    - cron: '47 6 * * *'
+  workflow_dispatch:
+  pull_request_target:
+    types: [closed]
+  pull_request:
+    paths:
+      - '.github/scripts/pr-milestones.py'
+      - '.github/workflows/pr-milestones.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  self-test:
+    name: milestones self-test
+    if: github.event_name != 'pull_request_target'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Self-test
+        run: ./.github/scripts/pr-milestones.py --self-test
+
+  milestones:
+    name: set the milestone of merged pull requests
+    # Upstream only, as the dependency labels: in a fork, REPO is the fork.
+    # A merge event counts only when the pull request merged into main; a
+    # closed one sets nothing. A manual run works anywhere.
+    if: >-
+      github.event_name == 'workflow_dispatch'
+      || (github.repository == 'xymon-monitoring/xymon'
+          && (github.event_name == 'schedule'
+              || (github.event_name == 'pull_request_target'
+                  && github.event.pull_request.merged == true
+                  && github.event.pull_request.base.ref == 'main')))
+    runs-on: ubuntu-latest
+    timeout-minutes: 10
+    permissions:
+      contents: read
+      pull-requests: write
+      issues: write
+    steps:
+      - name: Checkout main
+        uses: actions/checkout@v7
+        with:
+          ref: main
+
+      - name: Set milestones
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+          REPO: ${{ github.repository }}
+          ONE: ${{ github.event_name == 'pull_request_target' && github.event.pull_request.number || '' }}
+        run: |
+          # The dry run first, so the log shows the open release and the
+          # decision even when nothing changes.
+          set -- ${ONE:+--pr "$ONE"}
+          ./.github/scripts/pr-milestones.py "$@"
+          ./.github/scripts/pr-milestones.py --apply "$@"
