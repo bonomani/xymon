@@ -113,6 +113,11 @@ digits and ":,._-" is no longer reachable through these pages: give it an ASCII
 canonical name and carry the original in the NAME: tag. The hosts.cfg loader
 warns at startup about such names.
 
+The periodic reports page (datepage.cgi) now sends the browser to the web URL
+configure was given, instead of always to /xymon/periodic. An upgrade keeps the
+CGI_DATEPAGE_OPTS already in cgioptions.cfg: if your web pages are not at
+/xymon, change --url=/xymon/periodic there to your URL followed by /periodic.
+
 Network tests
 -------------
 
@@ -147,6 +152,28 @@ The sni and nosni host tags and the --sni option no longer affect https tests.
 A host that relied on nosni wants nosslcert on that line instead, plus a
 separate entry for the default virtual host if its certificate should still be
 watched; hosts.cfg(5) has the details.
+
+xymonnet now warns 14 days before a certificate expires and alarms 7 days
+before, instead of 30 and 10, so certificates renewed automatically close to
+expiry no longer show yellow. For more notice, e.g. for certificates renewed by
+hand, keep the old values with --sslwarn=30 --sslalarm=10 on the xymonnet
+command in tasks.cfg, or ssldays=30:10 on a host in hosts.cfg.
+
+Server -- periodic reports
+--------------------------
+
+tasks.cfg now has three tasks, periodic-daily, periodic-weekly and
+periodic-monthly, that run xymonreports.sh to pre-generate the reports
+datepage.cgi sends the browser to. They ship DISABLED, and an upgrade adds
+them to an existing tasks.cfg disabled as well. To get the reports, remove
+DISABLED from the ones you want.
+
+xymonreports.sh needs GNU date, and no longer needs editing to find it. It
+takes GNUDATE from its environment, so the setting goes in xymonserver.cfg,
+and when none is set it uses the first of gdate and date on PATH that is GNU
+date. On the BSDs and macOS, install GNU coreutils; if gdate is not on the
+PATH set in xymonserver.cfg, set GNUDATE there. Without GNU date it stops
+with one line saying so, instead of running on with BSD date's errors.
 
 Build and API
 -------------
