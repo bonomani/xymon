@@ -83,62 +83,49 @@ void setproxy(char *proxy)
 	proxysetting = strdup(proxy);
 }
 
-static void setup_transport(char *recipient)
+static void setup_transport(void)
 {
 	static int transport_is_setup = 0;
-	int default_port;
 
 	if (transport_is_setup) return;
 	transport_is_setup = 1;
 
-	if (strncmp(recipient, "http://", 7) == 0) {
-		/*
-		 * Send messages via http. This requires e.g. a CGI on the webserver to
-		 * receive the POST we do here.
-		 */
-		default_port = 80;
-
-		if (proxysetting == NULL) proxysetting = getenv("http_proxy");
-		if (proxysetting) {
-			char *p;
-
-			xymonproxyhost = strdup(proxysetting);
-			if (strncmp(xymonproxyhost, "http://", 7) == 0) xymonproxyhost += strlen("http://");
- 
-			p = strchr(xymonproxyhost, ':');
-			if (p) {
-				*p = '\0';
-				p++;
-				xymonproxyport = atoi(p);
-			}
-			else {
-				xymonproxyport = 8080;
-			}
-		}
-	}
-	else {
-		/* 
-		 * Non-HTTP transport - lookup portnumber in both XYMONDPORT env.
-		 * and the "xymond" entry from /etc/services.
-		 */
-		default_port = 1984;
-
-		if (xgetenv("XYMONDPORT")) xymondportnumber = atoi(xgetenv("XYMONDPORT"));
-	
-	
-		/* Next is /etc/services "bbd" entry */
-		if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) {
-			struct servent *svcinfo;
-
-			svcinfo = getservbyname("bbd", NULL);
-			if (!svcinfo) svcinfo = getservbyname("bb", NULL);
-			if (svcinfo) xymondportnumber = ntohs(svcinfo->s_port);
-		}
-	}
-
-	/* Last resort: The default value */
+	/*
+	 * The plain-protocol port to a xymond: XYMONDPORT, then the "bbd"/"bb"
+	 * entry in /etc/services, then 1984. It is the default for every recipient
+	 * that gives no port of its own, independent of which recipient is listed
+	 * first; an http:// recipient brings its own default of 80 (in sendtoxymond).
+	 */
+	if (xgetenv("XYMONDPORT")) xymondportnumber = atoi(xgetenv("XYMONDPORT"));
 	if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) {
-		xymondportnumber = default_port;
+		struct servent *svcinfo;
+
+		svcinfo = getservbyname("bbd", NULL);
+		if (!svcinfo) svcinfo = getservbyname("bb", NULL);
+		if (svcinfo) xymondportnumber = ntohs(svcinfo->s_port);
+	}
+	if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) xymondportnumber = 1984;
+
+	/*
+	 * An http:// recipient may go through a proxy (http_proxy, or setproxy()).
+	 * Parse it once here; only the http send path reads it.
+	 */
+	if (proxysetting == NULL) proxysetting = getenv("http_proxy");
+	if (proxysetting) {
+		char *p;
+
+		xymonproxyhost = strdup(proxysetting);
+		if (strncmp(xymonproxyhost, "http://", 7) == 0) xymonproxyhost += strlen("http://");
+
+		p = strchr(xymonproxyhost, ':');
+		if (p) {
+			*p = '\0';
+			p++;
+			xymonproxyport = atoi(p);
+		}
+		else {
+			xymonproxyport = 8080;
+		}
 	}
 
 	dbgprintf("Transport setup is:\n");
@@ -172,7 +159,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, strbuffer_
 		return XYMONSEND_OK;
 	}
 
-	setup_transport(recipient);
+	setup_transport();
 
 	dbgprintf("Recipient listed as '%s'\n", recipient);
 
@@ -199,7 +186,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, strbuffer_
 			 * If a portnumber is present, strip it off and update rcptport.
 			 */
 			rcptip = strdup(recipient+strlen("http://"));
-			rcptport = xymondportnumber;
+			rcptport = 80;		/* http default; an explicit :port below overrides */
 
 			p = strchr(rcptip, '/');
 			if (p) {
