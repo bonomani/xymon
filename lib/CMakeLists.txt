@@ -81,6 +81,9 @@ if(XYMON_BUILD_SERVER)
     netservices.c
     locator.c
 
+    # TLS (compiled empty without HAVE_OPENSSL); used by sendmsg.c and the daemon
+    xymontls.c
+
     # crypto backends used by digest.c
     sha1.c
     sha2.c
@@ -226,6 +229,7 @@ add_library(xymonclientcomm STATIC
     locator.c
     loadhosts.c
     sendmsg.c
+    xymontls.c
     xymond_ipc.c
     xymond_buffer.c
 )
@@ -237,6 +241,8 @@ target_compile_definitions(xymonclientcomm PRIVATE ${XYMON_CLIENT_COMPILE_DEFINI
 if(XYMON_NET_LIBRARIES)
     target_link_libraries(xymonclientcomm PUBLIC ${XYMON_NET_LIBRARIES})
 endif()
+# sendmsg.c/xymontls.c reach OpenSSL when HAVE_OPENSSL is set; empty otherwise
+target_link_libraries(xymonclientcomm PUBLIC ${XYMON_SSL_LIBRARIES})
 if(XYMON_NET_INCLUDE_DIRS)
     target_include_directories(xymonclientcomm PUBLIC ${XYMON_NET_INCLUDE_DIRS})
 endif()
