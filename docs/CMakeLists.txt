@@ -4,7 +4,7 @@
 # (@INSTALLWWWDIR@, @CGIDIR@, ...) come from the top-level CMakeLists.txt.
 # Mirrors the legacy docs/Makefile substitution rules.
 set(_DOC_GENERATED "")
-foreach(_doc xymon-tips.html xymon-apacheconf.txt install.html)
+foreach(_doc xymon-tips.html xymon-apacheconf.txt)
     configure_file(
         ${CMAKE_CURRENT_SOURCE_DIR}/${_doc}.DIST
         ${CMAKE_CURRENT_BINARY_DIR}/${_doc}
