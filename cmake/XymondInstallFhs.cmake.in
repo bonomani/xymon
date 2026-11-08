@@ -5,6 +5,12 @@ xymon_resolve_runtime_path(XYMONHOME "@XYMONHOME_INSTALL_DEST@")
 xymon_resolve_runtime_path(XYMONCLIENTHOME "@XYMONCLIENTHOME_INSTALL_DEST@")
 xymon_resolve_runtime_path(XYMONVAR "@CMAKE_INSTALL_LOCALSTATEDIR@/lib/xymon")
 xymon_resolve_runtime_path(XYMONLOGDIR "@CMAKE_INSTALL_LOCALSTATEDIR@/log/xymon")
+# Pidfiles and control sockets; the log directory unless XYMONRUNDIR is
+# set, as build/Makefile.rules defaults it.
+set(XYMONRUNDIR [==[@XYMONRUNDIR@]==])
+if(XYMONRUNDIR STREQUAL "")
+    set(XYMONRUNDIR "${XYMONLOGDIR}")
+endif()
 xymon_resolve_runtime_path(INSTALLBINDIR "@INSTALLBINDIR_DEST@")
 xymon_resolve_runtime_path(INSTALLETCDIR "@INSTALLETCDIR_DEST@")
 xymon_resolve_runtime_path(INSTALLEXTDIR "@INSTALLEXTDIR_DEST@")

@@ -223,6 +223,12 @@ elseif(XYMON_LAYOUT STREQUAL "fhs")
     set(SECURECGIDIR "${XYMONTOPDIR}/cgi-secure")
 endif()
 
+# Pidfiles and control sockets: -DXYMONRUNDIR=/run/xymon, or the log
+# directory, as build/Makefile.rules defaults it.
+if(NOT XYMONRUNDIR)
+    set(XYMONRUNDIR "${XYMONLOGDIR}")
+endif()
+
 message(STATUS "Xymon layout: ${XYMON_LAYOUT}")
 message(STATUS "Install manpages: ${XYMON_INSTALL_MANPAGES}")
 
