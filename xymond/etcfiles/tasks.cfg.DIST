@@ -143,7 +143,7 @@
 # xymonreports.sh for how it is found.
 [periodic-daily]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymonreports.sh daily
 	LOGFILE $XYMONSERVERLOGS/periodic.log
@@ -151,7 +151,7 @@
 
 [periodic-weekly]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymonreports.sh weekly
 	LOGFILE $XYMONSERVERLOGS/periodic.log
@@ -159,7 +159,7 @@
 
 [periodic-monthly]
 	DISABLED
-	ENVFILE @XYMONHOME@/etc/xymonserver.cfg
+	ENVFILE @INSTALLETCDIR@/xymonserver.cfg
 	NEEDS xymond
 	CMD xymonreports.sh monthly
 	LOGFILE $XYMONSERVERLOGS/periodic.log
