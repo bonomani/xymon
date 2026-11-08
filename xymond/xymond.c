@@ -176,6 +176,7 @@ typedef struct xymond_hostlist_t {
 	clientmsg_list_t *clientmsgs;
 	time_t clientmsgtstamp;
 	char clienttransport[24];	/* How the last client message arrived: see transport_text() */
+	char clientsender[IP_ADDR_STRLEN];	/* And where from: both shown on the client column */
 	time_t hostdatasaveexpires;
 } xymond_hostlist_t;
 
@@ -4832,6 +4833,15 @@ void do_message(conn_t *msg, char *origin)
 
 			clientlogrec.host = trendslogrec.host = infologrec.host = hwalk;
 
+			/*
+			 * The client column is the host's last client message: show where
+			 * it came from and how, as the statuses derived from it do
+			 * (set_transport()). The info and trends rows are made up here,
+			 * from nothing that arrived, so they keep neither.
+			 */
+			snprintf(clientlogrec.sender, sizeof(clientlogrec.sender), "%s", hwalk->clientsender);
+			snprintf(clientlogrec.transport, sizeof(clientlogrec.transport), "%s", hwalk->clienttransport);
+
 			for (lwalk = firstlog; (lwalk); lwalk = lwalk->next) {
 				if (!match_test_filter(lwalk, logfilter)) continue;
 
@@ -5359,6 +5369,7 @@ void do_message(conn_t *msg, char *origin)
 					if (hh != xtreeEnd(rbhosts)) {
 						xymond_hostlist_t *hrec = (xymond_hostlist_t *)xtreeData(rbhosts, hh);
 						transport_text(hrec->clienttransport, sizeof(hrec->clienttransport), msg, hname);
+						snprintf(hrec->clientsender, sizeof(hrec->clientsender), "%s", sender);
 					}
 				}
 			}
@@ -6763,15 +6774,19 @@ int main(int argc, char *argv[])
 	}
 
 	if (pidfile == NULL) {
-		/* Setup a default pid-file */
+		/* Setup a default pid-file: in the runtime directory, where the
+		   shipped tasks.cfg puts it and where xymon.sh looks for it.
+		   Bounded, XYMONRUNDIR being configured. */
 		char fn[PATH_MAX];
 
-		sprintf(fn, "%s/xymond.pid", xgetenv("XYMONSERVERLOGS"));
-		pidfile = strdup(fn);
+		if (snprintf(fn, sizeof(fn), "%s/xymond.pid", xymon_rundir()) >= (int)sizeof(fn)) {
+			errprintf("Default pidfile path does not fit under XYMONRUNDIR, no pidfile written\n");
+		}
+		else pidfile = strdup(fn);
 	}
 
-	/* Save PID */
-	{
+	/* Save PID, unless the default path did not fit (pidfile is NULL). */
+	if (pidfile) {
 		FILE *fd = fopen(pidfile, "w");
 		if (fd) {
 			if (fprintf(fd, "%lu\n", (unsigned long)getpid()) <= 0) {
@@ -7325,7 +7340,8 @@ int main(int argc, char *argv[])
 	if (bf_buf) xfree(bf_buf);
 
 	save_checkpoint();
-	unlink(pidfile);
+	/* pidfile is NULL when the default path did not fit. */
+	if (pidfile) unlink(pidfile);
 
 	if (dbgfd) fclose(dbgfd);
 
