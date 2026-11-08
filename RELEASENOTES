@@ -162,6 +162,14 @@ At-least-only, single-colour rules; existing configurations are unaffected.
 Server
 ------
 
+xymond now drops a connection that has sent nothing 5 seconds after it was
+accepted, instead of keeping it for the whole --timeout; a message that is
+arriving, however slowly, still gets the full timeout. Once 256 such silent
+connections are open, it takes at most 16 more from one sender -- one IPv4
+address, or one IPv6 /64 -- and logs the refusal. Neither limit can be changed.
+Clients behind one NAT address or proxy are affected only if that many of them
+connect and stay silent at once.
+
 xymond --listen=IP:PORT now listens only on the address it names. Since 2014 it
 has bound every interface whatever address was given, so a server told to
 listen on 127.0.0.1, or on one interface of several, was reachable on all of
@@ -243,6 +251,14 @@ xymonnet tests with a cipher-list restriction now report an SSL error when
 OpenSSL rejects it, instead of silently falling back to the default cipher
 list. Such tests may turn red after upgrading Xymon, or after an OpenSSL
 upgrade invalidates a previously accepted restriction.
+
+xymonnet now tests the address written in hosts.cfg, without looking the host's
+name up; only hosts listed as 0.0.0.0 still have their name resolved. The http
+and https tests on such a line connect to that address too, sending the URL's
+name as the Host, unless the URL gives its own address or goes through a proxy.
+A host whose hosts.cfg address is out of date now fails its tests: correct the
+address, or write 0.0.0.0 to keep resolving the name. The testip tag and
+--dns=only are still accepted, but change nothing.
 
 Where Net-SNMP is built without MD5 (NETSNMP_DISABLE_MD5), SNMPv3
 authentication configured for MD5 falls back to SHA1 and warns once at startup.

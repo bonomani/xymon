@@ -110,21 +110,40 @@ static char *split_hostport(char *s, int *port)
 	return s;
 }
 
-static void setup_transport(char *recipient)
+static void setup_transport(void)
 {
-	static int transport_is_setup = 0;
-	int default_port;
+	static int proxy_is_setup = 0;
 
-	if (transport_is_setup) return;
-	transport_is_setup = 1;
+	/*
+	 * The plain-protocol port to a xymond: XYMONDPORT, then the "bbd"/"bb"
+	 * entry in /etc/services, then 1984. This is the default for every
+	 * recipient that gives no port of its own, independent of which recipient
+	 * is listed first; an http:// recipient brings its own default of 80
+	 * (in sendtoxymond). Computed once, unconditionally, rather than from the
+	 * transport of whichever recipient happened to come first.
+	 */
+	if (xgetenv("XYMONDPORT")) xymondportnumber = atoi(xgetenv("XYMONDPORT"));
 
-	if (strncmp(recipient, "http://", 7) == 0) {
-		/*
-		 * Send messages via http. This requires e.g. a CGI on the webserver to
-		 * receive the POST we do here.
-		 */
-		default_port = 80;
+	/* Next is /etc/services "bbd" entry */
+	if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) {
+		struct servent *svcinfo;
 
+		svcinfo = getservbyname("bbd", NULL);
+		if (!svcinfo) svcinfo = getservbyname("bb", NULL);
+		if (svcinfo) xymondportnumber = ntohs(svcinfo->s_port);
+	}
+
+	/* Last resort: the compiled-in default */
+	if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) xymondportnumber = 1984;
+
+	/*
+	 * An http proxy applies to any http:// recipient whatever its position in
+	 * the list, so read it here rather than only when the first recipient is an
+	 * http:// one -- but once: setup_transport() runs on every send, and the
+	 * strdup() below would leak on each one.
+	 */
+	if (!proxy_is_setup) {
+		proxy_is_setup = 1;
 		if (proxysetting == NULL) proxysetting = getenv("http_proxy");
 		if (proxysetting) {
 			char *h = strdup(proxysetting);
@@ -133,30 +152,6 @@ static void setup_transport(char *recipient)
 			xymonproxyport = 8080;
 			xymonproxyhost = split_hostport(h, &xymonproxyport);
 		}
-	}
-	else {
-		/* 
-		 * Non-HTTP transport - lookup portnumber in both XYMONDPORT env.
-		 * and the "xymond" entry from /etc/services.
-		 */
-		default_port = 1984;
-
-		if (xgetenv("XYMONDPORT")) xymondportnumber = atoi(xgetenv("XYMONDPORT"));
-	
-	
-		/* Next is /etc/services "bbd" entry */
-		if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) {
-			struct servent *svcinfo;
-
-			svcinfo = getservbyname("bbd", NULL);
-			if (!svcinfo) svcinfo = getservbyname("bb", NULL);
-			if (svcinfo) xymondportnumber = ntohs(svcinfo->s_port);
-		}
-	}
-
-	/* Last resort: The default value */
-	if ((xymondportnumber <= 0) || (xymondportnumber > 65535)) {
-		xymondportnumber = default_port;
 	}
 
 	dbgprintf("Transport setup is:\n");
@@ -200,10 +195,36 @@ static int keep_response(char *outp, int n, FILE *respfd, strbuffer_t *respstr, 
  * before the server has checked our certificate, so a refusal arrives only
  * here, as an alert, and would otherwise look like a message sent.
  */
+/*
+ * Build the client's TLS context once and cache it. Called before connect()
+ * as well as from tls_exchange(), so loading the CA bundle -- which can be slow
+ * on a loaded client -- happens before the connection, not in the gap between
+ * connect() and the first byte, where the server's idle-connection limit would
+ * drop a connection that has still sent nothing. Returns the cached context, or
+ * NULL with err set.
+ */
+static SSL_CTX *tls_client_ctx(char *err, size_t errsz)
+{
+	static SSL_CTX *ctx = NULL;
+
+	if (!ctx) {
+		char *v = xgetenv("XYMON_TLS_VERIFY");
+		char *ca = xgetenv("XYMON_TLS_CA"), *cert = xgetenv("XYMON_TLS_CERT"), *key = xgetenv("XYMON_TLS_KEY");
+		xymontls_verify_t verify = XYMONTLS_VERIFY_FULL;
+
+		if (v && (strcmp(v, "peer") == 0)) verify = XYMONTLS_VERIFY_PEER;
+		else if (v && (strcmp(v, "none") == 0)) verify = XYMONTLS_VERIFY_NONE;
+
+		ctx = xymontls_client_ctx((ca && *ca) ? ca : NULL, (cert && *cert) ? cert : NULL,
+					  (key && *key) ? key : NULL, verify, err, errsz);
+	}
+	return ctx;
+}
+
 static int tls_exchange(int sockfd, char *host, char *label, char *message, int timeout,
 			FILE *respfd, strbuffer_t *respstr, int fullresponse)
 {
-	static SSL_CTX *ctx = NULL;
+	SSL_CTX *ctx;
 	char err[512], buf[32768], reason[256];
 	unsigned long e;
 	char *v = xgetenv("XYMON_TLS_VERIFY"), *sni = xgetenv("XYMON_TLS_SNI");
@@ -216,15 +237,10 @@ static int tls_exchange(int sockfd, char *host, char *label, char *message, int 
 	if (v && (strcmp(v, "peer") == 0)) verify = XYMONTLS_VERIFY_PEER;
 	else if (v && (strcmp(v, "none") == 0)) verify = XYMONTLS_VERIFY_NONE;
 
+	ctx = tls_client_ctx(err, sizeof(err));
 	if (!ctx) {
-		char *ca = xgetenv("XYMON_TLS_CA"), *cert = xgetenv("XYMON_TLS_CERT"), *key = xgetenv("XYMON_TLS_KEY");
-
-		ctx = xymontls_client_ctx((ca && *ca) ? ca : NULL, (cert && *cert) ? cert : NULL,
-					  (key && *key) ? key : NULL, verify, err, sizeof(err));
-		if (!ctx) {
-			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "TLS to Xymon daemon@%s: %s", label, err);
-			return XYMONSEND_ECONNFAILED;
-		}
+		snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "TLS to Xymon daemon@%s: %s", label, err);
+		return XYMONSEND_ECONNFAILED;
 	}
 
 	/* The exchange runs blocking, bounded by the timeout like the plaintext one */
@@ -325,7 +341,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, strbuffer_
 		return XYMONSEND_OK;
 	}
 
-	setup_transport(recipient);
+	setup_transport();
 
 	dbgprintf("Recipient listed as '%s'\n", recipient);
 
@@ -344,7 +360,19 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, strbuffer_
 		rcptport = (usetls ? atoi(xgetenv("XYMONDTLSPORT")) : xymondportnumber);
 		rcptip = split_hostport(rcptbuf, &rcptport);
 		dbgprintf("Standard protocol%s on port %d\n", (usetls ? " over TLS" : ""), rcptport);
-#ifndef HAVE_OPENSSL
+#ifdef HAVE_OPENSSL
+		/* Build the TLS context before connect(), so loading the CA bundle
+		   does not delay the first byte past the server's idle limit. */
+		if (usetls) {
+			char err[512];
+
+			if (!tls_client_ctx(err, sizeof(err))) {
+				snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "TLS to Xymon daemon@%s: %s", rcptip, err);
+				xfree(rcptbuf);
+				return XYMONSEND_ECONNFAILED;
+			}
+		}
+#else
 		if (usetls) {
 			snprintf(errordetails+strlen(errordetails), (sizeof(errordetails) - strlen(errordetails)), "Cannot send to %s: this build has no TLS support", recipient);
 			xfree(rcptbuf);
@@ -365,7 +393,7 @@ static int sendtoxymond(char *recipient, char *message, FILE *respfd, strbuffer_
 			 * If a portnumber is present, strip it off and update rcptport.
 			 */
 			rcptbuf = strdup(recipient+strlen("http://"));
-			rcptport = xymondportnumber;
+			rcptport = 80;		/* http default; setup_transport() no longer feeds this from the first recipient */
 
 			p = strchr(rcptbuf, '/');
 			if (p) {
