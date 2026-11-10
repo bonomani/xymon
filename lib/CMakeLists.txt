@@ -221,36 +221,37 @@ if(XYMON_BUILD_SERVER)
     # Standalone tools (parity with lib/Makefile)
     # ----------------------------------------------------------------------
 
+    # The diagnostic tools take the names make builds and installs them by,
+    # xymon<name>; INSTALL_EXTRA installs them as "make install-tools" does.
+
     add_executable(test-endianness
         test-endianness.c
     )
 
-    add_executable(loadhosts
+    add_executable(xymonloadhosts
         loadhosts.c
     )
-    target_compile_definitions(loadhosts PRIVATE STANDALONE)
-    target_link_libraries(loadhosts
+    target_compile_definitions(xymonloadhosts PRIVATE STANDALONE)
+    target_link_libraries(xymonloadhosts
         xymontime
         xymoncomm
     )
 
-    if(INSTALL_EXTRA)
-    add_executable(stackio
+    add_executable(xymonstackio
         stackio.c
     )
-    target_compile_definitions(stackio PRIVATE STANDALONE)
-    target_link_libraries(stackio
+    target_compile_definitions(xymonstackio PRIVATE STANDALONE)
+    target_link_libraries(xymonstackio
         xymontime
         xymoncomm
         xymon
     )
-    endif()
 
-    add_executable(availability
+    add_executable(xymonavailability
         availability.c
     )
-    target_compile_definitions(availability PRIVATE STANDALONE)
-    target_link_libraries(availability
+    target_compile_definitions(xymonavailability PRIVATE STANDALONE)
+    target_link_libraries(xymonavailability
         xymontime
         xymoncomm
         xymon
@@ -286,36 +287,29 @@ if(XYMON_BUILD_SERVER)
         target_compile_definitions(rmd160 PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
     endif()
 
-    if(INSTALL_EXTRA)
-    add_executable(locator
+    add_executable(xymonlocator
         locator.c
     )
-    target_compile_definitions(locator PRIVATE STANDALONE)
-    target_link_libraries(locator
+    target_compile_definitions(xymonlocator PRIVATE STANDALONE)
+    target_link_libraries(xymonlocator
         xymontime
         xymoncomm
         xymon
     )
-    endif()
+
     add_executable(tree
         tree.c
     )
     target_compile_definitions(tree PRIVATE STANDALONE)
 
-    set(_helper_targets
-        loadhosts
-        availability
-        md5
-        sha1
-        rmd160
-        tree
-    )
     if(INSTALL_EXTRA)
-        list(APPEND _helper_targets stackio locator)
-    endif()
-    if(INSTALL_EXTRA)
-        install(TARGETS ${_helper_targets}
+        install(TARGETS xymonloadhosts xymonstackio xymonavailability xymonlocator
             RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
         )
+        if(XYMON_INSTALL_MANPAGES)
+            install(FILES ${CMAKE_CURRENT_SOURCE_DIR}/xymontools.1
+                DESTINATION ${INSTALLMAN1DIR_DEST}
+            )
+        endif()
     endif()
 endif()

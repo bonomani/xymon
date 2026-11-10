@@ -51,7 +51,7 @@ option(HTTPDGID_CHGRP "Apply HTTPDGID chgrp during install" ON)
 option(ENABLE_RRD "Build rrd-based components" ON)
 option(ENABLE_LDAP "Enable LDAP checks" ON)
 option(ENABLE_SSL "Enable SSL checks" ON)
-option(INSTALL_EXTRA "Install extra/debug/helper binaries (non-reference set)" OFF)
+option(INSTALL_EXTRA "Install the diagnostic tools, as make install-tools does, and xymon-snmpcollect" OFF)
 
 set(XYMON_VARIANT "server" CACHE STRING "")
 option(LOCALCLIENT "Enable local client configuration" OFF)

@@ -55,25 +55,25 @@ target_link_libraries(beastat
     ${XYMON_SSL_LIBRARIES}
 )
 
-add_executable(contest
+add_executable(xymonnetprobe
     contest.c
     httptest.c
     dns.c
     dns2.c
     httpcookies.c
 )
-target_compile_definitions(contest PRIVATE STANDALONE)
+target_compile_definitions(xymonnetprobe PRIVATE STANDALONE)
 if(ENABLE_CARES AND CARES_LIBRARY)
-    target_link_libraries(contest ${CARES_LIBRARY})
+    target_link_libraries(xymonnetprobe ${CARES_LIBRARY})
 endif()
 if(APPLE)
-    target_link_libraries(contest
+    target_link_libraries(xymonnetprobe
         xymontime
         xymoncomm
         ${XYMON_SSL_LIBRARIES}
     )
 else()
-    target_link_libraries(contest
+    target_link_libraries(xymonnetprobe
         -Wl,--start-group
         xymontime
         xymoncomm
@@ -140,7 +140,7 @@ install(TARGETS xymonnet xymonping beastat
     RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
 )
 if(INSTALL_EXTRA)
-    install(TARGETS contest
+    install(TARGETS xymonnetprobe
         RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
     )
 endif()
