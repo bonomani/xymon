@@ -28,6 +28,13 @@ shift
 cache=$B/CMakeCache.txt
 [ -f "$cache" ] || { echo "$0: no CMakeCache.txt in $B: not a CMake build directory" >&2; exit 2; }
 ROOT=$(cd "$(dirname "$0")/.." && pwd)
+# A source tree that also holds a make build would answer for itself: the
+# tests read its Makefile, config.h and archives, and mix them with
+# BUILDDIR's, failing on whatever the two builds lay out differently.
+if [ -f "$ROOT/Makefile" ] || [ -f "$ROOT/include/config.h" ]; then
+	echo "$0: $ROOT also holds a make build (Makefile, include/config.h); run from a clean checkout, or after git clean -fdx" >&2
+	exit 2
+fi
 
 # val NAME -- a cache entry's value, NAME:TYPE=VALUE
 val() { sed -n "/^$1:[A-Z]*=/{s/^[^=]*=//;p;q;}" "$cache"; }
