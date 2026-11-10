@@ -15,6 +15,8 @@
 #   - XYMON_CFLAGS, the directory of BUILDDIR's generated config.h;
 #   - XYMON_LDFLAGS and XYMON_SSLCFLAGS, from CMakeCache.txt: the libraries
 #     the archives link, and whether the build has OpenSSL;
+#   - PCRELIBS, RRDLIBS, RRDINCDIR, RRDDEF and XYMONLOGDIR, which a make
+#     build's Makefile holds and xymon_makevar reads;
 #   - XYMON_VARIANT, the build's own.
 #
 # Tests of the make build itself -- configure, the Makefiles, their install
@@ -66,6 +68,23 @@ else
 fi
 libs="$libs $(val XYMON_TIRPC_LIBRARY)"
 export XYMON_LDFLAGS=$libs
+
+# What configure writes into the make tree's Makefile and a test reads
+# through xymon_makevar: here from the cache, and the log directory from
+# the generated xymonserver.cfg, the cache not holding it.
+export PCRELIBS
+PCRELIBS=$(val XYMON_PCRE_LIBRARY)
+if [ "$(val ENABLE_RRD)" = ON ]; then
+	export RRDLIBS RRDINCDIR RRDDEF
+	RRDLIBS=$(val RRD_LIBRARY)
+	RRDINCDIR="-I$(val RRD_INCLUDE_DIR)"
+	if [ "$(val XYMON_RRD_ARGV_IS_CONST)" = 1 ]; then RRDDEF=-DRRD_CONST_ARGS=1; else RRDDEF=-DRRD_CONST_ARGS=0; fi
+fi
+cfg=$B/xymond/etcfiles/xymonserver.cfg
+if [ -f "$cfg" ]; then
+	export XYMONLOGDIR
+	XYMONLOGDIR=$(sed -n 's/^XYMONSERVERLOGS="\([^"]*\)".*/\1/p' "$cfg")
+fi
 
 variant=$(val XYMON_VARIANT)
 export XYMON_VARIANT=${variant:-server}
