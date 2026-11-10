@@ -11,83 +11,29 @@ if(XYMON_BUILD_SERVER)
     # libxymoncomm.a
     # ----------------------------------------------------------------------
 
+    # The archives hold what lib/Makefile puts in them, so a program built
+    # against the installed archives links as it does against make's:
+    # libxymon.a is XYMONLIBOBJS, libxymoncomm.a those and the
+    # communication objects, libxymontime.a run and timing.
+    set(XYMON_LIB_SOURCES
+        osdefs.c acklog.c availability.c calc.c cgi.c cgiurls.c clientlocal.c
+        color.c crondate.c digest.c encoding.c environ.c errormsg.c eventlog.c
+        files.c headfoot.c xymonrrd.c holidays.c htmllog.c ipaccess.c
+        loadalerts.c loadcriticalconf.c links.c matching.c md5.c memory.c
+        misc.c msort.c netservices.c notifylog.c acknowledgementslog.c
+        readmib.c reportlog.c rmd160c.c sha1.c sha2.c sig.c stackio.c
+        strfunc.c suid.c timefunc.c tree.c url.c webaccess.c
+    )
+
     add_library(xymoncomm STATIC
-    # core utilities
-    errormsg.c
-    tree.c
-    memory.c
-    md5.c
-    strfunc.c
-    digest.c
-    encoding.c
-    calc.c
-    run.c
-    misc.c
-    msort.c
-    files.c
-    stackio.c
-    sig.c
-    suid.c
-    matching.c
-
-    # IPC / buffers
-    xymond_buffer.c
-    xymond_ipc.c
-
-    # environment / urls
-    environ.c
-    cgi.c
-    cgiurls.c
-    url.c
-    ipaccess.c
-    clientlocal.c
-
-    # messaging / combo
-    sendmsg.c
-    ../xymond/combostatus.c
-
-    # links / URLs
-    links.c
-
-    # colors / html / rendering
-    color.c
-    headfoot.c
-    htmllog.c
-    reportlog.c
-
-    # hosts.cfg handling
-    loadhosts.c
-
-    # alerts / SLA / calendar
-    loadalerts.c
-    loadcriticalconf.c
-    holidays.c
-
-    # events / acks / availability
-    eventlog.c
-    acklog.c
-    availability.c
-    webaccess.c
-    notifylog.c
-    acknowledgementslog.c
-
-    # SNMP MIB helpers
-    readmib.c
-
-    # RRD / graph helpers
-    xymonrrd.c
-
-    # network / locator
-    netservices.c
-    locator.c
-
-    # TLS (compiled empty without HAVE_OPENSSL); used by sendmsg.c and the daemon
-    xymontls.c
-
-    # crypto backends used by digest.c
-    sha1.c
-    sha2.c
-    rmd160c.c
+        ${XYMON_LIB_SOURCES}
+        loadhosts.c
+        locator.c
+        sendmsg.c
+        xymond_ipc.c
+        xymond_buffer.c
+        # TLS (compiled empty without HAVE_OPENSSL); used by sendmsg.c and the daemon
+        xymontls.c
     )
 
     set_target_properties(xymoncomm PROPERTIES
@@ -137,9 +83,8 @@ endif()
 # ----------------------------------------------------------------------
 
 add_library(xymontime STATIC
-    timefunc.c
+    run.c
     timing.c
-    crondate.c
 )
 
 set_target_properties(xymontime PROPERTIES
@@ -252,14 +197,17 @@ if(XYMON_BUILD_SERVER)
     # libxymon.a (aggregate)
     # ----------------------------------------------------------------------
 
-    file(WRITE ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
-    "void xymon_dummy(void) {}\n"
-    )
-
     add_library(xymon STATIC
-        ${CMAKE_CURRENT_BINARY_DIR}/xymon_dummy.c
+        ${XYMON_LIB_SOURCES}
     )
-
+    if(WORDS_BIGENDIAN)
+        target_compile_definitions(xymon PRIVATE WORDS_BIGENDIAN XYMON_BIG_ENDIAN)
+    else()
+        target_compile_definitions(xymon PRIVATE WORDS_LITTLEENDIAN XYMON_LITTLE_ENDIAN)
+    endif()
+    target_compile_options(xymon PRIVATE
+        -include${CMAKE_SOURCE_DIR}/lib/osdefs.h
+    )
     target_link_libraries(xymon
         xymoncomm
         xymontime
