@@ -1,0 +1,66 @@
+#!/usr/bin/env bash
+# SPDX-License-Identifier: GPL-2.0-or-later
+#
+# tests/testsuite-cmake BUILDDIR [testsuite arguments] -- run the suite
+# against a CMake build instead of the in-tree make build.
+#
+# The tests find what they run through environment overrides, the same ones
+# an installed package uses (tests/README.md, "Downstream consumers"). This
+# sets each from BUILDDIR, then runs tests/testsuite:
+#
+#   - every program a test asks for with require_bin, and every generated
+#     config with require_cfg, at the same relative path in BUILDDIR, where
+#     CMake mirrors the source tree, or else found there by name;
+#   - XYMON_LIBDIR, BUILDDIR/lib, where the archives are;
+#   - XYMON_CFLAGS, the directory of BUILDDIR's generated config.h;
+#   - XYMON_LDFLAGS and XYMON_SSLCFLAGS, from CMakeCache.txt: the libraries
+#     the archives link, and whether the build has OpenSSL;
+#   - XYMON_VARIANT, the build's own.
+#
+# Tests of the make build itself -- configure, the Makefiles, their install
+# rules -- still skip: a CMake build has none of them.
+
+set -euo pipefail
+
+[ $# -ge 1 ] || { echo "usage: $0 BUILDDIR [testsuite arguments]" >&2; exit 2; }
+B=$(cd "$1" && pwd)
+shift
+cache=$B/CMakeCache.txt
+[ -f "$cache" ] || { echo "$0: no CMakeCache.txt in $B: not a CMake build directory" >&2; exit 2; }
+ROOT=$(cd "$(dirname "$0")/.." && pwd)
+
+# val NAME -- a cache entry's value, NAME:TYPE=VALUE
+val() { sed -n "/^$1:[A-Z]*=/{s/^[^=]*=//;p;q;}" "$cache"; }
+
+# Each "require_bin VAR DEFAULT" and "require_cfg VAR DEFAULT" in the suite,
+# DEFAULT being the in-tree path; quotes and a trailing comment dropped.
+while read -r _ var def _; do
+	def=${def//\"/}
+	case $var:$def in *'$'*) continue ;; esac
+	[ -z "${!var+set}" ] || continue
+	if [ -e "$B/$def" ]; then
+		path=$B/$def
+	else
+		path=$(find "$B" -path '*/CMakeFiles' -prune -o -name "${def##*/}" -type f -print -quit)
+	fi
+	if [ -n "$path" ]; then export "$var=$path"; fi
+done <<<"$(grep -rhoE '(require_bin|require_cfg) [A-Z_0-9]+ [^ ;)]+' "$ROOT/tests" | sort -u)"
+
+export XYMON_LIBDIR=$B/lib
+export XYMON_CFLAGS="-iquote $B"
+
+libs="$(val XYMON_PCRE_LIBRARY)"
+if [ "$(val ENABLE_SSL)" = ON ] && [ -n "$(val OPENSSL_SSL_LIBRARY)" ]; then
+	XYMON_SSLCFLAGS="-DHAVE_OPENSSL -I$(val OPENSSL_INCLUDE_DIR)"
+	export XYMON_SSLCFLAGS
+	libs="$libs $(val OPENSSL_SSL_LIBRARY) $(val OPENSSL_CRYPTO_LIBRARY)"
+else
+	export XYMON_SSLCFLAGS=
+fi
+libs="$libs $(val XYMON_TIRPC_LIBRARY)"
+export XYMON_LDFLAGS=$libs
+
+variant=$(val XYMON_VARIANT)
+export XYMON_VARIANT=${variant:-server}
+
+exec "$ROOT/tests/testsuite" "$@"
