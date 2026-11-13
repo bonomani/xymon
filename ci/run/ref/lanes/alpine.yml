@@ -1,0 +1,21 @@
+generated:
+  policy:
+    secondary_scope: latest_only
+    secondary_entries:
+      - defaults: arm64
+      - defaults: arm32v7
+      - defaults: ppc64le
+      - defaults: riscv64
+      - defaults: s390x
+
+  platforms:
+    - platform_id: alpine-3_24
+      name_prefix: Alpine 3.24
+    - platform_id: alpine-3_23
+      name_prefix: Alpine 3.23
+    - platform_id: alpine-3_22
+      name_prefix: Alpine 3.22
+    - platform_id: alpine-3_21
+      name_prefix: Alpine 3.21
+    - platform_id: alpine-edge
+      name_prefix: Alpine edge

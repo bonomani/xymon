@@ -1,0 +1,2 @@
+root:x:0:0::/nonexistent:/usr/sbin/nologin
+xymon:x:1003:1003::/nonexistent:/usr/sbin/nologin

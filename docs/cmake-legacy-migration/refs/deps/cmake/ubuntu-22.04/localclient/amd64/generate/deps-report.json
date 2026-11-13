@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "ubuntu",
+  "os": "ubuntu",
+  "version": "local",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "cmake", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["build-essential", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev"],
+  "requested_missing_before": ["cmake", "ninja-build"],
+  "requested_newly_installed": ["cmake", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["cmake", "cmake-data", "dh-elpa-helper", "libjsoncpp25", "librhash0", "ninja-build"],
+  "indirect_newly_installed": ["cmake-data", "dh-elpa-helper", "libjsoncpp25", "librhash0"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 6,
+    "requested_missing_before": 2,
+    "requested_newly_installed": 2,
+    "requested_missing_after": 0,
+    "all_newly_installed": 6,
+    "indirect_newly_installed": 4
+  },
+  "unneeded_packages_status": "undetermined"
+}

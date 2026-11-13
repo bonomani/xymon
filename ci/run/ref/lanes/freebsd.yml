@@ -1,0 +1,7 @@
+generated:
+  platforms:
+    - platform_id: freebsd-15_1
+    - platform_id: freebsd-15_0
+    - platform_id: freebsd-14_5
+    - platform_id: freebsd-14_4
+    - platform_id: freebsd-14_3

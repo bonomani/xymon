@@ -1,0 +1,9 @@
+{
+  "allow_failure_mode": "off",
+  "build_tool": "make",
+  "lane_allow_failure": "1",
+  "lane_name": "openSUSE Tumbleweed - Client (ct-client)",
+  "lane_outcome": "failure",
+  "platform_id": "opensuse-tumbleweed",
+  "variant": "localclient"
+}

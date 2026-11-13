@@ -14,7 +14,7 @@ SRCDIR=/usr/local/bb/bbvar/rrd
 
 # These are the Xymon directories and filenames
 XYMONHOME=@XYMONHOME@
-HOSTSCFG=$XYMONHOME/etc/hosts.cfg
+HOSTSCFG=@INSTALLETCDIR@/hosts.cfg
 DSTDIR=@XYMONVAR@/rrd		# Where the files should end up.
 
 OP="cp -f"			# Set to "mv" to move files instead of copying
@@ -50,4 +50,3 @@ do
 	   done
 	fi
 done
-

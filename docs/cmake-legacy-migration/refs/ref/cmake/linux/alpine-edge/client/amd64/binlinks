@@ -1,0 +1,43 @@
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonlaunch ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymoncmd ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/orcaxymon ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymondigest ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymon ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymoncfg ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymonclient.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/msgcache ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/logfetch ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymonclient-aix.sh ===
+=== /bin/clientupdate ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1
+=== /bin/xymongrep ===
+/lib/ld-musl-x86_64.so.1
+/lib/ld-musl-x86_64.so.1

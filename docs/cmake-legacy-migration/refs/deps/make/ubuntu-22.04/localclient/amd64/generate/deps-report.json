@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "ubuntu",
+  "os": "ubuntu",
+  "version": "local",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["build-essential", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev"],
+  "requested_missing_before": ["ninja-build"],
+  "requested_newly_installed": ["ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["ninja-build"],
+  "indirect_newly_installed": [],
+  "counts": {
+    "requested_packages": 7,
+    "requested_already_present": 6,
+    "requested_missing_before": 1,
+    "requested_newly_installed": 1,
+    "requested_missing_after": 0,
+    "all_newly_installed": 1,
+    "indirect_newly_installed": 0
+  },
+  "unneeded_packages_status": "undetermined"
+}

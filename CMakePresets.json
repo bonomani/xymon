@@ -1,0 +1,85 @@
+{
+  "version": 3,
+  "cmakeMinimumRequired": {
+    "major": 3,
+    "minor": 16,
+    "patch": 0
+  },
+  "configurePresets": [
+    {
+      "name": "default",
+      "displayName": "Default (platform non-FHS layout)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF"
+      }
+    },
+    {
+      "name": "gnuinstall",
+      "displayName": "GNUInstallDirs layout (/usr default)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-gnu",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "ON",
+        "XYMON_LAYOUT": "fhs",
+        "CMAKE_INSTALL_PREFIX": "/usr"
+      }
+    },
+    {
+      "name": "bsdlocal",
+      "displayName": "BSD local split layout",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-bsdlocal",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF",
+        "XYMON_LAYOUT": "bsd_local",
+        "CMAKE_INSTALL_PREFIX": "/usr/local"
+      }
+    },
+    {
+      "name": "macostree",
+      "displayName": "macOS historical tree layout",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-macostree",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "OFF",
+        "XYMON_LAYOUT": "macos_tree"
+      }
+    },
+    {
+      "name": "packaging",
+      "displayName": "Packaging (GNUInstallDirs, /usr prefix)",
+      "generator": "Unix Makefiles",
+      "binaryDir": "${sourceDir}/build-cmake-packaging",
+      "cacheVariables": {
+        "USE_GNUINSTALLDIRS": "ON",
+        "XYMON_LAYOUT": "fhs",
+        "CMAKE_INSTALL_PREFIX": "/usr",
+        "HTTPDGID_CHGRP": "OFF"
+      }
+    }
+  ],
+  "buildPresets": [
+    {
+      "name": "default",
+      "configurePreset": "default"
+    },
+    {
+      "name": "gnuinstall",
+      "configurePreset": "gnuinstall"
+    },
+    {
+      "name": "bsdlocal",
+      "configurePreset": "bsdlocal"
+    },
+    {
+      "name": "macostree",
+      "configurePreset": "macostree"
+    },
+    {
+      "name": "packaging",
+      "configurePreset": "packaging"
+    }
+  ]
+}

@@ -1,0 +1,156 @@
+CMake configuration
+===================
+
+This file documents the CMake-based configuration flow.
+
+Quick start (Makefile parity)
+----------------------------
+
+This uses the platform default non-FHS layout.
+
+- Linux defaults to `var_tree` (`/var/lib/xymon/...`)
+- FreeBSD and NetBSD default to `home_tree` (`/home/_www/...`)
+
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (optional)
+--------------------------------
+
+Use a standard FHS layout via GNUInstallDirs (`XYMON_LAYOUT=fhs`).
+
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Note: When USE_GNUINSTALLDIRS=ON, install destinations are derived from
+GNUInstallDirs. With `CMAKE_INSTALL_PREFIX=/usr`, this resolves to
+`/usr/libexec/xymon`, `/etc/xymon`, `/var/lib/xymon`, and `/usr/share/man`.
+If you override the install prefix at install time, e.g.
+`cmake --install build-cmake-gnu --prefix /opt/xymon`, the generated runtime
+files follow that relocation and resolve to `/opt/xymon/libexec/xymon`,
+`/opt/xymon/etc/xymon`, `/opt/xymon/var/lib/xymon`, and
+`/opt/xymon/share/man`.
+
+BSD local split layout (optional)
+---------------------------------
+
+Use an OpenBSD-style third-party layout via `XYMON_LAYOUT=bsd_local`.
+By default this follows `CMAKE_INSTALL_PREFIX=/usr/local` for the localbase and
+uses `/var` as the state root.
+
+  cmake --preset bsdlocal
+  cmake --build --preset bsdlocal
+  cmake --install build-cmake-bsdlocal
+
+This is available for future BSD-native packaging or local installs, but it is
+not used by current parity/reference lanes. The local helper scripts also
+support this preset when falling back to direct `cmake -S/-B` invocation on
+CMake versions older than 3.23.
+
+You can override the layout roots explicitly with:
+
+  -DXYMON_BSD_LOCALBASE=/opt/local
+  -DXYMON_BSD_LOCALSTATEDIR=/var
+
+For the local CI wrapper scripts, export the same variable names in the
+environment before invoking `ci/run/cmake-configure.sh` or
+`ci/bootstrap-install.sh`.
+
+macOS historical tree layout (optional)
+---------------------------------------
+
+Use the historical macOS `/Library/WebServer` layout via `XYMON_LAYOUT=macos_tree`.
+
+  cmake --preset macostree
+  cmake --build --preset macostree
+  cmake --install build-cmake-macostree
+
+This is available to model the checked-in macOS make reference layout, but it
+is not selected by current defaults.
+
+Source installs (recommended commands)
+-------------------------------------
+
+Legacy layout (classic Xymon paths):
+  cmake --preset default
+  cmake --build --preset default
+  cmake --install build-cmake
+
+GNUInstallDirs layout (standard FHS, `/usr` default):
+  cmake --preset gnuinstall
+  cmake --build --preset gnuinstall
+  cmake --install build-cmake-gnu
+
+Packaging preset (recommended for RPM/DEB/Ports)
+------------------------------------------------
+
+This preset uses GNUInstallDirs and `/usr` as the configured prefix. Packaging
+tools should set `DESTDIR` during install. Install-time `chgrp` is disabled by
+default.
+
+  cmake --preset packaging
+  cmake --build --preset packaging
+  cmake --install build-cmake-packaging --destdir <staging-dir>
+
+Interactive configure-style script
+----------------------------------
+
+You can use the helper script to answer the usual path questions:
+
+  ./cmake-local-setup.sh
+
+The setup wrapper calls:
+  ./cmake-local-build.sh
+  ./cmake-local-install.sh
+
+It will create or reuse build-cmake/ and run CMake with the selected values.
+Use --destdir to stage an install tree for packaging.
+Use --use-ci-configure with --preset and --variant to drive the CI preset flow
+without prompts (it implies --non-interactive).
+For local builds, --variant/--localclient map to XYMON_VARIANT/LOCALCLIENT.
+When --variant is set in local mode, ENABLE_SSL and ENABLE_LDAP default to ON
+unless you override them in advanced mode.
+Local mode defaults to --preset default. If you pass --preset, the preset's
+binaryDir is used as build dir
+unless you also pass --build-dir.
+Use --parallel N to control build parallelism (e.g., --parallel 1 to match CI).
+Use --use-ci-packages to run ci/deps/install-default-packages.sh (it delegates to `ci/deps/install-packages.sh --pkgmgr <detected>`) before configuring.
+Local --use-ci-packages on Linux skips sudo if all required packages are already installed.
+
+Notes
+-----
+
+- CMake now models layout explicitly with `XYMON_LAYOUT`.
+- Supported values are `home_tree`, `var_tree`, `bsd_local`, `macos_tree`, and `fhs`.
+- Default behavior when `XYMON_LAYOUT` is not set:
+  - `USE_GNUINSTALLDIRS=ON` -> `fhs`
+  - `USE_GNUINSTALLDIRS=OFF` on Linux -> `var_tree`
+  - `USE_GNUINSTALLDIRS=OFF` on FreeBSD/NetBSD -> `home_tree`
+  - `USE_GNUINSTALLDIRS=OFF` on macOS -> `macos_tree`
+- All values can still be overridden with -D options when invoking CMake.
+
+Packaging notes
+--------------
+
+- Packaging systems set DESTDIR. Do not hardcode a staging path in presets.
+- `cmake --install --prefix ...` now relocates the generated runtime config and
+  helper scripts for `XYMON_LAYOUT=fhs`; it is no longer limited to the
+  configure-time prefix.
+- If install-time chgrp is undesired for packaging, set -DHTTPDGID_CHGRP=OFF.
+
+Runtime dependency notes (server/client)
+----------------------------------------
+
+Server runtime:
+  - Web server
+  - sendmail-compatible mailer
+  - fping
+  - mtr
+  - perl
+  - python
+  - Optional runtime libs: OpenSSL, OpenLDAP client, net-snmp, c-ares
+
+Client runtime:
+  - Optional tools: perl, python

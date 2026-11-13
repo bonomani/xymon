@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "ubuntu",
+  "os": "ubuntu",
+  "version": "local",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "cmake", "findutils", "git", "libc-ares-dev", "libldap-dev", "libpcre3-dev", "librrd-dev", "libsnmp-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["build-essential", "findutils", "git", "libpcre3-dev", "libssl-dev", "libtirpc-dev"],
+  "requested_missing_before": ["cmake", "libc-ares-dev", "libldap-dev", "librrd-dev", "libsnmp-dev", "ninja-build"],
+  "requested_newly_installed": ["cmake", "libc-ares-dev", "libldap-dev", "librrd-dev", "libsnmp-dev", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["cmake", "cmake-data", "dh-elpa-helper", "libc-ares-dev", "libdbi1", "libjsoncpp25", "libldap-dev", "libnetsnmptrapd40", "libpci-dev", "librhash0", "librrd-dev", "librrd8", "libsensors-dev", "libsnmp-dev", "libudev-dev", "libwrap0-dev", "ninja-build"],
+  "indirect_newly_installed": ["cmake-data", "dh-elpa-helper", "libdbi1", "libjsoncpp25", "libnetsnmptrapd40", "libpci-dev", "librhash0", "librrd8", "libsensors-dev", "libudev-dev", "libwrap0-dev"],
+  "counts": {
+    "requested_packages": 12,
+    "requested_already_present": 6,
+    "requested_missing_before": 6,
+    "requested_newly_installed": 6,
+    "requested_missing_after": 0,
+    "all_newly_installed": 17,
+    "indirect_newly_installed": 11
+  },
+  "unneeded_packages_status": "undetermined"
+}

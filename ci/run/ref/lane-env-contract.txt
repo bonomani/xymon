@@ -1,0 +1,82 @@
+# Canonical lane environment contract.
+# Sections:
+#   [all]                -> complete lane_env keyspace
+#   [lane_exec_required_common] -> required keys for run-ref-lane-command.sh
+#   [lane_exec_required_host] -> host-only required exec keys
+#   [lane_exec_required_container] -> container-only required exec keys
+#   [lane_exec_required_vm] -> vm-only required exec keys
+
+[all]
+ALLOW_FAILURE_MODE
+ARCHITECTURE
+ARTIFACT_ARCH
+ARTIFACT_FAMILY
+ARTIFACT_ROOT
+BASELINE_PREFIX
+BASELINE_ROOT
+BUILD_TOOL
+CANDIDATE_DIR
+CHECKOUT_MODE
+CI_DEPS_REPORT_JSON
+CI_COMPILER
+CMAKE_BIN
+CONTAINER_IMAGE
+CONTAINER_OPTIONS
+DEP_MODE
+ENABLE_LDAP
+ENABLE_SNMP
+GOAL
+INSTALL_MODE
+LANE_ALLOW_FAILURE
+LANE_NAME
+LEGACY_APPLY_OWNERSHIP
+LEGACY_HOSTNAME_CONFIG
+OS_VERSION
+PLATFORM_ID
+PLATFORM_OS
+PREPARE_PROFILE
+PROFILE
+PUBLISH
+REF_MODE
+REF_OS
+REFS_ROOT
+REF_STAGE_ROOT
+RUNTIME
+RUNTIME_EXECUTION
+RUNTIME_OUTCOME_CHANNEL
+UPLOAD_ARTIFACTS
+VARIANT
+VERIFY_DEPTH
+VM_CPU_COUNT
+VM_MEMORY
+XYMONGROUP
+XYMONUSER
+RUNTIME_PREFERENCE
+
+[lane_exec_required_common]
+BUILD_TOOL
+GOAL
+VERIFY_DEPTH
+REF_MODE
+PUBLISH
+DEP_MODE
+CI_DEPS_REPORT_JSON
+CI_COMPILER
+INSTALL_MODE
+PROFILE
+VARIANT
+REF_OS
+PLATFORM_OS
+PLATFORM_ID
+RUNTIME_EXECUTION
+
+[lane_exec_required_host]
+# no additional host-only keys
+
+[lane_exec_required_container]
+CONTAINER_IMAGE
+CHECKOUT_MODE
+PREPARE_PROFILE
+
+[lane_exec_required_vm]
+# no additional vm-only keys

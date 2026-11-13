@@ -1,0 +1,68 @@
+=== /bin/xymonlaunch ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymonlaunch:
+/tmp/xymon-stage/var/lib/xymon/bin/xymonlaunch
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/logfetch ===
+/tmp/xymon-stage/var/lib/xymon/bin/logfetch:
+/tmp/xymon-stage/var/lib/xymon/bin/logfetch
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/clientupdate ===
+/tmp/xymon-stage/var/lib/xymon/bin/clientupdate:
+/tmp/xymon-stage/var/lib/xymon/bin/clientupdate
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/orcaxymon ===
+/tmp/xymon-stage/var/lib/xymon/bin/orcaxymon:
+/tmp/xymon-stage/var/lib/xymon/bin/orcaxymon
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/msgcache ===
+/tmp/xymon-stage/var/lib/xymon/bin/msgcache:
+/tmp/xymon-stage/var/lib/xymon/bin/msgcache
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient.sh ===
+=== /bin/xymon ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymon:
+/tmp/xymon-stage/var/lib/xymon/bin/xymon
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/xymoncmd ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymoncmd:
+/tmp/xymon-stage/var/lib/xymon/bin/xymoncmd
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/xymongrep ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymongrep:
+/tmp/xymon-stage/var/lib/xymon/bin/xymongrep
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/xymoncfg ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymoncfg:
+/tmp/xymon-stage/var/lib/xymon/bin/xymoncfg
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/xymondigest ===
+/tmp/xymon-stage/var/lib/xymon/bin/xymondigest:
+/tmp/xymon-stage/var/lib/xymon/bin/xymondigest
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so
+=== /bin/openbsd-meminfo ===
+/tmp/xymon-stage/var/lib/xymon/bin/openbsd-meminfo:
+/tmp/xymon-stage/var/lib/xymon/bin/openbsd-meminfo
+/usr/lib/libc.so.102.0
+/usr/libexec/ld.so

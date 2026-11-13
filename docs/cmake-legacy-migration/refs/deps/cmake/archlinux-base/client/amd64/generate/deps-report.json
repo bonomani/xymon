@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "arch",
+  "os": "archlinux",
+  "version": "latest",
+  "package_manager": "pacman",
+  "requested_packages": ["base-devel", "cmake", "diffutils", "findutils", "git", "libtirpc", "ninja", "openssl"],
+  "requested_already_present": ["findutils", "libtirpc", "openssl"],
+  "requested_missing_before": ["base-devel", "cmake", "diffutils", "git", "ninja"],
+  "requested_newly_installed": ["base-devel", "cmake", "diffutils", "git", "ninja"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["autoconf", "automake", "base-devel", "bison", "cmake", "cppdap", "db5.3", "debugedit", "diffutils", "fakeroot", "flex", "gc", "gcc", "git", "groff", "guile", "hicolor-icon-theme", "jsoncpp", "libisl", "libmpc", "libtool", "libuv", "m4", "make", "ninja", "patch", "perl", "perl-error", "perl-mailtools", "perl-timedate", "pkgconf", "rhash", "sudo", "texinfo", "which", "xxhash", "zlib-ng"],
+  "indirect_newly_installed": ["autoconf", "automake", "bison", "cppdap", "db5.3", "debugedit", "fakeroot", "flex", "gc", "gcc", "groff", "guile", "hicolor-icon-theme", "jsoncpp", "libisl", "libmpc", "libtool", "libuv", "m4", "make", "patch", "perl", "perl-error", "perl-mailtools", "perl-timedate", "pkgconf", "rhash", "sudo", "texinfo", "which", "xxhash", "zlib-ng"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 3,
+    "requested_missing_before": 5,
+    "requested_newly_installed": 5,
+    "requested_missing_after": 0,
+    "all_newly_installed": 37,
+    "indirect_newly_installed": 32
+  },
+  "unneeded_packages_status": "undetermined"
+}

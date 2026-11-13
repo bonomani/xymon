@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "alpine",
+  "os": "alpine",
+  "version": "3",
+  "package_manager": "apk",
+  "requested_packages": ["bash", "build-base", "c-ares-dev", "cmake", "diffutils", "findutils", "git", "libtirpc-dev", "net-snmp-dev", "ninja", "openldap-dev", "openssl-dev", "pcre-dev", "rrdtool-dev"],
+  "requested_already_present": ["bash"],
+  "requested_missing_before": ["build-base", "c-ares-dev", "cmake", "diffutils", "findutils", "git", "libtirpc-dev", "net-snmp-dev", "ninja", "openldap-dev", "openssl-dev", "pcre-dev", "rrdtool-dev"],
+  "requested_newly_installed": ["build-base", "c-ares-dev", "cmake", "diffutils", "findutils", "git", "libtirpc-dev", "net-snmp-dev", "ninja", "openldap-dev", "openssl-dev", "pcre-dev", "rrdtool-dev"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "brotli-libs", "bsd-compat-headers", "build-base", "c-ares", "c-ares-dev", "cairo", "cmake", "cyrus-sasl-dev", "diffutils", "e2fsprogs-dev", "e2fsprogs-libs", "file", "findutils", "fontconfig", "fortify-headers", "freetype", "fribidi", "g++", "gcc", "gdbm", "git", "glib", "gmp", "graphite2", "harfbuzz", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libarchive", "libatomic", "libblkid", "libbsd", "libbz2", "libc-dev", "libcom_err", "libcurl", "libev", "libevent", "libevent-dev", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmd", "libmount", "libpanelw", "libpcre16", "libpcre32", "libpcrecpp", "libpng", "libpsl", "librrd", "libsasl", "libsmartcols", "libsodium", "libsodium-dev", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-dev", "libtirpc-nokrb", "libunistring", "libuuid", "libuv", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "libx11", "libxau", "libxcb", "libxdmcp", "libxext", "libxft", "libxml2", "libxrender", "lz4-libs", "make", "mpc1", "mpdecimal", "mpfr4", "musl-dev", "net-snmp-agent-libs", "net-snmp-dev", "net-snmp-libs", "nghttp2-libs", "openldap-dev", "openssl-dev", "pango", "patch", "pcre", "pcre-dev", "pcre2", "pixman", "pkgconf", "pyc", "python3", "python3-pyc", "python3-pycache-pyc0", "rhash-libs", "rrdtool-dev", "samurai", "sqlite-libs", "util-linux-dev", "xz-libs", "zstd-libs"],
+  "indirect_newly_installed": ["binutils", "brotli-libs", "bsd-compat-headers", "c-ares", "cairo", "cyrus-sasl-dev", "e2fsprogs-dev", "e2fsprogs-libs", "file", "fontconfig", "fortify-headers", "freetype", "fribidi", "g++", "gcc", "gdbm", "glib", "gmp", "graphite2", "harfbuzz", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libarchive", "libatomic", "libblkid", "libbsd", "libbz2", "libc-dev", "libcom_err", "libcurl", "libev", "libevent", "libevent-dev", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmd", "libmount", "libpanelw", "libpcre16", "libpcre32", "libpcrecpp", "libpng", "libpsl", "librrd", "libsasl", "libsmartcols", "libsodium", "libsodium-dev", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-nokrb", "libunistring", "libuuid", "libuv", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "libx11", "libxau", "libxcb", "libxdmcp", "libxext", "libxft", "libxml2", "libxrender", "lz4-libs", "make", "mpc1", "mpdecimal", "mpfr4", "musl-dev", "net-snmp-agent-libs", "net-snmp-libs", "nghttp2-libs", "pango", "patch", "pcre", "pcre2", "pixman", "pkgconf", "pyc", "python3", "python3-pyc", "python3-pycache-pyc0", "rhash-libs", "samurai", "sqlite-libs", "util-linux-dev", "xz-libs", "zstd-libs"],
+  "counts": {
+    "requested_packages": 14,
+    "requested_already_present": 1,
+    "requested_missing_before": 13,
+    "requested_newly_installed": 13,
+    "requested_missing_after": 0,
+    "all_newly_installed": 118,
+    "indirect_newly_installed": 106
+  },
+  "unneeded_packages_status": "undetermined"
+}

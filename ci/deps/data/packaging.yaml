@@ -1,0 +1,72 @@
+packaging:
+  deb:
+    workflow:
+      execution: host
+      build_script: ci/run/package/build-deb.sh
+      artifact_name_prefix: deb
+      artifact_paths:
+        - debbuild/*.deb
+        - debbuild/*.dsc
+        - debbuild/*.changes
+        - debbuild/*.buildinfo
+        - debbuild/*.tar.*
+      host_packages:
+        - build-essential
+        - cpio
+        - debhelper
+        - dpkg-dev
+        - fakeroot
+        - git
+        - tar
+        - libc-ares-dev
+        - libldap2-dev
+        - libpcre2-dev
+        - librrd-dev
+        - libssl-dev
+  rpm:
+    workflow:
+      execution: host
+      build_script: ci/run/package/build-rpm.sh
+      artifact_name_prefix: rpm
+      artifact_paths:
+        - rpmbuild/RPMS/**/*.rpm
+        - rpmbuild/SRPMS/*.rpm
+      host_packages:
+        - build-essential
+        - cpio
+        - git
+        - tar
+        - rpm
+        - libc-ares-dev
+        - libldap2-dev
+        - libpcre2-dev
+        - librrd-dev
+        - libssl-dev
+  arch:
+    workflow:
+      execution: host
+      build_script: ci/run/package/build-arch.sh
+      artifact_name_prefix: archlinux
+      artifact_paths:
+        - pkgbuild/archlinux/*.pkg.tar.*
+  apk:
+    workflow:
+      execution: host
+      build_script: ci/run/package/build-apk.sh
+      artifact_name_prefix: apk_alpine_3_20
+      artifact_paths:
+        - pkgbuild/alpine/packages/**/*.apk
+  pkg:
+    workflow:
+      execution: bsd_vm
+      build_script: ci/run/package/build-freebsd-pkg.sh
+      artifact_name_prefix: freebsd_pkg_14_3
+      artifact_paths:
+        - pkgbuild/freebsd/*.pkg
+      vm:
+        operating_system: freebsd
+        version: "14.3"
+        architecture: x86-64
+        shell: bash
+        memory: 4096M
+        cpu_count: "2"

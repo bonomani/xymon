@@ -1,0 +1,146 @@
+name: Build Packages
+
+on:
+  workflow_dispatch:
+    inputs:
+      release_version:
+        description: "Release version (ex: 4.3.34). Empty = derive from rel-* tag."
+        required: false
+        type: string
+        default: ""
+      package_set:
+        description: Package format to build. On rel-* tags, built package files are also uploaded to the GitHub Release.
+        required: true
+        type: choice
+        default: deb
+        options:
+          - deb
+          - rpm
+          - arch
+          - apk
+          - pkg
+  push:
+    tags:
+      - 'rel-*'
+
+permissions:
+  contents: write
+
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
+jobs:
+  prepare:
+    runs-on: ubuntu-22.04
+    outputs:
+      release_version: ${{ steps.prepare.outputs.release_version }}
+      matrix: ${{ steps.prepare.outputs.matrix }}
+      matrix_count: ${{ steps.prepare.outputs.matrix_count }}
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve package execution model
+        id: prepare
+        shell: bash
+        run: |
+          set -euo pipefail
+          python3 ci/run/package/resolve-package-build.py \
+            --release-version "${{ inputs.release_version }}" \
+            --package-set "${{ inputs.package_set }}" \
+            --github-output "${GITHUB_OUTPUT}"
+
+      - name: Summary
+        shell: bash
+        run: |
+          echo "Release version: ${{ steps.prepare.outputs.release_version }}"
+          echo "Package jobs selected: ${{ steps.prepare.outputs.matrix_count }}"
+
+  build:
+    needs: prepare
+    if: ${{ needs.prepare.outputs.matrix_count != '0' }}
+    name: ${{ matrix.name }}
+    strategy:
+      fail-fast: false
+      max-parallel: 2
+      matrix: ${{ fromJSON(needs.prepare.outputs.matrix) }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Install packaging dependencies
+        if: ${{ matrix.execution == 'host' && matrix.host_packages != '' }}
+        shell: bash
+        env:
+          HOST_PACKAGES: ${{ matrix.host_packages }}
+        run: |
+          set -euo pipefail
+          mapfile -t packages <<< "${HOST_PACKAGES}"
+          sudo apt-get update
+          sudo apt-get install -y --no-install-recommends "${packages[@]}"
+
+      - name: Build package artifacts on host runner
+        if: ${{ matrix.execution == 'host' }}
+        shell: bash
+        run: |
+          set -euo pipefail
+          bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"
+
+      - name: Build package artifacts on BSD VM
+        if: ${{ matrix.execution == 'bsd_vm' }}
+        # Bound the VM step: cross-platform-actions waits for the VM SSH
+        # handshake forever when the VM never boots.
+        timeout-minutes: 30
+        uses: ./.github/actions/run-bsd-vm-with-retry
+        with:
+          operating_system: ${{ matrix.vm_operating_system }}
+          architecture: ${{ matrix.vm_architecture }}
+          version: ${{ matrix.vm_version }}
+          shell: ${{ matrix.vm_shell }}
+          memory: ${{ matrix.vm_memory }}
+          cpu_count: ${{ matrix.vm_cpu_count }}
+          sync_files: true
+          run_script: |
+            set -euo pipefail
+            bash "${{ matrix.build_script }}" --release "${{ needs.prepare.outputs.release_version }}"
+
+      - name: Upload package artifacts
+        uses: actions/upload-artifact@v6
+        with:
+          name: ${{ matrix.artifact_name }}
+          path: ${{ matrix.artifact_paths }}
+          if-no-files-found: error
+
+  publish-release-assets:
+    needs: [prepare, build]
+    if: ${{ github.ref_type == 'tag' && startsWith(github.ref_name, 'rel-') }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Download package artifacts
+        uses: actions/download-artifact@v7
+        with:
+          path: release-assets
+          merge-multiple: true
+
+      - name: Generate checksums
+        shell: bash
+        working-directory: release-assets
+        run: |
+          set -euo pipefail
+          tmp_checksums="$(mktemp)"
+          find . -type f ! -name SHA256SUMS -printf '%P\n' \
+            | LC_ALL=C sort \
+            | xargs -r sha256sum > "${tmp_checksums}"
+          mv "${tmp_checksums}" SHA256SUMS
+
+      - name: Upload package files to GitHub Release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ github.ref_name }}
+          files: |
+            release-assets/**

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "bsd",
+  "os": "openbsd",
+  "version": "7.7",
+  "package_manager": "pkg_add",
+  "requested_packages": ["gmake", "ninja"],
+  "requested_already_present": [],
+  "requested_missing_before": ["gmake", "ninja"],
+  "requested_newly_installed": [],
+  "requested_missing_after": ["gmake", "ninja"],
+  "all_newly_installed": ["gmake", "ninja"],
+  "indirect_newly_installed": ["gmake", "ninja"],
+  "counts": {
+    "requested_packages": 2,
+    "requested_already_present": 0,
+    "requested_missing_before": 2,
+    "requested_newly_installed": 0,
+    "requested_missing_after": 2,
+    "all_newly_installed": 2,
+    "indirect_newly_installed": 2
+  },
+  "unneeded_packages_status": "undetermined"
+}

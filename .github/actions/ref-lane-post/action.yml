@@ -1,0 +1,126 @@
+name: Reference Lane Post
+description: Shared post-processing for ref lanes (expected-failure policy and artifact uploads).
+
+inputs:
+  lane_post_json:
+    description: Canonical post-processing payload as JSON mapping.
+    required: true
+  lane_outcome:
+    description: Outcome of the lane execution step (success|failure|cancelled|...).
+    required: true
+  dep_if_no_files_found:
+    description: if-no-files-found behavior for dependency report upload.
+    required: false
+    default: warn
+  ref_valid_if_no_files_found:
+    description: if-no-files-found behavior for ref-valid upload.
+    required: false
+    default: warn
+  extra_paths:
+    description: Optional extra paths for compare-mode artifact upload.
+    required: false
+    default: ""
+
+runs:
+  using: composite
+  steps:
+    - name: Write masked lane outcome metadata
+      id: lane_outcome_metadata
+      if: ${{ fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
+      shell: bash
+      env:
+        LANE_POST_JSON: ${{ inputs.lane_post_json }}
+        LANE_OUTCOME: ${{ inputs.lane_outcome }}
+        OUTPUT_DIR: ${{ runner.temp }}/${{ format('lane-outcome-{0}-{1}-{2}', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant) }}
+      run: |
+        set -euo pipefail
+
+        python3 - <<'PY'
+        import json
+        import os
+        from pathlib import Path
+
+        lane_post = json.loads(os.environ["LANE_POST_JSON"])
+        payload = {
+            "lane_name": lane_post.get("lane_name", ""),
+            "lane_outcome": os.environ["LANE_OUTCOME"],
+            "allow_failure_mode": lane_post.get("allow_failure_mode", ""),
+            "lane_allow_failure": lane_post.get("lane_allow_failure", ""),
+            "build_tool": lane_post.get("build_tool", ""),
+            "platform_id": lane_post.get("platform_id", ""),
+            "variant": lane_post.get("variant", ""),
+        }
+        output_dir = Path(os.environ["OUTPUT_DIR"])
+        output_dir.mkdir(parents=True, exist_ok=True)
+        output_path = output_dir / "lane-outcome.json"
+        output_path.write_text(json.dumps(payload, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+        with open(os.environ["GITHUB_OUTPUT"], "a", encoding="utf-8") as handle:
+            handle.write(f"path={output_dir}\n")
+        PY
+
+    - name: Upload masked lane outcome metadata
+      if: ${{ fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ format('lane_outcome__{0}__{1}__{2}__{3}', fromJSON(inputs.lane_post_json).build_tool, fromJSON(inputs.lane_post_json).platform_id, fromJSON(inputs.lane_post_json).variant, fromJSON(inputs.lane_post_json).lane_name) }}
+        path: ${{ steps.lane_outcome_metadata.outputs.path }}
+        if-no-files-found: error
+
+    - name: Enforce expected failure reset
+      if: ${{ fromJSON(inputs.lane_post_json).allow_failure_mode == 'expect_fail' && fromJSON(inputs.lane_post_json).lane_allow_failure == '1' }}
+      shell: bash
+      run: |
+        case "${{ inputs.lane_outcome }}" in
+          failure)
+            echo "allow_failure lane failed as expected."
+            ;;
+          success)
+            echo "allow_failure lane succeeded unexpectedly. Remove allow_failure for this lane." >&2
+            exit 1
+            ;;
+          *)
+            echo "allow_failure lane ended with outcome='${{ inputs.lane_outcome }}'." >&2
+            exit 1
+            ;;
+        esac
+
+    - name: Upload dependency report
+      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts == '1' && (fromJSON(inputs.lane_post_json).goal == 'compare' || inputs.lane_outcome == 'success') }}
+      uses: ./.github/actions/upload-deps-report
+      with:
+        dep_mode: ${{ fromJSON(inputs.lane_post_json).dep_mode }}
+        report_path: ${{ fromJSON(inputs.lane_post_json).ci_deps_report_json }}
+        build_tool: ${{ fromJSON(inputs.lane_post_json).build_tool }}
+        platform_id: ${{ fromJSON(inputs.lane_post_json).platform_id }}
+        variant: ${{ fromJSON(inputs.lane_post_json).variant }}
+        artifact_arch: ${{ fromJSON(inputs.lane_post_json).artifact_arch }}
+        lane_name: ${{ fromJSON(inputs.lane_post_json).lane_name }}
+        if_no_files_found: ${{ inputs.dep_if_no_files_found }}
+
+    - name: Upload references
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'ref' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' && inputs.lane_outcome == 'success' }}
+      uses: actions/upload-artifact@v6
+      with:
+        name: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_name }}
+        path: ${{ fromJSON(inputs.lane_post_json).ref_generate_artifact_path }}
+        if-no-files-found: error
+
+    - name: Upload artifacts
+      if: ${{ fromJSON(inputs.lane_post_json).goal == 'compare' && fromJSON(inputs.lane_post_json).upload_artifacts == '1' }}
+      uses: ./.github/actions/upload-ref-valid-artifacts
+      with:
+        build_tool: ${{ fromJSON(inputs.lane_post_json).build_tool }}
+        platform_id: ${{ fromJSON(inputs.lane_post_json).platform_id }}
+        variant: ${{ fromJSON(inputs.lane_post_json).variant }}
+        artifact_arch: ${{ fromJSON(inputs.lane_post_json).artifact_arch }}
+        if_no_files_found: ${{ inputs.ref_valid_if_no_files_found }}
+        extra_paths: |
+          ${{ inputs.extra_paths }}
+          ${{ fromJSON(inputs.lane_post_json).ref_compare_artifact_path }}
+          ${{ fromJSON(inputs.lane_post_json).ref_compare_refs_path }}
+
+    - name: Skip artifacts when upload is disabled
+      if: ${{ fromJSON(inputs.lane_post_json).upload_artifacts != '1' }}
+      shell: bash
+      run: |
+        echo "Skipping actions/upload-artifact for this lane."

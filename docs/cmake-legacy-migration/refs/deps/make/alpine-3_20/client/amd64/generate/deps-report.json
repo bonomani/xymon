@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "alpine",
+  "os": "alpine",
+  "version": "3",
+  "package_manager": "apk",
+  "requested_packages": ["bash", "build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_already_present": ["bash"],
+  "requested_missing_before": ["build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_newly_installed": ["build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["agetty", "binutils", "blkid", "brotli-libs", "bsd-compat-headers", "build-base", "c-ares", "cfdisk", "diffutils", "dmesg", "e2fsprogs-dev", "e2fsprogs-libs", "file", "findmnt", "findutils", "flock", "fortify-headers", "fstrim", "g++", "gcc", "gdbm", "git", "git-init-template", "glib", "gmp", "hexdump", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libatomic", "libblkid", "libcap-ng", "libcom_err", "libcurl", "libeconf", "libev", "libevent", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmount", "libpsl", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-dev", "libtirpc-nokrb", "libunistring", "libuuid", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "linux-pam", "logger", "losetup", "lsblk", "make", "mcookie", "mount", "mpc1", "mpfr4", "musl-dev", "nghttp2-libs", "openssl-dev", "partx", "patch", "pcre2", "pkgconf", "runuser", "samurai", "setarch", "setpriv", "sfdisk", "skalibs", "sqlite", "sqlite-dev", "sqlite-libs", "umount", "util-linux", "util-linux-dev", "util-linux-misc", "utmps-libs", "uuidgen", "wipefs", "zstd-libs"],
+  "indirect_newly_installed": ["agetty", "binutils", "blkid", "brotli-libs", "bsd-compat-headers", "c-ares", "cfdisk", "dmesg", "e2fsprogs-dev", "e2fsprogs-libs", "file", "findmnt", "flock", "fortify-headers", "fstrim", "g++", "gcc", "gdbm", "git-init-template", "glib", "gmp", "hexdump", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libatomic", "libblkid", "libcap-ng", "libcom_err", "libcurl", "libeconf", "libev", "libevent", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmount", "libpsl", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-nokrb", "libunistring", "libuuid", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "linux-pam", "logger", "losetup", "lsblk", "make", "mcookie", "mount", "mpc1", "mpfr4", "musl-dev", "nghttp2-libs", "partx", "patch", "pcre2", "pkgconf", "runuser", "samurai", "setarch", "setpriv", "sfdisk", "skalibs", "sqlite", "sqlite-dev", "sqlite-libs", "umount", "util-linux", "util-linux-dev", "util-linux-misc", "utmps-libs", "uuidgen", "wipefs", "zstd-libs"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 1,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 7,
+    "requested_missing_after": 0,
+    "all_newly_installed": 100,
+    "indirect_newly_installed": 94
+  },
+  "unneeded_packages_status": "undetermined"
+}
