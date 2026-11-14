@@ -81,3 +81,4 @@ artifacts/
 /pkgbuild/
 /.ci-artifacts/
 /tmp/xymon-refs/
+build/build-id
