@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "alpine",
+  "os": "alpine",
+  "version": "3",
+  "package_manager": "apk",
+  "requested_packages": ["bash", "build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_already_present": ["bash"],
+  "requested_missing_before": ["build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_newly_installed": ["build-base", "diffutils", "findutils", "git", "libtirpc-dev", "ninja", "openssl-dev"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "brotli-libs", "bsd-compat-headers", "build-base", "c-ares", "diffutils", "e2fsprogs-dev", "e2fsprogs-libs", "file", "findutils", "fortify-headers", "g++", "gcc", "gdbm", "git", "glib", "gmp", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libatomic", "libblkid", "libc-dev", "libcom_err", "libcurl", "libev", "libevent", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmount", "libpsl", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-dev", "libtirpc-nokrb", "libunistring", "libuuid", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "make", "mpc1", "mpfr4", "musl-dev", "nghttp2-libs", "openssl-dev", "patch", "pcre2", "pkgconf", "samurai", "util-linux-dev", "zstd-libs"],
+  "indirect_newly_installed": ["binutils", "brotli-libs", "bsd-compat-headers", "c-ares", "e2fsprogs-dev", "e2fsprogs-libs", "file", "fortify-headers", "g++", "gcc", "gdbm", "glib", "gmp", "isl26", "jansson", "keyutils-libs", "krb5-conf", "krb5-dev", "krb5-libs", "krb5-server-ldap", "libatomic", "libblkid", "libc-dev", "libcom_err", "libcurl", "libev", "libevent", "libexpat", "libfdisk", "libffi", "libgcc", "libgomp", "libidn2", "libintl", "libldap", "libmagic", "libmount", "libpsl", "libsasl", "libsmartcols", "libstdc++", "libstdc++-dev", "libtirpc", "libtirpc-conf", "libtirpc-nokrb", "libunistring", "libuuid", "libverto", "libverto-dev", "libverto-glib", "libverto-libev", "libverto-libevent", "make", "mpc1", "mpfr4", "musl-dev", "nghttp2-libs", "patch", "pcre2", "pkgconf", "samurai", "util-linux-dev", "zstd-libs"],
+  "counts": {
+    "requested_packages": 8,
+    "requested_already_present": 1,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 7,
+    "requested_missing_after": 0,
+    "all_newly_installed": 69,
+    "indirect_newly_installed": 63
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "bsd",
+  "os": "freebsd",
+  "version": "13.5",
+  "package_manager": "pkg",
+  "requested_packages": ["cmake", "gmake", "ninja", "pcre"],
+  "requested_already_present": [],
+  "requested_missing_before": ["cmake", "gmake", "ninja", "pcre"],
+  "requested_newly_installed": ["cmake", "gmake", "ninja", "pcre"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["cmake", "cmake-core", "cmake-doc", "cmake-man", "expat", "gmake", "jsoncpp", "libffi", "libuv", "mpdecimal", "ninja", "pcre", "python311", "readline", "rhash"],
+  "indirect_newly_installed": ["cmake-core", "cmake-doc", "cmake-man", "expat", "jsoncpp", "libffi", "libuv", "mpdecimal", "python311", "readline", "rhash"],
+  "counts": {
+    "requested_packages": 4,
+    "requested_already_present": 0,
+    "requested_missing_before": 4,
+    "requested_newly_installed": 4,
+    "requested_missing_after": 0,
+    "all_newly_installed": 15,
+    "indirect_newly_installed": 11
+  },
+  "unneeded_packages_status": "undetermined"
+}

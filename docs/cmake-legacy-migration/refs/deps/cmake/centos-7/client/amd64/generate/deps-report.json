@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "rpm",
+  "os": "centos",
+  "version": "7",
+  "package_manager": "yum",
+  "requested_packages": ["cmake3", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_already_present": ["diffutils", "findutils", "git"],
+  "requested_missing_before": ["cmake3", "gcc", "gcc-c++", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_newly_installed": ["cmake3", "gcc", "gcc-c++", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["cmake3", "cmake3-data", "cpp", "emacs-filesystem", "epel-release", "gcc", "gcc-c++", "glibc-devel", "glibc-headers", "gpg-pubkey", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libcom_err-devel", "libgomp", "libkadm5", "libmpc", "libpipeline", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libtirpc", "libtirpc-devel", "libuv", "libverto-devel", "libzstd", "make", "man-db", "mpfr", "ninja-build", "openssl-devel", "pcre-devel", "python3", "python3-libs", "python3-pip", "python3-setuptools", "rhash", "vim-filesystem", "zlib-devel"],
+  "indirect_newly_installed": ["cmake3-data", "cpp", "emacs-filesystem", "epel-release", "glibc-devel", "glibc-headers", "gpg-pubkey", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libcom_err-devel", "libgomp", "libkadm5", "libmpc", "libpipeline", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libtirpc", "libuv", "libverto-devel", "libzstd", "man-db", "mpfr", "pcre-devel", "python3", "python3-libs", "python3-pip", "python3-setuptools", "rhash", "vim-filesystem", "zlib-devel"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 3,
+    "requested_missing_before": 7,
+    "requested_newly_installed": 7,
+    "requested_missing_after": 0,
+    "all_newly_installed": 39,
+    "indirect_newly_installed": 32
+  },
+  "unneeded_packages_status": "undetermined"
+}

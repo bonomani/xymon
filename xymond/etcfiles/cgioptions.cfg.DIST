@@ -7,7 +7,7 @@
 # So the usual "include" and "directory" definitions 
 # will not work in this file.
 
-XYMONENV=@XYMONHOME@/etc/xymonserver.cfg
+XYMONENV=@INSTALLETCDIR@/xymonserver.cfg
 
 # csvinfo.cgi
 CGI_CSVINFO_OPTS="--env=$XYMONENV"
@@ -71,4 +71,3 @@ CGI_TOPCHANGE_OPTS="--env=$XYMONENV --top"
 CGI_USERADM_OPTS="--env=$XYMONENV"
 # appfeed options
 CGI_APPFEED_OPTS="--env=$XYMONENV"
-

@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "debian",
+  "os": "debian",
+  "version": "bookworm",
+  "package_manager": "apt",
+  "requested_packages": ["build-essential", "findutils", "git", "libc-ares-dev", "libldap-dev", "libpcre3-dev", "librrd-dev", "libsnmp-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_already_present": ["findutils"],
+  "requested_missing_before": ["build-essential", "git", "libc-ares-dev", "libldap-dev", "libpcre3-dev", "librrd-dev", "libsnmp-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_newly_installed": ["build-essential", "git", "libc-ares-dev", "libldap-dev", "libpcre3-dev", "librrd-dev", "libsnmp-dev", "libssl-dev", "libtirpc-dev", "ninja-build"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "build-essential", "bzip2", "cpp", "cpp-12", "dpkg-dev", "fontconfig", "fontconfig-config", "fonts-dejavu-core", "g++", "g++-12", "gcc", "gcc-12", "git", "git-man", "libasan8", "libatomic1", "libbinutils", "libbrotli1", "libbsd0", "libc-ares-dev", "libc-ares2", "libc-dev-bin", "libc6-dev", "libcairo2", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libdatrie1", "libdbi1", "libdpkg-perl", "liberror-perl", "libexpat1", "libfontconfig1", "libfreetype6", "libfribidi0", "libgcc-12-dev", "libgdbm-compat4", "libgdbm6", "libglib2.0-0", "libgomp1", "libgprofng0", "libgraphite2-3", "libgssapi-krb5-2", "libharfbuzz0b", "libicu72", "libisl23", "libitm1", "libjansson4", "libk5crypto3", "libkeyutils1", "libkrb5-3", "libkrb5support0", "libldap-2.5-0", "libldap-dev", "liblsan0", "libmariadb3", "libmpc3", "libncursesw6", "libnetsnmptrapd40", "libnghttp2-14", "libnsl-dev", "libnsl2", "libpango-1.0-0", "libpangocairo-1.0-0", "libpangoft2-1.0-0", "libpci-dev", "libpci3", "libpcre16-3", "libpcre3", "libpcre3-dev", "libpcre32-3", "libpcrecpp0v5", "libperl5.36", "libpixman-1-0", "libpng16-16", "libproc2-0", "libpsl5", "libquadmath0", "librrd-dev", "librrd8", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libsensors-config", "libsensors-dev", "libsensors5", "libsnmp-base", "libsnmp-dev", "libsnmp40", "libssh2-1", "libssl-dev", "libstdc++-12-dev", "libthai-data", "libthai0", "libtirpc-common", "libtirpc-dev", "libtirpc3", "libtsan2", "libubsan1", "libudev-dev", "libwrap0", "libwrap0-dev", "libx11-6", "libx11-data", "libxau6", "libxcb-render0", "libxcb-shm0", "libxcb1", "libxdmcp6", "libxext6", "libxml2", "libxrender1", "linux-libc-dev", "make", "mariadb-common", "mysql-common", "ninja-build", "patch", "pci.ids", "perl", "perl-modules-5.36", "procps", "rpcsvc-proto", "xz-utils", "zlib1g-dev"],
+  "indirect_newly_installed": ["binutils", "binutils-common", "binutils-x86-64-linux-gnu", "bzip2", "cpp", "cpp-12", "dpkg-dev", "fontconfig", "fontconfig-config", "fonts-dejavu-core", "g++", "g++-12", "gcc", "gcc-12", "git-man", "libasan8", "libatomic1", "libbinutils", "libbrotli1", "libbsd0", "libc-ares2", "libc-dev-bin", "libc6-dev", "libcairo2", "libcc1-0", "libcrypt-dev", "libctf-nobfd0", "libctf0", "libcurl3-gnutls", "libdatrie1", "libdbi1", "libdpkg-perl", "liberror-perl", "libexpat1", "libfontconfig1", "libfreetype6", "libfribidi0", "libgcc-12-dev", "libgdbm-compat4", "libgdbm6", "libglib2.0-0", "libgomp1", "libgprofng0", "libgraphite2-3", "libgssapi-krb5-2", "libharfbuzz0b", "libicu72", "libisl23", "libitm1", "libjansson4", "libk5crypto3", "libkeyutils1", "libkrb5-3", "libkrb5support0", "libldap-2.5-0", "liblsan0", "libmariadb3", "libmpc3", "libncursesw6", "libnetsnmptrapd40", "libnghttp2-14", "libnsl-dev", "libnsl2", "libpango-1.0-0", "libpangocairo-1.0-0", "libpangoft2-1.0-0", "libpci-dev", "libpci3", "libpcre16-3", "libpcre3", "libpcre32-3", "libpcrecpp0v5", "libperl5.36", "libpixman-1-0", "libpng16-16", "libproc2-0", "libpsl5", "libquadmath0", "librrd8", "librtmp1", "libsasl2-2", "libsasl2-modules-db", "libsensors-config", "libsensors-dev", "libsensors5", "libsnmp-base", "libsnmp40", "libssh2-1", "libstdc++-12-dev", "libthai-data", "libthai0", "libtirpc-common", "libtirpc3", "libtsan2", "libubsan1", "libudev-dev", "libwrap0", "libwrap0-dev", "libx11-6", "libx11-data", "libxau6", "libxcb-render0", "libxcb-shm0", "libxcb1", "libxdmcp6", "libxext6", "libxml2", "libxrender1", "linux-libc-dev", "make", "mariadb-common", "mysql-common", "patch", "pci.ids", "perl", "perl-modules-5.36", "procps", "rpcsvc-proto", "xz-utils", "zlib1g-dev"],
+  "counts": {
+    "requested_packages": 11,
+    "requested_already_present": 1,
+    "requested_missing_before": 10,
+    "requested_newly_installed": 10,
+    "requested_missing_after": 0,
+    "all_newly_installed": 130,
+    "indirect_newly_installed": 120
+  },
+  "unneeded_packages_status": "undetermined"
+}

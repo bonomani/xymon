@@ -1,0 +1,106 @@
+name: Pipeline - Analyze Selector Run
+
+on:
+  workflow_dispatch:
+    inputs:
+      selection_mode:
+        description: How to choose the selector workflow run
+        required: true
+        default: latest
+        type: choice
+        options:
+          - explicit
+          - latest
+      run_selector:
+        description: Selector run reference used when selection_mode=explicit (numeric ID, run URL, or "... #N")
+        required: false
+        type: string
+      source_branch:
+        description: Branch filter used when selection_mode=latest
+        required: false
+        type: string
+      event_filter:
+        description: Event filter used when selection_mode=latest
+        required: true
+        default: workflow_dispatch
+        type: choice
+        options:
+          - workflow_dispatch
+          - all
+  workflow_run:
+    workflows:
+      - Pipeline - Select and Run Lanes (Advanced)
+    types:
+      - completed
+
+permissions:
+  actions: read
+  contents: read
+
+jobs:
+  analyze:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Analyze selector run
+        id: analyze
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          ANALYZE_SELECTION_MODE: ${{ github.event_name == 'workflow_run' && 'explicit' || inputs.selection_mode }}
+          ANALYZE_RUN_SELECTOR: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.id || inputs.run_selector }}
+          ANALYZE_BRANCH: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.head_branch || inputs.source_branch }}
+          ANALYZE_EVENT: ${{ github.event_name == 'workflow_run' && github.event.workflow_run.event || inputs.event_filter }}
+          ANALYZE_DEFAULT_BRANCH: ${{ github.ref_name }}
+        run: |
+          set -euo pipefail
+
+          markdown="${RUNNER_TEMP}/ref-make-analysis.md"
+          report_json="${RUNNER_TEMP}/ref-make-analysis.json"
+          args=(
+            --repo "${GITHUB_REPOSITORY}"
+            --workflow "pipeline-select-run-lanes.yml"
+            --markdown-output "${markdown}"
+            --json-output "${report_json}"
+            --github-output "${GITHUB_OUTPUT}"
+          )
+
+          case "${ANALYZE_SELECTION_MODE}" in
+            explicit)
+              if [[ -z "${ANALYZE_RUN_SELECTOR}" ]]; then
+                echo "selection_mode=explicit requires run_selector" >&2
+                exit 1
+              fi
+              args+=(--run-selector "${ANALYZE_RUN_SELECTOR}")
+              ;;
+            latest)
+              branch_filter="${ANALYZE_BRANCH:-${ANALYZE_DEFAULT_BRANCH}}"
+              if [[ -n "${branch_filter}" ]]; then
+                args+=(--branch "${branch_filter}")
+              fi
+
+              if [[ -n "${ANALYZE_EVENT}" ]]; then
+                args+=(--event "${ANALYZE_EVENT}")
+              fi
+              ;;
+            *)
+              echo "Unsupported selection_mode: ${ANALYZE_SELECTION_MODE}" >&2
+              exit 1
+              ;;
+          esac
+
+          python3 ci/run/ref/analyze-ref-generation-run.py "${args[@]}"
+
+          cat "${markdown}" >> "${GITHUB_STEP_SUMMARY}"
+
+      - name: Upload analysis artifact
+        uses: actions/upload-artifact@v6
+        with:
+          name: ref_make_analysis_${{ steps.analyze.outputs.run_id }}
+          path: |
+            ${{ runner.temp }}/ref-make-analysis.md
+            ${{ runner.temp }}/ref-make-analysis.json

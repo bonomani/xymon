@@ -1,0 +1,83 @@
+containers:
+  selection:
+    tag_patterns:
+      debian:
+        - '^\d+$'
+        - '^\d+-slim$'          # majors only; point releases churn and fill the 1000-tag window
+      ubuntu:
+        - '^\d*[02468]\.04$'    # LTS: .04 of even years only; 25.04 is an interim release
+      amazonlinux:
+        - '^2$'
+        - '^2023$'
+      rockylinux:
+        - '^\d+$'
+      oraclelinux:
+        - '^\d+$'
+        - '^\d+-slim$'
+      almalinux:
+        - '^\d+$'
+      centos:
+        - '^7$'
+      fedora:
+        - '^\d+$'
+      opensuse_tumbleweed:
+        - '^latest$'
+      opensuse_leap:
+        - '^1[5-9]\.\d+$'       # current numbering; 42.x (2015-2017) sorts above 16.x
+      alpine:
+        - '^\d+\.\d+$'
+        - '^edge$'
+      archlinux:
+        - '^latest$'
+        - '^base$'
+    rules:
+      debian:
+        keep_latest_n_major: 3
+      ubuntu:
+        keep_latest_n_stable: 3
+      rockylinux:
+        keep_latest_n_stable: 3
+      oraclelinux:
+        keep_latest_n_major: 3
+      almalinux:
+        keep_latest_n_stable: 3
+      fedora:
+        keep_latest_n_stable: 2
+        released_from: fedora      # endoflife.date product; Docker Hub carries unreleased 45, 46
+      opensuse_tumbleweed:
+        include_moving_targets: true
+      opensuse_leap:
+        keep_latest_n_stable: 3
+      alpine:
+        keep_latest_n_stable: 4
+        include_moving_targets: true
+      archlinux:
+        include_moving_targets: true
+
+  runtime_preference:
+    default:
+      - linux_container
+    overrides:
+      ubuntu:
+        - linux_host
+        - linux_container
+
+vms:
+  selection:
+    rules:
+      freebsd:
+        keep_latest_n_stable: 5
+      netbsd:
+        # The two newest major releases: NetBSD supports those and no older,
+        # and a retired major's binary packages leave the mirrors the lanes
+        # install from -- 9.x did when it reached end of life in 2026-08.
+        keep_latest_n_major: 2
+      openbsd:
+        keep_latest_n_stable: 4
+
+hosts:
+  selection:
+    rules:
+      macos:
+        keep_latest_n_stable: 2
+        include_moving_targets: true

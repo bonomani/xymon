@@ -10,6 +10,9 @@ on:
 permissions:
   contents: write
 
+env:
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: "true"
+
 jobs:
   build-and-release:
     runs-on: ubuntu-latest
@@ -28,9 +31,11 @@ jobs:
           NAME="xymon-${TAG#rel-}"          # 1.2.3
           ASSET="${NAME}.tar.gz"      # xymon-1.2.3.tar.gz
 
-          echo "tag=${TAG}"   >> "${GITHUB_OUTPUT}"
-          echo "name=${NAME}" >> "${GITHUB_OUTPUT}"
-          echo "asset=${ASSET}" >> "${GITHUB_OUTPUT}"
+          {
+            echo "tag=${TAG}"
+            echo "name=${NAME}"
+            echo "asset=${ASSET}"
+          } >> "${GITHUB_OUTPUT}"
 #---------------------------------------------------
       - name: Check the tagged commit was prepared for this version
         shell: bash
@@ -81,7 +86,6 @@ jobs:
           files: |
             ${{ steps.vars.outputs.asset }}
             ${{ steps.vars.outputs.asset }}.sha256
-
 
 #===================================================
   # After the tarball, propose main's next version. include/version.h still

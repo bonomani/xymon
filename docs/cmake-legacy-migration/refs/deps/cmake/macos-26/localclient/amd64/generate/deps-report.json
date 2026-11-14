@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "macos",
+  "os": "macos",
+  "version": "latest",
+  "package_manager": "brew",
+  "requested_packages": ["clang", "cmake", "libtirpc", "make", "ninja", "openssl@3", "pcre2"],
+  "requested_already_present": ["cmake", "ninja", "openssl@3", "pcre2"],
+  "requested_missing_before": ["clang", "libtirpc", "make"],
+  "requested_newly_installed": ["libtirpc", "make"],
+  "requested_missing_after": ["clang"],
+  "all_newly_installed": ["libtirpc", "make", "pcre"],
+  "indirect_newly_installed": ["pcre"],
+  "counts": {
+    "requested_packages": 7,
+    "requested_already_present": 4,
+    "requested_missing_before": 3,
+    "requested_newly_installed": 2,
+    "requested_missing_after": 1,
+    "all_newly_installed": 3,
+    "indirect_newly_installed": 1
+  },
+  "unneeded_packages_status": "undetermined"
+}

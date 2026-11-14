@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "client",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "rpm",
+  "os": "oraclelinux",
+  "version": "10",
+  "package_manager": "dnf",
+  "requested_packages": ["cmake", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_already_present": ["diffutils", "findutils"],
+  "requested_missing_before": ["cmake", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_newly_installed": ["cmake", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "ninja-build", "openssl-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["binutils", "binutils-gold", "cmake", "cmake-data", "cmake-filesystem", "cpp", "elfutils-debuginfod-client", "emacs-filesystem", "gcc", "gcc-c++", "git", "git-core", "git-core-doc", "glibc-devel", "groff-base", "jansson", "kernel-headers", "less", "libasan", "libatomic", "libmpc", "libpkgconf", "libstdc++-devel", "libtirpc", "libtirpc-devel", "libubsan", "libuv", "libxcrypt-devel", "make", "ncurses", "ninja-build", "openssl-devel", "oracle-epel-release-el10", "perl-AutoLoader", "perl-B", "perl-Carp", "perl-Class-Struct", "perl-Data-Dumper", "perl-Digest", "perl-Digest-MD5", "perl-DynaLoader", "perl-Encode", "perl-Errno", "perl-Error", "perl-Exporter", "perl-Fcntl", "perl-File-Basename", "perl-File-Find", "perl-File-Path", "perl-File-Temp", "perl-File-stat", "perl-FileHandle", "perl-Getopt-Long", "perl-Getopt-Std", "perl-Git", "perl-HTTP-Tiny", "perl-IO", "perl-IO-Socket-IP", "perl-IO-Socket-SSL", "perl-IPC-Open3", "perl-MIME-Base64", "perl-Mozilla-CA", "perl-NDBM_File", "perl-Net-SSLeay", "perl-POSIX", "perl-PathTools", "perl-Pod-Escapes", "perl-Pod-Perldoc", "perl-Pod-Simple", "perl-Pod-Usage", "perl-Scalar-List-Utils", "perl-SelectSaver", "perl-Socket", "perl-Storable", "perl-Symbol", "perl-Term-ANSIColor", "perl-Term-Cap", "perl-TermReadKey", "perl-Text-ParseWords", "perl-Text-Tabs+Wrap", "perl-Time-Local", "perl-URI", "perl-base", "perl-constant", "perl-if", "perl-interpreter", "perl-lib", "perl-libnet", "perl-libs", "perl-locale", "perl-mro", "perl-overload", "perl-overloading", "perl-parent", "perl-podlators", "perl-vars", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "vim-filesystem"],
+  "indirect_newly_installed": ["binutils", "binutils-gold", "cmake-data", "cmake-filesystem", "cpp", "elfutils-debuginfod-client", "emacs-filesystem", "git-core", "git-core-doc", "glibc-devel", "groff-base", "jansson", "kernel-headers", "less", "libasan", "libatomic", "libmpc", "libpkgconf", "libstdc++-devel", "libtirpc", "libubsan", "libuv", "libxcrypt-devel", "ncurses", "oracle-epel-release-el10", "perl-AutoLoader", "perl-B", "perl-Carp", "perl-Class-Struct", "perl-Data-Dumper", "perl-Digest", "perl-Digest-MD5", "perl-DynaLoader", "perl-Encode", "perl-Errno", "perl-Error", "perl-Exporter", "perl-Fcntl", "perl-File-Basename", "perl-File-Find", "perl-File-Path", "perl-File-Temp", "perl-File-stat", "perl-FileHandle", "perl-Getopt-Long", "perl-Getopt-Std", "perl-Git", "perl-HTTP-Tiny", "perl-IO", "perl-IO-Socket-IP", "perl-IO-Socket-SSL", "perl-IPC-Open3", "perl-MIME-Base64", "perl-Mozilla-CA", "perl-NDBM_File", "perl-Net-SSLeay", "perl-POSIX", "perl-PathTools", "perl-Pod-Escapes", "perl-Pod-Perldoc", "perl-Pod-Simple", "perl-Pod-Usage", "perl-Scalar-List-Utils", "perl-SelectSaver", "perl-Socket", "perl-Storable", "perl-Symbol", "perl-Term-ANSIColor", "perl-Term-Cap", "perl-TermReadKey", "perl-Text-ParseWords", "perl-Text-Tabs+Wrap", "perl-Time-Local", "perl-URI", "perl-base", "perl-constant", "perl-if", "perl-interpreter", "perl-lib", "perl-libnet", "perl-libs", "perl-locale", "perl-mro", "perl-overload", "perl-overloading", "perl-parent", "perl-podlators", "perl-vars", "pkgconf", "pkgconf-m4", "pkgconf-pkg-config", "vim-filesystem"],
+  "counts": {
+    "requested_packages": 10,
+    "requested_already_present": 2,
+    "requested_missing_before": 8,
+    "requested_newly_installed": 8,
+    "requested_missing_after": 0,
+    "all_newly_installed": 100,
+    "indirect_newly_installed": 92
+  },
+  "unneeded_packages_status": "undetermined"
+}

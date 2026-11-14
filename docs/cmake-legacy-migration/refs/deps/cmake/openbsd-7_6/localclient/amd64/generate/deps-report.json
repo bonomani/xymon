@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "localclient",
+  "enable_ldap": "OFF",
+  "enable_snmp": "OFF",
+  "family": "bsd",
+  "os": "openbsd",
+  "version": "7.6",
+  "package_manager": "pkg_add",
+  "requested_packages": ["cmake", "gmake", "ninja", "pcre"],
+  "requested_already_present": [],
+  "requested_missing_before": ["cmake", "gmake", "ninja", "pcre"],
+  "requested_newly_installed": [],
+  "requested_missing_after": ["cmake", "gmake", "ninja", "pcre"],
+  "all_newly_installed": ["bzip2", "cmake", "gmake", "jsoncpp", "libarchive", "libb2", "libuv", "ninja", "pcre", "rhash"],
+  "indirect_newly_installed": ["bzip2", "cmake", "gmake", "jsoncpp", "libarchive", "libb2", "libuv", "ninja", "pcre", "rhash"],
+  "counts": {
+    "requested_packages": 4,
+    "requested_already_present": 0,
+    "requested_missing_before": 4,
+    "requested_newly_installed": 0,
+    "requested_missing_after": 4,
+    "all_newly_installed": 10,
+    "indirect_newly_installed": 10
+  },
+  "unneeded_packages_status": "undetermined"
+}

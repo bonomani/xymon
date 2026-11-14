@@ -1,0 +1,30 @@
+{
+  "mode": "generate",
+  "installer_mode": "install",
+  "status": "success",
+  "command_exit_code": 0,
+  "variant": "server",
+  "enable_ldap": "ON",
+  "enable_snmp": "ON",
+  "family": "rpm",
+  "os": "centos",
+  "version": "7",
+  "package_manager": "yum",
+  "requested_packages": ["c-ares-devel", "diffutils", "findutils", "gcc", "gcc-c++", "git", "libtirpc-devel", "make", "net-snmp-devel", "ninja-build", "openldap-devel", "openssl-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_already_present": ["diffutils", "findutils", "git"],
+  "requested_missing_before": ["c-ares-devel", "gcc", "gcc-c++", "libtirpc-devel", "make", "net-snmp-devel", "ninja-build", "openldap-devel", "openssl-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_newly_installed": ["c-ares-devel", "gcc", "gcc-c++", "libtirpc-devel", "make", "net-snmp-devel", "ninja-build", "openldap-devel", "openssl-devel", "pcre-devel", "rrdtool-devel"],
+  "requested_missing_after": [],
+  "all_newly_installed": ["c-ares", "c-ares-devel", "cairo", "cpp", "cyrus-sasl", "cyrus-sasl-devel", "dejavu-fonts-common", "dejavu-sans-fonts", "dejavu-sans-mono-fonts", "elfutils-devel", "elfutils-libelf-devel", "emacs-filesystem", "epel-release", "fontconfig", "fontpackages-filesystem", "freetype", "fribidi", "gcc", "gcc-c++", "gdbm-devel", "glibc-devel", "glibc-headers", "gpg-pubkey", "graphite2", "harfbuzz", "hwdata", "initscripts", "iproute", "iptables", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libX11", "libX11-common", "libXau", "libXdamage", "libXext", "libXfixes", "libXft", "libXrender", "libXxf86vm", "libcom_err-devel", "libdb-devel", "libdrm", "libglvnd", "libglvnd-egl", "libglvnd-glx", "libgomp", "libkadm5", "libmnl", "libmpc", "libnetfilter_conntrack", "libnfnetlink", "libpciaccess", "libpipeline", "libpng", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libthai", "libtirpc", "libtirpc-devel", "libverto-devel", "libwayland-client", "libwayland-server", "libxcb", "libxshmfence", "lm_sensors-devel", "lm_sensors-libs", "make", "man-db", "mariadb-libs", "mesa-libEGL", "mesa-libGL", "mesa-libgbm", "mesa-libglapi", "mpfr", "net-snmp", "net-snmp-agent-libs", "net-snmp-devel", "net-snmp-libs", "ninja-build", "openldap-devel", "openssl-devel", "pango", "pcre-devel", "perl-Data-Dumper", "perl-ExtUtils-Install", "perl-ExtUtils-MakeMaker", "perl-ExtUtils-Manifest", "perl-ExtUtils-ParseXS", "perl-Test-Harness", "perl-devel", "pixman", "popt-devel", "pyparsing", "rpm-devel", "rrdtool", "rrdtool-devel", "systemd-sysv", "systemtap-sdt-devel", "sysvinit-tools", "tcp_wrappers-devel", "tcp_wrappers-libs", "vim-filesystem", "xz-devel", "zlib-devel"],
+  "indirect_newly_installed": ["c-ares", "cairo", "cpp", "cyrus-sasl", "cyrus-sasl-devel", "dejavu-fonts-common", "dejavu-sans-fonts", "dejavu-sans-mono-fonts", "elfutils-devel", "elfutils-libelf-devel", "emacs-filesystem", "epel-release", "fontconfig", "fontpackages-filesystem", "freetype", "fribidi", "gdbm-devel", "glibc-devel", "glibc-headers", "gpg-pubkey", "graphite2", "harfbuzz", "hwdata", "initscripts", "iproute", "iptables", "kernel-headers", "keyutils-libs-devel", "krb5-devel", "libX11", "libX11-common", "libXau", "libXdamage", "libXext", "libXfixes", "libXft", "libXrender", "libXxf86vm", "libcom_err-devel", "libdb-devel", "libdrm", "libglvnd", "libglvnd-egl", "libglvnd-glx", "libgomp", "libkadm5", "libmnl", "libmpc", "libnetfilter_conntrack", "libnfnetlink", "libpciaccess", "libpipeline", "libpng", "libselinux-devel", "libsepol-devel", "libstdc++-devel", "libthai", "libtirpc", "libverto-devel", "libwayland-client", "libwayland-server", "libxcb", "libxshmfence", "lm_sensors-devel", "lm_sensors-libs", "man-db", "mariadb-libs", "mesa-libEGL", "mesa-libGL", "mesa-libgbm", "mesa-libglapi", "mpfr", "net-snmp", "net-snmp-agent-libs", "net-snmp-libs", "pango", "perl-Data-Dumper", "perl-ExtUtils-Install", "perl-ExtUtils-MakeMaker", "perl-ExtUtils-Manifest", "perl-ExtUtils-ParseXS", "perl-Test-Harness", "perl-devel", "pixman", "popt-devel", "pyparsing", "rpm-devel", "rrdtool", "systemd-sysv", "systemtap-sdt-devel", "sysvinit-tools", "tcp_wrappers-devel", "tcp_wrappers-libs", "vim-filesystem", "xz-devel", "zlib-devel"],
+  "counts": {
+    "requested_packages": 14,
+    "requested_already_present": 3,
+    "requested_missing_before": 11,
+    "requested_newly_installed": 11,
+    "requested_missing_after": 0,
+    "all_newly_installed": 107,
+    "indirect_newly_installed": 96
+  },
+  "unneeded_packages_status": "undetermined"
+}

@@ -1,0 +1,97 @@
+{
+  "sections": [
+    {
+      "id": "preset_identity",
+      "title": "Preset identity",
+      "fields": [
+        { "id": "name", "type": "string", "cmake_key": "name", "help": "Preset name" },
+        { "id": "displayName", "type": "string", "cmake_key": "displayName" },
+        { "id": "generator", "type": "string", "default": "Unix Makefiles", "cmake_key": "generator" },
+        { "id": "binaryDir", "type": "computed", "template": "build/${name}", "cmake_key": "binaryDir" }
+      ]
+    },
+
+    {
+      "id": "variant",
+      "title": "Variant",
+      "fields": [
+        { "id": "VARIANT", "type": "enum", "enum": ["server", "client"], "cmake_key": "VARIANT" },
+        {
+          "id": "LOCALCLIENT",
+          "type": "enum",
+          "enum": ["local", "remote"],
+          "cmake_key": "LOCALCLIENT",
+          "visible_if": { "VARIANT": "client" }
+        }
+      ]
+    },
+
+    {
+      "id": "layout",
+      "title": "Installation layout",
+      "fields": [
+        {
+          "id": "USE_GNUINSTALLDIRS",
+          "type": "bool_onoff",
+          "cmake_key": "USE_GNUINSTALLDIRS"
+        },
+        {
+          "id": "CMAKE_INSTALL_PREFIX",
+          "type": "string",
+          "default": "/usr/local",
+          "cmake_key": "CMAKE_INSTALL_PREFIX",
+          "visible_if": { "USE_GNUINSTALLDIRS": "ON" }
+        }
+      ]
+    },
+
+    {
+      "id": "features",
+      "title": "Feature toggles",
+      "fields": [
+        { "id": "ENABLE_RRD", "type": "bool_onoff", "cmake_key": "ENABLE_RRD" },
+        { "id": "ENABLE_SNMP", "type": "bool_onoff", "cmake_key": "ENABLE_SNMP" },
+        { "id": "ENABLE_SSL", "type": "bool_onoff", "cmake_key": "ENABLE_SSL" },
+        { "id": "ENABLE_LDAP", "type": "bool_onoff", "cmake_key": "ENABLE_LDAP" }
+      ]
+    },
+
+    {
+      "id": "paths",
+      "title": "Xymon directory layout",
+      "fields": [
+        { "id": "XYMONTOPDIR", "type": "string", "cmake_key": "XYMONTOPDIR", "default": "/var/lib/xymon" },
+        { "id": "XYMONHOME", "type": "string", "cmake_key": "XYMONHOME", "default_if": "XYMONTOPDIR + '/server'" },
+        { "id": "XYMONCLIENTHOME", "type": "string", "cmake_key": "XYMONCLIENTHOME", "default_if": "XYMONTOPDIR + '/client'" },
+        { "id": "XYMONVAR", "type": "string", "cmake_key": "XYMONVAR", "default_if": "XYMONTOPDIR + '/data'" },
+        { "id": "XYMONLOGDIR", "type": "string", "cmake_key": "XYMONLOGDIR", "default": "/var/log/xymon" },
+        { "id": "CGIDIR", "type": "string", "cmake_key": "CGIDIR", "default": "/var/lib/xymon/cgi-bin" },
+        { "id": "SECURECGIDIR", "type": "string", "cmake_key": "SECURECGIDIR", "default": "/var/lib/xymon/cgi-secure" },
+        {
+          "id": "MANROOT",
+          "type": "string",
+          "cmake_key": "MANROOT",
+          "default_if": "CMAKE_INSTALL_PREFIX + '/man'"
+        }
+      ]
+    },
+
+    {
+      "id": "libraries",
+      "title": "Library overrides",
+      "fields": [
+        { "id": "RRDINCDIR", "type": "path_optional", "cmake_key": "RRDINCDIR" },
+        { "id": "RRDLIBDIR", "type": "path_optional", "cmake_key": "RRDLIBDIR" },
+        { "id": "PCREINCDIR", "type": "path_optional", "cmake_key": "PCREINCDIR" },
+        { "id": "PCRELIBDIR", "type": "path_optional", "cmake_key": "PCRELIBDIR" },
+        { "id": "SSLINCDIR", "type": "path_optional", "cmake_key": "SSLINCDIR" },
+        { "id": "SSLLIBDIR", "type": "path_optional", "cmake_key": "SSLLIBDIR" },
+        { "id": "LDAPINCDIR", "type": "path_optional", "cmake_key": "LDAPINCDIR" },
+        { "id": "LDAPLIBDIR", "type": "path_optional", "cmake_key": "LDAPLIBDIR" },
+        { "id": "CARESINCDIR", "type": "path_optional", "cmake_key": "CARESINCDIR" },
+        { "id": "CARESLIBDIR", "type": "path_optional", "cmake_key": "CARESLIBDIR" }
+      ]
+    }
+  ]
+}
+

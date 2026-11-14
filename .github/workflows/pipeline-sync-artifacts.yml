@@ -1,0 +1,139 @@
+name: Pipeline - Sync Artifacts to Branch
+
+on:
+  workflow_dispatch:
+    inputs:
+      source_run_id:
+        description: Optional selector run references (comma/newline-separated database ids, run URLs, or "... #N") to download legacy reference artifacts from
+        required: false
+        default: ""
+      source_branch:
+        description: Branch to pull legacy reference artifacts from
+        required: false
+        default: cmake/bootstrap
+      target_branch:
+        description: Merge-friendly branch to commit updated references into
+        required: false
+        default: ci/references-update
+
+permissions:
+  contents: write
+
+jobs:
+  sync-references:
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 0
+
+      - name: Download reference artifacts
+        shell: bash
+        env:
+          GH_TOKEN: ${{ github.token }}
+          INPUT_SOURCE_RUN_ID: ${{ inputs.source_run_id }}
+        run: |
+          set -euo pipefail
+          artifacts_dir="/tmp/reference-artifacts"
+          run_id_file="/tmp/pipeline-sync-source-run-ids.txt"
+          rm -rf "${artifacts_dir}"
+          mkdir -p "${artifacts_dir}"
+          rm -f "${run_id_file}"
+          workflow="pipeline-select-run-lanes.yml"
+          python3 ci/run/ref/resolve-sync-artifact-runs.py \
+            --repo "${GITHUB_REPOSITORY}" \
+            --workflow "${workflow}" \
+            --branch "${{ inputs.source_branch }}" \
+            --run-selector "${INPUT_SOURCE_RUN_ID}" \
+            > "${run_id_file}"
+          mapfile -t run_ids < <(sed -e '/^[[:space:]]*$/d' "${run_id_file}")
+
+          if [ "${#run_ids[@]}" -eq 0 ]; then
+            if [ -n "${INPUT_SOURCE_RUN_ID}" ]; then
+              echo "Requested run selector(s) ${INPUT_SOURCE_RUN_ID} have no downloadable ref_* artifacts" >&2
+            else
+              echo "No successful run found for ${workflow} on branch ${{ inputs.source_branch }} with downloadable ref_* artifacts" >&2
+            fi
+            exit 1
+          fi
+
+          # Download into a single root. gh creates one subdir per artifact name.
+          # This avoids an extra workflow-name directory layer.
+          for run_id in "${run_ids[@]}"; do
+            gh run download "${run_id}" --repo "${GITHUB_REPOSITORY}" --dir "${artifacts_dir}"
+          done
+
+          stager_script="/tmp/stage-ref-artifacts.sh"
+          install -m 0755 ci/run/ref/stage-ref-artifacts.sh "${stager_script}"
+          printf 'REF_STAGE_SCRIPT=%s\n' "${stager_script}" >> "${GITHUB_ENV}"
+
+      - name: Create archive tag
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_dir="docs/refs"
+          artifacts_dir="/tmp/reference-artifacts"
+          archive_tag="ci/refs/$(date -u +%Y%m%d)-${GITHUB_RUN_ID}"
+
+          git checkout --orphan "tmp-archive-${GITHUB_RUN_ID}"
+          git rm -rf . >/dev/null 2>&1 || true
+          git clean -fdx
+
+          mkdir -p "${ref_dir}"
+          bash "${REF_STAGE_SCRIPT}" \
+            --artifacts-dir "${artifacts_dir}" \
+            --ref-dir "${ref_dir}"
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${ref_dir}"
+          git commit -m "Archive: refs snapshot (run ${GITHUB_RUN_ID})"
+          git tag "${archive_tag}"
+          git push origin "${archive_tag}"
+          echo "Created archive tag: ${archive_tag}"
+
+      - name: Sync merge-friendly branch
+        shell: bash
+        run: |
+          set -euo pipefail
+          ref_dir="docs/refs"
+          artifacts_dir="/tmp/reference-artifacts"
+          source_branch="${{ inputs.source_branch }}"
+          target_branch="${{ inputs.target_branch }}"
+
+          git clean -fd "${ref_dir}"
+          git checkout -- "${ref_dir}" || true
+
+          git fetch origin "${source_branch}"
+          if git fetch origin "${target_branch}"; then
+            if ! git merge-base --is-ancestor "origin/${source_branch}" "origin/${target_branch}"; then
+              echo "Target branch is not based on ${source_branch}; recreating ${target_branch}."
+              git push origin --delete "${target_branch}" || true
+              git checkout -B "${target_branch}" "origin/${source_branch}"
+            else
+              git checkout -B "${target_branch}" "origin/${target_branch}"
+            fi
+          else
+            git checkout -B "${target_branch}" "origin/${source_branch}"
+          fi
+
+          git clean -fd "${ref_dir}"
+          git checkout -- "${ref_dir}" >/dev/null 2>&1 || true
+          mkdir -p "${ref_dir}"
+          find "${ref_dir}" -type f -delete
+
+          bash "${REF_STAGE_SCRIPT}" \
+            --artifacts-dir "${artifacts_dir}" \
+            --ref-dir "${ref_dir}"
+
+          if [ -z "$(git status --porcelain)" ]; then
+            echo "No legacy reference changes to commit on merge-friendly branch."
+            exit 0
+          fi
+
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add "${ref_dir}"
+          git commit -m "Update reference artifacts"
+          git push -u origin "${target_branch}"

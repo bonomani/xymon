@@ -1,0 +1,86 @@
+variants:
+  client: {}
+
+  localclient:
+    profiles:
+      linux_default:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            remove: []
+      macos_default:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            remove: []
+      bsd_freebsd:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            remove: []
+      bsd_net_open:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            remove: []
+
+  server:
+    profiles:
+      linux_default:
+        libs:
+          mandatory:
+            add:
+            - CARES
+            - PCRE
+            - RRD
+            - LDAP
+            - NETSNMP
+            remove: []
+      macos_default:
+        libs:
+          mandatory:
+            add:
+            - CARES
+            - PCRE
+            - RRD
+            - LDAP
+            - NETSNMP
+            remove: []
+      bsd_freebsd:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            remove: []
+      bsd_net_open:
+        libs:
+          mandatory:
+            add:
+            - PCRE
+            - RRD
+            - CARES
+            - NETSNMP
+            - LDAP
+            remove: []
+    runtime:
+      libs:
+        optional:
+        - OpenSSL
+        - OpenLDAP client
+        - net-snmp
+        - c-ares
+      tools:
+        mandatory:
+        - sendmail (or equivalent)
+        - fping
+        - mtr
+        - perl
+        - python

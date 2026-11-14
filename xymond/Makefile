@@ -125,7 +125,7 @@ rrdcachectl: $(RRDCACHECTLOBJS) $(XYMONCOMMLIB)
 	$(CC) $(LDFLAGS) $(CFLAGS) -o $@ $(RPATHOPT) $(RRDCACHECTLOBJS) $(XYMONCOMMLIBS)
 
 xymon.sh: xymon.sh.DIST
-	cat $< | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' | sed -e 's!@XYMONLOGDIR@!$(XYMONLOGDIR)!g' | sed -e 's!@XYMONRUNDIR@!$(XYMONRUNDIR)!g' | sed -e 's!@XYMONUSER@!$(XYMONUSER)!g' | sed -e 's!@RUNTIMEDEFS@!$(RUNTIMEDEFS)!g' >$@
+	cat $< | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' | sed -e 's!@INSTALLETCDIR@!$(INSTALLETCDIR)!g' | sed -e 's!@XYMONLOGDIR@!$(XYMONLOGDIR)!g' | sed -e 's!@XYMONRUNDIR@!$(XYMONRUNDIR)!g' | sed -e 's!@XYMONUSER@!$(XYMONUSER)!g' | sed -e 's!@RUNTIMEDEFS@!$(RUNTIMEDEFS)!g' >$@
 	chmod 755 $@
 
 xymonreports.sh: xymonreports.sh.DIST
@@ -155,7 +155,7 @@ cfgfiles:
 	cat etcfiles/alerts.cfg.DIST | sed -e 's!@XYMONHOSTNAME@!$(XYMONHOSTNAME)!g' | sed -e 's!@XYMONHOSTIP@!$(XYMONHOSTIP)!g' | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' >etcfiles/alerts.cfg
 	for f in analysis combo graphs client-local rrddefinitions; do sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' etcfiles/$$f.cfg.DIST >etcfiles/$$f.cfg; done
 	cat etcfiles/tasks.cfg.DIST | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' | sed -e 's!@XYMONTOPDIR@!$(XYMONTOPDIR)!g' >etcfiles/tasks.cfg
-	cat etcfiles/cgioptions.cfg.DIST | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' | sed -e 's!@XYMONHOSTURL@!$(XYMONHOSTURL)!g' >etcfiles/cgioptions.cfg
+	cat etcfiles/cgioptions.cfg.DIST | sed -e 's!@XYMONHOME@!$(XYMONHOME)!g' | sed -e 's!@XYMONHOSTURL@!$(XYMONHOSTURL)!g' | sed -e 's!@INSTALLETCDIR@!$(INSTALLETCDIR)!g' >etcfiles/cgioptions.cfg
 
 %.o: %.c
 	$(CC) $(CFLAGS) -c -o $@ $<

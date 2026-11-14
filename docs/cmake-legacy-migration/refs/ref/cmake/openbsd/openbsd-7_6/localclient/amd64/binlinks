@@ -1,0 +1,90 @@
+=== /bin/xymon ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymon:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymon
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymonlaunch ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymonlaunch:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymonlaunch
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymoncmd ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncmd:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncmd
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymongrep ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymongrep:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymongrep
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymoncfg ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncfg:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymoncfg
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymondigest ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymondigest:
+/tmp/cmake-ref-root/var/lib/xymon/bin/xymondigest
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/logfetch ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/logfetch:
+/tmp/cmake-ref-root/var/lib/xymon/bin/logfetch
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/clientupdate ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/clientupdate:
+/tmp/cmake-ref-root/var/lib/xymon/bin/clientupdate
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/orcaxymon ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/orcaxymon:
+/tmp/cmake-ref-root/var/lib/xymon/bin/orcaxymon
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/msgcache ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/msgcache:
+/tmp/cmake-ref-root/var/lib/xymon/bin/msgcache
+/usr/lib/libssl.so.58.0
+/usr/lib/libcrypto.so.55.0
+/usr/local/lib/libpcre.so.3.0
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/openbsd-meminfo ===
+/tmp/cmake-ref-root/var/lib/xymon/bin/openbsd-meminfo:
+/tmp/cmake-ref-root/var/lib/xymon/bin/openbsd-meminfo
+/usr/lib/libc.so.100.3
+/usr/libexec/ld.so
+=== /bin/xymonclient-aix.sh ===
+=== /bin/xymonclient-darwin.sh ===
+=== /bin/xymonclient-freebsd.sh ===
+=== /bin/xymonclient-hp-ux.sh ===
+=== /bin/xymonclient-irix.sh ===
+=== /bin/xymonclient-linux.sh ===
+=== /bin/xymonclient-netbsd.sh ===
+=== /bin/xymonclient-openbsd.sh ===
+=== /bin/xymonclient-osf1.sh ===
+=== /bin/xymonclient-sco_sv.sh ===
+=== /bin/xymonclient-sunos.sh ===
+=== /bin/xymonclient-unixware.sh ===
+=== /bin/xymonclient.sh ===

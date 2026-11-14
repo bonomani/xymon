@@ -1,0 +1,40 @@
+# xymongen/CMakeLists.txt
+#
+# Parity stage 3:
+# - One real executable: xymongen
+# - Real filesystem layout
+# - No refactoring
+# - No extra compile flags
+# - Explicitly link required external libraries
+
+add_executable(xymongen
+    xymongen.c
+    loadlayout.c
+    loaddata.c
+    pagegen.c
+    process.c
+    wmlgen.c
+    rssgen.c
+    util.c
+    debug.c
+    csvreport.c
+)
+
+target_link_libraries(xymongen
+    xymon
+    xymontime
+    xymoncomm
+    ${XYMON_PCRE_LIBRARY}
+    ${XYMON_SSL_LIBRARIES}
+)
+
+install(TARGETS xymongen
+    RUNTIME DESTINATION ${INSTALLBINDIR_DEST}
+)
+
+if(XYMON_INSTALL_MANPAGES)
+    install(FILES
+        ${CMAKE_CURRENT_SOURCE_DIR}/xymongen.1
+        DESTINATION ${INSTALLMAN1DIR_DEST}
+    )
+endif()

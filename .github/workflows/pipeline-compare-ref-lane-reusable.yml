@@ -1,0 +1,85 @@
+name: Pipeline - Compare Reference Lane (Reusable)
+
+on:
+  workflow_call:
+    inputs:
+      lane_name:
+        description: Display name for the lane
+        required: true
+        type: string
+      lane_json:
+        description: JSON-encoded lane object
+        required: true
+        type: string
+      publish:
+        description: Publish channel (none|artifact)
+        required: true
+        type: string
+      allow_failure_mode:
+        description: Handling of lanes marked allow_failure (off|allow|expect_fail)
+        required: true
+        type: string
+
+permissions:
+  contents: read
+
+jobs:
+  compare:
+    name: ${{ inputs.lane_name }}
+    runs-on: ubuntu-22.04
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v6
+        with:
+          fetch-depth: 1
+
+      - name: Resolve lane context
+        id: lane_ctx
+        uses: ./.github/actions/ref-lane-context
+        with:
+          lane_json: ${{ inputs.lane_json }}
+          verify_depth: install
+          goal: compare
+          ref_mode: off
+          publish: ${{ inputs.publish }}
+          allow_failure_mode: ${{ inputs.allow_failure_mode }}
+
+      - name: Stage generated references from synced docs tree
+        shell: bash
+        env:
+          BUILD_TOOL: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).BUILD_TOOL }}
+          REF_OS: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).REF_OS }}
+          PLATFORM_ID: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).PLATFORM_ID }}
+          VARIANT: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).VARIANT }}
+          ARTIFACT_ARCH: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).ARTIFACT_ARCH }}
+          CANDIDATE_DIR: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CANDIDATE_DIR }}
+        run: |
+          set -euo pipefail
+          source_dir="docs/refs/ref/${BUILD_TOOL}/${REF_OS}/${PLATFORM_ID}/${VARIANT}/${ARTIFACT_ARCH}"
+          if [ ! -d "${source_dir}" ]; then
+            echo "Missing synced candidate refs: ${source_dir}" >&2
+            exit 1
+          fi
+          rm -rf "${CANDIDATE_DIR}"
+          mkdir -p "${CANDIDATE_DIR}"
+          cp -a "${source_dir}/." "${CANDIDATE_DIR}/"
+
+      - name: Compare downloaded references
+        id: compare
+        continue-on-error: ${{ steps.lane_ctx.outputs.continue_on_error == 'true' }}
+        shell: bash
+        env:
+          BASELINE_PREFIX: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).BASELINE_PREFIX }}
+          CANDIDATE_DIR: ${{ fromJSON(steps.lane_ctx.outputs.lane_env_json).CANDIDATE_DIR }}
+        run: |
+          set -euo pipefail
+          bash ci/compare-refs.sh \
+            --baseline-prefix "${BASELINE_PREFIX}" \
+            --candidate-dir "${CANDIDATE_DIR}"
+
+      - name: Post lane (policy + artifacts)
+        if: ${{ always() }}
+        uses: ./.github/actions/ref-lane-post
+        with:
+          lane_post_json: ${{ steps.lane_ctx.outputs.lane_post_json }}
+          lane_outcome: ${{ steps.compare.outcome }}
