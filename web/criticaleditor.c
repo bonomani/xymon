@@ -18,6 +18,8 @@ static char rcsid[] = "$Id$";
 #include <ctype.h>
 #include <stdio.h>
 #include <fcntl.h>
+#include <errno.h>
+#include <pwd.h>
 #include <sys/types.h>
 #include <sys/stat.h>
 
@@ -37,6 +39,68 @@ static time_t rq_end = 0;
 static char *rq_clonestoadd = NULL;
 static char *rq_clonestodrop = NULL;
 static int  rq_dropevenifcloned = 0;
+
+/*
+ * What the last change did, shown above the form: "Saved", "Deleted", or why
+ * not. It is shown together with findrecord()'s own notes about clones, not
+ * instead of them. Anything the user typed goes in escaped.
+ */
+static char statusmsg[2048] = "";
+
+static void setstatus(const char *fmt, const char *arg)
+{
+	/* htmlattrquoted(), not htmlquoted(): a space stays a space, so it wraps */
+	snprintf(statusmsg, sizeof(statusmsg), fmt, (arg ? htmlattrquoted((char *)arg) : ""));
+}
+
+/* After update_critconfig() returned rc, with errno saying why */
+static void setsaveresult(int rc, const char *done)
+{
+	char why[1024];
+	int e = errno;		/* before getpwuid(), which may change it */
+	struct passwd *pw;
+
+	switch (rc) {
+	  case CRITSAVE_OK:
+		setstatus("%s", done);
+		return;
+
+	  case CRITSAVE_NOBACKUP:
+		snprintf(why, sizeof(why), "%s, but critical.cfg.bak could not be written: %s", done, strerror(e));
+		setstatus("%s", why);
+		return;
+
+	  case CRITSAVE_NOOPEN:
+		pw = getpwuid(geteuid());
+		snprintf(why, sizeof(why),
+			 "NOT SAVED: cannot write critical.cfg: %s. The web server runs as %s, which must be able to write critical.cfg and critical.cfg.bak",
+			 strerror(e), (pw ? pw->pw_name : "an unknown user"));
+		setstatus("%s", why);
+		return;
+
+	  case CRITSAVE_NOREAD:
+		pw = getpwuid(geteuid());
+		snprintf(why, sizeof(why),
+			 "NOT SAVED: cannot read critical.cfg: %s. The web server runs as %s, which must be able to read and write critical.cfg, and write critical.cfg.bak",
+			 strerror(e), (pw ? pw->pw_name : "an unknown user"));
+		setstatus("%s", why);
+		return;
+
+	  case CRITSAVE_WRITEFAIL:
+		snprintf(why, sizeof(why),
+			 "NOT SAVED: writing critical.cfg failed: %s. It was put back as it was before this change",
+			 strerror(e));
+		setstatus("%s", why);
+		return;
+
+	  default:
+		snprintf(why, sizeof(why),
+			 "NOT SAVED: writing critical.cfg failed: %s, and it could not be put back. It may be incomplete: check it, and critical.cfg.bak",
+			 strerror(e));
+		setstatus("%s", why);
+		return;
+	}
+}
 
 /*
  * A record in critical.cfg is one line, its fields split on '|'. A value
@@ -181,6 +245,14 @@ static void parse_query(void)
 			rq_end = mktime(&tm);
 		}
 
+		/*
+		 * The form always sends all three; a request missing one gets the
+		 * form's own defaults, every day and all day, instead of a crash.
+		 */
+		if (!rq_critwkdays) rq_critwkdays = strdup("*");
+		if (!rq_critslastart) rq_critslastart = strdup("0000");
+		if (!rq_critslaend) rq_critslaend = strdup("2400");
+
 		SBUF_MALLOC(rq_crittime,strlen(rq_critwkdays) + strlen(rq_critslastart) + strlen(rq_critslaend) + 3);
 		snprintf(rq_crittime, rq_crittime_buflen, "%s:%s:%s", rq_critwkdays, rq_critslastart, rq_critslaend);
 	}
@@ -257,6 +329,14 @@ void findrecord(char *hostname, char *service, char *nodatawarning, char *isclon
 	if (isaclone && isclonewarning) snprintf(warnmsg, sizeof(warnmsg), "%s", isclonewarning);
 	if (hasclones && hascloneswarning) snprintf(warnmsg, sizeof(warnmsg), "%s", hascloneswarning);
 
+	/* The result of the change first, then the note about clones */
+	if (*statusmsg) {
+		char note[sizeof(warnmsg)];
+
+		snprintf(note, sizeof(note), "%s", warnmsg);
+		snprintf(warnmsg, sizeof(warnmsg), "%s%s%s", statusmsg, (*note ? "<BR>" : ""), note);
+	}
+
 	printf("Content-type: %s\n\n", xgetenv("HTMLCONTENTTYPE"));
 	showform(stdout, "critedit", "critedit_form", COL_BLUE, getcurrenttime(NULL), warnmsg, NULL);
 }
@@ -298,7 +378,10 @@ void updaterecord(char *hostname, char *service)
 {
 	critconf_t *rec = NULL;
 
-	if (hostname && service) {
+	if (!hostname || !service) {
+		setstatus("NOT SAVED: enter both a host and a test%s", "");
+	}
+	else {
 		SBUF_DEFINE(key);
 		char *realkey;
 		char datestr[20];
@@ -334,7 +417,7 @@ void updaterecord(char *hostname, char *service)
 		rec->updinfo = (char *)malloc(upd_buflen);
 		snprintf(rec->updinfo, upd_buflen, "%s %s", operator, datestr);
 
-		update_critconfig(rec);
+		setsaveresult(update_critconfig(rec), "Saved");
 		xfree(key);
 	}
 
@@ -345,13 +428,24 @@ void addclone(char *origin, char *newhosts, char *service)
 {
 	char *newclone;
 
+	if (!origin) {
+		/* A clone points at a host's record: without the host there is none */
+		findrecord(NULL, NULL, "Nothing cloned: enter the host to clone from", NULL, NULL);
+		return;
+	}
+	if (!newhosts) {
+		/* Without hosts to add, strtok() would resume cgi_request()'s freed buffer */
+		findrecord(NULL, NULL, "Nothing cloned: enter the hosts to clone to", NULL, NULL);
+		return;
+	}
+
 	newclone = strtok(newhosts, " ");
 	while (newclone) {
 		addclone_critconfig(origin, newclone);
 		newclone = strtok(NULL, " ");
 	}
 
-	update_critconfig(NULL);
+	setsaveresult(update_critconfig(NULL), "Saved");
 	findrecord(origin, service, NULL, NULL, NULL);
 }
 
@@ -365,22 +459,57 @@ void dropclone(char *origin, char *drops, char *service)
 		drop = strtok(NULL, " ");
 	}
 
-	update_critconfig(NULL);
+	setsaveresult(update_critconfig(NULL), "Saved");
 	findrecord(origin, service, NULL, NULL, NULL);
 }
 
 void deleterecord(char *hostname, char *service, int evenifcloned)
 {
 	SBUF_DEFINE(key);
+	char *realkey = NULL;
+	char why[1024];
+
+	if (!hostname || !service) {
+		/* Both name a record; without them there is nothing to delete */
+		findrecord(hostname, service, "Nothing deleted: enter both a host and a test", NULL, NULL);
+		return;
+	}
 
 	SBUF_MALLOC(key, strlen(hostname) + strlen(service) + 2);
 	snprintf(key, key_buflen, "%s|%s", hostname, service);
-	if (delete_critconfig(key, evenifcloned) == 0) {
-		update_critconfig(NULL);
-	}
+	if (get_critconfig(key, CRITCONF_FIRSTMATCH, &realkey) && realkey && (strcmp(realkey, key) != 0)) {
+		/*
+		 * A clone: the host has no record of its own, it shows its origin's.
+		 * Deleting by this key would find nothing, and say "Deleted".
+		 */
+		char *origin = strdup(realkey), *p = strchr(origin, '|');
 
+		if (p) *p = '\0';
+		snprintf(why, sizeof(why), "Nothing deleted: %s is a clone of ", htmlattrquoted(hostname));
+		strncat(why, htmlattrquoted(origin), sizeof(why) - strlen(why) - 1);
+		strncat(why, ". Remove it from that host's clone list instead", sizeof(why) - strlen(why) - 1);
+		snprintf(statusmsg, sizeof(statusmsg), "%s", why);
+		xfree(origin);
+	}
+	else switch (delete_critconfig(key, evenifcloned)) {
+	  case CRITDELETE_OK:
+		setsaveresult(update_critconfig(NULL), "Deleted");
+		break;
+
+	  case CRITDELETE_NORECORD:
+		setstatus("Nothing deleted: there is no record for this host and test%s", "");
+		break;
+
+	  case CRITDELETE_CLONED:
+	  default:
+		/* It has clones: the form says "Will not delete record that is cloned" */
+		break;
+	}
+	xfree(key);
+
+	/* Not "Will not delete record that is cloned" where the status already says why not */
 	findrecord(hostname, service, NULL, NULL, 
-		   (evenifcloned ? "Warning: Orphans will be ignored" : "Will not delete record that is cloned"));
+		   (evenifcloned ? "Warning: Orphans will be ignored" : (*statusmsg ? NULL : "Will not delete record that is cloned")));
 }
 
 int main(int argc, char *argv[])
