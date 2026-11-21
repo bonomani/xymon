@@ -107,7 +107,7 @@ unresolved — and stop there.
 
 ## What the test suite will not accept
 
-`tests/buildsystem/test-suite-portability.sh` fails the run on the constructs
+`tests/buildsystem/test-suite-lint.sh` fails the run on the constructs
 below. It checks them statically, on whatever platform you are on, because they
 are the ones that cost a round trip to discover:
 
@@ -127,6 +127,9 @@ are the ones that cost a round trip to discover:
 - **Guarding on `uname`** without declaring why: the file needs a
   `# native-primitive: NAME` header, or the guard is read as a test quietly
   skipping a platform.
+- **A log waited on after a repeated background start** — in a function or a
+  loop, `>"$log" 2>&1 &` empties it in the child, so the wait can read the
+  previous start's line. Empty it in the parent first: `: >"$log"`.
 - **Linking an in-tree `.a` without `xymon_cflags` and `xymon_ldflags`** — the
   build's own flags, not ones the test invented.
 
