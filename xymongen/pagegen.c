@@ -470,7 +470,7 @@ void do_hosts(host_t *head, int sorthosts, char *onlycols, char *exceptcols, FIL
 	hostblkidx++;
 
 	if (!grouptitle) grouptitle = "";
-	safegrouptitle = stripnonwords(grouptitle);
+	safegrouptitle = anchorsafe(grouptitle);
 	if (*safegrouptitle != '\0') fprintf(output, "<A NAME=\"group-%s\"></A>\n\n", safegrouptitle);
 
 	groupcols = gen_column_list(head, pagetype, onlycols, exceptcols);
@@ -759,7 +759,7 @@ void do_summaries(dispsummary_t *sums, FILE *output)
 
 		if (newhost == NULL) {
 			/* New summary "host" */
-			newhost = init_host(s->row, 1, NULL, NULL, NULL, NULL, NULL, 0, 0.0, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL, NULL);
+			newhost = init_host(s->row, 1, NULL, NULL, NULL, NULL, NULL, 0, 0.0, 0, NULL, NULL, 0, NULL, NULL, NULL, NULL);
 
 			/* Insert into sorted host list */
 			if ((!sumhosts) || (strcmp(newhost->hostname, sumhosts->hostname) < 0)) {

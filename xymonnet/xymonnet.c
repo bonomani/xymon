@@ -676,15 +676,16 @@ void load_tests(void)
 					 * name is a label rather than the name the service answers to.
 					 * The connection still goes to the host's own address, as the
 					 * bare service does. http/https and ldap/ldaps are handled
-					 * above; what reaches here must name a TLS service in
-					 * protocols.cfg -- imaps, smtps, pop3s and the rest -- and a
-					 * servername.
+					 * above; a known TLS service here -- imaps, smtps, pop3s and
+					 * the rest -- names a servername. A scheme that is not a
+					 * service at all is left to another test, not warned about.
 					 */
 					char *spec = strdup(testspec);
 					char *sep = strstr(spec, "://");
 					char *name, *p;
 					int specialport = 0;
 					xtreePos_t handle;
+					svcinfo_t *svc;
 
 					*sep = '\0';				/* spec is now the scheme */
 					name = sep + 3;
@@ -715,7 +716,17 @@ void load_tests(void)
 							  xmh_item(hwalk, XMH_HOSTNAME), spec);
 						s = NULL;
 					}
-					else if (!svc_uses_tls(find_tcp_service(spec))) {
+					else if ((svc = find_tcp_service(spec)) == NULL) {
+						/*
+						 * Not a service xymonnet knows -- a scheme like
+						 * "http6s://" that another test (an external one)
+						 * handles. Leave it to that test; before SNI reached
+						 * every TLS service this branch did not exist, so no
+						 * warning was logged for it.
+						 */
+						s = NULL;
+					}
+					else if (!svc_uses_tls(svc)) {
 						errprintf("Host %s: '%s://' is not a TLS service in protocols.cfg\n",
 							  xmh_item(hwalk, XMH_HOSTNAME), spec);
 						s = NULL;
@@ -2030,13 +2041,14 @@ void send_results(service_t *service, int failgoesclear)
 				}
 			}
 			else {
-				addtostatus("\n"); addtostrstatus(t->banner); addtostatus("\n");
+				/* What the service sent: text, not markup, on the status page */
+				addtostatus("\n"); addtostatus(htmlattrquoted(STRBUF(t->banner))); addtostatus("\n");
 			}
 		}
 
 		if ((service == pingtest) && t->host->traceroute && (STRBUFLEN(t->host->traceroute) > 0)) {
 			addtostatus("Traceroute results:\n");
-			addtostrstatus(t->host->traceroute);
+			addtostatus(htmlattrquoted(STRBUF(t->host->traceroute)));
 			addtostatus("\n");
 		}
 
@@ -2117,7 +2129,7 @@ void send_rpcinfo_results(service_t *service, int failgoesclear)
 					snprintf(msgline, sizeof(msgline), "&%s Unknown RPC service %s\n",
 						colorname(COL_RED), rpcsvc);
 				}
-				strncat(msgbuf, msgline, (MSGBUFSIZE - strlen(msgbuf)));
+				strncat(msgbuf, msgline, (MSGBUFSIZE - strlen(msgbuf) - 1));
 
 				rpcsvc = strtok(NULL, ",");
 			}
@@ -2140,7 +2152,7 @@ void send_rpcinfo_results(service_t *service, int failgoesclear)
 		if (t->open) {
 			if (STRBUFLEN(t->banner)) {
 				addtostatus("\n\n");
-				addtostrstatus(t->banner);
+				addtostatus(htmlattrquoted(STRBUF(t->banner)));
 			}
 			else {
 				snprintf(msgline, sizeof(msgline), "\n\nNo output from rpcinfo -p %s\n", t->host->ip);
@@ -2149,7 +2161,7 @@ void send_rpcinfo_results(service_t *service, int failgoesclear)
 		}
 		else {
 			addtostatus("\n\nCould not connect to the portmapper service\n");
-			if (STRBUFLEN(t->banner)) addtostrstatus(t->banner);
+			if (STRBUFLEN(t->banner)) addtostatus(htmlattrquoted(STRBUF(t->banner)));
 		}
 		finish_status();
 	}
@@ -2236,7 +2248,8 @@ void send_sslcert_status(testedhost_t *host)
 				}
 				addtobuffer(sslmsg, "\n");
 
-				addtobuffer(sslmsg, t->certinfo);
+				/* The subject and issuer are what the certificate holds */
+				addtobuffer(sslmsg, htmlattrquoted(t->certinfo));
 			}
 		}
 	}
