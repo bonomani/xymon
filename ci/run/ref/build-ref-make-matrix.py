@@ -52,6 +52,7 @@ SUPPORTED_COVERAGE_POLICY_FILTERS = {
     "all",
 }
 SUPPORTED_ROLLING_POLICY_FILTERS = {"exclude", "primary_only", "include"}
+SUPPORTED_RELEASE_POLICY_FILTERS = {"all", "newest"}
 
 
 def parse_string_list(value, context: str, *, supported_values=None):
@@ -256,6 +257,35 @@ def infer_platform_version(platform_id: str) -> str:
 def is_rolling_version(platform_version: str) -> bool:
     """True if the version string is a rolling tag (non-numeric: edge, latest, base, tumbleweed…)."""
     return not re.match(r"^\d", str(platform_version).strip())
+
+
+def release_sort_key(platform_version: str):
+    """The numbers of a version, to compare releases: "15.1" is (15, 1), "10-slim" is (10,)."""
+    return tuple(int(n) for n in re.findall(r"\d+", str(platform_version)))
+
+
+def keep_newest_releases(entries, platform_catalog):
+    """One lane per family, variant and architecture: the newest release.
+
+    A family's lanes differ by release (FreeBSD 14.3 to 15.1), and a change is
+    usually checked well enough on one. The newest numbered release is kept; a
+    rolling one (edge, latest, tumbleweed) is kept only where the family has
+    no numbered release. The order of the lanes kept is not changed.
+    """
+    best = {}
+    for index, entry in enumerate(entries):
+        lane = entry["lane"]
+        version = str(
+            platform_catalog.get(lane.get("platform_id"), {}).get("platform_version", "")
+        )
+        rolling = is_rolling_version(version)
+        # Numbered beats rolling, then the higher version; on a tie, the first.
+        rank = (0 if rolling else 1, release_sort_key(version), -index)
+        group = (entry["family"], lane.get("variant"), lane.get("artifact_arch"))
+        if group not in best or rank > best[group][0]:
+            best[group] = (rank, index)
+    kept = {index for _, index in best.values()}
+    return [entry for index, entry in enumerate(entries) if index in kept]
 
 
 def lane_context_label(family_entry, lane_obj) -> str:
@@ -624,6 +654,11 @@ def parse_args():
         choices=sorted(SUPPORTED_ROLLING_POLICY_FILTERS),
     )
     parser.add_argument(
+        "--selected-release-policy",
+        default="all",
+        choices=sorted(SUPPORTED_RELEASE_POLICY_FILTERS),
+    )
+    parser.add_argument(
         "--goal",
         required=True,
         choices=("verify", "ref", "compare"),
@@ -792,6 +827,17 @@ def main():
                     "lane": normalized,
                 }
             )
+
+    if args.selected_release_policy == "newest":
+        # Across runtimes: a family's releases may not all run the same way.
+        kept = keep_newest_releases(
+            [entry for runtime in runtime_order for entry in matrices[runtime]],
+            platform_catalog,
+        )
+        matrices = {
+            runtime: [e for e in kept if e["lane"].get("runtime") == runtime]
+            for runtime in runtime_order
+        }
 
     matrix_all = {
         "include": [entry for runtime in runtime_order for entry in matrices[runtime]]

@@ -17,6 +17,10 @@ inputs:
   rolling_policy:
     description: Rolling-release platform selection policy.
     required: true
+  release_policy:
+    description: Release selection policy (all, or newest for one release per family, variant and architecture).
+    required: false
+    default: all
   requested_build_tool:
     description: Requested build tool.
     required: true
@@ -145,6 +149,7 @@ runs:
           --selected-arch "${{ inputs.arch }}" \
           --selected-coverage-policy "${{ inputs.coverage_policy }}" \
           --selected-rolling-policy "${{ inputs.rolling_policy }}" \
+          --selected-release-policy "${{ inputs.release_policy || 'all' }}" \
           --goal "${{ steps.resolve_execution.outputs.goal }}" \
           --build-tool "${{ steps.resolve_execution.outputs.build_tool }}" \
           --compiler "${{ steps.resolve_execution.outputs.compiler }}" \
