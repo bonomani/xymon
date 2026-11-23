@@ -136,6 +136,10 @@ on:
         description: Optional branch or tag to run this selector on
         required: false
         type: string
+      lane_regex:
+        description: Optional regular expression on the lane name; only the lanes it matches run
+        required: false
+        type: string
 permissions:
   contents: read
 
@@ -149,6 +153,10 @@ jobs:
     steps:
       - name: Dispatch this workflow on selected ref
         uses: actions/github-script@v8
+        env:
+          # Read from the environment, not pasted into the script: a regular
+          # expression has backslashes and may have quotes.
+          LANE_REGEX: ${{ inputs.lane_regex }}
         with:
           retries: 5
           # Keep caller/config errors non-retriable while retrying transient 5xx/network faults.
@@ -172,7 +180,8 @@ jobs:
                 verify_depth: '${{ inputs.verify_depth }}',
                 ref_mode: '${{ inputs.ref_mode }}',
                 allow_failure_mode: '${{ inputs.allow_failure_mode }}',
-                source_ref: '${{ inputs.source_ref }}'
+                source_ref: '${{ inputs.source_ref }}',
+                lane_regex: process.env.LANE_REGEX
               }
             });
             core.info('Dispatched pipeline-select-run-lanes.yml (family=${{ inputs.family }}, variant=${{ inputs.variant }}, arch=${{ inputs.arch }}, coverage_policy=${{ inputs.coverage_policy }}, rolling_policy=${{ inputs.rolling_policy }}, build_tool=${{ inputs.build_tool }}, compiler=${{ inputs.compiler }}, profile=${{ inputs.profile }}, install_mode=${{ inputs.install_mode }}, verify_depth=${{ inputs.verify_depth }}, ref_mode=${{ inputs.ref_mode }}, allow_failure_mode=${{ inputs.allow_failure_mode }}) on ref ${{ inputs.source_ref }}');
@@ -181,13 +190,13 @@ jobs:
     if: ${{ github.event_name != 'workflow_dispatch' || inputs.source_ref == '' || inputs.source_ref == github.ref_name || inputs.source_ref == github.ref }}
     runs-on: ubuntu-22.04
     outputs:
-      matrix_all: ${{ steps.prepare_matrix.outputs.matrix_all }}
+      matrix_all: ${{ steps.filter.outputs.matrix_all }}
       verify_depth: ${{ steps.prepare_matrix.outputs.verify_depth }}
       goal: ${{ steps.prepare_matrix.outputs.goal }}
       ref_mode: ${{ steps.prepare_matrix.outputs.ref_mode }}
       publish: ${{ steps.prepare_matrix.outputs.publish }}
       allow_failure_mode: ${{ steps.prepare_matrix.outputs.allow_failure_mode }}
-      lane_count_total: ${{ steps.prepare_matrix.outputs.lane_count_total }}
+      lane_count_total: ${{ steps.filter.outputs.lane_count_total }}
     steps:
       - name: Checkout
         uses: actions/checkout@v6
@@ -213,6 +222,22 @@ jobs:
           allow_failure_mode: ${{ inputs.allow_failure_mode }}
           selector_workflow: .github/workflows/pipeline-select-run-lanes.yml
           selector_purpose: generation
+
+      - name: Keep the lanes the regex names
+        id: filter
+        shell: bash
+        env:
+          MATRIX: ${{ steps.prepare_matrix.outputs.matrix_all }}
+          LANE_REGEX: ${{ inputs.lane_regex }}
+        run: |
+          if [ -n "$LANE_REGEX" ]; then
+            m=$(printf '%s' "$MATRIX" | jq -c --arg re "$LANE_REGEX" '{include: [.include[] | select(.lane.name | test($re))]}')
+          else
+            m=$MATRIX
+          fi
+          echo "matrix_all=$m" >> "$GITHUB_OUTPUT"
+          echo "lane_count_total=$(printf '%s' "$m" | jq '.include | length')" >> "$GITHUB_OUTPUT"
+          echo "Lanes kept: $(printf '%s' "$m" | jq -r '[.include[].lane.name] | join(", ")')"
 
       - name: Matrix summary
         shell: bash
