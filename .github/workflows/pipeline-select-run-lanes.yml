@@ -1,5 +1,10 @@
 name: Pipeline - Select and Run Lanes
 
+# A run on the newest releases only says so in its name: what reads the runs
+# of a commit (xymon-experimental's scripts) tells such a run from one on
+# every release by that, a run's inputs not being in what GitHub lists.
+run-name: ${{ inputs.release_policy == 'newest' && 'Pipeline - Select and Run Lanes (newest)' || 'Pipeline - Select and Run Lanes' }}
+
 on:
   workflow_dispatch:
     inputs:
@@ -68,6 +73,14 @@ on:
           - exclude
           - primary_only
           - include
+      release_policy:
+        description: Releases of each family (all, or newest for one lane per family, variant and architecture)
+        required: true
+        type: choice
+        default: all
+        options:
+          - all
+          - newest
       build_tool:
         description: Build tool selection
         required: true
@@ -173,6 +186,7 @@ jobs:
                 arch: '${{ inputs.arch }}',
                 coverage_policy: '${{ inputs.coverage_policy }}',
                 rolling_policy: '${{ inputs.rolling_policy }}',
+                release_policy: '${{ inputs.release_policy }}',
                 build_tool: '${{ inputs.build_tool }}',
                 compiler: '${{ inputs.compiler }}',
                 profile: '${{ inputs.profile }}',
@@ -212,6 +226,7 @@ jobs:
           arch: ${{ inputs.arch }}
           coverage_policy: ${{ inputs.coverage_policy }}
           rolling_policy: ${{ inputs.rolling_policy }}
+          release_policy: ${{ inputs.release_policy }}
           requested_build_tool: ${{ inputs.build_tool }}
           requested_compiler: ${{ inputs.compiler }}
           requested_profile: ${{ inputs.profile }}
@@ -247,6 +262,7 @@ jobs:
           echo "Arch filter: ${{ inputs.arch }}"
           echo "Coverage policy: ${{ inputs.coverage_policy }}"
           echo "Rolling policy: ${{ inputs.rolling_policy }}"
+          echo "Release policy: ${{ inputs.release_policy }}"
           echo "Build tool: ${{ steps.prepare_matrix.outputs.build_tool }}"
           echo "Compiler: ${{ steps.prepare_matrix.outputs.compiler }}"
           echo "Profile: ${{ steps.prepare_matrix.outputs.profile }}"
