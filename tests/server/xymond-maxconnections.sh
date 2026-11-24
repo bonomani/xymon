@@ -11,6 +11,7 @@
 # of 60 silent connections from 127.0.0.1 exactly 40 stay open, xymond logs
 # the refusal naming the limit and is still running; once they close, 3 new
 # connections are taken, so a refusal frees nothing and blocks nothing later.
+# The log counts all 20 refusals, the last 19 a minute after the first.
 # A limit that is not a number is logged and the default taken, without
 # stopping xymond: under "ulimit -n 200", 150 connections leave 135 open (200
 # less the reserve of 64 and one listener). A trailing space is not a typo.
@@ -43,10 +44,14 @@ mkcfg() {  # mkcfg LIMIT -- the env file with XYMOND_MAXCONNECTIONS set to LIMIT
 }
 
 # A limit that is not a number: xymond logs it with the default, and runs on
-# that default. The open-file limit is lowered so the default is known.
+# that default. The open-file limit is lowered so the default is known, and
+# --no-loopback keeps the listener count at one: the default is the descriptor
+# limit less a reserve and the listeners, so an extra loopback listener xymond
+# would otherwise add -- ::1 where the host has it (#807) -- would drop it by
+# one and this exact-number check would pass or fail by where it runs.
 mkcfg forty
 P=$(free_port)
-( ulimit -n 200 && exec "$XYMOND" --no-daemon --listen="127.0.0.1:$P" --hosts="$work/hosts.cfg" \
+( ulimit -n 200 && exec "$XYMOND" --no-daemon --no-loopback --listen="127.0.0.1:$P" --hosts="$work/hosts.cfg" \
 	--env="$work/xymonserver.cfg" --pidfile="$work/bad.pid" --checkpoint-file="$work/bad.chk" ) > "$work/bad.log" 2>&1 &
 badpid=$!
 register_cleanup "stop_process $badpid"
@@ -83,8 +88,20 @@ assert_match 'Refused [0-9]+ connection\(s\) from 127\.0\.0\.1: 40 connections a
 	"the refusal was not logged with the limit"
 kill -0 "$pid" 2>/dev/null || fail "xymond stopped after refusing connections: $(cat "$work/xymond.log")"
 
+# All 20 refusals are logged: the first at once, the other 19 once the minute
+# is up, although no refusal follows to trigger it. Before, the log said
+# "Refused 1" and the rest of the burst was never counted.
+refusedsum() {
+	sed -n 's/.*Refused \([0-9]*\) connection(s) from 127\.0\.0\.1: [0-9]* connections are open, the limit.*/\1/p' "$work/xymond.log" |
+		awk '{ n += $1 } END { print n + 0 }'
+}
+deadline=$(( $(date +%s) + 75 ))
+while [ "$(refusedsum)" -lt 20 ] && [ "$(date +%s)" -lt "$deadline" ]; do sleep 1; done
+[ "$(refusedsum)" -eq 20 ] \
+	|| fail "the log counts $(refusedsum) of the 20 refused connections: $(grep 'Refused' "$work/xymond.log")"
+
 # Once they are closed, new connections are taken again
 got=$("$work/harness" count 127.0.0.1 "$P" 3 1 2>&1) || fail "the harness failed opening 3 connections: $got"
 assert_contains "open 3" "$got" "after the 60 closed, 3 new connections were not all taken: $got"
 
-pass "xymond keeps XYMOND_MAXCONNECTIONS connections and refuses the rest, logging it, without stopping; a value that is not a number is logged and the default held"
+pass "xymond keeps XYMOND_MAXCONNECTIONS connections and refuses the rest, logging all of them, without stopping; a value that is not a number is logged and the default held"

@@ -65,6 +65,8 @@ ptyfs /pseudo/ptyfs local inode'
 FSF_COMBINED="$TMP/df-section.sh"
 fsf_extract "$FSF_COMBINED"
 fsf_write_fixture
+# With nothing left to report this df prints nothing and exits 0 (seen on 11.0).
+FSF_DF_EMPTY_RC=0
 fsf_write_stub
 # The client reads the mount list on every DF_LOCAL_ONLY=no cycle now that
 # hard-blocking mounts are guarded (#316); answer it from the fixture rather
@@ -79,6 +81,15 @@ fsf_write_mount_stub
 
 fsf_selfcheck
 fsf_contract
+
+# A df -i that exits 0 with no output: every filesystem excluded by type, which
+# is what NetBSD's df does then (seen on 11.0). The client must emit an EMPTY
+# [inode] section, as the FreeBSD client does, which the server reads as "No
+# filesystems reporting inode data". Feeding the empty output to the awk gave
+# the header and nothing else.
+inode_sec=$(fsf_section "$(fsf_report DF_INODE_EMPTY_OK=1)" inode)
+assert_equal "" "$inode_sec" \
+	"an empty df -i that exits 0 yields an empty [inode] section, no stray header"
 
 # The built-in list, pinned through the report rather than through df's argv:
 # every type it names has a filesystem in the fixture, and none may be reported.

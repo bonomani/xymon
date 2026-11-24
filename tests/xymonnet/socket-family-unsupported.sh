@@ -31,6 +31,7 @@ work=$(mktempdir)
 register_cleanup "rm -rf '$work'"
 
 cat > "$work/noinet6.c" <<'EOF'
+#define _GNU_SOURCE	/* RTLD_NEXT, on glibc */
 #include <errno.h>
 #include <stddef.h>
 #include <sys/types.h>
@@ -48,12 +49,23 @@ __attribute__((used)) static struct { const void *replacement, *original; } inte
 #else
 #include <dlfcn.h>
 
+/* The libc symbol behind socket(). NetBSD's <sys/socket.h> renames socket to
+ * __socket30, so the function below is __socket30 there, and libc's "socket"
+ * is a compatibility function that calls __socket30: looking that one up
+ * gave this function back to itself, and the first IPv4 socket recursed until
+ * the stack was gone. */
+#ifdef __NetBSD__
+#define LIBC_SOCKET "__socket30"
+#else
+#define LIBC_SOCKET "socket"
+#endif
+
 int socket(int domain, int type, int protocol)
 {
 	static int (*real)(int, int, int) = NULL;
 
 	if (domain == AF_INET6) { errno = EAFNOSUPPORT; return -1; }
-	if (!real) real = (int (*)(int, int, int))dlsym(RTLD_NEXT, "socket");
+	if (!real) real = (int (*)(int, int, int))dlsym(RTLD_NEXT, LIBC_SOCKET);
 	return real(domain, type, protocol);
 }
 #endif
@@ -62,23 +74,34 @@ EOF
 	|| "$CC" -shared -fPIC -o "$work/noinet6.so" "$work/noinet6.c" \
 	|| skip "cannot build a preloadable library with $CC"
 
+# The variables are set by the shell for the program itself, never through
+# env(1): /usr/bin/env is an arm64e system binary on macOS, and where SIP is off
+# dyld inserts the library into it too and stops, the library being arm64.
 preload() {
-	env LD_PRELOAD="$work/noinet6.so" DYLD_INSERT_LIBRARIES="$work/noinet6.so" "$@"
+	LD_PRELOAD="$work/noinet6.so" DYLD_INSERT_LIBRARIES="$work/noinet6.so" "$@"
 }
 
-# Does preloading it take effect here at all?
+# Does preloading it take effect here at all, and does it still hand the other
+# families to libc? The second half is what xymonnet's IPv4 test needs: a
+# library that refuses IPv6 and then cannot reach the real socket() kills the
+# run it is loaded into, which reads as xymonnet's failure.
 printf '%s\n' '#include <sys/types.h>' '#include <sys/socket.h>' '#include <errno.h>' \
-	'int main(void) { return (socket(AF_INET6, SOCK_STREAM, 0) == -1) && (errno == EAFNOSUPPORT) ? 0 : 1; }' \
+	'int main(void) {' \
+	'	if (!((socket(AF_INET6, SOCK_STREAM, 0) == -1) && (errno == EAFNOSUPPORT))) return 1;' \
+	'	return (socket(AF_INET, SOCK_STREAM, 0) == -1) ? 2 : 0;' \
+	'}' \
 	> "$work/probe.c"
 "$CC" -o "$work/probe" "$work/probe.c" || skip "cannot build the preload probe with $CC"
-preload "$work/probe" 2>/dev/null || skip "a preloaded library does not replace socket() here"
+# In a subshell, so that a probe killed by a signal is not reported by this shell.
+(preload "$work/probe") >/dev/null 2>&1 \
+	|| skip "a preloaded library does not replace socket() here, or does not pass IPv4 through"
 
 mkdir -p "$work/home/etc"
 cp "$root/xymonnet/protocols.cfg" "$work/home/etc/protocols.cfg"
 # 2001:db8:: is documentation space; 127.0.0.1 port 22 just has to answer or refuse.
 printf '2001:db8::5\tv6host\t# ssh\n127.0.0.1\tv4host\t# ssh\n' > "$work/home/etc/hosts.cfg"
 
-preload env XYMONHOME="$work/home" XYMONNETSVCS=ssh \
+XYMONHOME="$work/home" XYMONNETSVCS=ssh preload \
 	"$XYMONNET" --no-update --noping --timeout=3 >"$work/out" 2>&1 &
 pid=$!
 register_cleanup "stop_process $pid"

@@ -1033,8 +1033,11 @@ If you must test a service from a multi-homed host (i.e. using a
 specific source IP-address instead of the one your operating system
 provides), you can use the modifier "@IPADDRESS" at the end of the
 test specification, \fBafter\fR any other modifiers or port number.
-"IPADDRESS" must be a valid dotted IP-address (not hostname) which
-is assigned to the host running the network tests.
+"IPADDRESS" must be an IPv4 or IPv6 address (not hostname) which
+is assigned to the host running the network tests; an IPv6 link-local
+address may carry its scope, as fe80::1%eth0, and an IPv4-mapped one
+counts as the IPv4 address. For a TCP test, an address of the other
+family than the one tested is not used, and the default is.
 
 The name of the test also determines the column name that the test
 result will appear with in the Xymon webpages.
@@ -1248,6 +1251,13 @@ so if you need to combine this with e.g. an explicit port number,
 it should be done as
 
 	http://www.sample.com:3128=1.2.3.4/index.html
+
+When one site is tested at several addresses this way -- an IPv4 and an
+IPv6 address of a dual-stack host, say -- the forced address is shown in
+the test's status label, after the hostname ("www.sample.com=1.2.3.4"),
+so tests that share a URL but force different addresses keep their own
+status, history and graph. A test that forces no address is shown as
+before, and a URL's login credentials are never shown.
 
 .IP "HTTP Testing via proxy"
 \fBNOTE:\fR This is not enabled by default. You must
@@ -1657,7 +1667,8 @@ This option is recognized by the
 utility, and causes it to poll the host for client data. The optional
 IP-address and port-number can be used if the client-side
 .I msgcache(8)
-daemon is listening on a non-standard IP-address or port-number.
+daemon is listening on a non-standard IP-address or port-number. An
+IPv6 address goes in brackets: pulldata=[2001:db8::5]:1984.
 
 
 .SH FILES

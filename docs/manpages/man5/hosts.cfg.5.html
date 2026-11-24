@@ -1086,8 +1086,11 @@ Section: File Formats (5)<br/>Updated: Version 4.3.31: 6 Nov 2026<br/><a href="#
     specific source IP-address instead of the one your operating system
     provides), you can use the modifier &quot;@IPADDRESS&quot; at the end of the
     test specification, <b>after</b> any other modifiers or port number.
-    &quot;IPADDRESS&quot; must be a valid dotted IP-address (not hostname) which
-    is assigned to the host running the network tests.</p>
+    &quot;IPADDRESS&quot; must be an IPv4 or IPv6 address (not hostname) which
+    is assigned to the host running the network tests; an IPv6 link-local
+    address may carry its scope, as fe80::1%eth0, and an IPv4-mapped one counts
+    as the IPv4 address. For a TCP test, an address of the other family than the
+    one tested is not used, and the default is.</p>
 <p class="Pp">The name of the test also determines the column name that the test
     result will appear with in the Xymon webpages.</p>
 <p class="Pp">By prefixing a test with &quot;!&quot; it becomes a reverse test:
@@ -1319,6 +1322,13 @@ Section: File Formats (5)<br/>Updated: Version 4.3.31: 6 Nov 2026<br/><a href="#
         the hostname, so if you need to combine this with e.g. an explicit port
         number, it should be done as</p>
     <p class="Pp">	http://www.sample.com:3128=1.2.3.4/index.html</p>
+    <p class="Pp">When one site is tested at several addresses this way -- an
+        IPv4 and an IPv6 address of a dual-stack host, say -- the forced address
+        is shown in the test's status label, after the hostname
+        (&quot;www.sample.com=1.2.3.4&quot;), so tests that share a URL but
+        force different addresses keep their own status, history and graph. A
+        test that forces no address is shown as before, and a URL's login
+        credentials are never shown.</p>
     <p class="Pp"></p>
   </dd>
   <dt id="HTTP"><a class="permalink" href="#HTTP">HTTP Testing via
@@ -1730,7 +1740,8 @@ Section: File Formats (5)<br/>Updated: Version 4.3.31: 6 Nov 2026<br/><a href="#
   <dd>This option is recognized by the <i><a href="../man8/xymonfetch.8.html">xymonfetch</a>(8)</i> utility, and causes
       it to poll the host for client data. The optional IP-address and
       port-number can be used if the client-side <i><a href="../man8/msgcache.8.html">msgcache</a>(8)</i> daemon is
-      listening on a non-standard IP-address or port-number.
+      listening on a non-standard IP-address or port-number. An IPv6 address
+      goes in brackets: pulldata=[2001:db8::5]:1984.
     <p class="Pp"></p>
     <p class="Pp"></p>
   </dd>

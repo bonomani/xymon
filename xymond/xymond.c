@@ -2768,22 +2768,58 @@ void handle_ackinfo(char *msg, char *sender, xymond_log_t *log)
 
 void handle_notify(char *msg, char *sender, char *hostname, char *testname)
 {
-	char *msgtext, *channelmsg;
+	char *msgtext, *pagepath;
+	strbuffer_t *channelmsg;
 	void *hi;
 
 	dbgprintf("-> handle_notify\n");
 
 	hi = hostinfo(hostname);
-
 	msgtext = msg_data(msg, 0);
-	channelmsg = (char *)malloc(1024 + strlen(msgtext));
+
+	/*
+	 * The buffer was a fixed 1024 bytes of slack over the message text, with
+	 * the hostname, the testname and the pagepath list written into it as
+	 * well. None of those is bounded, and the list least of all - it carries
+	 * a path for every page the host is on - so a host on enough pages wrote
+	 * past the allocation.
+	 *
+	 * Build it in a strbuffer instead. Adding up the fields and counting the
+	 * separators in a format string by hand is the step that was wrong, and a
+	 * corrected hand-count is still a hand-count; this has no count to get
+	 * wrong.
+	 *
+	 * The empty-string fallbacks are not defensive padding: addtobuffer_many()
+	 * stops at its first NULL argument, so one NULL field does not leave a
+	 * gap, it truncates the message there. The pagepath is the one to watch -
+	 * guarding only the hostinfo lookup would let a NULL from xmh_item() take
+	 * the newline and the whole alert text with it - and posttochannel() and
+	 * handle_data() guard that same return the same way.
+	 */
+	channelmsg = newstrbuffer(0);
+	if (channelmsg == NULL) {
+		/* newstrbuffer() has logged the failure. */
+		dbgprintf("<- handle_notify (allocation failed)\n");
+		return;
+	}
+
+	/*
+	 * Read the pagepath here rather than earlier: it points into a static
+	 * strbuffer inside xmh_item(), so the less far that pointer is carried,
+	 * the less there is to go wrong if a call is ever inserted above it.
+	 */
+	pagepath = (hi ? xmh_item(hi, XMH_ALLPAGEPATHS) : NULL);
+
+	addtobuffer_many(channelmsg,
+		(hostname ? hostname : ""), "|",
+		(testname ? testname : ""), "|",
+		(pagepath ? pagepath : ""), "\n",
+		(msgtext ? msgtext : ""), NULL);
 
 	/* Tell the pagers */
-	sprintf(channelmsg, "%s|%s|%s\n%s", 
-		hostname, (testname ? testname : ""), (hi ? xmh_item(hi, XMH_ALLPAGEPATHS) : ""), msgtext);
-	posttochannel(pagechn, "notify", msg, sender, hostname, NULL, channelmsg);
+	posttochannel(pagechn, "notify", msg, sender, hostname, NULL, STRBUF(channelmsg));
 
-	xfree(channelmsg);
+	freestrbuffer(channelmsg);
 
 	dbgprintf("<- handle_notify\n");
 	return;
@@ -6370,6 +6406,29 @@ static int listener_count = 0;
 static int maxconnections = 0;		/* Connections open at once, at most; see MAXCONNECTIONS_RESERVE */
 static int conncount = 0;		/* Connections in the connhead list, dead ones included until purged */
 
+/*
+ * Refused connections are logged at most once a minute, so the log does not
+ * become the next thing to flood: the first at once, then how many came
+ * since, with the latest one's sender and reason. A count still held when the
+ * minute is up is logged from the main loop, so a burst that stops is still
+ * reported in full.
+ */
+typedef struct refusallog_t {
+	time_t lastlog;
+	int count;
+	char detail[256];	/* "from SENDER: reason", of the latest refusal */
+} refusallog_t;
+static refusallog_t refused_limit, refused_idle;
+
+static void refusal_flush(refusallog_t *r, time_t now)
+{
+	if (r->count && (now >= r->lastlog + 60)) {
+		errprintf("Refused %d connection(s) %s\n", r->count, r->detail);
+		r->lastlog = now;
+		r->count = 0;
+	}
+}
+
 /* The poll() array, grown to the connections of the pass; listeners take the first slots */
 static struct pollfd *pollfds = NULL;
 static int pollfds_size = 0;
@@ -6445,20 +6504,28 @@ static void set_maxconnections(void)
 	dbgprintf("Taking at most %d connections at once\n", maxconnections);
 }
 
-/* True when a listener already answers on 127.0.0.1 -- the wildcard, or
-   127.0.0.1 named outright. Only that address counts: it is where local
-   clients connect, and another 127.x address (Debian names the host
-   127.0.1.1) does not answer for it. A second socket over the wildcard is
-   refused on Linux anyway. */
-static int listeners_cover_loopback(void)
+/* True when a listener of this family already answers on its loopback --
+   the wildcard, or 127.0.0.1 / ::1 named outright. Only that address counts:
+   it is where local clients connect, and another 127.x address (Debian names
+   the host 127.0.1.1) does not answer for it. Families are kept apart, as an
+   IPv6 listener takes no IPv4 (IPV6_V6ONLY, add_listener()). A second socket
+   over the wildcard is refused on Linux anyway. */
+static int listeners_cover_loopback(int family)
 {
 	int i;
-	unsigned long a;
 
 	for (i = 0; i < listener_count; i++) {
-		if (listeners[i].addr.ss_family != AF_INET) continue;	/* an IPv6 socket takes no IPv4 */
-		a = ntohl(((struct sockaddr_in *)&listeners[i].addr)->sin_addr.s_addr);
-		if ((a == INADDR_ANY) || (a == INADDR_LOOPBACK)) return 1;
+		if (listeners[i].addr.ss_family != family) continue;
+		if (family == AF_INET) {
+			unsigned long a = ntohl(((struct sockaddr_in *)&listeners[i].addr)->sin_addr.s_addr);
+
+			if ((a == INADDR_ANY) || (a == INADDR_LOOPBACK)) return 1;
+		}
+		else {
+			struct in6_addr *a6 = &((struct sockaddr_in6 *)&listeners[i].addr)->sin6_addr;
+
+			if (IN6_IS_ADDR_UNSPECIFIED(a6) || IN6_IS_ADDR_LOOPBACK(a6)) return 1;
+		}
 	}
 
 	return 0;
@@ -6984,13 +7051,34 @@ int main(int argc, char *argv[])
 	   uses must not move it. Best-effort, unlike an address that was actually
 	   asked for: failing to start over an extra we added ourselves would be
 	   the worse failure. Logged either way. */
-	if (want_loopback && !listeners_cover_loopback()) {
+	if (want_loopback && !listeners_cover_loopback(AF_INET)) {
 		struct sockaddr_storage lo;
 
 		text_sockaddr("127.0.0.1", &lo);
 		((struct sockaddr_in *)&lo)->sin_port = htons(listenport);
 		if (add_listener(&lo, listenq, 0) != 0)
 			errprintf("Continuing without a loopback listener; the client on this host must use a configured address\n");
+	}
+	/* And on ::1, for a local client that reaches the server by an IPv6
+	   name or address. A host with no IPv6 at all has no ::1 to add: say so
+	   quietly rather than as a failure -- the kernel refuses an AF_INET6
+	   socket, the way xymonnet treats an unsupported family (contest.c) --
+	   and warn only when IPv6 is there but ::1 could not be bound. */
+	if (want_loopback && !listeners_cover_loopback(AF_INET6)) {
+		int probe = socket(AF_INET6, SOCK_STREAM, 0);
+
+		if ((probe == -1) && ((errno == EAFNOSUPPORT) || (errno == EPROTONOSUPPORT))) {
+			dbgprintf("No IPv6 on this host; not adding a ::1 loopback listener\n");
+		}
+		else {
+			struct sockaddr_storage lo;
+
+			if (probe != -1) close(probe);
+			text_sockaddr("::1", &lo);
+			((struct sockaddr_in6 *)&lo)->sin6_port = htons(listenport);
+			if (add_listener(&lo, listenq, 0) != 0)
+				errprintf("Continuing without an IPv6 loopback listener (::1)\n");
+		}
 	}
 
 	if (listener_count == 0) {
@@ -7209,6 +7297,10 @@ int main(int argc, char *argv[])
 			nextpurpleupdate = getcurrenttime(NULL) + purplecheckinterval;
 			check_purple_status();
 		}
+
+		/* Refusals held back since the last log line, once their minute is up */
+		refusal_flush(&refused_limit, now);
+		refusal_flush(&refused_idle, now);
 
 		if ((last_stats_time + statsinterval) <= now) {
 			char *buf;
@@ -7486,17 +7578,13 @@ int main(int argc, char *argv[])
 
 				/* The connection limit: refused at the door, logged at most once a minute */
 				if (conncount >= maxconnections) {
-					static time_t lastlog = 0;
-					static int refused = 0;
 					char text[IP_ADDR_STRLEN];
 
-					refused++;
-					if (now >= lastlog + 60) {
-						errprintf("Refused %d connection(s) from %s: %d connections are open, the limit (XYMOND_MAXCONNECTIONS)\n",
-							  refused, sockaddr_text((struct sockaddr *)&addr, text, sizeof(text)), conncount);
-						lastlog = now;
-						refused = 0;
-					}
+					refused_limit.count++;
+					snprintf(refused_limit.detail, sizeof(refused_limit.detail),
+						 "from %s: %d connections are open, the limit (XYMOND_MAXCONNECTIONS)",
+						 sockaddr_text((struct sockaddr *)&addr, text, sizeof(text)), conncount);
+					refusal_flush(&refused_limit, now);
 					close(sock);
 					continue;
 				}
@@ -7504,18 +7592,13 @@ int main(int argc, char *argv[])
 				/* The cap on silent connections, for each connection taken */
 				idlemine = idle_from(connhead, (struct sockaddr *)&addr, &idleall);
 				if ((idleall >= IDLE_PRESSURE) && (idlemine >= IDLE_PER_SENDER)) {
-					static time_t lastlog = 0;
-					static int refused = 0;
 					char text[IP_ADDR_STRLEN];
 
-					/* Logged at most once a minute: the log must not become the next thing to flood */
-					refused++;
-					if (now >= lastlog + 60) {
-						errprintf("Refused %d connection(s) from %s: %d open connections have sent nothing yet, %d of them from it\n",
-							  refused, sockaddr_text((struct sockaddr *)&addr, text, sizeof(text)), idleall, idlemine);
-						lastlog = now;
-						refused = 0;
-					}
+					refused_idle.count++;
+					snprintf(refused_idle.detail, sizeof(refused_idle.detail),
+						 "from %s: %d open connections have sent nothing yet, %d of them from it",
+						 sockaddr_text((struct sockaddr *)&addr, text, sizeof(text)), idleall, idlemine);
+					refusal_flush(&refused_idle, now);
 					close(sock);
 					continue;
 				}
