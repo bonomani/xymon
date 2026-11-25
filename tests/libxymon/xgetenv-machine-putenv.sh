@@ -30,11 +30,23 @@ require_c_buildenv "$ROOT"
 work=$(mktempdir)
 build_xymon_libs "$ROOT" "$work/libbuild.log" libxymonclient.a
 
-# include/config.h with HAVE_SETENV undefined.
+# The build's config.h with HAVE_SETENV undefined. The make build writes it to
+# include/; a build that writes it elsewhere (CMake, in its build directory)
+# names that directory with -iquote in XYMON_CFLAGS.
+config_h=$ROOT/include/config.h
+if [ ! -f "$config_h" ]; then
+	# shellcheck disable=SC2086 # split the flags into words
+	set -- ${XYMON_CFLAGS:-}
+	while [ $# -gt 0 ]; do
+		[ "$1" = -iquote ] && [ $# -gt 1 ] && [ -f "$2/config.h" ] && config_h=$2/config.h
+		shift
+	done
+fi
+[ -f "$config_h" ] || skip "no config.h in include/ or in a directory XYMON_CFLAGS names"
 mkdir -p "$work/nosetenv"
-sed 's/^#define HAVE_SETENV.*/#undef HAVE_SETENV/' "$ROOT/include/config.h" >"$work/nosetenv/config.h"
+sed 's/^#define HAVE_SETENV.*/#undef HAVE_SETENV/' "$config_h" >"$work/nosetenv/config.h"
 grep -q '^#undef HAVE_SETENV' "$work/nosetenv/config.h" \
-	|| fail "include/config.h carries no HAVE_SETENV line to undefine, so the branch without setenv() cannot be reached this way"
+	|| fail "$config_h carries no HAVE_SETENV line to undefine, so the branch without setenv() cannot be reached this way"
 
 harness_cflags=$(xymon_cflags "$ROOT")
 harness_ldflags=$(xymon_ldflags "$ROOT")
