@@ -185,9 +185,18 @@ install(PROGRAMS
     DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}
 )
 
-# Keep client cfg generation aligned with legacy Make:
-# - clientlaunch.cfg: substitute @CLIENTFLAGS@ (empty or --local)
-# - xymonclient.cfg: substitute @XYMONHOSTIP@ and append bb-commands.sh output
+# Keep client cfg generation aligned with legacy Make (client/Makefile):
+# - clientlaunch.cfg: substitute @CLIENTFLAGS@ (empty or --local) and @XYMONHOME@
+# - xymonclient.cfg: substitute @XYMONHOSTIP@, @XYMONHOME@ and @XYMONCLIENTRUNDIR@,
+#   and append bb-commands.sh output
+# @XYMONHOME@ is the client's home. @XYMONCLIENTRUNDIR@, where msgcache writes its
+# pidfile, is -DXYMONCLIENTRUNDIR when set, else the literal $XYMONCLIENTLOGS,
+# which xymonclient.cfg defines above it.
+if(XYMONCLIENTRUNDIR)
+    set(_clientrundir "${XYMONCLIENTRUNDIR}")
+else()
+    set(_clientrundir "\$XYMONCLIENTLOGS")
+endif()
 set(_clientlaunch_src "${CMAKE_CURRENT_BINARY_DIR}/clientlaunch.cfg")
 set(_xymonclient_src "${CMAKE_CURRENT_BINARY_DIR}/xymonclient.cfg")
 
@@ -198,10 +207,13 @@ endif()
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/clientlaunch.cfg.DIST" _clientlaunch_template)
 string(REPLACE "@CLIENTFLAGS@" "${_clientflags}" _clientlaunch_content "${_clientlaunch_template}")
+string(REPLACE "@XYMONHOME@" "${XYMONCLIENTHOME_INSTALL_FULL}" _clientlaunch_content "${_clientlaunch_content}")
 file(WRITE "${_clientlaunch_src}" "${_clientlaunch_content}")
 
 file(READ "${CMAKE_CURRENT_SOURCE_DIR}/xymonclient.cfg.DIST" _xymonclient_template)
 string(REPLACE "@XYMONHOSTIP@" "${XYMONHOSTIP}" _xymonclient_content "${_xymonclient_template}")
+string(REPLACE "@XYMONHOME@" "${XYMONCLIENTHOME_INSTALL_FULL}" _xymonclient_content "${_xymonclient_content}")
+string(REPLACE "@XYMONCLIENTRUNDIR@" "${_clientrundir}" _xymonclient_content "${_xymonclient_content}")
 file(WRITE "${_xymonclient_src}" "${_xymonclient_content}")
 
 execute_process(
