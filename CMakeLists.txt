@@ -576,6 +576,37 @@ configure_file(
     @ONLY
 )
 
+# The install() rules below create their destinations under the installer's
+# umask. Create them first, 755, with xymon_install_dirs: install rules run in
+# the order they are declared (CMP0082), so this one runs before them.
+set(_xymon_install_dests "")
+if(XYMON_BUILD_SERVER)
+    list(APPEND _xymon_install_dests
+        "${INSTALLBINDIR_DEST}" "${INSTALLETCDIR_DEST}" "${INSTALLEXTDIR_DEST}"
+        "${INSTALLWEBDIR_DEST}" "${INSTALLWWWDIR_DEST}" "${CGIDIR_DEST}"
+        "${SECURECGIDIR_DEST}")
+    if(XYMON_INSTALL_MANPAGES)
+        list(APPEND _xymon_install_dests
+            "${INSTALLMAN1DIR_DEST}" "${INSTALLMAN5DIR_DEST}"
+            "${INSTALLMAN7DIR_DEST}" "${INSTALLMAN8DIR_DEST}")
+    endif()
+endif()
+if(XYMON_BUILD_CLIENT)
+    list(APPEND _xymon_install_dests
+        "${XYMONCLIENTHOME_INSTALL_DEST}/bin" "${XYMONCLIENTHOME_INSTALL_DEST}/etc"
+        "${XYMONCLIENTHOME_INSTALL_DEST}/local")
+endif()
+install(CODE "
+include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
+set(_dests \"${_xymon_install_dests}\")
+set(_dirs \"\")
+foreach(_dest IN LISTS _dests)
+  xymon_resolve_install_path(_path \"\${_dest}\")
+  list(APPEND _dirs \"\${_path}\")
+endforeach()
+xymon_install_dirs(\${_dirs})
+")
+
 # ----------------------------------------------------------------------
 # Subdirectories
 # ----------------------------------------------------------------------

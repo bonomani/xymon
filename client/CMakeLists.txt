@@ -231,7 +231,7 @@ install(FILES
 install(CODE "
     include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
     xymon_resolve_install_path(_clientroot \"${XYMONCLIENTHOME_INSTALL_DEST}\")
-    file(MAKE_DIRECTORY
+    xymon_install_dirs(
         \"\${_clientroot}\"
         \"\${_clientroot}/etc\"
         \"\${_clientroot}/ext\"

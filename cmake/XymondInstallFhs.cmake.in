@@ -34,7 +34,7 @@ set(MAILPROGRAM [==[@MAILPROGRAM@]==])
 set(FPING [==[@FPING@]==])
 set(RUNTIMEDEFS [==[@RUNTIMEDEFS@]==])
 
-file(MAKE_DIRECTORY "${_install_etc}" "${_install_bindir}")
+xymon_install_dirs("${_install_etc}" "${_install_bindir}")
 
 configure_file("@_XYMON_APACHE_TEMPLATE@" "${_install_etc}/xymon-apache.conf" @ONLY)
 configure_file("@CMAKE_CURRENT_SOURCE_DIR@/etcfiles/xymonserver.cfg.DIST" "${_install_etc}/xymonserver.cfg" @ONLY)

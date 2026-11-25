@@ -460,7 +460,7 @@ xymon_resolve_install_path(_installtmpdir \"${INSTALLTMPDIR_DEST}\")
 xymon_resolve_install_path(_installwebdir \"${INSTALLWEBDIR_DEST}\")
 xymon_resolve_install_path(_installwwwdir \"${INSTALLWWWDIR_DEST}\")
 xymon_resolve_install_path(_etc \"${INSTALLETCDIR_DEST}\")
-file(MAKE_DIRECTORY
+xymon_install_dirs(
   \"\${_server_root}/download\"
   \"\${_xymonvar}\"
   \"\${_xymonvar}/acks\"
@@ -493,7 +493,7 @@ else()
 endif()
 execute_process(COMMAND chmod 664 \"\${_critical_cfg}\")
 execute_process(COMMAND chmod 664 \"\${_critical_cfg_bak}\")
-file(MAKE_DIRECTORY \"\${_etc}/tasks.d\")
+xymon_install_dirs(\"\${_etc}/tasks.d\")
 if(EXISTS \"\${_server_root}/bin/xymon.sh\")
   execute_process(COMMAND \"${CMAKE_COMMAND}\" -E create_symlink \"bin/xymon.sh\" \"\${_server_root}/xymon.sh\")
 endif()

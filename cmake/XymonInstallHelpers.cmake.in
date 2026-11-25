@@ -46,3 +46,28 @@ function(xymon_resolve_install_path out dest)
     xymon_normalize_path(_path "${_path}")
     set(${out} "${_path}" PARENT_SCOPE)
 endfunction()
+
+# xymon_install_dirs(DIR...) -- create each DIR, and every parent it lacks,
+# mode 755 whatever the umask, as the make build's install-dirs does: a
+# package built under umask 077 would otherwise ship directories the xymon
+# user cannot enter. file(MAKE_DIRECTORY) and install() both create under the
+# umask, so the mode is set afterwards. A directory that already exists keeps
+# its mode.
+function(xymon_install_dirs)
+    set(_made "")
+    foreach(_dir IN LISTS ARGN)
+        set(_d "${_dir}")
+        while(NOT EXISTS "${_d}")
+            list(APPEND _made "${_d}")
+            get_filename_component(_d "${_d}" DIRECTORY)
+        endwhile()
+        file(MAKE_DIRECTORY "${_dir}")
+    endforeach()
+    if(_made)
+        list(REMOVE_DUPLICATES _made)
+        execute_process(COMMAND chmod 755 ${_made} RESULT_VARIABLE _rc)
+        if(NOT _rc EQUAL 0)
+            message(FATAL_ERROR "chmod 755 failed on: ${_made}")
+        endif()
+    endif()
+endfunction()

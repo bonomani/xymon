@@ -18,6 +18,8 @@
 #   - PCRELIBS, RRDLIBS, RRDINCDIR, RRDDEF and XYMONLOGDIR, which a make
 #     build's Makefile holds and xymon_makevar reads;
 #   - XYMON_VARIANT, the build's own.
+#   - XYMON_CMAKE_BUILDDIR, BUILDDIR itself, for a test of the CMake build's
+#     own install.
 #
 # Tests of the make build itself -- configure, the Makefiles, their install
 # rules -- still skip: a CMake build has none of them.
@@ -55,6 +57,7 @@ while read -r _ var def _; do
 	if [ -n "$path" ]; then export "$var=$path"; fi
 done <<<"$(grep -rhoE '(require_bin|require_cfg) [A-Z_0-9]+ [^ ;)]+' "$ROOT/tests" | sort -u)"
 
+export XYMON_CMAKE_BUILDDIR=$B
 export XYMON_LIBDIR=$B/lib
 export XYMON_CFLAGS="-iquote $B"
 
