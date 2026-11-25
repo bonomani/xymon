@@ -564,6 +564,23 @@ if(XYMON_LAYOUT STREQUAL "fhs")
     set(INSTALLMAN8DIR_FULL "${CMAKE_INSTALL_FULL_MANDIR}/man8")
 endif()
 
+# Where the client's etc, bin, tmp and logs go: -DINSTALLCLIENTETCDIR=... and
+# its siblings, as configure.client and build/Makefile.rules take them. Empty
+# means the directory under XYMONCLIENTHOME. A directory moved elsewhere is
+# linked back under XYMONCLIENTHOME at install (cmake/XymonClientDirs.cmake.in),
+# so XYMONCLIENTHOME/etc keeps resolving for clientlaunch.cfg and tasks.cfg.
+foreach(_clientdir ETC:etc BIN:bin TMP:tmp LOG:logs)
+    string(REPLACE ":" ";" _clientdir "${_clientdir}")
+    list(GET _clientdir 0 _var)
+    list(GET _clientdir 1 _sub)
+    set(INSTALLCLIENT${_var}DIR "" CACHE PATH
+        "Where the client's ${_sub} directory is installed; empty for XYMONCLIENTHOME/${_sub}")
+    string(REGEX REPLACE "(.)/+$" "\\1" INSTALLCLIENT${_var}DIR_DEST "${INSTALLCLIENT${_var}DIR}")
+    if(INSTALLCLIENT${_var}DIR_DEST STREQUAL "")
+        set(INSTALLCLIENT${_var}DIR_DEST "${XYMONCLIENTHOME_INSTALL_DEST}/${_sub}")
+    endif()
+endforeach()
+
 configure_file(
     "${CMAKE_SOURCE_DIR}/cmake/XymonInstallHelpers.cmake.in"
     "${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake"
@@ -578,7 +595,8 @@ configure_file(
 
 # The install() rules below create their destinations under the installer's
 # umask. Create them first, 755, with xymon_install_dirs: install rules run in
-# the order they are declared (CMP0082), so this one runs before them.
+# the order they are declared (CMP0082), so this one runs before them. The
+# client's are made by cmake/XymonClientDirs.cmake.in, which also links them.
 set(_xymon_install_dests "")
 if(XYMON_BUILD_SERVER)
     list(APPEND _xymon_install_dests
@@ -590,11 +608,6 @@ if(XYMON_BUILD_SERVER)
             "${INSTALLMAN1DIR_DEST}" "${INSTALLMAN5DIR_DEST}"
             "${INSTALLMAN7DIR_DEST}" "${INSTALLMAN8DIR_DEST}")
     endif()
-endif()
-if(XYMON_BUILD_CLIENT)
-    list(APPEND _xymon_install_dests
-        "${XYMONCLIENTHOME_INSTALL_DEST}/bin" "${XYMONCLIENTHOME_INSTALL_DEST}/etc"
-        "${XYMONCLIENTHOME_INSTALL_DEST}/local")
 endif()
 install(CODE "
 include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")

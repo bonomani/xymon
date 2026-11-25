@@ -1,0 +1,74 @@
+# The client's directories, made before its files are installed: what
+# install-clientdirs does in build/Makefile.rules.
+#
+# Each of etc, bin, tmp and logs is made where INSTALLCLIENT<X>DIR puts it.
+# When that is not the default, XYMONCLIENTHOME/<x> is a symlink to it, so
+# XYMONCLIENTHOME/etc keeps resolving: clientlaunch.cfg and the server's
+# tasks.cfg both spell it that way.
+#
+# A real directory where a link should go is an earlier install's: the client
+# still runs from it, so installing beside it would leave the client on its
+# old files. Stop instead, before anything is installed.
+#
+# A directory is the default when it is XYMONCLIENTHOME/<x> by name, or when
+# it and XYMONCLIENTHOME/<x> both exist and resolve to the same directory:
+# /xc//etc, /xc/./etc or a path through a symlinked parent all name /xc/etc,
+# and taken for a relocation they would stop a reinstall, or replace the
+# directory with a link to itself. A link left by an earlier install of the
+# same layout resolves to its target and counts as the default too.
+
+include("@CMAKE_BINARY_DIR@/XymonInstallHelpers.cmake")
+
+xymon_resolve_install_path(_home "@XYMONCLIENTHOME_INSTALL_DEST@")
+set(_subs etc bin tmp logs)
+set(_dests "@INSTALLCLIENTETCDIR_DEST@" "@INSTALLCLIENTBINDIR_DEST@"
+           "@INSTALLCLIENTTMPDIR_DEST@" "@INSTALLCLIENTLOGDIR_DEST@")
+
+function(_xymon_client_dir_is_default out old to)
+    set(_same FALSE)
+    if(to STREQUAL old)
+        set(_same TRUE)
+    elseif(IS_DIRECTORY "${to}" AND IS_DIRECTORY "${old}")
+        get_filename_component(_a "${to}" REALPATH)
+        get_filename_component(_b "${old}" REALPATH)
+        if(NOT _a STREQUAL "" AND _a STREQUAL _b)
+            set(_same TRUE)
+        endif()
+    endif()
+    set(${out} ${_same} PARENT_SCOPE)
+endfunction()
+
+foreach(_i RANGE 3)
+    list(GET _subs ${_i} _sub)
+    list(GET _dests ${_i} _dest)
+    xymon_resolve_install_path(_to "${_dest}")
+    _xymon_client_dir_is_default(_default "${_home}/${_sub}" "${_to}")
+    if(NOT _default AND IS_DIRECTORY "${_home}/${_sub}" AND NOT IS_SYMLINK "${_home}/${_sub}")
+        xymon_resolve_runtime_path(_rt "${_dest}")
+        message(FATAL_ERROR
+            "${_home}/${_sub} is a real directory, but the client's ${_sub} is now installed in ${_rt}. "
+            "Move its contents to ${_rt} and remove it, then install again.")
+    endif()
+endforeach()
+
+xymon_install_dirs("${_home}" "${_home}/ext" "${_home}/local")
+foreach(_i RANGE 3)
+    list(GET _subs ${_i} _sub)
+    list(GET _dests ${_i} _dest)
+    xymon_resolve_install_path(_to "${_dest}")
+    xymon_install_dirs("${_to}")
+    _xymon_client_dir_is_default(_default "${_home}/${_sub}" "${_to}")
+    if(NOT _default)
+        xymon_resolve_runtime_path(_rt "${_dest}")
+        file(REMOVE "${_home}/${_sub}")
+        execute_process(COMMAND "@CMAKE_COMMAND@" -E create_symlink "${_rt}" "${_home}/${_sub}"
+                        RESULT_VARIABLE _rc)
+        if(NOT _rc EQUAL 0)
+            message(FATAL_ERROR "cannot link ${_home}/${_sub} to ${_rt}")
+        endif()
+    endif()
+endforeach()
+
+# The drop-in directories clientlaunch.cfg and xymonclient.cfg include.
+xymon_resolve_install_path(_etc "@INSTALLCLIENTETCDIR_DEST@")
+xymon_install_dirs("${_etc}/clientlaunch.d" "${_etc}/xymonclient.d")

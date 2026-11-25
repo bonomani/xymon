@@ -166,9 +166,18 @@ foreach(_client_target IN LISTS _CLIENT_PROGRAM_TARGETS)
     target_compile_definitions(${_client_target} PRIVATE ${XYMON_CLIENT_COMPILE_DEFINITIONS})
 endforeach()
 
+# The client's directories first: install rules run in the order they are
+# declared (CMP0082).
+configure_file(
+    "${CMAKE_SOURCE_DIR}/cmake/XymonClientDirs.cmake.in"
+    "${CMAKE_BINARY_DIR}/XymonClientDirs.cmake"
+    @ONLY
+)
+install(SCRIPT "${CMAKE_BINARY_DIR}/XymonClientDirs.cmake")
+
 install(TARGETS
     ${_CLIENT_PROGRAM_TARGETS}
-    RUNTIME DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/bin
+    RUNTIME DESTINATION ${INSTALLCLIENTBINDIR_DEST}
 )
 
 file(GLOB _CLIENT_SCRIPTS
@@ -178,7 +187,7 @@ file(GLOB _CLIENT_SCRIPTS
 
 install(PROGRAMS
     ${_CLIENT_SCRIPTS}
-    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/bin
+    DESTINATION ${INSTALLCLIENTBINDIR_DEST}
 )
 install(PROGRAMS
     ${CMAKE_CURRENT_SOURCE_DIR}/runclient.sh
@@ -232,23 +241,10 @@ install(FILES
     ${_clientlaunch_src}
     ${_xymonclient_src}
     ${CMAKE_CURRENT_SOURCE_DIR}/localclient.cfg
-    DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/etc
+    DESTINATION ${INSTALLCLIENTETCDIR_DEST}
 )
 install(FILES
     ${CMAKE_CURRENT_SOURCE_DIR}/README-local
     DESTINATION ${XYMONCLIENTHOME_INSTALL_DEST}/local
     RENAME README
 )
-
-install(CODE "
-    include(\"${CMAKE_BINARY_DIR}/XymonInstallHelpers.cmake\")
-    xymon_resolve_install_path(_clientroot \"${XYMONCLIENTHOME_INSTALL_DEST}\")
-    xymon_install_dirs(
-        \"\${_clientroot}\"
-        \"\${_clientroot}/etc\"
-        \"\${_clientroot}/ext\"
-        \"\${_clientroot}/local\"
-        \"\${_clientroot}/logs\"
-        \"\${_clientroot}/tmp\"
-    )
-")
