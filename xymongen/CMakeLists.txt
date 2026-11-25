@@ -13,7 +13,6 @@ add_executable(xymongen
     loaddata.c
     pagegen.c
     process.c
-    wmlgen.c
     rssgen.c
     util.c
     debug.c

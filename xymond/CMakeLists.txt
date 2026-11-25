@@ -482,7 +482,6 @@ file(MAKE_DIRECTORY
   \"\${_installwwwdir}/notes\"
   \"\${_installwwwdir}/rep\"
   \"\${_installwwwdir}/snap\"
-  \"\${_installwwwdir}/wml\"
 )
 set(_critical_cfg \"\${_etc}/critical.cfg\")
 set(_critical_cfg_bak \"\${_etc}/critical.cfg.bak\")

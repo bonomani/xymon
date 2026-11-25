@@ -636,7 +636,6 @@ if(XYMON_BUILD_SERVER)
             "${LEGACY_DESTDIR}${INSTALLWWWDIR}/notes"
             "${LEGACY_DESTDIR}${INSTALLWWWDIR}/rep"
             "${LEGACY_DESTDIR}${INSTALLWWWDIR}/snap"
-            "${LEGACY_DESTDIR}${INSTALLWWWDIR}/wml"
             "${LEGACY_DESTDIR}${CGIDIR}"
             "${LEGACY_DESTDIR}${SECURECGIDIR}"
     )
